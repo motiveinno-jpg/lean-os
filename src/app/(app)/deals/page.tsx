@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, buildTree, type TreeNode, getMilestones, getSubDeals, getAssignments, upsertMilestone, completeMilestone, getChannelByDeal, getMessages } from "@/lib/queries";
+import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, buildTree, type TreeNode, getMilestones, getSubDeals, getAssignments, upsertMilestone, completeMilestone, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
 import type { DealMilestone } from "@/types/database";
@@ -583,6 +583,7 @@ function DealsPageInner() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "" });
   const [filterCls, setFilterCls] = useState<string | null>(null);
+  const [showDormant, setShowDormant] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -605,6 +606,20 @@ function DealsPageInner() {
     queryKey: ['deal-matching', companyId],
     queryFn: () => getDealMatchingStatuses(companyId!),
     enabled: !!companyId,
+  });
+
+  const { data: dormantDeals = [] } = useQuery({
+    queryKey: ['dormant-deals', companyId],
+    queryFn: () => getDormantDeals(companyId!),
+    enabled: !!companyId && showDormant,
+  });
+
+  const reactivateMut = useMutation({
+    mutationFn: (dealId: string) => reactivateDeal(dealId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['dormant-deals'] });
+    },
   });
 
   const matchMap = Object.fromEntries(matchingStatuses.map((m: any) => [m.dealId, m]));
@@ -767,6 +782,60 @@ function DealsPageInner() {
         </div>
       )}
 
+      {/* Dormant Toggle */}
+      <div className="flex items-center gap-3 mb-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showDormant}
+            onChange={(e) => setShowDormant(e.target.checked)}
+            className="w-4 h-4 rounded border-[var(--border)] bg-[var(--bg)] text-[var(--primary)] focus:ring-[var(--primary)] accent-[var(--primary)]"
+          />
+          <span className="text-xs text-[var(--text-muted)]">휴면 딜 표시</span>
+        </label>
+        {showDormant && dormantDeals.length > 0 && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-semibold">
+            {dormantDeals.length}건 휴면
+          </span>
+        )}
+      </div>
+
+      {/* Dormant Deals */}
+      {showDormant && dormantDeals.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-bold text-orange-400 mb-2">휴면 딜 (30일 이상 활동 없음)</h3>
+          <div className="space-y-2">
+            {dormantDeals.map((d: any) => (
+              <div key={d.id}
+                className="bg-[var(--bg-card)] rounded-xl border border-orange-500/20 p-4 opacity-70">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-semibold">휴면</span>
+                    <div>
+                      <div className="text-sm font-semibold">{d.name}</div>
+                      <div className="text-xs text-[var(--text-dim)] mt-0.5">
+                        마지막 활동: {d.last_activity_at ? new Date(d.last_activity_at).toLocaleDateString('ko') : '--'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-[var(--text-muted)]">
+                      {Number(d.contract_total || 0).toLocaleString()}원
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(d.id); }}
+                      disabled={reactivateMut.isPending}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
+                      활성화
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Deals List */}
       {isLoading ? (
         <div className="text-center py-20 text-[var(--text-muted)] text-sm">로딩 중...</div>
@@ -788,11 +857,14 @@ function DealsPageInner() {
             <button
               key={d.id}
               onClick={() => router.push(`/deals?id=${d.id}`)}
-              className="w-full text-left block bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/40 transition group"
+              className={`w-full text-left block bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/40 transition group ${d.is_dormant ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
+                    {d.is_dormant && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-semibold">휴면</span>
+                    )}
                     <ClassificationBadge
                       classification={d.classification || 'B2B'}
                       color={clsColorMap[d.classification || 'B2B']}

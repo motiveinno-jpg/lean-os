@@ -14,12 +14,14 @@ const NAV = [
   { href: "/partners", label: "거래처/CRM", desc: "Partners" },
   { href: "/payments", label: "결제 관리", desc: "Payment Queue" },
   { href: "/documents", label: "문서/계약", desc: "Documents" },
+  { href: "/tax-invoices", label: "세금계산서", desc: "Tax Invoices" },
   { href: "/transactions", label: "거래내역", desc: "Bank Inbox" },
   { href: "/matching", label: "매칭 엔진", desc: "Auto-Match" },
   { href: "/chat", label: "딜룸 채팅", desc: "Dealroom Chat", badgeKey: "chat" },
   { href: "/vault", label: "금고", desc: "Vault & Assets" },
   { href: "/treasury", label: "자산운용", desc: "Treasury" },
   { href: "/employees", label: "인력/비용", desc: "HR & Costs" },
+  { href: "/ai", label: "AI 어시스턴트", desc: "AI Assistant" },
   { href: "/settings", label: "설정", desc: "Settings" },
 ];
 

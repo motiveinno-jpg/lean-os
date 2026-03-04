@@ -1647,6 +1647,50 @@ export async function getDealMatchingStatuses(companyId: string): Promise<DealMa
   });
 }
 
+// ══════════════════════════════════════════════
+// Phase J: Dormant Deal Management
+// ══════════════════════════════════════════════
+
+// Mark deals as dormant (30 days no activity)
+export async function markDormantDeals() {
+  const db = supabase as any;
+  const { data, error } = await db.rpc('mark_dormant_deals');
+  if (error) throw error;
+  return data;
+}
+
+// Get dormant deals
+export async function getDormantDeals(companyId: string) {
+  const db = supabase as any;
+  const { data } = await db
+    .from('deals')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('is_dormant', true)
+    .order('last_activity_at', { ascending: true });
+  return data || [];
+}
+
+// Reactivate dormant deal
+export async function reactivateDeal(dealId: string) {
+  const db = supabase as any;
+  const { error } = await db
+    .from('deals')
+    .update({ is_dormant: false, last_activity_at: new Date().toISOString() })
+    .eq('id', dealId);
+  if (error) throw error;
+}
+
+// Update deal activity timestamp
+export async function touchDealActivity(dealId: string) {
+  const db = supabase as any;
+  const { error } = await db
+    .from('deals')
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq('id', dealId);
+  if (error) throw error;
+}
+
 // ── Archived Deals ──
 export async function getArchivedDeals(companyId: string) {
   const { data } = await supabase

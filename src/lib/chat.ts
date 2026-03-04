@@ -338,6 +338,79 @@ export async function deleteMessage(messageId: string) {
   if (error) throw error;
 }
 
+// ═══════════════════════════════════════════════
+// Phase J: Team channels, DM, channel type queries
+// ═══════════════════════════════════════════════
+
+// Create team channel (not linked to a deal)
+export async function createTeamChannel(params: {
+  companyId: string;
+  name: string;
+  description?: string;
+}) {
+  const db = supabase as any;
+  const { data, error } = await db
+    .from('chat_channels')
+    .insert({
+      company_id: params.companyId,
+      name: params.name,
+      description: params.description || null,
+      is_dm: false,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Create DM channel
+export async function createDMChannel(params: {
+  companyId: string;
+  participantIds: string[];
+}) {
+  const db = supabase as any;
+  const name = `DM-${Date.now()}`;
+  const { data, error } = await db
+    .from('chat_channels')
+    .insert({
+      company_id: params.companyId,
+      name,
+      is_dm: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Add participants
+  for (const uid of params.participantIds) {
+    await db.from('chat_members').insert({
+      channel_id: data.id,
+      user_id: uid,
+    });
+  }
+  return data;
+}
+
+// Get channels by type
+export async function getChannelsByType(companyId: string, type: 'deal' | 'team' | 'dm') {
+  const db = supabase as any;
+  let query = db
+    .from('chat_channels')
+    .select('*, chat_members(user_id)')
+    .eq('company_id', companyId);
+
+  if (type === 'deal') {
+    query = query.not('deal_id', 'is', null);
+  } else if (type === 'team') {
+    query = query.is('deal_id', null).eq('is_dm', false);
+  } else {
+    query = query.eq('is_dm', true);
+  }
+
+  const { data } = await query.order('updated_at', { ascending: false });
+  return data || [];
+}
+
 // ── Create action card ──
 export async function createActionCard(params: {
   messageId: string;
