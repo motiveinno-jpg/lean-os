@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
+import { useSidebar } from "@/components/sidebar-context";
 
 const NAV_GROUPS = [
   {
@@ -50,8 +51,11 @@ const NAV_GROUPS = [
   },
 ];
 
+/* ------------------------------------------------------------------ */
+/*  NavIcon                                                            */
+/* ------------------------------------------------------------------ */
 function NavIcon({ name, className = "" }: { name: string; className?: string }) {
-  const cn = `w-4 h-4 ${className}`;
+  const cn = `w-4 h-4 shrink-0 ${className}`;
   const props = { className: cn, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
   switch (name) {
@@ -73,9 +77,39 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Tooltip wrapper for collapsed mode                                 */
+/* ------------------------------------------------------------------ */
+function Tooltip({ label, show, children }: { label: string; show: boolean; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  if (!show) return <>{children}</>;
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      {children}
+      {visible && (
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[100] whitespace-nowrap px-2.5 py-1.5 rounded-md text-xs font-medium bg-[var(--text)] text-[var(--bg)] shadow-lg pointer-events-none">
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sidebar                                                            */
+/* ------------------------------------------------------------------ */
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { collapsed, toggleSidebar, mobileOpen, setMobileOpen } = useSidebar();
   const [chatUnread, setChatUnread] = useState(0);
 
   useEffect(() => {
@@ -101,69 +135,114 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/auth");
   }
 
-  return (
-    <aside className="w-60 h-screen fixed left-0 top-0 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col z-50"
-      style={{ boxShadow: 'var(--shadow-sm)' }}>
+  const sidebarWidth = collapsed ? "w-[68px]" : "w-60";
+
+  const sidebarContent = (
+    <aside
+      className={`${sidebarWidth} h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col transition-all duration-200 overflow-hidden`}
+      style={{ boxShadow: "var(--shadow-sm)" }}
+    >
       {/* Logo */}
-      <div className="px-5 py-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
-            style={{ background: 'linear-gradient(135deg, #2563EB, #7C3AED)' }}>
+      <div className={`border-b border-[var(--border)] ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
+            style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+          >
             L
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-[var(--text)]">LeanOS</div>
-            <div className="text-[10px] text-[var(--text-dim)]">Business Operating System</div>
-          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-[var(--text)]">LeanOS</div>
+              <div className="text-[10px] text-[var(--text-dim)]">Business Operating System</div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Search */}
-      <div className="px-3 pt-3 pb-1">
-        <button
-          onClick={() => openGlobalSearch()}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2"/></svg>
-          <span>검색</span>
-          <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
-        </button>
+      <div className={`pt-3 pb-1 ${collapsed ? "px-2" : "px-3"}`}>
+        <Tooltip label="검색 (⌘K)" show={collapsed}>
+          <button
+            onClick={() => openGlobalSearch()}
+            className={`w-full flex items-center rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)] ${
+              collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2" />
+            </svg>
+            {!collapsed && (
+              <>
+                <span>검색</span>
+                <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                  ⌘K
+                </kbd>
+              </>
+            )}
+          </button>
+        </Tooltip>
       </div>
 
       {/* Nav Groups */}
-      <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
+      <nav className={`flex-1 py-2 overflow-y-auto space-y-4 ${collapsed ? "px-2" : "px-3"}`}>
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-              {group.label}
-            </div>
+            {!collapsed && (
+              <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+                {group.label}
+              </div>
+            )}
+            {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                const badge = (item as any).badgeKey === 'chat' ? chatUnread : 0;
+                const badge = (item as any).badgeKey === "chat" ? chatUnread : 0;
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${
-                      active
-                        ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                        : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                    }`}
-                  >
-                    <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
-                    <span className="flex-1">{item.label}</span>
-                    {badge > 0 && (
-                      <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-                        {badge > 99 ? '99+' : badge}
+                  <Tooltip key={item.href} label={item.label} show={collapsed}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center rounded-lg text-[13px] transition-all ${
+                        collapsed
+                          ? "justify-center px-0 py-2.5"
+                          : "gap-2.5 px-2.5 py-2"
+                      } ${
+                        active
+                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                      }`}
+                    >
+                      <span className="relative">
+                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                        {collapsed && badge > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">
+                            {badge > 99 ? "!" : badge}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </Link>
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1">{item.label}</span>
+                          {badge > 0 && (
+                            <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                              {badge > 99 ? "99+" : badge}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  </Tooltip>
                 );
               })}
             </div>
@@ -171,18 +250,189 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-[var(--border)]">
+      {/* Collapse Toggle (desktop only) */}
+      <div className="px-3 py-1 hidden md:block">
         <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
+          onClick={toggleSidebar}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-xs"
+          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="11 17 6 12 11 7" />
+            <polyline points="18 17 13 12 18 7" />
           </svg>
-          로그아웃
+          {!collapsed && <span>접기</span>}
         </button>
       </div>
+
+      {/* Footer */}
+      <div className={`border-t border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
+        <Tooltip label="로그아웃" show={collapsed}>
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition ${
+              collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2 text-left"
+            }`}
+          >
+            <svg
+              className="w-4 h-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              viewBox="0 0 24 24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            {!collapsed && <span>로그아웃</span>}
+          </button>
+        </Tooltip>
+      </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar: fixed position */}
+      <div className="hidden md:block fixed left-0 top-0 z-50 h-screen">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay backdrop */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      <div
+        className={`md:hidden fixed left-0 top-0 z-50 h-screen transition-transform duration-200 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Force expanded width on mobile */}
+        <aside
+          className="w-60 h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col overflow-hidden"
+          style={{ boxShadow: "var(--shadow-sm)" }}
+        >
+          {/* Mobile close button + Logo */}
+          <div className="px-5 py-4 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
+                style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+              >
+                L
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[var(--text)]">LeanOS</div>
+                <div className="text-[10px] text-[var(--text-dim)]">Business Operating System</div>
+              </div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="p-1 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-dim)]"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Search */}
+          <div className="px-3 pt-3 pb-1">
+            <button
+              onClick={() => {
+                setMobileOpen(false);
+                openGlobalSearch();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2" />
+              </svg>
+              <span>검색</span>
+              <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                ⌘K
+              </kbd>
+            </button>
+          </div>
+
+          {/* Mobile Nav Groups */}
+          <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label}>
+                <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+                  {group.label}
+                </div>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const badge = (item as any).badgeKey === "chat" ? chatUnread : 0;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${
+                          active
+                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                            : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                        }`}
+                      >
+                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                        <span className="flex-1">{item.label}</span>
+                        {badge > 0 && (
+                          <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          {/* Mobile Footer */}
+          <div className="p-3 border-t border-[var(--border)]">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                viewBox="0 0 24 24"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              로그아웃
+            </button>
+          </div>
+        </aside>
+      </div>
+    </>
   );
 }

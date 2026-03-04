@@ -11,6 +11,8 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist } from "@/lib/closing";
 import { BarChart } from "@/components/bar-chart";
 import { DrillDownTable } from "@/components/drill-down-table";
+import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 // ── Formatters ──
@@ -51,16 +53,30 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [dealCount, setDealCount] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
+    getCurrentUser().then(async (u) => {
       if (u) {
         setCompanyId(u.company_id);
         setUserId(u.id);
         setUserName(u.name || u.email);
         setCompanyName(u.companies?.name || "");
+
+        // Check deal count for onboarding
+        const db = supabase as any;
+        const { count } = await db
+          .from("deals")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", u.company_id);
+        const dc = count ?? 0;
+        setDealCount(dc);
+        if (shouldShowOnboarding(dc)) {
+          setShowOnboarding(true);
+        }
       }
     });
   }, []);
@@ -152,6 +168,63 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-[1100px]">
+      {/* ═══ ONBOARDING WIZARD ═══ */}
+      {showOnboarding && companyId && (
+        <OnboardingWizard
+          companyId={companyId}
+          companyName={companyName}
+          onComplete={() => {
+            setShowOnboarding(false);
+            queryClient.invalidateQueries({ queryKey: ["founder-data"] });
+            // Refresh deal count
+            const db = supabase as any;
+            db.from("deals")
+              .select("id", { count: "exact", head: true })
+              .eq("company_id", companyId)
+              .then(({ count }: { count: number | null }) => setDealCount(count ?? 0));
+          }}
+        />
+      )}
+
+      {/* ═══ GETTING STARTED GUIDE ═══ */}
+      {dealCount !== null && dealCount < 3 && !showOnboarding && (
+        <div className="mb-5 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: 'var(--primary)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>시작 가이드</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary)', color: '#fff' }}>NEW</span>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+            LeanOS를 최대한 활용하려면 아래 항목을 완료하세요.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <GuideActionCard
+              href="/deals"
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>}
+              label="첫 딜 만들기"
+              done={dealCount > 0}
+            />
+            <GuideActionCard
+              href="/partners"
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+              label="거래처 등록"
+            />
+            <GuideActionCard
+              href="/settings"
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
+              label="팀원 초대"
+            />
+            <GuideActionCard
+              href="/chat"
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+              label="채팅 시작"
+            />
+          </div>
+        </div>
+      )}
+
       {/* ═══ HEADER ═══ */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -922,5 +995,35 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function GuideActionCard({ href, icon, label, done }: { href: string; icon: React.ReactNode; label: string; done?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center gap-2 p-3 rounded-xl border transition hover:shadow-sm"
+      style={{
+        background: done ? 'var(--primary)/5' : 'var(--bg-card)',
+        borderColor: done ? 'var(--primary)' : 'var(--border)',
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-lg flex items-center justify-center"
+        style={{
+          background: done ? 'var(--primary)' : 'var(--bg-surface)',
+          color: done ? '#fff' : 'var(--text-muted)',
+        }}
+      >
+        {done ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : icon}
+      </div>
+      <span className="text-[11px] font-semibold text-center" style={{ color: done ? 'var(--primary)' : 'var(--text)' }}>
+        {label}
+      </span>
+    </Link>
   );
 }
