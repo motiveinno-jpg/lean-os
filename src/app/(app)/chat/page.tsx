@@ -238,7 +238,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     <div className="max-w-[900px] flex flex-col" style={{ height: "calc(100vh - 60px)" }}>
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-white transition">
+          <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
             &larr; 채널 목록
           </button>
           <div>
@@ -251,7 +251,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
           </div>
         </div>
         <button onClick={() => setShowSearch(!showSearch)}
-          className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-surface)] rounded-lg transition">
+          className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] rounded-lg transition">
           검색
         </button>
       </div>
@@ -289,7 +289,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
         ]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-white"
+              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}>
             {t.label}
           </button>

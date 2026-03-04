@@ -182,13 +182,13 @@ export default function MatchingPage() {
       <div className="flex gap-2 mb-6">
         <button onClick={() => setMainTab("transaction")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            mainTab === "transaction" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-white"
+            mainTab === "transaction" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           거래 매칭
         </button>
         <button onClick={() => setMainTab("threeway")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            mainTab === "threeway" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-white"
+            mainTab === "threeway" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           3-way 매칭
         </button>
@@ -252,7 +252,7 @@ export default function MatchingPage() {
                     className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                       tab === t.key
                         ? "bg-[var(--primary)] text-white"
-                        : "text-[var(--text-muted)] hover:text-white"
+                        : "text-[var(--text-muted)] hover:text-[var(--text)]"
                     }`}
                   >
                     {t.label}
@@ -433,7 +433,7 @@ export default function MatchingPage() {
                 </thead>
                 <tbody>
                   {threeWayResults.map((r) => (
-                    <tr key={r.invoiceId} className="border-b border-[var(--border)]/50 hover:bg-white/[.01]">
+                    <tr key={r.invoiceId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                       <td className="px-5 py-3 text-sm font-medium">{r.dealName || "—"}</td>
                       <td className="px-5 py-3 text-sm text-right">₩{r.contractAmount.toLocaleString()}</td>
                       <td className="px-5 py-3 text-sm text-right">₩{r.invoiceAmount.toLocaleString()}</td>

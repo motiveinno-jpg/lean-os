@@ -336,7 +336,7 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
       {items.length > 0 ? (
         <div className="space-y-1.5 mb-3">
           {items.slice(0, 3).map((item, i) => (
-            <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-white/[.02]">
+            <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-[var(--bg-surface)]">
               <span className="text-[var(--text-muted)] truncate flex-1">{item.name}</span>
               <span className="text-[var(--text-dim)] ml-2 shrink-0">{item.detail}</span>
             </div>
@@ -529,7 +529,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
                 key={p}
                 onClick={() => { setPeriod(p); setDrillMonth(null); }}
                 className={`px-2.5 py-1 text-[10px] font-semibold transition ${
-                  period === p ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-transparent text-[var(--text-muted)] hover:bg-white/5'
+                  period === p ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--border)]'
                 }`}
               >
                 {p === '6M' ? '6개월' : '1년'}
@@ -629,7 +629,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           <div className="text-[10px] text-[var(--text-dim)] mb-2 uppercase tracking-wider font-semibold">분류별 현황</div>
           <div className="grid grid-cols-3 gap-2">
             {finData.classificationBreakdown.map(cb => (
-              <div key={cb.classification} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[.02]">
+              <div key={cb.classification} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[var(--bg-surface)]">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cb.color }} />
                 <span className="text-xs font-semibold">{cb.classification}</span>
                 <span className="text-[10px] text-[var(--text-dim)] ml-auto mono-number">{cb.dealCount}건</span>
@@ -692,7 +692,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               </thead>
               <tbody>
                 {drillL2.map(r => (
-                  <tr key={r.category} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] cursor-pointer transition"
+                  <tr key={r.category} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition"
                     onClick={() => { setDrillCategory(r.category); setDrillLevel(3); }}>
                     <td className="py-1.5 text-[var(--text)]">{r.category}</td>
                     <td className="py-1.5 text-right mono-number text-[var(--text-muted)]">{r.count}</td>
@@ -725,7 +725,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               </thead>
               <tbody>
                 {drillL3.map(r => (
-                  <tr key={r.counterparty} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] cursor-pointer transition"
+                  <tr key={r.counterparty} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition"
                     onClick={() => { setDrillCounterparty(r.counterparty); setDrillLevel(4); }}>
                     <td className="py-1.5 text-[var(--text)]">{r.counterparty || '(미지정)'}</td>
                     <td className="py-1.5 text-right mono-number text-[var(--text-muted)]">{r.count}</td>
@@ -760,7 +760,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               </thead>
               <tbody>
                 {drillL4.map((r: any) => (
-                  <tr key={r.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] transition">
+                  <tr key={r.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                     <td className="py-1.5 text-[var(--text-muted)] mono-number">{r.transaction_date?.slice(5) || '-'}</td>
                     <td className="py-1.5 text-[var(--text)] truncate max-w-[200px]">{r.description || '-'}</td>
                     <td className="py-1.5">
@@ -837,7 +837,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
           <>
             <div className="space-y-1">
               {items.map((item: any) => (
-                <label key={item.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[.02] cursor-pointer transition">
+                <label key={item.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer transition">
                   <input
                     type="checkbox"
                     checked={item.is_completed}

@@ -93,7 +93,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             <span className="text-[10px] font-semibold text-[var(--primary)]">{replyTo.senderName}</span>
             <span className="text-[10px] text-[var(--text-dim)] ml-1 truncate">{replyTo.content}</span>
           </div>
-          <button onClick={onCancelReply} className="text-[var(--text-dim)] hover:text-white text-xs">
+          <button onClick={onCancelReply} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xs">
             ✕
           </button>
         </div>

@@ -109,7 +109,7 @@ export default function EmployeesPage() {
             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition ${
               tab === t.key
                 ? "bg-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-white"
+                : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
             {t.label}
@@ -193,7 +193,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
             </tr></thead>
             <tbody>
               {employees.map((e: any) => (
-                <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.02]">
+                <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                   <td className="px-5 py-3 text-sm font-medium">{e.name}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>

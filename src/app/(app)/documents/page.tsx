@@ -115,7 +115,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     <div className="max-w-[900px]">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-white transition">
+        <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
           &larr; 문서 목록
         </button>
       </div>
@@ -217,7 +217,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         ).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-white"
+              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}>
             {t.label}
           </button>
@@ -484,7 +484,7 @@ function DocumentsPageInner() {
             + 문서 생성
           </button>
           <button onClick={() => setShowInvForm(!showInvForm)}
-            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-semibold transition border border-[var(--border)]">
+            className="px-4 py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-sm font-semibold transition border border-[var(--border)]">
             + 세금계산서
           </button>
         </div>
@@ -505,7 +505,7 @@ function DocumentsPageInner() {
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] hover:text-white text-xs"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] hover:text-[var(--text)] text-xs"
             >
               X
             </button>
@@ -527,19 +527,19 @@ function DocumentsPageInner() {
       <div className="flex gap-2 mb-6">
         <button onClick={() => setTab("docs")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "docs" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-white"
+            tab === "docs" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           문서 ({filteredDocuments.length})
         </button>
         <button onClick={() => setTab("contracts")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "contracts" ? "bg-blue-500/10 text-blue-400" : "text-[var(--text-muted)] hover:text-white"
+            tab === "contracts" ? "bg-blue-500/10 text-blue-400" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           계약서 ({contractDocuments.length})
         </button>
         <button onClick={() => setTab("invoices")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "invoices" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-white"
+            tab === "invoices" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           세금계산서 ({invoices.length})
         </button>
@@ -673,7 +673,7 @@ function DocumentsPageInner() {
                   const autoType = (doc as any).auto_classified_type;
                   const autoTypeInfo = autoType ? getDocTypeInfo(autoType) : null;
                   return (
-                    <tr key={doc.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.01]">
+                    <tr key={doc.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                       <td className="px-5 py-3">
                         <button
                           onClick={() => router.push(`/documents?id=${doc.id}`)}
@@ -746,7 +746,7 @@ function DocumentsPageInner() {
                   }
 
                   return (
-                    <tr key={doc.id} className={`border-b border-[var(--border)]/50 hover:bg-white/[.01] ${isExpiringSoon ? 'bg-red-500/[.03]' : ''}`}>
+                    <tr key={doc.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] ${isExpiringSoon ? 'bg-red-500/[.03]' : ''}`}>
                       <td className="px-5 py-3">
                         <button
                           onClick={() => router.push(`/documents?id=${doc.id}`)}
@@ -810,7 +810,7 @@ function DocumentsPageInner() {
                 {invoices.map((inv: any) => {
                   const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
                   return (
-                    <tr key={inv.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.01]">
+                    <tr key={inv.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                       <td className="px-5 py-3 text-sm font-medium">{inv.counterparty_name}</td>
                       <td className="px-5 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${

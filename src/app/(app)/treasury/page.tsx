@@ -176,7 +176,7 @@ export default function TreasuryPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition ${
-              tab === t ? "bg-[var(--bg-card)] text-white" : "text-[var(--text-dim)] hover:text-white"
+              tab === t ? "bg-[var(--primary)] text-white" : "text-[var(--text-dim)] hover:text-[var(--text)]"
             }`}
           >
             {t === "positions" ? "포지션" : "거래 내역"}
@@ -326,7 +326,7 @@ export default function TreasuryPage() {
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-xs text-[var(--text-dim)] hover:text-white transition">취소</button>
+              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
               <button
                 onClick={() => createMut.mutate()}
                 disabled={!formName || createMut.isPending}
@@ -375,7 +375,7 @@ export default function TreasuryPage() {
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowTxForm(null)} className="px-4 py-2 text-xs text-[var(--text-dim)] hover:text-white transition">취소</button>
+              <button onClick={() => setShowTxForm(null)} className="px-4 py-2 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
               <button
                 onClick={() => addTxMut.mutate()}
                 disabled={!txAmount || addTxMut.isPending}

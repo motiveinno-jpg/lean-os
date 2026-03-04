@@ -58,7 +58,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
           {data.map((group, gi) => (
             <div
               key={gi}
-              className={`flex-1 flex items-end gap-0.5 cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-white/5' : ''}`}
+              className={`flex-1 flex items-end gap-0.5 cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-[var(--bg-surface)]' : ''}`}
               onClick={() => onBarClick?.(gi)}
               onMouseEnter={() => setHover(gi)}
               onMouseLeave={() => setHover(null)}

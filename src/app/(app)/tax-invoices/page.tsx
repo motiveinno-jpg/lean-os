@@ -329,7 +329,7 @@ export default function TaxInvoicesPage() {
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-white transition"
+              className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition"
             >
               취소
             </button>
@@ -352,7 +352,7 @@ export default function TaxInvoicesPage() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               tab === t.key
                 ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                : "text-[var(--text-muted)] hover:text-white"
+                : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
             {t.label}{" "}
@@ -369,7 +369,7 @@ export default function TaxInvoicesPage() {
                 `세금계산서_${tab === "sales" ? "매출" : "매입"}_${month}.xlsx`
               )
             }
-            className="ml-auto px-4 py-2 bg-white/5 hover:bg-white/10 text-[var(--text-muted)] hover:text-white rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-2"
+            className="ml-auto px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-2"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -427,7 +427,7 @@ export default function TaxInvoicesPage() {
                   return (
                     <tr
                       key={inv.id}
-                      className="border-b border-[var(--border)]/50 hover:bg-white/[.01] transition"
+                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"
                     >
                       <td className="px-5 py-3 text-sm font-medium">
                         {inv.counterparty_name}
@@ -463,7 +463,7 @@ export default function TaxInvoicesPage() {
               </tbody>
               {/* Footer totals */}
               <tfoot>
-                <tr className="border-t border-[var(--border)] bg-white/[.01]">
+                <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                   <td
                     colSpan={2}
                     className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
@@ -554,7 +554,7 @@ export default function TaxInvoicesPage() {
                       className={`border-b border-[var(--border)]/50 transition ${
                         r.fullMatch
                           ? "bg-green-500/[.03]"
-                          : "hover:bg-white/[.01]"
+                          : "hover:bg-[var(--bg-surface)]"
                       }`}
                     >
                       <td className="px-5 py-3 text-sm font-medium">

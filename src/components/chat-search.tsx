@@ -47,7 +47,7 @@ export function ChatSearch({ onSearch, onResultClick, onClose }: ChatSearchProps
           {searching ? '...' : '검색'}
         </button>
         <button onClick={onClose}
-          className="px-2 py-2 text-[var(--text-dim)] hover:text-white text-xs">
+          className="px-2 py-2 text-[var(--text-dim)] hover:text-[var(--text)] text-xs">
           닫기
         </button>
       </div>
