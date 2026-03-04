@@ -5,26 +5,21 @@ import { supabase } from "@/lib/supabase";
 
 const ONBOARDING_KEY = "leanos-onboarding-done";
 
-// ── Helper: check if onboarding should be shown ──
 export function shouldShowOnboarding(dealCount: number): boolean {
   if (typeof window === "undefined") return false;
   if (localStorage.getItem(ONBOARDING_KEY)) return false;
   return dealCount === 0;
 }
 
-// ── Types ──
-interface CompanyFormData {
-  companyName: string;
-  businessNumber: string;
-  representative: string;
-  address: string;
-}
-
-interface DealFormData {
-  dealName: string;
-  classification: "B2B" | "B2C" | "B2G";
-  expectedAmount: string;
-}
+// ── Step Definitions ──
+const STEPS = [
+  { num: 1, label: "회사 정보" },
+  { num: 2, label: "법인통장" },
+  { num: 3, label: "법인카드" },
+  { num: 4, label: "홈택스 연동" },
+  { num: 5, label: "직원 등록" },
+  { num: 6, label: "완료" },
+];
 
 interface OnboardingWizardProps {
   companyId: string;
@@ -33,219 +28,227 @@ interface OnboardingWizardProps {
 }
 
 // ═══════════════════════════════════════════
-// OnboardingWizard Component
+// OnboardingWizard — 6-step Setup
 // ═══════════════════════════════════════════
 export function OnboardingWizard({ companyId, companyName, onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [skippedDeal, setSkippedDeal] = useState(false);
 
-  // Step 1: Company info
-  const [company, setCompany] = useState<CompanyFormData>({
+  // Step 1: Company
+  const [company, setCompany] = useState({
     companyName: companyName || "",
     businessNumber: "",
     representative: "",
     address: "",
+    industry: "",
+    phone: "",
   });
 
-  // Step 2: First deal
-  const [deal, setDeal] = useState<DealFormData>({
-    dealName: "",
-    classification: "B2B",
-    expectedAmount: "",
+  // Step 2: Bank accounts
+  const [banks, setBanks] = useState<Array<{
+    bank_name: string; account_number: string; alias: string; balance: string; role: string;
+  }>>([]);
+  const [bankForm, setBankForm] = useState({
+    bank_name: "", account_number: "", alias: "", balance: "", role: "OPERATING",
   });
 
-  // ── Save company info to Supabase ──
-  const saveCompany = useCallback(async () => {
-    const db = supabase as any;
-    await db
-      .from("companies")
-      .update({
-        name: company.companyName || companyName,
-        industry: company.businessNumber
-          ? `BN:${company.businessNumber}`
-          : undefined,
-      })
-      .eq("id", companyId);
-  }, [company, companyId, companyName]);
+  // Step 3: Card accounts
+  const [cards, setCards] = useState<Array<{
+    card_company: string; card_number: string; card_holder: string; card_alias: string;
+  }>>([]);
+  const [cardForm, setCardForm] = useState({
+    card_company: "", card_number: "", card_holder: "", card_alias: "",
+  });
 
-  // ── Save deal to Supabase ──
-  const saveDeal = useCallback(async () => {
-    if (skippedDeal || !deal.dealName.trim()) return null;
-    const db = supabase as any;
-    const { data } = await db
-      .from("deals")
-      .insert({
-        name: deal.dealName.trim(),
-        company_id: companyId,
-        classification: deal.classification,
-        contract_total: deal.expectedAmount
-          ? parseInt(deal.expectedAmount.replace(/[^0-9]/g, ""), 10) || 0
-          : 0,
-        status: "active",
-      })
-      .select()
-      .single();
-    return data;
-  }, [deal, companyId, skippedDeal]);
+  // Step 4: Hometax
+  const [hometax, setHometax] = useState({
+    hometax_id: "",
+    hometax_pw: "",
+    cert_type: "none" as "none" | "joint" | "financial",
+    cert_dn: "",
+  });
 
-  // ── Handle final completion ──
+  // Step 5: Employees
+  const [employees, setEmployees] = useState<Array<{
+    name: string; position: string; department: string; email: string;
+  }>>([]);
+  const [empForm, setEmpForm] = useState({
+    name: "", position: "", department: "", email: "",
+  });
+
+  // ── Save all data ──
   const handleComplete = useCallback(async () => {
     setSaving(true);
+    const db = supabase as any;
     try {
-      await saveCompany();
-      await saveDeal();
+      // 1. Company info
+      await db.from("companies").update({
+        name: company.companyName || companyName,
+        industry: company.industry || undefined,
+      }).eq("id", companyId);
+
+      // 2. Bank accounts
+      for (const bank of banks) {
+        await db.from("bank_accounts").insert({
+          company_id: companyId,
+          bank_name: bank.bank_name,
+          account_number: bank.account_number,
+          alias: bank.alias,
+          role: bank.role,
+          balance: parseInt(bank.balance.replace(/[^0-9]/g, ""), 10) || 0,
+          is_primary: banks.indexOf(bank) === 0,
+        });
+      }
+
+      // 3. Card accounts
+      for (const card of cards) {
+        await db.from("card_accounts").insert({
+          company_id: companyId,
+          card_company: card.card_company,
+          card_number: card.card_number,
+          card_holder: card.card_holder,
+          alias: card.card_alias,
+          is_active: true,
+        });
+      }
+
+      // 4. Hometax integration
+      if (hometax.hometax_id) {
+        await db.from("company_integrations").insert({
+          company_id: companyId,
+          service_type: "hometax",
+          service_name: "홈택스",
+          login_id: hometax.hometax_id,
+          login_pw_encrypted: hometax.hometax_pw,
+          cert_dn: hometax.cert_dn || null,
+          status: hometax.hometax_id ? "pending" : "disconnected",
+          metadata: { cert_type: hometax.cert_type },
+        });
+      }
+
+      // 5. Employees
+      for (const emp of employees) {
+        await db.from("employees").insert({
+          company_id: companyId,
+          name: emp.name,
+          position: emp.position || null,
+          department: emp.department || null,
+          email: emp.email || null,
+          hire_date: new Date().toISOString().split("T")[0],
+          status: "active",
+        });
+      }
+
       localStorage.setItem(ONBOARDING_KEY, "true");
       onComplete();
     } catch (err) {
       console.error("Onboarding save error:", err);
-      // Still mark complete to avoid blocking user
       localStorage.setItem(ONBOARDING_KEY, "true");
       onComplete();
     }
     setSaving(false);
-  }, [saveCompany, saveDeal, onComplete]);
+  }, [company, banks, cards, hometax, employees, companyId, companyName, onComplete]);
 
-  const handleNext = () => {
-    if (step < 3) setStep(step + 1);
+  const handleNext = () => { if (step < 6) setStep(step + 1); };
+  const handleBack = () => { if (step > 1) setStep(step - 1); };
+  const handleSkip = () => { if (step < 6) setStep(step + 1); };
+
+  // Add helpers
+  const addBank = () => {
+    if (!bankForm.bank_name || !bankForm.account_number) return;
+    setBanks([...banks, { ...bankForm }]);
+    setBankForm({ bank_name: "", account_number: "", alias: "", balance: "", role: "OPERATING" });
   };
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+  const removeBank = (i: number) => setBanks(banks.filter((_, idx) => idx !== i));
+
+  const addCard = () => {
+    if (!cardForm.card_company || !cardForm.card_number) return;
+    setCards([...cards, { ...cardForm }]);
+    setCardForm({ card_company: "", card_number: "", card_holder: "", card_alias: "" });
   };
-  const handleSkipDeal = () => {
-    setSkippedDeal(true);
-    setStep(3);
+  const removeCard = (i: number) => setCards(cards.filter((_, idx) => idx !== i));
+
+  const addEmployee = () => {
+    if (!empForm.name) return;
+    setEmployees([...employees, { ...empForm }]);
+    setEmpForm({ name: "", position: "", department: "", email: "" });
   };
+  const removeEmployee = (i: number) => setEmployees(employees.filter((_, idx) => idx !== i));
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
-        className="w-full max-w-[520px] mx-4 rounded-2xl shadow-lg overflow-hidden"
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-        }}
+        className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg overflow-hidden"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
       >
-        {/* ── Progress Bar ── */}
-        <div className="px-8 pt-6 pb-2">
-          <div className="flex items-center justify-between mb-2">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center flex-1">
-                <div className="flex items-center">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
-                    style={{
-                      background:
-                        s <= step ? "var(--primary)" : "var(--bg-surface)",
-                      color: s <= step ? "#fff" : "var(--text-muted)",
-                      border:
-                        s <= step
-                          ? "2px solid var(--primary)"
-                          : "2px solid var(--border)",
-                    }}
-                  >
-                    {s < step ? (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    ) : (
-                      s
-                    )}
-                  </div>
+        {/* ── Progress ── */}
+        <div className="px-6 pt-5 pb-3">
+          <div className="flex items-center gap-1">
+            {STEPS.map((s, i) => (
+              <div key={s.num} className="flex items-center flex-1">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0"
+                  style={{
+                    background: s.num <= step ? "var(--primary)" : "var(--bg-surface)",
+                    color: s.num <= step ? "#fff" : "var(--text-dim)",
+                    border: s.num <= step ? "2px solid var(--primary)" : "2px solid var(--border)",
+                  }}
+                >
+                  {s.num < step ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : s.num}
                 </div>
-                {s < 3 && (
-                  <div
-                    className="flex-1 h-[2px] mx-2 rounded-full transition-all duration-300"
-                    style={{
-                      background:
-                        s < step ? "var(--primary)" : "var(--border)",
-                    }}
-                  />
+                {i < STEPS.length - 1 && (
+                  <div className="flex-1 h-[2px] mx-1 rounded-full transition-all" style={{ background: s.num < step ? "var(--primary)" : "var(--border)" }} />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-[10px] text-[var(--text-dim)] font-medium px-1">
-            <span>회사 정보</span>
-            <span>첫 프로젝트</span>
-            <span>완료</span>
+          <div className="flex justify-between text-[9px] text-[var(--text-dim)] font-medium mt-1.5 px-0.5">
+            {STEPS.map(s => <span key={s.num} className="text-center" style={{ width: `${100/STEPS.length}%` }}>{s.label}</span>)}
           </div>
         </div>
 
-        {/* ── Step Content ── */}
-        <div className="px-8 py-5 min-h-[320px] flex flex-col">
-          {step === 1 && (
-            <StepCompanyInfo company={company} setCompany={setCompany} />
-          )}
-          {step === 2 && <StepFirstDeal deal={deal} setDeal={setDeal} />}
-          {step === 3 && (
-            <StepComplete
-              company={company}
-              deal={deal}
-              skippedDeal={skippedDeal}
-            />
-          )}
+        {/* ── Content ── */}
+        <div className="px-6 py-4 min-h-[360px] max-h-[60vh] overflow-y-auto flex flex-col">
+          {step === 1 && <StepCompany data={company} set={setCompany} />}
+          {step === 2 && <StepBank banks={banks} form={bankForm} setForm={setBankForm} add={addBank} remove={removeBank} />}
+          {step === 3 && <StepCard cards={cards} form={cardForm} setForm={setCardForm} add={addCard} remove={removeCard} />}
+          {step === 4 && <StepHometax data={hometax} set={setHometax} />}
+          {step === 5 && <StepEmployees employees={employees} form={empForm} setForm={setEmpForm} add={addEmployee} remove={removeEmployee} />}
+          {step === 6 && <StepSummary company={company} banks={banks} cards={cards} hometax={hometax} employees={employees} />}
         </div>
 
-        {/* ── Footer Buttons ── */}
-        <div
-          className="px-8 py-4 flex items-center justify-between"
-          style={{
-            borderTop: "1px solid var(--border)",
-            background: "var(--bg-surface)",
-          }}
-        >
+        {/* ── Footer ── */}
+        <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
           <div>
-            {step > 1 && step < 3 && (
-              <button
-                onClick={handleBack}
-                className="px-4 py-2 rounded-xl text-sm font-semibold transition hover:bg-[var(--bg-elevated)]"
-                style={{ color: "var(--text-muted)" }}
-              >
+            {step > 1 && step < 6 && (
+              <button onClick={handleBack} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] transition">
                 이전
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {step === 2 && (
-              <button
-                onClick={handleSkipDeal}
-                className="px-4 py-2 rounded-xl text-sm font-semibold transition hover:bg-[var(--bg-elevated)]"
-                style={{ color: "var(--text-dim)" }}
-              >
+            {step >= 2 && step <= 5 && (
+              <button onClick={handleSkip} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
                 건너뛰기
               </button>
             )}
-            {step < 3 && (
-              <button
-                onClick={handleNext}
-                className="px-5 py-2 rounded-xl text-sm font-bold text-white transition"
-                style={{
-                  background: "var(--primary)",
-                }}
-              >
+            {step < 6 && (
+              <button onClick={handleNext} className="px-5 py-2 rounded-xl text-sm font-bold text-white transition" style={{ background: "var(--primary)" }}>
                 다음
               </button>
             )}
-            {step === 3 && (
+            {step === 6 && (
               <button
                 onClick={handleComplete}
                 disabled={saving}
                 className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
-                style={{
-                  background: "var(--primary)",
-                }}
+                style={{ background: "var(--primary)" }}
               >
-                {saving ? "저장 중..." : "시작하기"}
+                {saving ? "저장 중..." : "설정 완료 — 시작하기"}
               </button>
             )}
           </div>
@@ -258,344 +261,413 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
 // ═══════════════════════════════════════════
 // Step 1: Company Info
 // ═══════════════════════════════════════════
-function StepCompanyInfo({
-  company,
-  setCompany,
-}: {
-  company: CompanyFormData;
-  setCompany: (c: CompanyFormData) => void;
-}) {
+function StepCompany({ data, set }: { data: any; set: (d: any) => void }) {
   return (
     <div className="flex-1">
-      <h2
-        className="text-lg font-bold mb-1"
-        style={{ color: "var(--text)" }}
-      >
-        회사 정보 설정
-      </h2>
-      <p
-        className="text-xs mb-6"
-        style={{ color: "var(--text-muted)" }}
-      >
-        LeanOS에서 사용할 회사 기본 정보를 입력하세요.
-      </p>
-
-      <div className="space-y-4">
-        <FormField
-          label="회사명"
-          value={company.companyName}
-          onChange={(v) => setCompany({ ...company, companyName: v })}
-          placeholder="주식회사 예시"
-        />
-        <FormField
-          label="사업자등록번호"
-          value={company.businessNumber}
-          onChange={(v) => setCompany({ ...company, businessNumber: v })}
-          placeholder="000-00-00000"
-        />
-        <FormField
-          label="대표자명"
-          value={company.representative}
-          onChange={(v) => setCompany({ ...company, representative: v })}
-          placeholder="홍길동"
-        />
-        <FormField
-          label="사업장 주소"
-          value={company.address}
-          onChange={(v) => setCompany({ ...company, address: v })}
-          placeholder="서울시 강남구..."
-        />
+      <StepHeader title="회사 기본 정보" desc="사업자 정보를 입력하세요. 세금계산서, 문서 생성에 사용됩니다." icon="building" />
+      <div className="space-y-3">
+        <Field label="회사명 *" value={data.companyName} onChange={(v) => set({ ...data, companyName: v })} placeholder="주식회사 예시" />
+        <Field label="사업자등록번호 *" value={data.businessNumber} onChange={(v) => set({ ...data, businessNumber: v })} placeholder="000-00-00000" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="대표자명" value={data.representative} onChange={(v) => set({ ...data, representative: v })} placeholder="홍길동" />
+          <Field label="업종" value={data.industry} onChange={(v) => set({ ...data, industry: v })} placeholder="IT/소프트웨어" />
+        </div>
+        <Field label="사업장 주소" value={data.address} onChange={(v) => set({ ...data, address: v })} placeholder="서울시 강남구..." />
+        <Field label="대표 전화" value={data.phone} onChange={(v) => set({ ...data, phone: v })} placeholder="02-1234-5678" />
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 2: First Deal
+// Step 2: Bank Accounts
 // ═══════════════════════════════════════════
-function StepFirstDeal({
-  deal,
-  setDeal,
-}: {
-  deal: DealFormData;
-  setDeal: (d: DealFormData) => void;
+function StepBank({ banks, form, setForm, add, remove }: {
+  banks: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
 }) {
-  const classifications: { value: "B2B" | "B2C" | "B2G"; label: string; desc: string }[] = [
-    { value: "B2B", label: "B2B", desc: "기업 간 거래" },
-    { value: "B2C", label: "B2C", desc: "소비자 직접" },
-    { value: "B2G", label: "B2G", desc: "정부/공공기관" },
+  const BANKS = ["국민", "신한", "우리", "하나", "기업", "농협", "카카오뱅크", "토스뱅크", "SC제일", "대구", "부산", "기타"];
+  const ROLES = [
+    { value: "OPERATING", label: "운영" },
+    { value: "TAX", label: "세금" },
+    { value: "RESERVE", label: "예비" },
+    { value: "SALARY", label: "급여" },
   ];
 
   return (
     <div className="flex-1">
-      <h2
-        className="text-lg font-bold mb-1"
-        style={{ color: "var(--text)" }}
-      >
-        첫 프로젝트 생성
-      </h2>
-      <p
-        className="text-xs mb-6"
-        style={{ color: "var(--text-muted)" }}
-      >
-        진행 중인 딜이나 프로젝트를 등록하세요. 나중에 추가할 수도 있습니다.
-      </p>
+      <StepHeader title="법인통장 등록" desc="회사 통장을 등록하면 잔고 현황과 거래 내역을 관리할 수 있습니다." icon="bank" />
 
-      <div className="space-y-4">
-        <FormField
-          label="딜/프로젝트명"
-          value={deal.dealName}
-          onChange={(v) => setDeal({ ...deal, dealName: v })}
-          placeholder="예: 2026 상반기 웹 개발"
-        />
+      {/* Added banks */}
+      {banks.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {banks.map((b, i) => (
+            <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-[var(--text)]">{b.alias || b.bank_name}</div>
+                <div className="text-xs text-[var(--text-dim)]">{b.bank_name} {b.account_number}</div>
+              </div>
+              <div className="flex items-center gap-3">
+                {b.balance && <span className="text-sm font-bold text-[var(--text)]">{parseInt(b.balance).toLocaleString()}원</span>}
+                <button onClick={() => remove(i)} className="text-xs text-red-400 hover:text-red-500">삭제</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add form */}
+      <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">은행 *</label>
+            <select
+              value={form.bank_name}
+              onChange={(e) => setForm({ ...form, bank_name: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg text-xs bg-[var(--bg-card)] border border-[var(--border)] outline-none focus:border-[var(--primary)]"
+            >
+              <option value="">선택</option>
+              {BANKS.map(b => <option key={b} value={b}>{b}은행</option>)}
+            </select>
+          </div>
+          <Field label="계좌번호 *" value={form.account_number} onChange={(v) => setForm({ ...form, account_number: v })} placeholder="123-456-789012" small />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="별칭" value={form.alias} onChange={(v) => setForm({ ...form, alias: v })} placeholder="메인 운영통장" small />
+          <Field label="현재 잔고 (원)" value={form.balance} onChange={(v) => setForm({ ...form, balance: v.replace(/[^0-9]/g, "") })} placeholder="50,000,000" small />
+          <div>
+            <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">용도</label>
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg text-xs bg-[var(--bg-card)] border border-[var(--border)] outline-none focus:border-[var(--primary)]"
+            >
+              {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <button
+          onClick={add}
+          disabled={!form.bank_name || !form.account_number}
+          className="w-full py-2 rounded-lg text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)]/20 transition disabled:opacity-40"
+        >
+          + 통장 추가
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 3: Card Accounts
+// ═══════════════════════════════════════════
+function StepCard({ cards, form, setForm, add, remove }: {
+  cards: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
+}) {
+  const CARD_COMPANIES = ["삼성", "현대", "KB국민", "신한", "롯데", "BC", "하나", "우리", "NH농협", "기타"];
+
+  return (
+    <div className="flex-1">
+      <StepHeader title="법인카드 등록" desc="법인카드를 등록하면 카드 사용내역을 자동 분류하고 세액공제를 관리합니다." icon="card" />
+
+      {cards.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {cards.map((c, i) => (
+            <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div>
+                <div className="text-sm font-medium text-[var(--text)]">{c.card_alias || `${c.card_company}카드`}</div>
+                <div className="text-xs text-[var(--text-dim)]">{c.card_company} •••• {c.card_number.slice(-4)}</div>
+              </div>
+              <button onClick={() => remove(i)} className="text-xs text-red-400 hover:text-red-500">삭제</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">카드사 *</label>
+            <select
+              value={form.card_company}
+              onChange={(e) => setForm({ ...form, card_company: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg text-xs bg-[var(--bg-card)] border border-[var(--border)] outline-none focus:border-[var(--primary)]"
+            >
+              <option value="">선택</option>
+              {CARD_COMPANIES.map(c => <option key={c} value={c}>{c}카드</option>)}
+            </select>
+          </div>
+          <Field label="카드번호 *" value={form.card_number} onChange={(v) => setForm({ ...form, card_number: v })} placeholder="1234-5678-9012-3456" small />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="카드 소지자" value={form.card_holder} onChange={(v) => setForm({ ...form, card_holder: v })} placeholder="홍길동" small />
+          <Field label="카드 별칭" value={form.card_alias} onChange={(v) => setForm({ ...form, card_alias: v })} placeholder="업무용 카드 1" small />
+        </div>
+        <button
+          onClick={add}
+          disabled={!form.card_company || !form.card_number}
+          className="w-full py-2 rounded-lg text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)]/20 transition disabled:opacity-40"
+        >
+          + 카드 추가
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 4: HomeTax Integration
+// ═══════════════════════════════════════════
+function StepHometax({ data, set }: { data: any; set: (d: any) => void }) {
+  return (
+    <div className="flex-1">
+      <StepHeader title="홈택스 연동 설정" desc="홈택스를 연동하면 세금계산서를 자동으로 가져올 수 있습니다." icon="tax" />
+
+      <div className="space-y-3">
+        <Field label="홈택스 아이디" value={data.hometax_id} onChange={(v) => set({ ...data, hometax_id: v })} placeholder="홈택스 로그인 ID" />
+        <div>
+          <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">홈택스 비밀번호</label>
+          <input
+            type="password"
+            value={data.hometax_pw}
+            onChange={(e) => set({ ...data, hometax_pw: e.target.value })}
+            placeholder="••••••••"
+            className="w-full px-3 py-2.5 rounded-xl text-sm bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"
+          />
+        </div>
 
         <div>
-          <label
-            className="block text-xs font-semibold mb-2"
-            style={{ color: "var(--text-muted)" }}
-          >
-            분류
-          </label>
+          <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-2">공인인증서 유형</label>
           <div className="grid grid-cols-3 gap-2">
-            {classifications.map((c) => (
+            {[
+              { value: "none", label: "미등록", desc: "추후 등록" },
+              { value: "joint", label: "공동인증서", desc: "구 공인인증서" },
+              { value: "financial", label: "금융인증서", desc: "간편인증" },
+            ].map((opt) => (
               <button
-                key={c.value}
-                onClick={() => setDeal({ ...deal, classification: c.value })}
+                key={opt.value}
+                onClick={() => set({ ...data, cert_type: opt.value })}
                 className="p-3 rounded-xl text-center transition border"
                 style={{
-                  background:
-                    deal.classification === c.value
-                      ? "var(--primary)"
-                      : "var(--bg-surface)",
-                  color:
-                    deal.classification === c.value
-                      ? "#fff"
-                      : "var(--text)",
-                  borderColor:
-                    deal.classification === c.value
-                      ? "var(--primary)"
-                      : "var(--border)",
+                  background: data.cert_type === opt.value ? "var(--primary)" : "var(--bg-surface)",
+                  color: data.cert_type === opt.value ? "#fff" : "var(--text)",
+                  borderColor: data.cert_type === opt.value ? "var(--primary)" : "var(--border)",
                 }}
               >
-                <div className="text-sm font-bold">{c.label}</div>
-                <div
-                  className="text-[10px] mt-0.5"
-                  style={{
-                    color:
-                      deal.classification === c.value
-                        ? "rgba(255,255,255,0.8)"
-                        : "var(--text-dim)",
-                  }}
-                >
-                  {c.desc}
+                <div className="text-xs font-bold">{opt.label}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: data.cert_type === opt.value ? "rgba(255,255,255,0.8)" : "var(--text-dim)" }}>
+                  {opt.desc}
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        <FormField
-          label="예상 금액 (원)"
-          value={deal.expectedAmount}
-          onChange={(v) =>
-            setDeal({
-              ...deal,
-              expectedAmount: v.replace(/[^0-9]/g, ""),
-            })
-          }
-          placeholder="50000000"
-          type="text"
-          formatValue={(v) =>
-            v ? `${parseInt(v, 10).toLocaleString()}` : ""
-          }
-        />
+        {data.cert_type !== "none" && (
+          <Field label="인증서 DN (선택)" value={data.cert_dn} onChange={(v) => set({ ...data, cert_dn: v })} placeholder="cn=홍길동,ou=..." />
+        )}
+
+        <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+          <div className="flex items-start gap-2">
+            <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <div className="text-xs text-blue-700 leading-relaxed">
+              <strong>자동 연동은 추후 지원 예정입니다.</strong><br />
+              현재는 홈택스에서 엑셀로 다운로드한 세금계산서를 업로드하여 사용할 수 있습니다. 계정 정보를 미리 등록해두면 자동 연동 시 바로 활성화됩니다.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 3: Complete
+// Step 5: Employees
 // ═══════════════════════════════════════════
-function StepComplete({
-  company,
-  deal,
-  skippedDeal,
-}: {
-  company: CompanyFormData;
-  deal: DealFormData;
-  skippedDeal: boolean;
+function StepEmployees({ employees, form, setForm, add, remove }: {
+  employees: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
 }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center">
-      <div
-        className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-        style={{ background: "var(--primary)", opacity: 0.9 }}
-      >
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#fff"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+    <div className="flex-1">
+      <StepHeader title="직원 등록" desc="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다." icon="people" />
+
+      {employees.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {employees.map((emp, i) => (
+            <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div>
+                <div className="text-sm font-medium text-[var(--text)]">{emp.name}</div>
+                <div className="text-xs text-[var(--text-dim)]">{[emp.department, emp.position].filter(Boolean).join(" · ") || "미지정"}</div>
+              </div>
+              <button onClick={() => remove(i)} className="text-xs text-red-400 hover:text-red-500">삭제</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="이름 *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="홍길동" small />
+          <Field label="직급" value={form.position} onChange={(v) => setForm({ ...form, position: v })} placeholder="사원/대리/과장..." small />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="부서" value={form.department} onChange={(v) => setForm({ ...form, department: v })} placeholder="개발팀" small />
+          <Field label="이메일" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="name@company.com" small />
+        </div>
+        <button
+          onClick={add}
+          disabled={!form.name}
+          className="w-full py-2 rounded-lg text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)]/20 transition disabled:opacity-40"
         >
+          + 직원 추가
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 6: Summary
+// ═══════════════════════════════════════════
+function StepSummary({ company, banks, cards, hometax, employees }: {
+  company: any; banks: any[]; cards: any[]; hometax: any; employees: any[];
+}) {
+  const sections = [
+    {
+      icon: "building",
+      title: "회사 정보",
+      items: company.companyName ? [
+        company.companyName,
+        company.businessNumber ? `사업자번호: ${company.businessNumber}` : null,
+        company.representative ? `대표: ${company.representative}` : null,
+      ].filter(Boolean) : ["미입력"],
+    },
+    {
+      icon: "bank",
+      title: "법인통장",
+      items: banks.length > 0
+        ? banks.map(b => `${b.alias || b.bank_name} (${b.bank_name} ${b.account_number})`)
+        : ["건너뜀"],
+    },
+    {
+      icon: "card",
+      title: "법인카드",
+      items: cards.length > 0
+        ? cards.map(c => `${c.card_alias || c.card_company} (•••• ${c.card_number.slice(-4)})`)
+        : ["건너뜀"],
+    },
+    {
+      icon: "tax",
+      title: "홈택스",
+      items: hometax.hometax_id
+        ? [`아이디: ${hometax.hometax_id}`, `인증서: ${hometax.cert_type === "none" ? "미등록" : hometax.cert_type === "joint" ? "공동인증서" : "금융인증서"}`]
+        : ["건너뜀"],
+    },
+    {
+      icon: "people",
+      title: "직원",
+      items: employees.length > 0
+        ? employees.map(e => `${e.name}${e.position ? ` (${e.position})` : ""}`)
+        : ["건너뜀"],
+    },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col items-center">
+      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--primary)" }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
+      <h2 className="text-lg font-bold text-[var(--text)] mb-1">초기 설정 완료!</h2>
+      <p className="text-xs text-[var(--text-muted)] mb-4">등록한 정보로 LeanOS가 바로 동작합니다.</p>
 
-      <h2
-        className="text-xl font-bold mb-2"
-        style={{ color: "var(--text)" }}
-      >
-        준비 완료!
-      </h2>
-      <p
-        className="text-sm mb-6"
-        style={{ color: "var(--text-muted)" }}
-      >
-        LeanOS가 설정되었습니다. 지금 바로 시작할 수 있습니다.
-      </p>
-
-      {/* Summary */}
-      <div
-        className="w-full rounded-xl p-4 text-left space-y-3"
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <SummaryRow
-          label="회사명"
-          value={company.companyName || "-"}
-        />
-        {company.businessNumber && (
-          <SummaryRow
-            label="사업자번호"
-            value={company.businessNumber}
-          />
-        )}
-        {company.representative && (
-          <SummaryRow
-            label="대표자"
-            value={company.representative}
-          />
-        )}
-        {company.address && (
-          <SummaryRow
-            label="주소"
-            value={company.address}
-          />
-        )}
-
-        <div
-          className="my-2"
-          style={{
-            borderTop: "1px solid var(--border)",
-          }}
-        />
-
-        {skippedDeal ? (
-          <div className="flex items-center gap-2">
-            <span
-              className="text-xs"
-              style={{ color: "var(--text-dim)" }}
-            >
-              첫 프로젝트: 건너뜀
-            </span>
+      <div className="w-full space-y-2">
+        {sections.map((sec) => (
+          <div key={sec.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <SectionIcon type={sec.icon} />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[var(--text)] mb-0.5">{sec.title}</div>
+              {sec.items.map((item, i) => (
+                <div key={i} className="text-[11px] text-[var(--text-muted)] truncate">{item}</div>
+              ))}
+            </div>
+            <div className="shrink-0 mt-0.5">
+              {sec.items[0] !== "건너뜀" && sec.items[0] !== "미입력" ? (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-600 font-semibold">완료</span>
+              ) : (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 font-semibold">스킵</span>
+              )}
+            </div>
           </div>
-        ) : deal.dealName ? (
-          <>
-            <SummaryRow label="프로젝트" value={deal.dealName} />
-            <SummaryRow label="분류" value={deal.classification} />
-            {deal.expectedAmount && (
-              <SummaryRow
-                label="예상 금액"
-                value={`${parseInt(deal.expectedAmount, 10).toLocaleString()}원`}
-              />
-            )}
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span
-              className="text-xs"
-              style={{ color: "var(--text-dim)" }}
-            >
-              첫 프로젝트: 미입력
-            </span>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Shared Sub-components
+// Shared Components
 // ═══════════════════════════════════════════
-function FormField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  formatValue,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  formatValue?: (v: string) => string;
-}) {
-  const displayValue = formatValue ? formatValue(value) : value;
+function StepHeader({ title, desc, icon }: { title: string; desc: string; icon: string }) {
   return (
-    <div>
-      <label
-        className="block text-xs font-semibold mb-1.5"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {label}
-      </label>
-      <input
-        type={type}
-        value={displayValue}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition"
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-          color: "var(--text)",
-        }}
-        onFocus={(e) => {
-          (e.target as HTMLInputElement).style.borderColor = "var(--primary)";
-        }}
-        onBlur={(e) => {
-          (e.target as HTMLInputElement).style.borderColor = "var(--border)";
-        }}
-      />
+    <div className="flex items-start gap-3 mb-5">
+      <SectionIcon type={icon} size="lg" />
+      <div>
+        <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>
+      </div>
     </div>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SectionIcon({ type, size = "sm" }: { type: string; size?: "sm" | "lg" }) {
+  const s = size === "lg" ? "w-10 h-10" : "w-7 h-7";
+  const iconS = size === "lg" ? "w-5 h-5" : "w-3.5 h-3.5";
+  const svgProps = {
+    className: `${iconS} text-[var(--primary)]`,
+    fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24",
+    strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+  };
+
+  const icon = (() => {
+    switch (type) {
+      case "building":
+        return <svg {...svgProps}><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M9 22v-4h6v4" /><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" /></svg>;
+      case "bank":
+        return <svg {...svgProps}><path d="M3 21h18" /><path d="M3 10h18" /><path d="M12 3l9 7H3l9-7z" /><path d="M5 10v8" /><path d="M19 10v8" /><path d="M9 10v8" /><path d="M15 10v8" /></svg>;
+      case "card":
+        return <svg {...svgProps}><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>;
+      case "tax":
+        return <svg {...svgProps}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>;
+      case "people":
+        return <svg {...svgProps}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>;
+      default:
+        return null;
+    }
+  })();
+
   return (
-    <div className="flex items-center justify-between">
-      <span
-        className="text-xs"
-        style={{ color: "var(--text-dim)" }}
-      >
-        {label}
-      </span>
-      <span
-        className="text-xs font-semibold"
-        style={{ color: "var(--text)" }}
-      >
-        {value}
-      </span>
+    <div className={`${s} rounded-xl bg-[var(--primary-light)] flex items-center justify-center shrink-0`}>
+      {icon}
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, type = "text", small }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; small?: boolean;
+}) {
+  return (
+    <div>
+      <label className={`block font-semibold text-[var(--text-dim)] mb-1 ${small ? "text-[10px]" : "text-xs"}`}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-3 rounded-xl outline-none transition bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)] ${small ? "py-2 text-xs" : "py-2.5 text-sm"}`}
+      />
     </div>
   );
 }
