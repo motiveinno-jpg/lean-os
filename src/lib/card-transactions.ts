@@ -130,6 +130,36 @@ export async function uploadReceiptToCard(id: string, receiptUrl: string) {
   if (error) throw error;
 }
 
+// ── Toggle tax deduction ──
+export async function toggleDeductible(id: string, isDeductible: boolean) {
+  const { error } = await supabase
+    .from('card_transactions')
+    .update({ is_deductible: isDeductible })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// ── Card Deduction Summary by month ──
+export async function getCardDeductionSummary(companyId: string, year: number) {
+  const db = supabase as any;
+  const { data } = await db
+    .from('card_deduction_summary')
+    .select('*')
+    .eq('company_id', companyId);
+
+  return (data || [])
+    .filter((r: any) => new Date(r.month).getFullYear() === year)
+    .map((r: any) => ({
+      month: r.month,
+      txCount: r.tx_count,
+      totalAmount: Number(r.total_amount || 0),
+      deductible: Number(r.deductible_amount || 0),
+      nonDeductible: Number(r.non_deductible_amount || 0),
+      estimatedVatDeduction: Number(r.estimated_vat_deduction || 0),
+    }))
+    .sort((a: any, b: any) => a.month.localeCompare(b.month));
+}
+
 // ── Rule Learning: 수동 매핑에서 자동 룰 생성 ──
 
 export async function learnRuleFromMapping(companyId: string, params: {

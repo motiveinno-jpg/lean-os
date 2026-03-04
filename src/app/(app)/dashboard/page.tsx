@@ -13,7 +13,13 @@ import { BarChart } from "@/components/bar-chart";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
+import { aiGetDashboardSummary } from "@/lib/ai-tools";
+import { getPendingActions } from "@/lib/ai-pending";
+import { runAllAutomation, type AutomationResult } from "@/lib/automation";
+import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, type PendingAction, type PendingActionType } from "@/lib/approval-center";
+import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
+import { useUser } from "@/components/user-context";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -46,6 +52,7 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 // Main Component
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
+  const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
@@ -90,6 +97,22 @@ export default function DashboardPage() {
     retry: 1,
   });
 
+  // Real monthly burn = recurring payments + total salary
+  const { data: realBurnData } = useQuery({
+    queryKey: ["real-burn", companyId],
+    queryFn: async () => {
+      const [recurring, totalSalary] = await Promise.all([
+        getRecurringPayments(companyId!),
+        getMonthlyTotalSalary(companyId!),
+      ]);
+      const recurringTotal = (recurring || [])
+        .filter((r: any) => r.is_active)
+        .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      return recurringTotal + totalSalary;
+    },
+    enabled: !!companyId,
+  });
+
   // Build dashboard through engines (always returns valid data, never null)
   const dashboard: FounderDashboardData = rawData
     ? buildFounderDashboard(
@@ -99,6 +122,7 @@ export default function DashboardPage() {
         rawData.targets,
         rawData.quarterRevenue,
         rawData.yearRevenue,
+        realBurnData || undefined,
       )
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
 
@@ -166,6 +190,118 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
+  // ── Employee Dashboard ──
+  if (role === "employee") {
+    return (
+      <div className="max-w-[900px]">
+        {/* Welcome */}
+        <div className="mb-5 md:mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+              {(userName || "E").charAt(0)}
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
+              <p className="text-xs text-[var(--text-muted)]">오늘도 화이팅!</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick stats — 2x2 grid on mobile */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
+          {[
+            { label: "내 프로젝트", value: "—", href: "/deals", icon: "📋" },
+            { label: "근태", value: "출퇴근", href: "/employees", icon: "🕐" },
+            { label: "휴가 잔여", value: "—", href: "/employees", icon: "🏖" },
+            { label: "경비 청구", value: "—", href: "/employees", icon: "🧾" },
+          ].map((card) => (
+            <Link key={card.label} href={card.href} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+              <div className="text-xl md:text-2xl mb-1.5">{card.icon}</div>
+              <div className="text-[10px] md:text-xs text-[var(--text-dim)]">{card.label}</div>
+              <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{card.value}</div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Quick links */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          <Link href="/chat" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition flex items-center gap-4 touch-card">
+            <div className="text-2xl">💬</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-sm mb-0.5">팀 채팅</h3>
+              <p className="text-xs text-[var(--text-muted)]">팀원들과 대화하세요</p>
+            </div>
+            <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </Link>
+          <Link href="/documents" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition flex items-center gap-4 touch-card">
+            <div className="text-2xl">📄</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-sm mb-0.5">문서/계약</h3>
+              <p className="text-xs text-[var(--text-muted)]">진행 중인 문서를 확인하세요</p>
+            </div>
+            <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Partner Dashboard (mobile-first) ──
+  if (role === "partner") {
+    return (
+      <div className="max-w-[900px]">
+        {/* Welcome header */}
+        <div className="mb-5 md:mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+              {(userName || "P").charAt(0)}
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
+              <p className="text-xs text-[var(--text-muted)]">파트너 포털</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick action cards — large touch targets */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 mb-5">
+          {[
+            { label: "진행 중 프로젝트", href: "/deals", icon: "📋", desc: "현황 확인 및 진행 상태", color: "#2563EB" },
+            { label: "서류 확인/서명", href: "/documents", icon: "📄", desc: "계약서, 견적서 검토 및 서명", color: "#7C3AED" },
+            { label: "담당자 채팅", href: "/chat", icon: "💬", desc: "실시간 문의 및 파일 공유", color: "#059669" },
+          ].map((card) => (
+            <Link
+              key={card.label}
+              href={card.href}
+              className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
+            >
+              <div className="text-3xl md:mb-3 shrink-0">{card.icon}</div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-sm md:text-base mb-0.5 group-hover:text-[var(--primary)] transition">{card.label}</h3>
+                <p className="text-xs text-[var(--text-muted)] truncate md:whitespace-normal">{card.desc}</p>
+              </div>
+              <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </Link>
+          ))}
+        </div>
+
+        {/* Info card */}
+        <div className="bg-gradient-to-br from-[var(--primary-light)] to-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm mb-1">도움이 필요하신가요?</h3>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">프로젝트 관련 문의는 채팅으로 담당자에게 연락하세요. 서류 서명이 필요한 경우 서류 페이지에서 바로 진행할 수 있습니다.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Owner / Admin Dashboard (full CEO view) ──
   return (
     <div className="max-w-[1100px]">
       {/* ═══ ONBOARDING WIZARD ═══ */}
@@ -305,6 +441,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ═══ CEO 승인센터 ═══ */}
+      {companyId && userId && (
+        <ApprovalCenterWidget companyId={companyId} userId={userId} />
+      )}
+
       {/* No data CTA */}
       {!hasData && (
         <div className="mb-5 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-center">
@@ -361,6 +502,12 @@ export default function DashboardPage() {
 
       {/* ═══ MONTHLY CLOSING CHECKLIST ═══ */}
       <ClosingChecklistWidget companyId={companyId} userId={userId} />
+
+      {/* ═══ AUTOMATION ENGINE ═══ */}
+      <AutomationWidget companyId={companyId} />
+
+      {/* ═══ AI INSIGHTS ═══ */}
+      <AIInsightsWidget companyId={companyId} />
 
       {/* ═══ Quick Actions: 오늘 해야 할 것 ═══ */}
       <div className="mb-5">
@@ -1025,5 +1172,313 @@ function GuideActionCard({ href, icon, label, done }: { href: string; icon: Reac
         {label}
       </span>
     </Link>
+  );
+}
+
+// ═══ AI Insights Widget ═══
+function AIInsightsWidget({ companyId }: { companyId: string | null }) {
+  const { data: aiSummary } = useQuery({
+    queryKey: ["ai-dashboard-summary", companyId],
+    queryFn: () => aiGetDashboardSummary(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
+
+  const { data: pendingActions } = useQuery({
+    queryKey: ["ai-pending-dashboard", companyId],
+    queryFn: () => getPendingActions(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+
+  const pending = pendingActions || [];
+  const summary = aiSummary as any;
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-purple-500" />
+          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">AI 어시스턴트</h2>
+          {pending.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/15 text-orange-400">
+              {pending.length}건 승인대기
+            </span>
+          )}
+        </div>
+        <Link href="/ai" className="text-[10px] text-[var(--primary)] hover:underline font-semibold">
+          AI 채팅 열기 &rarr;
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">활성 딜</div>
+          <div className="text-lg font-black" style={{ color: 'var(--primary)' }}>{summary?.activeDeals ?? '-'}</div>
+          <div className="text-[10px] text-[var(--text-muted)]">총 {summary?.totalDeals ?? 0}건</div>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">계약금액</div>
+          <div className="text-lg font-black" style={{ color: 'var(--text)' }}>{summary?.totalAmount ? fmtW(summary.totalAmount) : '-'}</div>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">직원</div>
+          <div className="text-lg font-black" style={{ color: 'var(--text)' }}>{summary?.totalEmployees ?? '-'}명</div>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미결 경비</div>
+          <div className="text-lg font-black" style={{ color: (summary?.pendingExpenses ?? 0) > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
+            {summary?.pendingExpenses ?? 0}건
+          </div>
+        </div>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/[.03] p-3">
+          <div className="text-[11px] font-bold text-orange-400 mb-2">AI 승인 대기 액션</div>
+          <div className="space-y-1.5">
+            {pending.slice(0, 3).map((a: any) => (
+              <div key={a.id} className="flex items-center justify-between text-[11px] px-2 py-1.5 rounded bg-[var(--bg-surface)]">
+                <span className="text-[var(--text-muted)] truncate flex-1">{a.description || a.action_type}</span>
+                <Link href="/ai" className="text-[var(--primary)] font-semibold ml-2 shrink-0 hover:underline">검토</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══ Automation Widget ═══
+function AutomationWidget({ companyId }: { companyId: string | null }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<AutomationResult | null>(null);
+  const queryClient = useQueryClient();
+
+  const handleRun = async () => {
+    if (!companyId || running) return;
+    setRunning(true);
+    try {
+      const r = await runAllAutomation(companyId);
+      setResult(r);
+      queryClient.invalidateQueries();
+    } catch (err: any) {
+      setResult(null);
+    }
+    setRunning(false);
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">자동화 엔진</h2>
+        </div>
+        <button
+          onClick={handleRun}
+          disabled={running || !companyId}
+          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition disabled:opacity-50"
+          style={{
+            background: running ? 'var(--bg-surface)' : 'var(--success)',
+            color: running ? 'var(--text-muted)' : '#fff',
+          }}
+        >
+          {running ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              자동화 실행 중...
+            </span>
+          ) : '전체 자동화 실행'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+        <AutoItem label="은행 자동분류" value={result ? `${result.bankClassification.matched}/${result.bankClassification.processed}` : '-'} />
+        <AutoItem label="카드 자동매핑" value={result ? `${result.cardMapping.matched}/${result.cardMapping.processed}` : '-'} />
+        <AutoItem label="3-Way 매칭" value={result ? `${result.threeWayMatch.autoMatched}건` : '-'} />
+        <AutoItem label="거래 매칭" value={result ? `${result.transactionMatch.matched}건` : '-'} />
+        <AutoItem label="휴면 딜 감지" value={result ? `${result.dormantDeals.detected}건` : '-'} />
+        <AutoItem label="경비 자동승인" value={result ? `${result.expenseApproval.approved}건` : '-'} />
+      </div>
+
+      {result && (
+        <div className="mt-2 text-[10px] text-[var(--text-dim)] text-right">
+          마지막 실행: {new Date(result.timestamp).toLocaleString('ko-KR')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AutoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-2.5 text-center">
+      <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">{label}</div>
+      <div className="text-sm font-bold text-[var(--text)]">{value}</div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// CEO Approval Center Widget
+// ═══════════════════════════════════════════
+
+const TYPE_CONFIG: Record<PendingActionType, { label: string; icon: string; color: string; href: string }> = {
+  payment:   { label: '결제',   icon: '💳', color: '#3b82f6', href: '/payments' },
+  expense:   { label: '경비',   icon: '🧾', color: '#f59e0b', href: '/employees' },
+  document:  { label: '문서',   icon: '📄', color: '#8b5cf6', href: '/documents' },
+  leave:     { label: '휴가',   icon: '🏖️', color: '#06b6d4', href: '/employees' },
+  signature: { label: '서명',   icon: '✍️', color: '#ec4899', href: '/documents' },
+  cost:      { label: '비용',   icon: '📊', color: '#ef4444', href: '/deals' },
+};
+
+function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId: string }) {
+  const queryClient = useQueryClient();
+  const [approving, setApproving] = useState<string | null>(null);
+  const [bulkApproving, setBulkApproving] = useState(false);
+
+  const { data: actions = [] } = useQuery({
+    queryKey: ['ceo-pending-actions', companyId],
+    queryFn: () => getCEOPendingActions(companyId),
+    enabled: !!companyId,
+    refetchInterval: 15_000,
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ['ceo-approval-summary', companyId],
+    queryFn: () => getApprovalSummary(companyId),
+    enabled: !!companyId,
+    refetchInterval: 15_000,
+  });
+
+  const handleApprove = async (type: PendingActionType, id: string) => {
+    setApproving(id);
+    try {
+      await approveAction(companyId, type, id, userId);
+      queryClient.invalidateQueries({ queryKey: ['ceo-pending-actions'] });
+      queryClient.invalidateQueries({ queryKey: ['ceo-approval-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['founder-data'] });
+    } catch { /* ignore */ }
+    setApproving(null);
+  };
+
+  const handleBulkApprove = async () => {
+    if (!actions.length) return;
+    setBulkApproving(true);
+    try {
+      await bulkApproveActions(
+        companyId,
+        actions.map(a => ({ type: a.type, id: a.id })),
+        userId,
+      );
+      queryClient.invalidateQueries({ queryKey: ['ceo-pending-actions'] });
+      queryClient.invalidateQueries({ queryKey: ['ceo-approval-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['founder-data'] });
+    } catch { /* ignore */ }
+    setBulkApproving(false);
+  };
+
+  const total = summary?.total || 0;
+  if (total === 0 && actions.length === 0) return null;
+
+  return (
+    <div className="mb-5 rounded-xl border bg-[var(--bg-card)] p-4"
+      style={{ borderColor: total > 0 ? 'rgba(245,158,11,0.3)' : 'var(--border)' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" />
+          <h3 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">
+            승인센터
+          </h3>
+          {total > 0 && (
+            <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-[var(--danger)] text-white text-[10px] font-bold px-1.5">
+              {total}
+            </span>
+          )}
+        </div>
+        {actions.length > 1 && (
+          <button
+            onClick={handleBulkApprove}
+            disabled={bulkApproving}
+            className="px-3 py-1 rounded-lg text-[10px] font-bold text-white transition disabled:opacity-50"
+            style={{ background: 'var(--success)' }}
+          >
+            {bulkApproving ? '처리 중...' : `전체 승인 (${actions.length}건)`}
+          </button>
+        )}
+      </div>
+
+      {/* Summary badges */}
+      {summary && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {(Object.keys(TYPE_CONFIG) as PendingActionType[]).map(type => {
+            const count = summary[type === 'cost' ? 'costs' : `${type}s` as keyof typeof summary] as number;
+            if (!count) return null;
+            const tc = TYPE_CONFIG[type];
+            return (
+              <Link key={type} href={tc.href}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition hover:opacity-80"
+                style={{ background: `${tc.color}15`, color: tc.color }}>
+                <span>{tc.icon}</span>
+                <span>{tc.label} {count}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Action list (max 8) */}
+      <div className="space-y-1.5">
+        {actions.slice(0, 8).map(action => {
+          const tc = TYPE_CONFIG[action.type];
+          return (
+            <div key={`${action.type}-${action.id}`}
+              className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs flex-shrink-0">{tc.icon}</span>
+                <span className="text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded"
+                  style={{ background: `${tc.color}15`, color: tc.color }}>
+                  {tc.label}
+                </span>
+                <span className="text-xs text-[var(--text)] truncate">{action.title}</span>
+                {action.amount && action.amount > 0 && (
+                  <span className="text-[10px] font-semibold text-[var(--text-muted)] flex-shrink-0">
+                    ₩{action.amount.toLocaleString()}
+                  </span>
+                )}
+                {action.dealName && (
+                  <span className="text-[9px] text-[var(--text-dim)] flex-shrink-0">
+                    ({action.dealName})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {action.urgency === 'high' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
+                )}
+                <button
+                  onClick={() => handleApprove(action.type, action.id)}
+                  disabled={approving === action.id}
+                  className="px-2 py-1 rounded-md text-[10px] font-bold text-white transition disabled:opacity-50 hover:brightness-110"
+                  style={{ background: 'var(--success)' }}
+                >
+                  {approving === action.id ? '...' : '승인'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {actions.length > 8 && (
+          <div className="text-center text-[10px] text-[var(--text-dim)] pt-1">
+            +{actions.length - 8}건 더보기
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import * as XLSX from "xlsx";
 
 const ONBOARDING_KEY = "leanos-onboarding-done";
 
@@ -13,12 +14,13 @@ export function shouldShowOnboarding(dealCount: number): boolean {
 
 // ── Step Definitions ──
 const STEPS = [
-  { num: 1, label: "회사 정보" },
-  { num: 2, label: "법인통장" },
-  { num: 3, label: "법인카드" },
-  { num: 4, label: "홈택스 연동" },
-  { num: 5, label: "직원 등록" },
-  { num: 6, label: "완료" },
+  { num: 1, label: "AI 빠른설정" },
+  { num: 2, label: "회사 정보" },
+  { num: 3, label: "법인통장" },
+  { num: 4, label: "법인카드" },
+  { num: 5, label: "홈택스 연동" },
+  { num: 6, label: "직원 등록" },
+  { num: 7, label: "완료" },
 ];
 
 interface OnboardingWizardProps {
@@ -149,9 +151,122 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     setSaving(false);
   }, [company, banks, cards, hometax, employees, companyId, companyName, onComplete]);
 
-  const handleNext = () => { if (step < 6) setStep(step + 1); };
+  const handleNext = () => { if (step < 7) setStep(step + 1); };
   const handleBack = () => { if (step > 1) setStep(step - 1); };
-  const handleSkip = () => { if (step < 6) setStep(step + 1); };
+  const handleSkip = () => { if (step < 7) setStep(step + 1); };
+
+  // AI File Upload — parse Excel and auto-fill forms
+  const aiFileRef = useRef<HTMLInputElement>(null);
+  const [aiUploading, setAiUploading] = useState(false);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+
+  const handleAIUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAiUploading(true);
+    setAiResult(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      let employeesFound: typeof employees = [];
+      let banksFound: typeof banks = [];
+      let companyFound: Partial<typeof company> = {};
+      let matched = 0;
+
+      for (const sheetName of wb.SheetNames) {
+        const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+        if (!rows.length) continue;
+        const headers = Object.keys(rows[0]).map(h => h.toLowerCase().trim());
+
+        // Detect employee list (name + salary or department or position)
+        const hasName = headers.some(h => h.includes("이름") || h.includes("name") || h.includes("성명"));
+        const hasSalary = headers.some(h => h.includes("급여") || h.includes("salary") || h.includes("월급") || h.includes("연봉"));
+        const hasDept = headers.some(h => h.includes("부서") || h.includes("dept") || h.includes("department"));
+        const hasPos = headers.some(h => h.includes("직위") || h.includes("직책") || h.includes("position"));
+
+        if (hasName && (hasSalary || hasDept || hasPos)) {
+          for (const row of rows) {
+            const vals = Object.entries(row);
+            const findVal = (keywords: string[]) => {
+              const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
+              return entry ? String(entry[1]).trim() : "";
+            };
+            const name = findVal(["이름", "name", "성명"]);
+            if (!name) continue;
+            employeesFound.push({
+              name,
+              position: findVal(["직위", "직책", "position"]),
+              department: findVal(["부서", "dept", "department"]),
+              email: findVal(["이메일", "email"]),
+            });
+          }
+          matched++;
+        }
+
+        // Detect bank accounts (bank_name + account_number)
+        const hasBank = headers.some(h => h.includes("은행") || h.includes("bank"));
+        const hasAcct = headers.some(h => h.includes("계좌") || h.includes("account"));
+        if (hasBank && hasAcct) {
+          for (const row of rows) {
+            const vals = Object.entries(row);
+            const findVal = (keywords: string[]) => {
+              const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
+              return entry ? String(entry[1]).trim() : "";
+            };
+            const bankName = findVal(["은행", "bank"]);
+            const acctNum = findVal(["계좌", "account"]);
+            if (!bankName || !acctNum) continue;
+            banksFound.push({
+              bank_name: bankName,
+              account_number: acctNum,
+              alias: findVal(["별칭", "alias", "용도"]) || bankName,
+              balance: findVal(["잔고", "잔액", "balance"]) || "0",
+              role: "OPERATING",
+            });
+          }
+          matched++;
+        }
+
+        // Detect company info (company name, business number, representative)
+        const hasCompany = headers.some(h => h.includes("회사") || h.includes("company") || h.includes("상호"));
+        const hasBizNum = headers.some(h => h.includes("사업자") || h.includes("business"));
+        if (hasCompany || hasBizNum) {
+          const row = rows[0];
+          const vals = Object.entries(row);
+          const findVal = (keywords: string[]) => {
+            const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
+            return entry ? String(entry[1]).trim() : "";
+          };
+          const cn = findVal(["회사", "company", "상호", "법인"]);
+          if (cn) companyFound.companyName = cn;
+          const bn = findVal(["사업자", "business"]);
+          if (bn) companyFound.businessNumber = bn;
+          const rep = findVal(["대표", "representative"]);
+          if (rep) companyFound.representative = rep;
+          const addr = findVal(["주소", "address"]);
+          if (addr) companyFound.address = addr;
+          matched++;
+        }
+      }
+
+      // Apply parsed data
+      if (employeesFound.length > 0) setEmployees(employeesFound);
+      if (banksFound.length > 0) setBanks(banksFound);
+      if (Object.keys(companyFound).length > 0) setCompany(prev => ({ ...prev, ...companyFound }));
+
+      const parts = [];
+      if (employeesFound.length) parts.push(`직원 ${employeesFound.length}명`);
+      if (banksFound.length) parts.push(`통장 ${banksFound.length}개`);
+      if (companyFound.companyName) parts.push("회사 정보");
+      setAiResult(parts.length > 0
+        ? `자동 인식 완료: ${parts.join(", ")}. 다음 단계에서 확인하세요!`
+        : "파일에서 인식 가능한 데이터를 찾지 못했습니다. 수동으로 입력해주세요."
+      );
+    } catch {
+      setAiResult("파일 파싱 중 오류가 발생했습니다. 다른 파일을 시도해주세요.");
+    }
+    setAiUploading(false);
+  }, []);
 
   // Add helpers
   const addBank = () => {
@@ -213,35 +328,66 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
 
         {/* ── Content ── */}
         <div className="px-6 py-4 min-h-[360px] max-h-[60vh] overflow-y-auto flex flex-col">
-          {step === 1 && <StepCompany data={company} set={setCompany} />}
-          {step === 2 && <StepBank banks={banks} form={bankForm} setForm={setBankForm} add={addBank} remove={removeBank} />}
-          {step === 3 && <StepCard cards={cards} form={cardForm} setForm={setCardForm} add={addCard} remove={removeCard} />}
-          {step === 4 && <StepHometax data={hometax} set={setHometax} />}
-          {step === 5 && <StepEmployees employees={employees} form={empForm} setForm={setEmpForm} add={addEmployee} remove={removeEmployee} />}
-          {step === 6 && <StepSummary company={company} banks={banks} cards={cards} hometax={hometax} employees={employees} />}
+          {step === 1 && (
+            <div className="flex-1">
+              <StepHeader title="AI 빠른 설정" desc="기존 관리파일(엑셀)을 업로드하면 AI가 직원, 통장, 회사정보를 자동으로 인식합니다." icon="sparkles" />
+              <div
+                onClick={() => aiFileRef.current?.click()}
+                className="border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer hover:border-[var(--primary)] transition"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <input ref={aiFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleAIUpload} />
+                <div className="text-4xl mb-3">📁</div>
+                {aiUploading ? (
+                  <div className="text-sm text-[var(--primary)] font-medium">파일 분석 중...</div>
+                ) : (
+                  <>
+                    <div className="text-sm font-semibold mb-1">엑셀/CSV 파일을 드래그하거나 클릭하세요</div>
+                    <div className="text-xs text-[var(--text-dim)]">직원 명단, 통장 목록, 회사 정보 등을 자동 인식합니다</div>
+                  </>
+                )}
+              </div>
+              {aiResult && (
+                <div className="mt-4 px-4 py-3 rounded-xl text-sm" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
+                  {aiResult}
+                </div>
+              )}
+              <div className="mt-6 text-center">
+                <button onClick={() => setStep(2)} className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition">
+                  파일 없이 수동으로 입력하기 →
+                </button>
+              </div>
+            </div>
+          )}
+          {step === 2 && <StepCompany data={company} set={setCompany} />}
+          {step === 3 && <StepBank banks={banks} form={bankForm} setForm={setBankForm} add={addBank} remove={removeBank} />}
+          {step === 4 && <StepCard cards={cards} form={cardForm} setForm={setCardForm} add={addCard} remove={removeCard} />}
+          {step === 5 && <StepHometax data={hometax} set={setHometax} />}
+          {step === 6 && <StepEmployees employees={employees} form={empForm} setForm={setEmpForm} add={addEmployee} remove={removeEmployee} />}
+          {step === 7 && <StepSummary company={company} banks={banks} cards={cards} hometax={hometax} employees={employees} />}
         </div>
 
         {/* ── Footer ── */}
         <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
           <div>
-            {step > 1 && step < 6 && (
+            {step > 1 && step < 7 && (
               <button onClick={handleBack} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] transition">
                 이전
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {step >= 2 && step <= 5 && (
+            {step >= 2 && step <= 6 && (
               <button onClick={handleSkip} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
                 건너뛰기
               </button>
             )}
-            {step < 6 && (
+            {step < 7 && (
               <button onClick={handleNext} className="px-5 py-2 rounded-xl text-sm font-bold text-white transition" style={{ background: "var(--primary)" }}>
                 다음
               </button>
             )}
-            {step === 6 && (
+            {step === 7 && (
               <button
                 onClick={handleComplete}
                 disabled={saving}
@@ -643,6 +789,10 @@ function SectionIcon({ type, size = "sm" }: { type: string; size?: "sm" | "lg" }
         return <svg {...svgProps}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>;
       case "people":
         return <svg {...svgProps}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>;
+      case "sparkles":
+        return <svg {...svgProps}><path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" /><path d="M5 3l.5 1.5L7 5l-1.5.5L5 7l-.5-1.5L3 5l1.5-.5L5 3z" /><path d="M19 17l.5 1.5L21 19l-1.5.5L19 21l-.5-1.5L17 19l1.5-.5L19 17z" /></svg>;
+      case "check":
+        return <svg {...svgProps}><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
       default:
         return null;
     }

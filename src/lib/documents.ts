@@ -152,7 +152,7 @@ export async function approveDocument(documentId: string, approverId: string, co
   await supabase.from('documents').update({ status: 'approved' }).eq('id', documentId);
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name').eq('id', documentId).single();
+  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).single();
   if (doc?.deal_id) {
     const { dispatchBusinessEvent } = await import('./business-events');
     await dispatchBusinessEvent({
@@ -163,6 +163,16 @@ export async function approveDocument(documentId: string, approverId: string, co
       referenceTable: 'documents',
       summary: { title: doc.name },
     });
+
+    // Trigger deal pipeline (견적→계약, 계약→세금계산서+스케줄)
+    if (doc.company_id) {
+      const { onDocumentApproved } = await import('./deal-pipeline');
+      await onDocumentApproved({
+        documentId,
+        companyId: doc.company_id,
+        approverId,
+      });
+    }
   }
 }
 

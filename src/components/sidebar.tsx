@@ -8,23 +8,28 @@ import { useEffect, useState, useRef } from "react";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
 import { useSidebar } from "@/components/sidebar-context";
+import { useTheme } from "@/components/theme-context";
+import { useUser, type UserRole } from "@/components/user-context";
 
-const NAV_GROUPS = [
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[] };
+type NavGroup = { label: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: "워크스페이스",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/deals", label: "프로젝트/딜", icon: "briefcase" },
-      { href: "/partners", label: "거래처 CRM", icon: "users" },
+      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin", "employee"] },
     ],
   },
   {
     label: "재무/세무",
     items: [
-      { href: "/payments", label: "결제 관리", icon: "credit-card" },
-      { href: "/tax-invoices", label: "세금계산서", icon: "file-text" },
-      { href: "/transactions", label: "거래내역", icon: "arrow-right-left" },
-      { href: "/matching", label: "매칭 엔진", icon: "link" },
+      { href: "/payments", label: "결제 관리", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/transactions", label: "거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/matching", label: "매칭 엔진", icon: "link", roles: ["owner"] },
     ],
   },
   {
@@ -32,24 +37,33 @@ const NAV_GROUPS = [
     items: [
       { href: "/documents", label: "문서/계약", icon: "folder" },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/employees", label: "인사/급여", icon: "user-check" },
+      { href: "/employees", label: "인사/급여", icon: "user-check", roles: ["owner", "admin"] },
     ],
   },
   {
     label: "자산",
     items: [
-      { href: "/vault", label: "금고/구독", icon: "shield" },
-      { href: "/treasury", label: "자산운용", icon: "trending-up" },
+      { href: "/vault", label: "금고/구독", icon: "shield", roles: ["owner"] },
+      { href: "/treasury", label: "자산운용", icon: "trending-up", roles: ["owner"] },
     ],
   },
   {
     label: "AI",
     items: [
-      { href: "/ai", label: "AI 어시스턴트", icon: "sparkles" },
-      { href: "/settings", label: "설정", icon: "settings" },
+      { href: "/ai", label: "AI 어시스턴트", icon: "sparkles", roles: ["owner", "admin", "employee"] },
+      { href: "/settings", label: "설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
 ];
+
+function filterNavForRole(role: UserRole): NavGroup[] {
+  return NAV_GROUPS
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
 
 /* ------------------------------------------------------------------ */
 /*  NavIcon                                                            */
@@ -110,7 +124,10 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed, toggleSidebar, mobileOpen, setMobileOpen } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
+  const { user, role } = useUser();
   const [chatUnread, setChatUnread] = useState(0);
+  const filteredNav = filterNavForRole(role);
 
   useEffect(() => {
     getCurrentUser().then(async (u) => {
@@ -164,7 +181,14 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-[var(--text)]">LeanOS</div>
-              <div className="text-[10px] text-[var(--text-dim)]">Business Operating System</div>
+              <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
+                {user?.name || user?.email?.split("@")[0] || ""}
+                <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${
+                  role === "owner" ? "bg-[#2563EB]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
+                }`}>
+                  {role === "owner" ? "대표" : role === "partner" ? "파트너" : "직원"}
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -197,7 +221,7 @@ export function Sidebar() {
 
       {/* Nav Groups */}
       <nav className={`flex-1 py-2 overflow-y-auto space-y-4 ${collapsed ? "px-2" : "px-3"}`}>
-        {NAV_GROUPS.map((group) => (
+        {filteredNav.map((group) => (
           <div key={group.label}>
             {!collapsed && (
               <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
@@ -271,6 +295,29 @@ export function Sidebar() {
           </svg>
           {!collapsed && <span>접기</span>}
         </button>
+      </div>
+
+      {/* Theme Toggle */}
+      <div className={`${collapsed ? "px-2" : "px-3"} pb-1`}>
+        <Tooltip label={theme === "light" ? "다크 모드" : "라이트 모드"} show={collapsed}>
+          <button
+            onClick={toggleTheme}
+            className={`w-full flex items-center rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition ${
+              collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2"
+            }`}
+          >
+            {theme === "light" ? (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            )}
+            {!collapsed && <span>{theme === "light" ? "다크 모드" : "라이트 모드"}</span>}
+          </button>
+        </Tooltip>
       </div>
 
       {/* Footer */}
@@ -375,7 +422,7 @@ export function Sidebar() {
 
           {/* Mobile Nav Groups */}
           <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
-            {NAV_GROUPS.map((group) => (
+            {filteredNav.map((group) => (
               <div key={group.label}>
                 <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
                   {group.label}
@@ -408,6 +455,25 @@ export function Sidebar() {
               </div>
             ))}
           </nav>
+
+          {/* Mobile Theme Toggle */}
+          <div className="px-3 pb-1">
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-left"
+            >
+              {theme === "light" ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              )}
+              {theme === "light" ? "다크 모드" : "라이트 모드"}
+            </button>
+          </div>
 
           {/* Mobile Footer */}
           <div className="p-3 border-t border-[var(--border)]">

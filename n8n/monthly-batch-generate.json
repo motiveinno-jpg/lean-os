@@ -1,0 +1,71 @@
+{
+  "name": "LeanOS - Monthly Batch Auto-Generate",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 20 * *" }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Monthly 20th 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://njbvdkuvtdtkxyylwngn.supabase.co/functions/v1/generate-monthly-batches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "companyId", "value": "c361afb9-8a52-4cac-add9-8992f0f7c09c" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-supabase-ef",
+      "name": "Generate Batches (EF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "notes": "Calls Supabase Edge Function to generate payroll + fixed cost batches. Replace company ID as needed."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://njbvdkuvtdtkxyylwngn.supabase.co/rest/v1/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "company_id", "value": "c361afb9-8a52-4cac-add9-8992f0f7c09c" },
+            { "name": "type", "value": "batch_ready" },
+            { "name": "title", "value": "이번 달 급여/고정비 배치가 생성되었습니다" },
+            { "name": "message", "value": "결제 관리 → 급여 일괄 / 고정비 일괄 탭에서 확인 후 승인해주세요." },
+            { "name": "is_read", "value": "false" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-notification",
+      "name": "Notify CEO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    }
+  ],
+  "connections": {
+    "Monthly 20th 09:00": { "main": [[{ "node": "Generate Batches (EF)", "type": "main", "index": 0 }]] },
+    "Generate Batches (EF)": { "main": [[{ "node": "Notify CEO", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "lean-os"
+  }
+}

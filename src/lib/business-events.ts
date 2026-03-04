@@ -15,7 +15,11 @@ export type BusinessEventType =
   | 'document_locked'
   | 'deal_status_changed'
   | 'cost_approved'
-  | 'invoice_issued';
+  | 'invoice_issued'
+  | 'quote_approved'
+  | 'contract_signed'
+  | 'payment_schedule_created'
+  | 'revenue_received';
 
 interface BusinessEventParams {
   dealId: string;
@@ -35,6 +39,10 @@ const EVENT_MESSAGES: Record<BusinessEventType, (summary: Record<string, any>) =
   deal_status_changed: (s) => `📊 딜 상태 변경: ${s.from || ''} → ${s.to || ''}`,
   cost_approved: (s) => `💳 비용이 승인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
   invoice_issued: (s) => `📋 세금계산서가 발행되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
+  quote_approved: (s) => `📄 견적서가 승인되었습니다 → 계약서 자동 생성. ${s.title || ''}`,
+  contract_signed: (s) => `✍️ 계약서가 서명되었습니다. ${s.title || ''}`,
+  payment_schedule_created: (s) => `📅 매출 스케줄이 생성되었습니다. 선금 ${s.advance ? Number(s.advance).toLocaleString() + '원' : ''} / 잔금 ${s.balance ? Number(s.balance).toLocaleString() + '원' : ''}`,
+  revenue_received: (s) => `💰 매출 입금: ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''} (${s.progress || 0}%)`,
 };
 
 const EVENT_CARD_TYPES: Record<BusinessEventType, string> = {
@@ -46,6 +54,10 @@ const EVENT_CARD_TYPES: Record<BusinessEventType, string> = {
   deal_status_changed: 'quote',
   cost_approved: 'payment',
   invoice_issued: 'document',
+  quote_approved: 'approval',
+  contract_signed: 'document',
+  payment_schedule_created: 'payment',
+  revenue_received: 'payment',
 };
 
 /**

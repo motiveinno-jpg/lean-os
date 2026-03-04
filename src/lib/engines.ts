@@ -213,6 +213,7 @@ export function buildFounderDashboard(
   targets: { monthTarget: number; quarterTarget: number; yearTarget: number },
   quarterRevenue: number,
   yearRevenue: number,
+  realMonthlyBurn?: number,
 ): FounderDashboardData {
   const mf = currentMonth;
 
@@ -222,7 +223,8 @@ export function buildFounderDashboard(
   const totalExpense = mf?.total_expense ?? 0;
   const fixedCost = mf?.fixed_cost ?? 0;
   const variableCost = mf?.variable_cost ?? 0;
-  const monthlyBurn = fixedCost || (Math.abs(totalExpense));
+  // monthlyBurn: recurring_payments + salary 실데이터가 있으면 사용, 없으면 fallback
+  const monthlyBurn = (realMonthlyBurn && realMonthlyBurn > 0) ? realMonthlyBurn : (fixedCost || Math.abs(totalExpense));
   const netCashflow = calcNetCashflow(totalIncome, totalExpense);
 
   // AR

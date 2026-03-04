@@ -18,8 +18,10 @@ import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
 } from "@/lib/expenses";
+import { previewPayroll } from "@/lib/payroll";
+import type { PayrollItem } from "@/lib/payment-batch";
 
-type Tab = "employees" | "salary" | "contracts" | "expenses" | "attendance" | "leave";
+type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave";
 
 export default function EmployeesPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export default function EmployeesPage() {
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여이력" },
+    { key: "payroll", label: "급여 명세" },
     { key: "contracts", label: "계약서" },
     { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
     { key: "attendance", label: "근태" },
@@ -137,6 +140,7 @@ export default function EmployeesPage() {
       {/* Tab Content */}
       {tab === "employees" && <EmployeeTab employees={employees} companyId={companyId} queryClient={queryClient} />}
       {tab === "salary" && <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
       {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
@@ -889,6 +893,96 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
       >
         퇴근
       </button>
+    </div>
+  );
+}
+
+// ── Payroll Preview Tab ──
+function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
+  const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const generate = async () => {
+    if (!companyId) return;
+    setLoading(true);
+    try {
+      const result = await previewPayroll(companyId);
+      setPreview(result);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const fmtKRW = (n: number) => `₩${n.toLocaleString()}`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
+        <button onClick={generate} disabled={loading || !companyId} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+          {loading ? "계산 중..." : "급여 명세 미리보기"}
+        </button>
+      </div>
+
+      {!preview ? (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+          <div className="text-4xl mb-4">📋</div>
+          <div className="text-sm text-[var(--text-muted)]">"급여 명세 미리보기" 버튼을 클릭하면 이번 달 급여 명세를 확인할 수 있습니다</div>
+        </div>
+      ) : preview.items.length === 0 ? (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+          <div className="text-sm text-[var(--text-muted)]">재직 중인 직원이 없거나 급여가 설정되지 않았습니다</div>
+        </div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <div className="text-xs text-[var(--text-dim)]">총 급여 (세전)</div>
+              <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalGross)}</div>
+            </div>
+            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <div className="text-xs text-[var(--text-dim)]">총 공제액</div>
+              <div className="text-lg font-bold text-red-400 mt-1">-{fmtKRW(preview.totalDeductions)}</div>
+            </div>
+            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <div className="text-xs text-[var(--text-dim)]">총 실수령액</div>
+              <div className="text-lg font-bold text-green-400 mt-1">{fmtKRW(preview.totalNet)}</div>
+            </div>
+          </div>
+
+          {/* Detail Table */}
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-4 py-3 font-medium">직원</th>
+                <th className="text-right px-4 py-3 font-medium">기본급</th>
+                <th className="text-right px-4 py-3 font-medium">국민연금</th>
+                <th className="text-right px-4 py-3 font-medium">건강보험</th>
+                <th className="text-right px-4 py-3 font-medium">고용보험</th>
+                <th className="text-right px-4 py-3 font-medium">소득세</th>
+                <th className="text-right px-4 py-3 font-medium">지방소득세</th>
+                <th className="text-right px-4 py-3 font-medium">공제합계</th>
+                <th className="text-right px-4 py-3 font-medium">실수령</th>
+              </tr></thead>
+              <tbody>
+                {preview.items.map((item) => (
+                  <tr key={item.employeeId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                    <td className="px-4 py-3 text-sm font-medium">{item.employeeName}</td>
+                    <td className="px-4 py-3 text-sm text-right">{fmtKRW(item.baseSalary)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.nationalPension)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.healthInsurance)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.employmentInsurance)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.incomeTax)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.localIncomeTax)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-red-400">-{fmtKRW(item.deductionsTotal)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-bold text-green-400">{fmtKRW(item.netPay)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

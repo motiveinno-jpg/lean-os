@@ -1,8 +1,8 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 @import "tailwindcss";
 
-:root {
-  /* Soft Light Theme — 눈 편한 톤 */
+:root, [data-theme="light"] {
+  /* Soft Light Theme */
   --bg: #EAECF0;
   --bg-card: #F4F5F7;
   --bg-surface: #E2E4E9;
@@ -26,6 +26,33 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 8px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.06);
   --shadow-lg: 0 10px 20px -3px rgba(0,0,0,0.12), 0 4px 8px -4px rgba(0,0,0,0.06);
+}
+
+[data-theme="dark"] {
+  /* Dark Theme */
+  --bg: #0C0F17;
+  --bg-card: #151921;
+  --bg-surface: #1A1F2B;
+  --bg-elevated: #1E2433;
+  --border: #2A3040;
+  --border-light: #3A4258;
+  --text: #F0F2F5;
+  --text-muted: #8B95A8;
+  --text-dim: #5A6478;
+  --primary: #4F8CFF;
+  --primary-hover: #6BA0FF;
+  --primary-light: rgba(79,140,255,0.15);
+  --success: #34D399;
+  --success-dim: rgba(52,211,153,0.15);
+  --warning: #FBBF24;
+  --warning-dim: rgba(251,191,36,0.15);
+  --danger: #F87171;
+  --danger-dim: rgba(248,113,113,0.15);
+  --accent: #A78BFA;
+  --critical: #EF4444;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 8px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 10px 20px -3px rgba(0,0,0,0.5), 0 4px 8px -4px rgba(0,0,0,0.3);
 }
 
 body {
@@ -64,6 +91,15 @@ body {
 .animate-count-up { animation: count-up 0.4s ease-out forwards; }
 .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+/* Safe area for iOS notch / home indicator */
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Touch-friendly tap targets on mobile */
+@media (max-width: 768px) {
+  .touch-card { min-height: 56px; }
+  .touch-btn { min-height: 48px; min-width: 48px; }
+}
 
 /* Status Card Borders */
 .border-gradient-danger {

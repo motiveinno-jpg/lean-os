@@ -126,3 +126,187 @@ export async function markInvoiceMatched(invoiceId: string) {
     .eq('id', invoiceId);
   if (error) throw error;
 }
+
+// ── Period Aggregation (월/분기/연간) ──
+export type PeriodType = 'monthly' | 'quarterly' | 'annual';
+
+export interface PeriodSummary {
+  period: string; // "2026-01", "2026-Q1", "2026"
+  salesCount: number;
+  purchaseCount: number;
+  salesSupply: number;
+  salesTax: number;
+  salesTotal: number;
+  purchaseSupply: number;
+  purchaseTax: number;
+  purchaseTotal: number;
+  vatPayable: number; // 매출세액 - 매입세액
+}
+
+export async function getTaxInvoiceSummary(
+  companyId: string,
+  year: number,
+  periodType: PeriodType = 'monthly'
+): Promise<PeriodSummary[]> {
+  const startDate = `${year}-01-01`;
+  const endDate = `${year}-12-31`;
+
+  const { data: invoices } = await supabase
+    .from('tax_invoices')
+    .select('type, supply_amount, tax_amount, total_amount, issue_date')
+    .eq('company_id', companyId)
+    .neq('status', 'void')
+    .gte('issue_date', startDate)
+    .lte('issue_date', endDate);
+
+  if (!invoices || invoices.length === 0) return [];
+
+  const buckets = new Map<string, PeriodSummary>();
+
+  const getPeriodKey = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    const m = d.getMonth() + 1;
+    if (periodType === 'annual') return `${year}`;
+    if (periodType === 'quarterly') {
+      const q = Math.ceil(m / 3);
+      return `${year}-Q${q}`;
+    }
+    return `${year}-${String(m).padStart(2, '0')}`;
+  };
+
+  invoices.forEach((inv: any) => {
+    const key = getPeriodKey(inv.issue_date);
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        period: key,
+        salesCount: 0, purchaseCount: 0,
+        salesSupply: 0, salesTax: 0, salesTotal: 0,
+        purchaseSupply: 0, purchaseTax: 0, purchaseTotal: 0,
+        vatPayable: 0,
+      });
+    }
+    const b = buckets.get(key)!;
+    const supply = Number(inv.supply_amount || 0);
+    const tax = Number(inv.tax_amount || 0);
+    const total = Number(inv.total_amount || 0);
+
+    if (inv.type === 'sales') {
+      b.salesCount++;
+      b.salesSupply += supply;
+      b.salesTax += tax;
+      b.salesTotal += total;
+    } else {
+      b.purchaseCount++;
+      b.purchaseSupply += supply;
+      b.purchaseTax += tax;
+      b.purchaseTotal += total;
+    }
+  });
+
+  // Calculate VAT payable for each period
+  buckets.forEach(b => {
+    b.vatPayable = b.salesTax - b.purchaseTax;
+  });
+
+  return Array.from(buckets.values()).sort((a, b) => a.period.localeCompare(b.period));
+}
+
+// ── VAT Preview (분기별 부가세 예측) ──
+export interface VATPreview {
+  quarter: string;
+  salesTax: number;
+  purchaseTax: number;
+  cardDeduction: number;
+  netVAT: number;
+  dueDate: string;
+}
+
+export async function getVATPreview(companyId: string, year: number): Promise<VATPreview[]> {
+  const db = supabase as any;
+
+  // Get tax invoice summary by quarter
+  const quarterly = await getTaxInvoiceSummary(companyId, year, 'quarterly');
+
+  // Get card deduction data
+  const { data: cardData } = await db
+    .from('card_deduction_summary')
+    .select('*')
+    .eq('company_id', companyId);
+
+  // Map card deductions to quarters
+  const cardByQuarter = new Map<string, number>();
+  (cardData || []).forEach((c: any) => {
+    const d = new Date(c.month);
+    if (d.getFullYear() !== year) return;
+    const q = Math.ceil((d.getMonth() + 1) / 3);
+    const key = `${year}-Q${q}`;
+    cardByQuarter.set(key, (cardByQuarter.get(key) || 0) + Number(c.estimated_vat_deduction || 0));
+  });
+
+  const dueDates: Record<string, string> = {
+    [`${year}-Q1`]: `${year}-04-25`,
+    [`${year}-Q2`]: `${year}-07-25`,
+    [`${year}-Q3`]: `${year}-10-25`,
+    [`${year}-Q4`]: `${year + 1}-01-25`,
+  };
+
+  const quarters = [`${year}-Q1`, `${year}-Q2`, `${year}-Q3`, `${year}-Q4`];
+
+  return quarters.map(q => {
+    const data = quarterly.find(s => s.period === q);
+    const salesTax = data?.salesTax || 0;
+    const purchaseTax = data?.purchaseTax || 0;
+    const cardDeduction = cardByQuarter.get(q) || 0;
+    return {
+      quarter: q,
+      salesTax,
+      purchaseTax,
+      cardDeduction,
+      netVAT: salesTax - purchaseTax - cardDeduction,
+      dueDate: dueDates[q] || '',
+    };
+  });
+}
+
+// ── HomeTax Excel Import Parser ──
+export function parseHomeTaxExcel(rows: any[]) {
+  return rows.map((r: any) => ({
+    type: (r['구분'] === '매출' || r['유형'] === '발행' ? 'sales' : 'purchase') as 'sales' | 'purchase',
+    counterpartyName: String(r['거래처명'] || r['상호'] || ''),
+    counterpartyBizno: String(r['사업자번호'] || r['사업자등록번호'] || ''),
+    supplyAmount: Number(r['공급가액'] || r['공급가'] || 0),
+    taxAmount: Number(r['세액'] || r['부가세'] || 0),
+    totalAmount: Number(r['합계금액'] || r['합계'] || 0),
+    issueDate: String(r['발행일'] || r['작성일자'] || ''),
+  })).filter(r => r.counterpartyName && r.supplyAmount > 0);
+}
+
+// ── Bulk import tax invoices ──
+export async function bulkImportTaxInvoices(companyId: string, items: {
+  type: 'sales' | 'purchase';
+  counterpartyName: string;
+  counterpartyBizno?: string;
+  supplyAmount: number;
+  taxAmount?: number;
+  totalAmount?: number;
+  issueDate: string;
+}[]) {
+  const rows = items.map(item => ({
+    company_id: companyId,
+    type: item.type,
+    counterparty_name: item.counterpartyName,
+    counterparty_bizno: item.counterpartyBizno || null,
+    supply_amount: item.supplyAmount,
+    tax_amount: item.taxAmount || Math.round(item.supplyAmount * 0.1),
+    total_amount: item.totalAmount || Math.round(item.supplyAmount * 1.1),
+    issue_date: item.issueDate,
+    status: item.type === 'sales' ? 'issued' : 'received',
+  }));
+
+  const { data, error } = await supabase
+    .from('tax_invoices')
+    .insert(rows)
+    .select();
+  if (error) throw error;
+  return data;
+}

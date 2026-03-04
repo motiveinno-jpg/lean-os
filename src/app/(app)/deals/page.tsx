@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, buildTree, type TreeNode, getMilestones, getSubDeals, getAssignments, upsertMilestone, completeMilestone, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { getDealPipelineStatus, createDocumentFromDeal, type PipelineStage } from "@/lib/deal-pipeline";
 import type { DealMilestone } from "@/types/database";
 import Link from "next/link";
 
@@ -285,6 +286,9 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div>
         </div>
       </div>
+
+      {/* Pipeline Visualization */}
+      <DealPipelineWidget dealId={dealId} companyId={companyId} userId={userId} onRefresh={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["deal-detail"] }); }} />
 
       {/* Tree */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
@@ -567,6 +571,130 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Deal Pipeline Widget ──
+
+const PIPELINE_STAGES: { key: PipelineStage['stage']; label: string; icon: string }[] = [
+  { key: 'quote', label: '견적서', icon: '📄' },
+  { key: 'contract', label: '계약서', icon: '📝' },
+  { key: 'tax_invoice', label: '세금계산서', icon: '🧾' },
+  { key: 'payment_schedule', label: '입금 스케줄', icon: '📅' },
+  { key: 'payment_received', label: '입금 완료', icon: '💰' },
+];
+
+function DealPipelineWidget({ dealId, companyId, userId, onRefresh }: {
+  dealId: string;
+  companyId: string | null;
+  userId: string | null;
+  onRefresh: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: stages = [] } = useQuery({
+    queryKey: ['deal-pipeline', dealId],
+    queryFn: () => getDealPipelineStatus(dealId),
+    enabled: !!dealId,
+  });
+
+  const completedCount = stages.filter(s => s.status === 'completed').length;
+  const progress = stages.length > 0 ? Math.round((completedCount / stages.length) * 100) : 0;
+
+  async function handleCreateQuote() {
+    if (!companyId || !userId || creating) return;
+    setCreating(true);
+    try {
+      await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId });
+      queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] });
+      onRefresh();
+    } catch {
+      // silent
+    }
+    setCreating(false);
+  }
+
+  const hasQuote = stages.some(s => s.stage === 'quote' && s.status !== 'pending');
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
+      <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-bold">프로세스 파이프라인</h2>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
+            {progress}%
+          </span>
+        </div>
+        {!hasQuote && companyId && userId && (
+          <button
+            onClick={handleCreateQuote}
+            disabled={creating}
+            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+          >
+            {creating ? '생성 중...' : '+ 견적서 생성'}
+          </button>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-5 pt-4">
+        <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+          <div
+            className="h-full rounded-full bg-[var(--primary)] transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Stages */}
+      <div className="px-5 py-4 flex items-center gap-1">
+        {PIPELINE_STAGES.map((ps, idx) => {
+          const stage = stages.find(s => s.stage === ps.key);
+          const status = stage?.status || 'pending';
+          const isCompleted = status === 'completed';
+          const isActive = status === 'active';
+
+          return (
+            <div key={ps.key} className="flex items-center flex-1">
+              <div className={`flex-1 rounded-xl p-3 text-center transition ${
+                isCompleted ? 'bg-green-500/8 border border-green-500/20' :
+                isActive ? 'bg-blue-500/8 border border-blue-500/20' :
+                'bg-[var(--bg-surface)] border border-[var(--border)]'
+              }`}>
+                <div className="text-lg mb-1">{ps.icon}</div>
+                <div className={`text-[10px] font-semibold ${
+                  isCompleted ? 'text-green-500' :
+                  isActive ? 'text-blue-500' :
+                  'text-[var(--text-dim)]'
+                }`}>
+                  {ps.label}
+                </div>
+                <div className={`text-[9px] mt-0.5 ${
+                  isCompleted ? 'text-green-400' :
+                  isActive ? 'text-blue-400' :
+                  'text-[var(--text-dim)]'
+                }`}>
+                  {isCompleted ? '완료' : isActive ? '진행중' : '대기'}
+                </div>
+              </div>
+              {idx < PIPELINE_STAGES.length - 1 && (
+                <div className={`w-4 h-0.5 mx-0.5 flex-shrink-0 rounded ${
+                  isCompleted ? 'bg-green-500/40' : 'bg-[var(--border)]'
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Auto-process hint */}
+      <div className="px-5 pb-4">
+        <div className="text-[10px] text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-lg p-2.5">
+          자동 흐름: 견적서 승인 → 계약서 자동생성 → 계약서 승인 → 세금계산서 자동발행 + 입금 스케줄(선금30%/잔금70%) 자동생성
+        </div>
       </div>
     </div>
   );
