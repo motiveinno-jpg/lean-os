@@ -2,30 +2,30 @@
 @import "tailwindcss";
 
 :root {
-  /* Light Theme — Commercial SaaS */
-  --bg: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --bg-surface: #F1F5F9;
-  --bg-elevated: #FFFFFF;
-  --border: #E2E8F0;
-  --border-light: #CBD5E1;
-  --text: #0F172A;
-  --text-muted: #64748B;
-  --text-dim: #94A3B8;
+  /* Soft Light Theme — 눈 편한 톤 */
+  --bg: #EAECF0;
+  --bg-card: #F4F5F7;
+  --bg-surface: #E2E4E9;
+  --bg-elevated: #F7F8FA;
+  --border: #D0D5DD;
+  --border-light: #B8BFCA;
+  --text: #101828;
+  --text-muted: #475467;
+  --text-dim: #98A2B3;
   --primary: #2563EB;
   --primary-hover: #1D4ED8;
-  --primary-light: #DBEAFE;
-  --success: #10B981;
-  --success-dim: #D1FAE5;
-  --warning: #F59E0B;
-  --warning-dim: #FEF3C7;
-  --danger: #EF4444;
-  --danger-dim: #FEE2E2;
+  --primary-light: #D4E4FC;
+  --success: #12B76A;
+  --success-dim: #C4EDD9;
+  --warning: #F79009;
+  --warning-dim: #FEECB8;
+  --danger: #F04438;
+  --danger-dim: #FDD3D0;
   --accent: #7C3AED;
   --critical: #DC2626;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 8px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 20px -3px rgba(0,0,0,0.12), 0 4px 8px -4px rgba(0,0,0,0.06);
 }
 
 body {
