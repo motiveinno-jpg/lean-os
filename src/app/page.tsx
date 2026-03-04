@@ -92,6 +92,41 @@ const FEATURES = [
 ];
 
 // ═══════════════════════════════════════════
+// HERO ROLLING TEXT
+// ═══════════════════════════════════════════
+const ROLES = ["인사", "총무", "재무", "회계", "법무"];
+const ROLE_DURATIONS = [600, 600, 600, 600, 2200]; // 직원 부분(마지막)은 길게
+
+function RollingText() {
+  const [idx, setIdx] = useState(0);
+  const [show, setShow] = useState(true);
+
+  useEffect(() => {
+    const dur = ROLE_DURATIONS[idx];
+    const hideTimer = setTimeout(() => setShow(false), dur - 200);
+    const nextTimer = setTimeout(() => {
+      setIdx((i) => (i + 1) % ROLES.length);
+      setShow(true);
+    }, dur);
+    return () => { clearTimeout(hideTimer); clearTimeout(nextTimer); };
+  }, [idx]);
+
+  return (
+    <span className="inline-block relative overflow-hidden align-bottom" style={{ width: "3.2em", height: "1.15em" }}>
+      <span
+        className="absolute left-0 text-blue-400 transition-all duration-200"
+        style={{
+          transform: show ? "translateY(0)" : "translateY(-100%)",
+          opacity: show ? 1 : 0,
+        }}
+      >
+        {ROLES[idx]}
+      </span>
+    </span>
+  );
+}
+
+// ═══════════════════════════════════════════
 // 4 ENGINES — LeanOS의 핵심 자동화 엔진
 // ═══════════════════════════════════════════
 const ENGINES = [
@@ -228,7 +263,7 @@ function PaymentSim() {
       </div>
       {/* Progress bar */}
       <div className="mt-4 h-1.5 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (step / 18) * 100)}%` }} />
+        <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (step / 18) * 100)}%` }} />
       </div>
     </div>
   );
@@ -254,7 +289,7 @@ function PipelineSim() {
       <div className="flex items-center gap-1 mb-5">
         {stages.map((s, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-            <div className={`w-full h-2 rounded-full transition-all duration-700 ${i <= activeStage ? "bg-gradient-to-r from-blue-500 to-emerald-400" : "bg-white/10"}`} />
+            <div className={`w-full h-2 rounded-full transition-all duration-700 ${i <= activeStage ? "bg-blue-500" : "bg-white/10"}`} />
             <span className={`text-[10px] font-medium transition-colors duration-500 ${i <= activeStage ? "text-blue-300" : "text-slate-500"}`}>{s}</span>
           </div>
         ))}
@@ -383,7 +418,7 @@ function PayrollSim() {
       <div className="space-y-2">
         {employees.map((emp, i) => (
           <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: step > i ? 1 : 0.3 }}>
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[10px] font-bold">{emp.name[0]}</div>
+            <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold">{emp.name[0]}</div>
             <div className="flex-1">
               <div className="text-xs font-semibold">{emp.name}</div>
               <div className="text-[10px] text-slate-400">기본급 ₩{(emp.base / 10000).toLocaleString()}만</div>
@@ -526,7 +561,7 @@ function CRMSim() {
       <div className="space-y-2">
         {clients.map((c, i) => (
           <div key={i} className={`bg-white/5 rounded-xl p-2.5 flex items-center gap-2.5 transition-all duration-500 ${c.show ? "opacity-100" : "opacity-0"}`}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">{c.name[3]}</div>
+            <div className="w-8 h-8 rounded-lg bg-blue-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">{c.name[3]}</div>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-semibold truncate">{c.name}</div>
               <div className="text-[9px] text-slate-400">{c.deals}건 거래 · {c.last}</div>
@@ -655,8 +690,8 @@ function FloatingElements() {
         <path d="M0,250 Q300,200 600,350 T1100,250" fill="none" stroke="white" strokeWidth="0.5" />
       </svg>
       {/* Gradient orbs */}
-      <div className="absolute w-[500px] h-[500px] rounded-full opacity-20 blur-[120px]" style={{ background: "radial-gradient(circle, #3B82F6 0%, transparent 70%)", top: "-10%", right: "-10%" }} />
-      <div className="absolute w-[400px] h-[400px] rounded-full opacity-15 blur-[100px]" style={{ background: "radial-gradient(circle, #8B5CF6 0%, transparent 70%)", bottom: "-5%", left: "-5%" }} />
+      <div className="absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[120px] bg-blue-600" style={{ top: "-10%", right: "-10%" }} />
+      <div className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] bg-blue-800" style={{ bottom: "-5%", left: "-5%" }} />
     </div>
   );
 }
@@ -698,17 +733,15 @@ export default function LandingPage() {
         @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fade-in-scale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         @keyframes count-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .animate-up { animation: slide-up 0.8s ease-out forwards; }
         .animate-scale { animation: fade-in-scale 0.6s ease-out forwards; }
-        .gradient-animate { background-size: 200% 200%; animation: gradient-shift 8s ease infinite; }
       `}</style>
 
       {/* ── NAV ── */}
       <nav className="fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm gradient-animate" style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED, #2563EB)" }}>L</div>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
             <span className="text-lg font-bold text-white">LeanOS</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
@@ -735,9 +768,9 @@ export default function LandingPage() {
             회계 · 인사 · 총무 · 재무 · 법무 — AI가 대신합니다
           </div>
           <h1 className={`text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] mb-6 text-white ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            직원 뽑지 마세요.
+            <RollingText /> 직원 뽑지 마세요.
             <br />
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent gradient-animate">LeanOS 키세요.</span>
+            <span className="text-blue-400">LeanOS 키세요.</span>
           </h1>
           <p className={`text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
             급여 계산, 세금계산서, 계약서, 경비 정산, 근태 관리 —
@@ -804,7 +837,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PAIN POINT → SOLUTION ── */}
-      <section className="py-20 px-6 bg-gradient-to-b from-[#0A0E1A] to-[#111827]/50">
+      <section className="py-20 px-6 bg-[#0F1629]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -833,7 +866,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="text-center">
-            <div className="inline-block bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/20 rounded-2xl px-8 py-5">
+            <div className="inline-block bg-blue-600/15 border border-blue-500/20 rounded-2xl px-8 py-5">
               <p className="text-lg md:text-xl font-bold text-white mb-1">
                 회계 · 인사 · 총무 · 재무 · 법무 담당자 없이도
               </p>
@@ -853,7 +886,7 @@ export default function LandingPage() {
               다른 SaaS와 근본이 다릅니다
             </div>
             <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
-              기능이 아닙니다.<br /><span className="bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">4개의 엔진</span>입니다.
+              기능이 아닙니다.<br /><span className="text-blue-400">4개의 엔진</span>입니다.
             </h2>
             <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
               공공 API + AI + 한국 특화 로직을 조합해<br className="hidden md:block" />
@@ -867,7 +900,7 @@ export default function LandingPage() {
               return (
               <div key={engine.num} className="group bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition-all duration-500 relative">
                 {/* Top gradient accent */}
-                <div className="h-1.5" style={{ background: `linear-gradient(to right, ${engine.color}, ${engine.color}44)` }} />
+                <div className="h-1.5" style={{ background: engine.color }} />
 
                 <div className="p-8 md:p-12">
                   {/* Header row */}
@@ -932,7 +965,7 @@ export default function LandingPage() {
                       </div>
 
                       {/* Cost replacement card */}
-                      <div className="flex-1 bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center">
+                      <div className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center">
                         <div className="text-xs text-slate-500 mb-3 tracking-wide font-medium">이 엔진이 대체하는 인건비</div>
                         <div className="flex items-center gap-2 mb-2">
                           <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -949,7 +982,7 @@ export default function LandingPage() {
                           <span className="text-sm font-extrabold" style={{ color: engine.color }}>{coverage}%</span>
                         </div>
                         <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${coverage}%`, background: `linear-gradient(to right, ${engine.color}, ${engine.color}88)` }} />
+                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${coverage}%`, background: engine.color }} />
                         </div>
                       </div>
                     </div>
@@ -961,10 +994,10 @@ export default function LandingPage() {
 
           {/* Total savings */}
           <div className="mt-16 text-center">
-            <div className="inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-10 px-10 py-8 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-emerald-600/10 border border-white/10 rounded-3xl backdrop-blur">
+            <div className="inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-10 px-10 py-8 bg-blue-600/10 border border-white/10 rounded-3xl backdrop-blur">
               <div className="text-center sm:text-left">
                 <div className="text-sm text-slate-500 mb-2">4개 엔진 총 절감 인건비</div>
-                <div className="text-4xl md:text-5xl font-extrabold text-white">연 <span className="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">1.87억원</span></div>
+                <div className="text-4xl md:text-5xl font-extrabold text-white">연 <span className="text-blue-400">1.87억원</span></div>
               </div>
               <div className="w-px h-12 bg-white/10 hidden sm:block" />
               <div className="text-center sm:text-left">
@@ -979,7 +1012,7 @@ export default function LandingPage() {
 
 
       {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
-      <section className="py-20 px-6 bg-gradient-to-b from-[#111827]/50 to-[#111827]" id="compare" ref={compRef.ref}>
+      <section className="py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
         <div className="max-w-5xl mx-auto">
           <div className={`text-center mb-14 ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1016,7 +1049,7 @@ export default function LandingPage() {
           </div>
 
           {/* Cost Calculator */}
-          <div className={`bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-3xl border border-white/10 p-8 shadow-2xl ${compRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
+          <div className={`bg-[#1A2332] rounded-3xl border border-white/10 p-8 shadow-2xl ${compRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
@@ -1075,7 +1108,7 @@ export default function LandingPage() {
           {/* Feature content + Sim */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left: Info */}
-            <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-2xl border border-white/10 p-8 flex flex-col justify-center">
+            <div className="bg-[#1A2332] rounded-2xl border border-white/10 p-8 flex flex-col justify-center">
               <div className="text-xs text-blue-400 font-medium mb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
                 {FEATURES[activeFeat].replaces} 대체
@@ -1156,11 +1189,11 @@ export default function LandingPage() {
                 key={plan.name}
                 className={`rounded-2xl p-6 transition-all duration-300 ${
                   plan.hl
-                    ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-2xl shadow-blue-600/30 scale-[1.03] relative ring-2 ring-blue-400/50"
+                    ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/30 scale-[1.03] relative ring-2 ring-blue-400/50"
                     : "bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md"
                 }`}
               >
-                {plan.hl && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-yellow-400 to-amber-400 text-amber-900 text-xs font-bold rounded-full shadow-lg">BEST</div>}
+                {plan.hl && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-yellow-400 text-amber-900 text-xs font-bold rounded-full shadow-lg">BEST</div>}
                 <h4 className={`text-lg font-bold mb-0.5 ${plan.hl ? "" : "text-gray-900"}`}>{plan.name}</h4>
                 <p className={`text-xs mb-4 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.desc}</p>
                 <div className="mb-1">
@@ -1261,8 +1294,8 @@ export default function LandingPage() {
       {/* ── FINAL CTA ── */}
       <section className="py-24 px-6 bg-[#0A0E1A] relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute w-[600px] h-[600px] rounded-full blur-[150px]" style={{ background: "radial-gradient(circle, #3B82F6, transparent)", top: "-20%", left: "20%" }} />
-          <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px]" style={{ background: "radial-gradient(circle, #8B5CF6, transparent)", bottom: "-10%", right: "10%" }} />
+          <div className="absolute w-[600px] h-[600px] rounded-full blur-[150px] bg-blue-600/20" style={{ top: "-20%", left: "20%" }} />
+          <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15" style={{ bottom: "-10%", right: "10%" }} />
         </div>
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1283,7 +1316,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}>L</div>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs bg-blue-600">L</div>
               <span className="text-white font-bold">LeanOS</span>
               <span className="text-xs text-slate-600 ml-2">Business Operating System</span>
             </div>
