@@ -5,51 +5,82 @@ import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getCurrentUser, getSurvivalData, getUnreadCounts, type SurvivalLevel } from "@/lib/queries";
+import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
 
-const NAV = [
-  { href: "/dashboard", label: "상황판", desc: "Command Center" },
-  { href: "/deals", label: "딜 관리", desc: "Deals & Margins" },
-  { href: "/partners", label: "거래처/CRM", desc: "Partners" },
-  { href: "/payments", label: "결제 관리", desc: "Payment Queue" },
-  { href: "/documents", label: "문서/계약", desc: "Documents" },
-  { href: "/tax-invoices", label: "세금계산서", desc: "Tax Invoices" },
-  { href: "/transactions", label: "거래내역", desc: "Bank Inbox" },
-  { href: "/matching", label: "매칭 엔진", desc: "Auto-Match" },
-  { href: "/chat", label: "딜룸 채팅", desc: "Dealroom Chat", badgeKey: "chat" },
-  { href: "/vault", label: "금고", desc: "Vault & Assets" },
-  { href: "/treasury", label: "자산운용", desc: "Treasury" },
-  { href: "/employees", label: "인력/비용", desc: "HR & Costs" },
-  { href: "/ai", label: "AI 어시스턴트", desc: "AI Assistant" },
-  { href: "/settings", label: "설정", desc: "Settings" },
+const NAV_GROUPS = [
+  {
+    label: "워크스페이스",
+    items: [
+      { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/deals", label: "프로젝트/딜", icon: "briefcase" },
+      { href: "/partners", label: "거래처 CRM", icon: "users" },
+    ],
+  },
+  {
+    label: "재무/세무",
+    items: [
+      { href: "/payments", label: "결제 관리", icon: "credit-card" },
+      { href: "/tax-invoices", label: "세금계산서", icon: "file-text" },
+      { href: "/transactions", label: "거래내역", icon: "arrow-right-left" },
+      { href: "/matching", label: "매칭 엔진", icon: "link" },
+    ],
+  },
+  {
+    label: "관리",
+    items: [
+      { href: "/documents", label: "문서/계약", icon: "folder" },
+      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
+      { href: "/employees", label: "인사/급여", icon: "user-check" },
+    ],
+  },
+  {
+    label: "자산",
+    items: [
+      { href: "/vault", label: "금고/구독", icon: "shield" },
+      { href: "/treasury", label: "자산운용", icon: "trending-up" },
+    ],
+  },
+  {
+    label: "AI",
+    items: [
+      { href: "/ai", label: "AI 어시스턴트", icon: "sparkles" },
+      { href: "/settings", label: "설정", icon: "settings" },
+    ],
+  },
 ];
 
-const LEVEL_COLORS: Record<SurvivalLevel, string> = {
-  CRITICAL: '#ff2d55',
-  DANGER: '#ef4444',
-  WARNING: '#f59e0b',
-  STABLE: '#22c55e',
-  SAFE: '#22c55e',
-};
+function NavIcon({ name, className = "" }: { name: string; className?: string }) {
+  const cn = `w-4 h-4 ${className}`;
+  const props = { className: cn, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+  switch (name) {
+    case "grid": return <svg {...props}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
+    case "briefcase": return <svg {...props}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>;
+    case "users": return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
+    case "credit-card": return <svg {...props}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+    case "file-text": return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
+    case "arrow-right-left": return <svg {...props}><path d="M21 7H3M21 7l-4-4M21 7l-4 4M3 17h18M3 17l4-4M3 17l4 4"/></svg>;
+    case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
+    case "folder": return <svg {...props}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>;
+    case "message-circle": return <svg {...props}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>;
+    case "user-check": return <svg {...props}><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>;
+    case "shield": return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+    case "trending-up": return <svg {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+    case "sparkles": return <svg {...props}><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75L19 13z"/></svg>;
+    case "settings": return <svg {...props}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
+    default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
+  }
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [survivalMonths, setSurvivalMonths] = useState<number | null>(null);
-  const [survivalLevel, setSurvivalLevel] = useState<SurvivalLevel>('SAFE');
   const [chatUnread, setChatUnread] = useState(0);
 
   useEffect(() => {
     getCurrentUser().then(async (u) => {
       if (!u) return;
-      try {
-        const data = await getSurvivalData(u.company_id);
-        setSurvivalMonths(data.survivalMonths);
-        setSurvivalLevel(data.survivalLevel);
-      } catch {}
-
-      // Fetch unread chat count
       try {
         const counts = await getUnreadCounts(u.company_id, u.id);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
@@ -57,7 +88,6 @@ export function Sidebar() {
       } catch {}
     });
 
-    // Refresh unread count every 30s
     const interval = setInterval(async () => {
       try {
         const u = await getCurrentUser();
@@ -76,93 +106,80 @@ export function Sidebar() {
     router.push("/auth");
   }
 
-  const levelColor = LEVEL_COLORS[survivalLevel];
-  const isDanger = survivalLevel === 'CRITICAL' || survivalLevel === 'DANGER';
-
   return (
-    <aside className="w-56 h-screen fixed left-0 top-0 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col z-50">
-      {/* Logo + Survival Indicator */}
-      <div className="p-4 border-b border-[var(--border)]">
+    <aside className="w-60 h-screen fixed left-0 top-0 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col z-50"
+      style={{ boxShadow: 'var(--shadow-sm)' }}>
+      {/* Logo */}
+      <div className="px-5 py-4 border-b border-[var(--border)]">
         <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm ${isDanger ? 'animate-pulse-danger' : ''}`}
-            style={{ background: levelColor }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #7C3AED)' }}>
             L
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-black tracking-tight">LeanOS</div>
-            <div className="text-[9px] text-[var(--text-dim)] tracking-wider">SURVIVAL OS</div>
+            <div className="text-sm font-bold text-[var(--text)]">LeanOS</div>
+            <div className="text-[10px] text-[var(--text-dim)]">Business Operating System</div>
           </div>
         </div>
-
-        {/* Mini Survival Meter */}
-        {survivalMonths !== null && (
-          <div className="mt-3 px-1">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider font-semibold">생존</span>
-              <span className="text-[9px] font-bold mono-number" style={{ color: levelColor }}>
-                {survivalMonths < 999 ? `${survivalMonths}개월` : 'SAFE'}
-              </span>
-            </div>
-            <div className="h-1 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-1000"
-                style={{
-                  width: `${Math.min(100, survivalMonths < 999 ? (survivalMonths / 12) * 100 : 100)}%`,
-                  background: levelColor,
-                }} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Search */}
-      <div className="px-2 pt-2">
+      <div className="px-3 pt-3 pb-1">
         <button
           onClick={() => openGlobalSearch()}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-white/[.05] transition border border-[var(--border)]"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2"/></svg>
           <span>검색</span>
-          <kbd className="ml-auto text-[9px] bg-[var(--bg-card)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
+          <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {NAV.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          const badge = (item as any).badgeKey === 'chat' ? chatUnread : 0;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all ${
-                active
-                  ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                  : "text-[var(--text-muted)] hover:text-white hover:bg-white/[.03]"
-              }`}
-            >
-              <div className="flex flex-col">
-                <span className="font-semibold">{item.label}</span>
-                <span className={`text-[9px] ${active ? 'text-[var(--primary)]/60' : 'text-[var(--text-dim)]'}`}>
-                  {item.desc}
-                </span>
-              </div>
-              {badge > 0 && (
-                <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full px-1">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      {/* Nav Groups */}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+              {group.label}
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const badge = (item as any).badgeKey === 'chat' ? chatUnread : 0;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${
+                      active
+                        ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                        : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                    }`}
+                  >
+                    <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                    <span className="flex-1">{item.label}</span>
+                    {badge > 0 && (
+                      <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
-      <div className="p-2 border-t border-[var(--border)]">
+      <div className="p-3 border-t border-[var(--border)]">
         <button
           onClick={handleLogout}
-          className="w-full px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] hover:text-red-400 hover:bg-red-400/5 transition text-left"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
           로그아웃
         </button>
       </div>

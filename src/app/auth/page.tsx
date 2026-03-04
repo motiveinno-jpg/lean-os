@@ -30,7 +30,6 @@ export default function AuthPage() {
     setError("");
     setLoading(true);
 
-    // 1. Sign up auth user (이메일 확인 없이 바로 사용)
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
@@ -39,13 +38,11 @@ export default function AuthPage() {
     if (authErr) { setLoading(false); return setError(authErr.message); }
     if (!authData.user) { setLoading(false); return setError("가입 처리 중 오류가 발생했습니다."); }
 
-    // 1-1. 이메일 미확인 시 자동 로그인 시도
     if (!authData.session) {
       const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
       if (loginErr) { setLoading(false); return setError("가입은 되었으나 이메일 인증이 필요합니다. 이메일을 확인해주세요."); }
     }
 
-    // 2. Create company
     const { data: company, error: compErr } = await supabase
       .from("companies")
       .insert({ name: companyName.trim() })
@@ -53,7 +50,6 @@ export default function AuthPage() {
       .single();
     if (compErr) { setLoading(false); return setError(compErr.message); }
 
-    // 3. Create user record
     const { error: userErr } = await supabase.from("users").insert({
       auth_id: authData.user?.id,
       company_id: company.id,
@@ -63,7 +59,6 @@ export default function AuthPage() {
     });
     if (userErr) { setLoading(false); return setError(userErr.message); }
 
-    // 4. Create cash snapshot
     await supabase.from("cash_snapshot").insert({
       company_id: company.id,
       current_balance: 0,
@@ -75,29 +70,31 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg)]">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--primary)] text-white text-2xl font-black mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-white text-xl font-black mb-4"
+            style={{ background: 'linear-gradient(135deg, #2563EB, #7C3AED)' }}>
             L
           </div>
-          <h1 className="text-2xl font-extrabold">LeanOS</h1>
-          <p className="text-[var(--text-muted)] text-sm mt-1">딜 중심 재무·성과 관리 OS</p>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">LeanOS</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Business Operating System</p>
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8"
+          style={{ boxShadow: 'var(--shadow-lg)' }}>
           {/* Tabs */}
-          <div className="flex gap-1 bg-[var(--bg)] rounded-xl p-1 mb-6">
+          <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6">
             {(["login", "signup"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setError(""); }}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                   mode === m
-                    ? "bg-[var(--primary)] text-white"
-                    : "text-[var(--text-muted)] hover:text-white"
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
                 {m === "login" ? "로그인" : "회원가입"}
@@ -106,7 +103,7 @@ export default function AuthPage() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
@@ -120,7 +117,7 @@ export default function AuthPage() {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="(주)모티브이노베이션"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
+                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                   required
                 />
               </div>
@@ -132,7 +129,7 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                 required
               />
             </div>
@@ -143,14 +140,14 @@ export default function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="6자 이상"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                 required
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50"
+              className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm"
             >
               {loading ? "처리 중..." : mode === "login" ? "로그인" : "무료 시작하기"}
             </button>
@@ -158,7 +155,7 @@ export default function AuthPage() {
         </div>
 
         <p className="text-center text-xs text-[var(--text-dim)] mt-6">
-          Survival-grade business OS
+          Business Operating System for Modern Teams
         </p>
       </div>
     </div>

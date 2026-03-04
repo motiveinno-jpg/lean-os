@@ -42,12 +42,12 @@ function NodeRow({ node, depth, dealId, onRefresh }: {
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-2 px-3 hover:bg-white/[.02] rounded-lg transition group"
+        className="flex items-center gap-2 py-2 px-3 hover:bg-[var(--bg-surface)] rounded-lg transition group"
         style={{ paddingLeft: `${depth * 24 + 12}px` }}
       >
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-5 h-5 flex items-center justify-center text-xs text-[var(--text-dim)] hover:text-white"
+          className="w-5 h-5 flex items-center justify-center text-xs text-[var(--text-dim)] hover:text-[var(--text)]"
         >
           {node.children.length > 0 ? (expanded ? "▼" : "▶") : "·"}
         </button>
@@ -73,7 +73,7 @@ function NodeRow({ node, depth, dealId, onRefresh }: {
         </span>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="opacity-0 group-hover:opacity-100 text-xs text-[var(--primary)] hover:text-white transition px-1"
+          className="opacity-0 group-hover:opacity-100 text-xs text-[var(--primary)] hover:text-[var(--text)] transition px-1"
         >
           +
         </button>
@@ -225,7 +225,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         <div>
           <div className="flex items-center gap-2">
             {deal.deal_number && (
-              <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-[var(--text-dim)] font-mono">
+              <span className="text-xs px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">
                 {deal.deal_number}
               </span>
             )}
@@ -292,7 +292,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <h2 className="text-sm font-bold">작업 트리 (무한 구조)</h2>
           <button
             onClick={() => setShowAddRoot(!showAddRoot)}
-            className="text-xs text-[var(--primary)] hover:text-white transition font-semibold"
+            className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold"
           >
             + 루트 노드
           </button>
@@ -385,7 +385,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <h2 className="text-sm font-bold">마일스톤 / D-day</h2>
           <button
             onClick={() => setShowMilestoneForm(!showMilestoneForm)}
-            className="text-xs text-[var(--primary)] hover:text-white transition font-semibold"
+            className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold"
           >
             + 마일스톤
           </button>
@@ -514,7 +514,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <h2 className="text-sm font-bold">💬 딜 채팅</h2>
           {dealChannel && (
             <Link href={`/chat?channel=${dealChannel.id}`}
-              className="text-[10px] text-[var(--primary)] hover:text-white transition font-semibold">
+              className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">
               전체 채팅 보기 &rarr;
             </Link>
           )}
@@ -746,7 +746,7 @@ function DealsPageInner() {
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-[var(--text-muted)] hover:text-white rounded-lg text-sm"
+              className="px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm"
             >
               취소
             </button>
@@ -760,7 +760,7 @@ function DealsPageInner() {
           <button
             onClick={() => setFilterCls(null)}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              !filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+              !filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'
             }`}
           >
             전체 ({deals.length})
@@ -772,7 +772,7 @@ function DealsPageInner() {
                 key={cls}
                 onClick={() => setFilterCls(filterCls === cls ? null : cls)}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                  filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+                  filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'
                 }`}
               >
                 {cls} ({count})
@@ -870,7 +870,7 @@ function DealsPageInner() {
                       color={clsColorMap[d.classification || 'B2B']}
                     />
                     {d.deal_number && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-dim)] font-mono">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">
                         {d.deal_number}
                       </span>
                     )}

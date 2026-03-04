@@ -193,7 +193,7 @@ export default function PaymentsPage() {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
               filter === f.key
                 ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                : "text-[var(--text-muted)] hover:text-white hover:bg-white/[.03]"
+                : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
             }`}
           >
             {f.label}
@@ -227,7 +227,7 @@ export default function PaymentsPage() {
               {filtered.map((item: any) => {
                 const sc = statusConfig[item.status] || statusConfig.pending;
                 return (
-                  <tr key={item.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.01]">
+                  <tr key={item.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                     <td className="px-5 py-3 text-sm">{item.description || "—"}</td>
                     <td className="px-5 py-3 text-sm text-right font-medium">
                       ₩{Number(item.amount).toLocaleString()}

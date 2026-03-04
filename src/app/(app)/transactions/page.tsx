@@ -472,7 +472,7 @@ export default function TransactionsPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{r.rule_name}</span>
                       {r.is_fixed_cost && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">고정비</span>}
-                      {r.assign_category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-dim)]">{r.assign_category}</span>}
+                      {r.assign_category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">{r.assign_category}</span>}
                     </div>
                     <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                       {r.match_field} {r.match_type === 'contains' ? '포함' : r.match_type === 'exact' ? '=' : '~'} "{r.match_value}"
@@ -495,7 +495,7 @@ export default function TransactionsPage() {
             <div className="flex items-center gap-2 mb-3">
               {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [FilterStatus, string][]).map(([f, label]) => (
                 <button key={f} onClick={() => setFilterStatus(f)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-white/5 text-[var(--text-muted)]'}`}>
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
                   {label}
                 </button>
               ))}
@@ -536,7 +536,7 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody>
                   {bankTx.map((tx: any) => (
-                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] transition">
+                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-4 py-2.5 text-sm">{tx.counterparty || "—"}</td>
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>
@@ -634,7 +634,7 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-2">
             {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [CardFilterStatus, string][]).map(([f, label]) => (
               <button key={f} onClick={() => setCardFilterStatus(f)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${cardFilterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-white/5 text-[var(--text-muted)]'}`}>
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${cardFilterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
                 {label}
               </button>
             ))}
@@ -685,7 +685,7 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody>
                   {cardTx.map((tx: any) => (
-                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] transition">
+                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-4 py-2.5">
                         <div className="text-sm">{tx.merchant_name || "---"}</div>
@@ -697,8 +697,8 @@ export default function TransactionsPage() {
                         -₩{Number(tx.amount).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        {tx.merchant_category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[var(--text-dim)]">{tx.merchant_category}</span>}
-                        {tx.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[var(--text-muted)] ml-1">{tx.category}</span>}
+                        {tx.merchant_category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{tx.merchant_category}</span>}
+                        {tx.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] ml-1">{tx.category}</span>}
                         {tx.is_deductible && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 ml-1">공제</span>}
                         {tx.receipt_url && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 ml-1">영수증</span>}
                       </td>

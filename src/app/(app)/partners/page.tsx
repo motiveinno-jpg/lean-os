@@ -200,7 +200,7 @@ export default function PartnersPage() {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
                     <tr key={p.id} onClick={() => openEdit(p)}
-                      className="border-b border-[var(--border)]/50 hover:bg-white/[.02] cursor-pointer transition">
+                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition">
                       <td className="px-5 py-3 text-sm font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>

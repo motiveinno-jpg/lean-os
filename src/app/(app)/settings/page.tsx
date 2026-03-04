@@ -154,7 +154,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setShowBankForm(!showBankForm)}
-            className="text-xs text-[var(--primary)] hover:text-white font-semibold transition"
+            className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
           >
             + 통장 추가
           </button>
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                     {acc.is_primary && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">주</span>
                     )}
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-dim)]">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">
                       {BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}
                     </span>
                   </div>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setShowRuleForm(!showRuleForm)}
-            className="text-xs text-[var(--primary)] hover:text-white font-semibold transition"
+            className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
           >
             + 규칙 추가
           </button>
@@ -413,7 +413,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', color: '#3b82f6' }); }}
-          className="text-xs text-[var(--primary)] hover:text-white font-semibold transition"
+          className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
         >
           + 분류 추가
         </button>
@@ -474,7 +474,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cls.color || '#3b82f6' }} />
                 <span className="text-sm font-medium">{cls.name}</span>
                 {cls.is_system && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-[var(--text-dim)]">시스템</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">시스템</span>
                 )}
               </div>
               <div className="flex items-center gap-2">

@@ -96,12 +96,12 @@ export function ChatBubble({
           {/* Hover action bar */}
           <div className={`absolute ${isOwn ? 'left-0 -translate-x-full' : 'right-0 translate-x-full'} top-0 opacity-0 group-hover:opacity-100 transition flex items-center gap-0.5 px-1`}>
             {onReply && (
-              <button onClick={onReply} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-white" title="답장">
+              <button onClick={onReply} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="답장">
                 ↩
               </button>
             )}
             {onReact && (
-              <button onClick={() => setShowReactions(!showReactions)} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-white" title="리액션">
+              <button onClick={() => setShowReactions(!showReactions)} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="리액션">
                 +
               </button>
             )}
@@ -111,7 +111,7 @@ export function ChatBubble({
               </button>
             )}
             {isOwn && onEdit && (
-              <button onClick={onEdit} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-white" title="편집">
+              <button onClick={onEdit} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="편집">
                 ✏
               </button>
             )}

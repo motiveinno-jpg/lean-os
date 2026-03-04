@@ -236,7 +236,7 @@ export default function VaultPage() {
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
               tab === t.key
                 ? "bg-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-white"
+                : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
             {t.label} ({t.count})
@@ -408,7 +408,7 @@ export default function VaultPage() {
                 {vault.accounts.map((acc: any) => {
                   const st = ACCOUNT_STATUS[acc.status || "active"] || ACCOUNT_STATUS.active;
                   return (
-                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-white/[.02] transition">
+                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
                       <td className="p-4">
                         <div className="font-semibold">{acc.service_name}</div>
                         {acc.url && <div className="text-[10px] text-[var(--text-dim)] truncate max-w-[200px]">{acc.url}</div>}
@@ -472,7 +472,7 @@ export default function VaultPage() {
               </thead>
               <tbody>
                 {vault.assets.map((a: any) => (
-                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-white/[.02] transition">
+                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
                     <td className="p-4">
                       <div className="font-semibold">{a.name}</div>
                       {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
@@ -530,7 +530,7 @@ export default function VaultPage() {
                 {vault.docs.map((d: any) => {
                   const isExpiring = d.expiry_date && ((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 30;
                   return (
-                    <tr key={d.id} className="border-b border-[var(--border)]/30 hover:bg-white/[.02] transition">
+                    <tr key={d.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
                       <td className="p-4">
                         <div className="font-semibold">{d.name}</div>
                       </td>

@@ -63,7 +63,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
           <button onClick={onExport} className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition">
             Excel 다운로드
           </button>
-          <button onClick={onClose} className="text-[10px] px-2 py-1 rounded bg-white/5 text-[var(--text-muted)] hover:bg-white/10 transition">
+          <button onClick={onClose} className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">
             닫기
           </button>
         </div>
@@ -94,7 +94,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
             </thead>
             <tbody>
               {sorted.map((item, i) => (
-                <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-white/[.02] transition">
+                <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                   <td className="py-1.5 text-[var(--text)]">{item.name}</td>
                   <td className="py-1.5 text-[var(--text-muted)]">{CAT_LABELS[item.category] || item.category}</td>
                   <td className={`py-1.5 text-right mono-number ${item.category === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
