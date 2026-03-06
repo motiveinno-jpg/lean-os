@@ -1305,7 +1305,15 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
       setInviteName("");
       setInviteError("");
     },
-    onError: (err: any) => setInviteError(err.message),
+    onError: (err: any) => {
+      const msg = err.message || "초대 생성 실패";
+      // Duplicate key → 이미 초대된 이메일
+      if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505")) {
+        setInviteError("이미 초대된 이메일입니다. 기존 초대를 취소하고 다시 시도하세요.");
+      } else {
+        setInviteError(msg);
+      }
+    },
   });
 
   const cancelEmpMut = useMutation({

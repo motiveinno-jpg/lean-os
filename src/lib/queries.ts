@@ -380,6 +380,7 @@ export async function getDealWithNodes(dealId: string) {
     supabase.from('deal_revenue_schedule').select('*').eq('deal_id', dealId).order('due_date'),
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date'),
   ]);
+  if (deal.error && !deal.data) throw new Error('딜 데이터를 불러올 수 없습니다');
   return {
     deal: deal.data || null,
     nodes: nodes.data || [],
