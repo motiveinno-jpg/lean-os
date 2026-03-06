@@ -228,7 +228,7 @@ export default function TaxInvoicesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
             총 매출계산서
@@ -281,7 +281,7 @@ export default function TaxInvoicesPage() {
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 유형 *
@@ -459,7 +459,7 @@ export default function TaxInvoicesPage() {
               </div>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">거래처명</th>
@@ -555,7 +555,7 @@ export default function TaxInvoicesPage() {
                   <td colSpan={3} />
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -601,7 +601,7 @@ export default function TaxInvoicesPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">딜명</th>
@@ -681,7 +681,7 @@ export default function TaxInvoicesPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </div>
@@ -721,7 +721,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
             <div className="text-sm text-[var(--text-muted)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">기간</th>
@@ -762,7 +762,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
                 <td className="px-5 py-3 text-sm text-right font-bold text-[var(--primary)]">₩{periodSummary.reduce((s: number, p: any) => s + p.vatPayable, 0).toLocaleString()}</td>
               </tr>
             </tfoot>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -771,7 +771,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
         <div className="mt-6">
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">법인카드 매입세액 공제 추정</h3>
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">월</th>
@@ -800,7 +800,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
                   <td className="px-5 py-3 text-sm text-right font-bold text-[var(--primary)]">₩{totalCardDeduction.toLocaleString()}</td>
                 </tr>
               </tfoot>
-            </table>
+            </table></div>
           </div>
         </div>
       )}
@@ -822,7 +822,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       </div>
 
       {/* Annual Total Card */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 매출세액</div>
           <div className="text-xl font-black text-green-500">₩{vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}</div>
@@ -842,7 +842,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 
       {/* Quarterly Breakdown */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">분기</th>
@@ -881,7 +881,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

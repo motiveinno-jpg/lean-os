@@ -297,7 +297,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       {showSignRequestForm && (
         <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-5 mb-6">
           <h3 className="text-sm font-bold text-indigo-500 mb-3">전자서명 요청</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서명자 이름 *</label>
               <input
@@ -774,7 +774,7 @@ function DocumentsPageInner() {
       {showDocForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">새 문서 생성</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>
               <input value={docForm.name} onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
@@ -816,7 +816,7 @@ function DocumentsPageInner() {
       {showInvForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
               <select value={invForm.type} onChange={(e) => setInvForm({ ...invForm, type: e.target.value as "sales" | "purchase" })}
@@ -879,7 +879,7 @@ function DocumentsPageInner() {
               </div>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">문서명</th>
@@ -928,7 +928,7 @@ function DocumentsPageInner() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -943,7 +943,7 @@ function DocumentsPageInner() {
               <div className="text-sm text-[var(--text-muted)]">계약서를 생성하면 여기에 표시됩니다</div>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">계약서명</th>
@@ -1003,7 +1003,7 @@ function DocumentsPageInner() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -1018,7 +1018,7 @@ function DocumentsPageInner() {
               <div className="text-sm text-[var(--text-muted)]">매출/매입 세금계산서를 등록하세요</div>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">거래처</th>
@@ -1054,7 +1054,7 @@ function DocumentsPageInner() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -1160,7 +1160,7 @@ function DocumentsPageInner() {
                 <div className="text-sm text-[var(--text-muted)]">문서에 전자서명을 요청하세요</div>
               </div>
             ) : (
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">문서</th>
@@ -1233,7 +1233,7 @@ function DocumentsPageInner() {
                     );
                   })}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
 
@@ -1281,7 +1281,7 @@ function DocumentsPageInner() {
                       </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <span className="text-[10px] text-[var(--text-dim)] uppercase">발송</span>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">

@@ -138,7 +138,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   return (
     <>
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
           <div className="text-lg font-bold text-yellow-400 mt-1">{stats?.pendingCount ?? 0}건</div>
@@ -219,7 +219,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             <div className="text-sm text-[var(--text-muted)]">딜 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">설명</th>
@@ -264,7 +264,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </>
@@ -360,7 +360,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
             <div className="text-xs text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">배치명</th>
@@ -405,7 +405,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </>
@@ -478,7 +478,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
             <div className="text-xs text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[500px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">배치명</th>
@@ -515,7 +515,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </>
@@ -641,7 +641,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">반복결제 등록</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">명칭 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -695,7 +695,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             <div className="text-xs text-[var(--text-muted)]">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">명칭</th>
@@ -731,7 +731,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </>

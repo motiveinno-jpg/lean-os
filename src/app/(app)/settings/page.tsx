@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
             {showBankForm && (
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">은행명 *</label>
                     <input
@@ -334,7 +334,7 @@ export default function SettingsPage() {
 
             {showRuleForm && bankAccounts.length > 0 && (
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">비용 유형</label>
                     <select
@@ -597,7 +597,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">기본 정보</h2>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1.5">회사명 *</label>
               <input
@@ -688,7 +688,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         {uploadError && (
           <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-xs mb-4">{uploadError}</div>
         )}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Seal Upload */}
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-2">직인 (회사 도장)</label>
@@ -984,7 +984,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
         {/* Create / Edit Form */}
         {showForm && (
           <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">문서 유형 *</label>
                 <select
@@ -1358,7 +1358,7 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
           {inviteError && (
             <div className="p-2 rounded-lg bg-[var(--danger-dim)] text-[var(--danger)] text-xs">{inviteError}</div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label>
               <input
@@ -1591,7 +1591,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
 
       {showForm && (
         <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">분류명 *</label>
               <input
@@ -1729,7 +1729,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
             <div><div className="text-sm font-medium">승인완료 건 자동이체</div><div className="text-xs text-[var(--text-dim)] mt-0.5">결재 승인 완료 시 자동 이체 실행</div></div>
             <input type="checkbox" checked={settings.auto_transfer_enabled} onChange={(e) => setSettings({ ...settings, auto_transfer_enabled: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" />
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">자동이체 한도 (원)</label><input type="number" value={settings.auto_transfer_limit} onChange={(e) => setSettings({ ...settings, auto_transfer_limit: Number(e.target.value) || 0 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /><p className="text-[10px] text-[var(--text-dim)] mt-1">초과 금액은 수동 확인 필요</p></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">이체 실행 시점</label><select value={settings.transfer_schedule} onChange={(e) => setSettings({ ...settings, transfer_schedule: e.target.value })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="immediate">즉시 실행</option><option value="daily_10">매일 10:00</option><option value="daily_14">매일 14:00</option><option value="weekly_mon">매주 월요일</option></select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">실패 시 재시도</label><input type="number" value={settings.retry_count} onChange={(e) => setSettings({ ...settings, retry_count: Number(e.target.value) || 0 })} min={0} max={10} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -1797,7 +1797,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         <h2 className="text-sm font-bold mb-1">홈택스 연동</h2>
         <p className="text-xs text-[var(--text-dim)] mb-4">국세청 홈택스와 연동하여 세금계산서 자동 제출</p>
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">현재 수동 엑셀 업로드 방식. 홈택스 API 연동 시 자동 제출 가능.</p></div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">홈택스 ID</label><input value={settings.hometax_id} onChange={(e) => setSettings({ ...settings, hometax_id: e.target.value })} placeholder="홈택스 로그인 ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           <div className="flex items-end"><button className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button></div>
         </div>
@@ -1871,7 +1871,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
         {showUpload && (
           <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
             {uploadError && <div className="p-2 rounded-lg bg-red-500/10 text-red-400 text-xs">{uploadError}</div>}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className="block text-xs text-[var(--text-muted)] mb-1">발급기관</label><input value={uploadForm.issuer} onChange={(e) => setUploadForm({ ...uploadForm, issuer: e.target.value })} placeholder="한국정보인증" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
               <div><label className="block text-xs text-[var(--text-muted)] mb-1">만료일</label><input type="date" value={uploadForm.expires_at} onChange={(e) => setUploadForm({ ...uploadForm, expires_at: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
             </div>

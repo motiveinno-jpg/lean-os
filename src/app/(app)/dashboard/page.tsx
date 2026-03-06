@@ -222,7 +222,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 핵심 지표 4개 (admin용 경량) */}
-        <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
             <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
       <div className={`rounded-2xl p-1 mb-5 survival-bar ${
         level === 'CRITICAL' || level === 'DANGER' ? 'animate-glow-red' : level === 'WARNING' ? 'animate-glow-orange' : ''
       }`} style={{ border: `1px solid ${cfg.border}` }}>
-        <div className="grid grid-cols-6 divide-x divide-[var(--border)]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 divide-x divide-[var(--border)]">
           <SixPackCell
             label="통장 잔고"
             value={`₩${fmtW(sp.cashBalance)}`}
@@ -613,7 +613,7 @@ function GrowthSection({ growth }: { growth: FounderDashboardData['growth'] }) {
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {metrics.map(m => {
         const pct = m.target > 0 ? Math.min(100, (m.revenue / m.target) * 100) : 0;
         return (
@@ -799,7 +799,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
           <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">총 매출</div>
           <div className="text-sm font-black mono-number text-[var(--primary)]">₩{fmtW(finData.totalRevenue)}</div>
@@ -846,7 +846,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       {finData.classificationBreakdown.length > 0 && (
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-3">
           <div className="text-[10px] text-[var(--text-dim)] mb-2 uppercase tracking-wider font-semibold">분류별 현황</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {finData.classificationBreakdown.map(cb => (
               <div key={cb.classification} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[var(--bg-surface)]">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cb.color }} />

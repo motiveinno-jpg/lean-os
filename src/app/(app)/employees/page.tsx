@@ -98,7 +98,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="text-xs text-[var(--text-dim)]">재직 인원</div>
           <div className="text-lg font-bold mt-1">{activeCount}명</div>
@@ -185,13 +185,13 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름 *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">월급</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
-          <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">전화번호</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hire_date} onChange={e => setForm({...form, hire_date: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -204,7 +204,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
         {employees.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm text-[var(--text-muted)]">등록된 직원이 없습니다</div></div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">이름</th>
               <th className="text-left px-5 py-3 font-medium">부서</th>
@@ -231,7 +231,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
@@ -265,7 +265,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
 
       {showForm && selectedEmpId && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 *</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -284,7 +284,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
           {salaryHistory.length === 0 ? (
             <div className="p-10 text-center text-sm text-[var(--text-muted)]">급여 변경 이력이 없습니다</div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">적용일</th>
                 <th className="text-right px-5 py-3 font-medium">급여</th>
@@ -303,7 +303,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -333,7 +333,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
               <select value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
                 <option value="">선택...</option>
@@ -357,7 +357,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
         {contracts.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">📋</div><div className="text-sm text-[var(--text-muted)]">등록된 계약서가 없습니다</div></div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">직원</th>
               <th className="text-left px-5 py-3 font-medium">계약유형</th>
@@ -378,7 +378,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
@@ -416,7 +416,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient }: any) {
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
@@ -434,7 +434,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient }: any) {
         {expenses.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">🧾</div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">제목</th>
               <th className="text-left px-5 py-3 font-medium">청구자</th>
@@ -466,7 +466,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient }: any) {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
@@ -602,7 +602,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
   return (
     <div>
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -772,7 +772,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
               <div className="text-sm text-[var(--text-muted)]">해당 월에 근태 기록이 없습니다</div>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">직원</th>
@@ -815,7 +815,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
@@ -825,7 +825,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
         <div className="mt-6">
           <h3 className="text-sm font-bold mb-3 text-[var(--text-muted)]">직원별 월간 요약</h3>
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">직원</th>
@@ -850,7 +850,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       )}
@@ -938,7 +938,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       ) : (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
               <div className="text-xs text-[var(--text-dim)]">총 급여 (세전)</div>
               <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalGross)}</div>
@@ -955,7 +955,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
           {/* Detail Table */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-4 py-3 font-medium">직원</th>
                 <th className="text-right px-4 py-3 font-medium">기본급</th>
@@ -982,7 +982,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </>
       )}
@@ -1196,7 +1196,7 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h4 className="text-sm font-bold mb-4">휴가 신청</h4>
-          <div className="grid grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
               <select
@@ -1268,7 +1268,7 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
             <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">직원</th>
@@ -1318,7 +1318,7 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -1504,7 +1504,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
       {/* Issue Form */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
         <h3 className="text-sm font-bold mb-4">증명서 발급</h3>
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">직원 선택 *</label>
             <select
@@ -1565,7 +1565,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 증명서를 발급하세요</div>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">증명서번호</th>
@@ -1602,7 +1602,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
