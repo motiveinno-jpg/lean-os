@@ -9,7 +9,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Reflect — 회사 운영 현황을 자동으로 정리해 한눈에 보여줍니다",
+  title: "OwnerView — 회사 운영 현황을 자동으로 정리해 한눈에 보여줍니다",
   description: "매출·계약·자금·업무 — 대표를 위한 회사 상황판 OS",
 };
 
@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   });
   // DevTools 감지
   var dt=new Image();Object.defineProperty(dt,'id',{get:function(){
-    document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f5f5f5"><div style="text-align:center;padding:40px"><h1 style="font-size:24px;color:#333">REFLECT</h1><p style="color:#666;margin-top:8px">개발자 도구 사용이 감지되었습니다.</p></div></div>';
+    document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f5f5f5"><div style="text-align:center;padding:40px"><h1 style="font-size:24px;color:#333">OwnerView</h1><p style="color:#666;margin-top:8px">개발자 도구 사용이 감지되었습니다.</p></div></div>';
   }});
   // 드래그 방지
   document.addEventListener('dragstart',function(e){e.preventDefault();});

@@ -623,7 +623,7 @@ function addFooter(doc: jsPDF, companyName: string) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `REFLECT Certificate  |  ${companyName}  |  Page ${i}/${pageCount}`,
+      `OwnerView Certificate  |  ${companyName}  |  Page ${i}/${pageCount}`,
       pageW / 2,
       pageH - 8,
       { align: 'center' },

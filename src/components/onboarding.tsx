@@ -727,7 +727,7 @@ function StepSummary({ company, banks, cards, hometax, employees }: {
         </svg>
       </div>
       <h2 className="text-lg font-bold text-[var(--text)] mb-1">초기 설정 완료!</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">등록한 정보로 REFLECT가 바로 동작합니다.</p>
+      <p className="text-xs text-[var(--text-muted)] mb-4">등록한 정보로 OwnerView가 바로 동작합니다.</p>
 
       <div className="w-full space-y-2">
         {sections.map((sec) => (

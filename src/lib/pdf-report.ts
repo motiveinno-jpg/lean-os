@@ -159,7 +159,7 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `REFLECT Financial Report  |  ${data.companyName}  |  Page ${i}/${pageCount}`,
+      `OwnerView Financial Report  |  ${data.companyName}  |  Page ${i}/${pageCount}`,
       pageW / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' },

@@ -492,7 +492,7 @@ const CATEGORIES: GuideCategory[] = [
     steps: [
       {
         title: '구독 현황 확인',
-        description: '현재 REFLECT 구독 플랜, 사용량, 결제일을 확인합니다.',
+        description: '현재 OwnerView 구독 플랜, 사용량, 결제일을 확인합니다.',
         cursorFrom: [10, 15], cursorTo: [40, 25], clickAt: [40, 25],
         mockElements: [
           { type: 'card', label: 'Pro 플랜', x: 5, y: 10, w: 40, h: 20, color: '#2563eb', highlight: true },
@@ -1108,7 +1108,7 @@ export default function GuidePage() {
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-1">사용 가이드</h1>
             <p className="text-sm text-gray-500">
-              REFLECT의 모든 기능을 빠르게 배워보세요
+              OwnerView의 모든 기능을 빠르게 배워보세요
             </p>
           </div>
 

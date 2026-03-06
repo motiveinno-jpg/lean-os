@@ -133,11 +133,12 @@ export default function VerifyEmailPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
-            <svg width="56" height="56" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="7" fill="#0F172A"/>
-              <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
-              <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
-              <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+            <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="10" fill="#111"/>
+              <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
+              <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
+              <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
             </svg>
           </div>
         </div>
@@ -174,7 +175,7 @@ export default function VerifyEmailPage() {
                 가입이 완료되었습니다!
               </h2>
               <p className="text-sm text-[var(--text-muted)] mb-6">
-                환영합니다! REFLECT의 모든 기능을 이용할 수 있습니다.
+                환영합니다! OwnerView의 모든 기능을 이용할 수 있습니다.
               </p>
               <div className="w-full bg-[var(--bg-surface)] rounded-full h-1.5 mb-4">
                 <div

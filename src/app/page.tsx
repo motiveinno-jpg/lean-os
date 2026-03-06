@@ -25,7 +25,7 @@ const PLANS = [
 
 const FAQS = [
   { q: "기존 엑셀/관리파일을 가져올 수 있나요?", a: "네. 온보딩 시 기존 엑셀 파일을 업로드하면 AI가 자동으로 파싱하여 70~80%를 자동 세팅합니다." },
-  { q: "각 기능이 전문 솔루션 수준인가요?", a: "REFLECT의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
+  { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
   { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
   { q: "보안은 안전한가요?", a: "AES-256 암호화, 역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용합니다." },
@@ -80,7 +80,7 @@ const FEATURES = [
     sim: "ai",
     replaces: "경쟁사에 없음",
     title: "리스크 감지 → 자동분류 → 예측까지",
-    desc: "미수금 위험, 현금 소진 예측, 거래내역 자동 분류, 매출 예측, 고정비 절감 추천. 모든 기능에 AI가 내장된 REFLECT만의 차별점.",
+    desc: "미수금 위험, 현금 소진 예측, 거래내역 자동 분류, 매출 예측, 고정비 절감 추천. 모든 기능에 AI가 내장된 OwnerView만의 차별점.",
   },
   {
     tab: "서류 자동관리",
@@ -127,19 +127,20 @@ function RollingText() {
   );
 }
 
-function ReflectLogo({ size = 40, className = "" }: { size?: number; className?: string }) {
+function OwnerViewLogo({ size = 40, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="32" height="32" rx="7" fill="#0F172A"/>
-      <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
-      <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
-      <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <rect width="40" height="40" rx="10" fill="#111"/>
+      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
+      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
+      <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
     </svg>
   );
 }
 
 // ═══════════════════════════════════════════
-// 4 ENGINES — Reflect의 핵심 자동화 엔진
+// 4 ENGINES — OwnerView의 핵심 자동화 엔진
 // ═══════════════════════════════════════════
 const ENGINES = [
   {
@@ -782,8 +783,8 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 cursor-pointer">
-            <ReflectLogo size={32} />
-            <span className="text-lg font-bold text-white tracking-tight">REFLECT</span>
+            <OwnerViewLogo size={32} />
+            <span className="text-lg font-bold text-white tracking-tight">OwnerView</span>
           </a>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
             <a href="#features" className="hover:text-white transition">주요기능</a>
@@ -810,9 +811,9 @@ export default function LandingPage() {
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         </div>
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          {/* Reflect Logo — large */}
+          {/* OwnerView Logo — large */}
           <div className={`mb-10 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
-            <ReflectLogo size={72} className="mx-auto" />
+            <OwnerViewLogo size={72} className="mx-auto" />
           </div>
 
           <h1 className={`text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
@@ -849,7 +850,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-red-400/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
                 <div className="w-3 h-3 rounded-full bg-green-400/80" />
-                <span className="text-[10px] text-slate-500 ml-2">REFLECT Dashboard — CEO View</span>
+                <span className="text-[10px] text-slate-500 ml-2">OwnerView Dashboard — CEO View</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {[
@@ -1071,7 +1072,7 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-12 bg-white/10 hidden sm:block" />
               <div className="text-center sm:text-left">
-                <div className="text-sm text-slate-500 mb-2">REFLECT 베타 특가</div>
+                <div className="text-sm text-slate-500 mb-2">OwnerView 베타 특가</div>
                 <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">2.9만원</span>+인당 5,900원</div>
                 <div className="text-sm text-emerald-400 font-semibold mt-1">= 인건비의 0.5% 수준</div>
               </div>
@@ -1112,7 +1113,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Arrow down to Reflect */}
+          {/* Arrow down to OwnerView */}
           <div className="flex flex-col items-center mb-10">
             <div className="text-slate-500 text-sm mb-3">전부 합치면</div>
             <svg className="w-6 h-6 text-blue-400 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
@@ -1136,7 +1137,7 @@ export default function LandingPage() {
                 <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
               </div>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 text-center">
-                <div className="text-xs text-blue-400 mb-1">REFLECT {reflectPlan} <span className="text-amber-400">(베타 특가)</span></div>
+                <div className="text-xs text-blue-400 mb-1">OwnerView {reflectPlan} <span className="text-amber-400">(베타 특가)</span></div>
                 <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal === 0 ? "0" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : reflectTotal === 0 ? "원 (무료)" : "원/월"}</span></div>
               </div>
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
@@ -1442,7 +1443,7 @@ export default function LandingPage() {
         </div>
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
-            회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">REFLECT를 시작하세요.</span>
+            회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">OwnerView를 시작하세요.</span>
           </h2>
           <p className="text-slate-400 text-lg mb-8">기존 엑셀만 올리면 70% 즉시 완성. 카드 등록 없이 무료로 시작.</p>
           <Link href="/auth" className="inline-flex px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 active:scale-[0.98]">
@@ -1459,8 +1460,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">
-              <ReflectLogo size={28} />
-              <span className="text-white font-bold tracking-tight">REFLECT</span>
+              <OwnerViewLogo size={28} />
+              <span className="text-white font-bold tracking-tight">OwnerView</span>
               <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
             </div>
             <div className="flex gap-6 text-sm">

@@ -435,7 +435,7 @@ export async function issueDocument(
 // ────────────────────────────────────────────
 
 /**
- * REFLECT 기본 제공 문서 템플릿 5종을 반환합니다.
+ * OwnerView 기본 제공 문서 템플릿 5종을 반환합니다.
  */
 export function getBuiltInTemplates(): DocTemplate[] {
   return [
@@ -695,7 +695,7 @@ function addPageNumbers(doc: jsPDF, companyName: string) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `REFLECT Document  |  ${companyName}  |  Page ${i}/${pageCount}`,
+      `OwnerView Document  |  ${companyName}  |  Page ${i}/${pageCount}`,
       pageW / 2,
       pageH - 8,
       { align: 'center' },

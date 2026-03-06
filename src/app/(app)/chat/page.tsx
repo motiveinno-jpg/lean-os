@@ -538,7 +538,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
                           {/* 발송 버튼 */}
                           <div className="grid grid-cols-2 gap-2">
                             <a
-                              href={`sms:${extContact.includes('@') ? '' : extContact.replace(/-/g, '')}?body=${encodeURIComponent(`[REFLECT] "${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 눌러 참가하세요:\n${inviteLink}`)}`}
+                              href={`sms:${extContact.includes('@') ? '' : extContact.replace(/-/g, '')}?body=${encodeURIComponent(`[OwnerView] "${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 눌러 참가하세요:\n${inviteLink}`)}`}
                               className="flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -547,7 +547,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
                               문자 보내기
                             </a>
                             <a
-                              href={`mailto:${extContact.includes('@') ? extContact : ''}?subject=${encodeURIComponent(`[REFLECT] 채팅방 초대`)}&body=${encodeURIComponent(`안녕하세요,\n\n"${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 클릭하여 참가하세요:\n\n${inviteLink}\n\nREFLECT`)}`}
+                              href={`mailto:${extContact.includes('@') ? extContact : ''}?subject=${encodeURIComponent(`[OwnerView] 채팅방 초대`)}&body=${encodeURIComponent(`안녕하세요,\n\n"${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 클릭하여 참가하세요:\n\n${inviteLink}\n\nOwnerView`)}`}
                               className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

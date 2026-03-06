@@ -163,14 +163,15 @@ function InviteContent() {
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-2xl mb-3">
-            <svg width="56" height="56" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="7" fill="#0F172A"/>
-              <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
-              <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
-              <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+            <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="10" fill="#111"/>
+              <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
+              <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
+              <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
             </svg>
           </div>
-          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)]">REFLECT</h1>
+          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)]">OwnerView</h1>
           <p className="text-[var(--text-muted)] text-xs md:text-sm mt-1">회사 상황판 OS</p>
         </div>
 

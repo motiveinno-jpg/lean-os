@@ -339,7 +339,7 @@ export default function DashboardPage() {
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary)', color: '#fff' }}>NEW</span>
           </div>
           <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-            REFLECT를 최대한 활용하려면 아래 항목을 완료하세요.
+            OwnerView를 최대한 활용하려면 아래 항목을 완료하세요.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <GuideActionCard

@@ -6,7 +6,7 @@ const SECTIONS = [
   {
     id: "1",
     title: "제1조 (개인정보의 수집 항목 및 수집 방법)",
-    content: `(주)모티브이노베이션(이하 "회사")은 REFLECT 서비스(이하 "서비스") 제공을 위해 다음과 같은 개인정보를 수집합니다.
+    content: `(주)모티브이노베이션(이하 "회사")은 OwnerView 서비스(이하 "서비스") 제공을 위해 다음과 같은 개인정보를 수집합니다.
 
 [필수 수집 항목]
 1. 회원가입 시: 회사명, 사업자등록번호, 대표자명, 이메일 주소, 연락처, 비밀번호
@@ -240,7 +240,7 @@ export default function PrivacyPage() {
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
-            <span className="text-lg font-bold text-white">REFLECT</span>
+            <span className="text-lg font-bold text-white">OwnerView</span>
           </Link>
           <Link href="/" className="px-4 py-2 text-sm text-slate-300 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition">
             홈으로

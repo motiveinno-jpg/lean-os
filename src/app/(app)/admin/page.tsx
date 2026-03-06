@@ -179,7 +179,7 @@ export default function AdminPage() {
           <span className="text-xl">👑</span>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">SaaS 관리자</h1>
         </div>
-        <p className="text-sm text-[var(--text-muted)]">REFLECT 서비스 전체 현황 관리</p>
+        <p className="text-sm text-[var(--text-muted)]">OwnerView 서비스 전체 현황 관리</p>
       </div>
 
       {/* Tabs */}

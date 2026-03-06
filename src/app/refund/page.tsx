@@ -6,7 +6,7 @@ const SECTIONS = [
   {
     id: "1",
     title: "제1조 (목적)",
-    content: `본 환불규정은 (주)모티브이노베이션(이하 "회사")이 제공하는 REFLECT 서비스(이하 "서비스")의 유료 이용과 관련하여 환불의 조건, 절차, 제한 사항을 규정함을 목적으로 합니다.`,
+    content: `본 환불규정은 (주)모티브이노베이션(이하 "회사")이 제공하는 OwnerView 서비스(이하 "서비스")의 유료 이용과 관련하여 환불의 조건, 절차, 제한 사항을 규정함을 목적으로 합니다.`,
   },
   {
     id: "2",
@@ -119,7 +119,7 @@ export default function RefundPage() {
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
-            <span className="text-lg font-bold text-white">REFLECT</span>
+            <span className="text-lg font-bold text-white">OwnerView</span>
           </Link>
           <Link href="/" className="px-4 py-2 text-sm text-slate-300 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition">
             홈으로

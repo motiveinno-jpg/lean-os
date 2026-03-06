@@ -452,7 +452,7 @@ export default function BillingPage() {
           {/* Feedback section */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h3 className="font-bold text-[var(--text)] mb-1">피드백</h3>
-            <p className="text-xs text-[var(--text-muted)] mb-4">REFLECT를 더 좋게 만들어 주세요</p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
 
             {fbSent ? (
               <div className="text-center py-6">

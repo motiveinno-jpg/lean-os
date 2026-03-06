@@ -147,11 +147,12 @@ export default function AuthPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
-              <svg width="56" height="56" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="7" fill="#0F172A"/>
-                <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
-                <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
-                <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+              <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="10" fill="#111"/>
+                <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
+                <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
+                <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
               </svg>
             </div>
           </div>
@@ -187,7 +188,7 @@ export default function AuthPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">메일함을 확인하세요</p>
-                      <p className="text-xs text-[var(--text-muted)]">REFLECT에서 보낸 인증 메일을 찾아주세요</p>
+                      <p className="text-xs text-[var(--text-muted)]">OwnerView에서 보낸 인증 메일을 찾아주세요</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -205,7 +206,7 @@ export default function AuthPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">가입 완료!</p>
-                      <p className="text-xs text-[var(--text-muted)]">자동으로 REFLECT에 로그인됩니다</p>
+                      <p className="text-xs text-[var(--text-muted)]">자동으로 OwnerView에 로그인됩니다</p>
                     </div>
                   </div>
                 </div>
@@ -270,7 +271,7 @@ export default function AuthPage() {
               <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">REFLECT</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">OwnerView</h1>
           <p className="text-[var(--text-muted)] text-sm mt-1">대표를 위한 회사 상황판 OS</p>
         </div>
 

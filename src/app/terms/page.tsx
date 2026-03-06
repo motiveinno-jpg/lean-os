@@ -6,12 +6,12 @@ const SECTIONS = [
   {
     id: "1",
     title: "제1조 (목적)",
-    content: `본 약관은 (주)모티브이노베이션(이하 "회사")이 제공하는 REFLECT 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자(이하 "회원") 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.`,
+    content: `본 약관은 (주)모티브이노베이션(이하 "회사")이 제공하는 OwnerView 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자(이하 "회원") 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.`,
   },
   {
     id: "2",
     title: "제2조 (정의)",
-    content: `1. "서비스"란 회사가 제공하는 AI 기반 회사 상황판 OS(REFLECT)로서, 회계, 급여, 전자계약, 팀 채팅, 프로젝트 관리, CRM, 세무, 문서관리, AI 어시스턴트 등의 기능을 통합 제공하는 B2B SaaS 플랫폼을 의미합니다.
+    content: `1. "서비스"란 회사가 제공하는 AI 기반 회사 상황판 OS(OwnerView)로서, 회계, 급여, 전자계약, 팀 채팅, 프로젝트 관리, CRM, 세무, 문서관리, AI 어시스턴트 등의 기능을 통합 제공하는 B2B SaaS 플랫폼을 의미합니다.
 2. "회원"이란 본 약관에 동의하고 회사와 서비스 이용계약을 체결한 법인 또는 개인(개인사업자 포함)을 의미합니다.
 3. "관리자"란 회원이 지정한 서비스 관리 권한을 보유한 사용자를 의미합니다.
 4. "이용자"란 회원의 소속 직원, 파트너 등 회원의 초대를 통해 서비스에 접근하는 모든 개인을 의미합니다.
@@ -180,7 +180,7 @@ export default function TermsPage() {
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
-            <span className="text-lg font-bold text-white">REFLECT</span>
+            <span className="text-lg font-bold text-white">OwnerView</span>
           </Link>
           <Link href="/" className="px-4 py-2 text-sm text-slate-300 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition">
             홈으로
