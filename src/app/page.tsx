@@ -17,15 +17,15 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "Free", price: "0", unit: "원", period: "영구 무료", desc: "1~3인 1인대표", hl: false, features: ["직원 3명까지", "프로젝트 3개", "전자서명 월 3건", "생존 대시보드", "AI 분석 월 5회", "팀 채팅"] },
-  { name: "Team", price: "59,000", unit: "원/월", period: "연결제 시 49,000원", desc: "10인 이하", hl: false, features: ["직원/프로젝트 무제한", "4개 엔진 전체", "서명 월 50건", "AI 분석 월 100회", "파트너 10개 초대", "거래처 DB 무제한", "이메일 지원"] },
-  { name: "Business", price: "190,000", unit: "원/월", period: "연결제 시 149,000원", desc: "50인 이하", hl: true, features: ["Team 전체 +", "AI 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 시뮬레이터", "우선 지원"] },
-  { name: "Enterprise", price: "별도 협의", unit: "", period: "", desc: "50인+", hl: false, features: ["Business 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
+  { name: "Free", regularPrice: null, betaPrice: "0", unit: "원", period: "영구 무료", desc: "1~3인 1인대표", perSeat: null, hl: false, discount: null, features: ["직원 3명까지", "프로젝트 3개", "전자서명 월 3건", "생존 대시보드", "AI 분석 월 5회", "팀 채팅"] },
+  { name: "Starter", regularPrice: "89,000", betaPrice: "29,000", unit: "원/월", period: "+5,900원/인", desc: "10인 이하", perSeat: 5900, hl: false, discount: "경쟁사 대비 약 89% 절감", features: ["직원/프로젝트 무제한", "4개 엔진 전체", "서명 월 50건", "AI 분석 월 100회", "파트너 10개 초대", "거래처 DB 무제한", "이메일 지원"] },
+  { name: "Business", regularPrice: "290,000", betaPrice: "49,000", unit: "원/월", period: "+9,900원/인", desc: "50인 이하", perSeat: 9900, hl: true, discount: "경쟁사 대비 약 80% 절감", features: ["Starter 전체 +", "AI 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 시뮬레이터", "우선 지원"] },
+  { name: "Enterprise", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "", desc: "50인+", perSeat: null, hl: false, discount: null, features: ["Business 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
 ];
 
 const FAQS = [
   { q: "기존 엑셀/관리파일을 가져올 수 있나요?", a: "네. 온보딩 시 기존 엑셀 파일을 업로드하면 AI가 자동으로 파싱하여 70~80%를 자동 세팅합니다." },
-  { q: "각 기능이 전문 솔루션 수준인가요?", a: "LeanOS의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
+  { q: "각 기능이 전문 솔루션 수준인가요?", a: "REFLECT의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
   { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
   { q: "보안은 안전한가요?", a: "AES-256 암호화, 역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용합니다." },
@@ -59,7 +59,7 @@ const FEATURES = [
     sim: "payroll",
     replaces: "플*스",
     title: "4대보험/원천세 자동 계산 → 일괄 이체",
-    desc: "국민연금 4.5%/건보 3.545%/고용 0.9%/소득세 간이세액표 자동 적용. 급여명세서 생성→대표 승인→전 직원 일괄 이체.",
+    desc: "국민연금 4.5%/건보 3.545%*/고용 0.9%/소득세 간이세액표 자동 적용. 급여명세서 생성→대표 승인→전 직원 일괄 이체.",
   },
   {
     tab: "팀 & 파트너 채팅",
@@ -80,7 +80,7 @@ const FEATURES = [
     sim: "ai",
     replaces: "경쟁사에 없음",
     title: "리스크 감지 → 자동분류 → 예측까지",
-    desc: "미수금 위험, 현금 소진 예측, 거래내역 자동 분류, 매출 예측, 고정비 절감 추천. 모든 기능에 AI가 내장된 LeanOS만의 차별점.",
+    desc: "미수금 위험, 현금 소진 예측, 거래내역 자동 분류, 매출 예측, 고정비 절감 추천. 모든 기능에 AI가 내장된 REFLECT만의 차별점.",
   },
   {
     tab: "서류 자동관리",
@@ -94,48 +94,62 @@ const FEATURES = [
 // ═══════════════════════════════════════════
 // HERO ROLLING TEXT
 // ═══════════════════════════════════════════
-const ROLES = ["인사", "총무", "재무", "회계", "법무"];
-const ROLE_DURATIONS = [600, 600, 600, 600, 2200]; // 직원 부분(마지막)은 길게
+const ROLLING_WORDS = ["매출", "계약", "자금", "업무", "조직", "세무"];
+const ROLLING_DURATION = 2000;
 
 function RollingText() {
   const [idx, setIdx] = useState(0);
   const [show, setShow] = useState(true);
 
   useEffect(() => {
-    const dur = ROLE_DURATIONS[idx];
-    const hideTimer = setTimeout(() => setShow(false), dur - 200);
+    const hideTimer = setTimeout(() => setShow(false), ROLLING_DURATION - 300);
     const nextTimer = setTimeout(() => {
-      setIdx((i) => (i + 1) % ROLES.length);
+      setIdx((i) => (i + 1) % ROLLING_WORDS.length);
       setShow(true);
-    }, dur);
+    }, ROLLING_DURATION);
     return () => { clearTimeout(hideTimer); clearTimeout(nextTimer); };
   }, [idx]);
 
   return (
-    <span className="inline-block relative overflow-hidden align-bottom" style={{ width: "3.2em", height: "1.15em" }}>
+    <span className="inline-block relative overflow-hidden align-bottom" style={{ width: "2em", height: "1.15em" }}>
       <span
-        className="absolute left-0 text-blue-400 transition-all duration-200"
+        className="absolute left-0 transition-all duration-300"
         style={{
-          transform: show ? "translateY(0)" : "translateY(-100%)",
+          color: "var(--primary, #2563EB)",
+          fontWeight: 800,
+          transform: show ? "translateY(0)" : "translateY(-110%)",
           opacity: show ? 1 : 0,
         }}
       >
-        {ROLES[idx]}
+        {ROLLING_WORDS[idx]}
       </span>
     </span>
   );
 }
 
+function ReflectLogo({ size = 40, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <rect width="32" height="32" rx="7" fill="#0F172A"/>
+      <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+      <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+      <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+    </svg>
+  );
+}
+
 // ═══════════════════════════════════════════
-// 4 ENGINES — LeanOS의 핵심 자동화 엔진
+// 4 ENGINES — Reflect의 핵심 자동화 엔진
 // ═══════════════════════════════════════════
 const ENGINES = [
   {
     num: "01",
     name: "생존 레이더",
     eng: "Survival Radar",
-    tagline: "우리 회사 현금이 몇 개월 버틸 수 있는지, AI가 매일 계산합니다",
-    desc: "통장 잔고, 고정비, 매출 추이, 미수금 — 흩어진 숫자를 하나로 모아 \"지금 이 속도면 몇 개월 버티는지\" 실시간 계산. 위험 신호는 대표가 묻기 전에 먼저 알려줍니다.",
+    icon: "🛡️",
+    tagline: "\"우리 회사, 지금 속도면 몇 개월?\" — AI가 매일 답합니다",
+    headline: "흩어진 통장을 하나로. 위험은 대표가 묻기 전에 알립니다.",
+    desc: "7개 은행 잔고, 카드 내역, 매출, 미수금 — 모두 자동 수집. \"직원 1명 더 뽑으면?\" 같은 시나리오 시뮬레이션까지. 현금이 바닥나기 전에, AI가 먼저 경고합니다.",
     replaces: "CFO 1명",
     replacesCost: "연 6,000만원",
     color: "#3B82F6",
@@ -146,18 +160,25 @@ const ENGINES = [
     ],
     apis: ["오픈뱅킹 API", "홈택스 API", "DART 공시", "Claude AI"],
     steps: [
-      "통장·카드 거래내역 자동 수집 (오픈뱅킹)",
-      "AI가 수입/지출 자동 분류 + 고정비 패턴 감지",
-      "현금 소진 시점 예측 + 위험 선제 알림",
+      { step: "자동 수집", detail: "통장·카드 거래내역 오픈뱅킹 자동 연동" },
+      { step: "AI 분류", detail: "수입/지출 자동 분류 + 고정비 패턴 감지" },
+      { step: "선제 알림", detail: "현금 소진 시점 예측 + 위험 신호 대표 알림" },
     ],
-    details: ["6-Pack 생존지표 대시보드", "시나리오 시뮬레이터 (\"직원 1명 더 뽑으면?\")", "매출 예측 + 고정비 절감 AI 추천", "미수금 30일 초과 자동 경고", "월별 재무 리포트 자동 생성"],
+    features: [
+      { icon: "📊", name: "6-Pack 생존지표", desc: "현금·매출·고정비·미수금·생존기간·마진율" },
+      { icon: "🔮", name: "시나리오 시뮬레이터", desc: "\"직원 1명 추가하면?\" 즉시 계산" },
+      { icon: "⚠️", name: "미수금 자동 경고", desc: "30일 초과 미수금 즉시 알림" },
+      { icon: "📈", name: "월별 재무 리포트", desc: "대표용 자동 생성 + 이메일 발송" },
+    ],
   },
   {
     num: "02",
     name: "원클릭 파이프라인",
     eng: "Auto Pipeline",
-    tagline: "견적서 하나 보내면, 계약→서명→세금계산서→입금확인까지 전자동",
-    desc: "딜이 성사되면 견적서에서 계약서가 자동 생성되고, 서명 요청이 발송되고, 서명 완료 시 세금계산서가 자동 발행됩니다. 입금되면 3-Way 매칭. 대표는 승인 버튼만.",
+    icon: "⚡",
+    tagline: "견적서 하나 보내면 — 계약·서명·세금계산서·입금확인까지 전자동",
+    headline: "대표는 승인 버튼만. 나머지는 엔진이 알아서.",
+    desc: "딜이 성사되면? 견적서→계약서 자동생성→서명 요청 발송→세금계산서 자동발행→입금 3-Way 매칭. 수작업 12단계가 원클릭 1단계로.",
     replaces: "영업관리자 + 경리",
     replacesCost: "연 8,000만원",
     color: "#8B5CF6",
@@ -168,18 +189,25 @@ const ENGINES = [
     ],
     apis: ["전자서명 엔진", "홈택스 API", "이메일/알림 API", "Claude AI"],
     steps: [
-      "견적 승인 → 계약서 자동 생성 + 서명 요청 자동 발송",
-      "서명 완료 → 세금계산서 자동 발행 + 매출 스케줄 등록",
-      "입금 확인 → 3-Way 자동 매칭 + 딜 상태 업데이트",
+      { step: "견적→계약", detail: "견적 승인 즉시 계약서 자동 생성 + 서명 요청" },
+      { step: "서명→발행", detail: "서명 완료 시 세금계산서 자동 발행 + 매출 등록" },
+      { step: "입금→매칭", detail: "입금 확인 → 3-Way 자동 매칭 + 딜 상태 갱신" },
     ],
-    details: ["칸반/테이블 멀티뷰 파이프라인", "딜별 전용 채팅 채널 + 액션카드", "마일스톤 자동 체크포인트", "휴면 딜 AI 감지 (2주 미움직임)", "선금/잔금 매출 스케줄 자동 추적"],
+    features: [
+      { icon: "📋", name: "칸반 파이프라인", desc: "드래그앤드롭 딜 관리 + 테이블 뷰" },
+      { icon: "💬", name: "딜별 전용 채팅", desc: "채팅 안에서 승인·서명·확인까지" },
+      { icon: "😴", name: "휴면 딜 AI 감지", desc: "2주 미움직임 → 자동 리마인더" },
+      { icon: "💰", name: "매출 스케줄 추적", desc: "선금/잔금 자동 분리 + 입금 추적" },
+    ],
   },
   {
     num: "03",
-    name: "AI 총무팀",
+    name: "AI 인사/총무팀",
     eng: "AI Back Office",
-    tagline: "급여·4대보험·경비·근태·서류 — 사람 대신 AI가 24시간 처리합니다",
-    desc: "매월 25일, 전 직원 급여가 자동 계산됩니다. 국민연금 4.5%, 건강보험 3.545%, 고용보험 0.9%, 소득세 간이세액표까지 전부 자동. 대표는 월 1번 \"승인\" 버튼만 누르면 됩니다.",
+    icon: "🤖",
+    tagline: "급여·4대보험·경비·근태·서류 — 사람 대신 AI가 24시간",
+    headline: "매월 25일, 대표는 '승인' 한 번. 나머지는 전부 자동.",
+    desc: "국민연금 4.5%, 건보 3.545%, 고용 0.9%, 소득세 간이세액표 — 전부 자동 산출. 급여명세서 생성, 일괄이체, 명세서 발송까지. 경비 영수증도 AI가 자동 분류·정산.",
     replaces: "회계 + 인사 담당자",
     replacesCost: "연 4,500만원",
     color: "#10B981",
@@ -190,18 +218,25 @@ const ENGINES = [
     ],
     apis: ["4대보험공단 요율", "국세청 간이세액표", "오픈뱅킹 이체", "n8n 자동화"],
     steps: [
-      "직원 정보 등록 → 4대보험·원천세 자동 산출",
-      "매월 20일 급여 배치 자동 생성 → 대표에게 알림",
-      "대표 일괄 승인 → 전 직원 이체 + 명세서 자동 발송",
+      { step: "직원 등록", detail: "4대보험·원천세 요율 자동 매칭" },
+      { step: "배치 생성", detail: "매월 20일 전 직원 급여 자동 산출 → 대표 알림" },
+      { step: "일괄 이체", detail: "대표 승인 → 전 직원 이체 + 명세서 자동 발송" },
     ],
-    details: ["근태/출퇴근 자동 기록", "연차/휴가 신청 → 자동 승인 플로우", "경비 영수증 → AI 분류 → 자동 정산", "근로계약서 자동 생성 + 전자서명", "서류 자동 분류·저장·백업·버전관리"],
+    features: [
+      { icon: "⏰", name: "자동 근태관리", desc: "출퇴근 기록·연차·휴가 자동 처리" },
+      { icon: "🧾", name: "경비 AI 정산", desc: "영수증 → 자동 분류 → 승인 → 정산" },
+      { icon: "📝", name: "근로계약서 자동", desc: "입사 시 계약서 자동생성 + 전자서명" },
+      { icon: "📂", name: "서류 자동관리", desc: "생성·분류·저장·백업·버전관리 올인원" },
+    ],
   },
   {
     num: "04",
     name: "거래처 자산화",
     eng: "Client Asset Engine",
-    tagline: "한번이라도 거래한 업체가 자동으로 회사의 가장 큰 자산이 됩니다",
-    desc: "견적 1건만 보내도 거래처가 자동 등록됩니다. 거래 이력, 계약서, 채팅, 매출 — 모든 상호작용이 비즈니스 자산으로 축적. 담당자가 퇴사해도 고객 관계는 회사에 남습니다.",
+    icon: "🏢",
+    tagline: "한번이라도 거래한 업체 — 자동으로 회사의 가장 큰 자산이 됩니다",
+    headline: "담당자가 퇴사해도, 고객 관계는 회사에 남습니다.",
+    desc: "견적 1건만 보내도 거래처 자동 등록. 거래 이력, 계약서, 채팅, 매출 — 모든 상호작용이 자산으로 축적. 휴면 고객은 AI가 감지하고 리마인더를 자동 발송.",
     replaces: "CRM + 명함관리 구독",
     replacesCost: "연 200만원+",
     color: "#F59E0B",
@@ -212,11 +247,16 @@ const ENGINES = [
     ],
     apis: ["공공데이터 포털", "DART 기업정보", "이메일 파싱", "Claude AI"],
     steps: [
-      "견적·계약·채팅 발생 → 거래처 자동 등록 + 이력 축적",
-      "AI가 거래 패턴 분석 → 휴면·위험 거래처 자동 감지",
-      "리마인더 자동 발송 + 파트너 포털로 관계 유지",
+      { step: "자동 등록", detail: "견적·계약·채팅 발생 → 거래처 자동 등록 + 이력 축적" },
+      { step: "AI 분석", detail: "거래 패턴 분석 → 휴면·위험 거래처 자동 감지" },
+      { step: "관계 유지", detail: "리마인더 자동 발송 + 파트너 포털로 관계 강화" },
     ],
-    details: ["거래처별 딜·계약·매출·커뮤니케이션 360도 뷰", "파트너 초대 (링크 하나, 별도 요금 없음)", "파트너 전용 포털 (서류 확인·채팅)", "사업자등록 정보 자동 조회", "관계 스코어링 + AI 인사이트"],
+    features: [
+      { icon: "🔄", name: "360° 뷰", desc: "딜·계약·매출·커뮤니케이션 통합 뷰" },
+      { icon: "🔗", name: "파트너 포털", desc: "링크 하나로 초대, 서류 확인·채팅 참여" },
+      { icon: "🏢", name: "사업자 자동조회", desc: "사업자등록번호로 기업정보 자동 입력" },
+      { icon: "🎯", name: "관계 스코어링", desc: "AI가 거래 건강도 자동 분석·점수화" },
+    ],
   },
 ];
 
@@ -227,7 +267,7 @@ const ENGINES = [
 function PaymentSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 20), 540);
+    const t = setInterval(() => setStep((s) => (s + 1) % 20), 266);
     return () => clearInterval(t);
   }, []);
 
@@ -272,7 +312,7 @@ function PaymentSim() {
 function PipelineSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 16), 600);
+    const t = setInterval(() => setStep((s) => (s + 1) % 16), 294);
     return () => clearInterval(t);
   }, []);
 
@@ -283,7 +323,7 @@ function PipelineSim() {
     <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
       <div className="flex items-center justify-between mb-5">
         <span className="text-xs font-bold text-blue-400">DEAL PIPELINE</span>
-        <span className="text-[10px] text-slate-400">그릭데이 요거트 납품</span>
+        <span className="text-[10px] text-slate-400">그**이 식품 납품</span>
       </div>
       {/* Pipeline stages */}
       <div className="flex items-center gap-1 mb-5">
@@ -334,7 +374,7 @@ function PipelineSim() {
 function ContractSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 15), 660);
+    const t = setInterval(() => setStep((s) => (s + 1) % 15), 322);
     return () => clearInterval(t);
   }, []);
 
@@ -354,7 +394,7 @@ function ContractSim() {
           <span className="text-lg">{phaseIcon[phase]}</span>
           <div>
             <div className="text-xs font-bold">용역 계약서 v2.1</div>
-            <div className="text-[10px] text-slate-400">(주)그릭데이 × (주)모티브이노베이션</div>
+            <div className="text-[10px] text-slate-400">(주)그**이 × (주)모**브</div>
           </div>
         </div>
         {/* Document lines */}
@@ -396,7 +436,7 @@ function ContractSim() {
 function PayrollSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 12), 750);
+    const t = setInterval(() => setStep((s) => (s + 1) % 12), 368);
     return () => clearInterval(t);
   }, []);
 
@@ -436,7 +476,7 @@ function PayrollSim() {
       </div>
       {showCalc && (
         <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
-          {["국민연금 4.5%", "건보 3.545%", "고용 0.9%", "소득세"].map((d) => (
+          {["국민연금 4.5%", "건보 3.545%*", "고용 0.9%", "소득세"].map((d) => (
             <div key={d} className="py-1.5 bg-rose-500/10 rounded-lg text-[9px] text-rose-300">{d}</div>
           ))}
         </div>
@@ -453,7 +493,7 @@ function PayrollSim() {
 function AISim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 18), 450);
+    const t = setInterval(() => setStep((s) => (s + 1) % 18), 220);
     return () => clearInterval(t);
   }, []);
 
@@ -498,12 +538,12 @@ function AISim() {
 function ChatSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 16), 480);
+    const t = setInterval(() => setStep((s) => (s + 1) % 16), 235);
     return () => clearInterval(t);
   }, []);
 
   const msgs = [
-    { from: "김대리", role: "팀원", msg: "그릭데이 3월분 견적서 검토 부탁드립니다", time: "14:02", show: step >= 1 },
+    { from: "김대리", role: "팀원", msg: "그**이 3월분 견적서 검토 부탁드립니다", time: "14:02", show: step >= 1 },
     { from: "시스템", role: "AI", msg: "📋 견적서 #Q-2024-031 자동 생성 완료 — ₩35,000,000", time: "14:02", show: step >= 3, isAction: true },
     { from: "채대표", role: "대표", msg: "확인했습니다. 승인합니다.", time: "14:05", show: step >= 5 },
     { from: "시스템", role: "AI", msg: "✅ 견적 승인 → 계약서 자동 생성 중...", time: "14:05", show: step >= 7, isAction: true },
@@ -540,15 +580,15 @@ function ChatSim() {
 function CRMSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 14), 540);
+    const t = setInterval(() => setStep((s) => (s + 1) % 14), 265);
     return () => clearInterval(t);
   }, []);
 
   const clients = [
-    { name: "(주)그릭데이", deals: 5, total: "₩1.8억", last: "2일 전", status: "활성", show: step >= 1 },
-    { name: "(주)한라산업", deals: 3, total: "₩9,500만", last: "5일 전", status: "활성", show: step >= 3 },
-    { name: "블루오션 LLC", deals: 2, total: "₩6,200만", last: "12일 전", status: "주의", show: step >= 5 },
-    { name: "스카이텍", deals: 1, total: "₩3,400만", last: "25일 전", status: "휴면", show: step >= 7 },
+    { name: "(주)그**이", deals: 5, total: "₩1.8억", last: "2일 전", status: "활성", show: step >= 1 },
+    { name: "(주)한**업", deals: 3, total: "₩9,500만", last: "5일 전", status: "활성", show: step >= 3 },
+    { name: "블**션 LLC", deals: 2, total: "₩6,200만", last: "12일 전", status: "주의", show: step >= 5 },
+    { name: "스**텍", deals: 1, total: "₩3,400만", last: "25일 전", status: "휴면", show: step >= 7 },
   ];
   const showInsight = step >= 10;
 
@@ -585,7 +625,7 @@ function CRMSim() {
 function DocSim() {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % 16), 510);
+    const t = setInterval(() => setStep((s) => (s + 1) % 16), 250);
     return () => clearInterval(t);
   }, []);
 
@@ -705,6 +745,7 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [partnerForm, setPartnerForm] = useState({ company: "", name: "", email: "", phone: "", message: "" });
   const [partnerSent, setPartnerSent] = useState(false);
+  // revView removed — revenue simulation moved to separate IR report
 
   // Auto-rotate features
   useEffect(() => {
@@ -713,10 +754,10 @@ export default function LandingPage() {
   }, []);
 
   const competitorTotal = teamSize * (24000 + 16000 + 4900 + 4000) + 55000 + 120000 + 33000;
-  const leanosTotal = teamSize <= 3 ? 0 : teamSize <= 10 ? 59000 : teamSize <= 50 ? 190000 : null;
-  const savings = competitorTotal - (leanosTotal ?? 190000);
+  const reflectTotal = teamSize <= 3 ? 0 : teamSize <= 10 ? 29000 + teamSize * 5900 : teamSize <= 50 ? 49000 + teamSize * 9900 : null;
+  const savings = competitorTotal - (reflectTotal ?? (49000 + 50 * 9900));
   const savingsPercent = Math.round((savings / competitorTotal) * 100);
-  const leanosPlan = teamSize <= 3 ? "Free" : teamSize <= 10 ? "Team" : teamSize <= 50 ? "Business" : "Enterprise";
+  const reflectPlan = teamSize <= 3 ? "Free" : teamSize <= 10 ? "Starter" : teamSize <= 50 ? "Business" : "Enterprise";
 
   const heroRef = useInView();
   const featRef = useInView();
@@ -727,7 +768,7 @@ export default function LandingPage() {
   const SimComponent = SIM_MAP[FEATURES[activeFeat].sim];
 
   return (
-    <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
+    <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Inter', 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif" }}>
       <style>{`
         @keyframes float-y { from { transform: translateY(0px) rotate(0deg); } to { transform: translateY(-30px) rotate(5deg); } }
         @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
@@ -740,10 +781,10 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav className="fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
-            <span className="text-lg font-bold text-white">LeanOS</span>
-          </div>
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 cursor-pointer">
+            <ReflectLogo size={32} />
+            <span className="text-lg font-bold text-white tracking-tight">REFLECT</span>
+          </a>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
             <a href="#features" className="hover:text-white transition">주요기능</a>
             <a href="#engines" className="hover:text-white transition">엔진</a>
@@ -754,55 +795,63 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition hidden sm:block">로그인</Link>
-            <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20">무료 시작</Link>
+            <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20">무료로 시작하기</Link>
           </div>
         </div>
       </nav>
 
       {/* ── HERO ── */}
-      <section className="relative pt-28 pb-24 md:pt-36 md:pb-32 px-6 bg-[#0A0E1A] overflow-hidden" ref={heroRef.ref}>
-        <FloatingElements />
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium mb-8 border border-blue-500/30 bg-blue-500/10 text-blue-300 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
-            <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            회계 · 인사 · 총무 · 재무 · 법무 — AI가 대신합니다
+      <section className="relative pt-32 pb-28 md:pt-44 md:pb-36 px-6 bg-[#0A0E1A] overflow-hidden" ref={heroRef.ref}>
+        {/* Subtle geometric background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[150px] bg-blue-600" style={{ top: "-15%", right: "-10%" }} />
+          <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[120px] bg-indigo-500" style={{ bottom: "-5%", left: "-5%" }} />
+          {/* Subtle dot grid pattern */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+        </div>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          {/* Reflect Logo — large */}
+          <div className={`mb-10 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
+            <ReflectLogo size={72} className="mx-auto" />
           </div>
-          <h1 className={`text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] mb-6 text-white ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <RollingText /> 직원 뽑지 마세요.
+
+          <h1 className={`text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
+            회사의 <RollingText /> 현황을
             <br />
-            <span className="text-blue-400">LeanOS 키세요.</span>
+            자동으로 정리해 한눈에 보여줍니다.
           </h1>
-          <p className={`text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
-            급여 계산, 세금계산서, 계약서, 경비 정산, 근태 관리 —
-            <br className="hidden md:block" />
-            <span className="text-slate-300 font-semibold">사람보다 정확하고, 24시간 실수 없이 돌아가는 라이브 회사 데이터.</span>
+          <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.15s" }}>
+            현금, 딜, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
           </p>
-          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-14 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
-            <Link href="/auth" className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
+          <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
+            소규모 회사 대표를 위한 올인원 운영 플랫폼
+          </p>
+          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
+            <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
               무료로 시작하기
             </Link>
-            <a href="#features" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
-              라이브 데모 보기
+            <a href="#features" className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
+              기능 둘러보기
             </a>
           </div>
           {/* Trust badges */}
           <div className={`flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.5s" }}>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 조직 슬림하게</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 실수 0건</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 3분 만에 세팅 완료</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 실수 0건</span>
           </div>
 
           {/* Hero mini dashboard mockup */}
-          <div className={`max-w-3xl mx-auto ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.6s" }}>
+          <div className={`mt-16 max-w-3xl mx-auto ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.6s" }}>
             <div className="bg-[#1E293B]/80 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl">
               <div className="flex items-center gap-2 mb-3 px-2">
                 <div className="w-3 h-3 rounded-full bg-red-400/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
                 <div className="w-3 h-3 rounded-full bg-green-400/80" />
-                <span className="text-[10px] text-slate-500 ml-2">LeanOS Dashboard — CEO View</span>
+                <span className="text-[10px] text-slate-500 ml-2">REFLECT Dashboard — CEO View</span>
               </div>
-              <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {[
                   { label: "현금", value: "₩8.2억", color: "#3B82F6", change: "+12%" },
                   { label: "매출", value: "₩4.5억", color: "#10B981", change: "+23%" },
@@ -816,7 +865,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { label: "승인 대기", count: "3건", color: "#F59E0B" },
                   { label: "진행 딜", count: "12건", color: "#3B82F6" },
@@ -847,19 +896,20 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
             {[
-              { pain: "급여일마다 엑셀 뒤지며 4대보험 수동 계산", solve: "AI가 4대보험/원천세 자동 계산 → 대표 승인 한 번이면 전 직원 일괄 이체", icon: "💰" },
-              { pain: "견적서 보냈는데 계약서는 또 따로 만들어야 함", solve: "견적 승인 → 계약서 자동 생성 → 서명 → 세금계산서까지 전자동 파이프라인", icon: "📋" },
-              { pain: "거래처가 입금했는지 통장 앱 왔다갔다 확인", solve: "세금계산서↔계약↔입금 3-Way 매칭. 빠진 건 AI가 자동 알림", icon: "🏦" },
-              { pain: "직원 연차 몇 일 남았는지, 경비 정산 밀린 건 있는지", solve: "근태/휴가/경비 전부 자동 계산. 대표는 승인 버튼만 누르면 끝", icon: "📊" },
-              { pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 검색 한 번이면 3초 만에 찾기", icon: "📁" },
-              { pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "딜별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
+              { keyword: "급여 자동화", pain: "급여일마다 엑셀 뒤지며 4대보험 수동 계산", solve: "AI가 4대보험/원천세 자동 계산 → 대표 승인 한 번이면 전 직원 일괄 이체", icon: "💰" },
+              { keyword: "계약 파이프라인", pain: "견적서 보냈는데 계약서는 또 따로 만들어야 함", solve: "견적 승인 → 계약서 자동 생성 → 서명 → 세금계산서까지 전자동 파이프라인", icon: "📋" },
+              { keyword: "입금 자동 매칭", pain: "거래처가 입금했는지 통장 앱 왔다갔다 확인", solve: "세금계산서↔계약↔입금 3-Way 매칭. 빠진 건 AI가 자동 알림", icon: "🏦" },
+              { keyword: "근태·경비 자동", pain: "직원 연차 몇 일 남았는지, 경비 정산 밀린 건 있는지", solve: "근태/휴가/경비 전부 자동 계산. 대표는 승인 버튼만 누르면 끝", icon: "📊" },
+              { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 검색 한 번이면 3초 만에 찾기", icon: "📁" },
+              { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "딜별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
             ].map((item) => (
-              <div key={item.pain} className="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-5 hover:border-white/10 transition group">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl mt-0.5">{item.icon}</span>
+              <div key={item.pain} className="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-6 hover:border-white/10 transition group">
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl mt-0.5">{item.icon}</span>
                   <div>
-                    <div className="text-sm text-red-400/80 line-through mb-2 leading-relaxed">{item.pain}</div>
-                    <div className="text-sm text-emerald-300 font-medium leading-relaxed">→ {item.solve}</div>
+                    <span className="inline-block text-base md:text-lg font-extrabold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-lg mb-3">{item.keyword}</span>
+                    <div className="text-sm md:text-base text-red-400/80 line-through mb-2 leading-relaxed">{item.pain}</div>
+                    <div className="text-sm md:text-base text-emerald-300 font-medium leading-relaxed">→ {item.solve}</div>
                   </div>
                 </div>
               </div>
@@ -894,97 +944,117 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="space-y-10">
+          <div className="space-y-8">
             {ENGINES.map((engine, idx) => {
               const coverage = engine.num === "01" ? 87 : engine.num === "02" ? 94 : engine.num === "03" ? 91 : 82;
               return (
-              <div key={engine.num} className="group bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition-all duration-500 relative">
-                {/* Top gradient accent */}
-                <div className="h-1.5" style={{ background: engine.color }} />
+              <div key={engine.num} className="group relative">
+                {/* Engine card */}
+                <div className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition-all duration-500">
+                  {/* Accent bar */}
+                  <div className="h-1" style={{ background: engine.color }} />
 
-                <div className="p-8 md:p-12">
-                  {/* Header row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
-                    <span className="text-xs font-mono font-extrabold px-4 py-2 rounded-lg tracking-widest w-fit" style={{ background: `${engine.color}18`, color: engine.color }}>
-                      ENGINE {engine.num}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-3xl md:text-4xl font-extrabold text-white">{engine.name}</h3>
-                      <span className="text-sm text-slate-600 font-medium hidden sm:inline">{engine.eng}</span>
+                  <div className="p-6 md:p-10">
+                    {/* Header — Icon + Name + Badge */}
+                    <div className="flex items-center gap-4 mb-5">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${engine.color}15` }}>
+                        {engine.icon}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="text-2xl md:text-3xl font-extrabold text-white">{engine.name}</h3>
+                          <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md tracking-wider" style={{ background: `${engine.color}18`, color: engine.color }}>
+                            ENGINE {engine.num}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-600">{engine.eng}</span>
+                      </div>
+                      {/* Cost badge — desktop */}
+                      <div className="hidden md:flex flex-col items-end">
+                        <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
+                        <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진 하나로 대체</div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Tagline */}
-                  <p className="text-base md:text-lg font-semibold mb-3 leading-snug" style={{ color: engine.color }}>{engine.tagline}</p>
-                  <p className="text-sm md:text-base text-slate-400 leading-relaxed mb-8 max-w-3xl">{engine.desc}</p>
+                    {/* Tagline — big and bold */}
+                    <div className="rounded-2xl p-4 md:p-5 mb-6" style={{ background: `${engine.color}08`, borderLeft: `4px solid ${engine.color}` }}>
+                      <p className="text-base md:text-xl font-extrabold text-white leading-snug mb-1">{engine.tagline}</p>
+                      <p className="text-sm text-slate-400">{engine.headline}</p>
+                    </div>
 
-                  <div className={`grid grid-cols-1 lg:grid-cols-5 gap-10 ${idx % 2 === 1 ? "lg:[direction:rtl] lg:[&>*]:[direction:ltr]" : ""}`}>
-                    {/* Left: Steps + Details (3 cols) */}
-                    <div className="lg:col-span-3">
-                      {/* 3 Steps */}
-                      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">작동 방식</div>
-                      <div className="space-y-4 mb-8">
-                        {engine.steps.map((step, i) => (
-                          <div key={i} className="flex items-start gap-4">
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0" style={{ background: `${engine.color}20`, color: engine.color }}>
-                              {i + 1}
+                    {/* Description */}
+                    <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-8">{engine.desc}</p>
+
+                    {/* 2-column: Steps + Features / Metrics */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Left: 3 Steps as flow */}
+                      <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">작동 방식 — 3단계</div>
+                        <div className="space-y-3 mb-6">
+                          {engine.steps.map((s, i) => (
+                            <div key={i} className="flex items-start gap-3 bg-white/[0.04] rounded-xl p-3.5 border border-white/[0.06]">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5" style={{ background: engine.color, color: "white" }}>
+                                {i + 1}
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-white mb-0.5">{s.step}</div>
+                                <div className="text-xs text-slate-400 leading-relaxed">{s.detail}</div>
+                              </div>
+                              {i < 2 && <div className="hidden" />}
                             </div>
-                            <span className="text-sm md:text-base text-slate-300 leading-relaxed pt-1">{step}</span>
+                          ))}
+                        </div>
+
+                        {/* API tags */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-slate-600 font-bold uppercase">연동 API:</span>
+                          {engine.apis.map((api) => (
+                            <span key={api} className="text-[10px] px-2.5 py-1 rounded-full font-semibold border" style={{ borderColor: `${engine.color}25`, color: engine.color, background: `${engine.color}08` }}>{api}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right: Features + Metrics */}
+                      <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">핵심 기능</div>
+                        <div className="grid grid-cols-2 gap-2.5 mb-6">
+                          {engine.features.map((f) => (
+                            <div key={f.name} className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3.5 hover:border-white/10 transition">
+                              <div className="text-lg mb-1.5">{f.icon}</div>
+                              <div className="text-xs font-bold text-white mb-0.5">{f.name}</div>
+                              <div className="text-[10px] text-slate-500 leading-snug">{f.desc}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Metrics row */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {engine.metrics.map((m) => (
+                            <div key={m.label} className="bg-white/[0.05] rounded-xl p-3 text-center border border-white/[0.06]">
+                              <div className="text-[10px] text-slate-500">{m.label}</div>
+                              <div className="text-base font-extrabold text-white">{m.value}</div>
+                              <div className="text-[10px] font-semibold" style={{ color: engine.color }}>{m.sub}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Coverage bar */}
+                        <div className="mt-3 bg-white/[0.04] rounded-xl p-3 border border-white/[0.06]">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2">
+                            <span>자동화 커버리지</span>
+                            <span className="text-xs font-extrabold" style={{ color: engine.color }}>{coverage}%</span>
                           </div>
-                        ))}
-                      </div>
-
-                      {/* Detailed features */}
-                      <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">포함 기능</div>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        {engine.details.map((d) => (
-                          <span key={d} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-slate-400 border border-white/[0.06]">{d}</span>
-                        ))}
-                      </div>
-
-                      {/* API Stack */}
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="text-xs text-slate-600 font-bold uppercase tracking-wider">API:</span>
-                        {engine.apis.map((api) => (
-                          <span key={api} className="text-xs px-3 py-1.5 rounded-full font-semibold border" style={{ borderColor: `${engine.color}30`, color: engine.color, background: `${engine.color}10` }}>{api}</span>
-                        ))}
+                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${coverage}%`, background: engine.color }} />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right: Metrics + Cost (2 cols) */}
-                    <div className="lg:col-span-2 flex flex-col gap-5">
-                      {/* Metrics grid */}
-                      <div className="grid grid-cols-3 gap-3">
-                        {engine.metrics.map((m) => (
-                          <div key={m.label} className="bg-white/[0.05] rounded-2xl p-4 text-center border border-white/[0.06]">
-                            <div className="text-xs text-slate-500 mb-1.5">{m.label}</div>
-                            <div className="text-lg font-extrabold text-white leading-tight">{m.value}</div>
-                            <div className="text-xs font-semibold mt-1" style={{ color: engine.color }}>{m.sub}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Cost replacement card */}
-                      <div className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center">
-                        <div className="text-xs text-slate-500 mb-3 tracking-wide font-medium">이 엔진이 대체하는 인건비</div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                          <span className="text-base text-slate-400 line-through">{engine.replaces}</span>
-                        </div>
-                        <div className="text-4xl font-extrabold mt-1" style={{ color: engine.color }}>{engine.replacesCost}</div>
-                        <div className="text-xs text-slate-600 mt-2 font-medium">절감</div>
-                      </div>
-
-                      {/* Automation coverage */}
-                      <div className="bg-white/[0.04] rounded-2xl p-4 border border-white/[0.06]">
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-2.5 font-medium">
-                          <span>자동화 커버리지</span>
-                          <span className="text-sm font-extrabold" style={{ color: engine.color }}>{coverage}%</span>
-                        </div>
-                        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${coverage}%`, background: engine.color }} />
-                        </div>
-                      </div>
+                    {/* Mobile cost badge */}
+                    <div className="md:hidden mt-6 flex items-center justify-between bg-white/[0.04] rounded-xl p-4 border border-white/[0.06]">
+                      <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
+                      <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진으로 대체</div>
                     </div>
                   </div>
                 </div>
@@ -1001,9 +1071,9 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-12 bg-white/10 hidden sm:block" />
               <div className="text-center sm:text-left">
-                <div className="text-sm text-slate-500 mb-2">LeanOS 가격</div>
-                <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">5.9만원</span>부터</div>
-                <div className="text-sm text-emerald-400 font-semibold mt-1">= 인건비의 0.4%</div>
+                <div className="text-sm text-slate-500 mb-2">REFLECT 베타 특가</div>
+                <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">2.9만원</span>+인당 5,900원</div>
+                <div className="text-sm text-emerald-400 font-semibold mt-1">= 인건비의 0.5% 수준</div>
               </div>
             </div>
           </div>
@@ -1018,7 +1088,7 @@ export default function LandingPage() {
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               이 서비스들, <span className="text-red-400">전부 쓰고 계시죠?</span>
             </h2>
-            <p className="text-slate-400 text-lg">매달 <span className="text-red-400 font-bold">70만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
+            <p className="text-slate-400 text-lg">10인 기준 매달 <span className="text-red-400 font-bold">80만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
           </div>
 
           {/* Competitor half-logo cards */}
@@ -1042,7 +1112,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Arrow down to LeanOS */}
+          {/* Arrow down to Reflect */}
           <div className="flex flex-col items-center mb-10">
             <div className="text-slate-500 text-sm mb-3">전부 합치면</div>
             <svg className="w-6 h-6 text-blue-400 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
@@ -1053,7 +1123,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
-                <p className="text-sm text-slate-400">팀 규모를 조절해보세요</p>
+                <p className="text-sm text-slate-400">옆 슬라이더를 움직여보세요 — 인원별 실시간 가격 비교</p>
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-3xl font-extrabold text-white">{teamSize}<span className="text-lg text-slate-400">명</span></span>
@@ -1066,8 +1136,8 @@ export default function LandingPage() {
                 <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
               </div>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 text-center">
-                <div className="text-xs text-blue-400 mb-1">LeanOS {leanosPlan}</div>
-                <div className="text-3xl font-extrabold text-blue-400">{leanosTotal === null ? "별도 협의" : leanosTotal === 0 ? "0" : Math.round(leanosTotal / 10000).toLocaleString()}<span className="text-base font-normal">{leanosTotal === null ? "" : leanosTotal === 0 ? "원 (무료)" : "만원/월"}</span></div>
+                <div className="text-xs text-blue-400 mb-1">REFLECT {reflectPlan} <span className="text-amber-400">(베타 특가)</span></div>
+                <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal === 0 ? "0" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : reflectTotal === 0 ? "원 (무료)" : "원/월"}</span></div>
               </div>
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-emerald-400 mb-1">매월 절감액</div>
@@ -1117,7 +1187,6 @@ export default function LandingPage() {
               <p className="text-sm text-slate-400 mb-6 leading-relaxed">{FEATURES[activeFeat].desc}</p>
               <div className="flex gap-3">
                 <Link href="/auth" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition">무료로 체험</Link>
-                <button className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-sm font-semibold transition">자세히 보기</button>
               </div>
             </div>
             {/* Right: Live Simulation */}
@@ -1179,11 +1248,15 @@ export default function LandingPage() {
       {/* ── PRICING ── */}
       <section className="py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
         <div className="max-w-5xl mx-auto">
-          <div className={`text-center mb-14 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 가격, 확실한 가치</h2>
-            <p className="text-gray-500 text-lg">숨겨진 비용 없이, 필요한 만큼만</p>
+          <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-amber-100 text-amber-700 border border-amber-200">
+              BETA OPEN — 3개월 한정 얼리어답터 특가
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">정상가보다 최대 83% 할인</h2>
+            <p className="text-gray-500 text-lg">지금 시작하면 베타 기간 동안 파격 할인 + 보상 프로그램 참여</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
@@ -1194,13 +1267,20 @@ export default function LandingPage() {
                 }`}
               >
                 {plan.hl && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-yellow-400 text-amber-900 text-xs font-bold rounded-full shadow-lg">BEST</div>}
+                {plan.discount && <div className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mb-2 ${plan.hl ? "bg-emerald-400/20 text-emerald-200" : "bg-emerald-50 text-emerald-600"}`}>{plan.discount}</div>}
                 <h4 className={`text-lg font-bold mb-0.5 ${plan.hl ? "" : "text-gray-900"}`}>{plan.name}</h4>
-                <p className={`text-xs mb-4 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.desc}</p>
-                <div className="mb-1">
-                  <span className="text-3xl font-extrabold">{plan.price}</span>
+                <p className={`text-xs mb-3 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.desc}</p>
+                {plan.regularPrice && (
+                  <div className={`text-sm line-through mb-1 ${plan.hl ? "text-blue-300" : "text-gray-400"}`}>
+                    정상가 {plan.regularPrice}{plan.unit}
+                  </div>
+                )}
+                <div className="mb-0.5">
+                  <span className="text-3xl font-extrabold">{plan.betaPrice}</span>
                   <span className={`text-sm ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.unit}</span>
                 </div>
-                {plan.period && <div className={`text-xs mb-5 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.period}</div>}
+                {plan.period && <div className={`text-xs mb-4 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.period}</div>}
+                {!plan.period && <div className="mb-4" />}
                 <ul className="space-y-2 mb-6">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
@@ -1209,14 +1289,77 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.price === "별도 협의" ? "#partner" : "/auth"} className={`block text-center py-3 rounded-xl font-semibold text-sm transition ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
-                  {plan.price === "별도 협의" ? "문의하기" : "무료로 시작"}
+                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`block text-center py-3 rounded-xl font-semibold text-sm transition ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
+                  {plan.betaPrice === "별도 협의" ? "문의하기" : "베타 특가로 시작"}
                 </Link>
               </div>
             ))}
           </div>
+
+          {/* Beta 보상 프로그램 */}
+          <div className={`bg-white rounded-3xl border border-gray-200 p-8 shadow-sm ${priceRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.3s" }}>
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-extrabold mb-2">베타 사용자 보상 프로그램</h3>
+              <p className="text-gray-500 text-sm">할인 가격으로 사용하면서, 피드백으로 더 큰 보상을 받으세요</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 피드백 랭킹 보상 */}
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-6 text-center">
+                <div className="text-3xl mb-3">&#x1F3C6;</div>
+                <h4 className="font-bold text-purple-900 mb-2">피드백 챔피언</h4>
+                <p className="text-xs text-purple-600 mb-4">기능개선/추가 요청을 가장 많이 한 기업 TOP 3</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                    <span className="font-bold text-amber-500">1등</span>
+                    <span className="font-semibold text-gray-700">3년 무료 사용</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                    <span className="font-bold text-gray-400">2등</span>
+                    <span className="font-semibold text-gray-700">2년 무료 사용</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                    <span className="font-bold text-amber-700">3등</span>
+                    <span className="font-semibold text-gray-700">1년 무료 사용</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-purple-400 mt-3">실시간 랭킹 집계 — 어드민에서 확인 가능</p>
+              </div>
+              {/* 추천인 보상 */}
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 text-center">
+                <div className="text-3xl mb-3">&#x1F91D;</div>
+                <h4 className="font-bold text-blue-900 mb-2">추천 보상</h4>
+                <p className="text-xs text-blue-600 mb-4">친구 회사를 추천하면 건당 서비스 크레딧 지급</p>
+                <div className="bg-white rounded-xl p-4 mb-3">
+                  <div className="text-2xl font-extrabold text-blue-600 mb-1">1건당 1만원</div>
+                  <div className="text-xs text-gray-500">서비스 이용료 크레딧으로 지급</div>
+                </div>
+                <div className="text-sm text-gray-600">
+                  <span className="font-bold">10건</span> = 10만원 크레딧<br/>
+                  <span className="font-bold">100건</span> = 100만원 크레딧
+                </div>
+                <p className="text-[10px] text-blue-400 mt-3">추천 랭킹 TOP도 별도 보상</p>
+              </div>
+              {/* 피드백 시스템 */}
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center">
+                <div className="text-3xl mb-3">&#x1F4AC;</div>
+                <h4 className="font-bold text-emerald-900 mb-2">피드백 시스템</h4>
+                <p className="text-xs text-emerald-600 mb-4">사용 중 불편한 점을 바로 전달, 다른 사용자에게는 블라인드</p>
+                <div className="space-y-2 text-left">
+                  {["기능 개선 요청", "새 기능 추가 제안", "버그 리포트", "UX 개선 의견"].map((item) => (
+                    <div key={item} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 text-sm">
+                      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      <span className="text-gray-700">{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-emerald-400 mt-3">제출 건수가 랭킹에 반영됩니다</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* Revenue simulation removed — now in separate IR report HTML */}
 
       {/* ── PARTNERSHIP INQUIRY ── */}
       <section className="py-20 px-6 bg-white" id="partner" ref={partnerRef.ref}>
@@ -1298,8 +1441,8 @@ export default function LandingPage() {
           <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15" style={{ bottom: "-10%", right: "10%" }} />
         </div>
         <div className="max-w-3xl mx-auto text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-            회계팀 뽑는 대신,<br /><span className="text-blue-400">LeanOS 키세요.</span>
+          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+            회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">REFLECT를 시작하세요.</span>
           </h2>
           <p className="text-slate-400 text-lg mb-8">기존 엑셀만 올리면 70% 즉시 완성. 카드 등록 없이 무료로 시작.</p>
           <Link href="/auth" className="inline-flex px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 active:scale-[0.98]">
@@ -1316,9 +1459,9 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs bg-blue-600">L</div>
-              <span className="text-white font-bold">LeanOS</span>
-              <span className="text-xs text-slate-600 ml-2">Business Operating System</span>
+              <ReflectLogo size={28} />
+              <span className="text-white font-bold tracking-tight">REFLECT</span>
+              <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
             </div>
             <div className="flex gap-6 text-sm">
               <a href="#features" className="hover:text-white transition">기능</a>
@@ -1330,8 +1473,8 @@ export default function LandingPage() {
           <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
             <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 성동구</div>
             <div className="flex gap-4">
-              <a href="#" className="hover:text-white transition">이용약관</a>
-              <a href="#" className="hover:text-white transition font-semibold">개인정보처리방침</a>
+              <Link href="/terms" className="hover:text-white transition">이용약관</Link>
+              <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
               <a href="mailto:ceo@motiveinno.com" className="hover:text-white transition">ceo@motiveinno.com</a>
             </div>
           </div>

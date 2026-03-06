@@ -1,5 +1,5 @@
 /**
- * LeanOS Realtime Helper
+ * Reflect Realtime Helper
  * Supabase Realtime 구독 관리
  */
 

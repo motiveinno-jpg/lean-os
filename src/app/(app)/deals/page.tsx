@@ -8,7 +8,7 @@ import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatus
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { getDealPipelineStatus, createDocumentFromDeal, type PipelineStage } from "@/lib/deal-pipeline";
-import type { DealMilestone } from "@/types/database";
+import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
@@ -95,7 +95,7 @@ function NodeRow({ node, depth, dealId, onRefresh }: {
         </div>
       )}
 
-      {expanded && node.children.map((child) => (
+      {expanded && node.children.map((child: TreeNode) => (
         <NodeRow key={child.id} node={child} depth={depth + 1} dealId={dealId} onRefresh={onRefresh} />
       ))}
     </div>
@@ -282,7 +282,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           </div>
         </div>
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-xs text-[var(--text-dim)]">노드 수</div>
+          <div className="text-xs text-[var(--text-dim)]">작업 단계</div>
           <div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div>
         </div>
       </div>
@@ -298,7 +298,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             onClick={() => setShowAddRoot(!showAddRoot)}
             className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold"
           >
-            + 루트 노드
+            + 작업 추가
           </button>
         </div>
 
@@ -318,7 +318,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
               value={rootName}
               onChange={(e) => setRootName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addRootNode()}
-              placeholder="루트 노드명 (예: 1차 수행)"
+              placeholder="작업 단계명 (예: 1차 수행)"
               className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] w-64"
               autoFocus
             />
@@ -329,7 +329,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
         {tree.length === 0 ? (
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">
-            노드가 없습니다. 루트 노드를 추가해주세요.
+            작업 단계가 없습니다. 새 작업을 추가해주세요.
           </div>
         ) : (
           <div className="py-1">

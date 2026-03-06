@@ -1,5 +1,5 @@
 /**
- * LeanOS HR Engine
+ * Reflect HR Engine
  * 급여이력 + 계약서 + 근태관리 + 휴가관리
  */
 

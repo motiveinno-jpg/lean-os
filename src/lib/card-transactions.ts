@@ -1,5 +1,5 @@
 /**
- * LeanOS Corporate Card Transaction Engine
+ * Reflect Corporate Card Transaction Engine
  * 법인카드 거래내역 관리 + 자동분류
  */
 

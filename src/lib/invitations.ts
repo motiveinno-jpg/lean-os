@@ -1,5 +1,5 @@
 /**
- * LeanOS Invitations (Partner + Employee)
+ * Reflect Invitations (Partner + Employee)
  */
 import { supabase } from './supabase';
 const db = supabase as any;

@@ -6,6 +6,8 @@ import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries"
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
 import { getRecurringPayments, upsertRecurringPayment, getPaymentBatches } from "@/lib/approval-center";
 import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
+import { runAllAutomation, type AutomationResult } from "@/lib/automation";
+import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring';
 
@@ -33,6 +35,7 @@ export default function PaymentsPage() {
     queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
     queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
     queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
+    queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
   };
 
   const TABS: { key: Tab; label: string }[] = [
@@ -50,6 +53,11 @@ export default function PaymentsPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">결제 큐 + 급여/고정비 배치 + 반복결제</p>
         </div>
       </div>
+
+      {/* Smart Setup Banner + Pipeline + Automation */}
+      {companyId && (
+        <SmartSetupBanner companyId={companyId} invalidate={invalidate} />
+      )}
 
       {/* Tab navigation */}
       <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1">
@@ -565,8 +573,57 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
   const totalActive = recurring.filter((r: any) => r.is_active).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
+  // Get detected recurring for badge
+  const { data: detected = [] } = useQuery({
+    queryKey: ["detected-recurring", companyId],
+    queryFn: () => detectRecurringFromBankTx(companyId),
+    enabled: !!companyId,
+  });
+  const newDetected = detected.filter((d: DetectedRecurring) => !d.alreadyRegistered);
+
   return (
     <>
+      {/* Detected recurring from bank tx */}
+      {newDetected.length > 0 && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-bold text-blue-500">
+              이체내역에서 고정비 {newDetected.length}건 감지됨
+            </div>
+            <button
+              onClick={async () => {
+                await registerDetectedRecurring(companyId, newDetected);
+                queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
+                queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
+              }}
+              className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition"
+            >
+              전체 자동등록
+            </button>
+          </div>
+          <div className="space-y-1.5">
+            {newDetected.slice(0, 5).map((d: DetectedRecurring, i: number) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
+                    d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                    'bg-gray-500/10 text-gray-400'
+                  }`}>
+                    {d.confidence === 'high' ? '확실' : d.confidence === 'medium' ? '가능성' : '낮음'}
+                  </span>
+                  <span>{d.counterparty}</span>
+                </div>
+                <span className="font-bold">₩{d.amount.toLocaleString()}/월</span>
+              </div>
+            ))}
+            {newDetected.length > 5 && (
+              <div className="text-xs text-blue-400">... 외 {newDetected.length - 5}건</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold">반복 결제 설정</h2>
@@ -678,5 +735,195 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         )}
       </div>
     </>
+  );
+}
+
+// ── Smart Setup Banner (이체내역 분석 + 자동화 실행 + 파이프라인) ──
+
+function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<AutomationResult | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detected, setDetected] = useState<DetectedRecurring[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: stats } = useQuery({
+    queryKey: ["payment-stats", companyId],
+    queryFn: () => getPaymentQueueStats(companyId),
+    enabled: !!companyId,
+  });
+
+  const { data: recurring = [] } = useQuery({
+    queryKey: ["recurring-payments", companyId],
+    queryFn: () => getRecurringPayments(companyId),
+    enabled: !!companyId,
+  });
+
+  async function handleRunAutomation() {
+    setRunning(true);
+    try {
+      const res = await runAllAutomation(companyId);
+      setResult(res);
+      invalidate();
+    } catch {
+      // silent
+    }
+    setRunning(false);
+  }
+
+  async function handleDetect() {
+    setDetecting(true);
+    try {
+      const res = await detectRecurringFromBankTx(companyId);
+      setDetected(res);
+      queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
+    } catch {
+      // silent
+    }
+    setDetecting(false);
+  }
+
+  const activeRecurring = recurring.filter((r: any) => r.is_active).length;
+  const pendingCount = stats?.pendingCount ?? 0;
+  const approvedCount = stats?.approvedCount ?? 0;
+  const executedCount = stats?.executedCount ?? 0;
+
+  return (
+    <div className="mb-6 space-y-3">
+      {/* Pipeline visualization */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold text-[var(--text)]">자동화 파이프라인</span>
+          <span className="text-[10px] text-[var(--text-dim)]">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {[
+            { label: '반복설정', count: activeRecurring, color: 'bg-purple-500' },
+            { label: '승인대기', count: pendingCount, color: 'bg-yellow-500' },
+            { label: '결제대기', count: approvedCount, color: 'bg-blue-500' },
+            { label: '완료', count: executedCount, color: 'bg-green-500' },
+          ].map((step, i) => (
+            <div key={i} className="flex items-center gap-1 flex-1">
+              <div className="flex-1 bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className={`text-lg font-bold ${step.color.replace('bg-', 'text-')}`}>{step.count}</div>
+                <div className="text-[10px] text-[var(--text-dim)]">{step.label}</div>
+              </div>
+              {i < 3 && <span className="text-[var(--text-dim)] text-xs">&rarr;</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button onClick={handleDetect} disabled={detecting}
+          className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
+          {detecting ? '분석 중...' : '이체내역 분석'}
+        </button>
+        <button onClick={handleRunAutomation} disabled={running}
+          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+          {running ? '실행 중...' : '전체 자동화 실행'}
+        </button>
+      </div>
+
+      {/* Automation result */}
+      {result && (
+        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
+          <div className="text-xs font-bold text-green-500 mb-2">자동화 실행 완료</div>
+          <div className="grid grid-cols-4 gap-2 text-[10px]">
+            {result.recurringExpense.created > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.recurringExpense.created}건</div>
+                <div className="text-[var(--text-dim)]">반복→지출결의</div>
+              </div>
+            )}
+            {result.approvedQueue.queued > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.approvedQueue.queued}건</div>
+                <div className="text-[var(--text-dim)]">승인→결제큐</div>
+              </div>
+            )}
+            {result.contractExpense.created > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.contractExpense.created}건</div>
+                <div className="text-[var(--text-dim)]">계약→지출결의</div>
+              </div>
+            )}
+            {result.taxOnPayment.created > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.taxOnPayment.created}건</div>
+                <div className="text-[var(--text-dim)]">결제→세금계산서</div>
+              </div>
+            )}
+            {result.expenseApproval.approved > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.expenseApproval.approved}건</div>
+                <div className="text-[var(--text-dim)]">소액자동승인</div>
+              </div>
+            )}
+            {result.bankClassification.matched > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.bankClassification.matched}건</div>
+                <div className="text-[var(--text-dim)]">거래자동분류</div>
+              </div>
+            )}
+            {result.threeWayMatch.autoMatched > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.threeWayMatch.autoMatched}건</div>
+                <div className="text-[var(--text-dim)]">3-Way 매칭</div>
+              </div>
+            )}
+            {result.dormantDeals.detected > 0 && (
+              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
+                <div className="font-bold">{result.dormantDeals.detected}건</div>
+                <div className="text-[var(--text-dim)]">휴면딜 감지</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Detected patterns from bank tx */}
+      {detected.length > 0 && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-bold text-blue-500">
+              이체내역에서 {detected.filter(d => !d.alreadyRegistered).length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록
+            </div>
+            {detected.filter(d => !d.alreadyRegistered).length > 0 && (
+              <button
+                onClick={async () => {
+                  const newItems = detected.filter(d => !d.alreadyRegistered);
+                  await registerDetectedRecurring(companyId, newItems);
+                  invalidate();
+                  setDetected([]);
+                }}
+                className="px-3 py-1 bg-blue-500 text-white rounded-lg text-[10px] font-semibold hover:bg-blue-600 transition"
+              >
+                전체 자동등록
+              </button>
+            )}
+          </div>
+          <div className="space-y-1">
+            {detected.filter(d => !d.alreadyRegistered).slice(0, 8).map((d, i) => (
+              <div key={i} className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                    d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
+                    d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                    'bg-gray-500/10 text-gray-400'
+                  }`}>
+                    {d.occurrences}회
+                  </span>
+                  <span>{d.counterparty}</span>
+                  <span className="text-[var(--text-dim)]">({d.suggestedCategory})</span>
+                </div>
+                <span className="font-bold">₩{d.amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

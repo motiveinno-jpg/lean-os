@@ -1,5 +1,5 @@
 /**
- * LeanOS AI Pending Actions
+ * Reflect AI Pending Actions
  * 대기 액션 승인/거부
  */
 import { supabase } from './supabase';

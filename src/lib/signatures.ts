@@ -1,5 +1,5 @@
 /**
- * LeanOS Electronic Signature Engine
+ * Reflect Electronic Signature Engine
  * 전자서명 요청 → 발송 → 열람 → 서명완료/거부/만료
  */
 

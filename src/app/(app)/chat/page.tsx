@@ -7,7 +7,7 @@ import {
   getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getParticipants, getChannelEvents,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
-import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel } from "@/lib/chat";
+import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { ChatBubble } from "@/components/chat-bubble";
@@ -41,6 +41,12 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const [showSearch, setShowSearch] = useState(false);
   const [replyTo, setReplyTo] = useState<{ messageId: string; senderName: string; content: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteTab, setInviteTab] = useState<"internal" | "external">("internal");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteLink, setInviteLink] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [extContact, setExtContact] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -359,7 +365,21 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       )}
 
       {tab === "participants" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
+          {/* 초대 버튼 */}
+          <div className="px-5 py-3 border-b border-[var(--border)]">
+            <button
+              onClick={() => { setShowInvite(true); setInviteLink(""); setLinkCopied(false); setExtContact(""); }}
+              className="w-full py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              멤버 초대
+            </button>
+          </div>
+
+          {/* 참가자 목록 */}
           {participants.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">참가자가 없습니다</div>
           ) : (
@@ -378,16 +398,170 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
                     </div>
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                    p.role === 'OWNER' ? 'bg-yellow-500/10 text-yellow-400' :
-                    p.role === 'INTERNAL_MANAGER' ? 'bg-blue-500/10 text-blue-400' :
-                    p.role === 'CLIENT' ? 'bg-green-500/10 text-green-400' :
-                    p.role === 'VENDOR' ? 'bg-purple-500/10 text-purple-400' :
-                    'bg-gray-500/10 text-gray-400'
+                    p.role === 'OWNER' ? 'bg-yellow-500/10 text-yellow-600' :
+                    p.role === 'INTERNAL_MANAGER' ? 'bg-blue-500/10 text-blue-600' :
+                    p.role === 'CLIENT' ? 'bg-green-500/10 text-green-600' :
+                    p.role === 'VENDOR' ? 'bg-purple-500/10 text-purple-600' :
+                    p.role === 'GUEST' ? 'bg-orange-500/10 text-orange-600' :
+                    'bg-gray-500/10 text-gray-500'
                   }`}>
-                    {p.role || 'member'}
+                    {p.role === 'OWNER' ? '오너' : p.role === 'INTERNAL_MANAGER' ? '담당자' : p.role === 'CLIENT' ? '클라이언트' : p.role === 'VENDOR' ? '외주사' : p.role === 'GUEST' ? '게스트' : '멤버'}
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* 초대 모달 */}
+          {showInvite && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowInvite(false)}>
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                {/* 모달 헤더 */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+                  <h3 className="text-base font-bold text-[var(--text)]">멤버 초대</h3>
+                  <button onClick={() => setShowInvite(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* 탭 */}
+                <div className="flex gap-1 mx-6 mt-4 bg-[var(--bg-surface)] rounded-xl p-1">
+                  {([
+                    { key: "internal" as const, label: "내부 멤버" },
+                    { key: "external" as const, label: "외부 초대" },
+                  ]).map((t) => (
+                    <button key={t.key} onClick={() => setInviteTab(t.key)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                        inviteTab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                      }`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="px-6 py-4">
+                  {/* 내부 멤버 초대 */}
+                  {inviteTab === "internal" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">역할</label>
+                      <select
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value)}
+                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-3 focus:outline-none focus:border-[var(--primary)]"
+                      >
+                        <option value="member">멤버</option>
+                        <option value="INTERNAL_MANAGER">담당자</option>
+                        <option value="CLIENT">클라이언트</option>
+                        <option value="VENDOR">외주사</option>
+                      </select>
+
+                      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">멤버 선택</label>
+                      <div className="max-h-48 overflow-y-auto border border-[var(--border)] rounded-xl">
+                        {companyUsers
+                          .filter((u: any) => !participants.some((p: any) => p.user_id === u.id))
+                          .map((u: any) => (
+                            <button
+                              key={u.id}
+                              onClick={async () => {
+                                try {
+                                  await inviteParticipant({ channelId, userId: u.id, role: inviteRole });
+                                  if (userId) await sendSystemMessage(channelId, userId, `${u.name || u.email}님이 채널에 참가했습니다.`);
+                                  queryClient.invalidateQueries({ queryKey: ["chat-participants", channelId] });
+                                  queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+                                } catch {}
+                              }}
+                              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-surface)] transition text-left"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)]">
+                                {(u.name || u.email || "?")[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-[var(--text)]">{u.name || "—"}</div>
+                                <div className="text-[10px] text-[var(--text-dim)]">{u.email}</div>
+                              </div>
+                            </button>
+                          ))}
+                        {companyUsers.filter((u: any) => !participants.some((p: any) => p.user_id === u.id)).length === 0 && (
+                          <div className="p-6 text-center text-xs text-[var(--text-muted)]">추가할 멤버가 없습니다</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 외부 초대 */}
+                  {inviteTab === "external" && (
+                    <div>
+                      <p className="text-xs text-[var(--text-muted)] mb-4">
+                        초대 링크를 문자 또는 이메일로 보내 외부 인원을 채팅방에 초대합니다.
+                      </p>
+
+                      {/* 링크 생성 */}
+                      {!inviteLink ? (
+                        <button
+                          onClick={async () => {
+                            const token = await getOrCreateInviteToken(channelId);
+                            setInviteLink(getChatInviteUrl(token));
+                          }}
+                          className="w-full py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--text)] hover:bg-[var(--border)] transition mb-3"
+                        >
+                          초대 링크 생성
+                        </button>
+                      ) : (
+                        <>
+                          {/* 링크 표시 */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <input
+                              readOnly
+                              value={inviteLink}
+                              className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] truncate"
+                            />
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(inviteLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${linkCopied ? 'bg-green-100 text-green-700' : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]'}`}
+                            >
+                              {linkCopied ? "복사됨!" : "복사"}
+                            </button>
+                          </div>
+
+                          {/* 연락처 입력 */}
+                          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">전화번호 또는 이메일</label>
+                          <input
+                            type="text"
+                            value={extContact}
+                            onChange={(e) => setExtContact(e.target.value)}
+                            placeholder="010-1234-5678 또는 guest@company.com"
+                            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]"
+                          />
+
+                          {/* 발송 버튼 */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <a
+                              href={`sms:${extContact.includes('@') ? '' : extContact.replace(/-/g, '')}?body=${encodeURIComponent(`[REFLECT] "${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 눌러 참가하세요:\n${inviteLink}`)}`}
+                              className="flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              문자 보내기
+                            </a>
+                            <a
+                              href={`mailto:${extContact.includes('@') ? extContact : ''}?subject=${encodeURIComponent(`[REFLECT] 채팅방 초대`)}&body=${encodeURIComponent(`안녕하세요,\n\n"${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 클릭하여 참가하세요:\n\n${inviteLink}\n\nREFLECT`)}`}
+                              className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              이메일 보내기
+                            </a>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

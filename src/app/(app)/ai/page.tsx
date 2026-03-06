@@ -330,7 +330,7 @@ export default function AiPage() {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
               <div className="text-3xl mb-3">AI</div>
-              <div className="text-sm font-medium text-[var(--text-secondary)]">LeanOS AI 어시스턴트</div>
+              <div className="text-sm font-medium text-[var(--text-secondary)]">REFLECT AI 어시스턴트</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-1 max-w-xs">
                 질문을 입력하거나 퀵 액션 버튼을 눌러보세요.
                 대시보드 요약, 재무 현황, 엔티티 검색이 가능합니다.

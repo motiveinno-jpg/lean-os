@@ -10,8 +10,12 @@ import { createTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoi
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile } from "@/lib/file-storage";
+import { generateDocumentPDF, issueDocument } from "@/lib/document-generator";
+import { FileUploadMulti } from "@/components/file-upload-multi";
+import { FileList } from "@/components/file-list";
 import { supabase } from "@/lib/supabase";
-import type { Json } from "@/types/database";
+import type { Json } from "@/types/models";
 
 const db = supabase as any;
 
@@ -205,6 +209,49 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              if (!companyId) return;
+              try {
+                const company = await db.from('companies').select('*').eq('id', companyId).single();
+                const companyName = company.data?.name || '';
+                const pdfBlob = await generateDocumentPDF({
+                  title: doc.name,
+                  content: editContent,
+                  companyName,
+                  companyInfo: company.data ? {
+                    representative: company.data.representative,
+                    address: company.data.address,
+                    businessNumber: company.data.business_number,
+                  } : undefined,
+                });
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${doc.name}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (err: any) {
+                alert('PDF 생성 실패: ' + (err?.message || err));
+              }
+            }}
+            className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition">
+            PDF 다운로드
+          </button>
+          <button
+            onClick={async () => {
+              if (!companyId || !userId) return;
+              try {
+                await issueDocument(id, userId, companyId);
+                alert('문서번호가 발급되었습니다.');
+                invalidate();
+              } catch (err: any) {
+                alert('문서번호 발급 실패: ' + (err?.message || err));
+              }
+            }}
+            className="px-4 py-2 bg-teal-500/10 text-teal-500 rounded-lg text-xs font-semibold hover:bg-teal-500/20 transition">
+            문서번호 발급
+          </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
             className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition">
             서명 요청
@@ -468,7 +515,7 @@ function DocumentsPageInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"docs" | "contracts" | "invoices" | "signatures">("docs");
+  const [tab, setTab] = useState<"docs" | "contracts" | "invoices" | "signatures" | "files">("docs");
   const [showDocForm, setShowDocForm] = useState(false);
   const [showInvForm, setShowInvForm] = useState(false);
   const [showSignForm, setShowSignForm] = useState(false);
@@ -714,6 +761,12 @@ function DocumentsPageInner() {
             tab === "signatures" ? "bg-indigo-500/10 text-indigo-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           전자서명 ({signatureRequests.length})
+        </button>
+        <button onClick={() => setTab("files")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            tab === "files" ? "bg-emerald-500/10 text-emerald-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+          }`}>
+          파일 보관함
         </button>
       </div>
 
@@ -1327,6 +1380,291 @@ function DocumentsPageInner() {
           )}
         </div>
       )}
+
+      {/* ═══ File Storage Tab ═══ */}
+      {tab === "files" && companyId && userId && (
+        <FileStorageTab companyId={companyId} userId={userId} />
+      )}
+    </div>
+  );
+}
+
+// ── File Storage Tab Component ──
+function FileStorageTab({ companyId, userId }: { companyId: string; userId: string }) {
+  const queryClient = useQueryClient();
+  const [fileSearchTerm, setFileSearchTerm] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [showNewFolderForm, setShowNewFolderForm] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  // Folders query
+  const { data: folders = [] } = useQuery({
+    queryKey: ["document-folders", companyId],
+    queryFn: () => getFolders(companyId),
+    enabled: !!companyId,
+  });
+
+  // Files query - search or folder-based
+  const { data: files = [], isLoading: filesLoading } = useQuery({
+    queryKey: ["storage-files", companyId, selectedFolderId, fileSearchTerm],
+    queryFn: async () => {
+      if (fileSearchTerm.trim()) {
+        return searchFiles(companyId, fileSearchTerm);
+      }
+      if (selectedFolderId) {
+        const { data } = await (supabase as any)
+          .from("document_files")
+          .select("*")
+          .eq("folder_id", selectedFolderId)
+          .order("created_at", { ascending: false });
+        return data || [];
+      }
+      const { data } = await (supabase as any)
+        .from("document_files")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  // Filtered files by category
+  const filteredFiles = useMemo(() => {
+    if (categoryFilter === "all") return files;
+    return files.filter((f: any) => f.category === categoryFilter);
+  }, [files, categoryFilter]);
+
+  // Create folder mutation
+  const createFolderMut = useMutation({
+    mutationFn: () => createFolder(companyId, newFolderName, selectedFolderId || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["document-folders"] });
+      setShowNewFolderForm(false);
+      setNewFolderName("");
+    },
+  });
+
+  // Delete folder mutation
+  const deleteFolderMut = useMutation({
+    mutationFn: (folderId: string) => deleteFolder(folderId, userId, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["document-folders"] });
+      if (selectedFolderId) setSelectedFolderId(null);
+    },
+  });
+
+  // Upload files
+  const handleFilesSelected = async (selectedFiles: File[]) => {
+    for (const file of selectedFiles) {
+      try {
+        await uploadFile({
+          companyId,
+          bucket: "document-files",
+          file,
+          context: { folderId: selectedFolderId || undefined },
+          category: categoryFilter !== "all" ? categoryFilter : undefined,
+          userId,
+        });
+      } catch (err: any) {
+        console.error("Upload failed:", err);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+  };
+
+  // Delete file
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      await deleteFile(fileId, userId, companyId);
+      queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+    } catch (err: any) {
+      alert("삭제 실패: " + (err?.message || err));
+    }
+  };
+
+  // Toggle folder expand
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
+
+  // Build folder tree
+  const rootFolders = folders.filter((f: any) => !f.parent_id);
+  const getChildren = (parentId: string) => folders.filter((f: any) => f.parent_id === parentId);
+
+  const renderFolder = (folder: any, depth: number = 0) => {
+    const children = getChildren(folder.id);
+    const isExpanded = expandedFolders.has(folder.id);
+    const isSelected = selectedFolderId === folder.id;
+
+    return (
+      <div key={folder.id}>
+        <div
+          className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition ${
+            isSelected
+              ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold"
+              : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]"
+          }`}
+          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          onClick={() => setSelectedFolderId(isSelected ? null : folder.id)}
+        >
+          {children.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
+              className="w-4 h-4 flex items-center justify-center"
+            >
+              <svg className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+          {children.length === 0 && <span className="w-4" />}
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2 7a2 2 0 012-2h5l2 2h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7z" />
+          </svg>
+          <span className="truncate flex-1">{folder.name}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); if (confirm(`"${folder.name}" 폴더를 삭제하시겠습니까?`)) deleteFolderMut.mutate(folder.id); }}
+            className="opacity-0 group-hover:opacity-100 w-4 h-4 text-[var(--text-dim)] hover:text-red-400"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        {isExpanded && children.map((child: any) => renderFolder(child, depth + 1))}
+      </div>
+    );
+  };
+
+  const FILE_CATEGORIES = [
+    { value: "all", label: "전체" },
+    { value: "contract", label: "계약서" },
+    { value: "invoice", label: "세금계산서" },
+    { value: "report", label: "보고서" },
+    { value: "certificate", label: "인증서" },
+    { value: "general", label: "일반" },
+  ];
+
+  return (
+    <div className="flex gap-6">
+      {/* Left: Folder Tree */}
+      <div className="w-[240px] shrink-0">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[var(--text)]">폴더</span>
+            <button
+              onClick={() => setShowNewFolderForm(!showNewFolderForm)}
+              className="text-[10px] text-[var(--primary)] hover:text-[var(--primary-hover)] font-semibold"
+            >
+              + 새 폴더
+            </button>
+          </div>
+
+          {showNewFolderForm && (
+            <div className="flex gap-1.5 mb-3">
+              <input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="폴더명"
+                className="flex-1 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+              />
+              <button
+                onClick={() => newFolderName && createFolderMut.mutate()}
+                disabled={!newFolderName}
+                className="px-2 py-1.5 bg-[var(--primary)] text-white rounded-lg text-[10px] font-semibold disabled:opacity-50"
+              >
+                추가
+              </button>
+            </div>
+          )}
+
+          {/* All files button */}
+          <div
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition mb-1 ${
+              !selectedFolderId
+                ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold"
+                : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]"
+            }`}
+            onClick={() => setSelectedFolderId(null)}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <span>전체 파일</span>
+          </div>
+
+          <div className="space-y-0.5">
+            {rootFolders.map((f: any) => renderFolder(f))}
+          </div>
+
+          {folders.length === 0 && (
+            <div className="text-[10px] text-[var(--text-dim)] text-center py-4">
+              폴더가 없습니다
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: File list + Upload */}
+      <div className="flex-1 space-y-4">
+        {/* Search + Category filter */}
+        <div className="flex gap-3">
+          <div className="flex-1 relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              value={fileSearchTerm}
+              onChange={(e) => setFileSearchTerm(e.target.value)}
+              placeholder="파일명으로 검색..."
+              className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
+            />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] min-w-[140px]"
+          >
+            {FILE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Upload zone */}
+        <FileUploadMulti
+          onFilesSelect={handleFilesSelected}
+          maxFiles={10}
+          maxSize={50}
+          label="파일을 드래그하거나 클릭하여 업로드"
+        />
+
+        {/* File list */}
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <FileList
+            files={filteredFiles.map((f: any) => ({
+              id: f.id,
+              file_name: f.file_name,
+              file_url: f.file_url,
+              file_size: f.file_size || 0,
+              mime_type: f.mime_type || "application/octet-stream",
+              version: f.version || 1,
+              created_at: f.created_at,
+              uploaded_by: f.uploaded_by,
+            }))}
+            onDelete={handleDeleteFile}
+            onDownload={(file) => window.open(file.file_url, "_blank")}
+          />
+        </div>
+      </div>
     </div>
   );
 }

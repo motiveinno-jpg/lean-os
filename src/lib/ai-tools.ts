@@ -1,5 +1,5 @@
 /**
- * LeanOS AI Tools
+ * Reflect AI Tools
  * L1: 즉시 조회 (읽기 전용)
  * L2: 로그 + 자동실행 (Solo MVP에서 자동승인)
  * L3: 승인 필수 (pending_actions 큐)

@@ -16,6 +16,7 @@ const PARTNER_TABS = [
   { href: "/deals", label: "프로젝트", icon: "briefcase" },
   { href: "/documents", label: "서류", icon: "file" },
   { href: "/chat", label: "채팅", icon: "chat" },
+  { href: "/guide", label: "가이드", icon: "book" },
 ];
 const EMPLOYEE_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
@@ -34,6 +35,7 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
     case "file": return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
     case "chat": return <svg {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "clock": return <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+    case "book": return <svg {...p}><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
     default: return null;
   }
 }
@@ -63,6 +65,44 @@ function MobileBottomNav() {
       </div>
     </nav>
   );
+}
+
+/* ── Role-based route guard ── */
+const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
+  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide"],
+  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide", "/ai"],
+};
+
+function RouteGuard({ children }: { children: React.ReactNode }) {
+  const { role, loading } = useUser();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const allowed = ROLE_ALLOWED_ROUTES[role];
+    if (!allowed) return; // owner/admin → 전체 접근
+    const isAllowed = allowed.some(
+      (r) => pathname === r || pathname.startsWith(r + "/")
+    );
+    if (!isAllowed) {
+      router.replace("/dashboard");
+    }
+  }, [role, pathname, loading, router]);
+
+  // 로딩 중이면 렌더링 차단 (비허용 페이지 깜빡임 방지)
+  if (loading) return null;
+
+  // 제한 역할이 비허용 경로에 있으면 렌더링 차단
+  const allowed = ROLE_ALLOWED_ROUTES[role];
+  if (allowed) {
+    const isAllowed = allowed.some(
+      (r) => pathname === r || pathname.startsWith(r + "/")
+    );
+    if (!isAllowed) return null;
+  }
+
+  return <>{children}</>;
 }
 
 function AppContent({ children }: { children: React.ReactNode }) {
@@ -95,8 +135,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* Logo for limited roles on mobile */}
         {isLimitedRole && (
           <div className="md:hidden flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg text-white text-xs font-black flex items-center justify-center" style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}>L</div>
-            <span className="text-sm font-bold text-[var(--text)]">LeanOS</span>
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+              <rect width="32" height="32" rx="7" fill="#0F172A"/>
+              <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+              <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+              <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+            </svg>
+            <span className="text-sm font-bold text-[var(--text)]">REFLECT</span>
           </div>
         )}
         <div className="hidden md:block" />
@@ -111,7 +156,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
           collapsed ? "md:ml-[68px]" : "md:ml-60"
         } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : "p-6"}`}
       >
-        {children}
+        <RouteGuard>{children}</RouteGuard>
       </main>
       <MobileBottomNav />
       <GlobalSearch />

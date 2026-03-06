@@ -1,5 +1,5 @@
 /**
- * LeanOS CEO Approval Center
+ * Reflect CEO Approval Center
  * 대표 승인센터 — 6개 소스 통합 조회 + 원클릭/일괄 승인
  */
 

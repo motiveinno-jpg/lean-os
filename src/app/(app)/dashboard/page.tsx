@@ -193,118 +193,108 @@ export default function DashboardPage() {
   // ── Employee Dashboard ──
   if (role === "employee") {
     return (
-      <div className="max-w-[900px]">
-        {/* Welcome */}
-        <div className="mb-5 md:mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-              {(userName || "E").charAt(0)}
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
-              <p className="text-xs text-[var(--text-muted)]">오늘도 화이팅!</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick stats — 2x2 grid on mobile */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
-          {[
-            { label: "내 프로젝트", value: "—", href: "/deals", icon: "📋" },
-            { label: "근태", value: "출퇴근", href: "/employees", icon: "🕐" },
-            { label: "휴가 잔여", value: "—", href: "/employees", icon: "🏖" },
-            { label: "경비 청구", value: "—", href: "/employees", icon: "🧾" },
-          ].map((card) => (
-            <Link key={card.label} href={card.href} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-              <div className="text-xl md:text-2xl mb-1.5">{card.icon}</div>
-              <div className="text-[10px] md:text-xs text-[var(--text-dim)]">{card.label}</div>
-              <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{card.value}</div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Quick links */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          <Link href="/chat" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition flex items-center gap-4 touch-card">
-            <div className="text-2xl">💬</div>
-            <div className="flex-1">
-              <h3 className="font-bold text-sm mb-0.5">팀 채팅</h3>
-              <p className="text-xs text-[var(--text-muted)]">팀원들과 대화하세요</p>
-            </div>
-            <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-          </Link>
-          <Link href="/documents" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition flex items-center gap-4 touch-card">
-            <div className="text-2xl">📄</div>
-            <div className="flex-1">
-              <h3 className="font-bold text-sm mb-0.5">문서/계약</h3>
-              <p className="text-xs text-[var(--text-muted)]">진행 중인 문서를 확인하세요</p>
-            </div>
-            <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-          </Link>
-        </div>
-      </div>
+      <EmployeeDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} />
     );
   }
 
-  // ── Partner Dashboard (mobile-first) ──
+  // ── Partner Dashboard (mobile-first, dynamic counts) ──
   if (role === "partner") {
     return (
-      <div className="max-w-[900px]">
-        {/* Welcome header */}
-        <div className="mb-5 md:mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-              {(userName || "P").charAt(0)}
+      <PartnerDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} />
+    );
+  }
+
+  // ── Admin Dashboard (경량 뷰: 승인센터 + 인사 + 최근 요청) ──
+  if (role === "admin") {
+    return (
+      <div className="max-w-[1100px]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-lg font-black tracking-tight">관리자 현황판</h1>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">관리자</span>
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
-              <p className="text-xs text-[var(--text-muted)]">파트너 포털</p>
-            </div>
+            <p className="text-[11px] text-[var(--text-dim)]">
+              {companyName} · {userName} · {new Date().toLocaleDateString('ko-KR')}
+            </p>
           </div>
         </div>
 
-        {/* Quick action cards — large touch targets */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 mb-5">
-          {[
-            { label: "진행 중 프로젝트", href: "/deals", icon: "📋", desc: "현황 확인 및 진행 상태", color: "#2563EB" },
-            { label: "서류 확인/서명", href: "/documents", icon: "📄", desc: "계약서, 견적서 검토 및 서명", color: "#7C3AED" },
-            { label: "담당자 채팅", href: "/chat", icon: "💬", desc: "실시간 문의 및 파일 공유", color: "#059669" },
-          ].map((card) => (
-            <Link
-              key={card.label}
-              href={card.href}
-              className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
-            >
-              <div className="text-3xl md:mb-3 shrink-0">{card.icon}</div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sm md:text-base mb-0.5 group-hover:text-[var(--primary)] transition">{card.label}</h3>
-                <p className="text-xs text-[var(--text-muted)] truncate md:whitespace-normal">{card.desc}</p>
-              </div>
-              <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </Link>
-          ))}
-        </div>
-
-        {/* Info card */}
-        <div className="bg-gradient-to-br from-[var(--primary-light)] to-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </div>
-            <div>
-              <h3 className="font-bold text-sm mb-1">도움이 필요하신가요?</h3>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">프로젝트 관련 문의는 채팅으로 담당자에게 연락하세요. 서류 서명이 필요한 경우 서류 페이지에서 바로 진행할 수 있습니다.</p>
+        {/* 핵심 지표 4개 (admin용 경량) */}
+        <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
+            <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
+              ₩{fmtW(sp.pendingApprovals)}
             </div>
           </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">통장 잔고</div>
+            <div className="text-lg font-black">₩{fmtW(sp.cashBalance)}</div>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미수금</div>
+            <div className="text-lg font-black" style={{ color: sp.arTotal > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
+              ₩{fmtW(sp.arTotal)}
+            </div>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
+            <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
+          </div>
         </div>
+
+        {/* 승인센터 */}
+        {companyId && userId && (
+          <ApprovalCenterWidget companyId={companyId} userId={userId} />
+        )}
+
+        {/* 오늘의 액션 */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">오늘의 액션</h2>
+          </div>
+          <TodayActions dashboard={dashboard} />
+        </div>
+
+        {/* 바로가기 */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">빠른 이동</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { href: "/employees", label: "인사/급여", icon: "👤", desc: "직원 관리 및 급여" },
+              { href: "/approvals", label: "결재함", icon: "📋", desc: "결재 요청 처리" },
+              { href: "/payments", label: "결제 관리", icon: "💳", desc: "결제 큐 및 배치" },
+              { href: "/documents", label: "문서/계약", icon: "📄", desc: "문서 승인 및 서명" },
+            ].map(card => (
+              <Link key={card.href} href={card.href}
+                className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+                <div className="text-xl mb-1.5">{card.icon}</div>
+                <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* 월 마감 체크리스트 */}
+        <ClosingChecklistWidget companyId={companyId} userId={userId} />
+
+        {/* 자동화 엔진 */}
+        <AutomationWidget companyId={companyId} />
       </div>
     );
   }
 
-  // ── Owner / Admin Dashboard (full CEO view) ──
+  // ── Owner Dashboard (전체 CEO 뷰) ──
   return (
     <div className="max-w-[1100px]">
-      {/* ═══ ONBOARDING WIZARD ═══ */}
+      {/* ═══ 온보딩 위저드 ═══ */}
       {showOnboarding && companyId && (
         <OnboardingWizard
           companyId={companyId}
@@ -333,7 +323,7 @@ export default function DashboardPage() {
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary)', color: '#fff' }}>NEW</span>
           </div>
           <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-            LeanOS를 최대한 활용하려면 아래 항목을 완료하세요.
+            REFLECT를 최대한 활용하려면 아래 항목을 완료하세요.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <GuideActionCard
@@ -365,7 +355,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-lg font-black tracking-tight">SURVIVAL COMMAND CENTER</h1>
+            <h1 className="text-lg font-black tracking-tight">생존 현황판</h1>
             <div className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider"
               style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
               {cfg.label}
@@ -401,7 +391,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 6-PACK: 상단 고정 생존 지표 ═══ */}
+      {/* ═══ 핵심 지표 ═══ */}
       <div className={`rounded-2xl p-1 mb-5 survival-bar ${
         level === 'CRITICAL' || level === 'DANGER' ? 'animate-glow-red' : level === 'WARNING' ? 'animate-glow-orange' : ''
       }`} style={{ border: `1px solid ${cfg.border}` }}>
@@ -434,38 +424,56 @@ export default function DashboardPage() {
             color={sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)'}
           />
           <SixPackCell
-            label="월 고정비(Burn)"
+            label="월 고정비"
             value={`₩${fmtW(sp.monthlyBurn)}`}
             color="var(--text)"
           />
         </div>
       </div>
 
-      {/* ═══ CEO 승인센터 ═══ */}
+      {/* ═══ 승인센터 ═══ */}
       {companyId && userId && (
         <ApprovalCenterWidget companyId={companyId} userId={userId} />
       )}
 
-      {/* No data CTA */}
+      {/* ═══ 오늘의 액션 (승인센터 바로 아래) ═══ */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
+        </div>
+        <TodayActions dashboard={dashboard} />
+      </div>
+
+      {/* 데이터 없음 — 시작 CTA */}
       {!hasData && (
-        <div className="mb-5 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-center">
-          <div className="text-sm text-[var(--text-muted)] mb-3">
-            데이터가 없습니다. 보고 엑셀을 업로드하거나 샘플 데이터를 생성하세요.
-          </div>
-          <div className="flex items-center justify-center gap-3">
-            <button onClick={() => fileRef.current?.click()}
-              className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[var(--primary-hover)] transition">
-              보고 엑셀 업로드
+        <div className="mb-5 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+          <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
+          <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button onClick={handleSampleData} disabled={generating}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
+              <span className="text-2xl">🚀</span>
+              <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
             </button>
-            <button onClick={handleSampleData}
-              className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-sm font-semibold hover:bg-[var(--bg-elevated)] transition">
-              샘플 데이터 생성
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
+              <span className="text-2xl">📊</span>
+              <span className="text-sm font-bold text-[var(--text)]">{uploading ? '업로드 중...' : '엑셀 업로드'}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">실제 데이터로 시작</span>
             </button>
+            <Link href="/guide"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
+              <span className="text-2xl">📖</span>
+              <span className="text-sm font-bold text-[var(--text)]">시작 가이드 보기</span>
+              <span className="text-[10px] text-[var(--text-muted)]">사용법 안내</span>
+            </Link>
           </div>
         </div>
       )}
 
-      {/* ═══ RISK ZONE: 위험 딜/항목 4카드 ═══ */}
+      {/* ═══ 위험 구역 ═══ */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-3">
           <div className={`w-2 h-2 rounded-full ${
@@ -503,20 +511,11 @@ export default function DashboardPage() {
       {/* ═══ MONTHLY CLOSING CHECKLIST ═══ */}
       <ClosingChecklistWidget companyId={companyId} userId={userId} />
 
-      {/* ═══ AUTOMATION ENGINE ═══ */}
+      {/* ═══ 자동화 엔진 ═══ */}
       <AutomationWidget companyId={companyId} />
 
-      {/* ═══ AI INSIGHTS ═══ */}
+      {/* ═══ AI 어시스턴트 ═══ */}
       <AIInsightsWidget companyId={companyId} />
-
-      {/* ═══ Quick Actions: 오늘 해야 할 것 ═══ */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
-        </div>
-        <TodayActions dashboard={dashboard} />
-      </div>
     </div>
   );
 }
@@ -1478,6 +1477,651 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
             +{actions.length - 8}건 더보기
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Employee Dashboard — 출퇴근/프로젝트/휴가/급여/공지
+// ═══════════════════════════════════════════
+
+function EmployeeDashboard({ userName, companyId, companyName, userId }: {
+  userName: string; companyId: string | null; companyName: string; userId: string | null;
+}) {
+  const db = supabase as any;
+  const today = new Date().toISOString().split("T")[0];
+  const yearMonth = today.substring(0, 7);
+  const currentYear = new Date().getFullYear();
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const queryClient = useQueryClient();
+
+  // 직원 ID 가져오기 (users.id → employees.id 매핑)
+  const { data: employeeId } = useQuery({
+    queryKey: ["emp-id", userId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("employees")
+        .select("id")
+        .eq("company_id", companyId!)
+        .or(`email.eq.${userId},id.eq.${userId}`)
+        .limit(1)
+        .maybeSingle();
+      return data?.id || userId;
+    },
+    enabled: !!companyId && !!userId,
+  });
+
+  // 오늘 출퇴근 기록
+  const { data: todayAttendance } = useQuery({
+    queryKey: ["emp-attendance-today", employeeId, today],
+    queryFn: async () => {
+      const { data } = await db
+        .from("attendance_records")
+        .select("*")
+        .eq("employee_id", employeeId!)
+        .eq("date", today)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!employeeId,
+    refetchInterval: 30_000,
+  });
+
+  // 이번 달 출근 일수 + 근무시간
+  const { data: monthSummary } = useQuery({
+    queryKey: ["emp-month-summary", employeeId, yearMonth],
+    queryFn: async () => {
+      const startDate = `${yearMonth}-01`;
+      const endDate = `${yearMonth}-31`;
+      const { data } = await db
+        .from("attendance_records")
+        .select("work_hours, overtime_hours, status")
+        .eq("employee_id", employeeId!)
+        .gte("date", startDate)
+        .lte("date", endDate);
+      const records = data || [];
+      const totalDays = records.filter((r: any) => r.status !== "absent").length;
+      const totalHours = records.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0);
+      const overtimeHours = records.reduce((s: number, r: any) => s + Number(r.overtime_hours || 0), 0);
+      return { totalDays, totalHours: Math.round(totalHours * 10) / 10, overtimeHours: Math.round(overtimeHours * 10) / 10 };
+    },
+    enabled: !!employeeId,
+  });
+
+  // 내 프로젝트 수
+  const { data: myDealCount = 0 } = useQuery({
+    queryKey: ["emp-deals", companyId],
+    queryFn: async () => {
+      const { count } = await db
+        .from("deals")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId!)
+        .in("status", ["active", "in_progress", "proposal", "negotiation"]);
+      return count ?? 0;
+    },
+    enabled: !!companyId,
+  });
+
+  // 휴가 잔여
+  const { data: leaveBalance } = useQuery({
+    queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
+    queryFn: async () => {
+      const { data } = await db
+        .from("leave_balances")
+        .select("total_days, used_days")
+        .eq("company_id", companyId!)
+        .eq("employee_id", employeeId!)
+        .eq("year", currentYear)
+        .maybeSingle();
+      if (!data) return { total: 15, used: 0, remaining: 15 };
+      return { total: data.total_days, used: data.used_days, remaining: data.total_days - data.used_days };
+    },
+    enabled: !!companyId && !!employeeId,
+  });
+
+  // 내 결재 요청 (경비 청구 등)
+  const { data: myRequests } = useQuery({
+    queryKey: ["emp-my-requests", userId, companyId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("approval_requests")
+        .select("id, title, amount, request_type, status, created_at")
+        .eq("company_id", companyId!)
+        .eq("requester_id", userId!)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!companyId && !!userId,
+  });
+
+  // 이번 달 급여 (최근 payroll_items)
+  const { data: myPayroll } = useQuery({
+    queryKey: ["emp-payroll", employeeId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("payroll_items")
+        .select("base_salary, deductions_total, net_pay, status, payment_batches!inner(name, created_at)")
+        .eq("employee_id", employeeId!)
+        .order("created_at", { ascending: false, referencedTable: "payment_batches" })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!employeeId,
+  });
+
+  // 알림
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["emp-notifications", userId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("notifications")
+        .select("id, type, title, message, is_read, created_at")
+        .eq("user_id", userId!)
+        .eq("is_read", false)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      return data || [];
+    },
+    enabled: !!userId,
+  });
+
+  // 출근/퇴근 처리
+  const handleCheckIn = async () => {
+    if (!employeeId || !companyId) return;
+    setCheckingIn(true);
+    try {
+      const now = new Date().toISOString();
+      await db.from("attendance_records").upsert({
+        company_id: companyId,
+        employee_id: employeeId,
+        date: today,
+        check_in: now,
+        status: "present",
+        work_hours: 0,
+        overtime_hours: 0,
+      }, { onConflict: "employee_id,date" });
+      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+    } catch {}
+    setCheckingIn(false);
+  };
+
+  const handleCheckOut = async () => {
+    if (!employeeId || !todayAttendance?.check_in) return;
+    setCheckingOut(true);
+    try {
+      const now = new Date();
+      const checkInTime = new Date(todayAttendance.check_in);
+      const hours = Math.max(0, (now.getTime() - checkInTime.getTime()) / 3600000);
+      const workHours = Math.round(Math.min(hours, 9) * 10) / 10;
+      const overtime = Math.round(Math.max(0, hours - 9) * 10) / 10;
+      await db.from("attendance_records").update({
+        check_out: now.toISOString(),
+        work_hours: workHours,
+        overtime_hours: overtime,
+      }).eq("employee_id", employeeId).eq("date", today);
+      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
+    } catch {}
+    setCheckingOut(false);
+  };
+
+  const pendingCount = (myRequests || []).filter((r: any) => r.status === "pending").length;
+  const expenseCount = (myRequests || []).filter((r: any) => r.request_type === "expense" || r.request_type === "card_expense").length;
+
+  function fmtTime(iso: string | null): string {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function elapsedSince(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return `${h}h ${m}m`;
+  }
+
+  function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "방금";
+    if (mins < 60) return `${mins}분 전`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}시간 전`;
+    return `${Math.floor(hrs / 24)}일 전`;
+  }
+
+  const isCheckedIn = !!todayAttendance?.check_in;
+  const isCheckedOut = !!todayAttendance?.check_out;
+
+  return (
+    <div className="max-w-[900px]">
+      {/* Welcome header */}
+      <div className="mb-5 md:mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+            {(userName || "E").charAt(0)}
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
+            <p className="text-xs text-[var(--text-muted)]">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 출퇴근 카드 — 최상단, 가장 큰 영역 */}
+      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
+            <span className="text-sm font-bold text-[var(--text)]">
+              {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
+            </span>
+          </div>
+          {isCheckedIn && !isCheckedOut && (
+            <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in)}</span>
+          )}
+        </div>
+
+        {/* 출근/퇴근 시간 표시 */}
+        <div className="flex items-center gap-6 mb-4">
+          <div>
+            <div className="text-[10px] text-[var(--text-dim)] mb-0.5">출근</div>
+            <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in)}</div>
+          </div>
+          <div className="text-[var(--text-dim)]">→</div>
+          <div>
+            <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴근</div>
+            <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out)}</div>
+          </div>
+          {todayAttendance?.work_hours > 0 && (
+            <>
+              <div className="text-[var(--border)]">|</div>
+              <div>
+                <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근무시간</div>
+                <div className="text-lg font-black">{todayAttendance.work_hours}h</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 출근/퇴근 버튼 */}
+        <div className="flex gap-3">
+          {!isCheckedIn ? (
+            <button
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {checkingIn ? "처리 중..." : "출근하기"}
+            </button>
+          ) : !isCheckedOut ? (
+            <button
+              onClick={handleCheckOut}
+              disabled={checkingOut}
+              className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {checkingOut ? "처리 중..." : "퇴근하기"}
+            </button>
+          ) : (
+            <div className="flex-1 py-3 rounded-xl bg-[var(--bg-surface)] text-center text-sm font-semibold text-[var(--text-muted)]">
+              오늘 근무 완료
+            </div>
+          )}
+        </div>
+
+        {/* 이번 달 요약 */}
+        {monthSummary && (
+          <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
+            <span>이번 달: 출근 <b className="text-[var(--text)]">{monthSummary.totalDays}일</b></span>
+            <span>근무 <b className="text-[var(--text)]">{monthSummary.totalHours}h</b></span>
+            {monthSummary.overtimeHours > 0 && (
+              <span>초과 <b className="text-orange-500">{monthSummary.overtimeHours}h</b></span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 핵심 지표 2x2 — 동적 데이터 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+        <Link href="/deals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+          <div className="text-xl md:text-2xl mb-1.5">📋</div>
+          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">내 프로젝트</div>
+          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{myDealCount}건</div>
+        </Link>
+        <Link href="/employees" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+          <div className="text-xl md:text-2xl mb-1.5">🏖️</div>
+          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">휴가 잔여</div>
+          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">
+            {leaveBalance ? `${leaveBalance.remaining}일` : "—"}
+          </div>
+          {leaveBalance && (
+            <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>
+          )}
+        </Link>
+        <Link href="/approvals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+          <div className="text-xl md:text-2xl mb-1.5 relative">
+            🧾
+            {expenseCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--primary)] text-white text-[8px] font-bold rounded-full px-0.5">{expenseCount}</span>
+            )}
+          </div>
+          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">경비 청구</div>
+          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{expenseCount}건</div>
+        </Link>
+        <Link href="/approvals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+          <div className="text-xl md:text-2xl mb-1.5 relative">
+            📝
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center bg-orange-500 text-white text-[8px] font-bold rounded-full px-0.5">{pendingCount}</span>
+            )}
+          </div>
+          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">승인 대기</div>
+          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition" style={{ color: pendingCount > 0 ? "var(--warning)" : undefined }}>{pendingCount}건</div>
+        </Link>
+      </div>
+
+      {/* 이번 달 급여 */}
+      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">💰</span>
+            <span className="text-xs font-bold text-[var(--text)]">이번 달 급여</span>
+          </div>
+          <Link href="/employees" className="text-[10px] text-[var(--primary)] font-semibold hover:underline">상세 보기 →</Link>
+        </div>
+        {myPayroll ? (
+          <div className="flex items-end gap-6">
+            <div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">기본급</div>
+              <div className="text-sm font-bold">{fmtWFull(myPayroll.base_salary)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">공제</div>
+              <div className="text-sm font-bold text-red-400">-{fmtWFull(myPayroll.deductions_total)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">실수령</div>
+              <div className="text-lg font-black text-[var(--primary)]">{fmtWFull(myPayroll.net_pay)}</div>
+            </div>
+            <span className={`ml-auto text-[9px] px-2 py-0.5 rounded-full font-semibold ${
+              myPayroll.status === "paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
+            }`}>
+              {myPayroll.status === "paid" ? "지급 완료" : "처리 중"}
+            </span>
+          </div>
+        ) : (
+          <div className="text-xs text-[var(--text-muted)]">이번 달 급여 정보가 아직 없습니다. 지급일: 매월 25일</div>
+        )}
+      </div>
+
+      {/* 공지/알림 */}
+      {notifications.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
+            <span className="text-[10px] text-orange-500 font-bold">{notifications.length}건</span>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+            {notifications.map((n: any) => (
+              <div key={n.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-base shrink-0">🔔</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-[var(--text)] font-medium truncate">{n.title}</div>
+                  {n.message && <div className="text-[10px] text-[var(--text-muted)] truncate">{n.message}</div>}
+                </div>
+                <span className="text-[10px] text-[var(--text-dim)] shrink-0">{timeAgo(n.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 빠른 이동 */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
+          <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">빠른 이동</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화" },
+            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명" },
+            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리" },
+            { href: "/employees", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
+          ].map(card => (
+            <Link key={card.href} href={card.href}
+              className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+              <div className="text-xl mb-1.5">{card.icon}</div>
+              <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Partner Dashboard — 동적 카운트 + 최근 활동
+// ═══════════════════════════════════════════
+
+function PartnerDashboard({ userName, companyId, companyName, userId }: {
+  userName: string; companyId: string | null; companyName: string; userId: string | null;
+}) {
+  const db = supabase as any;
+
+  // 진행 중 프로젝트 수
+  const { data: dealCount = 0 } = useQuery({
+    queryKey: ["partner-deal-count", companyId],
+    queryFn: async () => {
+      const { count } = await db
+        .from("deals")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId!)
+        .in("status", ["active", "in_progress", "proposal", "negotiation"]);
+      return count ?? 0;
+    },
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+
+  // 서명 대기 문서 수
+  const { data: signCount = 0 } = useQuery({
+    queryKey: ["partner-sign-count", companyId, userId],
+    queryFn: async () => {
+      const { count } = await db
+        .from("doc_templates")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId!)
+        .eq("status", "pending_signature");
+      return count ?? 0;
+    },
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+
+  // 안읽은 채팅 수
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["partner-unread", companyId, userId],
+    queryFn: async () => {
+      if (!userId) return 0;
+      try {
+        const counts = await import("@/lib/queries").then(m => m.getUnreadCounts(companyId!, userId));
+        return Array.from(counts.values()).reduce((s: number, v: number) => s + v, 0);
+      } catch { return 0; }
+    },
+    enabled: !!companyId && !!userId,
+    refetchInterval: 15_000,
+  });
+
+  // 최근 활동 (채팅 메시지 + 문서 변경)
+  const { data: recentActivity = [] } = useQuery({
+    queryKey: ["partner-activity", companyId],
+    queryFn: async () => {
+      const activities: { type: string; text: string; time: string; href: string }[] = [];
+
+      // 최근 채팅 메시지
+      const { data: msgs } = await db
+        .from("chat_messages")
+        .select("content, created_at, chat_channels!inner(company_id, name)")
+        .eq("chat_channels.company_id", companyId!)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      for (const m of msgs || []) {
+        activities.push({
+          type: "chat",
+          text: `${m.chat_channels?.name || "채널"}: ${(m.content || "").slice(0, 40)}`,
+          time: m.created_at,
+          href: "/chat",
+        });
+      }
+
+      // 최근 문서 변경
+      const { data: docs } = await db
+        .from("doc_templates")
+        .select("title, updated_at, status")
+        .eq("company_id", companyId!)
+        .order("updated_at", { ascending: false })
+        .limit(3);
+      for (const d of docs || []) {
+        const statusLabel = d.status === "pending_signature" ? "서명 대기" : d.status === "approved" ? "승인됨" : "수정됨";
+        activities.push({
+          type: "doc",
+          text: `${d.title || "문서"} — ${statusLabel}`,
+          time: d.updated_at,
+          href: "/documents",
+        });
+      }
+
+      return activities
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 6);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
+  function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "방금";
+    if (mins < 60) return `${mins}분 전`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}시간 전`;
+    return `${Math.floor(hrs / 24)}일 전`;
+  }
+
+  const cards = [
+    { label: "진행 중 프로젝트", count: dealCount, href: "/deals", icon: "📋", color: "#2563EB", desc: "현황 확인 및 진행 상태" },
+    { label: "서명 대기", count: signCount, href: "/documents", icon: "📄", color: "#7C3AED", desc: "계약서, 견적서 검토 및 서명" },
+    { label: "안읽은 메시지", count: unreadCount, href: "/chat", icon: "💬", color: "#059669", desc: "실시간 문의 및 파일 공유" },
+  ];
+
+  const hasTodo = signCount > 0 || unreadCount > 0;
+
+  return (
+    <div className="max-w-[900px]">
+      {/* Welcome header */}
+      <div className="mb-5 md:mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+            {(userName || "P").charAt(0)}
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
+            <p className="text-xs text-[var(--text-muted)]">{companyName || "파트너"} 협업 포털</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 즉시 해야 할 일 알림 */}
+      {hasTodo && (
+        <div className="mb-4 p-4 rounded-xl border border-orange-400/30 bg-orange-400/5">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+            <span className="text-xs font-bold text-orange-500">지금 해야 할 일</span>
+          </div>
+          <div className="space-y-1.5">
+            {signCount > 0 && (
+              <Link href="/documents" className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] transition">
+                <span className="text-xs text-[var(--text)]">서명 대기 문서 {signCount}건</span>
+                <span className="text-[10px] text-[var(--primary)] font-semibold">확인하기 &rarr;</span>
+              </Link>
+            )}
+            {unreadCount > 0 && (
+              <Link href="/chat" className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] transition">
+                <span className="text-xs text-[var(--text)]">안읽은 메시지 {unreadCount}건</span>
+                <span className="text-[10px] text-[var(--primary)] font-semibold">확인하기 &rarr;</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic count cards */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 mb-5">
+        {cards.map((card) => (
+          <Link
+            key={card.label}
+            href={card.href}
+            className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
+          >
+            <div className="text-3xl md:mb-3 shrink-0 relative">
+              {card.icon}
+              {card.count > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                  {card.count > 99 ? "99+" : card.count}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="font-bold text-sm md:text-base group-hover:text-[var(--primary)] transition">{card.label}</h3>
+                <span className="text-lg font-black" style={{ color: card.count > 0 ? card.color : 'var(--text-muted)' }}>{card.count}건</span>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] truncate md:whitespace-normal">{card.desc}</p>
+            </div>
+            <svg className="w-5 h-5 text-[var(--text-dim)] shrink-0 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </Link>
+        ))}
+      </div>
+
+      {/* 최근 활동 타임라인 */}
+      {recentActivity.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">최근 활동</h2>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+            {recentActivity.map((act, i) => (
+              <Link key={i} href={act.href} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition">
+                <span className="text-base shrink-0">{act.type === "chat" ? "💬" : "📄"}</span>
+                <span className="text-xs text-[var(--text)] flex-1 truncate">{act.text}</span>
+                <span className="text-[10px] text-[var(--text-dim)] shrink-0">{timeAgo(act.time)}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Info card */}
+      <div className="bg-gradient-to-br from-[var(--primary-light)] to-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-sm mb-1">도움이 필요하신가요?</h3>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">프로젝트 관련 문의는 채팅으로 담당자에게 연락하세요. 서류 서명이 필요한 경우 서류 페이지에서 바로 진행할 수 있습니다.</p>
+          </div>
+        </div>
       </div>
     </div>
   );

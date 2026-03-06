@@ -1,10 +1,10 @@
 /**
- * LeanOS Document Pipeline Engine
+ * Reflect Document Pipeline Engine
  * 템플릿 → 변수 채움 → 수정 → 승인 → 잠금
  */
 
 import { supabase } from './supabase';
-import type { Json } from '@/types/database';
+import type { Json } from '@/types/models';
 
 // ── Document types ──
 export const DOC_TYPES = [

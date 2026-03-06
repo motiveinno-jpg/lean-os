@@ -1,10 +1,10 @@
 /**
- * LeanOS Chat Engine
+ * Reflect Chat Engine
  * 딜룸 채팅: 채널 관리, 메시지, 참가자, 이벤트
  */
 
 import { supabase } from './supabase';
-import type { Json } from '@/types/database';
+import type { Json } from '@/types/models';
 
 // ── Channel types ──
 export const CHANNEL_TYPES = [
@@ -409,6 +409,32 @@ export async function getChannelsByType(companyId: string, type: 'deal' | 'team'
 
   const { data } = await query.order('updated_at', { ascending: false });
   return data || [];
+}
+
+// ── Get or create invite token for guest access ──
+export async function getOrCreateInviteToken(channelId: string): Promise<string> {
+  const db = supabase as any;
+  const { data } = await db
+    .from('chat_channels')
+    .select('invite_token')
+    .eq('id', channelId)
+    .single();
+
+  if (data?.invite_token) return data.invite_token;
+
+  const token = crypto.randomUUID();
+  await db
+    .from('chat_channels')
+    .update({ invite_token: token, allow_guests: true })
+    .eq('id', channelId);
+
+  return token;
+}
+
+// ── Build chat invite URL ──
+export function getChatInviteUrl(token: string): string {
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${base}/lean-os/chat?token=${token}`;
 }
 
 // ── Create action card ──

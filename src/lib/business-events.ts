@@ -1,11 +1,11 @@
 /**
- * LeanOS Business Event Dispatcher
+ * Reflect Business Event Dispatcher
  * 비즈니스 이벤트 → 딜 채팅에 자동 시스템 메시지 + 액션카드 생성
  */
 
 import { supabase } from './supabase';
 import { sendSystemMessage, createActionCard, logEvent } from './chat';
-import type { Json } from '@/types/database';
+import type { Json } from '@/types/models';
 
 export type BusinessEventType =
   | 'contract_executed'

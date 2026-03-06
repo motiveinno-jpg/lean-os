@@ -1,5 +1,5 @@
 /**
- * LeanOS Payment Batch Engine
+ * Reflect Payment Batch Engine
  * 급여/고정비 일괄 배치 → 대표 승인 → n8n 트리거 자동이체
  */
 

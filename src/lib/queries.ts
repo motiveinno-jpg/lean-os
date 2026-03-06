@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, TreasuryPosition, TreasuryTransaction, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/database';
+import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
 
 // ── Auth helpers ──
 export type CurrentUser = {
@@ -1193,52 +1193,6 @@ export async function getVaultSummary(companyId: string) {
       pendingDiscoveryCount: pending.length,
     },
   };
-}
-
-// ══════════════════════════════════════════════
-// Phase 5: Treasury + Archiving
-// ══════════════════════════════════════════════
-
-// ── Treasury Positions ──
-export async function getTreasuryPositions(companyId: string) {
-  const { data } = await supabase
-    .from('treasury_positions')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
-  return (data || []) as TreasuryPosition[];
-}
-
-export async function getTreasuryPosition(positionId: string) {
-  const { data } = await supabase
-    .from('treasury_positions')
-    .select('*')
-    .eq('id', positionId)
-    .single();
-  return data as TreasuryPosition | null;
-}
-
-// ── Treasury Transactions ──
-export async function getTreasuryTransactions(positionId: string) {
-  const { data } = await supabase
-    .from('treasury_transactions')
-    .select('*')
-    .eq('position_id', positionId)
-    .order('date', { ascending: false });
-  return (data || []) as TreasuryTransaction[];
-}
-
-export async function getAllTreasuryTransactions(companyId: string) {
-  const positions = await getTreasuryPositions(companyId);
-  if (positions.length === 0) return [];
-  const posIds = positions.map(p => p.id);
-  const { data } = await supabase
-    .from('treasury_transactions')
-    .select('*, treasury_positions(name, asset_type, ticker)')
-    .in('position_id', posIds)
-    .order('date', { ascending: false })
-    .limit(100);
-  return data || [];
 }
 
 // ══════════════════════════════════════════════

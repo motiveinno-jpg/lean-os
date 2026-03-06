@@ -1,5 +1,5 @@
 /**
- * LeanOS Deal Pipeline Orchestrator
+ * Reflect Deal Pipeline Orchestrator
  * 딜→견적서→계약서→세금계산서→입금스케줄 자동 파이프라인
  *
  * Flow:
@@ -13,7 +13,7 @@ import { supabase } from './supabase';
 import { createTaxInvoice } from './tax-invoice';
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
-import type { Json } from '@/types/database';
+import type { Json } from '@/types/models';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;

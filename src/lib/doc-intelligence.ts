@@ -1,5 +1,5 @@
 /**
- * LeanOS Document Intelligence
+ * Reflect Document Intelligence
  * 문서유형 자동분류 + 계약서 필드 추출 (규칙 기반)
  */
 import { supabase } from './supabase';

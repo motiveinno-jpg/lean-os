@@ -1,5 +1,5 @@
 /**
- * LeanOS Matching Engine
+ * Reflect Matching Engine
  * 거래내역 ↔ 수금/지출 스케줄 자동 매칭
  *
  * 스코어 기준:
@@ -12,7 +12,7 @@
  *  >=90 → auto  / 70-89 → review / <70 → unmatched
  */
 
-import type { Transaction, DealRevenueSchedule, DealCostSchedule } from '@/types/database';
+import type { Transaction, DealRevenueSchedule, DealCostSchedule } from '@/types/models';
 
 export type MatchCandidate = {
   transaction_id: string;

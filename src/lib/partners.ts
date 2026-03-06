@@ -1,5 +1,5 @@
 /**
- * LeanOS Partner CRM Library
+ * Reflect Partner CRM Library
  * 거래처(파트너) 관리 — 조회, 생성/수정, 검색, 딜 연동 자동 생성
  */
 

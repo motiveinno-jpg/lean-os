@@ -1,10 +1,10 @@
 /**
- * LeanOS Tax Invoice Engine
+ * Reflect Tax Invoice Engine
  * 세금계산서 생성 + 3-way matching (계약 ↔ 세금계산서 ↔ 입금)
  */
 
 import { supabase } from './supabase';
-import type { TaxInvoice } from '@/types/database';
+import type { TaxInvoice } from '@/types/models';
 
 // ── Tax invoice types ──
 export const INVOICE_TYPES = [

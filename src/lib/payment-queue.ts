@@ -1,11 +1,11 @@
 /**
- * LeanOS Payment Queue Engine
+ * Reflect Payment Queue Engine
  * 지급 실행 큐: 생성 → 승인 → 실행
  */
 
 import { supabase } from './supabase';
 import { resolveBank } from './routing';
-import type { PaymentQueue } from '@/types/database';
+import type { PaymentQueue } from '@/types/models';
 
 // ── Create a payment queue entry from a cost schedule ──
 export async function createQueueEntry(params: {

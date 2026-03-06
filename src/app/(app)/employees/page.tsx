@@ -19,9 +19,10 @@ import {
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
 } from "@/lib/expenses";
 import { previewPayroll } from "@/lib/payroll";
+import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import type { PayrollItem } from "@/lib/payment-batch";
 
-type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave";
+type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
 
 export default function EmployeesPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function EmployeesPage() {
     { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
     { key: "attendance", label: "근태" },
     { key: "leave", label: "휴가" },
+    { key: "certificates", label: "증명서 발급" },
   ];
 
   return (
@@ -145,6 +147,7 @@ export default function EmployeesPage() {
       {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
   );
 }
@@ -1389,6 +1392,218 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
             })}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Certificate Tab ──
+function CertificateTab({ employees, companyId, userId, queryClient }: any) {
+  const [selectedEmpId, setSelectedEmpId] = useState("");
+  const [certType, setCertType] = useState<"employment" | "career">("employment");
+  const [purpose, setPurpose] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const db = supabase as any;
+
+  // Certificate logs query
+  const { data: certLogs = [] } = useQuery({
+    queryKey: ["certificate-logs", companyId],
+    queryFn: () => getCertificateLogs(companyId),
+    enabled: !!companyId,
+  });
+
+  // Company info query
+  const { data: companyInfo } = useQuery({
+    queryKey: ["company-info", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("companies").select("*").eq("id", companyId).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  const activeEmployees = employees.filter((e: any) => e.status === "active");
+  const allEmployees = employees;
+
+  const CERT_TYPES = [
+    { value: "employment", label: "재직증명서" },
+    { value: "career", label: "경력증명서" },
+  ];
+
+  const handleIssue = async () => {
+    if (!selectedEmpId || !companyId || !userId) return;
+
+    const employee = allEmployees.find((e: any) => e.id === selectedEmpId);
+    if (!employee) return;
+
+    setIsGenerating(true);
+    try {
+      const empData = {
+        name: employee.name,
+        department: employee.department,
+        position: employee.position,
+        hire_date: employee.hire_date || new Date().toISOString().slice(0, 10),
+        end_date: employee.status !== "active" ? employee.updated_at?.slice(0, 10) : undefined,
+        employee_number: employee.employee_number,
+        birth_date: employee.birth_date,
+      };
+
+      const companyData = {
+        name: companyInfo?.name || "",
+        representative: companyInfo?.representative,
+        address: companyInfo?.address,
+        business_number: companyInfo?.business_number,
+        seal_url: companyInfo?.seal_url,
+      };
+
+      let result;
+      if (certType === "employment") {
+        result = await generateEmploymentCertificate({
+          employee: empData,
+          company: companyData,
+          purpose: purpose || undefined,
+        });
+      } else {
+        result = await generateCareerCertificate({
+          employee: empData,
+          company: companyData,
+        });
+      }
+
+      // Download the PDF
+      const url = URL.createObjectURL(result.pdf);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${certType === "employment" ? "재직증명서" : "경력증명서"}_${employee.name}_${result.certificateNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Save log
+      await saveCertificateLog({
+        companyId,
+        employeeId: selectedEmpId,
+        certificateType: certType === "employment" ? "재직증명서" : "경력증명서",
+        certificateNumber: result.certificateNumber,
+        issuedBy: userId,
+        purpose: purpose || undefined,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["certificate-logs"] });
+      setPurpose("");
+      alert(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`);
+    } catch (err: any) {
+      alert("증명서 발급 실패: " + (err?.message || err));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Issue Form */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <h3 className="text-sm font-bold mb-4">증명서 발급</h3>
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">직원 선택 *</label>
+            <select
+              value={selectedEmpId}
+              onChange={(e) => setSelectedEmpId(e.target.value)}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="">직원을 선택하세요</option>
+              {allEmployees.map((e: any) => (
+                <option key={e.id} value={e.id}>
+                  {e.name} ({e.department || "미배정"}) {e.status !== "active" ? "[퇴직]" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">증명서 유형 *</label>
+            <select
+              value={certType}
+              onChange={(e) => setCertType(e.target.value as "employment" | "career")}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              {CERT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">용도</label>
+            <input
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder="제출용, 은행, 비자 등"
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={handleIssue}
+              disabled={!selectedEmpId || isGenerating}
+              className="w-full px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+            >
+              {isGenerating ? "발급 중..." : "발급"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Certificate Logs */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="px-5 py-3 border-b border-[var(--border)]">
+          <span className="text-xs font-bold text-[var(--text-muted)]">발급 이력</span>
+        </div>
+        {certLogs.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="text-4xl mb-4">📜</div>
+            <div className="text-sm text-[var(--text-muted)]">발급된 증명서가 없습니다</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 증명서를 발급하세요</div>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-5 py-3 font-medium">증명서번호</th>
+                <th className="text-left px-5 py-3 font-medium">유형</th>
+                <th className="text-left px-5 py-3 font-medium">직원</th>
+                <th className="text-left px-5 py-3 font-medium">소속/직위</th>
+                <th className="text-left px-5 py-3 font-medium">용도</th>
+                <th className="text-left px-5 py-3 font-medium">발급자</th>
+                <th className="text-left px-5 py-3 font-medium">발급일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {certLogs.map((log: any) => (
+                <tr key={log.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                  <td className="px-5 py-3 text-xs font-mono text-[var(--primary)]">{log.certificate_number}</td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      log.certificate_type === "재직증명서"
+                        ? "bg-blue-500/10 text-blue-400"
+                        : "bg-purple-500/10 text-purple-400"
+                    }`}>
+                      {log.certificate_type}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm font-medium">{log.employees?.name || "--"}</td>
+                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
+                    {log.employees?.department || "--"} / {log.employees?.position || "--"}
+                  </td>
+                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{log.purpose || "--"}</td>
+                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{log.issuer?.name || log.issuer?.email || "--"}</td>
+                  <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                    {log.created_at ? new Date(log.created_at).toLocaleDateString("ko") : "--"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

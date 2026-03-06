@@ -1,5 +1,5 @@
 /**
- * LeanOS PDF Report Generator
+ * Reflect PDF Report Generator
  * 월간 손익 리포트 PDF 다운로드
  */
 
@@ -159,7 +159,7 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `LeanOS Financial Report  |  ${data.companyName}  |  Page ${i}/${pageCount}`,
+      `REFLECT Financial Report  |  ${data.companyName}  |  Page ${i}/${pageCount}`,
       pageW / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' },

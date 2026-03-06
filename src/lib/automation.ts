@@ -1,10 +1,13 @@
 /**
- * LeanOS Automation Engine
+ * Reflect Automation Engine
  * 모든 수동 프로세스를 자동화하는 통합 엔진
  */
 
 import { supabase } from './supabase';
 import { threeWayMatch, markInvoiceMatched, createTaxInvoice } from './tax-invoice';
+import { createApprovalRequest } from './approval-workflow';
+import { createQueueEntry } from './payment-queue';
+import { resolveBank } from './routing';
 
 const db = supabase as any;
 
@@ -521,7 +524,302 @@ export async function autoLinkApprovedContractsToSchedule(companyId: string) {
 }
 
 // ══════════════════════════════════════════
-// 통합 실행: 전체 자동화 한번에 실행
+// 11. 반복결제 → 지출결의서 자동생성
+// ══════════════════════════════════════════
+export async function autoCreateExpenseFromRecurring(companyId: string) {
+  // Get active recurring payments
+  const { data: recurring } = await db
+    .from('recurring_payments')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('is_active', true);
+
+  if (!recurring?.length) return { created: 0 };
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  let created = 0;
+
+  for (const r of recurring) {
+    // Skip if already generated this month
+    if (r.last_generated_at) {
+      const lastGen = r.last_generated_at.substring(0, 7); // YYYY-MM
+      if (lastGen === currentMonth) continue;
+    }
+
+    // Check if approval_request already exists for this recurring + month
+    const { data: existing } = await db
+      .from('approval_requests')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('request_type', 'expense')
+      .ilike('title', `%${r.name}%${currentMonth}%`)
+      .maybeSingle();
+
+    if (existing) continue;
+
+    const amount = Number(r.amount || 0);
+    if (amount <= 0) continue;
+
+    // Create approval request (auto-approves if below threshold)
+    const request = await createApprovalRequest({
+      companyId,
+      requestType: 'expense',
+      requesterId: 'system',
+      title: `${r.name} (${currentMonth})`,
+      amount,
+      description: `자동생성: 반복결제 "${r.name}" / 카테고리: ${r.category || '기타'}`,
+    });
+
+    // If auto-approved, also create payment queue entry
+    if (request.status === 'approved') {
+      const bank = await resolveBank(companyId, r.category || 'default');
+      await createQueueEntry({
+        companyId,
+        amount,
+        description: `${r.name} (${currentMonth}) - 자동`,
+        costType: r.category || 'fixed_cost',
+        dealBankAccountId: bank?.id || null,
+      });
+    }
+
+    // Update last_generated_at
+    await db.from('recurring_payments').update({
+      last_generated_at: now.toISOString(),
+    }).eq('id', r.id);
+
+    created++;
+  }
+
+  return { created, total: recurring.length };
+}
+
+// ══════════════════════════════════════════
+// 12. 승인완료 → 결제큐 자동등록
+// ══════════════════════════════════════════
+export async function autoQueueApprovedExpenses(companyId: string) {
+  // Find approved approval_requests that are NOT yet in payment_queue
+  const { data: approved } = await db
+    .from('approval_requests')
+    .select('id, title, amount, request_type, requester_id')
+    .eq('company_id', companyId)
+    .eq('status', 'approved')
+    .in('request_type', ['expense', 'payment', 'purchase']);
+
+  if (!approved?.length) return { queued: 0 };
+
+  // Get existing payment_queue entries linked via description pattern
+  const { data: existingQueue } = await db
+    .from('payment_queue')
+    .select('description')
+    .eq('company_id', companyId);
+
+  const existingDescs = new Set((existingQueue || []).map((q: any) => q.description));
+  let queued = 0;
+
+  for (const req of approved) {
+    const desc = `[승인#${req.id.substring(0, 8)}] ${req.title}`;
+
+    // Skip if already queued
+    if (existingDescs.has(desc)) continue;
+
+    const amount = Number(req.amount || 0);
+    if (amount <= 0) continue;
+
+    await createQueueEntry({
+      companyId,
+      amount,
+      description: desc,
+      costType: req.request_type === 'purchase' ? 'purchase' : 'expense',
+    });
+
+    queued++;
+  }
+
+  return { queued, total: approved.length };
+}
+
+// ══════════════════════════════════════════
+// 13. 계약 완료 → 지출결의서 자동생성
+// ══════════════════════════════════════════
+export async function autoCreateExpenseFromContract(companyId: string) {
+  // Find approved cost schedules without expense requests
+  const { data: schedules } = await db
+    .from('deal_cost_schedule')
+    .select('id, deal_id, amount, label, due_date, status, deals(name)')
+    .eq('company_id', companyId)
+    .eq('approved', true)
+    .neq('status', 'paid');
+
+  if (!schedules?.length) return { created: 0 };
+
+  // Check which already have approval requests
+  const { data: existingRequests } = await db
+    .from('approval_requests')
+    .select('request_id')
+    .eq('company_id', companyId)
+    .eq('request_type', 'payment');
+
+  const existingIds = new Set((existingRequests || []).map((r: any) => r.request_id));
+  let created = 0;
+
+  for (const sched of schedules) {
+    if (existingIds.has(sched.id)) continue;
+
+    const amount = Number(sched.amount || 0);
+    if (amount <= 0) continue;
+
+    const dealName = sched.deals?.name || '딜';
+    const label = sched.label || '계약금';
+
+    const request = await createApprovalRequest({
+      companyId,
+      requestType: 'payment',
+      requestId: sched.id,
+      requesterId: 'system',
+      title: `${dealName} - ${label}`,
+      amount,
+      description: `계약 기반 자동생성: ${dealName} / ${label} / 기한: ${sched.due_date || '미정'}`,
+    });
+
+    // If auto-approved, queue payment
+    if (request.status === 'approved') {
+      await createQueueEntry({
+        companyId,
+        costScheduleId: sched.id,
+        amount,
+        description: `${dealName} - ${label} (계약자동)`,
+        costType: 'contract',
+      });
+    }
+
+    created++;
+  }
+
+  return { created, total: schedules.length };
+}
+
+// ══════════════════════════════════════════
+// 14. 결제완료 → 세금계산서 자동발행
+// ══════════════════════════════════════════
+export async function autoCreateTaxInvoiceOnPayment(companyId: string) {
+  // Check company tax_settings for auto-issue on payment
+  const { data: company } = await db
+    .from('companies')
+    .select('tax_settings')
+    .eq('id', companyId)
+    .single();
+
+  const taxSettings = company?.tax_settings as any;
+  if (!taxSettings?.autoIssueOnPayment) return { created: 0, reason: '결제완료 자동발행 비활성' };
+
+  // Get executed payments without tax invoices
+  const { data: executed } = await db
+    .from('payment_queue')
+    .select('id, amount, description, recipient_name, executed_at, cost_schedule_id, deals(id, name, counterparty)')
+    .eq('company_id', companyId)
+    .eq('status', 'executed');
+
+  if (!executed?.length) return { created: 0 };
+
+  // Get existing tax invoices to avoid duplicates
+  const { data: existingInvoices } = await db
+    .from('tax_invoices')
+    .select('id, total_amount, counterparty_name, issue_date')
+    .eq('company_id', companyId)
+    .neq('status', 'void');
+
+  // Simple duplicate check: same amount + same counterparty + same date
+  const invoiceKeys = new Set(
+    (existingInvoices || []).map((inv: any) =>
+      `${inv.counterparty_name}|${inv.total_amount}|${inv.issue_date}`
+    )
+  );
+
+  let created = 0;
+
+  for (const pmt of executed) {
+    const amount = Number(pmt.amount || 0);
+    if (amount <= 0) continue;
+
+    const counterpartyName = pmt.recipient_name || pmt.deals?.counterparty || pmt.deals?.name || '미확인';
+    const issueDate = (pmt.executed_at || new Date().toISOString()).split('T')[0];
+    const supplyAmount = Math.round(amount / 1.1); // 공급가 역산
+    const totalAmount = supplyAmount + Math.round(supplyAmount * 0.1);
+
+    const key = `${counterpartyName}|${totalAmount}|${issueDate}`;
+    if (invoiceKeys.has(key)) continue;
+
+    await createTaxInvoice({
+      companyId,
+      dealId: pmt.deals?.id || undefined,
+      type: 'purchase', // 매입 세금계산서 (지출이므로)
+      counterpartyName,
+      supplyAmount,
+      issueDate,
+    });
+
+    invoiceKeys.add(key);
+    created++;
+  }
+
+  return { created, total: executed.length };
+}
+
+// ══════════════════════════════════════════
+// 15. 환불/취소 → 세금계산서 자동취소
+// ══════════════════════════════════════════
+export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
+  // Check company tax_settings
+  const { data: company } = await db
+    .from('companies')
+    .select('tax_settings')
+    .eq('id', companyId)
+    .single();
+
+  const taxSettings = company?.tax_settings as any;
+  if (!taxSettings?.autoCancelOnRefund) return { cancelled: 0, reason: '환불 자동취소 비활성' };
+
+  // Find rejected/cancelled payment_queue entries that have linked tax invoices
+  const { data: cancelled } = await db
+    .from('payment_queue')
+    .select('id, cost_schedule_id, description, deals(id)')
+    .eq('company_id', companyId)
+    .in('status', ['rejected', 'cancelled']);
+
+  if (!cancelled?.length) return { cancelled: 0 };
+
+  let cancelledCount = 0;
+
+  for (const pmt of cancelled) {
+    const dealId = pmt.deals?.id || null;
+    if (!dealId) continue;
+
+    // Find active tax invoices for this deal
+    const { data: invoices } = await db
+      .from('tax_invoices')
+      .select('id, status')
+      .eq('deal_id', dealId)
+      .eq('company_id', companyId)
+      .in('status', ['issued', 'received']);
+
+    if (!invoices?.length) continue;
+
+    for (const inv of invoices) {
+      await db.from('tax_invoices').update({
+        status: 'void',
+        void_reason: `자동취소: 결제 취소/반려 (${pmt.description || ''})`,
+        voided_at: new Date().toISOString(),
+      }).eq('id', inv.id);
+      cancelledCount++;
+    }
+  }
+
+  return { cancelled: cancelledCount };
+}
+
+// ══════════════════════════════════════════
+// 통합 실행: 전체 자동화 한번에 실행 (15개)
 // ══════════════════════════════════════════
 export interface AutomationResult {
   bankClassification: { processed: number; matched: number };
@@ -531,20 +829,35 @@ export interface AutomationResult {
   dormantDeals: { detected: number };
   expenseApproval: { approved: number };
   contractLinking: { linked: number };
+  // Phase U: 파이프라인 자동화
+  recurringExpense: { created: number };
+  approvedQueue: { queued: number };
+  contractExpense: { created: number };
+  taxOnPayment: { created: number };
+  taxCancelOnRefund: { cancelled: number };
   timestamp: string;
 }
 
 export async function runAllAutomation(companyId: string): Promise<AutomationResult> {
-  const [bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult] =
-    await Promise.all([
-      applyBankClassificationRules(companyId),
-      applyCardTransactionRules(companyId),
-      autoExecuteThreeWayMatch(companyId),
-      autoMatchTransactions(companyId),
-      detectDormantDeals(companyId),
-      autoApproveSmallExpenses(companyId, 100000), // 10만원 이하 자동승인
-      autoLinkApprovedContractsToSchedule(companyId),
-    ]);
+  const [
+    bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
+    recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult,
+  ] = await Promise.all([
+    // 기존 10개
+    applyBankClassificationRules(companyId),
+    applyCardTransactionRules(companyId),
+    autoExecuteThreeWayMatch(companyId),
+    autoMatchTransactions(companyId),
+    detectDormantDeals(companyId),
+    autoApproveSmallExpenses(companyId, 100000),
+    autoLinkApprovedContractsToSchedule(companyId),
+    // 신규 5개: 파이프라인 자동화
+    autoCreateExpenseFromRecurring(companyId),
+    autoQueueApprovedExpenses(companyId),
+    autoCreateExpenseFromContract(companyId),
+    autoCreateTaxInvoiceOnPayment(companyId),
+    autoCancelTaxInvoiceOnRefund(companyId),
+  ]);
 
   return {
     bankClassification: bankResult,
@@ -554,6 +867,11 @@ export async function runAllAutomation(companyId: string): Promise<AutomationRes
     dormantDeals: dormantResult,
     expenseApproval: expenseResult,
     contractLinking: contractResult,
+    recurringExpense: recurringResult,
+    approvedQueue: queueResult,
+    contractExpense: contractExpResult,
+    taxOnPayment: taxPayResult,
+    taxCancelOnRefund: taxCancelResult,
     timestamp: new Date().toISOString(),
   };
 }

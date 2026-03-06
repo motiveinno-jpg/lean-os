@@ -1,10 +1,10 @@
 /**
- * LeanOS Multi-Bank Routing Engine
+ * Reflect Multi-Bank Routing Engine
  * 비용 유형별 통장 자동 매칭 + 딜 번호 자동 생성
  */
 
 import { supabase } from './supabase';
-import type { BankAccount, RoutingRule } from '@/types/database';
+import type { BankAccount, RoutingRule } from '@/types/models';
 
 // ── Resolve which bank account to use for a cost type ──
 export async function resolveBank(
