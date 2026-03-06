@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4 } from "@/lib/queries";
+import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4, getCashPulseData } from "@/lib/queries";
+import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { buildFounderDashboard, buildFinancialDashboard as buildFinDash, type FounderDashboardData, type FinancialDashboardData, type RiskLabel, type RiskItem, getRunwayLevel } from "@/lib/engines";
 import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
 import { generateSampleData } from "@/lib/sample-data";
@@ -20,6 +21,8 @@ import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveAct
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
+import { useBoard } from "@/components/board-context";
+import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -53,6 +56,7 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
   const { role } = useUser();
+  const { activeViewId, setActiveView, isWidgetVisible, editing, toggleEditing, toggleWidget, widgets } = useBoard();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
@@ -112,6 +116,16 @@ export default function DashboardPage() {
     },
     enabled: !!companyId,
   });
+
+  // Cash Pulse data
+  const { data: pulseRaw } = useQuery({
+    queryKey: ["cash-pulse", companyId],
+    queryFn: () => getCashPulseData(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+  const cashPulse: CashPulseResult | null = pulseRaw ? buildCashPulse(pulseRaw) : null;
 
   // Build dashboard through engines (always returns valid data, never null)
   const dashboard: FounderDashboardData = rawData
@@ -391,59 +405,170 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 핵심 지표 ═══ */}
-      <div className={`rounded-2xl p-1 mb-5 survival-bar ${
-        level === 'CRITICAL' || level === 'DANGER' ? 'animate-glow-red' : level === 'WARNING' ? 'animate-glow-orange' : ''
-      }`} style={{ border: `1px solid ${cfg.border}` }}>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 divide-x divide-[var(--border)]">
-          <SixPackCell
-            label="통장 잔고"
-            value={`₩${fmtW(sp.cashBalance)}`}
-            color={sp.cashBalance <= 0 ? 'var(--danger)' : 'var(--text)'}
-          />
-          <SixPackCell
-            label="이번달 순현금흐름"
-            value={`${sp.netCashflow >= 0 ? '+' : ''}₩${fmtW(sp.netCashflow)}`}
-            color={sp.netCashflow >= 0 ? 'var(--success)' : 'var(--danger)'}
-          />
-          <SixPackCell
-            label="생존 개월"
-            value={sp.runwayMonths < 999 ? `${sp.runwayMonths}개월` : '안전'}
-            color={cfg.color}
-            highlight={level === 'CRITICAL' || level === 'DANGER'}
-          />
-          <SixPackCell
-            label="미수금"
-            value={`₩${fmtW(sp.arTotal)}`}
-            sub={sp.arOver30 > 0 ? `30일+ ₩${fmtW(sp.arOver30)}` : undefined}
-            color={sp.arOver30 > 0 ? 'var(--danger)' : sp.arTotal > 0 ? 'var(--warning)' : 'var(--text-muted)'}
-          />
-          <SixPackCell
-            label="승인대기 비용"
-            value={`₩${fmtW(sp.pendingApprovals)}`}
-            color={sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)'}
-          />
-          <SixPackCell
-            label="월 고정비"
-            value={`₩${fmtW(sp.monthlyBurn)}`}
-            color="var(--text)"
-          />
+      {/* ═══ 프리셋 뷰 탭 + 편집 버튼 ═══ */}
+      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-hide">
+        {PRESET_VIEWS.map((view) => (
+          <button
+            key={view.id}
+            onClick={() => setActiveView(view.id)}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
+              activeViewId === view.id
+                ? 'bg-[var(--primary)] text-white shadow-sm'
+                : editing
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-dim)] opacity-50 cursor-not-allowed'
+                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]'
+            }`}
+            disabled={editing}
+          >
+            {view.name}
+          </button>
+        ))}
+        {activeViewId === 'custom' && (
+          <span className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+            커스텀
+          </span>
+        )}
+        <div className="ml-auto flex-shrink-0">
+          <button
+            onClick={toggleEditing}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
+              editing
+                ? 'bg-[var(--primary)] text-white'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]'
+            }`}
+          >
+            {editing ? '완료' : '편집'}
+          </button>
         </div>
       </div>
 
+      {/* ═══ 위젯 show/hide 패널 (편집 모드) ═══ */}
+      {editing && (
+        <div className="mb-4 p-3 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03]">
+          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
+            위젯 표시 설정
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {WIDGET_REGISTRY.map((def) => {
+              const visible = isWidgetVisible(def.id);
+              return (
+                <button
+                  key={def.id}
+                  onClick={() => toggleWidget(def.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
+                    visible
+                      ? 'bg-[var(--primary)]/10 border border-[var(--primary)]/30'
+                      : 'bg-[var(--bg-surface)] border border-[var(--border)] opacity-60'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
+                    visible ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'
+                  }`}>
+                    {visible && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold text-[var(--text)] truncate">{def.name}</div>
+                    <div className="text-[9px] text-[var(--text-muted)] truncate">{def.description}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ 코어 바 (현금 펄스) ═══ */}
+      {(() => {
+        const pulse = cashPulse;
+        const pLevel = pulse ? getPulseLevel(pulse.pulseScore) : 'stable';
+        const PULSE_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+          critical: { color: '#ff2d55', bg: 'rgba(255,45,85,0.08)', border: 'rgba(255,45,85,0.3)' },
+          danger:   { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)' },
+          warning:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+          stable:   { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
+          safe:     { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
+        };
+        const pc = PULSE_COLORS[pLevel];
+        const balance = pulse?.currentBalance ?? sp.cashBalance;
+        const f30 = pulse?.forecast30d ?? 0;
+        const f90 = pulse?.forecast90d ?? 0;
+        const score = pulse?.pulseScore ?? 0;
+        const risks = pulse?.riskCount ?? dashboard.risks.length;
+        const pending = pulse?.pendingApprovalCount ?? 0;
+
+        return (
+          <div className={`rounded-2xl p-1 mb-4 survival-bar ${
+            pLevel === 'critical' || pLevel === 'danger' ? 'animate-glow-red' : pLevel === 'warning' ? 'animate-glow-orange' : ''
+          }`} style={{ border: `1px solid ${pc.border}` }}>
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
+              {/* 통장 잔고 */}
+              <div className="px-4 py-3">
+                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">통장 잔고</div>
+                <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
+                  ₩{fmtW(balance)}
+                </div>
+              </div>
+              {/* D+30 / D+90 예측 */}
+              <div className="px-4 py-3">
+                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">현금 예측</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
+                    D+30 ₩{fmtW(f30)}
+                  </span>
+                </div>
+                <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                  D+90 ₩{fmtW(f90)}
+                </div>
+              </div>
+              {/* 펄스 점수 */}
+              <div className="px-4 py-3">
+                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">펄스 점수</div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
+                  <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
+                </div>
+              </div>
+              {/* 위험 / 대기 */}
+              <div className="px-4 py-3">
+                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">위험 · 대기</div>
+                <div className="flex items-baseline gap-3">
+                  <span className={`text-sm font-black mono-number ${risks > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                    위험 {risks}
+                  </span>
+                  <span className={`text-sm font-black mono-number ${pending > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
+                    대기 {pending}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ═══ 현금 펄스 위젯 ═══ */}
+      {isWidgetVisible('cash_pulse') && cashPulse && (
+        <CashPulseWidget pulse={cashPulse} />
+      )}
+
       {/* ═══ 승인센터 ═══ */}
-      {companyId && userId && (
+      {isWidgetVisible('approval_center') && companyId && userId && (
         <ApprovalCenterWidget companyId={companyId} userId={userId} />
       )}
 
       {/* ═══ 오늘의 액션 (승인센터 바로 아래) ═══ */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
+      {isWidgetVisible('today_actions') && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
+          </div>
+          <TodayActions dashboard={dashboard} />
         </div>
-        <TodayActions dashboard={dashboard} />
-      </div>
+      )}
 
       {/* 데이터 없음 — 시작 CTA */}
       {!hasData && (
@@ -474,48 +599,52 @@ export default function DashboardPage() {
       )}
 
       {/* ═══ 위험 구역 ═══ */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className={`w-2 h-2 rounded-full ${
-            Object.values(dashboard.riskCounts).some(c => c > 0) ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'
-          }`} />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">위험 구역</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">
-            {dashboard.risks.length}건
-          </span>
+      {isWidgetVisible('risk_zone') && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-2 h-2 rounded-full ${
+              Object.values(dashboard.riskCounts).some(c => c > 0) ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'
+            }`} />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">위험 구역</h2>
+            <span className="text-[10px] text-[var(--text-dim)]">
+              {dashboard.risks.length}건
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {(Object.keys(RISK_LABELS) as RiskLabel[]).map(label => (
+              <RiskCard
+                key={label}
+                label={label}
+                items={dashboard.risks.filter(r => r.label === label)}
+                count={dashboard.riskCounts[label]}
+              />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {(Object.keys(RISK_LABELS) as RiskLabel[]).map(label => (
-            <RiskCard
-              key={label}
-              label={label}
-              items={dashboard.risks.filter(r => r.label === label)}
-              count={dashboard.riskCounts[label]}
-            />
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* ═══ GROWTH ZONE: 성장 영역 ═══ */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">성장 영역</h2>
+      {isWidgetVisible('growth_tracking') && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">성장 영역</h2>
+          </div>
+          <GrowthSection growth={dashboard.growth} />
         </div>
-        <GrowthSection growth={dashboard.growth} />
-      </div>
+      )}
 
       {/* ═══ FINANCIAL OVERVIEW: 재무 개요 ═══ */}
-      <FinancialOverview companyId={companyId} />
+      {isWidgetVisible('financial_overview') && <FinancialOverview companyId={companyId} />}
 
       {/* ═══ MONTHLY CLOSING CHECKLIST ═══ */}
-      <ClosingChecklistWidget companyId={companyId} userId={userId} />
+      {isWidgetVisible('closing_checklist') && <ClosingChecklistWidget companyId={companyId} userId={userId} />}
 
       {/* ═══ 자동화 엔진 ═══ */}
-      <AutomationWidget companyId={companyId} />
+      {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
 
       {/* ═══ AI 어시스턴트 ═══ */}
-      <AIInsightsWidget companyId={companyId} />
+      {isWidgetVisible('ai_insights') && <AIInsightsWidget companyId={companyId} />}
     </div>
   );
 }
@@ -530,6 +659,81 @@ function SixPackCell({ label, value, sub, color, highlight }: {
       <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
       <div className="text-sm font-black mono-number" style={{ color }}>{value}</div>
       {sub && <div className="text-[9px] text-[var(--danger)] font-semibold mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
+  const maxBalance = Math.max(...pulse.forecastPoints.map(p => Math.abs(p.balance)), 1);
+
+  return (
+    <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">현금 펄스</h2>
+        <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold" style={{
+          background: pulse.pulseScore >= 60 ? 'rgba(34,197,94,0.1)' : pulse.pulseScore >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+          color: pulse.pulseScore >= 60 ? '#22c55e' : pulse.pulseScore >= 40 ? '#f59e0b' : '#ef4444',
+        }}>
+          {pulse.pulseScore}/100
+        </span>
+      </div>
+
+      {/* 5-point forecast bars */}
+      <div className="grid grid-cols-5 gap-2 mb-3">
+        {pulse.forecastPoints.map((pt) => {
+          const pct = maxBalance > 0 ? Math.abs(pt.balance) / maxBalance * 100 : 0;
+          const isNegative = pt.balance < 0;
+          return (
+            <div key={pt.label} className="text-center">
+              <div className="text-[9px] font-semibold text-[var(--text-dim)] mb-1">{pt.label}</div>
+              <div className="h-12 flex items-end justify-center mb-1">
+                <div
+                  className="w-full max-w-[32px] rounded-t transition-all duration-500"
+                  style={{
+                    height: `${Math.max(pct, 8)}%`,
+                    background: isNegative ? 'var(--danger)' : pt.balance < pulse.currentBalance * 0.3 ? 'var(--warning)' : 'var(--primary)',
+                    opacity: isNegative ? 0.7 : 0.8,
+                  }}
+                />
+              </div>
+              <div className={`text-[10px] font-bold mono-number ${isNegative ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>
+                ₩{fmtW(pt.balance)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Briefing */}
+      <div className="text-[11px] text-[var(--text-muted)] leading-relaxed px-1 py-2 rounded bg-[var(--bg-surface)]">
+        {pulse.briefing}
+      </div>
+
+      {/* Score breakdown (collapsible) */}
+      <details className="mt-2">
+        <summary className="text-[10px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-muted)] transition">
+          점수 상세
+        </summary>
+        <div className="mt-2 grid grid-cols-5 gap-1 text-[9px]">
+          {[
+            { label: '생존', score: pulse.scoreBreakdown.runway, max: 40 },
+            { label: '현금흐름', score: pulse.scoreBreakdown.cashflowTrend, max: 20 },
+            { label: '미수금', score: pulse.scoreBreakdown.arHealth, max: 15 },
+            { label: '매칭', score: pulse.scoreBreakdown.matchingRate, max: 10 },
+            { label: '승인', score: pulse.scoreBreakdown.approvalLag, max: 15 },
+          ].map(item => (
+            <div key={item.label} className="text-center">
+              <div className="text-[var(--text-dim)] font-semibold">{item.label}</div>
+              <div className="font-bold mono-number" style={{
+                color: item.score >= item.max * 0.7 ? 'var(--success)' : item.score >= item.max * 0.4 ? 'var(--warning)' : 'var(--danger)',
+              }}>
+                {item.score}/{item.max}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

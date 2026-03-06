@@ -1660,6 +1660,83 @@ export async function touchDealActivity(dealId: string) {
   if (error) throw error;
 }
 
+// ═══════════════════════════════════════════════
+// Cash Pulse Data (for buildCashPulse engine)
+// ═══════════════════════════════════════════════
+export async function getCashPulseData(companyId: string) {
+  const db = supabase as any;
+
+  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems] = await Promise.all([
+    // 1. Bank balances
+    supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
+    // 2. Revenue schedules
+    supabase.from('deal_revenue_schedule').select('amount, due_date, status, deals!inner(company_id)').eq('deals.company_id', companyId),
+    // 3. Cost schedules
+    db.from('deal_cost_schedule').select('amount, due_date, status, deal_nodes!inner(deal_id, deals!inner(company_id))'),
+    // 4. Recurring payments
+    db.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
+    // 5. Employee salary total
+    supabase.from('employees').select('salary').eq('company_id', companyId).eq('status', 'active'),
+    // 6. Payment queue
+    supabase.from('payment_queue').select('amount, status').eq('company_id', companyId),
+    // 7. Risk count (financial_items with risk_label)
+    supabase.from('financial_items').select('risk_label').eq('company_id', companyId).not('risk_label', 'is', null),
+    // 8. Pending approvals (documents in review + payment_queue pending)
+    supabase.from('documents').select('id').eq('company_id', companyId).eq('status', 'review'),
+  ]);
+
+  const employeeSalaryTotal = (employees.data || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
+
+  // Calculate AR over 30 days
+  const now = new Date();
+  let arOver30Amount = 0;
+  (revenue.data || []).forEach((r: any) => {
+    if (r.status === 'scheduled' && r.due_date) {
+      const overdueDays = Math.floor((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24));
+      if (overdueDays > 30) arOver30Amount += Number(r.amount || 0);
+    }
+  });
+
+  // Calculate matched rate from revenue schedules
+  const totalRevItems = (revenue.data || []).length;
+  const receivedCount = (revenue.data || []).filter((r: any) => r.status === 'received').length;
+  const matchedRate = totalRevItems > 0 ? receivedCount / totalRevItems : 0;
+
+  // Pending approvals count: documents in review + payment_queue pending
+  const pendingPaymentCount = (paymentQ.data || []).filter((p: any) => p.status === 'pending').length;
+  const pendingApprovalCount = (approvalItems.data || []).length + pendingPaymentCount;
+
+  // Risk count from financial_items
+  const riskCount = (riskItems.data || []).length;
+
+  return {
+    bankBalances: (banks.data || []).map((b: any) => ({ balance: Number(b.balance || 0) })),
+    revenueSchedules: (revenue.data || []).map((r: any) => ({
+      amount: Number(r.amount || 0),
+      due_date: r.due_date || null,
+      status: r.status || 'scheduled',
+    })),
+    costSchedules: (costs.data || []).map((c: any) => ({
+      amount: Number(c.amount || 0),
+      due_date: c.due_date || null,
+      status: c.status || 'scheduled',
+    })),
+    recurringPayments: (recurring.data || []).map((r: any) => ({
+      amount: Number(r.amount || 0),
+      is_active: r.is_active ?? true,
+    })),
+    employeeSalaryTotal,
+    paymentQueue: (paymentQ.data || []).map((p: any) => ({
+      amount: Number(p.amount || 0),
+      status: p.status || 'pending',
+    })),
+    riskCount,
+    pendingApprovalCount,
+    arOver30Amount,
+    matchedRate,
+  };
+}
+
 // ── Archived Deals ──
 export async function getArchivedDeals(companyId: string) {
   const { data } = await supabase

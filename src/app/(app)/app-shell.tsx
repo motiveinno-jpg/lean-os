@@ -9,6 +9,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationCenter } from "@/components/notification-center";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { UserProvider, useUser } from "@/components/user-context";
+import { BoardProvider } from "@/components/board-context";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -191,7 +192,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <UserProvider>
       <SidebarProvider>
-        <AppContent>{children}</AppContent>
+        <BoardProvider>
+          <AppContent>{children}</AppContent>
+        </BoardProvider>
       </SidebarProvider>
     </UserProvider>
   );
