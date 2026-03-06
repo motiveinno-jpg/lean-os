@@ -1333,6 +1333,7 @@ const TYPE_CONFIG: Record<PendingActionType, { label: string; icon: string; colo
   leave:     { label: '휴가',   icon: '🏖️', color: '#06b6d4', href: '/employees' },
   signature: { label: '서명',   icon: '✍️', color: '#ec4899', href: '/documents' },
   cost:      { label: '비용',   icon: '📊', color: '#ef4444', href: '/deals' },
+  approval:  { label: '결재',   icon: '📋', color: '#10b981', href: '/approvals' },
 };
 
 function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId: string }) {

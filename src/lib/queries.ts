@@ -1555,6 +1555,12 @@ export async function getDealMatchingStatuses(companyId: string): Promise<DealMa
 
   const dealIds = deals.map(d => d.id);
 
+  // Get revenue schedule per deal (actual invoiced amounts)
+  const { data: revenueSchedules } = await supabase
+    .from('deal_revenue_schedule')
+    .select('deal_id, amount')
+    .in('deal_id', dealIds);
+
   // Get tax invoices per deal
   const { data: taxInvoices } = await supabase
     .from('tax_invoices')
@@ -1569,6 +1575,14 @@ export async function getDealMatchingStatuses(companyId: string): Promise<DealMa
     .eq('company_id', companyId)
     .eq('type', 'income')
     .in('deal_id', dealIds);
+
+  // Aggregate revenue schedule per deal
+  const revByDeal = new Map<string, number>();
+  for (const rs of revenueSchedules || []) {
+    if (rs.deal_id) {
+      revByDeal.set(rs.deal_id, (revByDeal.get(rs.deal_id) || 0) + Number(rs.amount || 0));
+    }
+  }
 
   // Aggregate per deal
   const tiByDeal = new Map<string, number>();
@@ -1587,13 +1601,14 @@ export async function getDealMatchingStatuses(companyId: string): Promise<DealMa
 
   return deals.map(d => {
     const ct = Number(d.contract_total || 0);
+    const invoicedAmt = revByDeal.get(d.id) || ct; // Use revenue schedule sum, fallback to contract_total
     const taxAmt = tiByDeal.get(d.id) || 0;
     const paidAmt = paidByDeal.get(d.id) || 0;
     return {
       dealId: d.id,
       dealName: d.name,
       contractTotal: ct,
-      invoicedAmount: ct,  // revenue schedule total = contract total for now
+      invoicedAmount: invoicedAmt,
       taxInvoicedAmount: taxAmt,
       paidAmount: paidAmt,
       matchRate: ct > 0 ? Math.round((paidAmt / ct) * 100) : 0,

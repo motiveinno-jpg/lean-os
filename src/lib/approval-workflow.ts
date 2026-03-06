@@ -5,6 +5,8 @@
 
 import { supabase } from './supabase';
 import { logAudit } from './audit';
+import { createQueueEntry } from './payment-queue';
+import { resolveBank } from './routing';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -385,6 +387,26 @@ export async function approveStep(
           updated_at: now,
         })
         .eq('id', step.request_id);
+
+      // Auto-queue to payment if expense/payment/purchase type
+      const reqType = request.request_type;
+      if (['expense', 'payment', 'purchase'].includes(reqType)) {
+        const amount = Number(request.amount || 0);
+        if (amount > 0) {
+          try {
+            const bank = await resolveBank(request.company_id, reqType === 'purchase' ? 'purchase' : 'expense');
+            await createQueueEntry({
+              companyId: request.company_id,
+              amount,
+              description: `[승인#${request.id.substring(0, 8)}] ${request.title}`,
+              costType: reqType === 'purchase' ? 'purchase' : 'expense',
+              dealBankAccountId: bank?.id || null,
+            });
+          } catch {
+            // Payment queue creation failure should not block approval
+          }
+        }
+      }
     }
   }
 

@@ -12,7 +12,7 @@ const db = supabase as any;
 
 // ── Types ──
 
-export type PendingActionType = 'payment' | 'expense' | 'document' | 'leave' | 'signature' | 'cost';
+export type PendingActionType = 'payment' | 'expense' | 'document' | 'leave' | 'signature' | 'cost' | 'approval';
 
 export interface PendingAction {
   id: string;
@@ -34,6 +34,7 @@ export interface ApprovalSummary {
   leaves: number;
   signatures: number;
   costs: number;
+  approvals: number;
 }
 
 // ── Get all pending actions for CEO ──
@@ -41,7 +42,7 @@ export interface ApprovalSummary {
 export async function getCEOPendingActions(companyId: string): Promise<PendingAction[]> {
   const actions: PendingAction[] = [];
 
-  const [payments, expenses, documents, leaves, signatures, costs] = await Promise.all([
+  const [payments, expenses, documents, leaves, signatures, costs, approvals] = await Promise.all([
     // 1. 결제 대기
     supabase
       .from('payment_queue')
@@ -88,6 +89,14 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
       .select('id, item_name, amount, created_at, deals(name)')
       .eq('company_id', companyId)
       .eq('approved', false)
+      .order('created_at', { ascending: false }),
+
+    // 7. 결재 승인 대기 (approval_requests)
+    db
+      .from('approval_requests')
+      .select('id, title, amount, request_type, created_at, users:requester_id(name)')
+      .eq('company_id', companyId)
+      .eq('status', 'pending')
       .order('created_at', { ascending: false }),
   ]);
 
@@ -170,6 +179,24 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
     });
   });
 
+  // Map approval requests (결재 승인 대기)
+  const REQUEST_TYPE_LABELS: Record<string, string> = {
+    expense: '경비', payment: '결제', leave: '휴가', overtime: '초과근무',
+    purchase: '구매', contract: '계약', travel: '출장', card_expense: '법인카드',
+    equipment: '장비', custom: '기타',
+  };
+  (approvals.data || []).forEach((a: any) => {
+    actions.push({
+      id: a.id,
+      type: 'approval',
+      title: a.title || `${REQUEST_TYPE_LABELS[a.request_type] || '결재'} 승인 요청`,
+      amount: Number(a.amount || 0),
+      requester: a.users?.name,
+      createdAt: a.created_at,
+      urgency: Number(a.amount || 0) >= 5000000 ? 'high' : Number(a.amount || 0) >= 1000000 ? 'medium' : 'low',
+    });
+  });
+
   // Sort by urgency (high first) then by date (newest first)
   const urgencyOrder = { high: 0, medium: 1, low: 2 };
   actions.sort((a, b) => {
@@ -184,7 +211,7 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
 // ── Get summary counts ──
 
 export async function getApprovalSummary(companyId: string): Promise<ApprovalSummary> {
-  const [payments, expenses, documents, leaves, signatures, costs] = await Promise.all([
+  const [payments, expenses, documents, leaves, signatures, costs, approvals] = await Promise.all([
     supabase.from('payment_queue').select('id', { count: 'exact', head: true })
       .eq('company_id', companyId).eq('status', 'pending'),
     db.from('expense_requests').select('id', { count: 'exact', head: true })
@@ -197,6 +224,8 @@ export async function getApprovalSummary(companyId: string): Promise<ApprovalSum
       .eq('company_id', companyId).eq('status', 'pending'),
     supabase.from('deal_cost_schedule').select('id', { count: 'exact', head: true })
       .eq('company_id', companyId).eq('approved', false),
+    db.from('approval_requests').select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId).eq('status', 'pending'),
   ]);
 
   const p = payments.count || 0;
@@ -205,15 +234,17 @@ export async function getApprovalSummary(companyId: string): Promise<ApprovalSum
   const l = leaves.count || 0;
   const s = signatures.count || 0;
   const c = costs.count || 0;
+  const a = approvals.count || 0;
 
   return {
-    total: p + e + d + l + s + c,
+    total: p + e + d + l + s + c + a,
     payments: p,
     expenses: e,
     documents: d,
     leaves: l,
     signatures: s,
     costs: c,
+    approvals: a,
   };
 }
 
@@ -263,6 +294,25 @@ export async function approveAction(
         .update({ approved: true, approved_at: new Date().toISOString() })
         .eq('id', actionId);
       break;
+
+    case 'approval': {
+      // Find the first pending step for the current stage and approve it
+      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).single();
+      if (req) {
+        const { data: step } = await db.from('approval_steps')
+          .select('id')
+          .eq('request_id', actionId)
+          .eq('stage', req.current_stage)
+          .eq('status', 'pending')
+          .limit(1)
+          .single();
+        if (step) {
+          const { approveStep } = await import('./approval-workflow');
+          await approveStep(step.id, userId);
+        }
+      }
+      break;
+    }
   }
 }
 
