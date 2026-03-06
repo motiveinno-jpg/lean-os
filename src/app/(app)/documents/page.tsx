@@ -14,6 +14,7 @@ import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder
 import { generateDocumentPDF, issueDocument } from "@/lib/document-generator";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
+import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 
@@ -534,7 +535,7 @@ function DocumentsPageInner() {
     });
   }, []);
 
-  const { data: documents = [] } = useQuery({
+  const { data: documents = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["documents", companyId],
     queryFn: () => getDocuments(companyId!),
     enabled: !!companyId,
@@ -686,6 +687,7 @@ function DocumentsPageInner() {
 
   return (
     <div className="max-w-[1100px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">문서/계약</h1>

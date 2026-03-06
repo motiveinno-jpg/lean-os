@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
 import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
+import { QueryErrorBanner } from "@/components/query-status";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -93,7 +94,7 @@ export default function DashboardPage() {
   }, []);
 
   // Fetch data from DB
-  const { data: rawData } = useQuery({
+  const { data: rawData, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["founder-data", companyId],
     queryFn: () => getFounderData(companyId!),
     enabled: !!companyId,
@@ -308,6 +309,7 @@ export default function DashboardPage() {
   // ── Owner Dashboard (전체 CEO 뷰) ──
   return (
     <div className="max-w-[1100px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* ═══ 온보딩 위저드 ═══ */}
       {showOnboarding && companyId && (
         <OnboardingWizard

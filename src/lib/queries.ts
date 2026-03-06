@@ -381,7 +381,7 @@ export async function getDealWithNodes(dealId: string) {
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date'),
   ]);
   return {
-    deal: deal.data,
+    deal: deal.data || null,
     nodes: nodes.data || [],
     revenue: revenue.data || [],
     costs: costs.data || [],
@@ -757,11 +757,12 @@ export async function getDocuments(companyId: string) {
 }
 
 export async function getDocument(documentId: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('documents')
     .select('*, deals(name), doc_templates(name, type), users!documents_created_by_fkey(name, email)')
     .eq('id', documentId)
     .single();
+  if (error || !data) return null;
   return data;
 }
 
@@ -809,22 +810,24 @@ export async function getChannels(companyId: string) {
 }
 
 export async function getChannel(channelId: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('chat_channels')
     .select('*, deals(name), sub_deals(name)')
     .eq('id', channelId)
     .single();
+  if (error || !data) return null;
   return data;
 }
 
 export async function getChannelByDeal(dealId: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('chat_channels')
     .select('*')
     .eq('deal_id', dealId)
     .eq('is_archived', false)
     .limit(1)
     .single();
+  if (error || !data) return null;
   return data;
 }
 

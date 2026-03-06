@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, buildTree, type TreeNode, getMilestones, getSubDeals, getAssignments, upsertMilestone, completeMilestone, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { QueryErrorBanner } from "@/components/query-status";
 import { getDealPipelineStatus, createDocumentFromDeal, type PipelineStage } from "@/lib/deal-pipeline";
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
@@ -912,7 +913,7 @@ function DealsPageInner() {
     getCurrentUser().then((u) => u && setCompanyId(u.company_id));
   }, []);
 
-  const { data: deals = [], isLoading } = useQuery({
+  const { data: deals = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["deals", companyId],
     queryFn: () => getDeals(companyId!),
     enabled: !!companyId,
@@ -993,6 +994,7 @@ function DealsPageInner() {
 
   return (
     <div className={viewMode === 'kanban' ? 'max-w-full' : 'max-w-[1000px]'}>
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">딜 관리</h1>

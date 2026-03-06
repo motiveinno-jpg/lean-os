@@ -19,6 +19,7 @@ import {
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
 } from "@/lib/expenses";
 import { previewPayroll } from "@/lib/payroll";
+import { QueryErrorBanner } from "@/components/query-status";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import type { PayrollItem } from "@/lib/payment-batch";
 
@@ -39,7 +40,7 @@ export default function EmployeesPage() {
   }, []);
 
   // ── Employees ──
-  const { data: employees = [] } = useQuery({
+  const { data: employees = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["employees", companyId],
     queryFn: async () => {
       const { data } = await supabase
@@ -90,6 +91,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="max-w-[1000px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">인력 / 비용</h1>

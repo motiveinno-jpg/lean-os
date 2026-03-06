@@ -8,6 +8,7 @@ import { getRecurringPayments, upsertRecurringPayment, getPaymentBatches } from 
 import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
+import { QueryErrorBanner } from "@/components/query-status";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring';
 
@@ -29,6 +30,12 @@ export default function PaymentsPage() {
     });
   }, []);
 
+  const { data: queue = [], error: mainError, refetch: mainRefetch } = useQuery({
+    queryKey: ["payment-queue", companyId],
+    queryFn: () => getPaymentQueue(companyId!),
+    enabled: !!companyId,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["payment-queue"] });
     queryClient.invalidateQueries({ queryKey: ["payment-stats"] });
@@ -47,6 +54,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="max-w-[1100px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">결제 관리</h1>
