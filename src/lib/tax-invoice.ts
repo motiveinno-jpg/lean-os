@@ -70,6 +70,22 @@ export interface ThreeWayMatchResult {
 
 // ── 3-Way Matching: 계약 ↔ 세금계산서 ↔ 입금 ──
 export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchResult[]> {
+  // Read matching tolerance from company settings (default 1%)
+  let tolerance = 0.01;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: company } = await (supabase as any)
+      .from('companies')
+      .select('tax_settings')
+      .eq('id', companyId)
+      .single();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ts = (company as any)?.tax_settings;
+    if (ts?.matching_tolerance != null && ts.matching_tolerance >= 0 && ts.matching_tolerance <= 100) {
+      tolerance = ts.matching_tolerance / 100;
+    }
+  } catch { /* use default */ }
+
   // Fetch all sales invoices
   const { data: invoices } = await supabase
     .from('tax_invoices')
@@ -99,8 +115,8 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
     const invoiceAmount = Number(inv.total_amount || 0);
     const receivedAmount = receivedByDeal.get(inv.deal_id) || 0;
 
-    const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceAmount) / contractAmount <= 0.01;
-    const paymentMatch = invoiceAmount > 0 && Math.abs(invoiceAmount - receivedAmount) / invoiceAmount <= 0.01;
+    const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceAmount) / contractAmount <= tolerance;
+    const paymentMatch = invoiceAmount > 0 && Math.abs(invoiceAmount - receivedAmount) / invoiceAmount <= tolerance;
     const fullMatch = amountMatch && paymentMatch;
 
     return {

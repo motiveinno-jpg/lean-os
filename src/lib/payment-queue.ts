@@ -11,11 +11,23 @@ import type { PaymentQueue } from '@/types/models';
 export async function createQueueEntry(params: {
   companyId: string;
   costScheduleId?: string;
+  approvalRequestId?: string;
   amount: number;
   description?: string;
   costType?: string;
   dealBankAccountId?: string | null;
 }): Promise<PaymentQueue | null> {
+  // Dedup: if approvalRequestId is provided, check for existing entry
+  if (params.approvalRequestId) {
+    const { data: existing } = await supabase
+      .from('payment_queue')
+      .select('id')
+      .eq('company_id', params.companyId)
+      .eq('approval_request_id', params.approvalRequestId)
+      .maybeSingle();
+    if (existing) return existing as PaymentQueue;
+  }
+
   // Resolve the target bank account
   const bank = await resolveBank(
     params.companyId,
@@ -23,16 +35,20 @@ export async function createQueueEntry(params: {
     params.dealBankAccountId
   );
 
+  const row: Record<string, unknown> = {
+    company_id: params.companyId,
+    cost_schedule_id: params.costScheduleId || null,
+    bank_account_id: bank?.id || null,
+    amount: params.amount,
+    description: params.description || null,
+    status: 'pending',
+  };
+  if (params.approvalRequestId) row.approval_request_id = params.approvalRequestId;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from('payment_queue')
-    .insert({
-      company_id: params.companyId,
-      cost_schedule_id: params.costScheduleId || null,
-      bank_account_id: bank?.id || null,
-      amount: params.amount,
-      description: params.description || null,
-      status: 'pending',
-    })
+    .insert(row as any)
     .select()
     .single();
 

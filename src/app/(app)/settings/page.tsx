@@ -1755,7 +1755,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
-  const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, hometax_id: "", vat_auto_aggregate: true });
+  const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, hometax_id: "", vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
     queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("tax_settings").eq("id", companyId).single(); return data?.tax_settings || {}; },
@@ -1791,6 +1791,21 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         <div className="space-y-3">
           <Tog label="환불 시 수정세금계산서" desc="환불 발생 시 수정본 자동 발행" checked={settings.auto_cancel_on_refund} onChange={(v) => setSettings({ ...settings, auto_cancel_on_refund: v })} />
           <Tog label="계약 취소 시 자동 취소" desc="딜 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
+        </div>
+      </div>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <h2 className="text-sm font-bold mb-4">결제/매칭 설정</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">선금 비율 (%)</label>
+            <p className="text-[10px] text-[var(--text-dim)] mb-1">계약 승인 시 선금/잔금 자동 분할 비율 (예: 30 → 선금 30%, 잔금 70%)</p>
+            <input type="number" min="0" max="100" value={settings.advance_ratio} onChange={(e) => setSettings({ ...settings, advance_ratio: Number(e.target.value) || 30 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">3-way 매칭 허용오차 (%)</label>
+            <p className="text-[10px] text-[var(--text-dim)] mb-1">계약↔세금계산서↔입금 비교 시 허용할 금액 차이 비율</p>
+            <input type="number" min="0" max="10" step="0.1" value={settings.matching_tolerance} onChange={(e) => setSettings({ ...settings, matching_tolerance: Number(e.target.value) || 1 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+          </div>
         </div>
       </div>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">

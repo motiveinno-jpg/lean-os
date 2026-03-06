@@ -397,6 +397,7 @@ export async function approveStep(
             const bank = await resolveBank(request.company_id, reqType === 'purchase' ? 'purchase' : 'expense');
             await createQueueEntry({
               companyId: request.company_id,
+              approvalRequestId: request.id,
               amount,
               description: `[승인#${request.id.substring(0, 8)}] ${request.title}`,
               costType: reqType === 'purchase' ? 'purchase' : 'expense',

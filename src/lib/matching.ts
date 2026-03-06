@@ -4,7 +4,7 @@
  *
  * 스코어 기준:
  *  정확 금액 일치    = +50
- *  ±1% 허용         = +40
+ *  ±허용오차 이내   = +40 (기본 1%, 설정 가능)
  *  송금인 유사도>0.8 = +25
  *  키워드 매치       = +15
  *  계좌 매치         = +10
@@ -49,7 +49,7 @@ function similarity(a: string, b: string): number {
 }
 
 // ── Score a single transaction against a revenue schedule ──
-function scoreRevenue(tx: Transaction, rev: DealRevenueSchedule): { score: number; reasons: string[] } {
+function scoreRevenue(tx: Transaction, rev: DealRevenueSchedule, tolerance = 0.01): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
   const txAmt = Number(tx.amount) || 0;
@@ -60,9 +60,9 @@ function scoreRevenue(tx: Transaction, rev: DealRevenueSchedule): { score: numbe
     if (txAmt === revAmt) {
       score += 50;
       reasons.push('정확 금액 일치 +50');
-    } else if (Math.abs(txAmt - revAmt) / revAmt <= 0.01) {
+    } else if (Math.abs(txAmt - revAmt) / revAmt <= tolerance) {
       score += 40;
-      reasons.push('±1% 금액 일치 +40');
+      reasons.push(`±${(tolerance * 100).toFixed(0)}% 금액 일치 +40`);
     }
   }
 
@@ -99,7 +99,7 @@ function scoreRevenue(tx: Transaction, rev: DealRevenueSchedule): { score: numbe
 }
 
 // ── Score a single transaction against a cost schedule ──
-function scoreCost(tx: Transaction, cost: DealCostSchedule): { score: number; reasons: string[] } {
+function scoreCost(tx: Transaction, cost: DealCostSchedule, tolerance = 0.01): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
   const txAmt = Number(tx.amount) || 0;
@@ -110,9 +110,9 @@ function scoreCost(tx: Transaction, cost: DealCostSchedule): { score: number; re
     if (txAmt === costAmt) {
       score += 50;
       reasons.push('정확 금액 일치 +50');
-    } else if (Math.abs(txAmt - costAmt) / costAmt <= 0.01) {
+    } else if (Math.abs(txAmt - costAmt) / costAmt <= tolerance) {
       score += 40;
-      reasons.push('±1% 금액 일치 +40');
+      reasons.push(`±${(tolerance * 100).toFixed(0)}% 금액 일치 +40`);
     }
   }
 
@@ -124,7 +124,9 @@ export function runMatching(
   transactions: Transaction[],
   revenues: DealRevenueSchedule[],
   costs: DealCostSchedule[],
+  options?: { tolerance?: number },
 ): MatchCandidate[] {
+  const tolerance = options?.tolerance ?? 0.01;
   const results: MatchCandidate[] = [];
 
   // Only match unmatched transactions
@@ -138,7 +140,7 @@ export function runMatching(
     if (tx.type === 'income') {
       const pendingRevs = revenues.filter(r => r.status === 'scheduled' || r.status === 'overdue');
       for (const rev of pendingRevs) {
-        const { score, reasons } = scoreRevenue(tx, rev);
+        const { score, reasons } = scoreRevenue(tx, rev, tolerance);
         if (score > bestScore) {
           bestScore = score;
           bestCandidate = {
@@ -157,7 +159,7 @@ export function runMatching(
     if (tx.type === 'expense') {
       const pendingCosts = costs.filter(c => c.status === 'scheduled' || c.status === 'pending');
       for (const cost of pendingCosts) {
-        const { score, reasons } = scoreCost(tx, cost);
+        const { score, reasons } = scoreCost(tx, cost, tolerance);
         if (score > bestScore) {
           bestScore = score;
           bestCandidate = {

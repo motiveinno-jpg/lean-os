@@ -240,7 +240,17 @@ async function createPaymentScheduleFromContract(params: {
   const { dealId, companyId, contractTotal, userId } = params;
   if (contractTotal <= 0) return;
 
-  const advanceAmount = Math.round(contractTotal * 0.3);
+  // Read advance ratio from company tax_settings (default 30%)
+  let advanceRatio = 0.3;
+  try {
+    const { data: company } = await db.from('companies').select('tax_settings').eq('id', companyId).single();
+    const ts = company?.tax_settings as any;
+    if (ts?.advance_ratio != null && ts.advance_ratio >= 0 && ts.advance_ratio <= 100) {
+      advanceRatio = ts.advance_ratio / 100;
+    }
+  } catch { /* use default */ }
+
+  const advanceAmount = Math.round(contractTotal * advanceRatio);
   const balanceAmount = contractTotal - advanceAmount;
   const now = new Date();
   const advanceDue = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
@@ -250,14 +260,14 @@ async function createPaymentScheduleFromContract(params: {
   const scheduleEntries = [
     {
       deal_id: dealId,
-      label: '선금 (30%)',
+      label: `선금 (${Math.round(advanceRatio * 100)}%)`,
       amount: advanceAmount,
       due_date: advanceDue.toISOString().split('T')[0],
       status: 'expected',
     },
     {
       deal_id: dealId,
-      label: '잔금 (70%)',
+      label: `잔금 (${Math.round((1 - advanceRatio) * 100)}%)`,
       amount: balanceAmount,
       due_date: balanceDue.toISOString().split('T')[0],
       status: 'expected',
@@ -270,7 +280,7 @@ async function createPaymentScheduleFromContract(params: {
   await createQueueEntry({
     companyId,
     amount: advanceAmount,
-    description: `선금 30% 입금 예정 (D+7)`,
+    description: `선금 ${Math.round(advanceRatio * 100)}% 입금 예정 (D+7)`,
     costType: 'revenue',
   });
 

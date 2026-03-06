@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { runMatching, type MatchCandidate } from "@/lib/matching";
 import { threeWayMatch, markInvoiceMatched, type ThreeWayMatchResult } from "@/lib/tax-invoice";
+import { onRevenueReceived } from "@/lib/deal-pipeline";
 
 type MainTab = "transaction" | "threeway";
 type Tab = "auto" | "review" | "unmatched";
@@ -63,7 +64,20 @@ export default function MatchingPage() {
   async function executeMatching() {
     setRunning(true);
     try {
-      const matchResults = runMatching(transactions, revenues, costs);
+      // Read matching tolerance from company settings
+      let tolerance = 0.01;
+      if (companyId) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: co } = await (supabase as any).from("companies").select("tax_settings").eq("id", companyId).single();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ts = (co as any)?.tax_settings;
+          if (ts?.matching_tolerance != null && Number(ts.matching_tolerance) >= 0) {
+            tolerance = Number(ts.matching_tolerance) / 100;
+          }
+        } catch { /* use default */ }
+      }
+      const matchResults = runMatching(transactions, revenues, costs, { tolerance });
       setResults(matchResults);
 
       const autoMatches = matchResults.filter((m) => m.status === "auto" && m.schedule_id);
@@ -86,6 +100,20 @@ export default function MatchingPage() {
             .from("deal_revenue_schedule")
             .update({ status: "received", received_at: new Date().toISOString() })
             .eq("id", match.schedule_id);
+
+          // Trigger deal completion check
+          const rev = revMap.get(match.schedule_id);
+          if (rev && rev.deal_id && companyId) {
+            try {
+              await onRevenueReceived({
+                dealId: rev.deal_id,
+                companyId,
+                amount: Number(rev.amount || 0),
+                userId: "system",
+                revenueScheduleId: match.schedule_id,
+              });
+            } catch { /* non-blocking */ }
+          }
         }
       }
 
@@ -115,6 +143,20 @@ export default function MatchingPage() {
         .from("deal_revenue_schedule")
         .update({ status: "received", received_at: new Date().toISOString() })
         .eq("id", match.schedule_id);
+
+      // Trigger deal completion check
+      const rev = revMap.get(match.schedule_id);
+      if (rev && rev.deal_id && companyId) {
+        try {
+          await onRevenueReceived({
+            dealId: rev.deal_id,
+            companyId,
+            amount: Number(rev.amount || 0),
+            userId: "system",
+            revenueScheduleId: match.schedule_id,
+          });
+        } catch { /* non-blocking */ }
+      }
     }
 
     setResults((prev) =>

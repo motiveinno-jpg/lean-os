@@ -608,28 +608,28 @@ export async function autoQueueApprovedExpenses(companyId: string) {
 
   if (!approved?.length) return { queued: 0 };
 
-  // Get existing payment_queue entries linked via description pattern
+  // Get existing payment_queue entries linked via approval_request_id (FK-based dedup)
   const { data: existingQueue } = await db
     .from('payment_queue')
-    .select('description')
-    .eq('company_id', companyId);
+    .select('approval_request_id')
+    .eq('company_id', companyId)
+    .not('approval_request_id', 'is', null);
 
-  const existingDescs = new Set((existingQueue || []).map((q: any) => q.description));
+  const existingIds = new Set((existingQueue || []).map((q: any) => q.approval_request_id));
   let queued = 0;
 
   for (const req of approved) {
-    const desc = `[승인#${req.id.substring(0, 8)}] ${req.title}`;
-
-    // Skip if already queued
-    if (existingDescs.has(desc)) continue;
+    // Skip if already queued (FK-based)
+    if (existingIds.has(req.id)) continue;
 
     const amount = Number(req.amount || 0);
     if (amount <= 0) continue;
 
     await createQueueEntry({
       companyId,
+      approvalRequestId: req.id,
       amount,
-      description: desc,
+      description: `[승인#${req.id.substring(0, 8)}] ${req.title}`,
       costType: req.request_type === 'purchase' ? 'purchase' : 'expense',
     });
 
