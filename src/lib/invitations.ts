@@ -148,3 +148,42 @@ export function getInviteUrl(token: string): string {
   const base = typeof window !== 'undefined' ? window.location.origin : '';
   return `${base}/lean-os/invite/?token=${token}`;
 }
+
+// ── Send Invite Email via Edge Function ──
+
+export async function sendInviteEmail(params: {
+  email: string;
+  name?: string;
+  role: string;
+  inviteToken: string;
+  companyName?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '인증 필요' };
+
+    const inviteUrl = getInviteUrl(params.inviteToken);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-invite-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: params.email,
+        name: params.name,
+        role: params.role,
+        inviteUrl,
+        companyName: params.companyName,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || '이메일 발송 실패' };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '이메일 발송 오류' };
+  }
+}

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule, getDealClassifications, upsertDealClassification, deleteDealClassification } from "@/lib/queries";
 import { COST_TYPES, BANK_ROLES } from "@/lib/routing";
 import type { BankAccount } from "@/types/models";
-import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation } from "@/lib/invitations";
+import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
 
 type MainTab = "general" | "company" | "approval" | "bank" | "tax" | "certificate";
@@ -1229,7 +1229,20 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
   const [inviteRole, setInviteRole] = useState<"employee" | "admin" | "partner">("employee");
   const [inviteError, setInviteError] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [emailSending, setEmailSending] = useState<string | null>(null);
+  const [emailResult, setEmailResult] = useState<{ token: string; ok: boolean; msg: string } | null>(null);
   const queryClient = useQueryClient();
+
+  // 회사 이름 조회 (이메일에 사용)
+  const { data: companyData } = useQuery({
+    queryKey: ["company-name", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase.from("companies").select("name").eq("id", companyId).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
 
   const { data: members = [] } = useQuery({
     queryKey: ["team-members", companyId],
@@ -1268,9 +1281,25 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
       queryClient.invalidateQueries({ queryKey: ["partner-invitations"] });
+      // 이메일 자동 발송 (실패해도 초대 자체는 성공)
+      if (data?.invite_token) {
+        const result = await sendInviteEmail({
+          email: data.email,
+          name: data.name || undefined,
+          role: data.role || inviteRole,
+          inviteToken: data.invite_token,
+          companyName: companyData?.name || undefined,
+        });
+        if (result.success) {
+          setEmailResult({ token: data.invite_token, ok: true, msg: "이메일 발송 완료" });
+        } else {
+          setEmailResult({ token: data.invite_token, ok: false, msg: result.error || "이메일 발송 실패" });
+        }
+        setTimeout(() => setEmailResult(null), 4000);
+      }
       setShowInviteForm(false);
       setInviteEmail("");
       setInviteName("");
@@ -1294,6 +1323,25 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);
+  }
+
+  async function resendEmail(inv: any, role: string) {
+    if (!inv.invite_token || emailSending) return;
+    setEmailSending(inv.invite_token);
+    const result = await sendInviteEmail({
+      email: inv.email,
+      name: inv.name || undefined,
+      role,
+      inviteToken: inv.invite_token,
+      companyName: companyData?.name || undefined,
+    });
+    setEmailSending(null);
+    setEmailResult({
+      token: inv.invite_token,
+      ok: result.success,
+      msg: result.success ? "이메일 재전송 완료" : (result.error || "재전송 실패"),
+    });
+    setTimeout(() => setEmailResult(null), 4000);
   }
 
   const roleBadge = (role: string) => {
@@ -1465,13 +1513,25 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                   <div className="text-xs text-[var(--text-dim)]">{inv.email}</div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {emailResult && emailResult.token === inv.invite_token && (
+                    <span className={`text-[10px] font-medium ${emailResult.ok ? "text-green-600" : "text-red-500"}`}>
+                      {emailResult.msg}
+                    </span>
+                  )}
                   {inv.status === "pending" && (
                     <>
                       <button
-                        onClick={() => copyInviteLink(inv.invite_token)}
-                        className="text-xs text-[var(--primary)] hover:underline"
+                        onClick={() => resendEmail(inv, inv.role || "employee")}
+                        disabled={emailSending === inv.invite_token}
+                        className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50"
                       >
-                        {copiedToken === inv.invite_token ? "복사됨!" : "링크 복사"}
+                        {emailSending === inv.invite_token ? "발송중..." : "이메일"}
+                      </button>
+                      <button
+                        onClick={() => copyInviteLink(inv.invite_token)}
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
+                      >
+                        {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
                       </button>
                       <button
                         onClick={() => cancelEmpMut.mutate(inv.id)}
@@ -1513,13 +1573,25 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {emailResult && emailResult.token === inv.invite_token && (
+                    <span className={`text-[10px] font-medium ${emailResult.ok ? "text-green-600" : "text-red-500"}`}>
+                      {emailResult.msg}
+                    </span>
+                  )}
                   {inv.status === "pending" && (
                     <>
                       <button
-                        onClick={() => copyInviteLink(inv.invite_token)}
-                        className="text-xs text-[var(--primary)] hover:underline"
+                        onClick={() => resendEmail(inv, "partner")}
+                        disabled={emailSending === inv.invite_token}
+                        className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50"
                       >
-                        {copiedToken === inv.invite_token ? "복사됨!" : "링크 복사"}
+                        {emailSending === inv.invite_token ? "발송중..." : "이메일"}
+                      </button>
+                      <button
+                        onClick={() => copyInviteLink(inv.invite_token)}
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
+                      >
+                        {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
                       </button>
                       <button
                         onClick={() => cancelPartnerMut.mutate(inv.id)}
