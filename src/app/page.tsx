@@ -1488,11 +1488,17 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 성동구</div>
-            <div className="flex gap-4">
-              <Link href="/terms" className="hover:text-white transition">이용약관</Link>
-              <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
-              <a href="mailto:ceo@motiveinno.com" className="hover:text-white transition">ceo@motiveinno.com</a>
+            <div className="text-center md:text-left space-y-0.5">
+              <div>(주)모티브이노베이션 | 대표: 채희웅</div>
+              <div>사업자등록번호: 155-88-02209 | 통신판매업신고번호: 제 2023-서울강남-04603호</div>
+              <div>서울특별시 강남구 논현로98길 28, 3층 307호</div>
+            </div>
+            <div className="flex flex-col items-center md:items-end gap-2">
+              <div className="flex gap-4">
+                <Link href="/terms" className="hover:text-white transition">이용약관</Link>
+                <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
+                <a href="mailto:creative@mo-tive.com" className="hover:text-white transition">creative@mo-tive.com</a>
+              </div>
             </div>
           </div>
         </div>

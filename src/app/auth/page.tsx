@@ -98,21 +98,32 @@ export default function AuthPage() {
       .insert({ name })
       .select()
       .single();
-    if (compErr) return;
+    if (compErr) {
+      console.error("회사 생성 실패:", compErr.message);
+      setError("회사 정보 생성에 실패했습니다. 다시 시도해주세요.");
+      return;
+    }
 
-    await supabase.from("users").insert({
+    const { error: userErr } = await supabase.from("users").insert({
+      id: authId,
       auth_id: authId,
       company_id: company.id,
       email: userEmail,
       name: userEmail.split("@")[0],
       role: "owner",
     });
+    if (userErr) {
+      console.error("사용자 생성 실패:", userErr.message);
+      setError("계정 설정에 실패했습니다. 다시 시도해주세요.");
+      return;
+    }
 
-    await supabase.from("cash_snapshot").insert({
+    const { error: snapErr } = await supabase.from("cash_snapshot").insert({
       company_id: company.id,
       current_balance: 0,
       monthly_fixed_cost: 0,
     });
+    if (snapErr) console.error("cash_snapshot 생성 실패:", snapErr.message);
   }
 
   async function handleResendEmail() {

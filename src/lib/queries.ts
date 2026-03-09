@@ -16,12 +16,24 @@ export type CurrentUser = {
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase
+  // maybeSingle: users 테이블에 행이 없어도 에러 대신 null 반환
+  const { data, error } = await supabase
     .from('users')
     .select('*, companies(*)')
     .eq('auth_id', user.id)
-    .single();
-  if (!data || !data.company_id) return null;
+    .maybeSingle();
+  if (error) { console.error('getCurrentUser error:', error.message); return null; }
+  // auth_id로 못 찾으면 id로 폴백 (이전 데이터 호환)
+  if (!data) {
+    const { data: fallback } = await supabase
+      .from('users')
+      .select('*, companies(*)')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!fallback || !fallback.company_id) return null;
+    return fallback as unknown as CurrentUser;
+  }
+  if (!data.company_id) return null;
   return data as unknown as CurrentUser;
 }
 
