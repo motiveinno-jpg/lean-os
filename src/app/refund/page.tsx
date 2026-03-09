@@ -50,7 +50,7 @@ const SECTIONS = [
     id: "5",
     title: "제5조 (환불 절차)",
     content: `1. 환불을 요청하고자 하는 회원은 다음의 방법으로 신청할 수 있습니다.
-  - 이메일: ceo@motiveinno.com
+  - 이메일: creative@mo-tive.com
   - 제목에 "[환불요청]"을 포함하여 주시기 바랍니다.
 
 2. 환불 신청 시 다음 정보를 포함하여야 합니다.
@@ -179,7 +179,7 @@ export default function RefundPage() {
         {/* Contact */}
         <div className="mt-10 p-6 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm text-slate-300 leading-7">
           <p className="font-semibold text-white mb-2">환불 문의</p>
-          <p>이메일: <a href="mailto:ceo@motiveinno.com" className="text-blue-400 hover:underline">ceo@motiveinno.com</a></p>
+          <p>이메일: <a href="mailto:creative@mo-tive.com" className="text-blue-400 hover:underline">creative@mo-tive.com</a></p>
           <p>제목에 <span className="text-white font-medium">[환불요청]</span>을 포함하여 보내주시면 7영업일 이내 처리해 드립니다.</p>
         </div>
 
@@ -187,8 +187,8 @@ export default function RefundPage() {
         <div className="mt-6 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1">
           <p className="font-semibold text-slate-300">(주)모티브이노베이션</p>
           <p>대표: 채희웅</p>
-          <p>소재지: 서울특별시 성동구</p>
-          <p>이메일: ceo@motiveinno.com</p>
+          <p>소재지: 서울특별시 강남구 논현로98길 28, 3층 307호</p>
+          <p>이메일: creative@mo-tive.com</p>
         </div>
       </main>
 
@@ -196,12 +196,12 @@ export default function RefundPage() {
       <footer className="py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 성동구</div>
+            <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 강남구 논현로98길 28, 3층 307호</div>
             <div className="flex gap-4">
               <Link href="/terms" className="hover:text-white transition">이용약관</Link>
               <Link href="/privacy" className="hover:text-white transition">개인정보처리방침</Link>
               <span className="text-white font-semibold">환불규정</span>
-              <a href="mailto:ceo@motiveinno.com" className="hover:text-white transition">ceo@motiveinno.com</a>
+              <a href="mailto:creative@mo-tive.com" className="hover:text-white transition">creative@mo-tive.com</a>
             </div>
           </div>
         </div>

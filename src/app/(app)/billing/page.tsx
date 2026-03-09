@@ -282,7 +282,7 @@ export default function BillingPage() {
                     </button>
                   ) : slug === "enterprise" ? (
                     <button
-                      onClick={() => window.open("mailto:ceo@motiveinnovation.com?subject=Enterprise 문의")}
+                      onClick={() => window.open("mailto:creative@mo-tive.com?subject=Enterprise 문의")}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition"
                     >
                       문의하기

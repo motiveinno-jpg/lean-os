@@ -218,8 +218,8 @@ export default function TermsPage() {
         <div className="mt-10 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1">
           <p className="font-semibold text-slate-300">(주)모티브이노베이션</p>
           <p>대표: 채희웅</p>
-          <p>소재지: 서울특별시 성동구</p>
-          <p>이메일: ceo@motiveinno.com</p>
+          <p>소재지: 서울특별시 강남구 논현로98길 28, 3층 307호</p>
+          <p>이메일: creative@mo-tive.com</p>
         </div>
       </main>
 
@@ -227,12 +227,12 @@ export default function TermsPage() {
       <footer className="py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 성동구</div>
+            <div>(주)모티브이노베이션 | 대표 채희웅 | 서울특별시 강남구 논현로98길 28, 3층 307호</div>
             <div className="flex gap-4">
               <span className="text-white font-semibold">이용약관</span>
               <Link href="/privacy" className="hover:text-white transition">개인정보처리방침</Link>
               <Link href="/refund" className="hover:text-white transition">환불규정</Link>
-              <a href="mailto:ceo@motiveinno.com" className="hover:text-white transition">ceo@motiveinno.com</a>
+              <a href="mailto:creative@mo-tive.com" className="hover:text-white transition">creative@mo-tive.com</a>
             </div>
           </div>
         </div>
