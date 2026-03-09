@@ -90,9 +90,18 @@ export default function VerifyEmailPage() {
 
     handleVerification();
 
+    // 안전장치: 10초 후에도 loading이면 에러 표시
+    const safetyTimeout = setTimeout(() => {
+      if (!handled) {
+        setErrorMessage("인증 토큰이 유효하지 않거나 만료되었습니다. 다시 시도해주세요.");
+        setState("error");
+      }
+    }, 10000);
+
     return () => {
       subscription.unsubscribe();
       if (timer) clearInterval(timer);
+      clearTimeout(safetyTimeout);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -123,21 +132,27 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    // 유저 레코드 생성
-    await supabase.from("users").insert({
+    // 유저 레코드 생성 (id = auth_id로 통일)
+    const { error: userErr } = await supabase.from("users").insert({
+      id: user.id,
       auth_id: user.id,
       company_id: company.id,
       email: userEmail,
       name: displayName,
       role: "owner",
     });
+    if (userErr) {
+      console.error("유저 생성 실패:", userErr.message);
+      return;
+    }
 
     // 초기 현금 스냅샷
-    await supabase.from("cash_snapshot").insert({
+    const { error: snapErr } = await supabase.from("cash_snapshot").insert({
       company_id: company.id,
       current_balance: 0,
       monthly_fixed_cost: 0,
     });
+    if (snapErr) console.error("cash_snapshot 생성 실패:", snapErr.message);
   }
 
   return (
