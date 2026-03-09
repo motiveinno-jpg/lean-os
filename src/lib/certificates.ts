@@ -2,21 +2,21 @@
  * OwnerView Employee Certificate Generator
  * 재직증명서 + 경력증명서 PDF 생성 + 발급 이력 관리
  *
- * NOTE: jsPDF의 기본 helvetica 폰트는 한글을 직접 렌더링하지 못합니다.
- * 이 파일에서는 autoTable을 활용하여 테이블 셀 기반으로 한글 텍스트를 배치합니다.
- * autoTable은 내부적으로 텍스트를 이미지화하는 방식으로 한글을 비교적 잘 처리합니다.
- *
- * [향후 개선] Pretendard 또는 NotoSansKR 폰트를 Base64로 임베드하면
- * doc.text()에서도 완벽한 한글 렌더링이 가능합니다.
- * → doc.addFileToVFS('Pretendard.ttf', base64String);
- * → doc.addFont('Pretendard.ttf', 'Pretendard', 'normal');
- * → doc.setFont('Pretendard');
+ * NotoSansKR 폰트를 Base64로 임베드하여 한글 완벽 렌더링
  */
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
+import { NotoSansKR_Regular } from '@/assets/fonts/NotoSansKR-Regular';
+
+/** jsPDF에 한글 폰트를 등록하고 설정 */
+function setupKoreanFont(doc: jsPDF) {
+  doc.addFileToVFS('NotoSansKR-Regular.otf', NotoSansKR_Regular);
+  doc.addFont('NotoSansKR-Regular.otf', 'NotoSansKR', 'normal');
+  doc.setFont('NotoSansKR');
+}
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,31 +78,20 @@ export async function generateEmploymentCertificate(params: {
   const tenure = calculateTenure(hireDate, today);
 
   const doc = new jsPDF('p', 'mm', 'a4');
+  setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 25;
 
   // ── 증명서 번호 (우측 상단) ──
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
   doc.setTextColor(140, 140, 140);
   doc.text(`No. ${certNumber}`, pageW - 14, 15, { align: 'right' });
 
   // ── 제목 ──
-  // autoTable로 제목 렌더링 (한글 호환)
-  autoTable(doc, {
-    startY: y,
-    body: [['재 직 증 명 서']],
-    theme: 'plain',
-    styles: {
-      fontSize: 22,
-      fontStyle: 'bold',
-      halign: 'center',
-      textColor: [30, 30, 30],
-      cellPadding: { top: 5, bottom: 8, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(22);
+  doc.setTextColor(30, 30, 30);
+  doc.text('재 직 증 명 서', pageW / 2, y + 10, { align: 'center' });
+  y += 25;
 
   // ── 구분선 ──
   doc.setDrawColor(59, 130, 246);
@@ -133,6 +122,7 @@ export async function generateEmploymentCertificate(params: {
     body: personalInfo,
     theme: 'grid',
     styles: {
+      font: 'NotoSansKR',
       fontSize: 11,
       cellPadding: { top: 5, bottom: 5, left: 8, right: 8 },
       textColor: [40, 40, 40],
@@ -154,62 +144,34 @@ export async function generateEmploymentCertificate(params: {
   y = (doc as any).lastAutoTable.finalY + 25;
 
   // ── 증명 문구 ──
-  autoTable(doc, {
-    startY: y,
-    body: [['위 사실을 증명합니다.']],
-    theme: 'plain',
-    styles: {
-      fontSize: 14,
-      fontStyle: 'bold',
-      halign: 'center',
-      textColor: [30, 30, 30],
-      cellPadding: { top: 3, bottom: 3, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 20;
+  doc.setFontSize(14);
+  doc.setTextColor(30, 30, 30);
+  doc.text('위 사실을 증명합니다.', pageW / 2, y, { align: 'center' });
+  y += 20;
 
   // ── 발행일 ──
-  autoTable(doc, {
-    startY: y,
-    body: [[todayStr]],
-    theme: 'plain',
-    styles: {
-      fontSize: 12,
-      halign: 'center',
-      textColor: [60, 60, 60],
-      cellPadding: { top: 2, bottom: 2, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(60, 60, 60);
+  doc.text(todayStr, pageW / 2, y, { align: 'center' });
+  y += 15;
 
   // ── 회사 정보 ──
-  const companyBlock: string[][] = [];
-  companyBlock.push([company.name]);
+  doc.setFontSize(11);
+  doc.setTextColor(50, 50, 50);
+  doc.text(company.name, pageW / 2, y, { align: 'center' });
+  y += 7;
   if (company.representative) {
-    companyBlock.push([`대표이사  ${company.representative}`]);
+    doc.text(`대표이사  ${company.representative}`, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
   if (company.business_number) {
-    companyBlock.push([`사업자등록번호: ${company.business_number}`]);
+    doc.text(`사업자등록번호: ${company.business_number}`, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
   if (company.address) {
-    companyBlock.push([company.address]);
+    doc.text(company.address, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
-
-  autoTable(doc, {
-    startY: y,
-    body: companyBlock,
-    theme: 'plain',
-    styles: {
-      fontSize: 11,
-      halign: 'center',
-      textColor: [50, 50, 50],
-      cellPadding: { top: 1.5, bottom: 1.5, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 5;
 
   // ── 직인 오버레이 ──
   if (company.seal_url) {
@@ -262,30 +224,20 @@ export async function generateCareerCertificate(params: {
   const tenure = calculateTenure(hireDate, endDate);
 
   const doc = new jsPDF('p', 'mm', 'a4');
+  setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 25;
 
   // ── 증명서 번호 (우측 상단) ──
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
   doc.setTextColor(140, 140, 140);
   doc.text(`No. ${certNumber}`, pageW - 14, 15, { align: 'right' });
 
   // ── 제목 ──
-  autoTable(doc, {
-    startY: y,
-    body: [['경 력 증 명 서']],
-    theme: 'plain',
-    styles: {
-      fontSize: 22,
-      fontStyle: 'bold',
-      halign: 'center',
-      textColor: [30, 30, 30],
-      cellPadding: { top: 5, bottom: 8, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(22);
+  doc.setTextColor(30, 30, 30);
+  doc.text('경 력 증 명 서', pageW / 2, y + 10, { align: 'center' });
+  y += 25;
 
   // ── 구분선 ──
   doc.setDrawColor(59, 130, 246);
@@ -316,6 +268,7 @@ export async function generateCareerCertificate(params: {
     body: personalInfo,
     theme: 'grid',
     styles: {
+      font: 'NotoSansKR',
       fontSize: 11,
       cellPadding: { top: 5, bottom: 5, left: 8, right: 8 },
       textColor: [40, 40, 40],
@@ -338,19 +291,10 @@ export async function generateCareerCertificate(params: {
 
   // ── 담당업무 섹션 ──
   if (params.duties && params.duties.length > 0) {
-    autoTable(doc, {
-      startY: y,
-      body: [['담당업무']],
-      theme: 'plain',
-      styles: {
-        fontSize: 12,
-        fontStyle: 'bold',
-        textColor: [40, 40, 40],
-        cellPadding: { top: 2, bottom: 4, left: 2, right: 0 },
-      },
-      margin: { left: 14, right: 14 },
-    });
-    y = (doc as any).lastAutoTable.finalY + 2;
+    doc.setFontSize(12);
+    doc.setTextColor(40, 40, 40);
+    doc.text('담당업무', 16, y);
+    y += 4;
 
     const dutyRows = params.duties.map((duty, idx) => [
       String(idx + 1),
@@ -363,6 +307,7 @@ export async function generateCareerCertificate(params: {
       body: dutyRows,
       theme: 'grid',
       styles: {
+        font: 'NotoSansKR',
         fontSize: 10,
         cellPadding: { top: 4, bottom: 4, left: 6, right: 6 },
         textColor: [40, 40, 40],
@@ -387,62 +332,34 @@ export async function generateCareerCertificate(params: {
   }
 
   // ── 증명 문구 ──
-  autoTable(doc, {
-    startY: y,
-    body: [['위 사실을 증명합니다.']],
-    theme: 'plain',
-    styles: {
-      fontSize: 14,
-      fontStyle: 'bold',
-      halign: 'center',
-      textColor: [30, 30, 30],
-      cellPadding: { top: 3, bottom: 3, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 20;
+  doc.setFontSize(14);
+  doc.setTextColor(30, 30, 30);
+  doc.text('위 사실을 증명합니다.', pageW / 2, y, { align: 'center' });
+  y += 20;
 
   // ── 발행일 ──
-  autoTable(doc, {
-    startY: y,
-    body: [[todayStr]],
-    theme: 'plain',
-    styles: {
-      fontSize: 12,
-      halign: 'center',
-      textColor: [60, 60, 60],
-      cellPadding: { top: 2, bottom: 2, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(60, 60, 60);
+  doc.text(todayStr, pageW / 2, y, { align: 'center' });
+  y += 15;
 
   // ── 회사 정보 ──
-  const companyBlock: string[][] = [];
-  companyBlock.push([company.name]);
+  doc.setFontSize(11);
+  doc.setTextColor(50, 50, 50);
+  doc.text(company.name, pageW / 2, y, { align: 'center' });
+  y += 7;
   if (company.representative) {
-    companyBlock.push([`대표이사  ${company.representative}`]);
+    doc.text(`대표이사  ${company.representative}`, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
   if (company.business_number) {
-    companyBlock.push([`사업자등록번호: ${company.business_number}`]);
+    doc.text(`사업자등록번호: ${company.business_number}`, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
   if (company.address) {
-    companyBlock.push([company.address]);
+    doc.text(company.address, pageW / 2, y, { align: 'center' });
+    y += 7;
   }
-
-  autoTable(doc, {
-    startY: y,
-    body: companyBlock,
-    theme: 'plain',
-    styles: {
-      fontSize: 11,
-      halign: 'center',
-      textColor: [50, 50, 50],
-      cellPadding: { top: 1.5, bottom: 1.5, left: 0, right: 0 },
-    },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as any).lastAutoTable.finalY + 5;
 
   // ── 직인 오버레이 ──
   if (company.seal_url) {
@@ -620,6 +537,7 @@ function addFooter(doc: jsPDF, companyName: string) {
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    doc.setFont('NotoSansKR');
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(

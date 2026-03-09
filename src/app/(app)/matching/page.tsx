@@ -130,7 +130,7 @@ export default function MatchingPage() {
       revenue_schedule_id: match.schedule_type === "revenue" ? match.schedule_id : null,
       cost_schedule_id: match.schedule_type === "cost" ? match.schedule_id : null,
       match_score: match.score,
-      status: "auto",
+      status: "manual",
     });
 
     await supabase

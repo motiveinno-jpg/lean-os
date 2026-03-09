@@ -10,9 +10,11 @@ import {
   createVaultDoc,
   updateVaultAccount,
   updateVaultAsset,
+  updateVaultDoc,
   getDeals,
 } from "@/lib/queries";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
+import { uploadFile } from "@/lib/file-storage";
 
 type Tab = "accounts" | "assets" | "docs" | "discovery";
 
@@ -44,8 +46,11 @@ const DOC_CATEGORIES: Record<string, string> = {
 
 export default function VaultPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("accounts");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
   const queryClient = useQueryClient();
 
   // Account form
@@ -63,7 +68,7 @@ export default function VaultPage() {
   });
 
   useEffect(() => {
-    getCurrentUser().then((u) => u && setCompanyId(u.company_id));
+    getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
   }, []);
 
   const { data: vault } = useQuery({
@@ -96,6 +101,7 @@ export default function VaultPage() {
     onSuccess: () => {
       invalidate();
       setShowForm(false);
+      setEditingId(null);
       setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
   });
@@ -113,6 +119,7 @@ export default function VaultPage() {
     onSuccess: () => {
       invalidate();
       setShowForm(false);
+      setEditingId(null);
       setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
     },
   });
@@ -130,9 +137,83 @@ export default function VaultPage() {
     onSuccess: () => {
       invalidate();
       setShowForm(false);
+      setEditingId(null);
       setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" });
     },
   });
+
+  const updateAccMut = useMutation({
+    mutationFn: () => updateVaultAccount(editingId!, {
+      service_name: accForm.serviceName,
+      url: accForm.url || null,
+      login_id: accForm.loginId || null,
+      login_password: accForm.loginPassword || null,
+      monthly_cost: Number(accForm.monthlyCost) || 0,
+      payment_method: accForm.paymentMethod || null,
+      billing_day: accForm.billingDay ? Number(accForm.billingDay) : null,
+      renewal_date: accForm.renewalDate || null,
+      notes: accForm.notes || null,
+    }),
+    onSuccess: () => {
+      invalidate();
+      setShowForm(false);
+      setEditingId(null);
+      setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
+    },
+  });
+
+  const updateAssetMut = useMutation({
+    mutationFn: () => updateVaultAsset(editingId!, {
+      type: assetForm.type,
+      name: assetForm.name,
+      purchase_date: assetForm.purchaseDate || null,
+      value: Number(assetForm.value) || 0,
+      location: assetForm.location || null,
+      notes: assetForm.notes || null,
+    }),
+    onSuccess: () => {
+      invalidate();
+      setShowForm(false);
+      setEditingId(null);
+      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
+    },
+  });
+
+  const updateDocMut = useMutation({
+    mutationFn: () => updateVaultDoc(editingId!, {
+      category: docForm.category,
+      name: docForm.name,
+      file_url: docForm.fileUrl || null,
+      linked_deal_id: docForm.linkedDealId || null,
+      expiry_date: docForm.expiryDate || null,
+      tags: docForm.tags ? docForm.tags.split(",").map((t: string) => t.trim()) : [],
+    }),
+    onSuccess: () => {
+      invalidate();
+      setShowForm(false);
+      setEditingId(null);
+      setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" });
+    },
+  });
+
+  async function handleFileUpload(file: File) {
+    if (!companyId || !userId) return;
+    setFileUploading(true);
+    try {
+      const result = await uploadFile({
+        companyId,
+        bucket: "document-files",
+        file,
+        context: {},
+        userId,
+      });
+      setDocForm((prev) => ({ ...prev, fileUrl: result.fileUrl }));
+    } catch (err: any) {
+      alert("파일 업로드 실패: " + (err?.message || "알 수 없는 오류"));
+    } finally {
+      setFileUploading(false);
+    }
+  }
 
   const runDiscMut = useMutation({
     mutationFn: async () => {
@@ -192,7 +273,7 @@ export default function VaultPage() {
           )}
           {tab !== "discovery" && (
             <button
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
               className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
             >
               + 추가
@@ -234,7 +315,7 @@ export default function VaultPage() {
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => { setTab(t.key); setShowForm(false); }}
+            onClick={() => { setTab(t.key); setShowForm(false); setEditingId(null); }}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
               tab === t.key
                 ? "bg-[var(--primary)] text-white"
@@ -249,7 +330,7 @@ export default function VaultPage() {
       {/* ── Account Form ── */}
       {showForm && tab === "accounts" && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">구독/계정 추가</h3>
+          <h3 className="text-sm font-bold mb-4">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
@@ -305,9 +386,9 @@ export default function VaultPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => accForm.serviceName && createAccMut.mutate()} disabled={!accForm.serviceName || createAccMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">추가</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={() => { if (!accForm.serviceName) return; if (editingId) updateAccMut.mutate(); else createAccMut.mutate(); }} disabled={!accForm.serviceName || createAccMut.isPending || updateAccMut.isPending}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
       )}
@@ -315,7 +396,7 @@ export default function VaultPage() {
       {/* ── Asset Form ── */}
       {showForm && tab === "assets" && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">자산 추가</h3>
+          <h3 className="text-sm font-bold mb-4">{editingId ? "자산 수정" : "자산 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자산명 *</label>
@@ -352,9 +433,9 @@ export default function VaultPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => assetForm.name && createAssetMut.mutate()} disabled={!assetForm.name || createAssetMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">추가</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={() => { if (!assetForm.name) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name || createAssetMut.isPending || updateAssetMut.isPending}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
       )}
@@ -362,7 +443,7 @@ export default function VaultPage() {
       {/* ── Doc Form ── */}
       {showForm && tab === "docs" && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">문서 추가</h3>
+          <h3 className="text-sm font-bold mb-4">{editingId ? "문서 수정" : "문서 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>
@@ -397,11 +478,36 @@ export default function VaultPage() {
               <input value={docForm.tags} onChange={(e) => setDocForm({ ...docForm, tags: e.target.value })}
                 placeholder="세무, 법인" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
+            <div className="col-span-3">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">파일 첨부</label>
+              <div className="flex items-center gap-3">
+                <label className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm cursor-pointer hover:border-[var(--primary)] transition inline-flex items-center gap-2">
+                  <span>{fileUploading ? "업로드 중..." : "파일 선택"}</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={fileUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                      e.target.value = "";
+                    }}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.csv,.txt,.zip"
+                  />
+                </label>
+                {docForm.fileUrl && (
+                  <a href={docForm.fileUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[var(--primary)] hover:underline truncate max-w-[300px]">
+                    {docForm.fileUrl.split("/").pop() || "업로드된 파일"}
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => docForm.name && createDocMut.mutate()} disabled={!docForm.name || createDocMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">추가</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={() => { if (!docForm.name) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name || createDocMut.isPending || updateDocMut.isPending}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
       )}
@@ -432,7 +538,7 @@ export default function VaultPage() {
                 {vault.accounts.map((acc: any) => {
                   const st = ACCOUNT_STATUS[acc.status || "active"] || ACCOUNT_STATUS.active;
                   return (
-                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
+                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(acc.id); setAccForm({ serviceName: acc.service_name || "", url: acc.url || "", loginId: acc.login_id || "", loginPassword: acc.login_password || "", monthlyCost: String(acc.monthly_cost || ""), paymentMethod: acc.payment_method || "", billingDay: acc.billing_day ? String(acc.billing_day) : "", renewalDate: acc.renewal_date || "", notes: acc.notes || "" }); setShowForm(true); }}>
                       <td className="p-4">
                         <div className="font-semibold">{acc.service_name}</div>
                         {acc.url && <div className="text-[10px] text-[var(--text-dim)] truncate max-w-[200px]">{acc.url}</div>}
@@ -463,7 +569,7 @@ export default function VaultPage() {
                       </td>
                       <td className="p-4 text-right">
                         {acc.status === "active" && (
-                          <button onClick={() => cancelAccMut.mutate(acc.id)}
+                          <button onClick={(e) => { e.stopPropagation(); cancelAccMut.mutate(acc.id); }}
                             className="text-[10px] text-red-400 hover:text-red-300 transition">해지</button>
                         )}
                       </td>
@@ -499,7 +605,7 @@ export default function VaultPage() {
               </thead>
               <tbody>
                 {vault.assets.map((a: any) => (
-                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
+                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(a.id); setAssetForm({ type: a.type || "tangible", name: a.name || "", purchaseDate: a.purchase_date || "", value: String(a.value || ""), location: a.location || "", notes: a.notes || "" }); setShowForm(true); }}>
                     <td className="p-4">
                       <div className="font-semibold">{a.name}</div>
                       {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
@@ -557,7 +663,7 @@ export default function VaultPage() {
                 {vault.docs.map((d: any) => {
                   const isExpiring = d.expiry_date && ((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 30;
                   return (
-                    <tr key={d.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition">
+                    <tr key={d.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(d.id); setDocForm({ category: d.category || "contract", name: d.name || "", fileUrl: d.file_url || "", linkedDealId: d.linked_deal_id || "", expiryDate: d.expiry_date || "", tags: (d.tags || []).join(", ") }); setShowForm(true); }}>
                       <td className="p-4">
                         <div className="font-semibold">{d.name}</div>
                       </td>

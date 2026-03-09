@@ -43,10 +43,10 @@ export interface ContractPackageItem {
 }
 
 export const PACKAGE_STATUS = {
-  draft: { label: '초안', bg: 'bg-gray-500/10', text: 'text-gray-400', dot: 'bg-gray-400' },
-  sent: { label: '발송됨', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400' },
-  partially_signed: { label: '서명 진행중', bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  completed: { label: '완료', bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-500' },
+  draft: { label: '임시저장', bg: 'bg-gray-500/10', text: 'text-gray-400', dot: 'bg-gray-400' },
+  sent: { label: '계약 진행 중', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400' },
+  partially_signed: { label: '서명 진행 중', bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  completed: { label: '계약완료', bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-500' },
   cancelled: { label: '취소', bg: 'bg-red-500/10', text: 'text-red-400', dot: 'bg-red-400' },
 } as const;
 
@@ -175,6 +175,14 @@ export async function createContractPackage(params: {
 
   // Build variables
   const variables = await buildContractVariables(companyId, employeeId, variableOverrides);
+
+  // Save salary metadata for reliable extraction on signing
+  const annualSalary = Number(variables.연봉?.replace(/,/g, '') || 0);
+  if (annualSalary > 0) {
+    await db.from('hr_contract_packages').update({
+      notes: JSON.stringify({ ...(notes ? { text: notes } : {}), salary: annualSalary }),
+    }).eq('id', pkg.id);
+  }
 
   // Create items: one per template
   const items: ContractPackageItem[] = [];
@@ -405,67 +413,76 @@ export async function signContractItem(
 async function onAllContractsSigned(packageId: string) {
   const { data: pkg } = await db
     .from('hr_contract_packages')
-    .select('company_id, employee_id')
+    .select('company_id, employee_id, notes')
     .eq('id', packageId)
     .single();
 
   if (!pkg) return;
 
-  // Get salary from the latest contract item (연봉계약서 or 포괄임금)
-  const { data: items } = await db
-    .from('hr_contract_package_items')
-    .select('document_id, title')
-    .eq('package_id', packageId);
+  // Try to extract salary from metadata (stored at package creation)
+  let annualSalary = 0;
+  try {
+    const meta = typeof pkg.notes === 'string' ? JSON.parse(pkg.notes) : pkg.notes;
+    if (meta?.salary) annualSalary = Number(meta.salary);
+  } catch { /* not JSON, try regex fallback */ }
 
-  for (const item of (items || [])) {
-    if (!item.document_id) continue;
+  // Regex fallback: extract salary from document content
+  if (annualSalary === 0) {
+    const { data: items } = await db
+      .from('hr_contract_package_items')
+      .select('document_id, title')
+      .eq('package_id', packageId);
 
-    // Check if this is a salary-related contract
-    const isSalaryContract = item.title.includes('연봉') || item.title.includes('포괄임금');
-    if (!isSalaryContract) continue;
+    for (const item of (items || [])) {
+      if (!item.document_id) continue;
+      const isSalaryContract = item.title.includes('연봉') || item.title.includes('포괄임금');
+      if (!isSalaryContract) continue;
 
-    const { data: doc } = await db
-      .from('documents')
-      .select('content_json')
-      .eq('id', item.document_id)
-      .single();
+      const { data: doc } = await db
+        .from('documents')
+        .select('content_json')
+        .eq('id', item.document_id)
+        .single();
+      if (!doc?.content_json) continue;
 
-    if (!doc?.content_json) continue;
-
-    // Extract salary from content (look for 연봉 field in the filled template)
-    const content = JSON.stringify(doc.content_json);
-    const salaryMatch = content.match(/연간 총 금\s*([\d,]+)/);
-    if (salaryMatch) {
-      const annualSalary = Number(salaryMatch[1].replace(/,/g, ''));
-      if (annualSalary > 0) {
-        // Update employee salary
-        await db.from('employees').update({
-          salary: Math.round(annualSalary / 12),
-        }).eq('id', pkg.employee_id);
-
-        // Add salary history
-        await db.from('salary_history').insert({
-          company_id: pkg.company_id,
-          employee_id: pkg.employee_id,
-          effective_date: new Date().toISOString().slice(0, 10),
-          salary: Math.round(annualSalary / 12),
-          change_reason: '연봉계약 체결',
-        });
-
-        // Create employee_contracts record
-        const nextYear = new Date();
-        nextYear.setFullYear(nextYear.getFullYear() + 1);
-        await db.from('employee_contracts').insert({
-          company_id: pkg.company_id,
-          employee_id: pkg.employee_id,
-          contract_type: 'full_time',
-          start_date: new Date().toISOString().slice(0, 10),
-          end_date: nextYear.toISOString().slice(0, 10),
-          salary: Math.round(annualSalary / 12),
-          status: 'active',
-        });
+      const content = JSON.stringify(doc.content_json);
+      const salaryMatch = content.match(/연간 총 금\s*([\d,]+)/) || content.match(/연봉[^\d]*([\d,]+)/);
+      if (salaryMatch) {
+        annualSalary = Number(salaryMatch[1].replace(/,/g, ''));
+        if (annualSalary > 0) break;
       }
     }
+  }
+
+  if (annualSalary > 0) {
+    const monthlySalary = Math.round(annualSalary / 12);
+
+    // Update employee salary
+    await db.from('employees').update({
+      salary: monthlySalary,
+    }).eq('id', pkg.employee_id);
+
+    // Add salary history
+    await db.from('salary_history').insert({
+      company_id: pkg.company_id,
+      employee_id: pkg.employee_id,
+      effective_date: new Date().toISOString().slice(0, 10),
+      salary: monthlySalary,
+      change_reason: '연봉계약 체결',
+    });
+
+    // Create employee_contracts record
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    await db.from('employee_contracts').insert({
+      company_id: pkg.company_id,
+      employee_id: pkg.employee_id,
+      contract_type: 'full_time',
+      start_date: new Date().toISOString().slice(0, 10),
+      end_date: nextYear.toISOString().slice(0, 10),
+      salary: monthlySalary,
+      status: 'active',
+    });
   }
 
   // Update employee status to active (onboarding complete)

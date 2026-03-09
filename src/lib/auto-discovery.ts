@@ -140,6 +140,51 @@ export async function acceptDiscovery(discoveryId: string, companyId: string) {
 
   if (accountError) throw accountError;
 
+  // ── F-5: Also create a corresponding recurring_payments entry ──
+  // Estimate billing day from the first source transaction date
+  let billingDay: number | null = null;
+  if (discovery.source_transaction_ids?.length) {
+    const { data: firstTx } = await supabase
+      .from('transactions')
+      .select('transaction_date')
+      .in('id', discovery.source_transaction_ids.slice(0, 1))
+      .maybeSingle();
+    if (firstTx?.transaction_date) {
+      const d = new Date(firstTx.transaction_date);
+      billingDay = d.getDate();
+    }
+  }
+
+  const monthlyCost = discovery.estimated_monthly_cost || 0;
+  if (monthlyCost > 0) {
+    // Map suggested_type to recurring_payments category
+    const categoryMap: Record<string, string> = {
+      cloud: 'SaaS/클라우드',
+      dev_tool: 'SaaS/개발도구',
+      design: 'SaaS/디자인',
+      productivity: 'SaaS/생산성',
+      communication: 'SaaS/커뮤니케이션',
+      ai: 'SaaS/AI',
+      ecommerce: 'SaaS/이커머스',
+      hosting: 'SaaS/호스팅',
+      payment: 'SaaS/결제',
+      subscription: 'SaaS/구독',
+    };
+    const category = categoryMap[discovery.suggested_type] || 'SaaS/구독';
+
+    await supabase
+      .from('recurring_payments')
+      .insert({
+        company_id: companyId,
+        name: discovery.name,
+        amount: monthlyCost,
+        category,
+        frequency: 'monthly',
+        day_of_month: billingDay,
+        is_active: true,
+      });
+  }
+
   // Update discovery as accepted
   await supabase
     .from('auto_discovery_results')

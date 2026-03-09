@@ -12,7 +12,7 @@ import {
   checkIn, checkOut, getAttendanceRecords, getMonthlyAttendanceSummary,
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
-  getLeaveBalances, initLeaveBalance,
+  getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
@@ -171,7 +171,7 @@ export default function EmployeesPage() {
       {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
       {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
-      {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} role={role} />}
       {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
       {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
@@ -191,6 +191,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
 
   // 초대 목록
   const { data: invitations = [] } = useQuery({
@@ -384,8 +385,15 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
               {employees.map((e: any) => {
                 const st = EMP_STATUS[e.status] || EMP_STATUS.active;
                 return (
-                  <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                    <td className="px-5 py-3 text-sm font-medium">{e.name}</td>
+                  <tr key={e.id} onClick={() => setDetailEmpId(detailEmpId === e.id ? null : e.id)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
+                    <td className="px-5 py-3 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        {e.name}
+                        {e.onboarding_completed_at ? null : e.status !== "active" && e.status !== "inactive" && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-500 rounded-full">온보딩 미완료</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
                     <td className="px-5 py-3 text-sm text-right">{Number(e.salary) > 0 ? `₩${(Number(e.salary) * 12).toLocaleString()}` : "—"}</td>
@@ -401,6 +409,387 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           </table></div>
         )}
       </div>
+
+      {/* Employee Detail Panel */}
+      {detailEmpId && <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />}
+    </div>
+  );
+}
+
+// ── Employee Detail Panel ──
+function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
+  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "notes" | "history">("info");
+  const queryClient = useQueryClient();
+
+  // Fetch employee details
+  const { data: emp } = useQuery({
+    queryKey: ["employee-detail", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("employees").select("*").eq("id", employeeId).single();
+      return data;
+    },
+    enabled: !!employeeId,
+  });
+
+  // Fetch employee files
+  const { data: files = [] } = useQuery({
+    queryKey: ["employee-files", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("employee_files").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!employeeId && detailTab === "files",
+  });
+
+  // Fetch onboarding checklist
+  const { data: checklist = [] } = useQuery({
+    queryKey: ["onboarding-checklist", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("onboarding_checklist_items").select("*").eq("employee_id", employeeId).order("item_key");
+      return data || [];
+    },
+    enabled: !!employeeId && detailTab === "onboarding",
+  });
+
+  const BANK_LABELS: Record<string, string> = {
+    ibk: "IBK 기업은행", kb: "KB 국민은행", shinhan: "신한은행", hana: "하나은행",
+    woori: "우리은행", nh: "NH 농협은행", kdb: "KDB 산업은행", sc: "SC 제일은행",
+    kakao: "카카오뱅크", toss: "토스뱅크", kbank: "케이뱅크",
+  };
+
+  const FILE_CAT_LABELS: Record<string, string> = {
+    resume: "이력서", id_copy: "신분증 사본", bank_copy: "통장 사본",
+    resident_reg: "주민등록등본", portfolio: "포트폴리오", other: "기타",
+  };
+
+  if (!emp) return null;
+
+  return (
+    <div className="mt-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold text-lg">
+            {emp.name?.charAt(0)}
+          </div>
+          <div>
+            <div className="text-sm font-bold">{emp.name}</div>
+            <div className="text-xs text-[var(--text-dim)]">{emp.department || ""} {emp.position || ""}</div>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-1.5 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      {/* Detail Tabs */}
+      <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto">
+        {[
+          { key: "info", label: "개인정보" },
+          { key: "files", label: "입사서류" },
+          { key: "onboarding", label: "온보딩" },
+          { key: "notes", label: "노트" },
+          { key: "history", label: "발령" },
+        ].map((t) => (
+          <button key={t.key} onClick={() => setDetailTab(t.key as any)}
+            className={`px-3 py-2 rounded-t-lg text-xs font-semibold transition whitespace-nowrap ${detailTab === t.key ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-5 bg-[var(--bg-surface)] rounded-b-xl">
+        {/* Info Tab */}
+        {detailTab === "info" && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <InfoRow label="이메일" value={emp.email} />
+            <InfoRow label="전화번호" value={emp.phone} />
+            <InfoRow label="생년월일" value={emp.birth_date} />
+            <InfoRow label="주소" value={emp.address} />
+            <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
+            <InfoRow label="계좌번호" value={emp.bank_account} />
+            <InfoRow label="예금주" value={emp.bank_holder} />
+            <InfoRow label="입사일" value={emp.hire_date} />
+            <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
+            <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+          </div>
+        )}
+
+        {/* Files Tab */}
+        {detailTab === "files" && (
+          <div className="space-y-2">
+            {files.length === 0 ? (
+              <div className="text-center py-8 text-sm text-[var(--text-dim)]">제출된 서류가 없습니다</div>
+            ) : (
+              files.map((f: any) => (
+                <div key={f.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <svg className="w-4 h-4 text-[var(--primary)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium truncate">{f.file_name}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{FILE_CAT_LABELS[f.category] || f.category} · {(f.file_size / 1024).toFixed(0)}KB</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {f.verified ? (
+                      <span className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full">확인됨</span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-full">미확인</span>
+                    )}
+                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">보기</a>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Onboarding Tab */}
+        {detailTab === "onboarding" && (
+          <div className="space-y-2">
+            {emp.onboarding_completed_at ? (
+              <div className="text-center py-4">
+                <div className="text-green-500 text-sm font-semibold mb-1">온보딩 완료</div>
+                <div className="text-xs text-[var(--text-dim)]">{new Date(emp.onboarding_completed_at).toLocaleDateString("ko-KR")}</div>
+              </div>
+            ) : (
+              <div className="text-center py-2 mb-3">
+                <span className="text-xs px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium">온보딩 진행 중</span>
+              </div>
+            )}
+            {checklist.length === 0 && !emp.onboarding_completed_at ? (
+              <div className="text-center py-4 text-sm text-[var(--text-dim)]">아직 온보딩을 시작하지 않았습니다</div>
+            ) : (
+              checklist.map((item: any) => (
+                <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                  {item.completed ? (
+                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-[var(--text-dim)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>
+                  )}
+                  <span className={`text-xs ${item.completed ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{item.label}</span>
+                  {item.completed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(item.completed_at).toLocaleDateString("ko-KR")}</span>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Notes Tab (D-8: 관리자 인사노트) */}
+        {detailTab === "notes" && (
+          <AdminNotesSection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+        )}
+
+        {/* History Tab (D-9: 인사발령 히스토리) */}
+        {detailTab === "history" && (
+          <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── D-8: 관리자 인사노트 ──
+function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: string; emp: any; queryClient: any }) {
+  const [noteText, setNoteText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const notes: { text: string; author: string; date: string }[] = Array.isArray(emp?.admin_notes) ? emp.admin_notes : [];
+
+  async function addNote() {
+    if (!noteText.trim()) return;
+    setSaving(true);
+    try {
+      const newNote = {
+        text: noteText.trim(),
+        author: "관리자",
+        date: new Date().toISOString(),
+      };
+      const updated = [...notes, newNote];
+      await (supabase as any).from("employees").update({ admin_notes: updated }).eq("id", employeeId);
+      queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+      setNoteText("");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* 노트 입력 */}
+      <div>
+        <textarea
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          rows={3}
+          placeholder="인사 메모를 입력하세요..."
+          className="w-full px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+        />
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={addNote}
+            disabled={!noteText.trim() || saving}
+            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+          >
+            {saving ? "저장 중..." : "추가"}
+          </button>
+        </div>
+      </div>
+
+      {/* 노트 목록 */}
+      {notes.length === 0 ? (
+        <div className="text-center py-8 text-sm text-[var(--text-dim)]">등록된 인사노트가 없습니다</div>
+      ) : (
+        <div className="space-y-2">
+          {[...notes].reverse().map((n, i) => (
+            <div key={i} className="px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+              <div className="text-sm text-[var(--text)] whitespace-pre-wrap">{n.text}</div>
+              <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-dim)]">
+                <span>{n.author}</span>
+                <span>{n.date ? new Date(n.date).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── D-9: 인사발령 히스토리 ──
+function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId: string; emp: any; queryClient: any }) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ department: "", position: "", date: "", note: "" });
+  const [saving, setSaving] = useState(false);
+
+  const history: { department: string; position: string; date: string; note: string }[] = Array.isArray(emp?.employment_history) ? emp.employment_history : [];
+
+  async function addEntry() {
+    if (!form.department && !form.position) return;
+    setSaving(true);
+    try {
+      const newEntry = {
+        department: form.department,
+        position: form.position,
+        date: form.date || new Date().toISOString().slice(0, 10),
+        note: form.note,
+      };
+      const updated = [...history, newEntry];
+      await (supabase as any).from("employees").update({ employment_history: updated }).eq("id", employeeId);
+      queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+      setForm({ department: "", position: "", date: "", note: "" });
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* 발령 추가 버튼 */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold transition"
+        >
+          + 발령 등록
+        </button>
+      </div>
+
+      {/* 발령 등록 폼 */}
+      {showForm && (
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">부서 *</label>
+              <input
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                placeholder="부서명"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직위</label>
+              <input
+                value={form.position}
+                onChange={(e) => setForm({ ...form, position: e.target.value })}
+                placeholder="직위"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">발령일</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">메모</label>
+              <input
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                placeholder="승진, 부서이동 등"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={addEntry}
+              disabled={(!form.department && !form.position) || saving}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+            >
+              {saving ? "저장 중..." : "등록"}
+            </button>
+            <button
+              onClick={() => { setShowForm(false); setForm({ department: "", position: "", date: "", note: "" }); }}
+              className="px-3 py-2 text-xs text-[var(--text-muted)]"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 발령 이력 목록 */}
+      {history.length === 0 ? (
+        <div className="text-center py-8 text-sm text-[var(--text-dim)]">인사발령 이력이 없습니다</div>
+      ) : (
+        <div className="space-y-0">
+          {[...history].reverse().map((h, i) => (
+            <div key={i} className="flex gap-3">
+              {/* 타임라인 라인 */}
+              <div className="flex flex-col items-center">
+                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${i === 0 ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`} />
+                {i < history.length - 1 && <div className="w-px flex-1 bg-[var(--border)]" />}
+              </div>
+              {/* 내용 */}
+              <div className="pb-4 flex-1">
+                <div className="text-xs font-semibold text-[var(--text)]">
+                  {h.department}{h.department && h.position ? " / " : ""}{h.position}
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{h.date || "날짜 미지정"}</div>
+                {h.note && <div className="text-xs text-[var(--text-muted)] mt-1">{h.note}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
+      <div className="text-xs text-[var(--text)]">{value || "—"}</div>
     </div>
   );
 }
@@ -478,51 +867,54 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
   );
 }
 
-// ── Contract Tab (계약 패키지 관리) ──
+// ── Contract Tab (전자계약 — 플렉스 스타일) ──
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [showCreate, setShowCreate] = useState(false);
-  const [pkgForm, setPkgForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
+  const [reqForm, setReqForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
   const [sending, setSending] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchSending, setBatchSending] = useState(false);
 
-  // Contract packages
-  const { data: packages = [] } = useQuery({
+  // 계약 내역
+  const { data: contractList = [] } = useQuery({
     queryKey: ["contract-packages", companyId],
     queryFn: () => getContractPackages(companyId!),
     enabled: !!companyId,
   });
 
-  // Contract templates
+  // 계약서 서식
   const { data: templates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
     queryFn: () => getContractTemplates(companyId!),
     enabled: !!companyId,
   });
 
-  // Create package mutation
-  const createPkg = useMutation({
+  // 계약 요청 생성
+  const createContract = useMutation({
     mutationFn: async () => {
-      const emp = employees.find((e: any) => e.id === pkgForm.employeeId);
+      const emp = employees.find((e: any) => e.id === reqForm.employeeId);
       return createContractPackage({
         companyId: companyId!,
-        employeeId: pkgForm.employeeId,
-        title: pkgForm.title || `${emp?.name || ""} 계약 패키지`,
-        templateIds: pkgForm.templateIds,
+        employeeId: reqForm.employeeId,
+        title: reqForm.title || `${emp?.name || ""} ${new Date().getFullYear()}년 계약`,
+        templateIds: reqForm.templateIds,
         createdBy: "system",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
       setShowCreate(false);
-      setPkgForm({ employeeId: "", title: "", templateIds: [] });
+      setReqForm({ employeeId: "", title: "", templateIds: [] });
     },
     onError: (err: any) => alert(err.message),
   });
 
-  // Send package
-  async function handleSend(packageId: string) {
-    setSending(packageId);
+  // 서명 요청 발송
+  async function handleSendSignRequest(contractId: string) {
+    setSending(contractId);
     try {
-      const result = await sendContractPackage(packageId);
+      const result = await sendContractPackage(contractId);
       if (!result.success) alert("발송 실패: " + (result.error || "알 수 없는 오류"));
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
@@ -532,16 +924,41 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     }
   }
 
-  // Cancel package
-  const cancelPkg = useMutation({
+  // 계약 취소
+  const cancelContract = useMutation({
     mutationFn: cancelContractPackage,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contract-packages"] }),
   });
 
-  const activeEmployees = employees.filter((e: any) => e.status === "active");
+  // 일괄 발송
+  async function handleBatchSend() {
+    const draftIds = Array.from(selectedIds).filter(id =>
+      contractList.find((c: any) => c.id === id && c.status === "draft")
+    );
+    if (draftIds.length === 0) return;
+    setBatchSending(true);
+    for (const id of draftIds) {
+      try {
+        await sendContractPackage(id);
+      } catch (_) { /* skip failures */ }
+    }
+    queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
+    setSelectedIds(new Set());
+    setBatchSending(false);
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const allEmployees = employees.filter((e: any) => ["active", "joined", "contract_pending"].includes(e.status));
 
   function toggleTemplate(id: string) {
-    setPkgForm(prev => ({
+    setReqForm(prev => ({
       ...prev,
       templateIds: prev.templateIds.includes(id)
         ? prev.templateIds.filter(t => t !== id)
@@ -549,121 +966,264 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     }));
   }
 
+  // 상태 필터링
+  const filteredContracts = statusFilter === "all"
+    ? contractList
+    : contractList.filter((c: any) => c.status === statusFilter);
+
+  // 상태별 카운트
+  const statusCounts = {
+    all: contractList.length,
+    draft: contractList.filter((c: any) => c.status === "draft").length,
+    sent: contractList.filter((c: any) => c.status === "sent" || c.status === "partially_signed").length,
+    completed: contractList.filter((c: any) => c.status === "completed").length,
+    cancelled: contractList.filter((c: any) => c.status === "cancelled").length,
+  };
+
   return (
     <div>
-      {/* Create Package */}
-      <div className="flex justify-end mb-4">
-        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">
-          + 계약 패키지 생성
+      {/* 상단 헤더 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div>
+          <h3 className="text-base font-bold text-[var(--text)]">전자계약</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">구성원에게 계약서를 발송하고 전자서명을 받습니다</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          계약 요청
         </button>
       </div>
 
+      {/* 계약 요청 폼 */}
       {showCreate && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <h4 className="text-sm font-bold mb-4">계약 패키지 생성</h4>
+          <h4 className="text-sm font-bold mb-4">새 계약 요청</h4>
+
+          {/* Step 1: 대상 선택 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
-              <select value={pkgForm.employeeId} onChange={e => setPkgForm({...pkgForm, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
-                <option value="">선택...</option>
-                {activeEmployees.map((e: any) => <option key={e.id} value={e.id}>{e.name} ({e.department || "미배정"})</option>)}
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 선택 *</label>
+              <select
+                value={reqForm.employeeId}
+                onChange={e => setReqForm({...reqForm, employeeId: e.target.value})}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              >
+                <option value="">구성원을 선택하세요</option>
+                {allEmployees.map((e: any) => (
+                  <option key={e.id} value={e.id}>{e.name} · {e.department || "미배정"} · {e.position || "미지정"}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">패키지 제목</label>
-              <input value={pkgForm.title} onChange={e => setPkgForm({...pkgForm, title: e.target.value})} placeholder="2026년 연봉계약 패키지" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약 제목</label>
+              <input
+                value={reqForm.title}
+                onChange={e => setReqForm({...reqForm, title: e.target.value})}
+                placeholder={`${new Date().getFullYear()}년 연봉계약`}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
             </div>
           </div>
-          <div className="mb-4">
-            <label className="block text-xs text-[var(--text-muted)] mb-2">포함할 계약서 템플릿 *</label>
-            <div className="flex flex-wrap gap-2">
-              {templates.map((t: any) => (
-                <button
-                  key={t.id}
-                  onClick={() => toggleTemplate(t.id)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition ${
-                    pkgForm.templateIds.includes(t.id)
-                      ? "bg-[var(--primary)] text-white border-[var(--primary)]"
-                      : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]"
-                  }`}
-                >
-                  {pkgForm.templateIds.includes(t.id) && "✓ "}
-                  {t.name}
-                </button>
-              ))}
-            </div>
+
+          {/* Step 2: 서식 선택 */}
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">계약서 서식 선택 *</label>
+            {templates.length === 0 ? (
+              <p className="text-xs text-[var(--text-dim)]">등록된 서식이 없습니다. 설정에서 계약서 템플릿을 먼저 등록하세요.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {templates.map((t: any) => {
+                  const selected = reqForm.templateIds.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => toggleTemplate(t.id)}
+                      className={`text-left px-4 py-3 rounded-xl border transition ${
+                        selected
+                          ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                          : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                          selected ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"
+                        }`}>
+                          {selected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                        </div>
+                        <span className="text-sm font-medium">{t.name}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => pkgForm.employeeId && pkgForm.templateIds.length > 0 && createPkg.mutate()}
-            disabled={!pkgForm.employeeId || pkgForm.templateIds.length === 0 || createPkg.isPending}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
-          >
-            {createPkg.isPending ? "생성 중..." : `패키지 생성 (${pkgForm.templateIds.length}건)`}
-          </button>
+
+          {/* 액션 버튼 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => reqForm.employeeId && reqForm.templateIds.length > 0 && createContract.mutate()}
+              disabled={!reqForm.employeeId || reqForm.templateIds.length === 0 || createContract.isPending}
+              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+            >
+              {createContract.isPending ? "생성 중..." : "계약 요청하기"}
+            </button>
+            <button
+              onClick={() => { setShowCreate(false); setReqForm({ employeeId: "", title: "", templateIds: [] }); }}
+              className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl transition"
+            >
+              취소
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Package List */}
-      <div className="space-y-3 mb-8">
-        {packages.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
-            <div className="text-4xl mb-4">📋</div>
-            <div className="text-sm text-[var(--text-muted)]">계약 패키지가 없습니다</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 계약서 템플릿을 선택하여 패키지를 생성하세요</div>
-          </div>
-        ) : (
-          packages.map((p: any) => {
-            const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
-            return (
-              <div key={p.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-semibold truncate">{p.title}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">
-                    {p.employees?.name} ({p.employees?.department || "미배정"})
-                    {p.sent_at && ` · 발송: ${new Date(p.sent_at).toLocaleDateString("ko-KR")}`}
-                    {p.completed_at && ` · 완료: ${new Date(p.completed_at).toLocaleDateString("ko-KR")}`}
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  {p.status === "draft" && (
-                    <>
-                      <button
-                        onClick={() => handleSend(p.id)}
-                        disabled={sending === p.id}
-                        className="px-3 py-1.5 text-xs font-semibold bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 disabled:opacity-50"
-                      >
-                        {sending === p.id ? "발송 중..." : "서명 요청"}
-                      </button>
-                      <button onClick={() => cancelPkg.mutate(p.id)} className="px-3 py-1.5 text-xs text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10">취소</button>
-                    </>
-                  )}
-                  {p.status === "sent" && (
-                    <button
-                      onClick={() => handleSend(p.id)}
-                      disabled={sending === p.id}
-                      className="px-3 py-1.5 text-xs text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]"
-                    >
-                      재발송
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })
+      {/* 상태 필터 탭 + 일괄 발송 */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 overflow-x-auto">
+          {[
+            { key: "all", label: "전체" },
+            { key: "draft", label: "임시저장" },
+            { key: "sent", label: "진행 중" },
+            { key: "completed", label: "완료" },
+            { key: "cancelled", label: "취소" },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => { setStatusFilter(f.key); setSelectedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition ${
+                statusFilter === f.key
+                  ? "bg-[var(--primary)] text-white"
+                  : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+              }`}
+            >
+              {f.label} {(statusCounts as any)[f.key] > 0 && <span className="ml-1 opacity-70">{(statusCounts as any)[f.key]}</span>}
+            </button>
+          ))}
+        </div>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={handleBatchSend}
+            disabled={batchSending}
+            className="px-4 py-2 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition whitespace-nowrap"
+          >
+            {batchSending ? "발송 중..." : `일괄 발송 (${selectedIds.size}건)`}
+          </button>
         )}
       </div>
 
-      {/* Legacy Contracts */}
+      {/* 계약 내역 리스트 */}
+      <div className="space-y-3 mb-8">
+        {filteredContracts.length === 0 ? (
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center">
+            <svg className="w-12 h-12 mx-auto mb-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <div className="text-sm text-[var(--text-muted)]">계약 내역이 없습니다</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">상단의 &quot;계약 요청&quot; 버튼으로 구성원에게 계약서를 발송하세요</div>
+          </div>
+        ) : (
+          <>
+            {/* 전체선택 체크박스 */}
+            {filteredContracts.some((c: any) => c.status === "draft") && (
+              <div className="flex items-center gap-2 px-1">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={filteredContracts.filter((c: any) => c.status === "draft").every((c: any) => selectedIds.has(c.id))}
+                    onChange={(e) => {
+                      const draftIds = filteredContracts.filter((c: any) => c.status === "draft").map((c: any) => c.id);
+                      if (e.target.checked) {
+                        setSelectedIds(new Set([...selectedIds, ...draftIds]));
+                      } else {
+                        const next = new Set(selectedIds);
+                        draftIds.forEach((id: string) => next.delete(id));
+                        setSelectedIds(next);
+                      }
+                    }}
+                    className="rounded border-[var(--border)]"
+                  />
+                  전체선택 (임시저장 {filteredContracts.filter((c: any) => c.status === "draft").length}건)
+                </label>
+              </div>
+            )}
+          {filteredContracts.map((p: any) => {
+            const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
+            return (
+              <div key={p.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {p.status === "draft" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(p.id)}
+                        onChange={() => toggleSelect(p.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1 rounded border-[var(--border)]"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-sm font-semibold truncate">{p.title}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.bg} ${st.text}`}>{st.label}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                        <span>{p.employees?.name || "미지정"}</span>
+                        {p.employees?.department && <span>{p.employees.department}</span>}
+                        {p.created_at && <span>생성: {new Date(p.created_at).toLocaleDateString("ko-KR")}</span>}
+                        {p.sent_at && <span>발송: {new Date(p.sent_at).toLocaleDateString("ko-KR")}</span>}
+                        {p.completed_at && <span>완료: {new Date(p.completed_at).toLocaleDateString("ko-KR")}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 ml-3 shrink-0">
+                    {p.status === "draft" && (
+                      <>
+                        <button
+                          onClick={() => handleSendSignRequest(p.id)}
+                          disabled={sending === p.id}
+                          className="px-4 py-2 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition"
+                        >
+                          {sending === p.id ? "발송 중..." : "서명 요청"}
+                        </button>
+                        <button
+                          onClick={() => { if (confirm("이 계약을 취소하시겠습니까?")) cancelContract.mutate(p.id); }}
+                          className="px-3 py-2 text-xs text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10 transition"
+                        >
+                          삭제
+                        </button>
+                      </>
+                    )}
+                    {(p.status === "sent" || p.status === "partially_signed") && (
+                      <button
+                        onClick={() => handleSendSignRequest(p.id)}
+                        disabled={sending === p.id}
+                        className="px-3 py-2 text-xs font-medium text-blue-400 rounded-lg hover:bg-blue-500/10 transition"
+                      >
+                        {sending === p.id ? "발송 중..." : "재발송"}
+                      </button>
+                    )}
+                    {p.status === "completed" && (
+                      <span className="px-3 py-2 text-xs text-green-400">서명 완료</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          </>
+        )}
+      </div>
+
+      {/* 기존 계약 이력 */}
       {contracts.length > 0 && (
         <>
-          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">기존 계약 이력</h3>
+          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">계약 이력</h3>
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
             <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
               <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">직원</th>
+                <th className="text-left px-5 py-3 font-medium">구성원</th>
                 <th className="text-left px-5 py-3 font-medium">계약유형</th>
                 <th className="text-left px-5 py-3 font-medium">기간</th>
                 <th className="text-right px-5 py-3 font-medium">급여</th>
@@ -779,7 +1339,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 }
 
 // ── Attendance Tab ──
-function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
+function AttendanceTab({ employees, companyId, userId, queryClient, role }: any) {
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
@@ -817,6 +1377,40 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
     onError: (err: any) => alert(err.message),
   });
+
+  // Admin attendance correction
+  const isAdmin = role === "owner" || role === "admin";
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ check_in: "", check_out: "", status: "" });
+
+  const doCorrectAttendance = useMutation({
+    mutationFn: ({ recordId, updates }: { recordId: string; updates: { check_in?: string; check_out?: string; status?: string } }) =>
+      correctAttendanceRecord(recordId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+      setEditingRecordId(null);
+    },
+    onError: (err: any) => alert(err.message),
+  });
+
+  const startEditing = (record: any) => {
+    setEditingRecordId(record.id);
+    setEditForm({
+      check_in: record.check_in ? record.check_in.slice(0, 16) : "",
+      check_out: record.check_out ? record.check_out.slice(0, 16) : "",
+      status: record.status || "present",
+    });
+  };
+
+  const submitCorrection = () => {
+    if (!editingRecordId) return;
+    const updates: { check_in?: string; check_out?: string; status?: string } = {};
+    if (editForm.check_in) updates.check_in = new Date(editForm.check_in).toISOString();
+    if (editForm.check_out) updates.check_out = new Date(editForm.check_out).toISOString();
+    if (editForm.status) updates.status = editForm.status;
+    doCorrectAttendance.mutate({ recordId: editingRecordId, updates });
+  };
 
   // Build calendar data
   const calendarData = useMemo(() => {
@@ -1087,10 +1681,63 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
                   <th className="text-right px-5 py-3 font-medium">근무시간</th>
                   <th className="text-right px-5 py-3 font-medium">연장</th>
                   <th className="text-center px-5 py-3 font-medium">상태</th>
+                  {isAdmin && <th className="text-center px-5 py-3 font-medium">관리</th>}
                 </tr>
               </thead>
               <tbody>
                 {records.map((r: any) => (
+                  editingRecordId === r.id ? (
+                    <tr key={r.id} className="border-b border-[var(--border)]/50 bg-[var(--primary)]/5">
+                      <td className="px-5 py-2 text-sm font-medium">{r.employees?.name || "—"}</td>
+                      <td className="px-5 py-2 text-sm text-[var(--text-muted)]">{r.date}</td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="datetime-local"
+                          value={editForm.check_in}
+                          onChange={(e) => setEditForm({ ...editForm, check_in: e.target.value })}
+                          className="w-full px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-[var(--primary)]"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="datetime-local"
+                          value={editForm.check_out}
+                          onChange={(e) => setEditForm({ ...editForm, check_out: e.target.value })}
+                          className="w-full px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-[var(--primary)]"
+                        />
+                      </td>
+                      <td className="px-5 py-2 text-sm text-right text-[var(--text-dim)]">자동계산</td>
+                      <td className="px-5 py-2 text-sm text-right text-[var(--text-dim)]">자동계산</td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={editForm.status}
+                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                          className="w-full px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-[var(--primary)]"
+                        >
+                          {ATTENDANCE_STATUS.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            onClick={submitCorrection}
+                            disabled={doCorrectAttendance.isPending}
+                            className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg transition disabled:opacity-50"
+                          >
+                            {doCorrectAttendance.isPending ? "..." : "저장"}
+                          </button>
+                          <button
+                            onClick={() => setEditingRecordId(null)}
+                            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-card)] transition"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
                   <tr key={r.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                     <td className="px-5 py-3 text-sm font-medium">{r.employees?.name || "—"}</td>
                     <td className="px-5 py-3 text-sm text-[var(--text-muted)]">{r.date}</td>
@@ -1117,7 +1764,18 @@ function AttendanceTab({ employees, companyId, userId, queryClient }: any) {
                         {statusLabel(r.status)}
                       </span>
                     </td>
+                    {isAdmin && (
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          onClick={() => startEditing(r)}
+                          className="px-2.5 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition"
+                        >
+                          수정
+                        </button>
+                      </td>
+                    )}
                   </tr>
+                  )
                 ))}
               </tbody>
             </table></div>

@@ -45,10 +45,11 @@ function SignContent() {
   const [invalid, setInvalid] = useState(false);
   const [pkg, setPkg] = useState<PackageData | null>(null);
   const [activeItem, setActiveItem] = useState<number>(0);
-  const [signMode, setSignMode] = useState<"draw" | "type" | null>(null);
+  const [signMode, setSignMode] = useState<"draw" | "type" | "saved" | null>(null);
   const [typedName, setTypedName] = useState("");
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
 
   // Canvas ref for drawing
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,6 +92,18 @@ function SignContent() {
         .order("sort_order");
 
       setPkg({ ...p, expired, items: items || [] });
+
+      // Load saved signature from employee
+      if (p.employee_id) {
+        const { data: emp } = await db
+          .from("employees")
+          .select("saved_signature")
+          .eq("id", p.employee_id)
+          .single();
+        if (emp?.saved_signature) {
+          setSavedSignature(emp.saved_signature);
+        }
+      }
 
       // Check if already completed
       if (p.status === "completed") {
@@ -156,7 +169,9 @@ function SignContent() {
 
     let sigData: { type: "draw" | "type"; data: string };
 
-    if (signMode === "draw") {
+    if (signMode === "saved" && savedSignature) {
+      sigData = savedSignature as { type: "draw" | "type"; data: string };
+    } else if (signMode === "draw") {
       const canvas = canvasRef.current;
       if (!canvas) return;
       sigData = { type: "draw", data: canvas.toDataURL("image/png") };
@@ -379,25 +394,74 @@ function SignContent() {
               <h3 className="text-sm font-bold text-gray-800 mb-4">서명</h3>
 
               {!signMode && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setSignMode("draw")}
-                    className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
-                  >
-                    <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                    </svg>
-                    <span className="text-xs font-medium text-gray-600">직접 그리기</span>
-                  </button>
-                  <button
-                    onClick={() => setSignMode("type")}
-                    className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
-                  >
-                    <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                    </svg>
-                    <span className="text-xs font-medium text-gray-600">텍스트 입력</span>
-                  </button>
+                <div className="space-y-3">
+                  {/* 저장된 서명 (있을 때만) */}
+                  {savedSignature && (
+                    <button
+                      onClick={() => setSignMode("saved")}
+                      className="w-full py-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:border-blue-400 transition text-center"
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span className="text-sm font-semibold text-blue-700">저장된 서명 사용</span>
+                      </div>
+                      {savedSignature.type === "draw" ? (
+                        <img src={savedSignature.data} alt="저장된 서명" className="h-12 mx-auto opacity-60" />
+                      ) : (
+                        <span className="text-xl italic text-blue-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</span>
+                      )}
+                    </button>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setSignMode("draw")}
+                      className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
+                    >
+                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                      </svg>
+                      <span className="text-xs font-medium text-gray-600">직접 그리기</span>
+                    </button>
+                    <button
+                      onClick={() => setSignMode("type")}
+                      className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
+                    >
+                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                      </svg>
+                      <span className="text-xs font-medium text-gray-600">텍스트 입력</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signMode === "saved" && savedSignature && (
+                <div>
+                  <div className="p-6 bg-gray-50 rounded-xl border-2 border-blue-200 text-center mb-4">
+                    <p className="text-xs text-gray-500 mb-2">저장된 서명</p>
+                    {savedSignature.type === "draw" ? (
+                      <img src={savedSignature.data} alt="서명" className="h-16 mx-auto" />
+                    ) : (
+                      <p className="text-3xl italic text-gray-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSignMode(null)}
+                      className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                    >
+                      다른 방식
+                    </button>
+                    <button
+                      onClick={handleSign}
+                      disabled={signing}
+                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                    >
+                      {signing ? "처리 중..." : "서명 완료"}
+                    </button>
+                  </div>
                 </div>
               )}
 

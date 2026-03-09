@@ -844,6 +844,33 @@ export async function getMessages(channelId: string, limit = 100) {
   return data || [];
 }
 
+/** Paginated messages: fetches `pageSize` messages ending before `beforeCreatedAt`.
+ *  Returns messages in ascending order (oldest first). */
+export async function getMessagesPaginated(
+  channelId: string,
+  pageSize = 50,
+  beforeCreatedAt?: string,
+): Promise<{ data: any[]; hasMore: boolean }> {
+  let query = supabase
+    .from('chat_messages')
+    .select('*, users:sender_id(name, email)')
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: false })
+    .limit(pageSize + 1); // fetch one extra to check hasMore
+
+  if (beforeCreatedAt) {
+    query = query.lt('created_at', beforeCreatedAt);
+  }
+
+  const { data } = await query;
+  const rows = data || [];
+  const hasMore = rows.length > pageSize;
+  const sliced = hasMore ? rows.slice(0, pageSize) : rows;
+  // Reverse to ascending order
+  sliced.reverse();
+  return { data: sliced, hasMore };
+}
+
 export async function getPinnedMessages(channelId: string) {
   const { data } = await supabase
     .from('chat_messages')

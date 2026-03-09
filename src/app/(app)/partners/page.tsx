@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPartners, upsertPartner, deletePartner } from "@/lib/partners";
-import { getCurrentUser } from "@/lib/queries";
+import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
+import { getCurrentUser, getDeals } from "@/lib/queries";
+import { supabase } from "@/lib/supabase";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
@@ -41,6 +42,9 @@ export default function PartnersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [detailPartner, setDetailPartner] = useState<any>(null);
+  const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs">("info");
+  const [tagFilter, setTagFilter] = useState<string>("");
 
   useEffect(() => {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
@@ -52,15 +56,74 @@ export default function PartnersPage() {
   }, [search]);
 
   const { data: partners = [], isLoading } = useQuery({
-    queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch],
-    queryFn: () => getPartners(companyId, {
-      type: typeFilter || undefined,
-      isActive: activeFilter,
-      search: debouncedSearch || undefined,
-    }),
+    queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
+    queryFn: async () => {
+      if (debouncedSearch && debouncedSearch.length >= 2) {
+        // 복합검색: 이름+담당자+이메일+사업자번호
+        let results = await searchPartners(companyId, debouncedSearch);
+        if (typeFilter) results = results.filter((p: any) => p.type === typeFilter);
+        if (activeFilter !== undefined) results = results.filter((p: any) => p.is_active === activeFilter);
+        if (tagFilter) results = results.filter((p: any) => (p.tags || []).includes(tagFilter));
+        return results;
+      }
+      return getPartners(companyId, {
+        type: typeFilter || undefined,
+        isActive: activeFilter,
+        search: undefined,
+        tags: tagFilter ? [tagFilter] : undefined,
+      });
+    },
     enabled: !!companyId,
     staleTime: 30_000,
   });
+
+  // 360도뷰: 거래처의 딜/문서/결제 데이터
+  const { data: partnerDeals = [] } = useQuery({
+    queryKey: ["partner-deals", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner) return [];
+      const { data } = await (supabase as any).from("deals")
+        .select("id, name, status, contract_total, classification, created_at")
+        .eq("company_id", companyId)
+        .eq("partner_id", detailPartner.id)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!detailPartner?.id,
+  });
+
+  const { data: partnerDocs = [] } = useQuery({
+    queryKey: ["partner-docs", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner || partnerDeals.length === 0) return [];
+      const dealIds = partnerDeals.map((d: any) => d.id);
+      const { data } = await (supabase as any).from("documents")
+        .select("id, title, status, created_at, content_json")
+        .in("deal_id", dealIds)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!detailPartner?.id && partnerDeals.length > 0,
+  });
+
+  const { data: partnerPayments = [] } = useQuery({
+    queryKey: ["partner-payments", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner || partnerDeals.length === 0) return [];
+      const dealIds = partnerDeals.map((d: any) => d.id);
+      const { data } = await (supabase as any).from("deal_revenue_schedule")
+        .select("*")
+        .in("deal_id", dealIds)
+        .order("due_date", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!detailPartner?.id && partnerDeals.length > 0,
+  });
+
+  // 태그 목록 수집 (필터용)
+  const allTags = Array.from(new Set(partners.flatMap((p: any) => p.tags || []))) as string[];
 
   const saveMutation = useMutation({
     mutationFn: () => upsertPartner({
@@ -170,6 +233,29 @@ export default function PartnersPage() {
         <span className="text-xs text-[var(--text-dim)]">{partners.length}건</span>
       </div>
 
+      {/* Tag Filter Chips */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-[var(--text-dim)]">태그:</span>
+          {allTags.map((tag) => (
+            <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                tagFilter === tag
+                  ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)]"
+                  : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-dim)]"
+              }`}>
+              {tag}
+            </button>
+          ))}
+          {tagFilter && (
+            <button onClick={() => setTagFilter("")}
+              className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] transition underline">
+              전체 보기
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {isLoading ? (
@@ -199,7 +285,7 @@ export default function PartnersPage() {
                 {partners.map((p: any) => {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
-                    <tr key={p.id} onClick={() => openEdit(p)}
+                    <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); }}
                       className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition">
                       <td className="px-5 py-3 text-sm font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-center">
@@ -236,6 +322,217 @@ export default function PartnersPage() {
           </div>
         )}
       </div>
+
+      {/* 360도뷰 Detail Panel */}
+      {detailPartner && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)] font-bold text-lg">
+                  {detailPartner.name?.charAt(0) || "?"}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">{detailPartner.name}</h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {(() => { const b = TYPE_BADGE[detailPartner.type] || TYPE_BADGE.other; return <span className={`text-[10px] px-2 py-0.5 rounded-full ${b.bg} ${b.text}`}>{b.label}</span>; })()}
+                    {detailPartner.business_number && <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { openEdit(detailPartner); setDetailPartner(null); }}
+                  className="px-3 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
+                  편집
+                </button>
+                <button onClick={() => setDetailPartner(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-[var(--border)]">
+              {([
+                { key: "info" as const, label: "기본정보" },
+                { key: "deals" as const, label: `딜 (${partnerDeals.length})` },
+                { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
+                { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
+              ]).map((tab) => (
+                <button key={tab.key} onClick={() => setDetailTab(tab.key)}
+                  className={`px-5 py-3 text-sm font-medium transition border-b-2 ${
+                    detailTab === tab.key
+                      ? "border-[var(--primary)] text-[var(--primary)]"
+                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  }`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* 기본정보 */}
+              {detailTab === "info" && (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    ["대표자", detailPartner.representative],
+                    ["담당자", detailPartner.contact_name],
+                    ["이메일", detailPartner.contact_email],
+                    ["연락처", detailPartner.contact_phone],
+                    ["주소", detailPartner.address],
+                    ["분류", detailPartner.classification],
+                    ["은행", detailPartner.bank_name],
+                    ["계좌번호", detailPartner.account_number],
+                  ].map(([label, value]) => (
+                    <div key={label as string} className="bg-[var(--bg-surface)] rounded-xl p-3">
+                      <div className="text-[10px] text-[var(--text-dim)] mb-1">{label}</div>
+                      <div className="text-sm">{(value as string) || "—"}</div>
+                    </div>
+                  ))}
+                  {(detailPartner.tags || []).length > 0 && (
+                    <div className="col-span-2 bg-[var(--bg-surface)] rounded-xl p-3">
+                      <div className="text-[10px] text-[var(--text-dim)] mb-1">태그</div>
+                      <div className="flex flex-wrap gap-1">
+                        {(detailPartner.tags as string[]).map((tag: string) => (
+                          <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {detailPartner.notes && (
+                    <div className="col-span-2 bg-[var(--bg-surface)] rounded-xl p-3">
+                      <div className="text-[10px] text-[var(--text-dim)] mb-1">메모</div>
+                      <div className="text-sm whitespace-pre-wrap">{detailPartner.notes}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 딜 탭 */}
+              {detailTab === "deals" && (
+                <div>
+                  {partnerDeals.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 딜이 없습니다</div>
+                  ) : (
+                    <>
+                      <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 flex gap-6">
+                        <div>
+                          <div className="text-[10px] text-[var(--text-dim)]">총 딜</div>
+                          <div className="text-lg font-bold">{partnerDeals.length}건</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-[var(--text-dim)]">총 계약금액</div>
+                          <div className="text-lg font-bold text-[var(--primary)]">
+                            {partnerDeals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0).toLocaleString()}원
+                          </div>
+                        </div>
+                      </div>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                            <th className="text-left px-4 py-2 font-medium">딜 이름</th>
+                            <th className="text-center px-4 py-2 font-medium">상태</th>
+                            <th className="text-right px-4 py-2 font-medium">금액</th>
+                            <th className="text-right px-4 py-2 font-medium">생성일</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {partnerDeals.map((d: any) => (
+                            <tr key={d.id} className="border-b border-[var(--border)]/30">
+                              <td className="px-4 py-2.5 text-sm font-medium">{d.name}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  d.status === "won" ? "bg-green-500/10 text-green-400"
+                                  : d.status === "lost" ? "bg-red-500/10 text-red-400"
+                                  : d.status === "in_progress" ? "bg-blue-500/10 text-blue-400"
+                                  : "bg-gray-500/10 text-gray-400"
+                                }`}>{d.status}</span>
+                              </td>
+                              <td className="px-4 py-2.5 text-sm text-right">{Number(d.contract_total || 0).toLocaleString()}원</td>
+                              <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{d.created_at?.slice(0, 10)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* 결제 탭 */}
+              {detailTab === "payments" && (
+                <div>
+                  {partnerPayments.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">결제 이력이 없습니다</div>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                          <th className="text-left px-4 py-2 font-medium">라벨</th>
+                          <th className="text-right px-4 py-2 font-medium">금액</th>
+                          <th className="text-center px-4 py-2 font-medium">상태</th>
+                          <th className="text-right px-4 py-2 font-medium">예정일</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {partnerPayments.map((p: any) => (
+                          <tr key={p.id} className="border-b border-[var(--border)]/30">
+                            <td className="px-4 py-2.5 text-sm">{p.label || "—"}</td>
+                            <td className="px-4 py-2.5 text-sm text-right font-medium">{Number(p.amount || 0).toLocaleString()}원</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                p.status === "received" ? "bg-green-500/10 text-green-400"
+                                : p.status === "overdue" ? "bg-red-500/10 text-red-400"
+                                : "bg-yellow-500/10 text-yellow-400"
+                              }`}>{p.status === "received" ? "수금완료" : p.status === "overdue" ? "연체" : "대기"}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{p.due_date || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* 문서 탭 */}
+              {detailTab === "docs" && (
+                <div>
+                  {partnerDocs.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 문서가 없습니다</div>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                          <th className="text-left px-4 py-2 font-medium">문서명</th>
+                          <th className="text-center px-4 py-2 font-medium">상태</th>
+                          <th className="text-right px-4 py-2 font-medium">생성일</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {partnerDocs.map((doc: any) => (
+                          <tr key={doc.id} className="border-b border-[var(--border)]/30">
+                            <td className="px-4 py-2.5 text-sm font-medium">{doc.title || "—"}</td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                doc.status === "approved" || doc.status === "signed" ? "bg-green-500/10 text-green-400"
+                                : doc.status === "rejected" ? "bg-red-500/10 text-red-400"
+                                : "bg-yellow-500/10 text-yellow-400"
+                              }`}>{doc.status}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{doc.created_at?.slice(0, 10)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {showModal && (

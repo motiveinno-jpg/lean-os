@@ -16,7 +16,7 @@ const db = supabase as any;
 
 // ── Types ──
 
-type BucketName = "document-files" | "company-assets" | "certificates";
+type BucketName = "document-files" | "company-assets" | "certificates" | "employee-files";
 
 interface UploadParams {
   companyId: string;
@@ -48,6 +48,7 @@ const MAX_SIZES: Record<BucketName, number> = {
   "document-files": 50 * 1024 * 1024,
   "company-assets": 5 * 1024 * 1024,
   certificates: 10 * 1024 * 1024,
+  "employee-files": 50 * 1024 * 1024,
 };
 
 const ALLOWED_TYPES = [
@@ -500,4 +501,76 @@ export async function deleteFolder(
       folderName: folder?.name,
     },
   });
+}
+
+// ── 14. Upload employee file (입사서류) ──
+
+export async function uploadEmployeeFile(params: {
+  companyId: string;
+  employeeId: string;
+  category: string;
+  file: File;
+}): Promise<{ id: string; file_url: string; storage_path: string }> {
+  const { companyId, employeeId, category, file } = params;
+
+  validateFile(file, "employee-files");
+
+  const ext = getExtension(file.name);
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 10);
+  const storagePath = `${companyId}/${employeeId}/${category}/${timestamp}_${random}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("employee-files")
+    .upload(storagePath, file);
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage.from("employee-files").getPublicUrl(storagePath);
+
+  const { data: record, error: insertError } = await db
+    .from("employee_files")
+    .insert({
+      company_id: companyId,
+      employee_id: employeeId,
+      category,
+      file_name: file.name,
+      file_url: urlData.publicUrl,
+      storage_path: storagePath,
+      file_size: file.size,
+      mime_type: file.type,
+    })
+    .select()
+    .single();
+  if (insertError) throw insertError;
+
+  return { id: record.id, file_url: urlData.publicUrl, storage_path: storagePath };
+}
+
+// ── 15. Get employee files ──
+
+export async function getEmployeeFiles(employeeId: string) {
+  const { data, error } = await db
+    .from("employee_files")
+    .select("*")
+    .eq("employee_id", employeeId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// ── 16. Delete employee file ──
+
+export async function deleteEmployeeFile(fileId: string) {
+  const { data: file } = await db
+    .from("employee_files")
+    .select("storage_path")
+    .eq("id", fileId)
+    .single();
+
+  if (file?.storage_path) {
+    await supabase.storage.from("employee-files").remove([file.storage_path]);
+  }
+
+  const { error } = await db.from("employee_files").delete().eq("id", fileId);
+  if (error) throw error;
 }

@@ -36,8 +36,10 @@ export async function createDocumentFromDeal(params: {
   dealId: string;
   docType: DocChainType;
   createdBy: string;
+  items?: Array<{ name: string; quantity: number; unitPrice: number; supplyAmount: number; taxAmount: number; totalAmount: number; note?: string }>;
+  paymentRatio?: { advance: number; balance: number };
 }): Promise<string> {
-  const { companyId, dealId, docType, createdBy } = params;
+  const { companyId, dealId, docType, createdBy, items: passedItems, paymentRatio } = params;
 
   // Fetch deal + partner info
   const { data: deal } = await db
@@ -106,34 +108,42 @@ export async function createDocumentFromDeal(params: {
           note: '',
         }];
 
+    // Use custom payment ratio from quote content or passed params, fallback to 30/70
+    const advanceRatio = quoteContent?.paymentRatio?.advance ?? paymentRatio?.advance ?? 30;
+    const balanceRatio = quoteContent?.paymentRatio?.balance ?? paymentRatio?.balance ?? 70;
+
     Object.assign(contentJson, {
       contractStartDate: new Date().toISOString().split('T')[0],
       contractEndDate: '',
-      paymentTerms: '계약금 30% (계약 후 7일 이내), 잔금 70% (납품 완료 후 14일 이내)',
+      paymentTerms: `계약금 ${advanceRatio}% (계약 후 7일 이내), 잔금 ${balanceRatio}% (납품 완료 후 14일 이내)`,
       paymentSchedule: [
-        { label: '선금', ratio: 30, amount: Math.round(contractTotal * 0.3), condition: '계약 후 7일 이내' },
-        { label: '잔금', ratio: 70, amount: contractTotal - Math.round(contractTotal * 0.3), condition: '납품 완료 후 14일 이내' },
+        { label: '선금', ratio: advanceRatio, amount: Math.round(contractTotal * advanceRatio / 100), condition: '계약 후 7일 이내' },
+        { label: '잔금', ratio: balanceRatio, amount: contractTotal - Math.round(contractTotal * advanceRatio / 100), condition: '납품 완료 후 14일 이내' },
       ],
+      paymentRatio: { advance: advanceRatio, balance: balanceRatio },
       items: inheritedItems,
     });
   }
 
   // Add quote-specific fields with structured items
   if (docType === 'invoice') {
-    const items = (deal.items && Array.isArray(deal.items) && deal.items.length > 0)
-      ? deal.items
-      : [{
-          name: deal.name || '',
-          quantity: 1,
-          unitPrice: contractTotal,
-          supplyAmount: contractTotal,
-          taxAmount: Math.round(contractTotal * 0.1),
-          totalAmount: Math.round(contractTotal * 1.1),
-          note: '',
-        }];
+    const items = (passedItems && passedItems.length > 0)
+      ? passedItems
+      : (deal.items && Array.isArray(deal.items) && deal.items.length > 0)
+        ? deal.items
+        : [{
+            name: deal.name || '',
+            quantity: 1,
+            unitPrice: contractTotal,
+            supplyAmount: contractTotal,
+            taxAmount: Math.round(contractTotal * 0.1),
+            totalAmount: Math.round(contractTotal * 1.1),
+            note: '',
+          }];
     Object.assign(contentJson, {
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       items,
+      ...(paymentRatio ? { paymentRatio } : {}),
     });
   }
 
@@ -212,6 +222,7 @@ export async function onDocumentApproved(params: {
       partnerName: content?.partnerName || '',
       partnerBizNo: content?.partnerBizNo || '',
       paymentSchedule: content?.paymentSchedule || null,
+      paymentRatio: content?.paymentRatio || null,
     });
 
     return {
@@ -233,20 +244,23 @@ async function onContractApproved(params: {
   partnerName: string;
   partnerBizNo: string;
   paymentSchedule?: any[] | null;
+  paymentRatio?: { advance: number; balance: number } | null;
 }) {
-  const { dealId, companyId, userId, contractTotal, partnerName, partnerBizNo, paymentSchedule } = params;
+  const { dealId, companyId, userId, contractTotal, partnerName, partnerBizNo, paymentSchedule, paymentRatio } = params;
   const invoiceIds: string[] = [];
 
   if (contractTotal <= 0) return { invoiceIds };
 
   // ★ 핵심 순서: revenue_schedule 먼저 생성 → 생성된 row id 받기 → 세금계산서 draft에 연결
 
-  // Step 1: paymentSchedule 결정
+  // Step 1: paymentSchedule 결정 — use custom ratio if no explicit schedule provided
+  const advRatio = paymentRatio?.advance ?? 30;
+  const balRatio = paymentRatio?.balance ?? 70;
   const schedule = (paymentSchedule && Array.isArray(paymentSchedule) && paymentSchedule.length > 0)
     ? paymentSchedule
     : [
-        { label: '선금', ratio: 30, amount: Math.round(contractTotal * 0.3), condition: '계약 후 7일 이내' },
-        { label: '잔금', ratio: 70, amount: contractTotal - Math.round(contractTotal * 0.3), condition: '납품 완료 후 14일 이내' },
+        { label: '선금', ratio: advRatio, amount: Math.round(contractTotal * advRatio / 100), condition: '계약 후 7일 이내' },
+        { label: '잔금', ratio: balRatio, amount: contractTotal - Math.round(contractTotal * advRatio / 100), condition: '납품 완료 후 14일 이내' },
       ];
 
   // Step 2: revenue_schedule rows 먼저 생성
@@ -454,9 +468,9 @@ export async function onRevenueReceived(params: {
 
 export async function getDealPipelineStatus(dealId: string): Promise<PipelineStage[]> {
   // Get all documents linked to this deal
-  const { data: docs } = await supabase
+  const { data: docs } = await (supabase as any)
     .from('documents')
-    .select('id, name, status, content_json, created_at')
+    .select('id, name, status, content_json, created_at, updated_at')
     .eq('deal_id', dealId)
     .order('created_at', { ascending: true });
 
@@ -485,7 +499,7 @@ export async function getDealPipelineStatus(dealId: string): Promise<PipelineSta
     stage: 'quote',
     status: !quoteDoc ? 'pending' : quoteDoc.status === 'approved' || quoteDoc.status === 'locked' ? 'completed' : 'active',
     documentId: quoteDoc?.id,
-    completedAt: quoteDoc?.status === 'approved' ? (quoteDoc.created_at ?? undefined) : undefined,
+    completedAt: quoteDoc?.status === 'approved' ? (quoteDoc.updated_at ?? quoteDoc.created_at ?? undefined) : undefined,
   });
 
   // Stage 2: Contract document

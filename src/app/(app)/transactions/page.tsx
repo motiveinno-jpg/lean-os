@@ -162,10 +162,34 @@ export default function TransactionsPage() {
 
       if (records.length === 0) throw new Error("유효한 거래 데이터가 없습니다");
 
-      const { error } = await supabase.from("bank_transactions").insert(records);
-      if (error) throw error;
+      // ── F-4: Duplicate check (transaction_date + amount + counterparty) ──
+      const { data: existing } = await supabase
+        .from("bank_transactions")
+        .select("transaction_date, amount, counterparty")
+        .eq("company_id", companyId);
 
-      setUploadResult(`${records.length}건 업로드 완료`);
+      const existingKeys = new Set(
+        (existing || []).map((e: any) =>
+          `${e.transaction_date}|${Number(e.amount)}|${(e.counterparty || '').trim().toLowerCase()}`
+        )
+      );
+
+      const uniqueRecords = records.filter(r => {
+        const key = `${r.transaction_date}|${r.amount}|${(r.counterparty || '').trim().toLowerCase()}`;
+        return !existingKeys.has(key);
+      });
+
+      const duplicateCount = records.length - uniqueRecords.length;
+
+      if (uniqueRecords.length > 0) {
+        const { error } = await supabase.from("bank_transactions").insert(uniqueRecords);
+        if (error) throw error;
+      }
+
+      const parts: string[] = [];
+      if (uniqueRecords.length > 0) parts.push(`${uniqueRecords.length}건 업로드 완료`);
+      if (duplicateCount > 0) parts.push(`${duplicateCount}건 중복 건너뜀`);
+      setUploadResult(parts.join(', ') || '업로드할 데이터가 없습니다');
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
     } catch (err: any) {
@@ -221,10 +245,34 @@ export default function TransactionsPage() {
 
       if (records.length === 0) throw new Error("유효한 카드 거래 데이터가 없습니다");
 
-      const { error } = await supabase.from("card_transactions").insert(records);
-      if (error) throw error;
+      // ── F-4: Card CSV duplicate check (transaction_date + amount + merchant_name) ──
+      const { data: existingCards } = await supabase
+        .from("card_transactions")
+        .select("transaction_date, amount, merchant_name")
+        .eq("company_id", companyId);
 
-      setCardUploadResult(`${records.length}건 카드 거래 업로드 완료`);
+      const existingCardKeys = new Set(
+        (existingCards || []).map((e: any) =>
+          `${e.transaction_date}|${Number(e.amount)}|${(e.merchant_name || '').trim().toLowerCase()}`
+        )
+      );
+
+      const uniqueCardRecords = records.filter(r => {
+        const key = `${r.transaction_date}|${r.amount}|${(r.merchant_name || '').trim().toLowerCase()}`;
+        return !existingCardKeys.has(key);
+      });
+
+      const cardDuplicateCount = records.length - uniqueCardRecords.length;
+
+      if (uniqueCardRecords.length > 0) {
+        const { error } = await supabase.from("card_transactions").insert(uniqueCardRecords);
+        if (error) throw error;
+      }
+
+      const cardParts: string[] = [];
+      if (uniqueCardRecords.length > 0) cardParts.push(`${uniqueCardRecords.length}건 카드 거래 업로드 완료`);
+      if (cardDuplicateCount > 0) cardParts.push(`${cardDuplicateCount}건 중복 건너뜀`);
+      setCardUploadResult(cardParts.join(', ') || '업로드할 데이터가 없습니다');
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
     } catch (err: any) {

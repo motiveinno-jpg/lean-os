@@ -72,13 +72,30 @@ function MobileBottomNav() {
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide"],
-  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide"],
+  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide", "/onboarding"],
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
-  const { role, loading } = useUser();
+  const { role, user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
+
+  // 온보딩 미완료 직원 → /onboarding 리다이렉트
+  useEffect(() => {
+    if (loading || !user || role !== "employee") return;
+    if (pathname === "/onboarding") return; // 이미 온보딩 중
+    // Check if onboarding is needed
+    (async () => {
+      const { data: emp } = await (supabase as any)
+        .from("employees")
+        .select("onboarding_completed_at, status")
+        .eq("user_id", user.id)
+        .single();
+      if (emp && !emp.onboarding_completed_at && (emp.status === "joined" || emp.status === "contract_pending")) {
+        router.replace("/onboarding");
+      }
+    })();
+  }, [loading, user, role, pathname, router]);
 
   useEffect(() => {
     if (loading) return;

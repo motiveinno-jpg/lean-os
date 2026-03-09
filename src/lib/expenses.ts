@@ -15,6 +15,7 @@ export const EXPENSE_CATEGORIES = [
   { value: 'education', label: '교육비' },
   { value: 'equipment', label: '장비 구매' },
   { value: 'subscription', label: '구독료' },
+  { value: 'meals', label: '식비' },
   { value: 'other', label: '기타' },
 ] as const;
 
@@ -114,7 +115,7 @@ export async function approveExpense(params: {
   comment?: string;
 }) {
   // Create approval record
-  await db.from('expense_approvals').insert({
+  const { error: approvalError } = await db.from('expense_approvals').insert({
     company_id: params.companyId,
     expense_id: params.expenseId,
     approver_id: params.approverId,
@@ -123,13 +124,21 @@ export async function approveExpense(params: {
     comment: params.comment || null,
     decided_at: new Date().toISOString(),
   });
+  if (approvalError) throw approvalError;
 
   // Update expense status
   const { error } = await db
     .from('expense_requests')
     .update({ status: 'approved', updated_at: new Date().toISOString() })
     .eq('id', params.expenseId);
-  if (error) throw error;
+  if (error) {
+    // Rollback: delete the approval record
+    await db.from('expense_approvals').delete()
+      .eq('expense_id', params.expenseId)
+      .eq('approver_id', params.approverId)
+      .eq('status', 'approved');
+    throw error;
+  }
 }
 
 export async function rejectExpense(params: {
@@ -138,7 +147,7 @@ export async function rejectExpense(params: {
   approverId: string;
   comment?: string;
 }) {
-  await db.from('expense_approvals').insert({
+  const { error: approvalError } = await db.from('expense_approvals').insert({
     company_id: params.companyId,
     expense_id: params.expenseId,
     approver_id: params.approverId,
@@ -147,12 +156,20 @@ export async function rejectExpense(params: {
     comment: params.comment || null,
     decided_at: new Date().toISOString(),
   });
+  if (approvalError) throw approvalError;
 
   const { error } = await db
     .from('expense_requests')
     .update({ status: 'rejected', updated_at: new Date().toISOString() })
     .eq('id', params.expenseId);
-  if (error) throw error;
+  if (error) {
+    // Rollback: delete the rejection record
+    await db.from('expense_approvals').delete()
+      .eq('expense_id', params.expenseId)
+      .eq('approver_id', params.approverId)
+      .eq('status', 'rejected');
+    throw error;
+  }
 }
 
 export async function markExpensePaid(expenseId: string) {

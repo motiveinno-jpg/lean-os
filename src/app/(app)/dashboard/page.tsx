@@ -215,23 +215,31 @@ export default function DashboardPage() {
     setGenerating(false);
   }, [companyId, queryClient]);
 
-  // ── 데이터 동기화 핸들러 ──
+  // ── 데이터 동기화 핸들러 (수집 + 분류 통합) ──
   const handleDataSync = useCallback(async () => {
     if (!companyId || syncing) return;
     setSyncing(true);
     setSyncResult(null);
     try {
-      // 1) 자동화 엔진 실행 (분류 → 매칭 → 3-Way 대사 → 배치)
+      // 1) DB에 동기화 요청 등록 → local-agent가 감지하여 데이터 수집 실행
+      await (supabase as any).from('sync_jobs').insert({
+        company_id: companyId,
+        status: 'pending',
+        targets: ['bank', 'hometax', 'card', 'classify'],
+        requested_by: userId,
+      });
+
+      // 2) 자동 분류 엔진 즉시 실행 (이미 DB에 있는 데이터 분류)
       const result = await runAllAutomation(companyId);
 
-      // 2) 쿼리 캐시 갱신
+      // 3) 쿼리 캐시 갱신
       queryClient.invalidateQueries({ queryKey: ["founder-data"] });
       queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
 
       const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       setSyncResult({
         success: true,
-        message: `동기화 완료 — 은행분류 ${result.bankClassification.matched}건 · 카드매핑 ${result.cardMapping.matched}건 · 3-Way ${result.threeWayMatch.autoMatched}건`,
+        message: `분류 완료 — 은행 ${result.bankClassification.matched}건 · 카드 ${result.cardMapping.matched}건 · 3-Way ${result.threeWayMatch.autoMatched}건 | 데이터 수집 요청됨 (에이전트 대기 중)`,
         time: now,
       });
     } catch (err: any) {
@@ -243,7 +251,7 @@ export default function DashboardPage() {
     } finally {
       setSyncing(false);
     }
-  }, [companyId, syncing, queryClient]);
+  }, [companyId, userId, syncing, queryClient]);
 
   const sp = dashboard.sixPack;
 

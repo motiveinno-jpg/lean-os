@@ -119,7 +119,8 @@ function InviteContent() {
       }
 
       setLoading(false);
-      router.push("/dashboard");
+      // 직원 초대 → 온보딩으로 이동, 파트너 → 대시보드
+      router.push(invite.type === "employee" ? "/onboarding" : "/dashboard");
     } catch (err: any) {
       setLoading(false);
       setError(err.message || "오류가 발생했습니다.");

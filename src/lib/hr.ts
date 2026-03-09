@@ -136,12 +136,17 @@ export const CONTRACT_TYPES = [
 // ── Attendance & Leave Constants ──
 
 export const LEAVE_TYPES = [
-  { value: 'annual', label: '연차' },
-  { value: 'sick', label: '병가' },
-  { value: 'personal', label: '경조사' },
-  { value: 'maternity', label: '출산휴가' },
-  { value: 'paternity', label: '배우자출산휴가' },
-  { value: 'compensation', label: '대체휴무' },
+  { value: 'annual', label: '연차', defaultDays: 15, description: '근로기준법 제60조 기반 연차유급휴가' },
+  { value: 'sick', label: '병가', defaultDays: 10, description: '질병 또는 부상으로 인한 휴가' },
+  { value: 'personal', label: '경조사', defaultDays: 5, description: '개인 경조사 관련 휴가' },
+  { value: 'maternity', label: '출산휴가', defaultDays: 90, description: '출산 전후 휴가 (근로기준법 제74조)' },
+  { value: 'paternity', label: '배우자출산휴가', defaultDays: 10, description: '배우자 출산 시 사용' },
+  { value: 'compensation', label: '대체휴무', defaultDays: 0, description: '휴일 근무에 대한 대체 휴무' },
+  { value: 'family_care', label: '가족돌봄휴가', defaultDays: 10, description: '가족 돌봄이 필요한 경우 사용' },
+  { value: 'official', label: '공가', defaultDays: 5, description: '공적 업무 수행을 위한 휴가' },
+  { value: 'menstrual', label: '생리휴가', defaultDays: 12, description: '근로기준법 제73조 기반' },
+  { value: 'compensatory', label: '보상휴가', defaultDays: 0, description: '초과근무에 대한 보상 휴가' },
+  { value: 'bereavement', label: '경조휴가', defaultDays: 5, description: '가족 경조사' },
 ] as const;
 
 export const LEAVE_UNITS = [
@@ -167,7 +172,7 @@ export const LEAVE_REQUEST_STATUS = {
 } as const;
 
 // ── Attendance: Check In ──
-export async function checkIn(companyId: string, employeeId: string) {
+export async function checkIn(companyId: string, employeeId: string, workStartTime: string = "09:30") {
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
 
@@ -183,10 +188,11 @@ export async function checkIn(companyId: string, employeeId: string) {
     throw new Error('이미 오늘 출근 기록이 있습니다');
   }
 
-  // Determine status: if check-in after 09:30, it's late
+  // Determine status based on workStartTime (default: 09:30)
+  const [thresholdHour, thresholdMinute] = workStartTime.split(':').map(Number);
   const hour = new Date().getHours();
   const minute = new Date().getMinutes();
-  const status = (hour > 9 || (hour === 9 && minute > 30)) ? 'late' : 'present';
+  const status = (hour > thresholdHour || (hour === thresholdHour && minute > thresholdMinute)) ? 'late' : 'present';
 
   const { data, error } = await db
     .from('attendance_records')
@@ -238,6 +244,41 @@ export async function checkOut(employeeId: string, date?: string) {
       overtime_hours: overtimeHours,
     })
     .eq('id', record.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ── Attendance: Admin correction ──
+export async function correctAttendanceRecord(recordId: string, updates: {
+  check_in?: string;
+  check_out?: string;
+  status?: string;
+}) {
+  // Recalculate work hours if both check_in and check_out are provided
+  let workHours: number | undefined;
+  let overtimeHours: number | undefined;
+
+  if (updates.check_in && updates.check_out) {
+    const checkInTime = new Date(updates.check_in).getTime();
+    const checkOutTime = new Date(updates.check_out).getTime();
+    const diffHours = (checkOutTime - checkInTime) / (1000 * 60 * 60);
+    workHours = Math.round(Math.max(0, diffHours - 1) * 100) / 100; // subtract 1hr lunch
+    overtimeHours = Math.round(Math.max(0, workHours - 8) * 100) / 100;
+  }
+
+  const updatePayload: Record<string, any> = {};
+  if (updates.check_in) updatePayload.check_in = updates.check_in;
+  if (updates.check_out) updatePayload.check_out = updates.check_out;
+  if (updates.status) updatePayload.status = updates.status;
+  if (workHours !== undefined) updatePayload.work_hours = workHours;
+  if (overtimeHours !== undefined) updatePayload.overtime_hours = overtimeHours;
+
+  const { data, error } = await db
+    .from('attendance_records')
+    .update(updatePayload)
+    .eq('id', recordId)
     .select()
     .single();
   if (error) throw error;

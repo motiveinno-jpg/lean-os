@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getParticipants, getChannelEvents,
+  getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getMessagesPaginated, getParticipants, getChannelEvents,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
 import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
@@ -49,6 +49,11 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const [extContact, setExtContact] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [rtStatus, setRtStatus] = useState<RealtimeStatus>('connecting');
+  const [allMessages, setAllMessages] = useState<any[]>([]);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -62,12 +67,42 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     enabled: !!channelId,
   });
 
-  const { data: messages = [] } = useQuery({
-    queryKey: ["chat-messages", channelId],
-    queryFn: () => getMessages(channelId),
-    enabled: !!channelId,
-    refetchInterval: 5000,
-  });
+  // Initial load: fetch latest 50 messages
+  useEffect(() => {
+    if (!channelId) return;
+    isInitialLoad.current = true;
+    (async () => {
+      const result = await getMessagesPaginated(channelId, 50);
+      setAllMessages(result.data);
+      setHasOlderMessages(result.hasMore);
+      isInitialLoad.current = false;
+    })();
+  }, [channelId]);
+
+  // Load older messages
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlder || !hasOlderMessages || allMessages.length === 0) return;
+    setLoadingOlder(true);
+    const scrollEl = scrollContainerRef.current;
+    const prevScrollHeight = scrollEl?.scrollHeight || 0;
+    try {
+      const oldest = allMessages[0];
+      const result = await getMessagesPaginated(channelId, 50, oldest.created_at);
+      setAllMessages(prev => [...result.data, ...prev]);
+      setHasOlderMessages(result.hasMore);
+      // Preserve scroll position after prepending older messages
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+        }
+      });
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [channelId, loadingOlder, hasOlderMessages, allMessages]);
+
+  // Alias for rest of component
+  const messages = allMessages;
 
   const { data: participants = [] } = useQuery({
     queryKey: ["chat-participants", channelId],
@@ -105,17 +140,40 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     enabled: !!companyId,
   });
 
+  // Realtime: sole mechanism for live updates (no polling)
   useEffect(() => {
     if (!channelId) return;
     setRtStatus('connecting');
     const subs = [
-      subscribeToMessages(channelId, () => {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+      subscribeToMessages(channelId, async () => {
+        // Fetch only new messages since the last message we have
+        const lastMsg = allMessages.length > 0 ? allMessages[allMessages.length - 1] : null;
+        if (lastMsg) {
+          const result = await getMessagesPaginated(channelId, 50);
+          // Merge: keep any older messages already loaded, append genuinely new ones
+          setAllMessages(prev => {
+            const existingIds = new Set(prev.map((m: any) => m.id));
+            const newMsgs = result.data.filter((m: any) => !existingIds.has(m.id));
+            return [...prev, ...newMsgs];
+          });
+        } else {
+          const result = await getMessagesPaginated(channelId, 50);
+          setAllMessages(result.data);
+          setHasOlderMessages(result.hasMore);
+        }
       }, (status) => {
         setRtStatus(status);
       }),
-      subscribeToMessageUpdates(channelId, () => {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+      subscribeToMessageUpdates(channelId, async () => {
+        // Refetch latest page to pick up edits/deletes/pins
+        const result = await getMessagesPaginated(channelId, 50);
+        setAllMessages(prev => {
+          const olderMessages = prev.filter((m: any) =>
+            !result.data.some((r: any) => r.id === m.id) &&
+            new Date(m.created_at) < new Date(result.data[0]?.created_at || 0)
+          );
+          return [...olderMessages, ...result.data];
+        });
       }),
       subscribeToReactions(channelId, () => {
         queryClient.invalidateQueries({ queryKey: ["chat-reactions", channelId] });
@@ -126,11 +184,20 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
 
   useEffect(() => {
     if (channelId && userId) markAsRead(channelId, userId);
-  }, [channelId, userId, messages.length]);
+  }, [channelId, userId, allMessages.length]);
 
+  // Auto-scroll on new messages (skip during initial load — handled separately)
   useEffect(() => {
+    if (isInitialLoad.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [allMessages.length]);
+
+  // Scroll to bottom after initial load
+  useEffect(() => {
+    if (!isInitialLoad.current && allMessages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [channelId]);
 
   const actionCardMap = new Map<string, any>();
   actionCards.forEach((ac: any) => actionCardMap.set(ac.message_id, ac));
@@ -339,7 +406,19 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
               )}
             </div>
           )}
-          <div className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
+          <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
+            {/* Load older messages button */}
+            {hasOlderMessages && (
+              <div className="text-center mb-3">
+                <button
+                  onClick={loadOlderMessages}
+                  disabled={loadingOlder}
+                  className="px-4 py-1.5 text-xs font-semibold text-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 rounded-lg transition disabled:opacity-50"
+                >
+                  {loadingOlder ? '불러오는 중...' : '이전 메시지 불러오기'}
+                </button>
+              </div>
+            )}
             {messages.length === 0 ? (
               <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
             ) : (
@@ -758,7 +837,6 @@ function GuestChatView({ token }: { token: string }) {
     queryKey: ["guest-messages", session?.channelId],
     queryFn: () => getMessages(session!.channelId),
     enabled: !!session?.channelId,
-    refetchInterval: 5000,
   });
 
   const { data: participants = [] } = useQuery({

@@ -21,7 +21,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/deals", label: "프로젝트/딜", icon: "briefcase" },
-      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin", "employee"] },
+      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin"] },
     ],
   },
   {
@@ -31,7 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/transactions", label: "거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
-      { href: "/matching", label: "매칭 엔진", icon: "link", roles: ["owner"] },
+      { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
     ],
   },
   {
@@ -40,7 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/documents", label: "문서/계약", icon: "folder" },
       { href: "/approvals", label: "결재", icon: "clipboard-check", roles: ["owner", "admin", "employee"] },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/employees", label: "인사/급여", icon: "user-check", roles: ["owner", "admin"] },
+      { href: "/employees", label: "인사/급여", icon: "user-check", roles: ["owner", "admin", "employee"] },
     ],
   },
   {

@@ -1923,104 +1923,303 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
 // ═══════════════════════════════════════════
 // Certificate Management Tab
 // ═══════════════════════════════════════════
+
 function CertificateManagementTab({ companyId }: { companyId: string | null }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
+  const BANK_LIST = [
+    { value: "ibk", label: "IBK 기업은행" },
+    { value: "kb", label: "KB 국민은행" },
+    { value: "shinhan", label: "신한은행" },
+    { value: "hana", label: "하나은행" },
+    { value: "woori", label: "우리은행" },
+    { value: "nh", label: "NH 농협은행" },
+    { value: "kdb", label: "KDB 산업은행" },
+    { value: "sc", label: "SC 제일은행" },
+    { value: "daegu", label: "대구은행" },
+    { value: "busan", label: "부산은행" },
+    { value: "kwangju", label: "광주은행" },
+    { value: "suhyup", label: "수협은행" },
+  ];
+  const CARD_LIST = [
+    { value: "lottecard", label: "롯데카드" },
+    { value: "samsung", label: "삼성카드" },
+    { value: "hyundai", label: "현대카드" },
+    { value: "shinhan", label: "신한카드" },
+    { value: "kb", label: "KB국민카드" },
+    { value: "hana", label: "하나카드" },
+    { value: "woori", label: "우리카드" },
+    { value: "bc", label: "BC카드" },
+    { value: "nh", label: "NH농협카드" },
+    { value: "ibkcard", label: "IBK기업은행카드" },
+  ];
+  type ServiceEntry = { company: string; login_id: string; login_password: string; cert_password?: string };
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ issuer: "", expires_at: "", purpose_tax: true, purpose_bank: true, purpose_contract: false, password: "" });
-  const certFileRef = useRef<HTMLInputElement>(null);
-  const [uploadError, setUploadError] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const { data: certificates = [] } = useQuery({
-    queryKey: ["certificates", companyId],
-    queryFn: async () => { if (!companyId) return []; const { data } = await db2.from("certificates").select("*").eq("company_id", companyId).order("created_at", { ascending: false }); return data || []; },
+  const [banks, setBanks] = useState<ServiceEntry[]>([]);
+  const [cards, setCards] = useState<ServiceEntry[]>([]);
+  const [showPw, setShowPw] = useState<Record<string, boolean>>({});
+  const [autoSign, setAutoSign] = useState({ auto_sign_tax_invoice: true, auto_sign_bank_transfer: true });
+
+  // 인증정보 조회
+  const { data: creds = [] } = useQuery({
+    queryKey: ["automation-credentials", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await db2.from("automation_credentials").select("*").eq("company_id", companyId);
+      return data || [];
+    },
     enabled: !!companyId,
   });
-  const [autoSign, setAutoSign] = useState({ auto_sign_tax_invoice: true, auto_sign_bank_transfer: true });
+
+  // 자동서명 설정
   const { data: certSettings } = useQuery({
     queryKey: ["cert-settings", companyId],
     queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("cert_settings").eq("id", companyId).single(); return data?.cert_settings || {}; },
     enabled: !!companyId,
   });
+
   useEffect(() => { if (certSettings) setAutoSign((prev) => ({ ...prev, ...certSettings })); }, [certSettings]);
 
-  async function handleCertUpload(file: File) {
+  // 기존값 초기화
+  useEffect(() => {
+    if (creds.length > 0) {
+      // 은행 목록
+      const bankEntries = creds.filter((c: any) => c.service?.startsWith("bank_"));
+      if (bankEntries.length > 0) {
+        setBanks(bankEntries.map((b: any) => ({
+          company: b.service.replace("bank_", "").replace(/_\d+$/, ""),
+          login_id: b.credentials?.login_id || "",
+          login_password: b.credentials?.login_password || "",
+          cert_password: b.credentials?.cert_password || "",
+        })));
+      }
+      // 카드 목록
+      const cardEntries = creds.filter((c: any) => c.service?.startsWith("card_"));
+      if (cardEntries.length > 0) {
+        setCards(cardEntries.map((c: any) => ({
+          company: c.service.replace("card_", "").replace(/_\d+$/, ""),
+          login_id: c.credentials?.login_id || "",
+          login_password: c.credentials?.login_password || "",
+          cert_password: c.credentials?.cert_password || "",
+        })));
+      }
+      // 레거시: 기존 ibk/hometax/lottecard 데이터 마이그레이션
+      const ibk = creds.find((c: any) => c.service === "ibk");
+      const lc = creds.find((c: any) => c.service === "lottecard");
+      if (ibk?.credentials?.cert_password && bankEntries.length === 0) {
+        setBanks([{ company: "ibk", login_id: "", login_password: "", cert_password: ibk.credentials.cert_password }]);
+      }
+      if (lc?.credentials?.login_id && cardEntries.length === 0) {
+        setCards([{ company: "lottecard", login_id: lc.credentials.login_id, login_password: lc.credentials.login_password || "" }]);
+      }
+    }
+  }, [creds]);
+
+  function addBank() { setBanks([...banks, { company: "ibk", login_id: "", login_password: "", cert_password: "" }]); }
+  function removeBank(i: number) { setBanks(banks.filter((_, idx) => idx !== i)); }
+  function updateBank(i: number, field: string, val: string) { setBanks(banks.map((b, idx) => idx === i ? { ...b, [field]: val } : b)); }
+  function addCard() { setCards([...cards, { company: "lottecard", login_id: "", login_password: "", cert_password: "" }]); }
+  function removeCard(i: number) { setCards(cards.filter((_, idx) => idx !== i)); }
+  function updateCard(i: number, field: string, val: string) { setCards(cards.map((c, idx) => idx === i ? { ...c, [field]: val } : c)); }
+
+  async function saveAll() {
     if (!companyId) return;
-    setUploadError("");
-    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    if (![".pfx", ".p12", ".pem", ".der"].includes(ext)) { setUploadError("지원: .pfx, .p12, .pem, .der"); return; }
-    if (file.size > 10 * 1024 * 1024) { setUploadError("10MB 이하만 가능"); return; }
-    setUploading(true);
+    setSaving(true);
     try {
-      const path = `${companyId}/cert_${Date.now()}${ext}`;
-      const { error: e } = await supabase.storage.from("certificates").upload(path, file);
-      if (e) throw e;
-      const { data: u } = supabase.storage.from("certificates").getPublicUrl(path);
-      await db2.from("certificates").insert({ company_id: companyId, file_url: u.publicUrl, file_name: file.name, issuer: uploadForm.issuer || null, expires_at: uploadForm.expires_at || null, purpose_tax: uploadForm.purpose_tax, purpose_bank: uploadForm.purpose_bank, purpose_contract: uploadForm.purpose_contract, is_active: true });
-      queryClient.invalidateQueries({ queryKey: ["certificates"] });
-      setShowUpload(false);
-      setUploadForm({ issuer: "", expires_at: "", purpose_tax: true, purpose_bank: true, purpose_contract: false, password: "" });
-    } catch (err: any) { setUploadError(err.message || "업로드 실패"); } finally { setUploading(false); }
+      // 기존 은행/카드 인증정보 삭제 후 다시 저장
+      await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "bank_%");
+      await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "card_%");
+      // 레거시 데이터도 정리
+      await db2.from("automation_credentials").delete().eq("company_id", companyId).in("service", ["ibk", "hometax", "lottecard"]);
+
+      // 은행 저장
+      for (let i = 0; i < banks.length; i++) {
+        const b = banks[i];
+        if (!b.cert_password && !b.login_id) continue;
+        await db2.from("automation_credentials").insert({
+          company_id: companyId,
+          service: `bank_${b.company}_${i}`,
+          credentials: { cert_password: b.cert_password, login_id: b.login_id, login_password: b.login_password, bank_name: b.company },
+          updated_at: new Date().toISOString(),
+        });
+        // 홈택스도 동일 인증서 비밀번호 사용 (첫 번째 은행 기준)
+        if (i === 0 && b.cert_password) {
+          await db2.from("automation_credentials").upsert({
+            company_id: companyId, service: "hometax",
+            credentials: { cert_password: b.cert_password },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id,service" });
+        }
+      }
+
+      // 카드 저장
+      for (let i = 0; i < cards.length; i++) {
+        const c = cards[i];
+        if (!c.login_id && !c.cert_password) continue;
+        await db2.from("automation_credentials").insert({
+          company_id: companyId,
+          service: `card_${c.company}_${i}`,
+          credentials: { login_id: c.login_id, login_password: c.login_password, cert_password: c.cert_password, card_company: c.company },
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      // 자동서명 설정
+      await db2.from("companies").update({ cert_settings: autoSign }).eq("id", companyId);
+
+      queryClient.invalidateQueries({ queryKey: ["automation-credentials"] });
+      queryClient.invalidateQueries({ queryKey: ["cert-settings"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      alert("저장 실패: " + (err.message || "알 수 없는 오류"));
+    } finally { setSaving(false); }
   }
-  async function deleteCert(id: string) { await db2.from("certificates").delete().eq("id", id); queryClient.invalidateQueries({ queryKey: ["certificates"] }); }
-  async function saveCertSettings() {
-    if (!companyId) return;
-    await db2.from("companies").update({ cert_settings: autoSign }).eq("id", companyId);
-    queryClient.invalidateQueries({ queryKey: ["cert-settings"] });
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
-  }
+
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
-  const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
 
   return (
     <div className="space-y-6">
+      {/* 안내 */}
+      <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+        <div className="text-sm font-semibold text-[var(--text)] mb-1">인증서 & 자동화 설정</div>
+        <p className="text-xs text-[var(--text-muted)]">
+          은행, 홈택스, 카드 로그인 정보를 등록하면 거래내역과 세금계산서가 자동으로 수집됩니다.
+          인증서 파일은 로컬 PC에서 자동 감지되므로 별도 업로드가 필요 없습니다.
+        </p>
+      </div>
+
+      {/* 은행 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold">등록된 인증서</h2>
-          <button onClick={() => setShowUpload(!showUpload)} className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition">+ 인증서 등록</button>
-        </div>
-        {showUpload && (
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
-            {uploadError && <div className="p-2 rounded-lg bg-red-500/10 text-red-400 text-xs">{uploadError}</div>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><label className="block text-xs text-[var(--text-muted)] mb-1">발급기관</label><input value={uploadForm.issuer} onChange={(e) => setUploadForm({ ...uploadForm, issuer: e.target.value })} placeholder="한국정보인증" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
-              <div><label className="block text-xs text-[var(--text-muted)] mb-1">만료일</label><input type="date" value={uploadForm.expires_at} onChange={(e) => setUploadForm({ ...uploadForm, expires_at: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg">🏦</div>
+            <div>
+              <div className="text-sm font-bold">은행 계좌</div>
+              <div className="text-[11px] text-[var(--text-dim)]">거래내역 자동 수집 + 홈택스 세금계산서</div>
             </div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">용도</label><div className="flex gap-4">{[{ k: "purpose_tax", l: "세금계산서" }, { k: "purpose_bank", l: "계좌이체" }, { k: "purpose_contract", l: "전자계약" }].map(({ k, l }) => (<label key={k} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]"><input type="checkbox" checked={(uploadForm as any)[k]} onChange={(e) => setUploadForm({ ...uploadForm, [k]: e.target.checked })} className="rounded" /> {l}</label>))}</div></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">인증서 비밀번호</label><input type="password" value={uploadForm.password} onChange={(e) => setUploadForm({ ...uploadForm, password: e.target.value })} placeholder="비밀번호" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /><p className="text-[10px] text-[var(--text-dim)] mt-1">자동서명에 사용. 암호화 저장.</p></div>
-            <div className="flex gap-2"><button onClick={() => certFileRef.current?.click()} disabled={uploading} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{uploading ? "업로드 중..." : "파일 선택 (.pfx/.p12)"}</button><button onClick={() => setShowUpload(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button></div>
-            <input ref={certFileRef} type="file" accept=".pfx,.p12,.pem,.der" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCertUpload(f); e.target.value = ""; }} />
+          </div>
+          <button onClick={addBank} className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold">+ 은행 추가</button>
+        </div>
+        {banks.length === 0 ? (
+          <button onClick={addBank} className="w-full py-6 rounded-xl border-2 border-dashed border-[var(--border)] text-sm text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            은행을 추가하세요
+          </button>
+        ) : (
+          <div className="space-y-4">
+            {banks.map((b, i) => (
+              <div key={i} className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+                <div className="flex items-center gap-2">
+                  <select value={b.company} onChange={(e) => updateBank(i, "company", e.target.value)}
+                    className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
+                    {BANK_LIST.map((bk) => <option key={bk.value} value={bk.value}>{bk.label}</option>)}
+                  </select>
+                  <button onClick={() => removeBank(i)} className="px-2 py-2 text-red-400/60 hover:text-red-400 text-xs">삭제</button>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] font-semibold">로그인 방식</div>
+                <div className="relative">
+                  <input type={showPw[`bank_cert_${i}`] ? "text" : "password"} value={b.cert_password || ""} onChange={(e) => updateBank(i, "cert_password", e.target.value)}
+                    placeholder="공인인증서 비밀번호" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                  <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_cert_${i}`]: !p[`bank_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                    {showPw[`bank_cert_${i}`] ? "숨기기" : "보기"}
+                  </button>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)]">또는 ID/PW 로그인</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" value={b.login_id} onChange={(e) => updateBank(i, "login_id", e.target.value)} placeholder="아이디 (선택)"
+                    className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                  <div className="relative">
+                    <input type={showPw[`bank_pw_${i}`] ? "text" : "password"} value={b.login_password} onChange={(e) => updateBank(i, "login_password", e.target.value)} placeholder="비밀번호 (선택)"
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                    <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_pw_${i}`]: !p[`bank_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                      {showPw[`bank_pw_${i}`] ? "숨기기" : "보기"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-        {certificates.length === 0 ? (
-          <div className="text-center py-8"><div className="text-3xl mb-2">🔐</div><div className="text-sm text-[var(--text-muted)]">등록된 인증서가 없습니다</div><p className="text-xs text-[var(--text-dim)] mt-1">공인인증서 등록 시 자동서명이 가능합니다</p></div>
+        <p className="text-[10px] text-[var(--text-dim)] mt-2">첫 번째 은행의 인증서 비밀번호가 홈택스에도 사용됩니다</p>
+      </div>
+
+      {/* 카드 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg">💳</div>
+            <div>
+              <div className="text-sm font-bold">법인카드</div>
+              <div className="text-[11px] text-[var(--text-dim)]">카드 이용내역 자동 수집</div>
+            </div>
+          </div>
+          <button onClick={addCard} className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold">+ 카드 추가</button>
+        </div>
+        {cards.length === 0 ? (
+          <button onClick={addCard} className="w-full py-6 rounded-xl border-2 border-dashed border-[var(--border)] text-sm text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            카드를 추가하세요
+          </button>
         ) : (
-          <div className="space-y-2">{certificates.map((c: any) => { const d = c.expires_at ? daysLeft(c.expires_at) : null; return (
-            <div key={c.id} className="px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${d !== null && d <= 0 ? "bg-red-100" : d !== null && d <= 30 ? "bg-amber-100" : "bg-green-100"}`}>🔐</div>
-                  <div><div className="text-sm font-medium">{c.file_name}</div><div className="text-xs text-[var(--text-dim)]">{c.issuer || "발급기관 미입력"}{c.expires_at && <span className={`ml-2 ${d !== null && d <= 0 ? "text-red-500" : d !== null && d <= 30 ? "text-amber-500" : ""}`}>만료: {c.expires_at.split("T")[0]}{d !== null && d <= 0 ? " (만료)" : d !== null && d <= 30 ? ` (${d}일)` : ""}</span>}</div></div>
+          <div className="space-y-4">
+            {cards.map((c, i) => (
+              <div key={i} className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+                <div className="flex items-center gap-2">
+                  <select value={c.company} onChange={(e) => updateCard(i, "company", e.target.value)}
+                    className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
+                    {CARD_LIST.map((cd) => <option key={cd.value} value={cd.value}>{cd.label}</option>)}
+                  </select>
+                  <button onClick={() => removeCard(i)} className="px-2 py-2 text-red-400/60 hover:text-red-400 text-xs">삭제</button>
                 </div>
-                <button onClick={() => deleteCert(c.id)} className="text-xs text-red-400/60 hover:text-red-400">삭제</button>
+                <div className="relative">
+                  <input type={showPw[`card_cert_${i}`] ? "text" : "password"} value={c.cert_password || ""} onChange={(e) => updateCard(i, "cert_password", e.target.value)}
+                    placeholder="공인인증서 비밀번호 (선택)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                  <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_cert_${i}`]: !p[`card_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                    {showPw[`card_cert_${i}`] ? "숨기기" : "보기"}
+                  </button>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)]">또는 ID/PW 로그인</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" value={c.login_id} onChange={(e) => updateCard(i, "login_id", e.target.value)} placeholder="아이디 (선택)"
+                    className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                  <div className="relative">
+                    <input type={showPw[`card_pw_${i}`] ? "text" : "password"} value={c.login_password} onChange={(e) => updateCard(i, "login_password", e.target.value)} placeholder="비밀번호 (선택)"
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                    <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_pw_${i}`]: !p[`card_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                      {showPw[`card_pw_${i}`] ? "숨기기" : "보기"}
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2 mt-2">
-                {c.purpose_tax && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-semibold">세금계산서</span>}
-                {c.purpose_bank && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-100 text-green-600 font-semibold">계좌이체</span>}
-                {c.purpose_contract && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-semibold">전자계약</span>}
-              </div>
-            </div>); })}</div>
+            ))}
+          </div>
         )}
       </div>
+
+      {/* 자동서명 규칙 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">자동서명 규칙</h2>
         <div className="space-y-3">
-          <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer"><div><div className="text-sm font-medium">승인완료 세금계산서 자동서명</div><div className="text-xs text-[var(--text-dim)] mt-0.5">발행 시 등록된 인증서로 자동 서명</div></div><input type="checkbox" checked={autoSign.auto_sign_tax_invoice} onChange={(e) => setAutoSign({ ...autoSign, auto_sign_tax_invoice: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" /></label>
-          <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer"><div><div className="text-sm font-medium">자동이체 시 인증서 서명</div><div className="text-xs text-[var(--text-dim)] mt-0.5">은행 이체 실행 시 전자서명</div></div><input type="checkbox" checked={autoSign.auto_sign_bank_transfer} onChange={(e) => setAutoSign({ ...autoSign, auto_sign_bank_transfer: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" /></label>
+          <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
+            <div><div className="text-sm font-medium">세금계산서 자동서명</div><div className="text-xs text-[var(--text-dim)] mt-0.5">승인 완료 시 인증서로 자동 전자서명</div></div>
+            <input type="checkbox" checked={autoSign.auto_sign_tax_invoice} onChange={(e) => setAutoSign({ ...autoSign, auto_sign_tax_invoice: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" />
+          </label>
+          <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
+            <div><div className="text-sm font-medium">은행이체 자동서명</div><div className="text-xs text-[var(--text-dim)] mt-0.5">이체 실행 시 인증서 전자서명</div></div>
+            <input type="checkbox" checked={autoSign.auto_sign_bank_transfer} onChange={(e) => setAutoSign({ ...autoSign, auto_sign_bank_transfer: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" />
+          </label>
         </div>
       </div>
-      <button onClick={saveCertSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "인증서 설정 저장"}</button>
+
+      {/* 저장 */}
+      <button onClick={saveAll} disabled={saving || (banks.length === 0 && cards.length === 0)}
+        className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+        {saving ? "저장 중..." : saved ? "저장 완료" : "설정 저장"}
+      </button>
+
+      <p className="text-[10px] text-[var(--text-dim)] text-center">
+        인증정보는 RLS 정책으로 보호되며, 회사 대표만 조회할 수 있습니다.
+      </p>
     </div>
   );
 }

@@ -196,6 +196,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
 }) {
   const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string } | null>(null);
   const [comment, setComment] = useState("");
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
@@ -237,39 +238,54 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       ) : (
         <div className="space-y-3">
           {pendingApprovals.map((item: any) => (
-            <div key={item.stepId} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]">
-                      {REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}
-                    </span>
-                    <span className="text-[11px] text-[var(--text-dim)]">
-                      {item.currentStage}/{item.totalStages}단계 - {item.stageName}
-                    </span>
-                  </div>
-                  <div className="font-semibold text-sm truncate">{item.title}</div>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-                    <span>요청자: {item.requesterName || "알 수 없음"}</span>
-                    {item.amount > 0 && <span className="font-semibold text-[var(--text)]">{formatAmount(item.amount)}</span>}
-                    <span>{formatDate(item.createdAt)}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title })}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition"
+            <div key={item.stepId} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setExpandedRequestId(expandedRequestId === item.requestId ? null : item.requestId)}
                   >
-                    승인
-                  </button>
-                  <button
-                    onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title })}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition"
-                  >
-                    반려
-                  </button>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]">
+                        {REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}
+                      </span>
+                      <span className="text-[11px] text-[var(--text-dim)]">
+                        {item.currentStage}/{item.totalStages}단계 - {item.stageName}
+                      </span>
+                      <svg className={`w-3.5 h-3.5 text-[var(--text-dim)] transition-transform ${expandedRequestId === item.requestId ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    <div className="font-semibold text-sm truncate">{item.title}</div>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
+                      <span>요청자: {item.requesterName || "알 수 없음"}</span>
+                      {item.amount > 0 && <span className="font-semibold text-[var(--text)]">{formatAmount(item.amount)}</span>}
+                      <span>{formatDate(item.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title })}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition"
+                    >
+                      승인
+                    </button>
+                    <button
+                      onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title })}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition"
+                    >
+                      반려
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* D-7: 워크플로우 활동 타임라인 */}
+              {expandedRequestId === item.requestId && (
+                <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]">
+                  <ActivityTimeline requestId={item.requestId} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1440,6 +1456,68 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
             </div>
             <div className="text-[var(--text-dim)] shrink-0">
               {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── D-7: 워크플로우 활동 타임라인 (vertical) ──
+function ActivityTimeline({ requestId }: { requestId: string }) {
+  const { data: steps = [], isLoading } = useQuery({
+    queryKey: ["activity-timeline", requestId],
+    queryFn: () => getApprovalTimeline(requestId),
+    enabled: !!requestId,
+  });
+
+  if (isLoading) {
+    return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력 로딩 중...</div>;
+  }
+
+  if (steps.length === 0) {
+    return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력이 없습니다</div>;
+  }
+
+  const ACTION_LABELS: Record<string, string> = {
+    pending: "결재 대기",
+    approved: "승인",
+    rejected: "반려",
+    skipped: "건너뜀",
+  };
+
+  const DOT_COLORS: Record<string, string> = {
+    approved: "bg-green-500",
+    rejected: "bg-red-500",
+    pending: "bg-yellow-500",
+    skipped: "bg-gray-400",
+  };
+
+  return (
+    <div>
+      <div className="text-xs font-semibold text-[var(--text-muted)] mb-3">활동 타임라인</div>
+      <div className="space-y-0">
+        {steps.map((step, i) => (
+          <div key={step.id} className="flex gap-3">
+            {/* Vertical line + dot */}
+            <div className="flex flex-col items-center">
+              <div className={`w-2.5 h-2.5 rounded-full mt-1 ${DOT_COLORS[step.status] || "bg-gray-400"}`} />
+              {i < steps.length - 1 && <div className="w-px flex-1 bg-[var(--border)]" />}
+            </div>
+            {/* Content */}
+            <div className="pb-4 flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-[var(--text)]">{step.approver_name || "담당자"}</span>
+                <StatusBadge status={step.status} />
+                <span className="text-[10px] text-[var(--text-dim)]">({step.stage_name})</span>
+              </div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                {step.decided_at ? formatDateTime(step.decided_at) : step.created_at ? `${formatDateTime(step.created_at)} 배정` : "대기 중"}
+              </div>
+              {step.comment && (
+                <div className="text-xs text-[var(--text-muted)] mt-1 italic">&ldquo;{step.comment}&rdquo;</div>
+              )}
             </div>
           </div>
         ))}

@@ -40,10 +40,17 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [sealApplying, setSealApplying] = useState(false);
   const [showSelfSign, setShowSelfSign] = useState(false);
   const [selfSignName, setSelfSignName] = useState("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
+  // 공유 이메일 입력 UI 상태
+  const [showShareEmailInput, setShowShareEmailInput] = useState(false);
+  const [shareEmailAddress, setShareEmailAddress] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareSending, setShareSending] = useState(false);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) { setUserId(u.id); setCompanyId(u.company_id); }
+      if (u) { setUserId(u.id); setCompanyId(u.company_id); setUserEmail(u.email || ""); setUserName(u.name || ""); }
     });
   }, []);
 
@@ -329,7 +336,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             onClick={async () => {
               if (!companyId || !userId) return;
               try {
-                const { createDocumentShare, sendShareEmail } = await import("@/lib/document-sharing");
+                const { createDocumentShare } = await import("@/lib/document-sharing");
                 const result = await createDocumentShare({
                   documentId: id,
                   companyId,
@@ -338,29 +345,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   expiresInDays: 30,
                 });
                 await navigator.clipboard.writeText(result.shareUrl);
-
-                const sendEmail = window.confirm(
-                  `공유 링크가 클립보드에 복사되었습니다.\n\n${result.shareUrl}\n\n이메일로도 발송하시겠습니까?`
-                );
-                if (sendEmail) {
-                  const recipientEmail = window.prompt('수신자 이메일 주소를 입력하세요:');
-                  if (recipientEmail) {
-                    const company = await db.from('companies').select('name').eq('id', companyId).single();
-                    const currentUser = await db.from('users').select('name').eq('id', userId).single();
-                    const res = await sendShareEmail({
-                      email: recipientEmail,
-                      documentName: doc.name,
-                      shareUrl: result.shareUrl,
-                      senderName: currentUser.data?.name || undefined,
-                      companyName: company.data?.name || undefined,
-                    });
-                    if (res.success) {
-                      alert('이메일이 발송되었습니다.');
-                    } else {
-                      alert('이메일 발송 실패: ' + (res.error || ''));
-                    }
-                  }
-                }
+                setShareUrl(result.shareUrl);
+                setShowShareEmailInput(true);
+                setShareEmailAddress("");
                 invalidate();
               } catch (err: any) {
                 alert('공유 링크 생성 실패: ' + (err?.message || err));
@@ -420,6 +407,70 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               승인 확인
             </button>
             <button onClick={() => setShowApprovalForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Share Email Input */}
+      {showShareEmailInput && shareUrl && (
+        <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-purple-500">공유 링크 생성 완료</h3>
+            <button onClick={() => { setShowShareEmailInput(false); setShareUrl(""); }}
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
+              닫기
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mb-3 p-2.5 bg-[var(--bg)] rounded-lg border border-[var(--border)]">
+            <span className="text-xs text-[var(--text-muted)] truncate flex-1">{shareUrl}</span>
+            <button
+              onClick={() => { navigator.clipboard.writeText(shareUrl); }}
+              className="px-2 py-1 text-xs bg-purple-500/10 text-purple-500 rounded font-semibold hover:bg-purple-500/20 transition whitespace-nowrap">
+              복사
+            </button>
+          </div>
+          <div className="text-xs text-[var(--text-muted)] mb-2">이메일로 공유 링크를 발송하려면 수신자 이메일을 입력하세요.</div>
+          <div className="flex gap-2 items-center">
+            <input
+              type="email"
+              value={shareEmailAddress}
+              onChange={(e) => setShareEmailAddress(e.target.value)}
+              placeholder="recipient@example.com"
+              onKeyDown={(e) => { if (e.key === 'Enter' && shareEmailAddress.trim()) { (e.target as HTMLInputElement).form?.requestSubmit(); } }}
+              className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500"
+            />
+            <button
+              disabled={!shareEmailAddress.trim() || shareSending}
+              onClick={async () => {
+                if (!shareEmailAddress.trim() || !companyId || !userId) return;
+                setShareSending(true);
+                try {
+                  const { sendShareEmail } = await import("@/lib/document-sharing");
+                  const company = await db.from('companies').select('name').eq('id', companyId).single();
+                  const res = await sendShareEmail({
+                    email: shareEmailAddress.trim(),
+                    documentName: doc.name,
+                    shareUrl,
+                    senderName: userName || undefined,
+                    companyName: company.data?.name || undefined,
+                  });
+                  if (res.success) {
+                    setShareEmailAddress("");
+                    setShowShareEmailInput(false);
+                    setShareUrl("");
+                    alert('이메일이 발송되었습니다.');
+                  } else {
+                    alert('이메일 발송 실패: ' + (res.error || ''));
+                  }
+                } catch (err: any) {
+                  alert('이메일 발송 실패: ' + (err?.message || err));
+                } finally {
+                  setShareSending(false);
+                }
+              }}
+              className="px-4 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50 hover:bg-purple-600 transition whitespace-nowrap">
+              {shareSending ? '발송 중...' : '이메일 발송'}
+            </button>
           </div>
         </div>
       )}
@@ -758,7 +809,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       // 먼저 서명 요청 생성 → 바로 서명 완료
                       const req = await createSignatureRequest({
                         companyId, documentId: id, title: '자체 서명',
-                        signerName: selfSignName, signerEmail: 'self@internal',
+                        signerName: selfSignName, signerEmail: userEmail || 'self@internal',
                         createdBy: userId,
                       });
                       await saveSignature(req.id, { type: 'type', data: selfSignName });
