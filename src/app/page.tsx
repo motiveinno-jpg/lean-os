@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { RollingBrandText } from "@/components/brand-logo";
+import { supabase } from "@/lib/supabase";
 
 // ═══════════════════════════════════════════
 // CONSTANTS
@@ -74,13 +76,6 @@ const FEATURES = [
     replaces: "리*버",
     title: "한번이라도 견적 나간 업체, 자동으로 고객 DB",
     desc: "거래처별 딜 이력, 계약서, 매출, 커뮤니케이션 기록 자동 축적. 휴면 고객 AI 감지, 리마인더 자동 발송. 리멤버 수준의 CRM.",
-  },
-  {
-    tab: "AI 어시스턴트",
-    sim: "ai",
-    replaces: "경쟁사에 없음",
-    title: "리스크 감지 → 자동분류 → 예측까지",
-    desc: "미수금 위험, 현금 소진 예측, 거래내역 자동 분류, 매출 예측, 고정비 절감 추천. 모든 기능에 AI가 내장된 OwnerView만의 차별점.",
   },
   {
     tab: "서류 자동관리",
@@ -746,6 +741,26 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [partnerForm, setPartnerForm] = useState({ company: "", name: "", email: "", phone: "", message: "" });
   const [partnerSent, setPartnerSent] = useState(false);
+  const [partnerSending, setPartnerSending] = useState(false);
+
+  async function handlePartnerSubmit() {
+    if (!partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message) return;
+    setPartnerSending(true);
+    try {
+      await (supabase as any).from("partnership_inquiries").insert({
+        company_name: partnerForm.company,
+        contact_name: partnerForm.name,
+        email: partnerForm.email,
+        phone: partnerForm.phone || null,
+        message: partnerForm.message,
+      });
+      setPartnerSent(true);
+    } catch {
+      alert("문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setPartnerSending(false);
+    }
+  }
   // revView removed — revenue simulation moved to separate IR report
 
   // Auto-rotate features
@@ -784,7 +799,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 cursor-pointer">
             <OwnerViewLogo size={32} />
-            <span className="text-lg font-bold text-white tracking-tight">OwnerView</span>
+            <span className="text-lg font-bold text-white tracking-tight"><RollingBrandText /></span>
           </a>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
             <a href="#features" className="hover:text-white transition">주요기능</a>
@@ -1400,10 +1415,11 @@ export default function LandingPage() {
                 <textarea value={partnerForm.message} onChange={(e) => setPartnerForm({ ...partnerForm, message: e.target.value })} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 resize-none" />
               </div>
               <button
-                onClick={() => { if (partnerForm.company && partnerForm.name && partnerForm.email && partnerForm.message) setPartnerSent(true); }}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition shadow-sm active:scale-[0.98]"
+                onClick={handlePartnerSubmit}
+                disabled={partnerSending || !partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition shadow-sm active:scale-[0.98]"
               >
-                문의 보내기
+                {partnerSending ? "접수 중..." : "문의 보내기"}
               </button>
               <p className="text-[11px] text-gray-400 mt-3 text-center">제출된 정보는 상담 목적으로만 사용되며, 개인정보처리방침에 따라 관리됩니다.</p>
             </div>
@@ -1461,7 +1477,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">
               <OwnerViewLogo size={28} />
-              <span className="text-white font-bold tracking-tight">OwnerView</span>
+              <span className="text-white font-bold tracking-tight"><RollingBrandText /></span>
               <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
             </div>
             <div className="flex gap-6 text-sm">

@@ -302,7 +302,7 @@ export default function BillingPage() {
 
           {/* Cancel section */}
           {currentSlug !== "free" && (
-            <div className="mt-8 p-4 rounded-xl border border-red-200 bg-red-50/50 dark:bg-red-950/10">
+            <div className="mt-8 p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm text-[var(--text)]">구독 해지</div>
@@ -310,7 +310,7 @@ export default function BillingPage() {
                 </div>
                 <button
                   onClick={() => setShowCancelModal(true)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-300 hover:bg-red-100 transition"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
                 >
                   해지하기
                 </button>
@@ -328,13 +328,13 @@ export default function BillingPage() {
             {subscription?.toss_billing_key ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 text-lg">💳</div>
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg">💳</div>
                   <div>
                     <div className="font-semibold text-sm text-[var(--text)]">토스페이먼츠 자동결제</div>
                     <div className="text-xs text-[var(--text-muted)]">등록된 카드로 매월 자동 결제됩니다</div>
                   </div>
                 </div>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 transition">
+                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 dark:text-red-400 border border-red-200 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 transition">
                   변경
                 </button>
               </div>
@@ -418,7 +418,7 @@ export default function BillingPage() {
                   </div>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(`https://motiveinno-jpg.github.io/lean-os/auth?ref=${referral.code}`);
+                      navigator.clipboard.writeText(`https://www.owner-view.com/auth?ref=${referral.code}`);
                       setReferralCopied(true);
                       setTimeout(() => setReferralCopied(false), 2000);
                     }}
@@ -429,11 +429,11 @@ export default function BillingPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-blue-600">{referral.referred_count || 0}</div>
+                    <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">{referral.referred_count || 0}</div>
                     <div className="text-xs text-[var(--text-muted)]">추천 가입</div>
                   </div>
                   <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-purple-600">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
+                    <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
                     <div className="text-xs text-[var(--text-muted)]">적립 크레딧</div>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export default function BillingPage() {
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCancelModal(false)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-extrabold text-red-600 mb-2">구독 해지</h3>
+            <h3 className="text-lg font-extrabold text-red-600 dark:text-red-400 mb-2">구독 해지</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">
               현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다. 데이터는 유지됩니다.
             </p>

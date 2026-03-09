@@ -1,5 +1,5 @@
 /**
- * Reflect Payment Queue Engine
+ * OwnerView Payment Queue Engine
  * 지급 실행 큐: 생성 → 승인 → 실행
  */
 

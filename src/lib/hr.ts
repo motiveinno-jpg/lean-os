@@ -1,5 +1,5 @@
 /**
- * Reflect HR Engine
+ * OwnerView HR Engine
  * 급여이력 + 계약서 + 근태관리 + 휴가관리
  */
 
@@ -143,6 +143,14 @@ export const LEAVE_TYPES = [
   { value: 'paternity', label: '배우자출산휴가' },
   { value: 'compensation', label: '대체휴무' },
 ] as const;
+
+export const LEAVE_UNITS = [
+  { value: 'full_day', label: '종일', days: 1 },
+  { value: 'half_day', label: '반차', days: 0.5 },
+  { value: 'two_hours', label: '2시간', days: 0.25 },
+] as const;
+
+export type LeaveUnit = typeof LEAVE_UNITS[number]['value'];
 
 export const ATTENDANCE_STATUS = [
   { value: 'present', label: '출근' },
@@ -348,7 +356,7 @@ export async function getLeaveRequests(companyId: string, status?: string) {
   return data || [];
 }
 
-// ── Leave: Create request ──
+// ── Leave: Create request (2시간/반차/종일 지원) ──
 export async function createLeaveRequest(params: {
   companyId: string;
   employeeId: string;
@@ -357,7 +365,37 @@ export async function createLeaveRequest(params: {
   endDate: string;
   days: number;
   reason?: string;
+  leaveUnit?: LeaveUnit;
+  startTime?: string; // "09:00" (2시간 단위용)
+  endTime?: string;   // "11:00"
 }) {
+  // Auto-calculate days based on leave unit
+  const unit = params.leaveUnit || 'full_day';
+  let days = params.days;
+  if (unit === 'half_day') {
+    days = 0.5;
+  } else if (unit === 'two_hours') {
+    days = 0.25;
+  }
+
+  // Validate remaining balance for annual leave
+  if (params.leaveType === 'annual') {
+    const year = new Date(params.startDate).getFullYear();
+    const { data: balance } = await db
+      .from('leave_balances')
+      .select('total_days, used_days')
+      .eq('employee_id', params.employeeId)
+      .eq('year', year)
+      .maybeSingle();
+
+    if (balance) {
+      const remaining = Number(balance.total_days) - Number(balance.used_days);
+      if (days > remaining) {
+        throw new Error(`연차 잔여일수가 부족합니다 (잔여: ${remaining}일, 신청: ${days}일)`);
+      }
+    }
+  }
+
   const { data, error } = await db
     .from('leave_requests')
     .insert({
@@ -366,9 +404,12 @@ export async function createLeaveRequest(params: {
       leave_type: params.leaveType,
       start_date: params.startDate,
       end_date: params.endDate,
-      days: params.days,
+      days,
       reason: params.reason || null,
       status: 'pending',
+      leave_unit: unit,
+      start_time: params.startTime || null,
+      end_time: params.endTime || null,
     })
     .select()
     .single();
@@ -408,9 +449,10 @@ export async function approveLeaveRequest(id: string, approverId: string) {
     .maybeSingle();
 
   if (balance) {
+    const newUsed = Number(balance.used_days) + Number(request.days);
     await db
       .from('leave_balances')
-      .update({ used_days: balance.used_days + request.days })
+      .update({ used_days: newUsed })
       .eq('id', balance.id);
   }
 }
@@ -435,6 +477,245 @@ export async function getLeaveBalances(companyId: string, year: number) {
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
     .eq('year', year);
+  return data || [];
+}
+
+// ── Leave: 근로기준법 기반 연차 자동계산 ──
+/**
+ * 근로기준법 제60조 연차유급휴가 자동계산
+ * - 1년 미만 재직: 매월 개근 시 1일 (최대 11일)
+ * - 1년 이상 재직: 15일
+ * - 3년 이상 재직: 매 2년 초과 근무마다 1일 가산 (최대 25일)
+ * @param hireDate 입사일 (YYYY-MM-DD)
+ * @param referenceDate 기준일 (기본: 오늘)
+ */
+export function calculateAnnualLeave(hireDate: string, referenceDate?: string): {
+  totalDays: number;
+  yearsWorked: number;
+  monthsWorked: number;
+  formula: string;
+} {
+  const hire = new Date(hireDate);
+  const ref = referenceDate ? new Date(referenceDate) : new Date();
+
+  // 총 근무 개월수
+  const diffMs = ref.getTime() - hire.getTime();
+  if (diffMs < 0) return { totalDays: 0, yearsWorked: 0, monthsWorked: 0, formula: '입사 전' };
+
+  const totalMonths = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
+  const yearsWorked = Math.floor(totalMonths / 12);
+  const monthsWorked = totalMonths;
+
+  let totalDays: number;
+  let formula: string;
+
+  if (yearsWorked < 1) {
+    // 1년 미만: 매월 1일, 최대 11일
+    totalDays = Math.min(totalMonths, 11);
+    formula = `1년 미만 (${totalMonths}개월) → 월 1일 × ${totalDays}개월 = ${totalDays}일`;
+  } else {
+    // 1년 이상: 기본 15일
+    let base = 15;
+    // 3년 이상: 매 2년 초과근무마다 +1일
+    if (yearsWorked >= 3) {
+      const extraDays = Math.floor((yearsWorked - 1) / 2);
+      base = Math.min(15 + extraDays, 25);
+    }
+    totalDays = base;
+    formula = yearsWorked >= 3
+      ? `${yearsWorked}년 근속 → 15일 + ${totalDays - 15}일(장기근속) = ${totalDays}일`
+      : `${yearsWorked}년 근속 → 기본 ${totalDays}일`;
+  }
+
+  return { totalDays, yearsWorked, monthsWorked, formula };
+}
+
+/**
+ * 직원의 연차를 입사일 기반으로 자동 세팅 (사용연차 수동 지정 가능)
+ */
+export async function autoInitLeaveBalance(
+  companyId: string,
+  employeeId: string,
+  hireDate: string,
+  year: number,
+  usedDaysOverride?: number,
+) {
+  const { totalDays } = calculateAnnualLeave(hireDate, `${year}-12-31`);
+
+  const { data: existing } = await db
+    .from('leave_balances')
+    .select('id, used_days')
+    .eq('company_id', companyId)
+    .eq('employee_id', employeeId)
+    .eq('year', year)
+    .maybeSingle();
+
+  const usedDays = usedDaysOverride ?? existing?.used_days ?? 0;
+
+  if (existing) {
+    const { data, error } = await db
+      .from('leave_balances')
+      .update({ total_days: totalDays, used_days: usedDays })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } else {
+    const { data, error } = await db
+      .from('leave_balances')
+      .insert({ company_id: companyId, employee_id: employeeId, year, total_days: totalDays, used_days: usedDays })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+}
+
+/**
+ * 전 직원 연차 일괄 자동 세팅 (입사일 기반)
+ */
+export async function bulkAutoInitLeaveBalances(companyId: string, year: number) {
+  const { data: employees } = await db
+    .from('employees')
+    .select('id, hire_date')
+    .eq('company_id', companyId)
+    .eq('status', 'active');
+
+  if (!employees || employees.length === 0) return { updated: 0 };
+
+  let updated = 0;
+  for (const emp of employees) {
+    if (!emp.hire_date) continue;
+    await autoInitLeaveBalance(companyId, emp.id, emp.hire_date, year);
+    updated++;
+  }
+  return { updated };
+}
+
+// ── Leave Promotion (연차촉진) — 근로기준법 §61 ──
+
+/**
+ * 연차촉진 대상 직원 조회
+ * 미사용 연차가 있는 직원 목록 반환
+ */
+export async function getLeavePromotionCandidates(companyId: string, year: number) {
+  const { data: balances } = await db
+    .from('leave_balances')
+    .select('*, employees(name, email, department, hire_date)')
+    .eq('company_id', companyId)
+    .eq('year', year);
+
+  if (!balances) return [];
+
+  return balances
+    .filter((b: any) => {
+      const remaining = Number(b.total_days) - Number(b.used_days);
+      return remaining > 0;
+    })
+    .map((b: any) => ({
+      employeeId: b.employee_id,
+      employeeName: b.employees?.name || '',
+      email: b.employees?.email || '',
+      department: b.employees?.department || '',
+      hireDate: b.employees?.hire_date || '',
+      totalDays: Number(b.total_days),
+      usedDays: Number(b.used_days),
+      remainingDays: Number(b.total_days) - Number(b.used_days),
+      year,
+    }));
+}
+
+/**
+ * 연차촉진 통보 발송
+ * 근로기준법 §61: 사용자는 연차 소멸 6개월 전(1차) / 2개월 전(2차)에 통보해야 함
+ * 통보 미이행 시 미사용 연차에 대한 보상의무 발생
+ */
+export async function sendLeavePromotionNotice(params: {
+  companyId: string;
+  employeeId: string;
+  year: number;
+  noticeType: 'first' | 'second'; // first=6개월전, second=2개월전
+  unusedDays: number;
+  email: string;
+  employeeName: string;
+}) {
+  const { companyId, employeeId, year, noticeType, unusedDays, email, employeeName } = params;
+
+  // Calculate deadline based on notice type
+  const deadline = new Date();
+  if (noticeType === 'first') {
+    deadline.setMonth(deadline.getMonth() + 4); // 4개월 내 사용 계획 제출
+  } else {
+    deadline.setMonth(deadline.getMonth() + 1); // 1개월 내 사용
+  }
+
+  // Record the notice
+  const { data: notice, error } = await db
+    .from('leave_promotion_notices')
+    .insert({
+      company_id: companyId,
+      employee_id: employeeId,
+      year,
+      notice_type: noticeType,
+      unused_days: unusedDays,
+      sent_via: 'email',
+      email_to: email,
+      deadline: deadline.toISOString().slice(0, 10),
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Get company name
+  const { data: company } = await db
+    .from('companies')
+    .select('name')
+    .eq('id', companyId)
+    .single();
+
+  // Send email via Edge Function
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return { notice, emailSent: false };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-leave-promotion-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        to: email,
+        employeeName,
+        companyName: company?.name || '',
+        year,
+        noticeType,
+        unusedDays,
+        deadline: deadline.toISOString().slice(0, 10),
+      }),
+    });
+
+    return { notice, emailSent: res.ok };
+  } catch {
+    return { notice, emailSent: false };
+  }
+}
+
+/**
+ * 연차촉진 통보 이력 조회
+ */
+export async function getLeavePromotionNotices(companyId: string, year: number) {
+  const { data } = await db
+    .from('leave_promotion_notices')
+    .select('*, employees(name, department)')
+    .eq('company_id', companyId)
+    .eq('year', year)
+    .order('sent_at', { ascending: false });
+
   return data || [];
 }
 

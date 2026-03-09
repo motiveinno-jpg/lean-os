@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { validateInviteToken, acceptPartnerInvitation, acceptEmployeeInvitation } from "@/lib/invitations";
+import { RollingBrandText } from "@/components/brand-logo";
 
 type InviteInfo = {
   type: "partner" | "employee";
@@ -171,7 +172,7 @@ function InviteContent() {
               <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
             </svg>
           </div>
-          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)]">OwnerView</h1>
+          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)]"><RollingBrandText /></h1>
           <p className="text-[var(--text-muted)] text-xs md:text-sm mt-1">회사 상황판 OS</p>
         </div>
 

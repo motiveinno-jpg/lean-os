@@ -1,5 +1,5 @@
 /**
- * Reflect Referral System
+ * OwnerView Referral System
  * 추천인 코드 생성 + 크레딧 적립 + 리더보드
  */
 

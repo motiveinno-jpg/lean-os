@@ -1,15 +1,19 @@
 /**
- * Reflect Realtime Helper
+ * OwnerView Realtime Helper
  * Supabase Realtime 구독 관리
  */
 
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+// ── Connection status type ──
+export type RealtimeStatus = 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED' | 'connecting';
+
 // ── Subscribe to new messages in a channel ──
 export function subscribeToMessages(
   channelId: string,
-  onMessage: (payload: any) => void
+  onMessage: (payload: any) => void,
+  onStatus?: (status: RealtimeStatus) => void,
 ): RealtimeChannel {
   const channel = supabase
     .channel(`chat:${channelId}`)
@@ -25,7 +29,9 @@ export function subscribeToMessages(
         onMessage(payload.new);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      onStatus?.(status as RealtimeStatus);
+    });
 
   return channel;
 }
@@ -79,6 +85,9 @@ export function subscribeToEvents(
 }
 
 // ── Subscribe to reactions on messages in a channel ──
+// Note: chat_reactions has no channel_id column, so we can't filter by channel.
+// The callback only invalidates the current channel's reaction query, so
+// cross-channel noise has no functional impact (just triggers a no-op re-fetch).
 export function subscribeToReactions(
   channelId: string,
   onReaction: (payload: any) => void

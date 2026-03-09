@@ -1,5 +1,5 @@
 /**
- * Reflect Chat Engine
+ * OwnerView Chat Engine
  * 딜룸 채팅: 채널 관리, 메시지, 참가자, 이벤트
  */
 
@@ -434,7 +434,7 @@ export async function getOrCreateInviteToken(channelId: string): Promise<string>
 // ── Build chat invite URL ──
 export function getChatInviteUrl(token: string): string {
   const base = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${base}/lean-os/chat?token=${token}`;
+  return `${base}/chat?token=${token}`;
 }
 
 // ── Create action card ──

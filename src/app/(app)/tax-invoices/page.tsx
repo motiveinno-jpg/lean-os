@@ -76,7 +76,7 @@ export default function TaxInvoicesPage() {
       const endDate = `${month}-31`;
       const { data } = await supabase
         .from("tax_invoices")
-        .select("*, deals(name)")
+        .select("*, deals(name), label, revenue_schedule_id")
         .eq("company_id", companyId!)
         .gte("issue_date", startDate)
         .lte("issue_date", endDate)
@@ -463,7 +463,7 @@ export default function TaxInvoicesPage() {
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">거래처명</th>
-                  <th className="text-left px-5 py-3 font-medium">사업자번호</th>
+                  <th className="text-left px-5 py-3 font-medium">구분</th>
                   <th className="text-right px-5 py-3 font-medium">공급가</th>
                   <th className="text-right px-5 py-3 font-medium">세액</th>
                   <th className="text-right px-5 py-3 font-medium">합계</th>
@@ -484,8 +484,15 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3 text-sm font-medium">
                         {inv.counterparty_name}
                       </td>
-                      <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
-                        {inv.counterparty_bizno || "—"}
+                      <td className="px-5 py-3 text-xs">
+                        {inv.label ? (
+                          <span className="font-medium text-[var(--text)]">{inv.label}</span>
+                        ) : (
+                          <span className="text-[var(--text-dim)]">—</span>
+                        )}
+                        {inv.revenue_schedule_id && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">자동</span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-sm text-right">
                         ₩{Number(inv.supply_amount).toLocaleString("ko")}

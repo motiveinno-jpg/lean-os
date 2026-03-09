@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
-  basePath: "/lean-os",
+  basePath: "",
   trailingSlash: true,
   images: {
     unoptimized: true,

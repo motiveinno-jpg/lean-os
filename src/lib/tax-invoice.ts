@@ -1,5 +1,5 @@
 /**
- * Reflect Tax Invoice Engine
+ * OwnerView Tax Invoice Engine
  * 세금계산서 생성 + 3-way matching (계약 ↔ 세금계산서 ↔ 입금)
  */
 
@@ -29,9 +29,15 @@ export async function createTaxInvoice(params: {
   counterpartyBizno?: string;
   supplyAmount: number;
   issueDate: string;
+  label?: string;
+  revenueScheduleId?: string | null;
+  status?: string;
 }): Promise<TaxInvoice | null> {
   const taxAmount = Math.round(params.supplyAmount * 0.1);
   const totalAmount = params.supplyAmount + taxAmount;
+
+  // 파이프라인에서 자동 생성 시 status: 'draft' 강제
+  const status = params.status || (params.revenueScheduleId ? 'draft' : (params.type === 'sales' ? 'issued' : 'received'));
 
   const { data, error } = await supabase
     .from('tax_invoices')
@@ -45,13 +51,55 @@ export async function createTaxInvoice(params: {
       tax_amount: taxAmount,
       total_amount: totalAmount,
       issue_date: params.issueDate,
-      status: params.type === 'sales' ? 'issued' : 'received',
+      status,
+      label: params.label || null,
+      revenue_schedule_id: params.revenueScheduleId || null,
     })
     .select()
     .single();
 
   if (error) throw error;
+
+  // Auto-generate 지출결의서 for purchase invoices
+  if (data && params.type === 'purchase') {
+    autoCreateExpenseReport(params.companyId, data).catch((err) => {
+      console.error('Auto expense report creation failed:', err);
+    });
+  }
+
   return data;
+}
+
+/**
+ * 매입 세금계산서 등록 시 지출결의서를 자동 생성합니다.
+ */
+async function autoCreateExpenseReport(companyId: string, invoice: TaxInvoice) {
+  try {
+    const { createApprovalRequest } = await import('./approval-workflow');
+
+    // Get a user for the request (company owner)
+    const { data: owner } = await supabase
+      .from('users')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('role', 'owner')
+      .limit(1)
+      .single();
+
+    if (!owner) return;
+
+    await createApprovalRequest({
+      companyId,
+      requestType: 'expense_report',
+      requestId: invoice.id,
+      requesterId: owner.id,
+      title: `[자동] 매입 세금계산서 - ${invoice.counterparty_name}`,
+      amount: Number(invoice.total_amount),
+      description: `매입 세금계산서 자동 연결\n거래처: ${invoice.counterparty_name}\n공급가: ₩${Number(invoice.supply_amount).toLocaleString()}\n부가세: ₩${Number(invoice.tax_amount).toLocaleString()}\n합계: ₩${Number(invoice.total_amount).toLocaleString()}\n발행일: ${invoice.issue_date}`,
+    });
+  } catch (err) {
+    console.error('autoCreateExpenseReport failed:', err);
+  }
 }
 
 // ── 3-Way Match Result ──
@@ -141,6 +189,19 @@ export async function markInvoiceMatched(invoiceId: string) {
     .update({ status: 'matched' })
     .eq('id', invoiceId);
   if (error) throw error;
+}
+
+// ── Issue tax invoice (draft → issued) ──
+export async function issueTaxInvoice(invoiceId: string) {
+  const { data, error } = await supabase
+    .from('tax_invoices')
+    .update({ status: 'issued', issue_date: new Date().toISOString().split('T')[0] })
+    .eq('id', invoiceId)
+    .eq('status', 'draft')
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 // ── Period Aggregation (월/분기/연간) ──

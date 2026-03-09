@@ -1,5 +1,5 @@
 /**
- * Reflect Deal Pipeline Orchestrator
+ * OwnerView Deal Pipeline Orchestrator
  * 딜→견적서→계약서→세금계산서→입금스케줄 자동 파이프라인
  *
  * Flow:
@@ -10,7 +10,7 @@
  */
 
 import { supabase } from './supabase';
-import { createTaxInvoice } from './tax-invoice';
+import { createTaxInvoice, markInvoiceMatched, issueTaxInvoice } from './tax-invoice';
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
 import type { Json } from '@/types/models';
@@ -79,20 +79,61 @@ export async function createDocumentFromDeal(params: {
     },
   };
 
-  // Add contract-specific fields
+  // Add contract-specific fields with structured paymentSchedule
   if (docType === 'contract') {
+    // Inherit items from quote if available (견적→계약 승계)
+    const sourceQuote = await (async () => {
+      const { data: quoteDocs } = await db
+        .from('documents')
+        .select('content_json')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: false });
+      return (quoteDocs || []).find((d: any) => {
+        const ct = d.content_json as any;
+        return ct?.type === 'invoice' || ct?.type === 'quote';
+      });
+    })();
+    const quoteContent = sourceQuote?.content_json as any;
+    const inheritedItems = (quoteContent?.items && Array.isArray(quoteContent.items) && quoteContent.items.length > 0)
+      ? quoteContent.items
+      : [{
+          name: deal.name || '',
+          quantity: 1,
+          unitPrice: contractTotal,
+          supplyAmount: contractTotal,
+          taxAmount: Math.round(contractTotal * 0.1),
+          totalAmount: Math.round(contractTotal * 1.1),
+          note: '',
+        }];
+
     Object.assign(contentJson, {
       contractStartDate: new Date().toISOString().split('T')[0],
       contractEndDate: '',
       paymentTerms: '계약금 30% (계약 후 7일 이내), 잔금 70% (납품 완료 후 14일 이내)',
+      paymentSchedule: [
+        { label: '선금', ratio: 30, amount: Math.round(contractTotal * 0.3), condition: '계약 후 7일 이내' },
+        { label: '잔금', ratio: 70, amount: contractTotal - Math.round(contractTotal * 0.3), condition: '납품 완료 후 14일 이내' },
+      ],
+      items: inheritedItems,
     });
   }
 
-  // Add quote-specific fields
+  // Add quote-specific fields with structured items
   if (docType === 'invoice') {
+    const items = (deal.items && Array.isArray(deal.items) && deal.items.length > 0)
+      ? deal.items
+      : [{
+          name: deal.name || '',
+          quantity: 1,
+          unitPrice: contractTotal,
+          supplyAmount: contractTotal,
+          taxAmount: Math.round(contractTotal * 0.1),
+          totalAmount: Math.round(contractTotal * 1.1),
+          note: '',
+        }];
     Object.assign(contentJson, {
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      items: deal.items || [],
+      items,
     });
   }
 
@@ -106,6 +147,7 @@ export async function createDocumentFromDeal(params: {
       name,
       status: 'draft',
       content_json: contentJson as unknown as Json,
+      content_type: docType,
       version: 1,
       created_by: createdBy,
     })
@@ -160,7 +202,7 @@ export async function onDocumentApproved(params: {
     return { nextAction: 'contract_created', createdDocId: contractDocId };
   }
 
-  // CASE B: 계약서 승인 → 세금계산서 + 매출스케줄 자동 생성
+  // CASE B: 계약서 승인 → revenue_schedule 먼저 생성 → 세금계산서 연결
   if (docType === 'contract') {
     const result = await onContractApproved({
       dealId: doc.deal_id,
@@ -169,11 +211,12 @@ export async function onDocumentApproved(params: {
       contractTotal: Number(content?.contractTotal || content?.supplyAmount || 0),
       partnerName: content?.partnerName || '',
       partnerBizNo: content?.partnerBizNo || '',
+      paymentSchedule: content?.paymentSchedule || null,
     });
 
     return {
       nextAction: 'tax_invoice_and_schedule_created',
-      createdInvoiceId: result.invoiceId || undefined,
+      createdInvoiceId: result.invoiceIds?.[0] || undefined,
     };
   }
 
@@ -189,44 +232,70 @@ async function onContractApproved(params: {
   contractTotal: number;
   partnerName: string;
   partnerBizNo: string;
+  paymentSchedule?: any[] | null;
 }) {
-  const { dealId, companyId, userId, contractTotal, partnerName, partnerBizNo } = params;
-  let invoiceId: string | null = null;
+  const { dealId, companyId, userId, contractTotal, partnerName, partnerBizNo, paymentSchedule } = params;
+  const invoiceIds: string[] = [];
 
-  // 3a. 세금계산서 자동 발행
-  if (contractTotal > 0) {
+  if (contractTotal <= 0) return { invoiceIds };
+
+  // ★ 핵심 순서: revenue_schedule 먼저 생성 → 생성된 row id 받기 → 세금계산서 draft에 연결
+
+  // Step 1: paymentSchedule 결정
+  const schedule = (paymentSchedule && Array.isArray(paymentSchedule) && paymentSchedule.length > 0)
+    ? paymentSchedule
+    : [
+        { label: '선금', ratio: 30, amount: Math.round(contractTotal * 0.3), condition: '계약 후 7일 이내' },
+        { label: '잔금', ratio: 70, amount: contractTotal - Math.round(contractTotal * 0.3), condition: '납품 완료 후 14일 이내' },
+      ];
+
+  // Step 2: revenue_schedule rows 먼저 생성
+  const createdScheduleIds = await createPaymentScheduleFromContract({
+    dealId,
+    companyId,
+    contractTotal,
+    userId,
+    schedule,
+  });
+
+  // Step 3: 각 revenue_schedule에 대응하는 세금계산서 생성
+  // 선금(첫 번째)은 즉시 issued, 나머지(잔금)는 draft로 생성
+  for (let i = 0; i < schedule.length; i++) {
+    const term = schedule[i];
+    if (term.amount <= 0) continue;
+
+    const revenueScheduleId = createdScheduleIds[i] || null;
+    const isFirstPayment = i === 0;
     const invoice = await createTaxInvoice({
       companyId,
       dealId,
       type: 'sales',
       counterpartyName: partnerName,
       counterpartyBizno: partnerBizNo,
-      supplyAmount: contractTotal,
+      supplyAmount: term.amount,
       issueDate: new Date().toISOString().split('T')[0],
+      label: `${term.label} 세금계산서`,
+      revenueScheduleId,
+      status: isFirstPayment ? 'issued' : 'draft',
     });
-    invoiceId = invoice?.id || null;
 
-    if (invoiceId) {
+    if (invoice?.id) {
+      invoiceIds.push(invoice.id);
       await dispatchBusinessEvent({
         dealId,
         eventType: 'invoice_issued' as BusinessEventType,
         userId,
-        referenceId: invoiceId,
+        referenceId: invoice.id,
         referenceTable: 'tax_invoices',
-        summary: { amount: Math.round(contractTotal * 1.1), title: '세금계산서 자동 발행' },
+        summary: {
+          amount: Math.round(term.amount * 1.1),
+          title: `${term.label} 세금계산서 자동 생성 (${isFirstPayment ? 'issued' : 'draft'})`,
+        },
       });
     }
   }
 
-  // 3b. 매출 스케줄 자동 생성 (선금 30% + 잔금 70%)
-  await createPaymentScheduleFromContract({
-    dealId,
-    companyId,
-    contractTotal,
-    userId,
-  });
-
-  return { invoiceId };
+  return { invoiceIds };
 }
 
 // ── 4. Create payment schedule (선금/잔금) ──
@@ -236,64 +305,57 @@ async function createPaymentScheduleFromContract(params: {
   companyId: string;
   contractTotal: number;
   userId: string;
-}) {
-  const { dealId, companyId, contractTotal, userId } = params;
-  if (contractTotal <= 0) return;
+  schedule: Array<{ label: string; ratio: number; amount: number; condition: string }>;
+}): Promise<string[]> {
+  const { dealId, companyId, contractTotal, userId, schedule } = params;
+  if (contractTotal <= 0) return [];
 
-  // Read advance ratio from company tax_settings (default 30%)
-  let advanceRatio = 0.3;
-  try {
-    const { data: company } = await db.from('companies').select('tax_settings').eq('id', companyId).single();
-    const ts = company?.tax_settings as any;
-    if (ts?.advance_ratio != null && ts.advance_ratio >= 0 && ts.advance_ratio <= 100) {
-      advanceRatio = ts.advance_ratio / 100;
-    }
-  } catch { /* use default */ }
-
-  const advanceAmount = Math.round(contractTotal * advanceRatio);
-  const balanceAmount = contractTotal - advanceAmount;
   const now = new Date();
-  const advanceDue = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
-  const balanceDue = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000); // +60 days (납품 후)
+  const createdIds: string[] = [];
 
-  // Insert revenue schedule entries
-  const scheduleEntries = [
-    {
-      deal_id: dealId,
-      label: `선금 (${Math.round(advanceRatio * 100)}%)`,
-      amount: advanceAmount,
-      due_date: advanceDue.toISOString().split('T')[0],
-      status: 'expected',
-    },
-    {
-      deal_id: dealId,
-      label: `잔금 (${Math.round((1 - advanceRatio) * 100)}%)`,
-      amount: balanceAmount,
-      due_date: balanceDue.toISOString().split('T')[0],
-      status: 'expected',
-    },
-  ];
+  // Insert revenue schedule entries one by one to get IDs back
+  for (let i = 0; i < schedule.length; i++) {
+    const term = schedule[i];
+    const dueDate = new Date(now.getTime() + (i === 0 ? 7 : 60) * 24 * 60 * 60 * 1000);
 
-  await db.from('deal_revenue_schedule').insert(scheduleEntries);
+    const { data: row } = await db
+      .from('deal_revenue_schedule')
+      .insert({
+        deal_id: dealId,
+        label: `${term.label} (${term.ratio}%)`,
+        amount: term.amount,
+        due_date: dueDate.toISOString().split('T')[0],
+        status: 'expected',
+        condition_text: term.condition,
+      })
+      .select('id')
+      .single();
 
-  // Also create payment queue entry for advance payment notification
-  await createQueueEntry({
-    companyId,
-    amount: advanceAmount,
-    description: `선금 ${Math.round(advanceRatio * 100)}% 입금 예정 (D+7)`,
-    costType: 'revenue',
-  });
+    createdIds.push(row?.id || '');
+  }
 
+  // Create payment queue entry for first payment
+  const firstTerm = schedule[0];
+  if (firstTerm) {
+    await createQueueEntry({
+      companyId,
+      amount: firstTerm.amount,
+      description: `${firstTerm.label} ${firstTerm.ratio}% 입금 예정 (D+7)`,
+      costType: 'revenue',
+    });
+  }
+
+  const scheduleDesc = schedule.map(t => `${t.label} ${t.amount.toLocaleString()}원`).join(' / ');
   await dispatchBusinessEvent({
     dealId,
     eventType: 'milestone_completed' as BusinessEventType,
     userId,
     referenceId: dealId,
     referenceTable: 'deals',
-    summary: {
-      title: `매출 스케줄 생성: 선금 ${advanceAmount.toLocaleString()}원 / 잔금 ${balanceAmount.toLocaleString()}원`,
-    },
+    summary: { title: `매출 스케줄 생성: ${scheduleDesc}` },
   });
+
+  return createdIds;
 }
 
 // ── 5. On revenue received — 3-way match + deal update ──
@@ -316,6 +378,29 @@ export async function onRevenueReceived(params: {
         received_date: new Date().toISOString().split('T')[0],
       })
       .eq('id', revenueScheduleId);
+
+    // revenue_schedule_id로 연결된 세금계산서 자동 매칭
+    const { data: linkedInvoice } = await db
+      .from('tax_invoices')
+      .select('id')
+      .eq('revenue_schedule_id', revenueScheduleId)
+      .single();
+    if (linkedInvoice) {
+      await markInvoiceMatched(linkedInvoice.id);
+    }
+
+    // 선금 입금 후 → 다음 스케줄의 draft 세금계산서를 자동 issued 전환
+    const { data: nextDraftInvoices } = await db
+      .from('tax_invoices')
+      .select('id, revenue_schedule_id')
+      .eq('deal_id', dealId)
+      .eq('status', 'draft')
+      .not('revenue_schedule_id', 'is', null)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    if (nextDraftInvoices && nextDraftInvoices.length > 0) {
+      await issueTaxInvoice(nextDraftInvoices[0].id);
+    }
   }
 
   // Check if all revenue received
@@ -439,4 +524,62 @@ export async function getDealPipelineStatus(dealId: string): Promise<PipelineSta
   });
 
   return stages;
+}
+
+// ── 7. Force Approve (임의승인) — 업체 응답 없을 때 우리가 직접 승인 ──
+
+export async function forceApproveDocument(params: {
+  documentId: string;
+  companyId: string;
+  approverId: string;
+  reason?: string;
+}): Promise<{ nextAction?: string; createdDocId?: string; createdInvoiceId?: string }> {
+  const { documentId, companyId, approverId, reason } = params;
+
+  // Fetch current document
+  const { data: doc } = await supabase
+    .from('documents')
+    .select('id, name, status, deal_id, content_json')
+    .eq('id', documentId)
+    .single();
+
+  if (!doc) throw new Error('문서를 찾을 수 없습니다');
+
+  // Update status to approved + record force approval info in content_json
+  const existingContent = (doc.content_json as Record<string, unknown>) || {};
+  const { error } = await supabase
+    .from('documents')
+    .update({
+      status: 'approved',
+      content_json: {
+        ...existingContent,
+        forceApproval: {
+          approved: true,
+          approvedBy: approverId,
+          approvedAt: new Date().toISOString(),
+          reason: reason || '업체 미응답으로 임의 승인',
+        },
+      } as unknown as Json,
+    })
+    .eq('id', documentId);
+
+  if (error) throw error;
+
+  if (doc.deal_id) {
+    await dispatchBusinessEvent({
+      dealId: doc.deal_id,
+      eventType: 'document_approved' as BusinessEventType,
+      userId: approverId,
+      referenceId: documentId,
+      referenceTable: 'documents',
+      summary: { title: `${doc.name} 임의 승인 (사유: ${reason || '업체 미응답'})` },
+    });
+  }
+
+  // Trigger normal pipeline (계약서 자동생성 or 세금계산서 발행)
+  if (doc.deal_id) {
+    return onDocumentApproved({ documentId, companyId, approverId });
+  }
+
+  return { nextAction: 'force_approved' };
 }

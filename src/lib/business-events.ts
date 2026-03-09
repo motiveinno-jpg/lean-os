@@ -1,5 +1,5 @@
 /**
- * Reflect Business Event Dispatcher
+ * OwnerView Business Event Dispatcher
  * 비즈니스 이벤트 → 딜 채팅에 자동 시스템 메시지 + 액션카드 생성
  */
 

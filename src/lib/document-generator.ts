@@ -1,5 +1,5 @@
 /**
- * Reflect Document Generation Engine
+ * OwnerView Document Generation Engine
  * PDF 렌더링 + 템플릿 변수 + 문서번호 채번 + 직인 오버레이
  */
 
@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
+import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,13 +122,14 @@ export async function generateDocumentPDF(params: {
   issueDate?: string;
 }): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
+  await loadKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   let y = 20;
 
   // ── Header: 회사명 ──
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
+  setKoreanFont(doc, 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(params.companyName, 14, y);
 
@@ -140,7 +142,7 @@ export async function generateDocumentPDF(params: {
 
   // ── Title ──
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  setKoreanFont(doc, 'bold');
   doc.setTextColor(30, 30, 30);
   doc.text(params.title, pageW / 2, y, { align: 'center' });
   y += 14;
@@ -163,6 +165,7 @@ export async function generateDocumentPDF(params: {
       cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 },
       textColor: [40, 40, 40],
       lineWidth: 0,
+      font: 'NanumGothic',
     },
     columnStyles: { 0: { cellWidth: pageW - 28 } },
     margin: { left: 14, right: 14 },
@@ -182,7 +185,7 @@ export async function generateDocumentPDF(params: {
   }
 
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  setKoreanFont(doc, 'normal');
   doc.setTextColor(60, 60, 60);
   doc.text(issueDate, pageW / 2, y, { align: 'center' });
   y += 10;
@@ -243,39 +246,46 @@ export async function generateQuotePDF(params: {
   validUntil?: string;
   notes?: string;
   sealUrl?: string;
+  managerName?: string;
+  managerContact?: string;
+  bankInfo?: { bankName: string; accountNumber: string; accountHolder?: string };
+  deliveryDate?: string;
 }): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
+  await loadKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 15;
 
   // ── Title ──
   doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
+  setKoreanFont(doc, 'bold');
   doc.setTextColor(30, 30, 30);
   doc.text('견 적 서', pageW / 2, y, { align: 'center' });
   y += 12;
 
   // ── 문서번호 + 일자 ──
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  setKoreanFont(doc, 'normal');
   doc.setTextColor(80, 80, 80);
   doc.text(`No. ${params.documentNumber}`, 14, y);
   doc.text(`Date: ${new Date().toLocaleDateString('ko-KR')}`, pageW - 14, y, { align: 'right' });
   y += 8;
 
   // ── 발신/수신 정보 ──
+  const infoRows: string[][] = [
+    ['수 신', `${params.counterparty} 귀하`],
+    ['발 신', params.companyInfo.name],
+    ['대표이사', params.companyInfo.representative || '-'],
+    ['사업자번호', params.companyInfo.businessNumber || '-'],
+    ['주 소', params.companyInfo.address || '-'],
+    ['연락처', params.companyInfo.phone || '-'],
+  ];
+  if (params.managerName) infoRows.push(['담 당 자', params.managerName + (params.managerContact ? ` (${params.managerContact})` : '')]);
   autoTable(doc, {
     startY: y,
-    body: [
-      ['수 신', `${params.counterparty} 귀하`],
-      ['발 신', params.companyInfo.name],
-      ['대표이사', params.companyInfo.representative || '-'],
-      ['사업자번호', params.companyInfo.businessNumber || '-'],
-      ['주 소', params.companyInfo.address || '-'],
-      ['연락처', params.companyInfo.phone || '-'],
-    ],
+    body: infoRows,
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 9, cellPadding: 3, font: 'NanumGothic' },
     columnStyles: {
       0: { cellWidth: 30, fontStyle: 'bold', fillColor: [245, 247, 250] },
       1: { cellWidth: pageW - 58 },
@@ -288,7 +298,7 @@ export async function generateQuotePDF(params: {
   doc.setFillColor(59, 130, 246);
   doc.roundedRect(14, y, pageW - 28, 12, 2, 2, 'F');
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
+  setKoreanFont(doc, 'bold');
   doc.setTextColor(255, 255, 255);
   doc.text(
     `합계금액:  ${fmtKRW(params.totalAmount)} 원 (VAT 포함)`,
@@ -314,8 +324,8 @@ export async function generateQuotePDF(params: {
     head: tableHead,
     body: tableBody,
     theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 3, halign: 'center' },
-    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 8, cellPadding: 3, halign: 'center', font: 'NanumGothic' },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', font: 'NanumGothic' },
     columnStyles: {
       0: { cellWidth: 12 },
       1: { cellWidth: 50, halign: 'left' },
@@ -338,7 +348,7 @@ export async function generateQuotePDF(params: {
       ['합계금액', `${fmtKRW(params.totalAmount)} 원`],
     ],
     theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3 },
+    styles: { fontSize: 9, cellPadding: 3, font: 'NanumGothic' },
     columnStyles: {
       0: { cellWidth: 40, fontStyle: 'bold', fillColor: [245, 247, 250], halign: 'center' },
       1: { halign: 'right' },
@@ -347,17 +357,22 @@ export async function generateQuotePDF(params: {
   });
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // ── 유효기간 + 비고 ──
-  if (params.validUntil || params.notes) {
-    const noteBody: string[][] = [];
-    if (params.validUntil) noteBody.push(['유효기간', params.validUntil]);
-    if (params.notes) noteBody.push(['비 고', params.notes]);
+  // ── 유효기간 + 납품일 + 비고 + 입금계좌 ──
+  const noteBody: string[][] = [];
+  if (params.validUntil) noteBody.push(['유효기간', params.validUntil]);
+  if (params.deliveryDate) noteBody.push(['납품일', params.deliveryDate]);
+  if (params.bankInfo) {
+    const holder = params.bankInfo.accountHolder ? ` (${params.bankInfo.accountHolder})` : '';
+    noteBody.push(['입금계좌', `${params.bankInfo.bankName} ${params.bankInfo.accountNumber}${holder}`]);
+  }
+  if (params.notes) noteBody.push(['비 고', params.notes]);
 
+  if (noteBody.length > 0) {
     autoTable(doc, {
       startY: y,
       body: noteBody,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 3, font: 'NanumGothic' },
       columnStyles: {
         0: { cellWidth: 30, fontStyle: 'bold', fillColor: [245, 247, 250] },
       },
@@ -693,6 +708,7 @@ function addPageNumbers(doc: jsPDF, companyName: string) {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
+    setKoreanFont(doc, 'normal');
     doc.setTextColor(150, 150, 150);
     doc.text(
       `OwnerView Document  |  ${companyName}  |  Page ${i}/${pageCount}`,

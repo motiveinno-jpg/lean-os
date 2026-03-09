@@ -1,5 +1,5 @@
 /**
- * Reflect Payment Batch Engine
+ * OwnerView Payment Batch Engine
  * 급여/고정비 일괄 배치 → 대표 승인 → n8n 트리거 자동이체
  */
 
@@ -224,6 +224,102 @@ export async function approveBatch(batchId: string, userId: string): Promise<voi
     approved_by: userId,
     approved_at: new Date().toISOString(),
   }).eq('batch_id', batchId).eq('status', 'pending');
+
+  // Auto-send payslip emails for payroll batches
+  const { data: batch } = await db
+    .from('payment_batches')
+    .select('batch_type, company_id, name')
+    .eq('id', batchId)
+    .single();
+
+  if (batch?.batch_type === 'payroll') {
+    // Fire and forget — don't block approval on email sending
+    sendPayslipEmails(batchId, batch.company_id, batch.name).catch((err) => {
+      console.error('Payslip email send failed:', err);
+    });
+  }
+}
+
+// ── Send payslip emails to all employees in a payroll batch ──
+
+export async function sendPayslipEmails(
+  batchId: string,
+  companyId: string,
+  batchName: string,
+): Promise<{ sent: number; failed: number }> {
+  // Get company name
+  const { data: company } = await db
+    .from('companies')
+    .select('name')
+    .eq('id', companyId)
+    .single();
+
+  // Get payment queue items linked to this batch
+  const { data: payments } = await db
+    .from('payment_queue')
+    .select('amount, description, recipient_name, category')
+    .eq('batch_id', batchId)
+    .eq('payment_type', 'payroll');
+
+  if (!payments?.length) return { sent: 0, failed: 0 };
+
+  // Get employees with emails
+  const { data: employees } = await db
+    .from('employees')
+    .select('id, name, email, salary, is_4_insurance')
+    .eq('company_id', companyId)
+    .eq('status', 'active');
+
+  if (!employees?.length) return { sent: 0, failed: 0 };
+
+  // Extract month label from batch name (e.g. "2026년 3월 급여" → "2026년 3월")
+  const monthLabel = batchName.replace(/\s*급여\s*$/, '') || batchName;
+
+  // Get auth session for EF call
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return { sent: 0, failed: 0 };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  let sent = 0;
+  let failed = 0;
+
+  for (const emp of employees) {
+    if (!emp.email) { failed++; continue; }
+
+    const salary = Number(emp.salary || 0);
+    if (salary <= 0) { failed++; continue; }
+
+    const payroll = calculatePayroll(salary, emp.name, emp.id);
+
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-payslip-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          email: emp.email,
+          employeeName: emp.name,
+          companyName: company?.name || '',
+          monthLabel,
+          baseSalary: payroll.baseSalary,
+          nationalPension: payroll.nationalPension,
+          healthInsurance: payroll.healthInsurance,
+          employmentInsurance: payroll.employmentInsurance,
+          incomeTax: payroll.incomeTax,
+          localIncomeTax: payroll.localIncomeTax,
+          deductionsTotal: payroll.deductionsTotal,
+          netPay: payroll.netPay,
+        }),
+      });
+      if (res.ok) { sent++; } else { failed++; }
+    } catch {
+      failed++;
+    }
+  }
+
+  return { sent, failed };
 }
 
 // ── Trigger batch execution via n8n webhook ──

@@ -8,7 +8,7 @@ import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatus
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
-import { getDealPipelineStatus, createDocumentFromDeal, type PipelineStage } from "@/lib/deal-pipeline";
+import { getDealPipelineStatus, createDocumentFromDeal, onRevenueReceived, forceApproveDocument, type PipelineStage } from "@/lib/deal-pipeline";
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
 
@@ -594,7 +594,10 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh }: {
   onRefresh: () => void;
 }) {
   const [creating, setCreating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [forceApproving, setForceApproving] = useState(false);
   const queryClient = useQueryClient();
+  const db2 = supabase as any;
 
   const { data: stages = [] } = useQuery({
     queryKey: ['deal-pipeline', dealId],
@@ -619,6 +622,59 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh }: {
   }
 
   const hasQuote = stages.some(s => s.stage === 'quote' && s.status !== 'pending');
+  const paymentStage = stages.find(s => s.stage === 'payment_received');
+  const scheduleStage = stages.find(s => s.stage === 'payment_schedule');
+  const canConfirmRevenue = scheduleStage?.status === 'completed' && paymentStage?.status === 'active';
+
+  // 임의 승인 가능한 문서 확인 (견적서 or 계약서가 active인 경우)
+  const activeQuote = stages.find(s => s.stage === 'quote' && s.status === 'active');
+  const activeContract = stages.find(s => s.stage === 'contract' && s.status === 'active');
+  const forceApproveTarget = activeQuote || activeContract;
+
+  async function handleForceApprove() {
+    if (!companyId || !userId || !forceApproveTarget?.documentId || forceApproving) return;
+    setForceApproving(true);
+    try {
+      await forceApproveDocument({
+        documentId: forceApproveTarget.documentId,
+        companyId,
+        approverId: userId,
+        reason: '업체 미응답으로 임의 승인',
+      });
+      queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] });
+      onRefresh();
+    } catch { /* silent */ }
+    setForceApproving(false);
+  }
+
+  async function handleConfirmRevenue() {
+    if (!companyId || !userId || confirming) return;
+    setConfirming(true);
+    try {
+      // Get next expected schedule entry
+      const { data: schedules } = await db2
+        .from('deal_revenue_schedule')
+        .select('id, amount, status')
+        .eq('deal_id', dealId)
+        .eq('status', 'expected')
+        .order('due_date', { ascending: true })
+        .limit(1);
+
+      if (schedules && schedules.length > 0) {
+        const entry = schedules[0];
+        await onRevenueReceived({
+          dealId,
+          companyId,
+          amount: Number(entry.amount),
+          userId,
+          revenueScheduleId: entry.id,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] });
+      onRefresh();
+    } catch { /* silent */ }
+    setConfirming(false);
+  }
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
@@ -629,15 +685,35 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh }: {
             {progress}%
           </span>
         </div>
-        {!hasQuote && companyId && userId && (
-          <button
-            onClick={handleCreateQuote}
-            disabled={creating}
-            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
-          >
-            {creating ? '생성 중...' : '+ 견적서 생성'}
-          </button>
-        )}
+        <div className="flex gap-2">
+          {!hasQuote && companyId && userId && (
+            <button
+              onClick={handleCreateQuote}
+              disabled={creating}
+              className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+            >
+              {creating ? '생성 중...' : '+ 견적서 생성'}
+            </button>
+          )}
+          {forceApproveTarget && companyId && userId && (
+            <button
+              onClick={handleForceApprove}
+              disabled={forceApproving}
+              className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-amber-700 transition"
+            >
+              {forceApproving ? '처리 중...' : `임의 승인 (${activeQuote ? '견적서' : '계약서'})`}
+            </button>
+          )}
+          {canConfirmRevenue && companyId && userId && (
+            <button
+              onClick={handleConfirmRevenue}
+              disabled={confirming}
+              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-green-700 transition"
+            >
+              {confirming ? '처리 중...' : '입금 확인'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}

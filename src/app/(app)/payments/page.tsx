@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
-import { getRecurringPayments, upsertRecurringPayment, getPaymentBatches } from "@/lib/approval-center";
+import { getRecurringPayments, upsertRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
 import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
+import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
 import { QueryErrorBanner } from "@/components/query-status";
 
-type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring';
+type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
 
 export default function PaymentsPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function PaymentsPage() {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'queue', label: '결제 큐' },
+    { key: 'expenses', label: '지출결의/품의' },
     { key: 'payroll', label: '급여 일괄' },
     { key: 'fixed', label: '고정비 일괄' },
     { key: 'recurring', label: '반복 결제 설정' },
@@ -87,6 +89,9 @@ export default function PaymentsPage() {
       {tab === 'queue' && companyId && userId && (
         <PaymentQueueTab companyId={companyId} userId={userId} filter={filter} setFilter={setFilter}
           showForm={showForm} setShowForm={setShowForm} form={form} setForm={setForm} invalidate={invalidate} />
+      )}
+      {tab === 'expenses' && companyId && userId && (
+        <ExpenseTab companyId={companyId} userId={userId} invalidate={invalidate} />
       )}
       {tab === 'payroll' && companyId && userId && (
         <PayrollBatchTab companyId={companyId} userId={userId} invalidate={invalidate} />
@@ -533,8 +538,15 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 // ── Tab 4: Recurring Payments ──
 
 function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ["bank-accounts", companyId],
+    queryFn: () => getBankAccounts(companyId),
+    enabled: !!companyId,
+  });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25' });
+  const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResults, setRefreshResults] = useState<RefreshResult[] | null>(null);
   const queryClient = useQueryClient();
 
   const { data: recurring = [] } = useQuery({
@@ -554,12 +566,15 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       recipientBank: form.recipientBank || undefined,
       dayOfMonth: Number(form.dayOfMonth) || 25,
       isActive: true,
+      autoTransferDate: form.autoTransferDate ? Number(form.autoTransferDate) : undefined,
+      autoTransferAccountId: form.autoTransferAccountId || undefined,
+      autoTransferMemo: form.autoTransferMemo || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
       invalidate();
       setShowForm(false);
-      setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25' });
+      setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
     },
   });
 
@@ -640,11 +655,74 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             ({recurring.filter((r: any) => r.is_active).length}건 활성)
           </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
-          + 반복결제 추가
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              setRefreshResults(null);
+              try {
+                const results = await refreshRecurringAmounts(companyId);
+                setRefreshResults(results);
+                if (results.length > 0) {
+                  queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
+                  invalidate();
+                }
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            disabled={refreshing}
+            className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl text-xs font-semibold transition disabled:opacity-50"
+          >
+            {refreshing ? '최신화 중...' : '금액 최신화'}
+          </button>
+          <button onClick={() => setShowForm(!showForm)}
+            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+            + 반복결제 추가
+          </button>
+        </div>
       </div>
+
+      {/* Refresh Results */}
+      {refreshResults !== null && (
+        <div className={`rounded-2xl border p-4 mb-6 ${
+          refreshResults.length > 0
+            ? 'bg-green-500/5 border-green-500/20'
+            : 'bg-[var(--bg-surface)] border-[var(--border)]'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-bold">
+              {refreshResults.length > 0
+                ? `${refreshResults.length}건 금액 업데이트됨`
+                : '모든 항목이 최신 상태입니다'
+              }
+            </div>
+            <button onClick={() => setRefreshResults(null)} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)]">닫기</button>
+          </div>
+          {refreshResults.length > 0 && (
+            <div className="space-y-1.5">
+              {refreshResults.map((r) => (
+                <div key={r.id} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      r.source === 'card' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'
+                    }`}>
+                      {r.source === 'card' ? '카드' : '이체'}
+                    </span>
+                    <span>{r.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--text-dim)] line-through">₩{r.oldAmount.toLocaleString()}</span>
+                    <span className="text-[var(--text-dim)]">&rarr;</span>
+                    <span className="font-bold text-green-500">₩{r.newAmount.toLocaleString()}</span>
+                    <span className="text-[10px] text-[var(--text-dim)]">({r.lastTxDate})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
@@ -685,6 +763,33 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
           </div>
+          <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
+            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">자동이체 설정 (선택)</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">자동이체 예약일 (매월)</label>
+                <input type="number" min="1" max="31" value={form.autoTransferDate} onChange={(e) => setForm({ ...form, autoTransferDate: e.target.value })}
+                  placeholder="미설정"
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">출금 계좌</label>
+                <select value={form.autoTransferAccountId} onChange={(e) => setForm({ ...form, autoTransferAccountId: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  <option value="">미지정</option>
+                  {bankAccounts.map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.bank_name} {a.alias || a.account_number}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">적요 (메모)</label>
+                <input value={form.autoTransferMemo} onChange={(e) => setForm({ ...form, autoTransferMemo: e.target.value })}
+                  placeholder="자동이체 적요"
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+            </div>
+          </div>
           <div className="flex gap-2">
             <button onClick={() => form.name && form.amount && saveMut.mutate()}
               disabled={!form.name || !form.amount || saveMut.isPending}
@@ -711,6 +816,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 <th className="text-right px-5 py-3 font-medium">금액</th>
                 <th className="text-left px-5 py-3 font-medium">수취인</th>
                 <th className="text-center px-5 py-3 font-medium">이체일</th>
+                <th className="text-left px-5 py-3 font-medium">자동이체</th>
                 <th className="text-center px-5 py-3 font-medium">상태</th>
               </tr>
             </thead>
@@ -726,6 +832,14 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                   <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(r.amount || 0).toLocaleString()}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.recipient_name || '—'}</td>
                   <td className="px-5 py-3 text-xs text-center">매월 {r.day_of_month || 25}일</td>
+                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
+                    {r.auto_transfer_date ? (
+                      <div>
+                        <div>매월 {r.auto_transfer_date}일</div>
+                        {r.auto_transfer_memo && <div className="text-[10px] text-[var(--text-dim)]">{r.auto_transfer_memo}</div>}
+                      </div>
+                    ) : <span className="text-[var(--text-dim)]">미설정</span>}
+                  </td>
                   <td className="px-5 py-3 text-center">
                     <button onClick={() => toggleMut.mutate(r)} disabled={toggleMut.isPending}
                       className={`text-xs px-2.5 py-1 rounded-lg font-medium transition ${
@@ -933,5 +1047,248 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
         </div>
       )}
     </div>
+  );
+}
+
+// ── Tab: 지출결의서/품의서 ──
+
+function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
+  const [showForm, setShowForm] = useState(false);
+  const [requestType, setRequestType] = useState<'expense' | 'purchase_request'>('expense');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [form, setForm] = useState({ title: '', description: '', amount: '', category: 'general', dealId: '' });
+  const queryClient = useQueryClient();
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expense-requests', companyId, statusFilter],
+    queryFn: () => getExpenseRequests(companyId, statusFilter === 'all' ? undefined : statusFilter),
+    enabled: !!companyId,
+  });
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ['deals-for-expense', companyId],
+    queryFn: async () => {
+      const { data } = await (await import('@/lib/supabase')).supabase
+        .from('deals').select('id, name').eq('company_id', companyId).eq('status', 'active');
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => createExpenseRequest({
+      companyId,
+      requesterId: userId,
+      dealId: form.dealId || undefined,
+      title: form.title,
+      description: form.description || undefined,
+      amount: Number(form.amount),
+      category: form.category,
+    }),
+    onSuccess: async (data) => {
+      // requestType 저장 (품의서인 경우)
+      if (requestType === 'purchase_request' && data?.id) {
+        const { supabase } = await import('@/lib/supabase');
+        await (supabase as any).from('expense_requests').update({ request_type: 'purchase_request' }).eq('id', data.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['expense-requests'] });
+      invalidate();
+      setShowForm(false);
+      setForm({ title: '', description: '', amount: '', category: 'general', dealId: '' });
+    },
+  });
+
+  const approveMut = useMutation({
+    mutationFn: (id: string) => approveExpense({ companyId, expenseId: id, approverId: userId }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (id: string) => rejectExpense({ companyId, expenseId: id, approverId: userId }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+  });
+
+  const paidMut = useMutation({
+    mutationFn: (id: string) => markExpensePaid(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+  });
+
+  const categoryLabels: Record<string, string> = {};
+  EXPENSE_CATEGORIES.forEach(c => { categoryLabels[c.value] = c.label; });
+
+  const pendingCount = expenses.filter((e: any) => e.status === 'pending').length;
+  const approvedTotal = expenses.filter((e: any) => e.status === 'approved').reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+
+  return (
+    <>
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
+          <div className="text-lg font-bold text-yellow-400 mt-1">{pendingCount}건</div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-xs text-[var(--text-dim)]">승인 완료 (미지급)</div>
+          <div className="text-lg font-bold text-blue-400 mt-1">₩{approvedTotal.toLocaleString()}</div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-xs text-[var(--text-dim)]">이번달 지출</div>
+          <div className="text-lg font-bold text-green-400 mt-1">
+            ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
+              .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
+          </div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-xs text-[var(--text-dim)]">전체</div>
+          <div className="text-lg font-bold mt-1">{expenses.length}건</div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-2">
+          {['all', 'pending', 'approved', 'paid', 'rejected'].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                statusFilter === s ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}>
+              {s === 'all' ? '전체' : (EXPENSE_STATUS as any)[s]?.label || s}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setShowForm(!showForm)}
+          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+          + 지출결의/품의 작성
+        </button>
+      </div>
+
+      {/* Create Form */}
+      {showForm && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => setRequestType('expense')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${requestType === 'expense' ? 'bg-blue-500 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
+              지출결의서
+            </button>
+            <button onClick={() => setRequestType('purchase_request')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${requestType === 'purchase_request' ? 'bg-purple-500 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
+              품의서
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">{requestType === 'expense' ? '지출 제목' : '품의 제목'} *</label>
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder={requestType === 'expense' ? '거래처 접대비' : 'Adobe 연간 구독 구매'}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
+              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                placeholder="100000"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트/딜</label>
+              <select value={form.dealId} onChange={(e) => setForm({ ...form, dealId: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                <option value="">없음 (독립 지출)</option>
+                {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">상세 설명</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              rows={3} placeholder={requestType === 'expense' ? '지출 사유 및 상세 내역' : '구매 사유, 필요성, 비교 견적 등'}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => form.title && form.amount && createMut.mutate()}
+              disabled={!form.title || !form.amount || createMut.isPending}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+              {requestType === 'expense' ? '지출결의서 제출' : '품의서 제출'}
+            </button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        {expenses.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="text-4xl mb-4">📄</div>
+            <div className="text-lg font-bold mb-2">지출결의서/품의서가 없습니다</div>
+            <div className="text-sm text-[var(--text-muted)]">프로젝트 외 지출이나 구매가 필요할 때 작성하세요</div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+            <thead>
+              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-5 py-3 font-medium">유형</th>
+                <th className="text-left px-5 py-3 font-medium">제목</th>
+                <th className="text-left px-5 py-3 font-medium">카테고리</th>
+                <th className="text-right px-5 py-3 font-medium">금액</th>
+                <th className="text-left px-5 py-3 font-medium">요청자</th>
+                <th className="text-left px-5 py-3 font-medium">프로젝트</th>
+                <th className="text-center px-5 py-3 font-medium">상태</th>
+                <th className="text-center px-5 py-3 font-medium">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((e: any) => {
+                const sc = (EXPENSE_STATUS as any)[e.status] || EXPENSE_STATUS.pending;
+                const isExpense = e.request_type !== 'purchase_request';
+                return (
+                  <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                    <td className="px-5 py-3">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${isExpense ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'}`}>
+                        {isExpense ? '지출결의' : '품의'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-sm font-medium">{e.title}</td>
+                    <td className="px-5 py-3 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                        {categoryLabels[e.category] || e.category}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(e.amount).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.users?.name || '—'}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.deals?.name || '—'}</td>
+                    <td className="px-5 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <div className="flex gap-1 justify-center">
+                        {e.status === 'pending' && (
+                          <>
+                            <button onClick={() => approveMut.mutate(e.id)} disabled={approveMut.isPending}
+                              className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg text-[10px] font-medium hover:bg-green-500/20">승인</button>
+                            <button onClick={() => rejectMut.mutate(e.id)} disabled={rejectMut.isPending}
+                              className="px-2 py-1 bg-red-500/10 text-red-400 rounded-lg text-[10px] font-medium hover:bg-red-500/20">반려</button>
+                          </>
+                        )}
+                        {e.status === 'approved' && (
+                          <button onClick={() => paidMut.mutate(e.id)} disabled={paidMut.isPending}
+                            className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-[10px] font-medium hover:bg-blue-500/20">지급완료</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table></div>
+        )}
+      </div>
+    </>
   );
 }

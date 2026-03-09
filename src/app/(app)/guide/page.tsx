@@ -529,48 +529,6 @@ const CATEGORIES: GuideCategory[] = [
     ],
   },
   {
-    id: 'ai',
-    icon: '🤖',
-    name: 'AI 어시스턴트',
-    description: 'AI 분석, 자동 분류, 예측',
-    route: '/ai',
-    steps: [
-      {
-        title: 'AI 대화',
-        description: '자연어로 질문하면 AI가 회사 데이터를 기반으로 분석 결과를 제공합니다.',
-        cursorFrom: [30, 80], cursorTo: [55, 85], clickAt: [55, 85],
-        mockElements: [
-          { type: 'card', label: 'AI 채팅', x: 5, y: 5, w: 60, h: 75 },
-          { type: 'text', label: '이번 달 매출 현황을 알려줘', x: 10, y: 55, w: 50, h: 5 },
-          { type: 'text', label: '3월 매출 ₩45M, 전월 대비 +12%', x: 10, y: 63, w: 50, h: 5 },
-          { type: 'input', label: '질문을 입력하세요...', x: 5, y: 83, w: 50, h: 8, highlight: true },
-          { type: 'button', label: '전송', x: 57, y: 83, w: 8, h: 8, color: '#2563eb' },
-        ],
-      },
-      {
-        title: 'AI 자동 분류',
-        description: 'AI가 거래내역, 문서 등을 자동으로 분류하고 태깅합니다.',
-        cursorFrom: [70, 15], cursorTo: [85, 25], clickAt: [85, 25],
-        mockElements: [
-          { type: 'card', label: '대기 중인 작업', x: 68, y: 10, w: 28, h: 40 },
-          { type: 'table-row', label: '거래 분류 5건', x: 70, y: 22, w: 23, h: 6 },
-          { type: 'table-row', label: '문서 태깅 3건', x: 70, y: 30, w: 23, h: 6 },
-          { type: 'button', label: '일괄 처리', x: 72, y: 40, w: 18, h: 7, color: '#8b5cf6', highlight: true },
-        ],
-      },
-      {
-        title: 'AI 예측',
-        description: '매출, 현금흐름 등의 미래 예측치를 AI가 제공합니다.',
-        cursorFrom: [10, 25], cursorTo: [40, 40], clickAt: [40, 40],
-        mockElements: [
-          { type: 'chart-bar', label: '매출 예측 (6개월)', x: 5, y: 10, w: 60, h: 40 },
-          { type: 'badge', label: '예측 신뢰도 87%', x: 5, y: 55, w: 22, h: 8, color: '#22c55e' },
-          { type: 'card', label: '예측: 6월 BEP 달성', x: 5, y: 68, w: 40, h: 12, color: '#2563eb', highlight: true },
-        ],
-      },
-    ],
-  },
-  {
     id: 'settings',
     icon: '⚙️',
     name: '설정',

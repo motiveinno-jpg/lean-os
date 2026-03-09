@@ -15,8 +15,10 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
+    let handled = false; // 이중 실행 방지
 
     async function handleVerification() {
+      if (handled) return;
       try {
         // Supabase가 URL hash에서 토큰을 자동 처리
         const { data, error } = await supabase.auth.getSession();
@@ -28,7 +30,8 @@ export default function VerifyEmailPage() {
         }
 
         if (data.session) {
-          // 세션이 있으면 인증 성공 — 회사/유저 레코드 생성
+          if (handled) return;
+          handled = true;
           await setupCompanyIfNeeded(data.session.user);
           setState("success");
           startRedirectCountdown();
@@ -37,19 +40,27 @@ export default function VerifyEmailPage() {
 
         // 세션이 아직 없으면 잠시 대기 후 재시도
         await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (handled) return;
         const { data: retryData, error: retryError } = await supabase.auth.getSession();
 
         if (retryError || !retryData.session) {
-          setErrorMessage("인증 토큰이 유효하지 않거나 만료되었습니다.");
-          setState("error");
+          if (!handled) {
+            setErrorMessage("인증 토큰이 유효하지 않거나 만료되었습니다.");
+            setState("error");
+          }
         } else {
-          await setupCompanyIfNeeded(retryData.session.user);
-          setState("success");
-          startRedirectCountdown();
+          if (!handled) {
+            handled = true;
+            await setupCompanyIfNeeded(retryData.session.user);
+            setState("success");
+            startRedirectCountdown();
+          }
         }
       } catch {
-        setErrorMessage("인증 처리 중 오류가 발생했습니다.");
-        setState("error");
+        if (!handled) {
+          setErrorMessage("인증 처리 중 오류가 발생했습니다.");
+          setState("error");
+        }
       }
     }
 
@@ -68,7 +79,9 @@ export default function VerifyEmailPage() {
 
     // onAuthStateChange로 토큰 교환 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (handled) return;
       if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+        handled = true;
         await setupCompanyIfNeeded(session.user);
         setState("success");
         startRedirectCountdown();

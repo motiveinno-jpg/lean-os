@@ -476,6 +476,7 @@ export async function getFounderData(companyId: string) {
       cost: 0,
       margin: 0,
       endDate: d.end_date,
+      status: d.status || 'active',
     })),
     targets: { monthTarget, quarterTarget, yearTarget },
     quarterRevenue,
@@ -1014,8 +1015,10 @@ export async function createVaultAccount(params: {
   serviceName: string;
   url?: string;
   loginId?: string;
+  loginPassword?: string;
   monthlyCost?: number;
   paymentMethod?: string;
+  billingDay?: number;
   renewalDate?: string;
   ownerId?: string;
   notes?: string;
@@ -1027,8 +1030,10 @@ export async function createVaultAccount(params: {
       service_name: params.serviceName,
       url: params.url,
       login_id: params.loginId,
+      login_password: params.loginPassword,
       monthly_cost: params.monthlyCost || 0,
       payment_method: params.paymentMethod,
+      billing_day: params.billingDay,
       renewal_date: params.renewalDate,
       owner_id: params.ownerId,
       notes: params.notes,

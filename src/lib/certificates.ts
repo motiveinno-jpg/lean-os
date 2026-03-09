@@ -1,5 +1,5 @@
 /**
- * Reflect Employee Certificate Generator
+ * OwnerView Employee Certificate Generator
  * 재직증명서 + 경력증명서 PDF 생성 + 발급 이력 관리
  *
  * NOTE: jsPDF의 기본 helvetica 폰트는 한글을 직접 렌더링하지 못합니다.

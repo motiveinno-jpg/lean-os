@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationCenter } from "@/components/notification-center";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
+import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 
@@ -71,7 +72,7 @@ function MobileBottomNav() {
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide"],
-  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide", "/ai"],
+  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide"],
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
@@ -136,14 +137,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* Logo for limited roles on mobile */}
         {isLimitedRole && (
           <div className="md:hidden flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
-              <rect width="40" height="40" rx="10" fill="#111"/>
-              <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
-              <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round"/>
-              <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
-            </svg>
-            <span className="text-sm font-bold text-[var(--text)]">OwnerView</span>
+            <OwnerViewIcon size={24} />
+            <span className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></span>
           </div>
         )}
         <div className="hidden md:block" />

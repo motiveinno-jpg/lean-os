@@ -1,5 +1,5 @@
 /**
- * Reflect Invitations (Partner + Employee)
+ * OwnerView Invitations (Partner + Employee)
  */
 import { supabase } from './supabase';
 const db = supabase as any;
@@ -12,6 +12,9 @@ export async function createPartnerInvitation(params: {
   email: string;
   name?: string;
 }) {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
   const { data, error } = await db
     .from('partner_invitations')
     .insert({
@@ -20,6 +23,7 @@ export async function createPartnerInvitation(params: {
       email: params.email,
       name: params.name || null,
       role: 'partner',
+      expires_at: expiresAt.toISOString(),
     })
     .select()
     .single();
@@ -65,6 +69,9 @@ export async function createEmployeeInvitation(params: {
   role?: 'employee' | 'admin';
   invitedBy: string;
 }) {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
   const { data, error } = await db
     .from('employee_invitations')
     .insert({
@@ -73,6 +80,7 @@ export async function createEmployeeInvitation(params: {
       name: params.name || null,
       role: params.role || 'employee',
       invited_by: params.invitedBy,
+      expires_at: expiresAt.toISOString(),
     })
     .select()
     .single();
@@ -146,7 +154,7 @@ export async function validateInviteToken(token: string): Promise<{
 
 export function getInviteUrl(token: string): string {
   const base = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${base}/lean-os/invite/?token=${token}`;
+  return `${base}/invite/?token=${token}`;
 }
 
 // ── Send Invite Email via Edge Function ──

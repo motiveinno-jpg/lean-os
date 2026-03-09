@@ -1,5 +1,5 @@
 /**
- * Reflect Multi-Step Approval Workflow Engine
+ * OwnerView Multi-Step Approval Workflow Engine
  * 다단계 결재 워크플로우 엔진 — 정책 기반 자동 라우팅 + 단계별 승인/반려
  */
 
@@ -23,6 +23,8 @@ export type RequestType =
   | 'travel'
   | 'card_expense'
   | 'equipment'
+  | 'approval_doc'
+  | 'expense_report'
   | 'custom';
 
 export interface ApprovalPolicy {
@@ -87,6 +89,8 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
   travel: '출장 신청',
   card_expense: '법인카드 사용',
   equipment: '장비 요청',
+  approval_doc: '품의서',
+  expense_report: '지출결의서',
   custom: '기타',
 };
 

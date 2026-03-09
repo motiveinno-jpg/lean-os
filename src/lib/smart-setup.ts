@@ -1,5 +1,5 @@
 /**
- * Reflect Smart Setup Engine
+ * OwnerView Smart Setup Engine
  * 이체내역 패턴감지 + 엑셀→고정비 자동등록 + 계약→지출결의 자동생성
  */
 

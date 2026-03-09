@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 :root, [data-theme="light"] {
-  /* Reflect — Calm Trust Palette */
+  /* OwnerView — Calm Trust Palette */
   --bg: #F8FAFC;
   --bg-card: #FFFFFF;
   --bg-surface: #F1F5F9;
@@ -91,6 +91,23 @@ body {
 .animate-count-up { animation: count-up 0.4s ease-out forwards; }
 .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+/* Conversation card animations */
+@keyframes conv-card-expand {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes conv-card-collapse {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes conv-bubble-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-conv-expand  { animation: conv-card-expand 0.25s ease-out forwards; }
+.animate-conv-collapse { animation: conv-card-collapse 0.2s ease-out forwards; }
+.animate-conv-bubble  { animation: conv-bubble-in 0.2s ease-out forwards; }
 
 /* Safe area for iOS notch / home indicator */
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }

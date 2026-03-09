@@ -1,5 +1,5 @@
 /**
- * Reflect Notification Engine
+ * OwnerView Notification Engine
  * 알림 생성 → 조회 → 읽음 처리 → 삭제
  */
 

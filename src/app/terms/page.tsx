@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RollingBrandText } from "@/components/brand-logo";
 
 const SECTIONS = [
   {
@@ -11,7 +12,7 @@ const SECTIONS = [
   {
     id: "2",
     title: "제2조 (정의)",
-    content: `1. "서비스"란 회사가 제공하는 AI 기반 회사 상황판 OS(OwnerView)로서, 회계, 급여, 전자계약, 팀 채팅, 프로젝트 관리, CRM, 세무, 문서관리, AI 어시스턴트 등의 기능을 통합 제공하는 B2B SaaS 플랫폼을 의미합니다.
+    content: `1. "서비스"란 회사가 제공하는 AI 기반 회사 상황판 OS(OwnerView)로서, 회계, 급여, 전자계약, 팀 채팅, 프로젝트 관리, CRM, 세무, 문서관리 등의 기능을 통합 제공하는 B2B SaaS 플랫폼을 의미합니다.
 2. "회원"이란 본 약관에 동의하고 회사와 서비스 이용계약을 체결한 법인 또는 개인(개인사업자 포함)을 의미합니다.
 3. "관리자"란 회원이 지정한 서비스 관리 권한을 보유한 사용자를 의미합니다.
 4. "이용자"란 회원의 소속 직원, 파트너 등 회원의 초대를 통해 서비스에 접근하는 모든 개인을 의미합니다.
@@ -49,7 +50,7 @@ const SECTIONS = [
   라. 팀 채팅 및 커뮤니케이션
   마. 프로젝트 및 딜 파이프라인 관리
   바. CRM 및 거래처 관리
-  사. AI 어시스턴트 (자동 분류, 위험 감지, 예측)
+  사. 스마트 자동 분류 및 위험 감지
   아. 문서 자동 관리 (생성, 분류, 백업)
   자. 기타 회사가 추가 개발하여 제공하는 기능
 2. 서비스의 구체적인 기능, 범위 및 이용 조건은 요금제(Free, Starter, Business, Enterprise)에 따라 차등 적용됩니다.
@@ -180,7 +181,7 @@ export default function TermsPage() {
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
-            <span className="text-lg font-bold text-white">OwnerView</span>
+            <span className="text-lg font-bold text-white"><RollingBrandText /></span>
           </Link>
           <Link href="/" className="px-4 py-2 text-sm text-slate-300 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition">
             홈으로

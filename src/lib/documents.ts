@@ -1,5 +1,5 @@
 /**
- * Reflect Document Pipeline Engine
+ * OwnerView Document Pipeline Engine
  * 템플릿 → 변수 채움 → 수정 → 승인 → 잠금
  */
 
@@ -9,10 +9,19 @@ import type { Json } from '@/types/models';
 // ── Document types ──
 export const DOC_TYPES = [
   { value: 'contract', label: '계약서' },
+  { value: 'contract_service', label: '용역계약서' },
+  { value: 'contract_sales', label: '매매계약서' },
+  { value: 'contract_outsource', label: '업무위탁계약서' },
+  { value: 'contract_labor', label: '근로계약서' },
+  { value: 'contract_lease', label: '임대차계약서' },
+  { value: 'contract_partnership', label: '파트너십계약서' },
   { value: 'invoice', label: '견적서' },
   { value: 'quote', label: '제안서' },
   { value: 'sow', label: '업무기술서(SOW)' },
   { value: 'nda', label: '비밀유지계약(NDA)' },
+  { value: 'approval_doc', label: '품의서' },
+  { value: 'expense_report', label: '지출결의서' },
+  { value: 'mou', label: '양해각서(MOU)' },
 ] as const;
 
 export const DOC_STATUS = {

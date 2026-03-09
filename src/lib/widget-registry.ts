@@ -12,7 +12,7 @@ export type WidgetId =
   | 'financial_overview'
   | 'closing_checklist'
   | 'automation_status'
-  | 'ai_insights';
+;
 
 export interface WidgetDef {
   id: WidgetId;
@@ -32,7 +32,6 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   { id: 'financial_overview', name: '재무 현황',    description: '월별 수입/지출 차트와 드릴다운',   category: 'cash', defaultVisible: false, defaultOrder: 5 },
   { id: 'closing_checklist', name: '월 마감',       description: '월 마감 체크리스트',              category: 'tax',  defaultVisible: false, defaultOrder: 6 },
   { id: 'automation_status', name: '자동화 엔진',   description: '15개 자동화 실행 상태',           category: 'ops',  defaultVisible: false, defaultOrder: 7 },
-  { id: 'ai_insights',       name: 'AI 인사이트',   description: 'AI 대시보드 분석 요약',           category: 'ops',  defaultVisible: false, defaultOrder: 8 },
 ];
 
 // ── Widget config per view ──
@@ -77,7 +76,7 @@ export const PRESET_VIEWS: PresetView[] = [
     id: 'monthend',
     name: '월말 마감',
     widgets: makeConfigs([
-      'financial_overview', 'closing_checklist', 'automation_status', 'ai_insights',
+      'financial_overview', 'closing_checklist', 'automation_status',
     ]),
   },
   {

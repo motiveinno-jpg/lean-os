@@ -76,6 +76,7 @@ export interface DealData {
   cost: number;
   margin: number;
   endDate: string | null;
+  status: string;
 }
 
 // ═══════════════════════════════════════════

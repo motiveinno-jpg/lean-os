@@ -1,5 +1,5 @@
 /**
- * Reflect Custom Type Aliases
+ * OwnerView Custom Type Aliases
  * Maps friendly type names to Supabase-generated table Row types.
  *
  * After regenerating database.ts from Supabase, this file preserves
@@ -58,6 +58,13 @@ export type AutoDiscoveryResult = TableRow<'auto_discovery_results'>;
 // ── Closing ──
 export type ClosingChecklist = TableRow<'closing_checklists'>;
 export type ClosingChecklistItem = TableRow<'closing_checklist_items'>;
+
+// ── Loans ──
+export type Loan = TableRow<'loans'>;
+export type LoanPayment = TableRow<'loan_payments'>;
+
+// ── Certificates ──
+export type CertificateLog = TableRow<'certificate_logs'>;
 
 // ── Audit / Partners ──
 export type AuditLog = TableRow<'audit_logs'>;

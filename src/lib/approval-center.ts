@@ -1,5 +1,5 @@
 /**
- * Reflect CEO Approval Center
+ * OwnerView CEO Approval Center
  * 대표 승인센터 — 6개 소스 통합 조회 + 원클릭/일괄 승인
  */
 
@@ -316,6 +316,39 @@ export async function approveAction(
   }
 }
 
+// ── Send approval notification email ──
+
+export async function sendApprovalNotificationEmail(params: {
+  email: string;
+  recipientName?: string;
+  actionType: string;
+  actionTitle: string;
+  result: 'approved' | 'rejected';
+  approverName?: string;
+  comment?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '인증 필요' };
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-approval-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(params),
+    });
+
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || '이메일 발송 실패' };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '이메일 발송 오류' };
+  }
+}
+
 // ── Bulk approve multiple actions ──
 
 export async function bulkApproveActions(
@@ -365,6 +398,9 @@ export async function upsertRecurringPayment(params: {
   frequency?: string;
   dayOfMonth?: number;
   isActive?: boolean;
+  autoTransferDate?: number;
+  autoTransferAccountId?: string;
+  autoTransferMemo?: string;
 }) {
   const row: Record<string, unknown> = {
     company_id: params.companyId,
@@ -380,6 +416,9 @@ export async function upsertRecurringPayment(params: {
   if (params.frequency !== undefined) row.frequency = params.frequency;
   if (params.dayOfMonth !== undefined) row.day_of_month = params.dayOfMonth;
   if (params.isActive !== undefined) row.is_active = params.isActive;
+  if (params.autoTransferDate !== undefined) row.auto_transfer_date = params.autoTransferDate;
+  if (params.autoTransferAccountId !== undefined) row.auto_transfer_account_id = params.autoTransferAccountId;
+  if (params.autoTransferMemo !== undefined) row.auto_transfer_memo = params.autoTransferMemo;
 
   const { data, error } = await db
     .from('recurring_payments')
@@ -401,4 +440,112 @@ export async function getPaymentBatches(companyId: string, status?: string) {
   if (status) query = query.eq('status', status);
   const { data } = await query;
   return data || [];
+}
+
+// ── Refresh recurring payment amounts from actual transactions ──
+
+export interface RefreshResult {
+  id: string;
+  name: string;
+  oldAmount: number;
+  newAmount: number;
+  lastTxDate: string;
+  source: 'bank' | 'card';
+}
+
+/**
+ * 반복결제 항목의 금액을 최신 거래 실적에서 갱신합니다.
+ * - 각 recurring payment의 name으로 bank_transactions / card_transactions에서 최근 3개월 거래를 검색
+ * - 가장 최근 거래 금액으로 업데이트
+ * - 변경된 항목만 반환
+ */
+export async function refreshRecurringAmounts(companyId: string): Promise<RefreshResult[]> {
+  // 1. Get all active recurring payments
+  const { data: recurring } = await db
+    .from('recurring_payments')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('is_active', true);
+
+  if (!recurring || recurring.length === 0) return [];
+
+  // 2. Get recent bank transactions (3 months)
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const cutoff = threeMonthsAgo.toISOString().split('T')[0];
+
+  const { data: bankTxs } = await db
+    .from('bank_transactions')
+    .select('id, counterparty, amount, transaction_date, description')
+    .eq('company_id', companyId)
+    .eq('type', 'withdrawal')
+    .gte('transaction_date', cutoff)
+    .order('transaction_date', { ascending: false });
+
+  // 3. Get recent card transactions
+  const { data: cardTxs } = await db
+    .from('card_transactions')
+    .select('id, merchant_name, amount, transaction_date, description')
+    .eq('company_id', companyId)
+    .gte('transaction_date', cutoff)
+    .order('transaction_date', { ascending: false });
+
+  const results: RefreshResult[] = [];
+
+  for (const rp of recurring) {
+    const rpName = (rp.name || '').toLowerCase();
+    const recipientName = (rp.recipient_name || '').toLowerCase();
+
+    // Search in bank transactions
+    let matchedTx: any = null;
+    let source: 'bank' | 'card' = 'bank';
+
+    if (bankTxs) {
+      matchedTx = bankTxs.find((tx: any) => {
+        const cp = (tx.counterparty || '').toLowerCase();
+        const desc = (tx.description || '').toLowerCase();
+        return (recipientName && cp.includes(recipientName)) ||
+               cp.includes(rpName) ||
+               desc.includes(rpName);
+      });
+    }
+
+    // If not found in bank, search card transactions
+    if (!matchedTx && cardTxs) {
+      const cardMatch = cardTxs.find((tx: any) => {
+        const mn = (tx.merchant_name || '').toLowerCase();
+        const desc = (tx.description || '').toLowerCase();
+        return mn.includes(rpName) || desc.includes(rpName) ||
+               (recipientName && mn.includes(recipientName));
+      });
+      if (cardMatch) {
+        matchedTx = cardMatch;
+        source = 'card';
+      }
+    }
+
+    if (matchedTx) {
+      const newAmount = Math.abs(Number(matchedTx.amount));
+      const oldAmount = Number(rp.amount);
+
+      if (newAmount !== oldAmount && newAmount > 0) {
+        // Update the recurring payment
+        await db
+          .from('recurring_payments')
+          .update({ amount: newAmount, updated_at: new Date().toISOString() })
+          .eq('id', rp.id);
+
+        results.push({
+          id: rp.id,
+          name: rp.name,
+          oldAmount,
+          newAmount,
+          lastTxDate: matchedTx.transaction_date,
+          source,
+        });
+      }
+    }
+  }
+
+  return results;
 }

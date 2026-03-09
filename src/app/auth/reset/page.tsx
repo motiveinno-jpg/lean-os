@@ -75,7 +75,7 @@ function ResetPasswordContent() {
     setLoading(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://motiveinno-jpg.github.io/lean-os/auth/reset?step=new",
+      redirectTo: "https://www.owner-view.com/auth/reset?step=new",
     });
 
     setLoading(false);

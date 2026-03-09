@@ -8,7 +8,7 @@ import {
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
 import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
-import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe } from "@/lib/realtime";
+import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
@@ -48,6 +48,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const [linkCopied, setLinkCopied] = useState(false);
   const [extContact, setExtContact] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [rtStatus, setRtStatus] = useState<RealtimeStatus>('connecting');
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -106,9 +107,12 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
 
   useEffect(() => {
     if (!channelId) return;
+    setRtStatus('connecting');
     const subs = [
       subscribeToMessages(channelId, () => {
         queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+      }, (status) => {
+        setRtStatus(status);
       }),
       subscribeToMessageUpdates(channelId, () => {
         queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
@@ -117,7 +121,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
         queryClient.invalidateQueries({ queryKey: ["chat-reactions", channelId] });
       }),
     ];
-    return () => subs.forEach(unsubscribe);
+    return () => { subs.forEach(unsubscribe); setRtStatus('connecting'); };
   }, [channelId, queryClient]);
 
   useEffect(() => {
@@ -153,6 +157,8 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     };
   }
 
+  const [sendError, setSendError] = useState<string | null>(null);
+
   const sendMut = useMutation({
     mutationFn: (params: { content: string; mentionedUserIds?: string[]; replyToId?: string }) =>
       params.mentionedUserIds?.length
@@ -170,7 +176,12 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
             threadId: params.replyToId,
           }),
     onSuccess: () => {
+      setSendError(null);
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+    },
+    onError: (err: any) => {
+      setSendError(err?.message || '메시지 전송에 실패했습니다. 다시 시도해주세요.');
+      setTimeout(() => setSendError(null), 5000);
     },
   });
 
@@ -179,6 +190,10 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
       queryClient.invalidateQueries({ queryKey: ["chat-files", channelId] });
+    },
+    onError: (err: any) => {
+      setSendError(err?.message || '파일 업로드에 실패했습니다.');
+      setTimeout(() => setSendError(null), 5000);
     },
   });
 
@@ -304,7 +319,27 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
 
       {tab === "chat" && (
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto bg-[var(--bg-card)] rounded-t-2xl border border-b-0 border-[var(--border)] p-5">
+          {/* Realtime connection status banner */}
+          {rtStatus !== 'SUBSCRIBED' && (
+            <div className={`px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl ${
+              rtStatus === 'connecting' ? 'bg-yellow-500/10 text-yellow-500' :
+              rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' ? 'bg-red-500/10 text-red-400' :
+              'bg-gray-500/10 text-gray-400'
+            }`}>
+              <span className="flex items-center gap-2">
+                {rtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /> 실시간 연결 중...</>}
+                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-red-400" /> 실시간 연결 오류 — 5초마다 자동 갱신 중</>}
+                {rtStatus === 'TIMED_OUT' && <><span className="w-2 h-2 rounded-full bg-red-400" /> 연결 시간 초과</>}
+                {rtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
+              </span>
+              {(rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' || rtStatus === 'CLOSED') && (
+                <button onClick={() => window.location.reload()} className="px-3 py-1 bg-white/10 rounded-lg hover:bg-white/20 transition text-xs font-semibold">
+                  새로고침
+                </button>
+              )}
+            </div>
+          )}
+          <div className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
             {messages.length === 0 ? (
               <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
             ) : (
@@ -349,6 +384,9 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
             )}
             <div ref={messagesEndRef} />
           </div>
+          {sendError && (
+            <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{sendError}</div>
+          )}
           <div className="rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
             <ChatInput
               onSend={(content, mentionedUserIds, replyToId) =>
@@ -642,6 +680,7 @@ function GuestChatView({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [guestRtStatus, setGuestRtStatus] = useState<RealtimeStatus>('connecting');
 
   useEffect(() => {
     async function validateToken() {
@@ -730,8 +769,11 @@ function GuestChatView({ token }: { token: string }) {
 
   useEffect(() => {
     if (!session?.channelId) return;
+    setGuestRtStatus('connecting');
     const sub = subscribeToMessages(session.channelId, () => {
       queryClient.invalidateQueries({ queryKey: ["guest-messages", session.channelId] });
+    }, (status) => {
+      setGuestRtStatus(status);
     });
     return () => unsubscribe(sub);
   }, [session?.channelId, queryClient]);
@@ -744,6 +786,8 @@ function GuestChatView({ token }: { token: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  const [guestSendError, setGuestSendError] = useState<string | null>(null);
+
   const sendMut = useMutation({
     mutationFn: (content: string) => sendMessage({
       channelId: session!.channelId,
@@ -751,7 +795,12 @@ function GuestChatView({ token }: { token: string }) {
       content,
     }),
     onSuccess: () => {
+      setGuestSendError(null);
       queryClient.invalidateQueries({ queryKey: ["guest-messages", session?.channelId] });
+    },
+    onError: (err: any) => {
+      setGuestSendError(err?.message || '메시지 전송에 실패했습니다.');
+      setTimeout(() => setGuestSendError(null), 5000);
     },
   });
 
@@ -798,7 +847,22 @@ function GuestChatView({ token }: { token: string }) {
       </div>
 
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 overflow-y-auto bg-[var(--bg-card)] rounded-t-2xl border border-b-0 border-[var(--border)] p-5">
+        {guestRtStatus !== 'SUBSCRIBED' && (
+          <div className={`px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl ${
+            guestRtStatus === 'connecting' ? 'bg-yellow-500/10 text-yellow-500' :
+            'bg-red-500/10 text-red-400'
+          }`}>
+            <span className="flex items-center gap-2">
+              {guestRtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /> 연결 중...</>}
+              {(guestRtStatus === 'CHANNEL_ERROR' || guestRtStatus === 'TIMED_OUT') && <><span className="w-2 h-2 rounded-full bg-red-400" /> 연결 오류</>}
+              {guestRtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
+            </span>
+            {guestRtStatus !== 'connecting' && (
+              <button onClick={() => window.location.reload()} className="px-3 py-1 bg-white/10 rounded-lg hover:bg-white/20 transition text-xs font-semibold">새로고침</button>
+            )}
+          </div>
+        )}
+        <div className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${guestRtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
           {messages.length === 0 ? (
             <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
           ) : (
@@ -816,6 +880,9 @@ function GuestChatView({ token }: { token: string }) {
           )}
           <div ref={messagesEndRef} />
         </div>
+        {guestSendError && (
+          <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{guestSendError}</div>
+        )}
         <div className="rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
           <ChatInput onSend={(text) => sendMut.mutate(text)} disabled={sendMut.isPending} />
         </div>

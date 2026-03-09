@@ -79,8 +79,11 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   });
 
   // ── Save all data ──
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleComplete = useCallback(async () => {
     setSaving(true);
+    setSaveError(null);
     const db = supabase as any;
     try {
       // 1. Company info
@@ -145,8 +148,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       onComplete();
     } catch (err) {
       console.error("Onboarding save error:", err);
-      localStorage.setItem(ONBOARDING_KEY, "true");
-      onComplete();
+      setSaveError("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
     }
     setSaving(false);
   }, [company, banks, cards, hometax, employees, companyId, companyName, onComplete]);
@@ -365,6 +367,11 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           {step === 5 && <StepHometax data={hometax} set={setHometax} />}
           {step === 6 && <StepEmployees employees={employees} form={empForm} setForm={setEmpForm} add={addEmployee} remove={removeEmployee} />}
           {step === 7 && <StepSummary company={company} banks={banks} cards={cards} hometax={hometax} employees={employees} />}
+          {saveError && (
+            <div className="mt-3 px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">
+              {saveError}
+            </div>
+          )}
         </div>
 
         {/* ── Footer ── */}
@@ -388,14 +395,24 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
               </button>
             )}
             {step === 7 && (
-              <button
-                onClick={handleComplete}
-                disabled={saving}
-                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
-                style={{ background: "var(--primary)" }}
-              >
-                {saving ? "저장 중..." : "설정 완료 — 시작하기"}
-              </button>
+              <>
+                {saveError && (
+                  <button
+                    onClick={() => { localStorage.setItem(ONBOARDING_KEY, "true"); onComplete(); }}
+                    className="px-4 py-2 rounded-xl text-xs font-medium text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition"
+                  >
+                    건너뛰고 시작
+                  </button>
+                )}
+                <button
+                  onClick={handleComplete}
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
+                  style={{ background: "var(--primary)" }}
+                >
+                  {saving ? "저장 중..." : saveError ? "다시 시도" : "설정 완료 — 시작하기"}
+                </button>
+              </>
             )}
           </div>
         </div>

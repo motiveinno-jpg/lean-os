@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
+import { useUser } from "@/components/user-context";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts, createContract,
   CONTRACT_TYPES, updateEmployee,
@@ -12,8 +13,14 @@ import {
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance,
-  LEAVE_TYPES, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
+  LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
+  // Leave Promotion
+  getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
+import {
+  getContractPackages, createContractPackage, sendContractPackage,
+  getContractTemplates, cancelContractPackage, PACKAGE_STATUS,
+} from "@/lib/hr-contracts";
 import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
@@ -25,6 +32,9 @@ import type { PayrollItem } from "@/lib/payment-batch";
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
 
+// Employee 역할은 자기 관련 탭만 접근 가능
+const EMPLOYEE_ROLE_TABS: Tab[] = ["attendance", "leave", "expenses", "certificates"];
+
 export default function EmployeesPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -32,12 +42,21 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { role } = useUser();
+  const isEmployee = role === "employee";
 
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (u) { setCompanyId(u.company_id); setUserId(u.id); }
     });
   }, []);
+
+  // Employee 역할이면 허용 탭으로 강제 이동
+  useEffect(() => {
+    if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
+      setTab("attendance");
+    }
+  }, [isEmployee, tab]);
 
   // ── Employees ──
   const { data: employees = [], error: mainError, refetch: mainRefetch } = useQuery({
@@ -78,7 +97,7 @@ export default function EmployeesPage() {
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => e.status === "active").length;
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
+  const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여이력" },
     { key: "payroll", label: "급여 명세" },
@@ -88,38 +107,42 @@ export default function EmployeesPage() {
     { key: "leave", label: "휴가" },
     { key: "certificates", label: "증명서 발급" },
   ];
+  const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
 
   return (
     <div className="max-w-[1000px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">인력 / 비용</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">직원관리 + 급여이력 + 계약서 + 경비청구 + 근태 + 휴가</p>
+          <h1 className="text-2xl font-extrabold">{isEmployee ? "근태 / 급여" : "인력 / 비용"}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{isEmployee ? "출퇴근 + 휴가 + 경비 + 증명서" : "직원관리 + 급여이력 + 계약서 + 경비청구 + 근태 + 휴가"}</p>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-xs text-[var(--text-dim)]">재직 인원</div>
-          <div className="text-lg font-bold mt-1">{activeCount}명</div>
-        </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-xs text-[var(--text-dim)]">월 급여</div>
-          <div className="text-lg font-bold text-red-400 mt-1">₩{totalSalary.toLocaleString()}</div>
-        </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-xs text-[var(--text-dim)]">퇴직충당금</div>
-          <div className="text-lg font-bold text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
-        </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-xs text-[var(--text-dim)]">미결 경비</div>
-          <div className="text-lg font-bold text-yellow-400 mt-1">
-            {expenses.filter((e: any) => e.status === "pending").length}건
+      {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
+      {!isEmployee && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="text-xs text-[var(--text-dim)]">재직 인원</div>
+            <div className="text-lg font-bold mt-1">{activeCount}명</div>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="text-xs text-[var(--text-dim)]">연 인건비</div>
+            <div className="text-lg font-bold text-red-400 mt-1">₩{(totalSalary * 12).toLocaleString()}</div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="text-xs text-[var(--text-dim)]">퇴직충당금</div>
+            <div className="text-lg font-bold text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="text-xs text-[var(--text-dim)]">미결 경비</div>
+            <div className="text-lg font-bold text-yellow-400 mt-1">
+              {expenses.filter((e: any) => e.status === "pending").length}건
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
@@ -146,9 +169,9 @@ export default function EmployeesPage() {
       {tab === "salary" && <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
-      {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
       {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
-      {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
       {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
   );
@@ -164,7 +187,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
       await supabase.from("employees").insert({
         company_id: companyId,
         name: form.name,
-        salary: Number(form.salary) || 0,
+        salary: Math.round((Number(form.salary) || 0) / 12),
         hire_date: form.hire_date || null,
         department: form.department || null,
         position: form.position || null,
@@ -191,7 +214,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름 *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">월급</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} placeholder="예: 36000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -211,7 +234,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
               <th className="text-left px-5 py-3 font-medium">이름</th>
               <th className="text-left px-5 py-3 font-medium">부서</th>
               <th className="text-left px-5 py-3 font-medium">직위</th>
-              <th className="text-right px-5 py-3 font-medium">월급</th>
+              <th className="text-right px-5 py-3 font-medium">연봉</th>
               <th className="text-left px-5 py-3 font-medium">입사일</th>
               <th className="text-right px-5 py-3 font-medium">퇴직충당금</th>
               <th className="text-center px-5 py-3 font-medium">상태</th>
@@ -222,7 +245,7 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
                   <td className="px-5 py-3 text-sm font-medium">{e.name}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
-                  <td className="px-5 py-3 text-sm text-right">₩{Number(e.salary).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right">₩{(Number(e.salary) * 12).toLocaleString()}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.hire_date || "—"}</td>
                   <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
                   <td className="px-5 py-3 text-center">
@@ -313,82 +336,220 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
   );
 }
 
-// ── Contract Tab ──
+// ── Contract Tab (계약 패키지 관리) ──
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ employeeId: "", contractType: "full_time", startDate: "", endDate: "", salary: "" });
+  const [showCreate, setShowCreate] = useState(false);
+  const [pkgForm, setPkgForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
+  const [sending, setSending] = useState<string | null>(null);
 
-  const addContract = useMutation({
-    mutationFn: () => createContract({
-      companyId, employeeId: form.employeeId, contractType: form.contractType,
-      startDate: form.startDate, endDate: form.endDate || undefined,
-      salary: form.salary ? Number(form.salary) : undefined,
-    }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["contracts"] }); setShowForm(false); },
+  // Contract packages
+  const { data: packages = [] } = useQuery({
+    queryKey: ["contract-packages", companyId],
+    queryFn: () => getContractPackages(companyId!),
+    enabled: !!companyId,
   });
+
+  // Contract templates
+  const { data: templates = [] } = useQuery({
+    queryKey: ["contract-templates", companyId],
+    queryFn: () => getContractTemplates(companyId!),
+    enabled: !!companyId,
+  });
+
+  // Create package mutation
+  const createPkg = useMutation({
+    mutationFn: async () => {
+      const emp = employees.find((e: any) => e.id === pkgForm.employeeId);
+      return createContractPackage({
+        companyId: companyId!,
+        employeeId: pkgForm.employeeId,
+        title: pkgForm.title || `${emp?.name || ""} 계약 패키지`,
+        templateIds: pkgForm.templateIds,
+        createdBy: "system",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
+      setShowCreate(false);
+      setPkgForm({ employeeId: "", title: "", templateIds: [] });
+    },
+    onError: (err: any) => alert(err.message),
+  });
+
+  // Send package
+  async function handleSend(packageId: string) {
+    setSending(packageId);
+    try {
+      const result = await sendContractPackage(packageId);
+      if (!result.success) alert("발송 실패: " + (result.error || "알 수 없는 오류"));
+      queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSending(null);
+    }
+  }
+
+  // Cancel package
+  const cancelPkg = useMutation({
+    mutationFn: cancelContractPackage,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contract-packages"] }),
+  });
+
+  const activeEmployees = employees.filter((e: any) => e.status === "active");
+
+  function toggleTemplate(id: string) {
+    setPkgForm(prev => ({
+      ...prev,
+      templateIds: prev.templateIds.includes(id)
+        ? prev.templateIds.filter(t => t !== id)
+        : [...prev.templateIds, id],
+    }));
+  }
 
   return (
     <div>
+      {/* Create Package */}
       <div className="flex justify-end mb-4">
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 계약서 등록</button>
+        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">
+          + 계약 패키지 생성
+        </button>
       </div>
 
-      {showForm && (
+      {showCreate && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
-              <select value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+          <h4 className="text-sm font-bold mb-4">계약 패키지 생성</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
+              <select value={pkgForm.employeeId} onChange={e => setPkgForm({...pkgForm, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
                 <option value="">선택...</option>
-                {employees.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                {activeEmployees.map((e: any) => <option key={e.id} value={e.id}>{e.name} ({e.department || "미배정"})</option>)}
               </select>
             </div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약유형</label>
-              <select value={form.contractType} onChange={e => setForm({...form, contractType: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
-                {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">패키지 제목</label>
+              <input value={pkgForm.title} onChange={e => setPkgForm({...pkgForm, title: e.target.value})} placeholder="2026년 연봉계약 패키지" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일 *</label><input type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">급여</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" /></div>
           </div>
-          <button onClick={() => form.employeeId && form.startDate && addContract.mutate()} disabled={!form.employeeId || !form.startDate} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">등록</button>
+          <div className="mb-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-2">포함할 계약서 템플릿 *</label>
+            <div className="flex flex-wrap gap-2">
+              {templates.map((t: any) => (
+                <button
+                  key={t.id}
+                  onClick={() => toggleTemplate(t.id)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition ${
+                    pkgForm.templateIds.includes(t.id)
+                      ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                      : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]"
+                  }`}
+                >
+                  {pkgForm.templateIds.includes(t.id) && "✓ "}
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => pkgForm.employeeId && pkgForm.templateIds.length > 0 && createPkg.mutate()}
+            disabled={!pkgForm.employeeId || pkgForm.templateIds.length === 0 || createPkg.isPending}
+            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+          >
+            {createPkg.isPending ? "생성 중..." : `패키지 생성 (${pkgForm.templateIds.length}건)`}
+          </button>
         </div>
       )}
 
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        {contracts.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4">📋</div><div className="text-sm text-[var(--text-muted)]">등록된 계약서가 없습니다</div></div>
+      {/* Package List */}
+      <div className="space-y-3 mb-8">
+        {packages.length === 0 ? (
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+            <div className="text-4xl mb-4">📋</div>
+            <div className="text-sm text-[var(--text-muted)]">계약 패키지가 없습니다</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 계약서 템플릿을 선택하여 패키지를 생성하세요</div>
+          </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
-            <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="text-left px-5 py-3 font-medium">직원</th>
-              <th className="text-left px-5 py-3 font-medium">계약유형</th>
-              <th className="text-left px-5 py-3 font-medium">기간</th>
-              <th className="text-right px-5 py-3 font-medium">급여</th>
-              <th className="text-center px-5 py-3 font-medium">상태</th>
-            </tr></thead>
-            <tbody>
-              {contracts.map((c: any) => (
-                <tr key={c.id} className="border-b border-[var(--border)]/50">
-                  <td className="px-5 py-3 text-sm font-medium">{c.employees?.name || "—"}</td>
-                  <td className="px-5 py-3 text-xs">{CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}</td>
-                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{c.start_date} ~ {c.end_date || "무기한"}</td>
-                  <td className="px-5 py-3 text-sm text-right">{c.salary ? `₩${Number(c.salary).toLocaleString()}` : "—"}</td>
-                  <td className="px-5 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{c.status === 'active' ? '유효' : c.status}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
+          packages.map((p: any) => {
+            const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
+            return (
+              <div key={p.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold truncate">{p.title}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {p.employees?.name} ({p.employees?.department || "미배정"})
+                    {p.sent_at && ` · 발송: ${new Date(p.sent_at).toLocaleDateString("ko-KR")}`}
+                    {p.completed_at && ` · 완료: ${new Date(p.completed_at).toLocaleDateString("ko-KR")}`}
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  {p.status === "draft" && (
+                    <>
+                      <button
+                        onClick={() => handleSend(p.id)}
+                        disabled={sending === p.id}
+                        className="px-3 py-1.5 text-xs font-semibold bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 disabled:opacity-50"
+                      >
+                        {sending === p.id ? "발송 중..." : "서명 요청"}
+                      </button>
+                      <button onClick={() => cancelPkg.mutate(p.id)} className="px-3 py-1.5 text-xs text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10">취소</button>
+                    </>
+                  )}
+                  {p.status === "sent" && (
+                    <button
+                      onClick={() => handleSend(p.id)}
+                      disabled={sending === p.id}
+                      className="px-3 py-1.5 text-xs text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]"
+                    >
+                      재발송
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
+
+      {/* Legacy Contracts */}
+      {contracts.length > 0 && (
+        <>
+          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">기존 계약 이력</h3>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+              <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-5 py-3 font-medium">직원</th>
+                <th className="text-left px-5 py-3 font-medium">계약유형</th>
+                <th className="text-left px-5 py-3 font-medium">기간</th>
+                <th className="text-right px-5 py-3 font-medium">급여</th>
+                <th className="text-center px-5 py-3 font-medium">상태</th>
+              </tr></thead>
+              <tbody>
+                {contracts.map((c: any) => (
+                  <tr key={c.id} className="border-b border-[var(--border)]/50">
+                    <td className="px-5 py-3 text-sm font-medium">{c.employees?.name || "—"}</td>
+                    <td className="px-5 py-3 text-xs">{CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{c.start_date} ~ {c.end_date || "무기한"}</td>
+                    <td className="px-5 py-3 text-sm text-right">{c.salary ? `₩${Number(c.salary).toLocaleString()}` : "—"}</td>
+                    <td className="px-5 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{c.status === 'active' ? '유효' : c.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 // ── Expense Tab ──
-function ExpenseTab({ expenses, companyId, userId, queryClient }: any) {
+function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: any) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", amount: "", category: "general", description: "" });
 
@@ -457,7 +618,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient }: any) {
                     <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(e.amount).toLocaleString()}</td>
                     <td className="px-5 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span></td>
                     <td className="px-5 py-3 text-center">
-                      {e.status === "pending" && (
+                      {e.status === "pending" && !isEmployee && (
                         <div className="flex gap-1 justify-center">
                           <button onClick={() => approve.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20">승인</button>
                           <button onClick={() => reject.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20">반려</button>
@@ -993,17 +1154,21 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 }
 
 // ── Leave Tab ──
-function LeaveTab({ employees, companyId, userId, queryClient }: any) {
+function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any) {
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     employeeId: "",
     leaveType: "annual",
+    leaveUnit: "full_day" as string,
     startDate: "",
     endDate: "",
+    startTime: "",
+    endTime: "",
     reason: "",
   });
+  const [showPromotion, setShowPromotion] = useState(false);
 
   // Leave requests
   const { data: leaveRequests = [] } = useQuery({
@@ -1019,29 +1184,66 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
     enabled: !!companyId,
   });
 
+  // Leave promotion candidates
+  const { data: promotionCandidates = [] } = useQuery({
+    queryKey: ["leave-promotion-candidates", companyId, currentYear],
+    queryFn: () => getLeavePromotionCandidates(companyId!, currentYear),
+    enabled: !!companyId && showPromotion,
+  });
+
+  // Leave promotion notices
+  const { data: promotionNotices = [] } = useQuery({
+    queryKey: ["leave-promotion-notices", companyId, currentYear],
+    queryFn: () => getLeavePromotionNotices(companyId!, currentYear),
+    enabled: !!companyId && showPromotion,
+  });
+
   // Create leave request mutation
   const createLeave = useMutation({
     mutationFn: () => {
-      // Calculate days between start and end
-      const start = new Date(form.startDate);
-      const end = new Date(form.endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const unit = form.leaveUnit;
+      let days: number;
+      if (unit === "half_day") {
+        days = 0.5;
+      } else if (unit === "two_hours") {
+        days = 0.25;
+      } else {
+        // full_day: calculate from date range
+        const start = new Date(form.startDate);
+        const end = new Date(form.endDate || form.startDate);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      }
 
       return createLeaveRequest({
         companyId: companyId!,
         employeeId: form.employeeId,
         leaveType: form.leaveType,
         startDate: form.startDate,
-        endDate: form.endDate,
+        endDate: form.endDate || form.startDate,
         days,
         reason: form.reason,
+        leaveUnit: unit as any,
+        startTime: form.startTime || undefined,
+        endTime: form.endTime || undefined,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       setShowForm(false);
-      setForm({ employeeId: "", leaveType: "annual", startDate: "", endDate: "", reason: "" });
+      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+    },
+    onError: (err: any) => alert(err.message),
+  });
+
+  // Send promotion notice
+  const sendPromotion = useMutation({
+    mutationFn: (params: { employeeId: string; noticeType: "first" | "second"; unusedDays: number; email: string; employeeName: string }) =>
+      sendLeavePromotionNotice({ companyId: companyId!, ...params, year: currentYear }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-promotion-candidates"] });
     },
   });
 
@@ -1109,7 +1311,7 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 휴가 잔여</h3>
-          {employeesWithoutBalance.length > 0 && (
+          {employeesWithoutBalance.length > 0 && !isEmployee && (
             <button
               onClick={() => {
                 // Auto-init 15 days for all employees without balance
@@ -1198,66 +1400,62 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h4 className="text-sm font-bold mb-4">휴가 신청</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
-              <select
-                value={form.employeeId}
-                onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
-              >
+              <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
                 <option value="">선택...</option>
-                {activeEmployees.map((e: any) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
+                {activeEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name}</option>))}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형</label>
-              <select
-                value={form.leaveType}
-                onChange={(e) => setForm({ ...form, leaveType: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
-              >
-                {LEAVE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
+              <select value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                {LEAVE_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">사용 단위</label>
+              <select value={form.leaveUnit} onChange={(e) => setForm({ ...form, leaveUnit: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                {LEAVE_UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label} ({u.days}일)</option>))}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">시작일 *</label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
+              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">종료일 *</label>
-              <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
+            {form.leaveUnit === "full_day" && (
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label>
+                <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+            )}
+            {form.leaveUnit === "two_hours" && (
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">시간대</label>
+                <div className="flex gap-1">
+                  <select value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="flex-1 px-2 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs">
+                    <option value="">시작</option>
+                    {["09:00","10:00","11:00","13:00","14:00","15:00","16:00"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="flex-1 px-2 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs">
+                    <option value="">종료</option>
+                    {["11:00","12:00","13:00","15:00","16:00","17:00","18:00"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
-              <input
-                value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                placeholder="개인 사유, 병원 등"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
+              <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
           </div>
           <button
-            onClick={() => form.employeeId && form.startDate && form.endDate && createLeave.mutate()}
-            disabled={!form.employeeId || !form.startDate || !form.endDate}
+            onClick={() => form.employeeId && form.startDate && createLeave.mutate()}
+            disabled={!form.employeeId || !form.startDate || createLeave.isPending}
             className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
           >
-            신청
+            {createLeave.isPending ? "처리 중..." : `신청 (${LEAVE_UNITS.find(u => u.value === form.leaveUnit)?.days || 1}일)`}
           </button>
         </div>
       )}
@@ -1292,14 +1490,24 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
                     <td className="px-5 py-3 text-xs">
                       <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{leaveLabel}</span>
                     </td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.start_date} ~ {r.end_date}</td>
-                    <td className="px-5 py-3 text-sm text-center font-medium">{r.days}일</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
+                      {r.start_date}{r.start_date !== r.end_date ? ` ~ ${r.end_date}` : ""}
+                      {r.leave_unit === "two_hours" && r.start_time ? ` ${r.start_time}~${r.end_time}` : ""}
+                    </td>
+                    <td className="px-5 py-3 text-sm text-center font-medium">
+                      {Number(r.days)}일
+                      {r.leave_unit && r.leave_unit !== "full_day" && (
+                        <span className="ml-1 text-[10px] text-[var(--text-dim)]">
+                          ({LEAVE_UNITS.find(u => u.value === r.leave_unit)?.label || r.leave_unit})
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.reason || "—"}</td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      {r.status === "pending" && (
+                      {r.status === "pending" && !isEmployee && (
                         <div className="flex gap-1 justify-center">
                           <button
                             onClick={() => approveMut.mutate(r.id)}
@@ -1395,6 +1603,118 @@ function LeaveTab({ employees, companyId, userId, queryClient }: any) {
           </div>
         </div>
       </div>
+
+      {/* Leave Promotion (연차촉진) Section */}
+      {!isEmployee && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리 (근로기준법 §61)</h3>
+            <button
+              onClick={() => setShowPromotion(!showPromotion)}
+              className="text-xs px-3 py-1.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition"
+            >
+              {showPromotion ? "접기" : "연차촉진 관리"}
+            </button>
+          </div>
+
+          {showPromotion && (
+            <div className="space-y-4">
+              {/* Candidates */}
+              {promotionCandidates.length > 0 && (
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                  <div className="px-5 py-3 border-b border-[var(--border)] bg-yellow-500/5">
+                    <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
+                  </div>
+                  <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+                    <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                      <th className="text-left px-5 py-2 font-medium">직원</th>
+                      <th className="text-left px-5 py-2 font-medium">부서</th>
+                      <th className="text-center px-5 py-2 font-medium">총 연차</th>
+                      <th className="text-center px-5 py-2 font-medium">사용</th>
+                      <th className="text-center px-5 py-2 font-medium">미사용</th>
+                      <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
+                    </tr></thead>
+                    <tbody>
+                      {promotionCandidates.map((c: any) => (
+                        <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
+                          <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
+                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
+                          <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
+                          <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
+                          <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
+                          <td className="px-5 py-2.5 text-center">
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                onClick={() => c.email && sendPromotion.mutate({
+                                  employeeId: c.employeeId, noticeType: "first",
+                                  unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                })}
+                                disabled={!c.email || sendPromotion.isPending}
+                                className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
+                              >
+                                1차
+                              </button>
+                              <button
+                                onClick={() => c.email && sendPromotion.mutate({
+                                  employeeId: c.employeeId, noticeType: "second",
+                                  unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                })}
+                                disabled={!c.email || sendPromotion.isPending}
+                                className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+                              >
+                                2차
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                </div>
+              )}
+
+              {/* Sent notices history */}
+              {promotionNotices.length > 0 && (
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                  <div className="px-5 py-3 border-b border-[var(--border)]">
+                    <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
+                  </div>
+                  <div className="overflow-x-auto"><table className="w-full min-w-[500px]">
+                    <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                      <th className="text-left px-5 py-2 font-medium">직원</th>
+                      <th className="text-center px-5 py-2 font-medium">차수</th>
+                      <th className="text-center px-5 py-2 font-medium">미사용</th>
+                      <th className="text-left px-5 py-2 font-medium">발송일</th>
+                      <th className="text-left px-5 py-2 font-medium">기한</th>
+                    </tr></thead>
+                    <tbody>
+                      {promotionNotices.map((n: any) => (
+                        <tr key={n.id} className="border-b border-[var(--border)]/50">
+                          <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
+                          <td className="px-5 py-2.5 text-center">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-400'}`}>
+                              {n.notice_type === "first" ? "1차" : "2차"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
+                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? new Date(n.sent_at).toLocaleDateString("ko-KR") : "—"}</td>
+                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                </div>
+              )}
+
+              {promotionCandidates.length === 0 && (
+                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+                  <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

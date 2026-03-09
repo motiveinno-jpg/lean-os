@@ -1,5 +1,5 @@
 /**
- * Reflect Expense Engine
+ * OwnerView Expense Engine
  * 경비청구 + 다단계 승인
  */
 
@@ -56,7 +56,32 @@ export async function createExpenseRequest(params: {
     .select()
     .single();
   if (error) throw error;
+
+  // Auto-generate 지출결의서 approval request
+  if (data) {
+    autoCreateExpenseApproval(params.companyId, params.requesterId, data).catch((err) => {
+      console.error('Auto expense approval creation failed:', err);
+    });
+  }
+
   return data;
+}
+
+async function autoCreateExpenseApproval(companyId: string, requesterId: string, expense: any) {
+  try {
+    const { createApprovalRequest } = await import('./approval-workflow');
+    await createApprovalRequest({
+      companyId,
+      requestType: 'expense_report',
+      requestId: expense.id,
+      requesterId,
+      title: `[경비] ${expense.title}`,
+      amount: Number(expense.amount),
+      description: expense.description || `경비 청구: ${expense.title}\n금액: ₩${Number(expense.amount).toLocaleString()}\n카테고리: ${expense.category}`,
+    });
+  } catch (err) {
+    console.error('autoCreateExpenseApproval failed:', err);
+  }
 }
 
 // ── Get expense requests ──

@@ -65,6 +65,53 @@ export type Database = {
           },
         ]
       }
+      automation_runs: {
+        Row: {
+          id: string
+          company_id: string
+          run_type: string
+          status: string
+          started_at: string
+          completed_at: string | null
+          result_summary: Json | null
+          error_message: string | null
+          triggered_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          run_type: string
+          status?: string
+          started_at?: string
+          completed_at?: string | null
+          result_summary?: Json | null
+          error_message?: string | null
+          triggered_by?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          run_type?: string
+          status?: string
+          started_at?: string
+          completed_at?: string | null
+          result_summary?: Json | null
+          error_message?: string | null
+          triggered_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_pending_actions: {
         Row: {
           action_type: string
@@ -2762,6 +2809,193 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_logs: {
+        Row: {
+          id: string
+          company_id: string
+          employee_id: string
+          certificate_type: string
+          certificate_number: string
+          issued_by: string
+          purpose: string | null
+          pdf_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          employee_id: string
+          certificate_type: string
+          certificate_number: string
+          issued_by: string
+          purpose?: string | null
+          pdf_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          employee_id?: string
+          certificate_type?: string
+          certificate_number?: string
+          issued_by?: string
+          purpose?: string | null
+          pdf_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_logs_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          lender: string
+          loan_type: string
+          original_amount: number
+          remaining_balance: number
+          interest_rate: number | null
+          start_date: string | null
+          maturity_date: string | null
+          payment_day: number | null
+          interest_day: number | null
+          bank_account_id: string | null
+          status: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          lender: string
+          loan_type?: string
+          original_amount?: number
+          remaining_balance?: number
+          interest_rate?: number | null
+          start_date?: string | null
+          maturity_date?: string | null
+          payment_day?: number | null
+          interest_day?: number | null
+          bank_account_id?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          lender?: string
+          loan_type?: string
+          original_amount?: number
+          remaining_balance?: number
+          interest_rate?: number | null
+          start_date?: string | null
+          maturity_date?: string | null
+          payment_day?: number | null
+          interest_day?: number | null
+          bank_account_id?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loans_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_payments: {
+        Row: {
+          id: string
+          loan_id: string
+          payment_date: string
+          principal_amount: number
+          interest_amount: number
+          total_amount: number
+          payment_number: number | null
+          bank_transaction_id: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          loan_id: string
+          payment_date: string
+          principal_amount?: number
+          interest_amount?: number
+          total_amount: number
+          payment_number?: number | null
+          bank_transaction_id?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          loan_id?: string
+          payment_date?: string
+          principal_amount?: number
+          interest_amount?: number
+          total_amount?: number
+          payment_number?: number | null
+          bank_transaction_id?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_payments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loan_payments_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
             referencedColumns: ["id"]
           },
         ]

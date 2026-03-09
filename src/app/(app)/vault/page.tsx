@@ -50,8 +50,8 @@ export default function VaultPage() {
 
   // Account form
   const [accForm, setAccForm] = useState({
-    serviceName: "", url: "", loginId: "", monthlyCost: "",
-    paymentMethod: "", renewalDate: "", notes: "",
+    serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "",
+    paymentMethod: "", billingDay: "", renewalDate: "", notes: "",
   });
   // Asset form
   const [assetForm, setAssetForm] = useState({
@@ -86,15 +86,17 @@ export default function VaultPage() {
       serviceName: accForm.serviceName,
       url: accForm.url || undefined,
       loginId: accForm.loginId || undefined,
+      loginPassword: accForm.loginPassword || undefined,
       monthlyCost: Number(accForm.monthlyCost) || 0,
       paymentMethod: accForm.paymentMethod || undefined,
+      billingDay: accForm.billingDay ? Number(accForm.billingDay) : undefined,
       renewalDate: accForm.renewalDate || undefined,
       notes: accForm.notes || undefined,
     }),
     onSuccess: () => {
       invalidate();
       setShowForm(false);
-      setAccForm({ serviceName: "", url: "", loginId: "", monthlyCost: "", paymentMethod: "", renewalDate: "", notes: "" });
+      setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
   });
 
@@ -270,9 +272,31 @@ export default function VaultPage() {
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">비밀번호</label>
+              <input type="password" value={accForm.loginPassword} onChange={(e) => setAccForm({ ...accForm, loginPassword: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제수단</label>
-              <input value={accForm.paymentMethod} onChange={(e) => setAccForm({ ...accForm, paymentMethod: e.target.value })}
-                placeholder="법인카드 / 계좌이체" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              <select value={accForm.paymentMethod} onChange={(e) => setAccForm({ ...accForm, paymentMethod: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                <option value="">선택</option>
+                <option value="법인카드">법인카드</option>
+                <option value="계좌이체">계좌이체</option>
+                <option value="자동이체">자동이체</option>
+                <option value="자동결제">자동결제 (카드)</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">자동결제일 (매월)</label>
+              <select value={accForm.billingDay} onChange={(e) => setAccForm({ ...accForm, billingDay: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                <option value="">해당없음</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>{d}일</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">갱신일</label>
@@ -416,7 +440,10 @@ export default function VaultPage() {
                       <td className="p-4 text-right font-bold mono-number">
                         {(acc.monthly_cost || 0).toLocaleString()}원
                       </td>
-                      <td className="p-4 text-center text-xs text-[var(--text-muted)]">{acc.payment_method || "—"}</td>
+                      <td className="p-4 text-center text-xs text-[var(--text-muted)]">
+                        <div>{acc.payment_method || "—"}</div>
+                        {acc.billing_day && <div className="text-[10px] text-[var(--text-dim)]">매월 {acc.billing_day}일</div>}
+                      </td>
                       <td className="p-4 text-center text-xs text-[var(--text-muted)]">
                         {acc.renewal_date ? new Date(acc.renewal_date).toLocaleDateString("ko") : "—"}
                       </td>

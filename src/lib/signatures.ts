@@ -1,5 +1,5 @@
 /**
- * Reflect Electronic Signature Engine
+ * OwnerView Electronic Signature Engine
  * 전자서명 요청 → 발송 → 열람 → 서명완료/거부/만료
  */
 
@@ -138,6 +138,38 @@ export async function saveSignature(
     .single();
 
   if (error) throw error;
+
+  // Auto-lock document when all signatures are collected
+  if (data?.document_id) {
+    const { data: allSigs } = await db
+      .from('signature_requests')
+      .select('id, status')
+      .eq('document_id', data.document_id);
+
+    const allSigned = (allSigs || []).length > 0 &&
+      (allSigs || []).every((s: { status: string }) => s.status === 'signed');
+
+    if (allSigned) {
+      // Check document status — if not yet approved, approve + lock
+      const { data: doc } = await db
+        .from('documents')
+        .select('id, status, company_id, deal_id')
+        .eq('id', data.document_id)
+        .single();
+
+      if (doc) {
+        if (doc.status !== 'approved' && doc.status !== 'locked') {
+          // Auto-approve triggers pipeline (견적→계약, 계약→세금계산서)
+          const { approveDocument } = await import('./documents');
+          await approveDocument(doc.id, 'system', '전체 서명 완료로 자동 승인');
+        }
+        // Lock the document
+        const { lockDocument } = await import('./documents');
+        await lockDocument(doc.id, 'system');
+      }
+    }
+  }
+
   return data;
 }
 
@@ -154,6 +186,49 @@ export async function cancelSignature(id: string) {
 
   if (error) throw error;
   return data;
+}
+
+// ── Apply Company Seal (직인 적용) ──
+export async function applyCompanySeal(params: {
+  documentId: string;
+  companyId: string;
+  appliedBy: string;
+}): Promise<{ success: boolean; sealUrl?: string }> {
+  const { documentId, companyId, appliedBy } = params;
+
+  // 1. Check company seal_url exists
+  const { data: company } = await db
+    .from('companies')
+    .select('id, name, seal_url')
+    .eq('id', companyId)
+    .single();
+
+  if (!company?.seal_url) {
+    throw new Error('직인 이미지가 등록되지 않았습니다. 설정에서 직인을 먼저 업로드하세요.');
+  }
+
+  // 2. Update document seal_applied flag
+  await db
+    .from('documents')
+    .update({ seal_applied: true })
+    .eq('id', documentId);
+
+  // 3. Add seal record to signature_requests
+  await db
+    .from('signature_requests')
+    .insert({
+      company_id: companyId,
+      document_id: documentId,
+      title: '회사 직인 적용',
+      status: 'signed',
+      signer_name: company.name || '회사 직인',
+      signer_email: 'seal@company',
+      signed_at: new Date().toISOString(),
+      signature_data: { type: 'seal', data: company.seal_url },
+      created_by: appliedBy,
+    });
+
+  return { success: true, sealUrl: company.seal_url };
 }
 
 // ── Get Single Signature Request ──

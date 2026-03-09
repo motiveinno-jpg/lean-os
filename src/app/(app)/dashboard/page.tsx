@@ -14,10 +14,8 @@ import { BarChart } from "@/components/bar-chart";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
-import { aiGetDashboardSummary } from "@/lib/ai-tools";
-import { getPendingActions } from "@/lib/ai-pending";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
-import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, type PendingAction, type PendingActionType } from "@/lib/approval-center";
+import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
@@ -67,11 +65,17 @@ export default function DashboardPage() {
   const [generating, setGenerating] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [dealCount, setDealCount] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string; time: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  const [userLoadFailed, setUserLoadFailed] = useState(false);
+
   useEffect(() => {
-    getCurrentUser().then(async (u) => {
+    let retries = 0;
+    async function loadUser() {
+      const u = await getCurrentUser();
       if (u) {
         setCompanyId(u.company_id);
         setUserId(u.id);
@@ -89,8 +93,15 @@ export default function DashboardPage() {
         if (shouldShowOnboarding(dc)) {
           setShowOnboarding(true);
         }
+      } else if (retries < 2) {
+        // 회원가입 직후 user 레코드 생성 지연 가능 — 재시도
+        retries++;
+        setTimeout(loadUser, 1500);
+      } else {
+        setUserLoadFailed(true);
       }
-    });
+    }
+    loadUser();
   }, []);
 
   // Fetch data from DB
@@ -142,6 +153,7 @@ export default function DashboardPage() {
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
 
   const hasData = rawData?.hasData || false;
+
   const level = getRunwayLevel(dashboard.sixPack.runwayMonths);
   const cfg = LEVEL_CONFIG[level];
 
@@ -202,6 +214,36 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ["founder-data"] });
     setGenerating(false);
   }, [companyId, queryClient]);
+
+  // ── 데이터 동기화 핸들러 ──
+  const handleDataSync = useCallback(async () => {
+    if (!companyId || syncing) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      // 1) 자동화 엔진 실행 (분류 → 매칭 → 3-Way 대사 → 배치)
+      const result = await runAllAutomation(companyId);
+
+      // 2) 쿼리 캐시 갱신
+      queryClient.invalidateQueries({ queryKey: ["founder-data"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
+
+      const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      setSyncResult({
+        success: true,
+        message: `동기화 완료 — 은행분류 ${result.bankClassification.matched}건 · 카드매핑 ${result.cardMapping.matched}건 · 3-Way ${result.threeWayMatch.autoMatched}건`,
+        time: now,
+      });
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: `동기화 실패: ${err.message || '알 수 없는 오류'}`,
+        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      });
+    } finally {
+      setSyncing(false);
+    }
+  }, [companyId, syncing, queryClient]);
 
   const sp = dashboard.sixPack;
 
@@ -306,6 +348,21 @@ export default function DashboardPage() {
     );
   }
 
+  // ── 유저 로딩 실패 안내 ──
+  if (userLoadFailed) {
+    return (
+      <div className="max-w-[1100px]">
+        <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-dim)] p-6 text-center">
+          <p className="text-sm font-semibold text-[var(--text)] mb-2">계정 정보를 불러올 수 없습니다</p>
+          <p className="text-xs text-[var(--text-muted)] mb-4">회원가입 직후라면 잠시 후 새로고침해주세요.</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg text-xs font-bold text-white" style={{ background: "var(--primary)" }}>
+            새로고침
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Owner Dashboard (전체 CEO 뷰) ──
   return (
     <div className="max-w-[1100px]">
@@ -382,8 +439,22 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Upload / Sample buttons */}
+        {/* Sync / Upload buttons */}
         <div className="flex items-center gap-2">
+          {role === "owner" && (
+            <button onClick={handleDataSync} disabled={syncing}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 flex items-center gap-1.5 ${
+                syncing
+                  ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
+                  : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 border border-[var(--success)]/20'
+              }`}>
+              <svg className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {syncing ? '동기화 중...' : '데이터 동기화'}
+            </button>
+          )}
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-3 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
@@ -404,6 +475,20 @@ export default function DashboardPage() {
         }`}>
           {parseResult.message}
           <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
+      {/* Sync result toast */}
+      {syncResult && (
+        <div className={`mb-4 p-3 rounded-lg text-xs flex items-center justify-between ${
+          syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
+            : 'bg-red-500/10 border border-red-500/20 text-red-400'
+        }`}>
+          <span>{syncResult.message}</span>
+          <span className="flex items-center gap-2">
+            <span className="opacity-60">{syncResult.time}</span>
+            <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100">✕</button>
+          </span>
         </div>
       )}
 
@@ -553,12 +638,12 @@ export default function DashboardPage() {
 
       {/* ═══ 현금 펄스 위젯 ═══ */}
       {isWidgetVisible('cash_pulse') && cashPulse && (
-        <CashPulseWidget pulse={cashPulse} />
+        <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
       )}
 
       {/* ═══ 승인센터 ═══ */}
       {isWidgetVisible('approval_center') && companyId && userId && (
-        <ApprovalCenterWidget companyId={companyId} userId={userId} />
+        <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
       )}
 
       {/* ═══ 오늘의 액션 (승인센터 바로 아래) ═══ */}
@@ -602,7 +687,7 @@ export default function DashboardPage() {
 
       {/* ═══ 위험 구역 ═══ */}
       {isWidgetVisible('risk_zone') && (
-        <div className="mb-5">
+        <div id="widget-risk_zone" className="mb-5">
           <div className="flex items-center gap-2 mb-3">
             <div className={`w-2 h-2 rounded-full ${
               Object.values(dashboard.riskCounts).some(c => c > 0) ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'
@@ -627,7 +712,7 @@ export default function DashboardPage() {
 
       {/* ═══ GROWTH ZONE: 성장 영역 ═══ */}
       {isWidgetVisible('growth_tracking') && (
-        <div className="mb-5">
+        <div id="widget-growth_tracking" className="mb-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">성장 영역</h2>
@@ -637,7 +722,7 @@ export default function DashboardPage() {
       )}
 
       {/* ═══ FINANCIAL OVERVIEW: 재무 개요 ═══ */}
-      {isWidgetVisible('financial_overview') && <FinancialOverview companyId={companyId} />}
+      {isWidgetVisible('financial_overview') && <div id="widget-financial_overview"><FinancialOverview companyId={companyId} /></div>}
 
       {/* ═══ MONTHLY CLOSING CHECKLIST ═══ */}
       {isWidgetVisible('closing_checklist') && <ClosingChecklistWidget companyId={companyId} userId={userId} />}
@@ -645,8 +730,6 @@ export default function DashboardPage() {
       {/* ═══ 자동화 엔진 ═══ */}
       {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
 
-      {/* ═══ AI 어시스턴트 ═══ */}
-      {isWidgetVisible('ai_insights') && <AIInsightsWidget companyId={companyId} />}
     </div>
   );
 }
@@ -1380,83 +1463,6 @@ function GuideActionCard({ href, icon, label, done }: { href: string; icon: Reac
   );
 }
 
-// ═══ AI Insights Widget ═══
-function AIInsightsWidget({ companyId }: { companyId: string | null }) {
-  const { data: aiSummary } = useQuery({
-    queryKey: ["ai-dashboard-summary", companyId],
-    queryFn: () => aiGetDashboardSummary(companyId!),
-    enabled: !!companyId,
-    refetchInterval: 60_000,
-    retry: 1,
-  });
-
-  const { data: pendingActions } = useQuery({
-    queryKey: ["ai-pending-dashboard", companyId],
-    queryFn: () => getPendingActions(companyId!),
-    enabled: !!companyId,
-    refetchInterval: 30_000,
-    retry: 1,
-  });
-
-  const pending = pendingActions || [];
-  const summary = aiSummary as any;
-
-  return (
-    <div className="mb-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">AI 어시스턴트</h2>
-          {pending.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/15 text-orange-400">
-              {pending.length}건 승인대기
-            </span>
-          )}
-        </div>
-        <Link href="/ai" className="text-[10px] text-[var(--primary)] hover:underline font-semibold">
-          AI 채팅 열기 &rarr;
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">활성 딜</div>
-          <div className="text-lg font-black" style={{ color: 'var(--primary)' }}>{summary?.activeDeals ?? '-'}</div>
-          <div className="text-[10px] text-[var(--text-muted)]">총 {summary?.totalDeals ?? 0}건</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">계약금액</div>
-          <div className="text-lg font-black" style={{ color: 'var(--text)' }}>{summary?.totalAmount ? fmtW(summary.totalAmount) : '-'}</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">직원</div>
-          <div className="text-lg font-black" style={{ color: 'var(--text)' }}>{summary?.totalEmployees ?? '-'}명</div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-          <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미결 경비</div>
-          <div className="text-lg font-black" style={{ color: (summary?.pendingExpenses ?? 0) > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-            {summary?.pendingExpenses ?? 0}건
-          </div>
-        </div>
-      </div>
-
-      {pending.length > 0 && (
-        <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/[.03] p-3">
-          <div className="text-[11px] font-bold text-orange-400 mb-2">AI 승인 대기 액션</div>
-          <div className="space-y-1.5">
-            {pending.slice(0, 3).map((a: any) => (
-              <div key={a.id} className="flex items-center justify-between text-[11px] px-2 py-1.5 rounded bg-[var(--bg-surface)]">
-                <span className="text-[var(--text-muted)] truncate flex-1">{a.description || a.action_type}</span>
-                <Link href="/ai" className="text-[var(--primary)] font-semibold ml-2 shrink-0 hover:underline">검토</Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ═══ Automation Widget ═══
 function AutomationWidget({ companyId }: { companyId: string | null }) {
   const [running, setRunning] = useState(false);
@@ -1564,10 +1570,24 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   const handleApprove = async (type: PendingActionType, id: string) => {
     setApproving(id);
     try {
+      const action = actions.find(a => a.id === id);
       await approveAction(companyId, type, id, userId);
       queryClient.invalidateQueries({ queryKey: ['ceo-pending-actions'] });
       queryClient.invalidateQueries({ queryKey: ['ceo-approval-summary'] });
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
+      // Fire-and-forget: 승인 이메일 알림 (요청자에게)
+      if (action?.requester) {
+        const { data: reqUser } = await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).single();
+        if (reqUser?.email) {
+          sendApprovalNotificationEmail({
+            email: reqUser.email,
+            recipientName: reqUser.name || undefined,
+            actionType: type,
+            actionTitle: action.title,
+            result: 'approved',
+          }).catch(() => {});
+        }
+      }
     } catch { /* ignore */ }
     setApproving(null);
   };

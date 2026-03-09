@@ -552,6 +552,35 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
   );
 }
 
+// ── Description templates per request type ──
+const DESCRIPTION_TEMPLATES: Partial<Record<RequestType, string>> = {
+  expense: "1. 지출 항목:\n2. 지출 사유:\n3. 비용 세부내역:\n4. 증빙 서류: 첨부파일 참조",
+  payment: "1. 결제 대상:\n2. 결제 사유:\n3. 결제 방법 (계좌이체/카드):",
+  overtime: "1. 초과근무 일시:\n2. 초과근무 사유:\n3. 예상 시간:",
+  purchase: "1. 구매 품목:\n2. 구매 사유:\n3. 수량 및 단가:\n4. 납품 예정일:",
+  contract: "1. 계약 상대방:\n2. 계약 내용 요약:\n3. 계약 기간:\n4. 계약 금액:",
+  travel: "1. 출장지:\n2. 출장 기간:\n3. 출장 목적:\n4. 예상 경비 내역:",
+  card_expense: "1. 사용처:\n2. 사용 일시:\n3. 사용 사유:\n4. 증빙: 첨부파일 참조",
+  equipment: "1. 장비명/사양:\n2. 용도:\n3. 수량:",
+  approval_doc: "1. 품의 내용:\n2. 추진 배경 및 사유:\n3. 기대 효과:\n4. 소요 예산:",
+  expense_report: "1. 지출 항목 및 내역:\n2. 지출 목적:\n3. 증빙 서류: 첨부파일 참조",
+};
+
+const LEAVE_TYPE_OPTIONS = [
+  { value: "annual", label: "연차" },
+  { value: "sick", label: "병가" },
+  { value: "personal", label: "경조사" },
+  { value: "maternity", label: "출산휴가" },
+  { value: "paternity", label: "배우자출산휴가" },
+  { value: "compensation", label: "대체휴무" },
+];
+
+const LEAVE_UNIT_OPTIONS = [
+  { value: "full_day", label: "종일", days: 1 },
+  { value: "half_day", label: "반차 (0.5일)", days: 0.5 },
+  { value: "two_hours", label: "2시간 (0.25일)", days: 0.25 },
+];
+
 // ══════════════════════════════════════════════
 // Tab 4: 새 요청
 // ══════════════════════════════════════════════
@@ -565,7 +594,109 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     amount: "",
     description: "",
   });
+  // Leave-specific fields
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: "annual",
+    leaveUnit: "full_day",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+    reason: "",
+  });
   const [files, setFiles] = useState<File[]>([]);
+  const [descriptionInited, setDescriptionInited] = useState<string>(""); // track which type was last inited
+
+  const isLeave = form.requestType === "leave";
+
+  // Fetch current user's employee record (match by email)
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["my-employee", companyId, userId],
+    queryFn: async () => {
+      // Get user email
+      const { data: user } = await db.from("users").select("email, name").eq("id", userId).single();
+      if (!user?.email) return null;
+      // Find matching employee
+      const { data: emp } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("email", user.email).maybeSingle();
+      return emp ? { ...emp, userName: user.name } : { id: null, name: user.name, userName: user.name };
+    },
+    enabled: !!companyId && !!userId,
+  });
+
+  // Fetch leave balance for current year
+  const currentYear = new Date().getFullYear();
+  const { data: leaveBalance } = useQuery({
+    queryKey: ["my-leave-balance", currentEmployee?.id, currentYear],
+    queryFn: async () => {
+      const { data } = await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id).eq("year", currentYear).maybeSingle();
+      return data;
+    },
+    enabled: !!currentEmployee?.id && isLeave,
+  });
+
+  const remainingLeave = leaveBalance ? Number(leaveBalance.total_days) - Number(leaveBalance.used_days) : null;
+
+  // Calculate leave days
+  const leaveDays = useMemo(() => {
+    if (leaveForm.leaveUnit === "half_day") return 0.5;
+    if (leaveForm.leaveUnit === "two_hours") return 0.25;
+    if (!leaveForm.startDate) return 0;
+    const start = new Date(leaveForm.startDate);
+    const end = leaveForm.endDate ? new Date(leaveForm.endDate) : start;
+    return Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  }, [leaveForm.leaveUnit, leaveForm.startDate, leaveForm.endDate]);
+
+  // Auto-generate leave title
+  const leaveTitle = useMemo(() => {
+    const typeLabel = LEAVE_TYPE_OPTIONS.find((t) => t.value === leaveForm.leaveType)?.label || "휴가";
+    const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label?.split(" ")[0] || "";
+    const empName = currentEmployee?.name || "";
+
+    if (!leaveForm.startDate) return `${empName} ${typeLabel} 신청`;
+    const startStr = leaveForm.startDate.replace(/-/g, ".");
+    if (leaveForm.leaveUnit !== "full_day") {
+      return `${empName} ${typeLabel} 신청 (${startStr}, ${unitLabel})`;
+    }
+    const endStr = (leaveForm.endDate || leaveForm.startDate).replace(/-/g, ".");
+    if (startStr === endStr) return `${empName} ${typeLabel} 신청 (${startStr}, ${leaveDays}일)`;
+    return `${empName} ${typeLabel} 신청 (${startStr}~${endStr}, ${leaveDays}일)`;
+  }, [leaveForm, leaveDays, currentEmployee]);
+
+  // Auto-generate leave description
+  const leaveDescription = useMemo(() => {
+    const typeLabel = LEAVE_TYPE_OPTIONS.find((t) => t.value === leaveForm.leaveType)?.label || "";
+    const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label || "";
+    const startStr = leaveForm.startDate ? leaveForm.startDate.replace(/-/g, ".") : "미선택";
+    const endStr = leaveForm.endDate ? leaveForm.endDate.replace(/-/g, ".") : startStr;
+
+    let lines = `[휴가 신청서]\n\n`;
+    lines += `- 신청자: ${currentEmployee?.name || ""}\n`;
+    lines += `- 휴가 유형: ${typeLabel}\n`;
+    lines += `- 휴가 단위: ${unitLabel}\n`;
+    if (leaveForm.leaveUnit === "full_day") {
+      lines += `- 휴가 기간: ${startStr} ~ ${endStr} (${leaveDays}일)\n`;
+    } else if (leaveForm.leaveUnit === "half_day") {
+      lines += `- 휴가 일자: ${startStr} (반차)\n`;
+    } else {
+      lines += `- 휴가 일자: ${startStr}\n`;
+      if (leaveForm.startTime && leaveForm.endTime) {
+        lines += `- 시간: ${leaveForm.startTime} ~ ${leaveForm.endTime}\n`;
+      }
+    }
+    if (remainingLeave !== null && leaveForm.leaveType === "annual") {
+      lines += `- 잔여 연차: ${remainingLeave}일 (사용 후 ${Math.max(0, remainingLeave - leaveDays)}일)\n`;
+    }
+    lines += `\n사유:\n${leaveForm.reason || ""}`;
+    return lines;
+  }, [leaveForm, leaveDays, remainingLeave, currentEmployee]);
+
+  // Auto-fill description template when type changes
+  useEffect(() => {
+    if (isLeave || form.requestType === descriptionInited) return;
+    const template = DESCRIPTION_TEMPLATES[form.requestType] || "";
+    setForm((prev) => ({ ...prev, description: template }));
+    setDescriptionInited(form.requestType);
+  }, [form.requestType, isLeave, descriptionInited]);
 
   // Load policies for preview
   const { data: policies = [] } = useQuery({
@@ -580,6 +711,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     if (byType) return byType;
     return policies.find((p: ApprovalPolicy) => p.document_type === "default" && p.is_active) || null;
   }, [policies, form.requestType]);
+
+  const effectiveTitle = isLeave ? leaveTitle : form.title;
+  const effectiveDescription = isLeave ? leaveDescription : form.description;
+  const effectiveAmount = isLeave ? 0 : (Number(form.amount) || 0);
+
+  const canSubmit = isLeave
+    ? !!leaveForm.startDate && !!leaveForm.leaveType
+    : !!form.title.trim();
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -600,16 +739,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
         companyId,
         requestType: form.requestType,
         requesterId: userId,
-        title: form.title,
-        amount: Number(form.amount) || 0,
-        description: form.description || undefined,
+        title: effectiveTitle,
+        amount: effectiveAmount,
+        description: effectiveDescription || undefined,
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
       });
     },
     onSuccess: () => {
       invalidate();
       setForm({ requestType: "expense", title: "", amount: "", description: "" });
+      setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
+      setDescriptionInited("");
       onComplete();
     },
   });
@@ -636,42 +777,188 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
               </select>
             </div>
 
-            {/* Title */}
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="결재 요청 제목을 입력하세요"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
+            {/* ── Leave-specific fields ── */}
+            {isLeave ? (
+              <>
+                {/* Leave balance info */}
+                {leaveForm.leaveType === "annual" && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20">
+                    <div className="text-2xl font-extrabold text-blue-500">
+                      {remainingLeave !== null ? remainingLeave : "-"}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-blue-500">잔여 연차</div>
+                      {leaveBalance && (
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          총 {leaveBalance.total_days}일 중 {leaveBalance.used_days}일 사용
+                        </div>
+                      )}
+                      {!leaveBalance && currentEmployee?.id && (
+                        <div className="text-[11px] text-[var(--text-dim)]">연차 정보가 없습니다 (인력관리에서 설정)</div>
+                      )}
+                    </div>
+                    {remainingLeave !== null && leaveDays > 0 && (
+                      <div className="ml-auto text-right">
+                        <div className="text-xs text-[var(--text-muted)]">신청 후 잔여</div>
+                        <div className={`text-sm font-bold ${remainingLeave - leaveDays < 0 ? "text-red-500" : "text-green-500"}`}>
+                          {Math.max(0, remainingLeave - leaveDays)}일
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {/* Amount */}
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
-              <input
-                type="number"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="0"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
+                {/* Leave type + unit */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형 *</label>
+                    <select
+                      value={leaveForm.leaveType}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      {LEAVE_TYPE_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 단위 *</label>
+                    <select
+                      value={leaveForm.leaveUnit}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, leaveUnit: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      {LEAVE_UNIT_OPTIONS.map((u) => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-            {/* Description */}
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={4}
-                placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
-              />
-            </div>
+                {/* Date selection */}
+                <div className={`grid ${leaveForm.leaveUnit === "full_day" ? "grid-cols-2" : ""} gap-3`}>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      {leaveForm.leaveUnit === "full_day" ? "시작일 *" : "휴가일 *"}
+                    </label>
+                    <input
+                      type="date"
+                      value={leaveForm.startDate}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value, endDate: leaveForm.leaveUnit !== "full_day" ? e.target.value : leaveForm.endDate })}
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    />
+                  </div>
+                  {leaveForm.leaveUnit === "full_day" && (
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">종료일 *</label>
+                      <input
+                        type="date"
+                        value={leaveForm.endDate}
+                        min={leaveForm.startDate}
+                        onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      />
+                    </div>
+                  )}
+                </div>
 
-            {/* File upload */}
+                {/* Time selection for 2-hour leave */}
+                {leaveForm.leaveUnit === "two_hours" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">시작 시간</label>
+                      <input
+                        type="time"
+                        value={leaveForm.startTime}
+                        onChange={(e) => setLeaveForm({ ...leaveForm, startTime: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">종료 시간</label>
+                      <input
+                        type="time"
+                        value={leaveForm.endTime}
+                        onChange={(e) => setLeaveForm({ ...leaveForm, endTime: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Leave days summary */}
+                {leaveForm.startDate && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg">
+                    <span className="text-xs text-[var(--text-muted)]">사용 일수:</span>
+                    <span className="text-sm font-bold text-[var(--primary)]">{leaveDays}일</span>
+                    {remainingLeave !== null && leaveDays > remainingLeave && leaveForm.leaveType === "annual" && (
+                      <span className="text-xs text-red-500 font-semibold ml-2">잔여 연차 초과</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Auto-generated title preview */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">제목 (자동 생성)</label>
+                  <div className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
+                    {leaveTitle || "날짜를 선택하면 자동으로 생성됩니다"}
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
+                  <textarea
+                    value={leaveForm.reason}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                    rows={2}
+                    placeholder="휴가 사유를 입력하세요..."
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                  />
+                </div>
+              </>
+            ) : (
+              /* ── Non-leave fields ── */
+              <>
+                {/* Title */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
+                  <input
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="결재 요청 제목을 입력하세요"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                  />
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
+                  <input
+                    type="number"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                  />
+                </div>
+
+                {/* Description with template */}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={6}
+                    placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* File upload (shared) */}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">첨부파일</label>
               <input
@@ -694,8 +981,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
 
           <div className="flex gap-2 mt-6">
             <button
-              onClick={() => form.title.trim() && createMut.mutate()}
-              disabled={!form.title.trim() || createMut.isPending}
+              onClick={() => canSubmit && createMut.mutate()}
+              disabled={!canSubmit || createMut.isPending}
               className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
             >
               {createMut.isPending ? "제출 중..." : "결재 요청"}
@@ -710,8 +997,19 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
         </div>
       </div>
 
-      {/* Policy Preview */}
-      <div>
+      {/* Right sidebar */}
+      <div className="space-y-4">
+        {/* Auto-generated document preview (leave) */}
+        {isLeave && leaveForm.startDate && (
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+            <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">문서 미리보기</h4>
+            <pre className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]">
+              {leaveDescription}
+            </pre>
+          </div>
+        )}
+
+        {/* Policy Preview */}
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 sticky top-4">
           <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">결재 흐름 미리보기</h4>
 
@@ -746,7 +1044,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
               </div>
 
               {/* Auto-approve indicator */}
-              {matchedPolicy.auto_approve_below > 0 && form.amount && Number(form.amount) < matchedPolicy.auto_approve_below && (
+              {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
                 <div className="mt-2 px-3 py-2 bg-green-500/10 rounded-lg text-xs text-green-500 font-semibold">
                   자동 승인 대상 (금액 기준 충족)
                 </div>
