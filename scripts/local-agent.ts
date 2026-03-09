@@ -112,16 +112,31 @@ function findCertDir(): string {
 }
 
 // Supabase에서 인증정보 가져오기 (오너뷰 설정에서 등록)
+// 서비스명 매핑: ibk → bank_ibk_0, lottecard → card_lottecard_0, hometax → hometax
 async function fetchCredentialFromDB(service: string): Promise<any | null> {
-  try {
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/automation_credentials?company_id=eq.${COMPANY_ID}&service=eq.${service}&select=credentials`,
-      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
-    );
-    if (!resp.ok) return null;
-    const rows = await resp.json();
-    if (rows.length > 0 && rows[0].credentials) return rows[0].credentials;
-  } catch { /* fallback to keychain */ }
+  // 새 형식 + 레거시 형식 모두 조회
+  const candidates = [service];
+  if (service === 'ibk' || service === 'shinhan' || service === 'woori' || service === 'kookmin') {
+    candidates.push(`bank_${service}_0`);
+  } else if (service === 'lottecard' || service === 'samsung_card' || service === 'hyundai_card') {
+    candidates.push(`card_${service}_0`);
+  } else if (service.startsWith('bank_') || service.startsWith('card_')) {
+    // 이미 새 형식이면 레거시도 추가
+    const legacy = service.replace(/^bank_/, '').replace(/^card_/, '').replace(/_\d+$/, '');
+    candidates.push(legacy);
+  }
+
+  for (const svc of candidates) {
+    try {
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/automation_credentials?company_id=eq.${COMPANY_ID}&service=eq.${svc}&select=credentials`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      if (!resp.ok) continue;
+      const rows = await resp.json();
+      if (rows.length > 0 && rows[0].credentials) return rows[0].credentials;
+    } catch { /* try next */ }
+  }
   return null;
 }
 
