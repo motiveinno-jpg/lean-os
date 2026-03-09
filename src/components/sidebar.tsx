@@ -46,7 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "자산",
     items: [
-      { href: "/vault", label: "자산 금고", icon: "shield", roles: ["owner"] },
+      { href: "/vault", label: "회사 금고", icon: "shield", roles: ["owner"] },
       { href: "/billing", label: "요금제 관리", icon: "credit-card", roles: ["owner", "admin"] },
     ],
   },

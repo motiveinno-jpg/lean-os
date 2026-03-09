@@ -418,8 +418,9 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
 // ── Employee Detail Panel ──
 function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
-  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "notes" | "history">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
   const queryClient = useQueryClient();
+  const currentYear = new Date().getFullYear();
 
   // Fetch employee details
   const { data: emp } = useQuery({
@@ -449,6 +450,55 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
       return data || [];
     },
     enabled: !!employeeId && detailTab === "onboarding",
+  });
+
+  // Fetch employee contracts (Flex-style 계약서 탭)
+  const { data: empContracts = [] } = useQuery({
+    queryKey: ["emp-contracts", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("employee_contracts").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!employeeId && detailTab === "contracts",
+  });
+
+  // Fetch signature requests for this employee's contracts
+  const { data: empSignatures = [] } = useQuery({
+    queryKey: ["emp-signatures", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("signature_requests").select("*").eq("signer_email", emp?.email).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!employeeId && !!emp?.email && detailTab === "contracts",
+  });
+
+  // Fetch certificate logs for this employee
+  const { data: empCertLogs = [] } = useQuery({
+    queryKey: ["emp-cert-logs", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("certificate_logs").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!employeeId && detailTab === "certificates",
+  });
+
+  // Fetch leave balance + requests for this employee
+  const { data: empLeaveBalance } = useQuery({
+    queryKey: ["emp-leave-balance", employeeId, currentYear],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).single();
+      return data;
+    },
+    enabled: !!employeeId && detailTab === "leave",
+  });
+
+  const { data: empLeaveRequests = [] } = useQuery({
+    queryKey: ["emp-leave-requests", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("leave_requests").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }).limit(20);
+      return data || [];
+    },
+    enabled: !!employeeId && detailTab === "leave",
   });
 
   const BANK_LABELS: Record<string, string> = {
@@ -485,8 +535,11 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
       {/* Detail Tabs */}
       <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto">
         {[
-          { key: "info", label: "개인정보" },
-          { key: "files", label: "입사서류" },
+          { key: "info", label: "정보" },
+          { key: "contracts", label: "계약서" },
+          { key: "certificates", label: "증명서" },
+          { key: "leave", label: "휴가" },
+          { key: "files", label: "서류" },
           { key: "onboarding", label: "온보딩" },
           { key: "notes", label: "노트" },
           { key: "history", label: "발령" },
@@ -499,19 +552,63 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
       </div>
 
       <div className="p-5 bg-[var(--bg-surface)] rounded-b-xl">
-        {/* Info Tab */}
+        {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="이메일" value={emp.email} />
-            <InfoRow label="전화번호" value={emp.phone} />
-            <InfoRow label="생년월일" value={emp.birth_date} />
-            <InfoRow label="주소" value={emp.address} />
-            <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
-            <InfoRow label="계좌번호" value={emp.bank_account} />
-            <InfoRow label="예금주" value={emp.bank_holder} />
-            <InfoRow label="입사일" value={emp.hire_date} />
-            <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
-            <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+          <div className="space-y-5">
+            {/* 인사 정보 */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                인사 정보
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <InfoRow label="사번" value={emp.employee_number} />
+                <InfoRow label="부서" value={emp.department} />
+                <InfoRow label="직책" value={emp.position} />
+                <InfoRow label="직급" value={emp.job_grade} />
+                <InfoRow label="입사일" value={emp.hire_date} />
+                <InfoRow label="근속기간" value={emp.hire_date ? (() => {
+                  const d = new Date(emp.hire_date);
+                  const now = new Date();
+                  const years = now.getFullYear() - d.getFullYear();
+                  const months = now.getMonth() - d.getMonth() + (years * 12);
+                  const y = Math.floor(months / 12);
+                  const m = months % 12;
+                  return y > 0 ? `${y}년 ${m}개월` : `${m}개월`;
+                })() : undefined} />
+                <InfoRow label="고용형태" value={emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || ""} />
+                <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
+              </div>
+            </div>
+            {/* 기본 정보 */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                기본 정보
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <InfoRow label="이메일" value={emp.email} />
+                <InfoRow label="전화번호" value={emp.phone} />
+                <InfoRow label="생년월일" value={emp.birth_date} />
+                <InfoRow label="주소" value={emp.address} />
+                <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
+                <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+              </div>
+            </div>
+            {/* 급여/계좌 정보 */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                급여 · 계좌
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <InfoRow label="월 급여" value={emp.salary ? `₩${Number(emp.salary).toLocaleString()}` : undefined} />
+                <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
+                <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
+                <InfoRow label="계좌번호" value={emp.bank_account} />
+                <InfoRow label="예금주" value={emp.bank_holder} />
+              </div>
+            </div>
           </div>
         )}
 
@@ -585,6 +682,170 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         {/* History Tab (D-9: 인사발령 히스토리) */}
         {detailTab === "history" && (
           <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+        )}
+
+        {/* Contracts Tab — Flex-style 계약서 목록 */}
+        {detailTab === "contracts" && (
+          <div className="space-y-2">
+            {empContracts.length === 0 && empSignatures.length === 0 ? (
+              <div className="text-center py-8 text-sm text-[var(--text-dim)]">계약서가 없습니다</div>
+            ) : (
+              <>
+                {empContracts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1">근로 계약</div>
+                    {empContracts.map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium">{c.contract_type === "regular" ? "정규직 근로계약서" : c.contract_type === "contract" ? "계약직 근로계약서" : c.contract_type || "근로계약서"}</div>
+                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.start_date}{c.end_date ? ` ~ ${c.end_date}` : " ~ 현재"}</div>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"}`}>
+                          {c.status === "active" ? "유효" : "종료"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {empSignatures.length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1">전자서명 요청</div>
+                    {empSignatures.map((s: any) => {
+                      const SIG_STATUS: Record<string, { label: string; color: string }> = {
+                        pending: { label: "대기", color: "text-amber-500 bg-amber-500/10" },
+                        sent: { label: "발송", color: "text-blue-400 bg-blue-500/10" },
+                        viewed: { label: "열람", color: "text-blue-400 bg-blue-500/10" },
+                        signed: { label: "서명완료", color: "text-green-400 bg-green-500/10" },
+                        rejected: { label: "거절", color: "text-red-400 bg-red-500/10" },
+                        expired: { label: "만료", color: "text-gray-400 bg-gray-500/10" },
+                      };
+                      const st = SIG_STATUS[s.status] || SIG_STATUS.pending;
+                      return (
+                        <div key={s.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate">{s.title || "서명 요청"}</div>
+                            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                              {s.created_at ? new Date(s.created_at).toLocaleDateString("ko-KR") : ""}
+                              {s.signed_at ? ` · 서명: ${new Date(s.signed_at).toLocaleDateString("ko-KR")}` : ""}
+                            </div>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Certificates Tab — 증명서 발급/이력 */}
+        {detailTab === "certificates" && (
+          <div className="space-y-4">
+            {/* Quick issue buttons */}
+            <div className="flex gap-3">
+              <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
+              <CertQuickIssue type="career" label="경력증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
+            </div>
+            {/* Issue history */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">발급 내역</div>
+              {empCertLogs.length === 0 ? (
+                <div className="text-center py-6 text-xs text-[var(--text-dim)]">발급 이력이 없습니다</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {empCertLogs.map((log: any) => (
+                    <div key={log.id} className="flex items-center justify-between px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                      <div>
+                        <div className="text-xs font-medium">{log.certificate_type}</div>
+                        <div className="text-[10px] text-[var(--text-dim)]">{log.certificate_number} · {new Date(log.created_at).toLocaleDateString("ko-KR")}</div>
+                      </div>
+                      {log.pdf_url && (
+                        <a href={log.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">PDF</a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Leave Tab — 휴가 잔여/사용 기록 */}
+        {detailTab === "leave" && (
+          <div className="space-y-4">
+            {/* Leave balance summary */}
+            {empLeaveBalance ? (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                  <div className="text-[10px] text-[var(--text-dim)]">총 부여</div>
+                  <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
+                </div>
+                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                  <div className="text-[10px] text-[var(--text-dim)]">사용</div>
+                  <div className="text-lg font-bold text-red-400 mt-0.5">{empLeaveBalance.used_days}일</div>
+                </div>
+                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                  <div className="text-[10px] text-[var(--text-dim)]">잔여</div>
+                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-green-400"}`}>
+                    {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 text-center text-xs text-[var(--text-dim)]">
+                {currentYear}년 연차가 아직 설정되지 않았습니다
+              </div>
+            )}
+
+            {/* Leave type cards (Flex-style) */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">휴가 유형</div>
+              <div className="grid grid-cols-3 gap-2">
+                {LEAVE_TYPES.slice(0, 6).map((lt) => {
+                  const used = empLeaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "approved")
+                    .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
+                  return (
+                    <div key={lt.value} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border)] px-3 py-2">
+                      <div className="text-[10px] text-[var(--text-dim)]">{lt.label}</div>
+                      <div className="text-sm font-bold mt-0.5">{used > 0 ? `${used}일 사용` : `${lt.defaultDays}일`}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Recent leave requests */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">사용 기록</div>
+              {empLeaveRequests.length === 0 ? (
+                <div className="text-center py-6 text-xs text-[var(--text-dim)]">휴가 사용 기록이 없습니다</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {empLeaveRequests.slice(0, 10).map((r: any) => {
+                    const typeLabel = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
+                    const statusColors: Record<string, string> = {
+                      pending: "text-amber-500 bg-amber-500/10",
+                      approved: "text-green-400 bg-green-500/10",
+                      rejected: "text-red-400 bg-red-500/10",
+                    };
+                    return (
+                      <div key={r.id} className="flex items-center justify-between px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                        <div>
+                          <div className="text-xs font-medium">{typeLabel} · {r.days}일</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || "text-gray-400 bg-gray-500/10"}`}>
+                          {r.status === "pending" ? "대기" : r.status === "approved" ? "승인" : "반려"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -791,6 +1052,51 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
       <div className="text-xs text-[var(--text)]">{value || "—"}</div>
     </div>
+  );
+}
+
+// ── Certificate Quick Issue Button ──
+function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "employment" | "career"; label: string; emp: any; companyId: string; queryClient: any }) {
+  const [issuing, setIssuing] = useState(false);
+  async function issue() {
+    setIssuing(true);
+    try {
+      const { data: company } = await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).single();
+      if (!company) { alert("회사 정보를 불러올 수 없습니다"); return; }
+      const empData = { name: emp.name, department: emp.department || "", position: emp.position || "", hire_date: emp.hire_date, employee_number: emp.employee_number, birth_date: emp.birth_date };
+      const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
+
+      let result: { pdf: Blob; certificateNumber: string };
+      if (type === "employment") {
+        result = await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: "제출용" });
+      } else {
+        result = await generateCareerCertificate({
+          employee: { ...empData, end_date: emp.end_date },
+          company: companyData,
+          duties: emp.job_title ? [emp.job_title] : [emp.position || emp.department || "업무 전반"],
+        });
+      }
+
+      const url = URL.createObjectURL(result.pdf);
+      window.open(url, "_blank");
+
+      // Log
+      const certType = type === "employment" ? "재직증명서" : "경력증명서";
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (currentUser?.user) {
+        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: currentUser.user.id, purpose: "제출용" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
+    } catch (err: any) {
+      alert(err.message || "증명서 생성 실패");
+    } finally {
+      setIssuing(false);
+    }
+  }
+  return (
+    <button onClick={issue} disabled={issuing} className="flex-1 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
+      {issuing ? "생성 중..." : `📄 ${label} 발급`}
+    </button>
   );
 }
 
@@ -2105,12 +2411,39 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
   const employeesWithBalance = new Set(balances.map((b: any) => b.employee_id));
   const employeesWithoutBalance = activeEmployees.filter((e: any) => !employeesWithBalance.has(e.id));
 
+  // Calculate leave type usage summary
+  const leaveTypeSummary = useMemo(() => {
+    const approved = leaveRequests.filter((r: any) => r.status === "approved");
+    return LEAVE_TYPES.slice(0, 8).map(lt => {
+      const used = approved.filter((r: any) => r.leave_type === lt.value).reduce((s: number, r: any) => s + Number(r.days || 0), 0);
+      const pending = leaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "pending").length;
+      return { ...lt, used, pending };
+    });
+  }, [leaveRequests]);
+
   return (
     <div>
+      {/* Flex-style Leave Type Overview Cards */}
+      <div className="mb-6">
+        <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">휴가 유형</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {leaveTypeSummary.map(lt => (
+            <div key={lt.value} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 transition">
+              <div className="text-xs text-[var(--text-dim)]">{lt.label}</div>
+              <div className="flex items-end gap-1.5 mt-1">
+                <span className="text-lg font-bold">{lt.defaultDays}일</span>
+                {lt.used > 0 && <span className="text-[10px] text-red-400 mb-0.5">-{lt.used}일 사용</span>}
+              </div>
+              {lt.pending > 0 && <div className="text-[10px] text-amber-500 mt-1">{lt.pending}건 대기</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Leave Balance Cards */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 휴가 잔여</h3>
+          <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 잔여</h3>
           {employeesWithoutBalance.length > 0 && !isEmployee && (
             <button
               onClick={() => {

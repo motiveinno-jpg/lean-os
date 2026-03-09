@@ -809,7 +809,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       // 먼저 서명 요청 생성 → 바로 서명 완료
                       const req = await createSignatureRequest({
                         companyId, documentId: id, title: '자체 서명',
-                        signerName: selfSignName, signerEmail: userEmail || 'self@internal',
+                        signerName: selfSignName, signerEmail: userEmail || 'self-sign@company.internal',
                         createdBy: userId,
                       });
                       await saveSignature(req.id, { type: 'type', data: selfSignName });
@@ -2432,12 +2432,115 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
   );
 }
 
+// ── Default Template Definitions ──
+const DEFAULT_TEMPLATES = [
+  {
+    name: "표준 근로계약서",
+    type: "contract",
+    variables: ["회사명", "대표자명", "직원명", "주민등록번호", "직위", "부서", "연봉", "입사일", "계약기간", "근무장소", "근무시간"],
+    content_json: {
+      title: "표준 근로계약서",
+      sections: [
+        { title: "제1조 (계약 당사자)", content: "사용자: {{회사명}} (대표: {{대표자명}})\n근로자: {{직원명}} (주민등록번호: {{주민등록번호}})" },
+        { title: "제2조 (근로계약기간)", content: "{{입사일}} 부터 {{계약기간}}\n수습기간: 입사일로부터 3개월" },
+        { title: "제3조 (근무장소 및 업무)", content: "근무장소: {{근무장소}}\n담당업무: {{부서}} {{직위}} 업무\n업무내용은 회사의 사정에 따라 변경될 수 있다." },
+        { title: "제4조 (근로시간)", content: "근무시간: {{근무시간}}\n휴게시간: 12:00~13:00 (1시간)\n주 5일 근무 (토, 일 휴무)" },
+        { title: "제5조 (임금)", content: "연봉: {{연봉}}원 (세전)\n매월 급여일: 매월 25일\n4대보험 및 소득세는 법정 기준에 따라 공제한다." },
+        { title: "제6조 (연차유급휴가)", content: "근로기준법에 따라 연차유급휴가를 부여한다.\n1년 미만 근로자: 1개월 개근 시 1일\n1년 이상 근로자: 15일 (2년마다 1일 가산, 최대 25일)" },
+        { title: "제7조 (계약의 해지)", content: "근로자가 퇴직하고자 할 때는 최소 30일 전에 서면으로 통보하여야 한다.\n근로기준법에 정한 정당한 사유 없이 해고하지 않는다." },
+      ],
+    },
+  },
+  {
+    name: "비밀유지서약서 (NDA)",
+    type: "agreement",
+    variables: ["회사명", "직원명", "부서", "직위", "서약일"],
+    content_json: {
+      title: "비밀유지서약서",
+      sections: [
+        { title: "전문", content: "본인 {{직원명}}은(는) {{회사명}}(이하 '회사')에 재직하면서 알게 된 일체의 비밀정보에 대하여 다음과 같이 서약합니다." },
+        { title: "제1조 (비밀정보의 정의)", content: "비밀정보란 회사의 기술, 영업, 경영, 재무, 인사 등에 관한 정보로서 외부에 공개되지 않은 일체의 정보를 말한다.\n- 고객 목록, 거래 조건, 가격 정보\n- 기술 자료, 소스코드, 설계도면\n- 사업 계획, 마케팅 전략\n- 인사정보, 급여정보" },
+        { title: "제2조 (비밀유지 의무)", content: "1. 비밀정보를 제3자에게 누설하거나 공개하지 않는다.\n2. 업무 목적 외에 사용하지 않는다.\n3. 회사의 사전 승인 없이 복사, 복제하지 않는다.\n4. 퇴사 시 관련 자료를 모두 반환한다." },
+        { title: "제3조 (의무 존속기간)", content: "비밀유지 의무는 재직 중은 물론 퇴사 후 2년간 유효하다." },
+        { title: "제4조 (위반 시 책임)", content: "본 서약을 위반하여 회사에 손해를 끼친 경우, 민·형사상 책임을 부담한다." },
+      ],
+    },
+  },
+  {
+    name: "연봉계약서",
+    type: "contract",
+    variables: ["회사명", "대표자명", "직원명", "직위", "부서", "연봉", "적용시작일", "적용종료일"],
+    content_json: {
+      title: "연봉계약서",
+      sections: [
+        { title: "제1조 (계약 당사자)", content: "사용자: {{회사명}} (대표: {{대표자명}})\n근로자: {{직원명}} ({{부서}} / {{직위}})" },
+        { title: "제2조 (연봉)", content: "연봉 총액: {{연봉}}원 (세전)\n월 급여: 연봉의 1/12 (매월 25일 지급)\n상여금, 성과급은 별도 규정에 따른다." },
+        { title: "제3조 (적용기간)", content: "{{적용시작일}} ~ {{적용종료일}} (1년)\n기간 만료 시 재협의하여 갱신한다." },
+        { title: "제4조 (공제)", content: "4대보험료, 소득세, 주민세 등 법정 공제항목은 급여에서 원천징수한다." },
+        { title: "제5조 (기타)", content: "본 계약서에 명시되지 않은 사항은 근로기준법 및 회사 취업규칙에 따른다." },
+      ],
+    },
+  },
+  {
+    name: "퇴직합의서",
+    type: "agreement",
+    variables: ["회사명", "대표자명", "직원명", "부서", "직위", "입사일", "퇴직일", "퇴직금"],
+    content_json: {
+      title: "퇴직합의서",
+      sections: [
+        { title: "제1조 (합의 당사자)", content: "갑: {{회사명}} (대표: {{대표자명}})\n을: {{직원명}} ({{부서}} / {{직위}})" },
+        { title: "제2조 (퇴직일)", content: "을의 퇴직일은 {{퇴직일}}로 한다.\n(입사일: {{입사일}})" },
+        { title: "제3조 (퇴직금)", content: "갑은 을에게 퇴직금 {{퇴직금}}원을 퇴직일로부터 14일 이내에 지급한다.\n퇴직금은 근로자퇴직급여보장법에 따라 산정한다." },
+        { title: "제4조 (업무 인수인계)", content: "을은 퇴직일까지 담당 업무를 성실히 인수인계한다.\n회사 소유 물품(노트북, 사원증 등)은 퇴직일에 반납한다." },
+        { title: "제5조 (비밀유지)", content: "을은 퇴직 후에도 재직 중 취득한 회사의 비밀정보를 누설하지 않는다." },
+        { title: "제6조 (분쟁 해결)", content: "본 합의서와 관련된 분쟁은 상호 협의하여 해결하며, 합의가 이루어지지 않을 경우 관할법원에 따른다." },
+      ],
+    },
+  },
+  {
+    name: "겸업금지서약서",
+    type: "agreement",
+    variables: ["회사명", "직원명", "부서", "직위", "서약일"],
+    content_json: {
+      title: "겸업금지서약서",
+      sections: [
+        { title: "전문", content: "본인 {{직원명}}은(는) {{회사명}}(이하 '회사')에 재직하는 동안 아래의 겸업금지 의무를 준수할 것을 서약합니다." },
+        { title: "제1조 (겸업금지)", content: "1. 회사의 사전 서면 승인 없이 다른 회사에 취업하거나 사업을 영위하지 않는다.\n2. 회사의 이익에 반하는 활동을 하지 않는다.\n3. 회사 업무시간 외에도 회사의 업무에 지장을 초래하는 활동을 하지 않는다." },
+        { title: "제2조 (경업금지)", content: "퇴사 후 1년간 동종업계에서 경쟁업체에 취업하거나 동종 사업을 영위하지 않는다.\n단, 회사가 별도 보상을 제공하는 경우에 한한다." },
+        { title: "제3조 (위반 시 조치)", content: "본 서약 위반 시 징계 처분 및 손해배상 책임을 질 수 있다." },
+      ],
+    },
+  },
+];
+
 // ── Templates Tab Component ──
 function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
   companyId: string; userId: string; templates: any[]; onInvalidate: () => void;
 }) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const seedDefaults = async () => {
+    setSeeding(true);
+    try {
+      for (const tpl of DEFAULT_TEMPLATES) {
+        await (supabase as any).from("doc_templates").insert({
+          company_id: companyId,
+          created_by: userId,
+          name: tpl.name,
+          type: tpl.type,
+          content_json: tpl.content_json,
+          variables: tpl.variables,
+          is_active: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
+      onInvalidate();
+    } finally {
+      setSeeding(false);
+    }
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -2661,7 +2764,15 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">📝</div>
             <div className="text-lg font-bold mb-2">등록된 양식이 없습니다</div>
-            <div className="text-sm text-[var(--text-muted)]">기본 양식이나 커스텀 양식을 등록하세요</div>
+            <div className="text-sm text-[var(--text-muted)] mb-4">기본 양식 5종을 한번에 등록하거나, 직접 만들 수 있습니다</div>
+            <button
+              onClick={seedDefaults}
+              disabled={seeding}
+              className="px-5 py-2.5 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600 transition disabled:opacity-50"
+            >
+              {seeding ? "등록 중..." : "기본 양식 5종 등록하기"}
+            </button>
+            <p className="text-[10px] text-[var(--text-dim)] mt-2">근로계약서 · 비밀유지서약서 · 연봉계약서 · 퇴직합의서 · 겸업금지서약서</p>
           </div>
         ) : (
           <div className="divide-y divide-[var(--border)]/50">

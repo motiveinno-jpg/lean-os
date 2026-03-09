@@ -2027,29 +2027,36 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
     if (!companyId) return;
     setSaving(true);
     try {
+      // Supabase 에러 체크 헬퍼
+      function check<T>(result: { data: T; error: any }, label: string): T {
+        if (result.error) throw new Error(`${label}: ${result.error.message}`);
+        return result.data;
+      }
+
       // 기존 은행/카드 인증정보 삭제 후 다시 저장
-      await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "bank_%");
-      await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "card_%");
+      check(await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "bank_%"), "은행 삭제");
+      check(await db2.from("automation_credentials").delete().eq("company_id", companyId).like("service", "card_%"), "카드 삭제");
+      check(await db2.from("automation_credentials").delete().eq("company_id", companyId).eq("service", "hometax"), "홈택스 삭제");
       // 레거시 데이터도 정리
-      await db2.from("automation_credentials").delete().eq("company_id", companyId).in("service", ["ibk", "hometax", "lottecard"]);
+      check(await db2.from("automation_credentials").delete().eq("company_id", companyId).in("service", ["ibk", "lottecard"]), "레거시 삭제");
 
       // 은행 저장
       for (let i = 0; i < banks.length; i++) {
         const b = banks[i];
         if (!b.cert_password && !b.login_id) continue;
-        await db2.from("automation_credentials").insert({
+        check(await db2.from("automation_credentials").insert({
           company_id: companyId,
           service: `bank_${b.company}_${i}`,
           credentials: { cert_password: b.cert_password, login_id: b.login_id, login_password: b.login_password, bank_name: b.company },
           updated_at: new Date().toISOString(),
-        });
+        }), `은행 ${b.company} 저장`);
         // 홈택스도 동일 인증서 비밀번호 사용 (첫 번째 은행 기준)
         if (i === 0 && b.cert_password) {
-          await db2.from("automation_credentials").upsert({
+          check(await db2.from("automation_credentials").upsert({
             company_id: companyId, service: "hometax",
             credentials: { cert_password: b.cert_password },
             updated_at: new Date().toISOString(),
-          }, { onConflict: "company_id,service" });
+          }, { onConflict: "company_id,service" }), "홈택스 저장");
         }
       }
 
@@ -2057,22 +2064,23 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       for (let i = 0; i < cards.length; i++) {
         const c = cards[i];
         if (!c.login_id && !c.cert_password) continue;
-        await db2.from("automation_credentials").insert({
+        check(await db2.from("automation_credentials").insert({
           company_id: companyId,
           service: `card_${c.company}_${i}`,
           credentials: { login_id: c.login_id, login_password: c.login_password, cert_password: c.cert_password, card_company: c.company },
           updated_at: new Date().toISOString(),
-        });
+        }), `카드 ${c.company} 저장`);
       }
 
       // 자동서명 설정
-      await db2.from("companies").update({ cert_settings: autoSign }).eq("id", companyId);
+      check(await db2.from("companies").update({ cert_settings: autoSign }).eq("id", companyId), "자동서명 설정");
 
       queryClient.invalidateQueries({ queryKey: ["automation-credentials"] });
       queryClient.invalidateQueries({ queryKey: ["cert-settings"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
+      console.error("credential save error:", err);
       alert("저장 실패: " + (err.message || "알 수 없는 오류"));
     } finally { setSaving(false); }
   }

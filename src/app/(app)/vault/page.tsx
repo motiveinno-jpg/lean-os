@@ -256,7 +256,7 @@ export default function VaultPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">금고</h1>
+          <h1 className="text-2xl font-extrabold">회사 금고</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             구독/자산/문서 통합 관리 + AI 반복결제 자동 탐지
           </p>

@@ -373,7 +373,7 @@ function DealsPageInner() {
   const searchParams = useSearchParams(); const router = useRouter(); const selectedId = searchParams.get("id");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "" });
+  const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "" });
   const [formError, setFormError] = useState("");
   const [filterCls, setFilterCls] = useState<string | null>(null);
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
@@ -402,8 +402,8 @@ function DealsPageInner() {
   const clsColorMap = Object.fromEntries(classifications.map((c: any) => [c.name, c.color || DEFAULT_COLORS[c.name] || '#8b5cf6']));
 
   const createDeal = useMutation({
-    mutationFn: async () => { const contractAmount = Number(form.contract_total); if (!contractAmount || contractAmount <= 0) throw new Error("계약금액은 1원 이상이어야 합니다"); const { error } = await supabase.from("deals").insert({ company_id: companyId!, name: form.name, classification: form.classification, contract_total: contractAmount, status: "active", start_date: form.start_date || null, end_date: form.end_date || null }); if (error) throw error; },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "" }); setFormError(""); },
+    mutationFn: async () => { const contractAmount = Number(form.contract_total); if (!contractAmount || contractAmount <= 0) throw new Error("계약금액은 1원 이상이어야 합니다"); const { data: newDeal, error } = await supabase.from("deals").insert({ company_id: companyId!, name: form.name, classification: form.classification, contract_total: contractAmount, status: "active", start_date: form.start_date || null, end_date: form.end_date || null }).select().single(); if (error) throw error; if (form.counterparty.trim() && newDeal) { try { await autoCreatePartnerFromDeal(companyId!, newDeal.id, form.counterparty.trim()); } catch (e) { console.error("거래처 자동 등록 실패:", e); } } },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); queryClient.invalidateQueries({ queryKey: ["partners"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "" }); setFormError(""); },
     onError: (err: Error) => { setFormError(err.message); },
   });
 
@@ -434,6 +434,7 @@ function DealsPageInner() {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 (원) *</label><input type="number" min="1" value={form.contract_total} onChange={(e) => { setForm({ ...form, contract_total: e.target.value }); setFormError(""); }} placeholder="15000000" className={`w-full px-3 py-2.5 bg-[var(--bg)] border rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] ${formError && (!form.contract_total || Number(form.contract_total) <= 0) ? "border-red-400" : "border-[var(--border)]"}`} />{formError && (!form.contract_total || Number(form.contract_total) <= 0) && (<p className="text-xs text-red-500 mt-1">{formError}</p>)}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => setForm({ ...form, counterparty: e.target.value })} placeholder="예: (주)ABC컴퍼니" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => form.name && Number(form.contract_total) > 0 && createDeal.mutate()} disabled={!form.name || !form.contract_total || Number(form.contract_total) <= 0 || createDeal.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{createDeal.isPending ? "생성 중..." : "딜 생성"}</button>
