@@ -41,6 +41,7 @@ export default function AuthPage() {
   const [agreed, setAgreed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [showPw, setShowPw] = useState(false);
   const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
@@ -389,14 +390,20 @@ export default function AuthPage() {
             </div>
             <div className="mb-6">
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="영문+숫자+특수기호 8자 이상"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="영문+숫자+특수기호 8자 이상"
+                  className="w-full px-4 py-3 pr-12 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                  required
+                />
+                <button type="button" onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] hover:text-[var(--text-muted)] text-xs font-medium transition">
+                  {showPw ? "숨기기" : "보기"}
+                </button>
+              </div>
               {mode === "signup" && password && (
                 <div className="mt-2">
                   <div className="flex flex-wrap gap-2">
