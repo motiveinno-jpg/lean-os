@@ -1601,7 +1601,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   };
 
   const handleBulkApprove = async () => {
-    if (!actions.length) return;
+    if (!actions.length || bulkApproving) return;
     setBulkApproving(true);
     try {
       await bulkApproveActions(

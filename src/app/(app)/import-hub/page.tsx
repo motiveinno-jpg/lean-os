@@ -66,6 +66,11 @@ export default function ImportHubPage() {
 
   // ── 파일 선택 / 드롭 핸들러 ──
   const handleFile = useCallback(async (file: File) => {
+    const MAX_FILE_MB = 20;
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setState(s => ({ ...s, step: "error", error: `파일 크기가 ${MAX_FILE_MB}MB를 초과합니다. 더 작은 파일을 선택해주세요.` }));
+      return;
+    }
     setState({ ...INITIAL_STATE, step: "detecting", file });
 
     try {
