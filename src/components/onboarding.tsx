@@ -5,11 +5,22 @@ import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 
 const ONBOARDING_KEY = "leanos-onboarding-done";
+const ONBOARDING_DISMISS_KEY = "leanos-onboarding-dismissed";
 
 export function shouldShowOnboarding(dealCount: number): boolean {
   if (typeof window === "undefined") return false;
+  // Permanently completed (finished all steps)
   if (localStorage.getItem(ONBOARDING_KEY)) return false;
+  // Temporarily dismissed for this session
+  if (sessionStorage.getItem(ONBOARDING_DISMISS_KEY)) return false;
   return dealCount === 0;
+}
+
+/** Re-trigger onboarding by clearing dismiss flags */
+export function resetOnboardingDismiss(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ONBOARDING_KEY);
+  sessionStorage.removeItem(ONBOARDING_DISMISS_KEY);
 }
 
 // ── Step Definitions ──
@@ -158,7 +169,8 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const handleSkip = () => { if (step < 7) setStep(step + 1); };
 
   const handleDismiss = useCallback(() => {
-    localStorage.setItem(ONBOARDING_KEY, "true");
+    // Only dismiss for this session — user can re-trigger from guide page
+    sessionStorage.setItem(ONBOARDING_DISMISS_KEY, "true");
     onComplete();
   }, [onComplete]);
 

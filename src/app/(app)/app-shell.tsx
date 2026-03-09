@@ -27,6 +27,12 @@ const EMPLOYEE_TABS = [
   { href: "/chat", label: "채팅", icon: "chat" },
   { href: "/documents", label: "서류", icon: "file" },
 ];
+const OWNER_TABS = [
+  { href: "/dashboard", label: "대시보드", icon: "home" },
+  { href: "/deals", label: "프로젝트", icon: "briefcase" },
+  { href: "/payments", label: "결제", icon: "card" },
+  { href: "/chat", label: "채팅", icon: "chat" },
+];
 
 function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
   const cn = `w-5 h-5 ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`;
@@ -38,6 +44,7 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
     case "chat": return <svg {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "clock": return <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
     case "book": return <svg {...p}><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
+    case "card": return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
     default: return null;
   }
 }
@@ -45,8 +52,8 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
 function MobileBottomNav() {
   const { role } = useUser();
   const pathname = usePathname();
-  if (role !== "partner" && role !== "employee") return null;
-  const tabs = role === "partner" ? PARTNER_TABS : EMPLOYEE_TABS;
+  if (role !== "partner" && role !== "employee" && role !== "owner") return null;
+  const tabs = role === "partner" ? PARTNER_TABS : role === "owner" ? OWNER_TABS : EMPLOYEE_TABS;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] safe-area-bottom" style={{ boxShadow: "0 -1px 8px rgba(0,0,0,0.06)" }}>
@@ -168,7 +175,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <main
         className={`flex-1 max-w-[1440px] transition-[margin] duration-200 pt-14 md:pt-14 ${
           collapsed ? "md:ml-[68px]" : "md:ml-60"
-        } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : "p-6"}`}
+        } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : role === "owner" ? "p-6 pb-20 md:pb-6" : "p-6"}`}
       >
         <RouteGuard>{children}</RouteGuard>
       </main>

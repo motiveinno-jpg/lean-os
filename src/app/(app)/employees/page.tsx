@@ -2264,6 +2264,10 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
+
+  // Auto-detect current user's employee record
+  const myEmployee = isEmployee ? employees.find((e: any) => e.user_id === userId) : null;
+
   const [form, setForm] = useState({
     employeeId: "",
     leaveType: "annual",
@@ -2275,6 +2279,13 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     reason: "",
   });
   const [showPromotion, setShowPromotion] = useState(false);
+
+  // Auto-select employee for employee role
+  useEffect(() => {
+    if (myEmployee && !form.employeeId) {
+      setForm(prev => ({ ...prev, employeeId: myEmployee.id }));
+    }
+  }, [myEmployee, form.employeeId]);
 
   // Leave requests
   const { data: leaveRequests = [] } = useQuery({
@@ -2534,13 +2545,22 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h4 className="text-sm font-bold mb-4">휴가 신청</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
-              <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
-                <option value="">선택...</option>
-                {activeEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name}</option>))}
-              </select>
-            </div>
+            {isEmployee && myEmployee ? (
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">신청자</label>
+                <div className="w-full px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
+                  {myEmployee.name}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">직원 *</label>
+                <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                  <option value="">선택...</option>
+                  {activeEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name}</option>))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형</label>
               <select value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">

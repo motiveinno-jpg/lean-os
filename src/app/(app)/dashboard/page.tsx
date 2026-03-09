@@ -438,8 +438,8 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-lg font-black tracking-tight">생존 현황판</h1>
             <div className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider"
-              style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-              {cfg.label}
+              style={{ background: !hasData ? 'rgba(100,116,139,0.08)' : cfg.bg, color: !hasData ? '#64748b' : cfg.color, border: `1px solid ${!hasData ? 'rgba(100,116,139,0.2)' : cfg.border}` }}>
+              {!hasData ? '데이터를 입력해주세요' : cfg.label}
             </div>
           </div>
           <p className="text-[11px] text-[var(--text-dim)]">

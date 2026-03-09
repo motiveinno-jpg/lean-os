@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { resetOnboardingDismiss } from '@/components/onboarding';
 
 // ── Types ──
 type GuideCategory = {
@@ -1128,6 +1129,23 @@ export default function GuidePage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Re-trigger Onboarding */}
+          <div className="mb-6 bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">초기 설정 다시 하기</h3>
+              <p className="text-xs text-gray-500 mt-0.5">회사 정보, 통장, 카드, 직원 등 초기 설정을 다시 시작합니다.</p>
+            </div>
+            <button
+              onClick={() => {
+                resetOnboardingDismiss();
+                window.location.href = '/dashboard';
+              }}
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap"
+            >
+              온보딩 다시 시작
+            </button>
           </div>
 
           {/* Category Grid */}
