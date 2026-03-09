@@ -499,7 +499,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
                   </div>
                   <span className="text-sm">{a.users?.name || a.users?.email}</span>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-[var(--text-dim)]">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">
                   {a.role === 'manager' ? '담당자' : a.role === 'reviewer' ? '검토자' : '참여자'}
                 </span>
               </div>
@@ -572,6 +572,198 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   );
 }
 
+// ── Kanban Status Config ──
+
+type KanbanStatus = 'active' | 'pending' | 'closed_won' | 'closed_lost' | 'dormant';
+
+interface KanbanColumn {
+  key: KanbanStatus;
+  label: string;
+  color: string;
+  bgLight: string;
+  borderColor: string;
+  headerBg: string;
+}
+
+const KANBAN_COLUMNS: KanbanColumn[] = [
+  { key: 'active',      label: '진행중',  color: '#2563EB', bgLight: 'rgba(37,99,235,0.06)',  borderColor: 'rgba(37,99,235,0.2)',  headerBg: 'rgba(37,99,235,0.08)' },
+  { key: 'pending',     label: '검토중',  color: '#EAB308', bgLight: 'rgba(234,179,8,0.06)',   borderColor: 'rgba(234,179,8,0.2)',   headerBg: 'rgba(234,179,8,0.08)' },
+  { key: 'closed_won',  label: '완료',    color: '#22C55E', bgLight: 'rgba(34,197,94,0.06)',   borderColor: 'rgba(34,197,94,0.2)',   headerBg: 'rgba(34,197,94,0.08)' },
+  { key: 'closed_lost', label: '실패',    color: '#EF4444', bgLight: 'rgba(239,68,68,0.06)',   borderColor: 'rgba(239,68,68,0.2)',   headerBg: 'rgba(239,68,68,0.08)' },
+  { key: 'dormant',     label: '휴면',    color: '#6B7280', bgLight: 'rgba(107,114,128,0.06)', borderColor: 'rgba(107,114,128,0.2)', headerBg: 'rgba(107,114,128,0.08)' },
+];
+
+function mapDealToKanbanStatus(deal: any): KanbanStatus {
+  if (deal.is_dormant) return 'dormant';
+  switch (deal.status) {
+    case 'active':    return 'active';
+    case 'pending':   return 'pending';
+    case 'completed': return 'closed_won';
+    case 'archived':  return 'closed_lost';
+    default:          return 'pending';
+  }
+}
+
+// ── Kanban Card ──
+
+function KanbanCard({ deal, clsColorMap, onClick }: {
+  deal: any;
+  clsColorMap: Record<string, string>;
+  onClick: () => void;
+}) {
+  const total = Number(deal.contract_total || 0);
+  const dateStr = deal.start_date
+    ? `${deal.start_date}${deal.end_date ? ` ~ ${deal.end_date}` : ''}`
+    : deal.created_at ? new Date(deal.created_at).toLocaleDateString('ko') : '';
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition-all group cursor-pointer"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <ClassificationBadge
+          classification={deal.classification || 'B2B'}
+          color={clsColorMap[deal.classification || 'B2B']}
+        />
+        {deal.deal_number && (
+          <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">
+            {deal.deal_number}
+          </span>
+        )}
+      </div>
+      <div className="text-sm font-bold leading-tight group-hover:text-[var(--primary)] transition mb-2 line-clamp-2">
+        {deal.name}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-[var(--text)]">
+          {total > 0 ? `₩${total.toLocaleString()}` : '—'}
+        </span>
+      </div>
+      {dateStr && (
+        <div className="text-[10px] text-[var(--text-dim)] mt-1.5">{dateStr}</div>
+      )}
+    </button>
+  );
+}
+
+// ── Kanban Board ──
+
+function KanbanBoard({ deals, clsColorMap, onSelectDeal }: {
+  deals: any[];
+  clsColorMap: Record<string, string>;
+  onSelectDeal: (id: string) => void;
+}) {
+  const grouped = KANBAN_COLUMNS.map((col) => ({
+    ...col,
+    deals: deals.filter((d) => mapDealToKanbanStatus(d) === col.key),
+  }));
+
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '400px' }}>
+      {grouped.map((col) => (
+        <div
+          key={col.key}
+          className="flex-shrink-0 rounded-2xl border overflow-hidden flex flex-col"
+          style={{
+            width: '280px',
+            backgroundColor: col.bgLight,
+            borderColor: col.borderColor,
+          }}
+        >
+          {/* Column Header */}
+          <div
+            className="px-4 py-3 flex items-center justify-between"
+            style={{ backgroundColor: col.headerBg }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: col.color }}
+              />
+              <span className="text-sm font-bold" style={{ color: col.color }}>
+                {col.label}
+              </span>
+            </div>
+            <span
+              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: `${col.color}15`,
+                color: col.color,
+              }}
+            >
+              {col.deals.length}
+            </span>
+          </div>
+
+          {/* Cards */}
+          <div className="flex-1 p-3 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+            {col.deals.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--text-dim)]">
+                딜 없음
+              </div>
+            ) : (
+              col.deals.map((deal) => (
+                <KanbanCard
+                  key={deal.id}
+                  deal={deal}
+                  clsColorMap={clsColorMap}
+                  onClick={() => onSelectDeal(deal.id)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── View Toggle ──
+
+function ViewToggle({ viewMode, onChange }: { viewMode: 'table' | 'kanban'; onChange: (v: 'table' | 'kanban') => void }) {
+  return (
+    <div className="inline-flex rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-surface)]">
+      <button
+        onClick={() => onChange('table')}
+        className={`px-4 py-2 text-xs font-semibold transition-all ${
+          viewMode === 'table'
+            ? 'bg-[var(--primary)] text-white shadow-sm'
+            : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'
+        }`}
+      >
+        <span className="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="3" y1="15" x2="21" y2="15"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+          테이블
+        </span>
+      </button>
+      <button
+        onClick={() => onChange('kanban')}
+        className={`px-4 py-2 text-xs font-semibold transition-all ${
+          viewMode === 'kanban'
+            ? 'bg-[var(--primary)] text-white shadow-sm'
+            : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'
+        }`}
+      >
+        <span className="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="6" height="18" rx="1"/>
+            <rect x="9" y="3" width="6" height="12" rx="1"/>
+            <rect x="16" y="3" width="6" height="15" rx="1"/>
+          </svg>
+          칸반
+        </span>
+      </button>
+    </div>
+  );
+}
+
 // ── Deals List ──
 
 function DealsPageInner() {
@@ -584,6 +776,7 @@ function DealsPageInner() {
   const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "" });
   const [filterCls, setFilterCls] = useState<string | null>(null);
   const [showDormant, setShowDormant] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -662,18 +855,21 @@ function DealsPageInner() {
   }
 
   return (
-    <div className="max-w-[1000px]">
+    <div className={viewMode === 'kanban' ? 'max-w-full' : 'max-w-[1000px]'}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">딜 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">모든 프로젝트/계약을 딜 단위로 관리합니다</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
-        >
-          + 새 딜
-        </button>
+        <div className="flex items-center gap-3">
+          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+          >
+            + 새 딜
+          </button>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -851,7 +1047,15 @@ function DealsPageInner() {
             + 새 딜 등록
           </button>
         </div>
+      ) : viewMode === 'kanban' ? (
+        /* ── Kanban View ── */
+        <KanbanBoard
+          deals={filteredDeals}
+          clsColorMap={clsColorMap}
+          onSelectDeal={(id) => router.push(`/deals?id=${id}`)}
+        />
       ) : (
+        /* ── Table View (default) ── */
         <div className="space-y-3">
           {filteredDeals.map((d: any) => (
             <button

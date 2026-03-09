@@ -8,6 +8,8 @@ import { createBlankDocument, DOC_TYPES, DOC_STATUS } from "@/lib/documents";
 import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/lib/documents";
 import { createTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoice";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
+import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS } from "@/lib/signatures";
+import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/database";
 
@@ -18,15 +20,49 @@ const db = supabase as any;
 function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [comment, setComment] = useState("");
   const [approvalComment, setApprovalComment] = useState("");
   const [showApprovalForm, setShowApprovalForm] = useState(false);
+  const [showSignRequestForm, setShowSignRequestForm] = useState(false);
+  const [signForm, setSignForm] = useState({ signerName: "", signerEmail: "", signerPhone: "" });
   const [tab, setTab] = useState<"content" | "revisions" | "approvals">("content");
 
   useEffect(() => {
-    getCurrentUser().then((u) => u && setUserId(u.id));
+    getCurrentUser().then((u) => {
+      if (u) { setUserId(u.id); setCompanyId(u.company_id); }
+    });
   }, []);
+
+  const { data: docSignatures = [] } = useQuery({
+    queryKey: ["doc-signatures", id],
+    queryFn: () => getDocumentSignatures(id),
+    enabled: !!id,
+  });
+
+  const signRequestMut = useMutation({
+    mutationFn: async () => {
+      if (!companyId || !userId) throw new Error("Not ready");
+      const result = await createSignatureRequest({
+        companyId,
+        documentId: id,
+        title: doc?.name || "서명 요청",
+        signerName: signForm.signerName,
+        signerEmail: signForm.signerEmail,
+        signerPhone: signForm.signerPhone || undefined,
+        createdBy: userId,
+      });
+      // Send status to 'sent' immediately
+      await updateSignatureStatus(result.id, 'sent');
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doc-signatures", id] });
+      setShowSignRequestForm(false);
+      setSignForm({ signerName: "", signerEmail: "", signerPhone: "" });
+    },
+  });
 
   const { data: doc } = useQuery({
     queryKey: ["document", id],
@@ -169,6 +205,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         </div>
 
         <div className="flex gap-2">
+          <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
+            className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition">
+            서명 요청
+          </button>
           {canSubmit && (
             <button onClick={() => submitMut.mutate()} disabled={submitMut.isPending}
               className="px-4 py-2 bg-yellow-500/10 text-yellow-400 rounded-lg text-xs font-semibold hover:bg-yellow-500/20 transition disabled:opacity-50">
@@ -202,6 +242,86 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               승인 확인
             </button>
             <button onClick={() => setShowApprovalForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Request Form */}
+      {showSignRequestForm && (
+        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-5 mb-6">
+          <h3 className="text-sm font-bold text-indigo-500 mb-3">전자서명 요청</h3>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">서명자 이름 *</label>
+              <input
+                value={signForm.signerName}
+                onChange={(e) => setSignForm({ ...signForm, signerName: e.target.value })}
+                placeholder="홍길동"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label>
+              <input
+                type="email"
+                value={signForm.signerEmail}
+                onChange={(e) => setSignForm({ ...signForm, signerEmail: e.target.value })}
+                placeholder="signer@example.com"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">전화번호</label>
+              <input
+                type="tel"
+                value={signForm.signerPhone}
+                onChange={(e) => setSignForm({ ...signForm, signerPhone: e.target.value })}
+                placeholder="010-0000-0000"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => signForm.signerName && signForm.signerEmail && signRequestMut.mutate()}
+              disabled={!signForm.signerName || !signForm.signerEmail || signRequestMut.isPending}
+              className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+            >
+              {signRequestMut.isPending ? "발송 중..." : "서명 요청 발송"}
+            </button>
+            <button
+              onClick={() => setShowSignRequestForm(false)}
+              className="px-4 py-2 text-[var(--text-muted)] text-xs"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Signature history on document detail */}
+      {docSignatures.length > 0 && (
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6">
+          <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3">서명 이력</h4>
+          <div className="space-y-2">
+            {docSignatures.map((sig: any) => {
+              const si = getSignatureStatusInfo(sig.status);
+              return (
+                <div key={sig.id} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${si.dot}`} />
+                    <span className="font-medium">{sig.signer_name}</span>
+                    <span className="text-[var(--text-dim)]">{sig.signer_email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-full ${si.bg} ${si.text}`}>{si.label}</span>
+                    {sig.signed_at && (
+                      <span className="text-[var(--text-dim)]">{new Date(sig.signed_at).toLocaleDateString("ko")}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -344,12 +464,17 @@ function DocumentsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedId = searchParams.get("id");
+  const tabParam = searchParams.get("tab");
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"docs" | "contracts" | "invoices">("docs");
+  const [tab, setTab] = useState<"docs" | "contracts" | "invoices" | "signatures">("docs");
   const [showDocForm, setShowDocForm] = useState(false);
   const [showInvForm, setShowInvForm] = useState(false);
+  const [showSignForm, setShowSignForm] = useState(false);
+  const [signFormData, setSignFormData] = useState({ documentId: "", signerName: "", signerEmail: "", signerPhone: "" });
+  const [selectedSignature, setSelectedSignature] = useState<any>(null);
+  const [signStatusFilter, setSignStatusFilter] = useState<string>("all");
   const [docForm, setDocForm] = useState({ name: "", type: "contract", deal_id: "" });
   const [invForm, setInvForm] = useState({ type: "sales" as "sales" | "purchase", counterparty_name: "", supply_amount: "", issue_date: "", deal_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
@@ -379,6 +504,17 @@ function DocumentsPageInner() {
     queryFn: () => getDeals(companyId!),
     enabled: !!companyId,
   });
+
+  const { data: signatureRequests = [] } = useQuery({
+    queryKey: ["signature-requests", companyId, signStatusFilter],
+    queryFn: () => getSignatureRequests(companyId!, signStatusFilter === "all" ? undefined : signStatusFilter),
+    enabled: !!companyId,
+  });
+
+  // Handle tab param from URL
+  useEffect(() => {
+    if (tabParam === "signatures") setTab("signatures");
+  }, [tabParam]);
 
   // Filtered documents based on search and type filter
   const filteredDocuments = useMemo(() => {
@@ -418,7 +554,37 @@ function DocumentsPageInner() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["documents"] });
     queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+    queryClient.invalidateQueries({ queryKey: ["signature-requests"] });
   };
+
+  // Signature request mutation
+  const createSignMut = useMutation({
+    mutationFn: async () => {
+      if (!companyId || !userId) throw new Error("Not ready");
+      const result = await createSignatureRequest({
+        companyId,
+        documentId: signFormData.documentId,
+        title: documents.find((d: any) => d.id === signFormData.documentId)?.name || "서명 요청",
+        signerName: signFormData.signerName,
+        signerEmail: signFormData.signerEmail,
+        signerPhone: signFormData.signerPhone || undefined,
+        createdBy: userId,
+      });
+      await updateSignatureStatus(result.id, 'sent');
+      return result;
+    },
+    onSuccess: () => {
+      invalidate();
+      setShowSignForm(false);
+      setSignFormData({ documentId: "", signerName: "", signerEmail: "", signerPhone: "" });
+    },
+  });
+
+  // Cancel signature mutation
+  const cancelSignMut = useMutation({
+    mutationFn: (id: string) => cancelSignature(id),
+    onSuccess: () => invalidate(),
+  });
 
   const createDocMut = useMutation({
     mutationFn: async () => {
@@ -542,6 +708,12 @@ function DocumentsPageInner() {
             tab === "invoices" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           세금계산서 ({invoices.length})
+        </button>
+        <button onClick={() => setTab("signatures")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            tab === "signatures" ? "bg-indigo-500/10 text-indigo-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+          }`}>
+          전자서명 ({signatureRequests.length})
         </button>
       </div>
 
@@ -830,6 +1002,328 @@ function DocumentsPageInner() {
                 })}
               </tbody>
             </table>
+          )}
+        </div>
+      )}
+
+      {/* ═══ Electronic Signature Tab ═══ */}
+      {tab === "signatures" && (
+        <div className="space-y-6">
+          {/* Signature Header Actions */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {([ { value: "all", label: "전체" }, ...SIGNATURE_STATUS ] as const).map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => setSignStatusFilter(s.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    signStatusFilter === s.value
+                      ? "bg-indigo-500/10 text-indigo-500"
+                      : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowSignForm(true)}
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-semibold transition"
+            >
+              + 서명 요청
+            </button>
+          </div>
+
+          {/* Signature Request Form Modal */}
+          {showSignForm && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-indigo-500/20 p-6">
+              <h3 className="text-sm font-bold mb-4 text-indigo-600">새 서명 요청</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="col-span-2">
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">문서 선택 *</label>
+                  <select
+                    value={signFormData.documentId}
+                    onChange={(e) => setSignFormData({ ...signFormData, documentId: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">문서를 선택하세요</option>
+                    {documents.map((doc: any) => (
+                      <option key={doc.id} value={doc.id}>{doc.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">서명자 이름 *</label>
+                  <input
+                    value={signFormData.signerName}
+                    onChange={(e) => setSignFormData({ ...signFormData, signerName: e.target.value })}
+                    placeholder="홍길동"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label>
+                  <input
+                    type="email"
+                    value={signFormData.signerEmail}
+                    onChange={(e) => setSignFormData({ ...signFormData, signerEmail: e.target.value })}
+                    placeholder="signer@example.com"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">전화번호</label>
+                  <input
+                    type="tel"
+                    value={signFormData.signerPhone}
+                    onChange={(e) => setSignFormData({ ...signFormData, signerPhone: e.target.value })}
+                    placeholder="010-0000-0000"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => signFormData.documentId && signFormData.signerName && signFormData.signerEmail && createSignMut.mutate()}
+                  disabled={!signFormData.documentId || !signFormData.signerName || !signFormData.signerEmail || createSignMut.isPending}
+                  className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                >
+                  {createSignMut.isPending ? "발송 중..." : "서명 요청 발송"}
+                </button>
+                <button onClick={() => setShowSignForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>
+              </div>
+            </div>
+          )}
+
+          {/* Signature Requests List */}
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            {signatureRequests.length === 0 ? (
+              <div className="p-16 text-center">
+                <svg className="w-12 h-12 mx-auto mb-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.2} viewBox="0 0 24 24">
+                  <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div className="text-lg font-bold mb-2">서명 요청이 없습니다</div>
+                <div className="text-sm text-[var(--text-muted)]">문서에 전자서명을 요청하세요</div>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="text-left px-5 py-3 font-medium">문서</th>
+                    <th className="text-left px-5 py-3 font-medium">서명자</th>
+                    <th className="text-left px-5 py-3 font-medium">이메일</th>
+                    <th className="text-center px-5 py-3 font-medium">상태</th>
+                    <th className="text-left px-5 py-3 font-medium">발송일</th>
+                    <th className="text-left px-5 py-3 font-medium">서명일</th>
+                    <th className="text-left px-5 py-3 font-medium">만료일</th>
+                    <th className="text-center px-5 py-3 font-medium">액션</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {signatureRequests.map((sig: any) => {
+                    const si = getSignatureStatusInfo(sig.status);
+                    const isExpired = sig.expires_at && new Date(sig.expires_at) < new Date() && sig.status !== 'signed';
+                    return (
+                      <tr key={sig.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                        <td className="px-5 py-3">
+                          <button
+                            onClick={() => {
+                              setSelectedSignature(selectedSignature?.id === sig.id ? null : sig);
+                            }}
+                            className="text-sm font-medium hover:text-indigo-500 transition text-left"
+                          >
+                            {sig.title || sig.documents?.name || "--"}
+                          </button>
+                        </td>
+                        <td className="px-5 py-3 text-sm">{sig.signer_name}</td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{sig.signer_email}</td>
+                        <td className="px-5 py-3 text-center">
+                          <span className={`text-xs px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 ${si.bg} ${si.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${si.dot}`} />
+                            {isExpired && sig.status !== 'expired' ? '만료' : si.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                          {sig.sent_at ? new Date(sig.sent_at).toLocaleDateString("ko") : "--"}
+                        </td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                          {sig.signed_at ? new Date(sig.signed_at).toLocaleDateString("ko") : "--"}
+                        </td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                          {sig.expires_at ? (
+                            <span className={isExpired ? "text-red-400 font-medium" : ""}>
+                              {new Date(sig.expires_at).toLocaleDateString("ko")}
+                            </span>
+                          ) : "--"}
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          {(sig.status === 'pending' || sig.status === 'sent') && (
+                            <button
+                              onClick={() => cancelSignMut.mutate(sig.id)}
+                              disabled={cancelSignMut.isPending}
+                              className="text-xs text-red-400 hover:text-red-500 font-medium transition"
+                            >
+                              취소
+                            </button>
+                          )}
+                          {sig.status === 'signed' && sig.signature_data && (
+                            <button
+                              onClick={() => setSelectedSignature(selectedSignature?.id === sig.id ? null : sig)}
+                              className="text-xs text-indigo-500 hover:text-indigo-600 font-medium transition"
+                            >
+                              상세
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Signature Detail Panel */}
+          {selectedSignature && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold">서명 상세 정보</h3>
+                <button
+                  onClick={() => setSelectedSignature(null)}
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text)]"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {/* Left: Info */}
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[10px] text-[var(--text-dim)] uppercase">문서</span>
+                    <p className="text-sm font-medium mt-0.5">{selectedSignature.title || selectedSignature.documents?.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-dim)] uppercase">서명자</span>
+                    <p className="text-sm mt-0.5">{selectedSignature.signer_name} ({selectedSignature.signer_email})</p>
+                    {selectedSignature.signer_phone && (
+                      <p className="text-xs text-[var(--text-muted)]">{selectedSignature.signer_phone}</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[10px] text-[var(--text-dim)] uppercase">상태</span>
+                      <div className="mt-1">
+                        {(() => {
+                          const si = getSignatureStatusInfo(selectedSignature.status);
+                          return <span className={`text-xs px-2.5 py-1 rounded-full ${si.bg} ${si.text}`}>{si.label}</span>;
+                        })()}
+                      </div>
+                    </div>
+                    {selectedSignature.ip_address && (
+                      <div>
+                        <span className="text-[10px] text-[var(--text-dim)] uppercase">IP 주소</span>
+                        <p className="text-xs text-[var(--text-muted)] mt-1 font-mono">{selectedSignature.ip_address}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <span className="text-[10px] text-[var(--text-dim)] uppercase">발송</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {selectedSignature.sent_at ? new Date(selectedSignature.sent_at).toLocaleString("ko") : "--"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[var(--text-dim)] uppercase">열람</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {selectedSignature.viewed_at ? new Date(selectedSignature.viewed_at).toLocaleString("ko") : "--"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[var(--text-dim)] uppercase">서명</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {selectedSignature.signed_at ? new Date(selectedSignature.signed_at).toLocaleString("ko") : "--"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Signature preview */}
+                <div>
+                  <span className="text-[10px] text-[var(--text-dim)] uppercase">서명 데이터</span>
+                  {selectedSignature.signature_data ? (
+                    <div className="mt-2 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4">
+                      <div className="text-xs text-[var(--text-dim)] mb-2">
+                        유형: {selectedSignature.signature_data.type === 'draw' ? '직접 서명' : selectedSignature.signature_data.type === 'type' ? '텍스트 서명' : '이미지 업로드'}
+                      </div>
+                      {selectedSignature.signature_data.type === 'draw' || selectedSignature.signature_data.type === 'upload' ? (
+                        <div className="bg-white rounded-lg p-3 border border-[var(--border)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedSignature.signature_data.data}
+                            alt="서명"
+                            className="max-h-[120px] mx-auto"
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg p-4 border border-[var(--border)] text-center">
+                          <span className="text-2xl font-serif italic text-gray-800">
+                            {selectedSignature.signature_data.data}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-2 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-8 text-center text-xs text-[var(--text-dim)]">
+                      아직 서명되지 않았습니다
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Timeline */}
+              <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                <span className="text-[10px] text-[var(--text-dim)] uppercase">진행 상태</span>
+                <div className="flex items-center gap-0 mt-3">
+                  {SIGNATURE_STATUS.filter(s => s.value !== 'rejected' && s.value !== 'expired').map((step, idx) => {
+                    const stepOrder = ['pending', 'sent', 'viewed', 'signed'];
+                    const currentIdx = stepOrder.indexOf(selectedSignature.status);
+                    const thisIdx = stepOrder.indexOf(step.value);
+                    const isActive = thisIdx <= currentIdx;
+                    const isCurrent = step.value === selectedSignature.status;
+                    return (
+                      <div key={step.value} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center flex-1">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
+                            isActive
+                              ? isCurrent ? 'bg-indigo-500 text-white' : 'bg-green-500 text-white'
+                              : 'bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]'
+                          }`}>
+                            {isActive && !isCurrent ? (
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            ) : (
+                              idx + 1
+                            )}
+                          </div>
+                          <span className={`text-[10px] mt-1.5 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-dim)]'}`}>
+                            {step.label}
+                          </span>
+                        </div>
+                        {idx < 3 && (
+                          <div className={`h-0.5 flex-1 mx-1 rounded-full ${
+                            thisIdx < currentIdx ? 'bg-green-500' : 'bg-[var(--border)]'
+                          }`} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

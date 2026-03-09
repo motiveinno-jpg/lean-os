@@ -251,7 +251,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
           </div>
         </div>
         <button onClick={() => setShowSearch(!showSearch)}
-          className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-surface)] rounded-lg transition">
+          className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] rounded-lg transition">
           검색
         </button>
       </div>
