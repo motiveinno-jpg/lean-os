@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 
@@ -157,6 +157,20 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const handleBack = () => { if (step > 1) setStep(step - 1); };
   const handleSkip = () => { if (step < 7) setStep(step + 1); };
 
+  const handleDismiss = useCallback(() => {
+    localStorage.setItem(ONBOARDING_KEY, "true");
+    onComplete();
+  }, [onComplete]);
+
+  // ESC key to dismiss
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleDismiss();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleDismiss]);
+
   // AI File Upload — parse Excel and auto-fill forms
   const aiFileRef = useRef<HTMLInputElement>(null);
   const [aiUploading, setAiUploading] = useState(false);
@@ -293,11 +307,20 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const removeEmployee = (i: number) => setEmployees(employees.filter((_, idx) => idx !== i));
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleDismiss}>
       <div
-        className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg overflow-hidden"
+        className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg overflow-hidden relative"
         style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
       >
+        {/* 닫기 버튼 */}
+        <button
+          onClick={handleDismiss}
+          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+          aria-label="닫기"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
         {/* ── Progress ── */}
         <div className="px-6 pt-5 pb-3">
           <div className="flex items-center gap-1">
@@ -384,6 +407,11 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             )}
           </div>
           <div className="flex items-center gap-2">
+            {step === 1 && (
+              <button onClick={handleDismiss} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
+                나중에 하기
+              </button>
+            )}
             {step >= 2 && step <= 6 && (
               <button onClick={handleSkip} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
                 건너뛰기

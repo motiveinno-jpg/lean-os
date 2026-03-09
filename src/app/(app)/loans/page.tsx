@@ -11,12 +11,15 @@ import {
   updateLoan,
   recordLoanPayment,
   deleteLoan,
+  autoMatchLoanPayments,
+  acceptLoanMatch,
   type LoanRow,
   type LoanPaymentRow,
+  type LoanMatchCandidate,
 } from "@/lib/loans";
 import { QueryErrorBanner } from "@/components/query-status";
 
-type Tab = "list" | "payments" | "register";
+type Tab = "list" | "payments" | "register" | "match";
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);
@@ -59,6 +62,12 @@ export default function LoansPage() {
     loanId: "", paymentDate: "", principalAmount: "", interestAmount: "", paymentNumber: "", notes: "",
   });
   const [showPayForm, setShowPayForm] = useState(false);
+
+  // Auto-match state
+  const [matchCandidates, setMatchCandidates] = useState<LoanMatchCandidate[]>([]);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -136,6 +145,7 @@ export default function LoansPage() {
   const TABS: { key: Tab; label: string }[] = [
     { key: "list", label: `대출 목록 (${loans.length})` },
     { key: "payments", label: `상환 이력 (${allPayments.length})` },
+    { key: "match", label: `자동 매칭${matchCandidates.length ? ` (${matchCandidates.length})` : ""}` },
     { key: "register", label: "대출 등록" },
   ];
 
@@ -354,6 +364,124 @@ export default function LoansPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Match Tab */}
+      {tab === "match" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-[var(--text-muted)]">은행 거래내역에서 대출 상환 가능한 건을 자동으로 찾습니다.</p>
+            <button
+              onClick={async () => {
+                if (!companyId) return;
+                setMatchLoading(true);
+                setDismissedIds(new Set());
+                try {
+                  const results = await autoMatchLoanPayments(companyId);
+                  setMatchCandidates(results);
+                } catch { /* ignore */ }
+                setMatchLoading(false);
+              }}
+              disabled={matchLoading}
+              className="text-xs px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {matchLoading ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  분석 중...
+                </>
+              ) : "자동 매칭 실행"}
+            </button>
+          </div>
+
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            {matchCandidates.length === 0 ? (
+              <div className="p-16 text-center">
+                <div className="text-4xl mb-4">🔍</div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  {matchLoading ? "은행 거래를 분석하고 있습니다..." : "\"자동 매칭 실행\" 버튼을 눌러 시작하세요"}
+                </div>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]/50">
+                {matchCandidates
+                  .filter(c => !dismissedIds.has(c.transaction.id))
+                  .map((candidate) => {
+                    const conf = candidate.confidence;
+                    const confColor = conf >= 0.7 ? "text-green-400 bg-green-500/10" : conf >= 0.5 ? "text-yellow-400 bg-yellow-500/10" : "text-orange-400 bg-orange-500/10";
+                    const isAccepting = acceptingId === candidate.transaction.id;
+                    return (
+                      <div key={candidate.transaction.id} className="p-5 hover:bg-[var(--bg-surface)]/50 transition">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* Transaction info */}
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-sm font-bold">₩{candidate.transaction.amount.toLocaleString()}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${confColor}`}>
+                                {Math.round(conf * 100)}% 일치
+                              </span>
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)] mb-1">
+                              {candidate.transaction.counterparty} · {candidate.transaction.date}
+                            </div>
+                            {candidate.transaction.description && candidate.transaction.description !== candidate.transaction.counterparty && (
+                              <div className="text-[10px] text-[var(--text-dim)] mb-2">{candidate.transaction.description}</div>
+                            )}
+
+                            {/* Arrow + Loan info */}
+                            <div className="flex items-center gap-2 mt-2 p-2.5 bg-[var(--bg-surface)] rounded-xl">
+                              <svg className="w-4 h-4 text-[var(--primary)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                              </svg>
+                              <div className="text-xs">
+                                <span className="font-semibold">{candidate.loan.name}</span>
+                                <span className="text-[var(--text-dim)] ml-2">잔금 {fmtW(Number(candidate.loan.remaining_balance))}</span>
+                              </div>
+                            </div>
+
+                            {/* Match reasons */}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {candidate.reasons.map((r, i) => (
+                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{r}</span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            <button
+                              onClick={async () => {
+                                setAcceptingId(candidate.transaction.id);
+                                try {
+                                  await acceptLoanMatch(candidate);
+                                  setMatchCandidates(prev => prev.filter(c => c.transaction.id !== candidate.transaction.id));
+                                  invalidate();
+                                } catch { /* ignore */ }
+                                setAcceptingId(null);
+                              }}
+                              disabled={isAccepting}
+                              className="text-[11px] px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
+                            >
+                              {isAccepting ? "처리중..." : "승인"}
+                            </button>
+                            <button
+                              onClick={() => setDismissedIds(prev => new Set([...prev, candidate.transaction.id]))}
+                              className="text-[11px] px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+                            >
+                              무시
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {matchCandidates.filter(c => !dismissedIds.has(c.transaction.id)).length === 0 && (
+                  <div className="p-10 text-center text-sm text-[var(--text-muted)]">모든 후보를 처리했습니다.</div>
+                )}
               </div>
             )}
           </div>

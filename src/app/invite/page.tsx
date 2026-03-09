@@ -99,7 +99,7 @@ function InviteContent() {
         await acceptEmployeeInvitation(token);
       }
 
-      // 4. If employee, link to employees table
+      // 4. If employee, link to employees table + update status
       if (invite.type === "employee") {
         const db = supabase as any;
         // Try to find existing employee by email
@@ -110,7 +110,11 @@ function InviteContent() {
           .eq("email", email)
           .single();
         if (emp) {
-          await db.from("employees").update({ user_id: authData.user.id }).eq("id", emp.id);
+          await db.from("employees").update({
+            user_id: authData.user.id,
+            status: "joined",
+            name: name || undefined,
+          }).eq("id", emp.id);
         }
       }
 

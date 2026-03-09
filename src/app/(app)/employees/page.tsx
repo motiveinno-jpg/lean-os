@@ -29,6 +29,7 @@ import { previewPayroll } from "@/lib/payroll";
 import { QueryErrorBanner } from "@/components/query-status";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import type { PayrollItem } from "@/lib/payment-batch";
+import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation } from "@/lib/invitations";
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
 
@@ -165,7 +166,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Tab Content */}
-      {tab === "employees" && <EmployeeTab employees={employees} companyId={companyId} queryClient={queryClient} />}
+      {tab === "employees" && <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "salary" && <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />}
       {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
@@ -177,57 +178,197 @@ export default function EmployeesPage() {
   );
 }
 
-// ── Employee Tab ──
-function EmployeeTab({ employees, companyId, queryClient }: any) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", salary: "", hire_date: "", department: "", position: "", email: "", phone: "" });
+// ── Employee Tab (초대 기반 통합) ──
+const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = {
+  invited: { label: "초대중", bg: "bg-amber-500/10", text: "text-amber-500" },
+  joined: { label: "가입완료", bg: "bg-blue-500/10", text: "text-blue-400" },
+  contract_pending: { label: "계약대기", bg: "bg-purple-500/10", text: "text-purple-400" },
+  active: { label: "재직", bg: "bg-green-500/10", text: "text-green-400" },
+  inactive: { label: "퇴직", bg: "bg-gray-500/10", text: "text-gray-400" },
+};
 
-  const addEmployee = useMutation({
+function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "" });
+  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // 초대 목록
+  const { data: invitations = [] } = useQuery({
+    queryKey: ["employee-invitations", companyId],
+    queryFn: () => getEmployeeInvitations(companyId!),
+    enabled: !!companyId,
+  });
+
+  // 회사명 (이메일 발송용)
+  const { data: companyData } = useQuery({
+    queryKey: ["company-name", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("name").eq("id", companyId!).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  // 직원 초대 mutation
+  const inviteMut = useMutation({
     mutationFn: async () => {
+      if (!companyId || !userId) throw new Error("인증 필요");
+      // 1. 초대 레코드 생성
+      const invitation = await createEmployeeInvitation({
+        companyId, email: form.email, name: form.name || undefined,
+        role: form.role, invitedBy: userId,
+      });
+      // 2. employees 테이블에도 추가 (user_id=null, status=invited)
       await supabase.from("employees").insert({
         company_id: companyId,
-        name: form.name,
-        salary: Math.round((Number(form.salary) || 0) / 12),
-        hire_date: form.hire_date || null,
+        name: form.name || form.email.split("@")[0],
+        email: form.email,
         department: form.department || null,
         position: form.position || null,
-        email: form.email || null,
-        phone: form.phone || null,
+        salary: Math.round((Number(form.salary) || 0) / 12),
+        hire_date: new Date().toISOString().slice(0, 10),
+        status: "invited",
       });
+      return invitation;
     },
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
+      // 이메일 발송
+      if (data?.invite_token) {
+        const result = await sendInviteEmail({
+          email: data.email, name: data.name || undefined,
+          role: data.role || form.role, inviteToken: data.invite_token,
+          companyName: companyData?.name || undefined,
+        });
+        setInviteMsg(result.success
+          ? { ok: true, msg: "초대 이메일 발송 완료" }
+          : { ok: false, msg: result.error || "이메일 발송 실패 (초대 링크는 생성됨)" }
+        );
+      }
       setShowForm(false);
-      setForm({ name: "", salary: "", hire_date: "", department: "", position: "", email: "", phone: "" });
+      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "" });
+      setTimeout(() => setInviteMsg(null), 4000);
+    },
+    onError: (err: any) => {
+      const msg = err.message || "";
+      if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505")) {
+        setInviteMsg({ ok: false, msg: "이미 초대된 이메일입니다" });
+      } else {
+        setInviteMsg({ ok: false, msg: msg || "초대 실패" });
+      }
+      setTimeout(() => setInviteMsg(null), 4000);
     },
   });
 
+  // 초대 취소
+  const cancelMut = useMutation({
+    mutationFn: (id: string) => cancelEmployeeInvitation(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
+  });
+
+  // 초대 링크 복사
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  function copyLink(token: string) {
+    navigator.clipboard.writeText(getInviteUrl(token));
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
+  }
+
+  // 초대 이메일 재발송
+  const [resending, setResending] = useState<string | null>(null);
+  async function resend(inv: any) {
+    if (!inv.invite_token || resending) return;
+    setResending(inv.invite_token);
+    const result = await sendInviteEmail({
+      email: inv.email, name: inv.name || undefined,
+      role: inv.role || "employee", inviteToken: inv.invite_token,
+      companyName: companyData?.name || undefined,
+    });
+    setInviteMsg(result.success ? { ok: true, msg: "재발송 완료" } : { ok: false, msg: result.error || "발송 실패" });
+    setResending(null);
+    setTimeout(() => setInviteMsg(null), 4000);
+  }
+
+  // 대기중인 초대 (아직 수락 안 한 건)
+  const pendingInvites = invitations.filter((i: any) => i.status === "pending");
+
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 추가</button>
+      {/* 상단 버튼 + 알림 */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-xs text-[var(--text-dim)]">
+          {pendingInvites.length > 0 && <span className="text-amber-500 font-semibold">초대 대기 {pendingInvites.length}명</span>}
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
       </div>
 
+      {inviteMsg && (
+        <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+          {inviteMsg.msg}
+        </div>
+      )}
+
+      {/* 초대 폼 */}
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름 *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} placeholder="예: 36000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+          <h4 className="text-sm font-bold mb-4">직원 초대</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="user@company.com" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
+              <div className="flex gap-2">
+                <button onClick={() => setForm({...form, role: "employee"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "employee" ? "bg-green-600 text-white border-green-600" : "text-[var(--text-muted)] border-[var(--border)]"}`}>직원</button>
+                <button onClick={() => setForm({...form, role: "admin"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "admin" ? "bg-blue-600 text-white border-blue-600" : "text-[var(--text-muted)] border-[var(--border)]"}`}>관리자</button>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">전화번호</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hire_date} onChange={e => setForm({...form, hire_date: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div className="flex items-end"><button onClick={() => form.name && addEmployee.mutate()} disabled={!form.name} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 w-full">추가</button></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} placeholder="36000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div className="flex items-end gap-2">
+              <button onClick={() => form.email && inviteMut.mutate()} disabled={!form.email || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+                {inviteMut.isPending ? "전송중..." : "초대 전송"}
+              </button>
+              <button onClick={() => setShowForm(false)} className="px-3 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
+            </div>
+          </div>
+          <p className="text-[10px] text-[var(--text-dim)]">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
+        </div>
+      )}
+
+      {/* 대기중 초대 목록 */}
+      {pendingInvites.length > 0 && (
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-[var(--text-muted)] mb-2">초대 대기중</h4>
+          <div className="space-y-2">
+            {pendingInvites.map((inv: any) => (
+              <div key={inv.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                <div>
+                  <div className="text-sm font-medium">{inv.name || inv.email}</div>
+                  <div className="text-xs text-[var(--text-dim)]">{inv.email} · {inv.role === "admin" ? "관리자" : "직원"}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => resend(inv)} disabled={resending === inv.invite_token} className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50">
+                    {resending === inv.invite_token ? "발송중..." : "재발송"}
+                  </button>
+                  <button onClick={() => copyLink(inv.invite_token)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]">
+                    {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
+                  </button>
+                  <button onClick={() => cancelMut.mutate(inv.id)} className="text-xs text-red-400/60 hover:text-red-400">취소</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
+      {/* 직원 목록 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {employees.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm text-[var(--text-muted)]">등록된 직원이 없습니다</div></div>
+          <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm text-[var(--text-muted)]">등록된 직원이 없습니다<br/><span className="text-xs">위 "직원 초대" 버튼으로 팀원을 초대하세요</span></div></div>
         ) : (
           <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
             <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -240,21 +381,22 @@ function EmployeeTab({ employees, companyId, queryClient }: any) {
               <th className="text-center px-5 py-3 font-medium">상태</th>
             </tr></thead>
             <tbody>
-              {employees.map((e: any) => (
-                <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                  <td className="px-5 py-3 text-sm font-medium">{e.name}</td>
-                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
-                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
-                  <td className="px-5 py-3 text-sm text-right">₩{(Number(e.salary) * 12).toLocaleString()}</td>
-                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.hire_date || "—"}</td>
-                  <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
-                  <td className="px-5 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>
-                      {e.status === 'active' ? '재직' : '퇴직'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {employees.map((e: any) => {
+                const st = EMP_STATUS[e.status] || EMP_STATUS.active;
+                return (
+                  <tr key={e.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                    <td className="px-5 py-3 text-sm font-medium">{e.name}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
+                    <td className="px-5 py-3 text-sm text-right">{Number(e.salary) > 0 ? `₩${(Number(e.salary) * 12).toLocaleString()}` : "—"}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.hire_date || "—"}</td>
+                    <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table></div>
         )}

@@ -56,7 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/import-hub", label: "데이터 가져오기", icon: "upload", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/settings", label: "설정", icon: "settings", roles: ["owner", "admin"] },
-      { href: "/admin", label: "SaaS 관리", icon: "crown", roles: ["owner"] },
+      { href: "/platform", label: "플랫폼 관리", icon: "crown", roles: ["owner"] },
     ],
   },
 ];
@@ -67,8 +67,8 @@ function filterNavForRole(role: UserRole, companyName?: string): NavGroup[] {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        // /admin은 모티브이노베이션 owner만 노출
-        if (item.href === "/admin") return role === "owner" && companyName === SUPER_ADMIN_COMPANY;
+        // /platform은 모티브이노베이션 owner만 노출
+        if (item.href === "/platform") return role === "owner" && companyName === SUPER_ADMIN_COMPANY;
         return !item.roles || item.roles.includes(role);
       }),
     }))

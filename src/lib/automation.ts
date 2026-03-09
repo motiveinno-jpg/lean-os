@@ -8,6 +8,7 @@ import { threeWayMatch, markInvoiceMatched, createTaxInvoice } from './tax-invoi
 import { createApprovalRequest } from './approval-workflow';
 import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
+import { autoMatchLoanPayments } from './loans';
 
 const db = supabase as any;
 
@@ -835,13 +836,14 @@ export interface AutomationResult {
   contractExpense: { created: number };
   taxOnPayment: { created: number };
   taxCancelOnRefund: { cancelled: number };
+  loanMatch: { candidates: number };
   timestamp: string;
 }
 
 export async function runAllAutomation(companyId: string): Promise<AutomationResult> {
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
-    recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult,
+    recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
     // 기존 10개
     applyBankClassificationRules(companyId),
@@ -857,6 +859,8 @@ export async function runAllAutomation(companyId: string): Promise<AutomationRes
     autoCreateExpenseFromContract(companyId),
     autoCreateTaxInvoiceOnPayment(companyId),
     autoCancelTaxInvoiceOnRefund(companyId),
+    // 대출 상환 자동 매칭
+    autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })),
   ]);
 
   return {
@@ -872,6 +876,7 @@ export async function runAllAutomation(companyId: string): Promise<AutomationRes
     contractExpense: contractExpResult,
     taxOnPayment: taxPayResult,
     taxCancelOnRefund: taxCancelResult,
+    loanMatch: loanMatchResult,
     timestamp: new Date().toISOString(),
   };
 }

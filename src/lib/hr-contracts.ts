@@ -468,6 +468,9 @@ async function onAllContractsSigned(packageId: string) {
     }
   }
 
+  // Update employee status to active (onboarding complete)
+  await db.from('employees').update({ status: 'active' }).eq('id', pkg.employee_id);
+
   // Auto-init leave balance for current year
   const { data: employee } = await db
     .from('employees')
