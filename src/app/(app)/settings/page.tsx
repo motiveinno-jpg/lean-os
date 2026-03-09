@@ -127,13 +127,13 @@ export default function SettingsPage() {
     <div className="max-w-[700px] space-y-6">
       <h1 className="text-2xl font-extrabold mb-2">설정</h1>
 
-      {/* Main Tab Bar */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 mb-6">
+      {/* Main Tab Bar — scrollable on mobile */}
+      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 mb-6 overflow-x-auto scrollbar-hide">
         {mainTabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setMainTab(t.key)}
-            className={`flex-1 py-2 rounded-md text-sm font-semibold transition ${
+            className={`whitespace-nowrap shrink-0 px-3 py-2 rounded-md text-sm font-semibold transition ${
               mainTab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
             }`}
           >

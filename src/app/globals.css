@@ -187,6 +187,10 @@ input, textarea, [contenteditable="true"] {
   -ms-user-select: text;
   user-select: text;
 }
+/* 스크롤바 숨김 유틸리티 */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
 /* 인쇄 방지 */
 @media print {
   body { display: none !important; }

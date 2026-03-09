@@ -145,13 +145,13 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div className="flex gap-1 mb-6 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)] overflow-x-auto scrollbar-hide">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition ${
+            className={`whitespace-nowrap px-3 py-2.5 rounded-lg text-sm font-semibold transition shrink-0 ${
               tab === t.key
                 ? "bg-[var(--primary)] text-white"
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
