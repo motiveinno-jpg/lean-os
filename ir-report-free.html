@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeanOS IR Report - Zero Budget Growth 사업계획서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#0f1729;--navy-light:#1a2744;--navy-mid:#243352;--blue:#3b82f6;--blue-light:#60a5fa;--cyan:#06b6d4;--white:#ffffff;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-300:#cbd5e1;--gray-400:#94a3b8;--gray-500:#64748b;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6}
+body{font-family:'Pretendard',system-ui,-apple-system,sans-serif;background:var(--navy);color:var(--white);line-height:1.7;font-size:15px}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+h1{font-size:28px;font-weight:800;letter-spacing:-0.5px}
+h2{font-size:22px;font-weight:700;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--blue);display:inline-block}
+h3{font-size:17px;font-weight:600;margin-bottom:12px;color:var(--blue-light)}
+section{padding:48px 0;border-bottom:1px solid var(--navy-mid)}
+p{margin-bottom:12px;color:var(--gray-200)}
+.header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);padding:40px 0;text-align:center;border-bottom:3px solid var(--green)}
+.header .logo{font-size:36px;font-weight:800;color:var(--blue);margin-bottom:4px}
+.header .logo span{color:var(--white)}
+.header .subtitle{font-size:20px;color:var(--gray-200);margin-top:8px}
+.header .sub2{font-size:16px;color:var(--green);margin-top:6px;font-weight:600}
+.header .date{color:var(--gray-400);font-size:13px;margin-top:8px}
+.header .badge{display:inline-block;background:var(--green);color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;margin-top:12px}
+.card{background:var(--navy-light);border:1px solid var(--navy-mid);border-radius:12px;padding:24px;margin-bottom:20px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--navy-mid);border-radius:10px;padding:20px;text-align:center}
+.stat-card .value{font-size:28px;font-weight:800;color:var(--blue-light)}
+.stat-card .label{font-size:13px;color:var(--gray-400);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+th{background:var(--navy-mid);color:var(--blue-light);padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+tr:hover td{background:rgba(59,130,246,0.05)}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag-blue{background:rgba(59,130,246,0.2);color:var(--blue-light)}
+.tag-green{background:rgba(16,185,129,0.2);color:var(--green)}
+.tag-orange{background:rgba(245,158,11,0.2);color:var(--orange)}
+.tag-purple{background:rgba(139,92,246,0.2);color:var(--purple)}
+.sim-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.sim-field label{display:block;font-size:12px;color:var(--gray-400);margin-bottom:4px}
+.sim-field input[type=range]{width:100%;accent-color:var(--blue)}
+.sim-field .val{font-size:18px;font-weight:700;color:var(--blue-light)}
+.chart-wrap{background:var(--navy-mid);border-radius:10px;padding:20px;margin-bottom:24px;overflow-x:auto}
+svg text{font-family:'Pretendard',sans-serif}
+.strategy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px}
+.strategy-card{background:var(--navy-mid);border-radius:10px;padding:20px;border-left:4px solid var(--blue);position:relative}
+.strategy-card .num{position:absolute;top:14px;right:16px;font-size:28px;font-weight:800;color:rgba(59,130,246,0.2)}
+.strategy-card h4{font-size:15px;font-weight:700;margin-bottom:8px;color:var(--white)}
+.strategy-card p{font-size:13px;color:var(--gray-300);margin-bottom:6px}
+.strategy-card ul{font-size:13px;color:var(--gray-300);padding-left:16px;margin-bottom:0}
+.strategy-card ul li{margin-bottom:4px}
+.roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+.roadmap-card{background:var(--navy-mid);border-radius:10px;padding:20px;border-top:3px solid var(--blue)}
+.roadmap-card h4{font-size:14px;font-weight:700;margin-bottom:4px;color:var(--white)}
+.roadmap-card .period{font-size:12px;color:var(--gray-400);margin-bottom:10px}
+.roadmap-card ul{font-size:13px;color:var(--gray-300);padding-left:16px}
+.roadmap-card ul li{margin-bottom:4px}
+.compare-check{color:var(--green);font-weight:700}
+.compare-x{color:var(--gray-500)}
+.compare-partial{color:var(--orange)}
+ol.content-list{padding-left:20px;color:var(--gray-200)}
+ol.content-list li{margin-bottom:8px}
+ol.content-list li strong{color:var(--white)}
+@media(max-width:768px){
+  .container{padding:0 16px}
+  h1{font-size:22px}h2{font-size:18px}
+  .sim-controls{grid-template-columns:1fr}
+  .card-grid{grid-template-columns:1fr 1fr}
+  .strategy-grid{grid-template-columns:1fr}
+  .roadmap-grid{grid-template-columns:1fr 1fr}
+  table{font-size:11px}
+  th,td{padding:6px 8px}
+}
+@media print{
+  body{background:#fff;color:#000;font-size:11px}
+  .container{max-width:100%}
+  section{padding:20px 0;page-break-inside:avoid}
+  .card,.stat-card,.chart-wrap,.strategy-card,.roadmap-card{background:#f8f9fa;border:1px solid #ddd}
+  .strategy-card{border-left:3px solid #2563eb}
+  h2{color:#1a2744;border-color:#1a2744}
+  h3{color:#2563eb}
+  .stat-card .value{color:#1a2744}
+  p,td,.strategy-card p,.strategy-card ul,.roadmap-card ul{color:#333}
+  .strategy-card h4,.roadmap-card h4{color:#111}
+  th{background:#e9ecef;color:#1a2744}
+  .header{background:#fff;border-color:#10b981}
+  .header .logo{color:#2563eb}
+  .header .logo span{color:#1a2744}
+  .header .sub2{color:#10b981}
+  .sim-controls{display:none}
+  .strategy-card .num{color:rgba(37,99,235,0.15)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="container">
+    <div class="logo">Lean<span>OS</span></div>
+    <h1>사업계획서 &mdash; Zero Budget Growth</h1>
+    <div class="subtitle">마케팅 비용 0원 성장 전략</div>
+    <div class="sub2">Product-Led Growth | Organic | Referral | Community</div>
+    <div class="date">2026년 3월 | (주)모티브이노베이션</div>
+    <div class="badge">ZERO MARKETING BUDGET</div>
+  </div>
+</div>
+
+<!-- 1. EXECUTIVE SUMMARY -->
+<section>
+<div class="container">
+  <h2>1. Executive Summary</h2>
+  <div class="card-grid">
+    <div class="stat-card"><div class="value">780만</div><div class="label">한국 중소기업/스타트업 (TAM)</div></div>
+    <div class="stat-card"><div class="value">₩0</div><div class="label">마케팅 예산</div></div>
+    <div class="stat-card"><div class="value">PLG</div><div class="label">Product-Led Growth 전략</div></div>
+    <div class="stat-card"><div class="value">72%</div><div class="label">경쟁사 대비 비용 절감</div></div>
+  </div>
+  <div class="card">
+    <h3>LeanOS란?</h3>
+    <p>LeanOS는 한국 중소기업과 스타트업을 위한 <strong style="color:#fff">올인원 회사운영 OS (SaaS)</strong>입니다. HR, 재무, 프로젝트, 계약, 문서, 커뮤니케이션, 분석까지 &mdash; 기존에 7개 이상 솔루션에 분산되던 업무를 단일 플랫폼으로 통합합니다.</p>
+    <p><strong style="color:var(--green)">핵심 전략:</strong> 마케팅 비용 0원으로 Product-Led Growth (PLG). Free 플랜으로 유입 &rarr; 자연 전환 &rarr; 추천 코드로 바이럴. 제품 자체가 마케팅이 됩니다.</p>
+  </div>
+  <div class="card">
+    <h3>가격 플랜</h3>
+    <table>
+      <tr><th>플랜</th><th>기본료(월)</th><th>좌석당(월)</th><th>대상</th><th>주요 기능</th></tr>
+      <tr><td><span class="tag tag-green">Free</span></td><td>₩0</td><td>₩0 (3석)</td><td>1~3인 팀</td><td>기본 HR, 문서, 게시판, 2 프로젝트</td></tr>
+      <tr><td><span class="tag tag-blue">Starter</span></td><td>₩29,000</td><td>₩5,900</td><td>5~15인</td><td>+급여, 계약, 프로젝트 무제한</td></tr>
+      <tr><td><span class="tag tag-purple">Business</span></td><td>₩49,000</td><td>₩9,900</td><td>15~50인</td><td>+분석, API, 결재, 자동화</td></tr>
+      <tr><td><span class="tag tag-orange">Enterprise</span></td><td>협의</td><td>협의</td><td>50인+</td><td>전용서버, SLA, 커스텀</td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 2. ZERO BUDGET 성장 전략 7가지 -->
+<section>
+<div class="container">
+  <h2>2. Zero Budget 성장 전략 7가지</h2>
+  <div class="strategy-grid">
+    <div class="strategy-card" style="border-color:var(--green)">
+      <div class="num">01</div>
+      <h4>Product-Led Growth (PLG)</h4>
+      <p>Free 플랜 자체가 마케팅 채널입니다.</p>
+      <ul>
+        <li>3명까지 완전 무료 &mdash; 진입 장벽 제로</li>
+        <li>팀이 커지면 자연스럽게 유료 업그레이드</li>
+        <li>제품 내 "Powered by LeanOS" 배지로 노출</li>
+        <li>온보딩 3분 완료 &rarr; 즉시 가치 체험</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--cyan)">
+      <div class="num">02</div>
+      <h4>추천 코드 시스템</h4>
+      <p>입소문을 구조적으로 설계합니다.</p>
+      <ul>
+        <li>추천 1건당 ₩10,000 크레딧 (양쪽 모두)</li>
+        <li>추천인 랭킹 리더보드 공개</li>
+        <li>Top 추천인에게 월 무료 이용 혜택</li>
+        <li>추천 링크 1클릭 생성 &amp; 공유</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--blue)">
+      <div class="num">03</div>
+      <h4>SEO / 콘텐츠 마케팅</h4>
+      <p>검색으로 들어오게 만듭니다.</p>
+      <ul>
+        <li>블로그: 중소기업 운영 팁 (주 2회)</li>
+        <li>유튜브: "5분 LeanOS" 튜토리얼</li>
+        <li>네이버 블로그/카페 동시 운영</li>
+        <li>롱테일 키워드 공략 (급여계산, 전자결재 등)</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--purple)">
+      <div class="num">04</div>
+      <h4>커뮤니티 빌딩</h4>
+      <p>사용자끼리 모이는 장을 만듭니다.</p>
+      <ul>
+        <li>디스코드 + 카카오 오픈채팅 운영</li>
+        <li>대표님 직접 네트워킹 (스타트업 행사)</li>
+        <li>사용자 후기 &amp; 팁 공유 게시판</li>
+        <li>월 1회 온라인 밋업 (사용법 &amp; Q&A)</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--orange)">
+      <div class="num">05</div>
+      <h4>파트너십 프로그램</h4>
+      <p>전문가 네트워크를 레버리지합니다.</p>
+      <ul>
+        <li>세무사/회계사 파트너 &mdash; 추천 수수료 20%</li>
+        <li>공유오피스 제휴 (입주사 무료 제공)</li>
+        <li>창업지원센터/액셀러레이터 연계</li>
+        <li>파트너 전용 대시보드 &amp; 리포트</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--green)">
+      <div class="num">06</div>
+      <h4>수출바우처/제조혁신바우처 연계</h4>
+      <p>정부 사업으로 고객을 데려옵니다.</p>
+      <ul>
+        <li>수행기관 등록 완료 &rarr; 기업 유치</li>
+        <li>바우처 기간 중 LeanOS 무료 제공</li>
+        <li>바우처 종료 후 유료 자연 전환</li>
+        <li>결과보고서 자동화로 차별화</li>
+      </ul>
+    </div>
+    <div class="strategy-card" style="border-color:var(--blue-light)">
+      <div class="num">07</div>
+      <h4>입소문 / 사례 마케팅</h4>
+      <p>실제 성과가 최고의 광고입니다.</p>
+      <ul>
+        <li>성공 사례 케이스스터디 발행</li>
+        <li>고객 인터뷰 영상 (Before/After)</li>
+        <li>"월 XX시간 절약" 정량 데이터 공개</li>
+        <li>고객이 자발적으로 공유하는 구조</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 3. REVENUE SIMULATION -->
+<section>
+<div class="container">
+  <h2>3. Revenue Simulation (Interactive)</h2>
+  <div class="card">
+    <div class="sim-controls">
+      <div class="sim-field">
+        <label>월 자연 유입 수</label>
+        <input type="range" id="sOrganic" min="5" max="100" value="20" oninput="calc()">
+        <div class="val" id="vOrganic">20</div>
+      </div>
+      <div class="sim-field">
+        <label>추천 유입 수</label>
+        <input type="range" id="sReferral" min="0" max="50" value="10" oninput="calc()">
+        <div class="val" id="vReferral">10</div>
+      </div>
+      <div class="sim-field">
+        <label>유료 전환율 (%)</label>
+        <input type="range" id="sConv" min="3" max="30" value="12" oninput="calc()">
+        <div class="val" id="vConv">12%</div>
+      </div>
+      <div class="sim-field">
+        <label>평균 좌석 수</label>
+        <input type="range" id="sSeats" min="1" max="15" value="3" oninput="calc()">
+        <div class="val" id="vSeats">3</div>
+      </div>
+      <div class="sim-field">
+        <label>월 해약률 (%)</label>
+        <input type="range" id="sChurn" min="1" max="15" value="4" oninput="calc()">
+        <div class="val" id="vChurn">4%</div>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="stat-card"><div class="value" id="mrr12">-</div><div class="label">12개월차 MRR</div></div>
+      <div class="stat-card"><div class="value" id="arr12">-</div><div class="label">12개월차 ARR</div></div>
+      <div class="stat-card"><div class="value" id="cumul12">-</div><div class="label">12개월 누적 매출</div></div>
+      <div class="stat-card"><div class="value" id="cumul24">-</div><div class="label">24개월 누적 매출</div></div>
+      <div class="stat-card"><div class="value" id="cumul36">-</div><div class="label">36개월 누적 매출</div></div>
+    </div>
+
+    <div class="chart-wrap">
+      <svg id="chart" viewBox="0 0 1000 320" style="width:100%;height:auto"></svg>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table id="monthlyTable">
+        <thead><tr><th>월</th><th class="text-right">자연유입</th><th class="text-right">추천유입</th><th class="text-right">신규유료</th><th class="text-right">이탈</th><th class="text-right">순유료고객</th><th class="text-right">MRR</th><th class="text-right">누적매출</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 4. 성장 로드맵 (12개월) -->
+<section>
+<div class="container">
+  <h2>4. 성장 로드맵 (12개월)</h2>
+  <div class="roadmap-grid">
+    <div class="roadmap-card" style="border-color:var(--green)">
+      <h4>Phase 1: 씨앗</h4>
+      <div class="period">1~3개월</div>
+      <ul>
+        <li>Free 유저 <strong style="color:var(--green)">100명</strong> 확보</li>
+        <li>블로그 30편 발행</li>
+        <li>유튜브 "5분 LeanOS" 10편</li>
+        <li>추천 코드 시스템 런칭</li>
+        <li>디스코드/카카오 커뮤니티 오픈</li>
+        <li>네이버 블로그 SEO 세팅</li>
+      </ul>
+    </div>
+    <div class="roadmap-card" style="border-color:var(--blue)">
+      <h4>Phase 2: 싹</h4>
+      <div class="period">4~6개월</div>
+      <ul>
+        <li>Free <strong style="color:var(--blue-light)">300명</strong> / 유료 30명</li>
+        <li>세무사/회계사 파트너 10곳</li>
+        <li>커뮤니티 멤버 500명</li>
+        <li>케이스스터디 3편 발행</li>
+        <li>공유오피스 2곳 제휴</li>
+        <li>이메일 온보딩 시퀀스 가동</li>
+      </ul>
+    </div>
+    <div class="roadmap-card" style="border-color:var(--purple)">
+      <h4>Phase 3: 성장</h4>
+      <div class="period">7~9개월</div>
+      <ul>
+        <li>Free <strong style="color:var(--purple)">600명</strong> / 유료 80명</li>
+        <li>케이스스터디 10편 누적</li>
+        <li>수출바우처 연계 시작</li>
+        <li>창업지원센터 3곳 연계</li>
+        <li>유튜브 구독자 1,000명</li>
+        <li>월 자연유입 50명+ 달성</li>
+      </ul>
+    </div>
+    <div class="roadmap-card" style="border-color:var(--orange)">
+      <h4>Phase 4: 가속</h4>
+      <div class="period">10~12개월</div>
+      <ul>
+        <li>Free <strong style="color:var(--orange)">1,000명</strong> / 유료 150명</li>
+        <li>MRR <strong style="color:var(--green)">₩500만+</strong> 달성</li>
+        <li>파트너 30곳 달성</li>
+        <li>추천 유입 비중 30%+</li>
+        <li>바우처 기업 10곳 전환</li>
+        <li>커뮤니티 2,000명</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 5. 콘텐츠 전략 -->
+<section>
+<div class="container">
+  <h2>5. 콘텐츠 전략</h2>
+  <div class="card">
+    <h3>블로그 토픽 10선 (비용 없는 실전 팁)</h3>
+    <ol class="content-list">
+      <li><strong>"직원 3명 스타트업, 회사 운영 자동화하는 법"</strong> &mdash; 소규모 팀의 운영 효율화 가이드</li>
+      <li><strong>"세금계산서 매칭 자동화로 월 8시간 절약한 이야기"</strong> &mdash; 실제 절감 사례 중심</li>
+      <li><strong>"대표님이 직접 급여계산? AI가 대신합니다"</strong> &mdash; 급여 자동화 단계별 가이드</li>
+      <li><strong>"결제 승인 3단계로 횡령 사고 0건 만들기"</strong> &mdash; 내부 통제 체계 구축법</li>
+      <li><strong>"거래처 관리, 엑셀에서 벗어나는 5분 세팅"</strong> &mdash; CRM 도입 초간단 가이드</li>
+      <li><strong>"정부 수출바우처로 운영비 절감하는 법"</strong> &mdash; 바우처 활용 실전 노하우</li>
+      <li><strong>"소규모 법인, 4대보험 자동계산 완전 가이드"</strong> &mdash; 노무 관리 A to Z</li>
+      <li><strong>"칸반보드로 딜 관리하면 매출이 보인다"</strong> &mdash; 영업 파이프라인 시각화</li>
+      <li><strong>"전자서명 도입, 계약서 처리 속도 10배 빠르게"</strong> &mdash; 디지털 전환 사례</li>
+      <li><strong>"LeanOS vs 엑셀 &mdash; 실제 시간 비교 실험"</strong> &mdash; 정량 비교 데이터 공개</li>
+    </ol>
+  </div>
+  <div class="card-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+    <div class="card" style="border-top:3px solid var(--cyan)">
+      <h3>유튜브 시리즈: "5분 LeanOS"</h3>
+      <p>기능별 짧은 튜토리얼 영상. 숏폼(60초) + 롱폼(5분) 병행. 주 1~2회 업로드. 유튜브 쇼츠 + 인스타 릴스 동시 배포. 목표: 12개월 내 구독자 1,000명, 조회수 50,000+.</p>
+    </div>
+    <div class="card" style="border-top:3px solid var(--purple)">
+      <h3>이메일 시퀀스</h3>
+      <table>
+        <tr><td><span class="tag tag-green">D+0</span></td><td>가입 축하 + 3분 온보딩</td></tr>
+        <tr><td><span class="tag tag-blue">D+3</span></td><td>핵심 기능 3가지 소개</td></tr>
+        <tr><td><span class="tag tag-blue">D+7</span></td><td>7일 활용 팁 + 커뮤니티 초대</td></tr>
+        <tr><td><span class="tag tag-purple">D+14</span></td><td>추천 코드 안내 + 혜택 설명</td></tr>
+        <tr><td><span class="tag tag-orange">D+30</span></td><td>30일 활용 리포트 + 업그레이드 안내</td></tr>
+        <tr><td><span class="tag tag-orange">D+60</span></td><td>새 기능 소개 + 성공 사례 공유</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 6. FINANCIAL PROJECTIONS (ZERO BUDGET) -->
+<section>
+<div class="container">
+  <h2>6. Financial Projections (Zero Budget)</h2>
+  <div class="card">
+    <h3>3개년 손익계산서 (P&L) &mdash; 마케팅비 0원</h3>
+    <table>
+      <tr><th></th><th class="text-right">1차년도</th><th class="text-right">2차년도</th><th class="text-right">3차년도</th></tr>
+      <tr><td><strong style="color:#fff">매출</strong></td><td class="text-right">₩6,000만</td><td class="text-right">₩3.6억</td><td class="text-right">₩12억</td></tr>
+      <tr><td>- SaaS 구독료</td><td class="text-right">₩5,500만</td><td class="text-right">₩3.3억</td><td class="text-right">₩11억</td></tr>
+      <tr><td>- 추천 크레딧 차감</td><td class="text-right" style="color:var(--red)">-₩500만</td><td class="text-right" style="color:var(--red)">-₩1,200만</td><td class="text-right" style="color:var(--red)">-₩2,000만</td></tr>
+      <tr><td>- 바우처/컨설팅</td><td class="text-right">₩1,000만</td><td class="text-right">₩4,200만</td><td class="text-right">₩1.2억</td></tr>
+      <tr><td><strong style="color:#fff">비용 합계</strong></td><td class="text-right">₩3,600만</td><td class="text-right">₩1.2억</td><td class="text-right">₩3.6억</td></tr>
+      <tr><td>- 서버/인프라</td><td class="text-right">₩36만</td><td class="text-right">₩360만</td><td class="text-right">₩1,200만</td></tr>
+      <tr><td>- 인건비 (대표 1인)</td><td class="text-right">₩3,000만</td><td class="text-right">₩6,000만</td><td class="text-right">₩1.8억</td></tr>
+      <tr><td>- 도메인/기타</td><td class="text-right">₩24만</td><td class="text-right">₩24만</td><td class="text-right">₩24만</td></tr>
+      <tr><td>- 마케팅비</td><td class="text-right" style="color:var(--green)"><strong>₩0</strong></td><td class="text-right" style="color:var(--green)"><strong>₩0</strong></td><td class="text-right" style="color:var(--green)"><strong>₩0</strong></td></tr>
+      <tr><td>- 추천 크레딧 비용</td><td class="text-right">₩500만</td><td class="text-right">₩1,200만</td><td class="text-right">₩2,000만</td></tr>
+      <tr><td>- 고객지원/운영</td><td class="text-right">₩0</td><td class="text-right">₩4,800만</td><td class="text-right">₩1.4억</td></tr>
+      <tr style="background:rgba(16,185,129,0.1)"><td><strong style="color:#fff">영업이익</strong></td><td class="text-right"><strong>₩2,400만</strong></td><td class="text-right" style="color:var(--green)"><strong>₩2.4억</strong></td><td class="text-right" style="color:var(--green)"><strong>₩8.4억</strong></td></tr>
+      <tr><td>영업이익률</td><td class="text-right">40%</td><td class="text-right" style="color:var(--green)">67%</td><td class="text-right" style="color:var(--green)">70%</td></tr>
+    </table>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>비용 구조 (초기)</h3>
+      <table>
+        <tr><td>Supabase</td><td class="text-right">무료 ~ $25/월</td></tr>
+        <tr><td>Vercel 호스팅</td><td class="text-right">무료</td></tr>
+        <tr><td>도메인</td><td class="text-right">₩20,000/년</td></tr>
+        <tr><td>이메일 (Resend)</td><td class="text-right">무료 (3,000건/월)</td></tr>
+        <tr><td>마케팅 예산</td><td class="text-right" style="color:var(--green);font-weight:700">₩0</td></tr>
+        <tr style="background:rgba(59,130,246,0.1)"><td><strong>월 고정비 합계</strong></td><td class="text-right"><strong>₩3만 이하</strong></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Unit Economics</h3>
+      <table>
+        <tr><td>CAC (고객획득비용)</td><td class="text-right"><strong style="color:var(--green)">₩0 (Organic)</strong></td></tr>
+        <tr><td>ARPU (평균 객단가/월)</td><td class="text-right"><strong style="color:#fff">₩46,700</strong></td></tr>
+        <tr><td>평균 유지기간</td><td class="text-right"><strong style="color:#fff">20개월</strong></td></tr>
+        <tr><td>LTV (고객생애가치)</td><td class="text-right"><strong style="color:var(--green)">₩934,000</strong></td></tr>
+        <tr><td>LTV / CAC</td><td class="text-right"><strong style="color:var(--green);font-size:20px">Infinite</strong></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>BEP (손익분기점)</h3>
+      <p><strong style="color:var(--blue-light);font-size:24px">유료 고객 50명</strong></p>
+      <p>약 <strong style="color:#fff">8~10개월차</strong>에 달성 예상</p>
+      <p>고정비가 극도로 낮으므로 (월 ₩3만) 소수의 유료 고객만으로도 흑자 전환 가능</p>
+      <p style="margin-bottom:0">50명 x ₩46,700 = MRR ₩233만 &gt; 월 비용</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 7. RISK & MITIGATION -->
+<section>
+<div class="container">
+  <h2>7. Risk &amp; Mitigation</h2>
+  <div class="card">
+    <table>
+      <tr><th style="width:30%">리스크</th><th style="width:35%">영향</th><th style="width:35%">대응 전략</th></tr>
+      <tr>
+        <td><strong style="color:#fff">성장 속도 느림</strong></td>
+        <td>유료 광고 없이 유입이 기대보다 적을 수 있음</td>
+        <td>추천 인센티브 ₩10,000 &rarr; ₩20,000 상향. 파트너십 수수료 25%로 강화. 콘텐츠 빈도 주 3회로 확대</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#fff">무료 유저만 쌓임</strong></td>
+        <td>Free 플랜 유저가 전환하지 않고 서버 비용만 증가</td>
+        <td>Free 기능 제한 강화 (3명/2프로젝트/기본 리포트만). 프리미엄 기능 체험판 14일 제공 후 잠금</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#fff">경쟁사 마케팅 공세</strong></td>
+        <td>자금력 있는 경쟁사가 광고로 시장 선점</td>
+        <td>제품 품질로 승부 (기능 72% 더 많고 비용 72% 저렴). 올인원 강점 극대화. 전환 비용 발생시키는 락인 전략</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#fff">콘텐츠 품질 저하</strong></td>
+        <td>AI 생성 콘텐츠 의존 시 차별화 약화</td>
+        <td>실제 고객 사례 중심. 대표 직접 출연 영상. 커뮤니티 UGC 활용</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#fff">파트너 이탈</strong></td>
+        <td>세무사/회계사 파트너가 경쟁사로 전환</td>
+        <td>파트너 전용 기능 제공. 수수료 경쟁력 유지. 분기별 파트너 미팅</td>
+      </tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 8. 경쟁사 비교 -->
+<section>
+<div class="container">
+  <h2>8. 경쟁사 비교</h2>
+  <div class="card" style="overflow-x:auto">
+    <h3>월 비용 비교 (10인 팀 기준)</h3>
+    <table>
+      <tr><th>솔루션</th><th class="text-right">월 비용</th><th>주요 영역</th><th class="text-right">vs LeanOS</th></tr>
+      <tr><td>비즈넵</td><td class="text-right">₩99,000</td><td>세무/회계</td><td class="text-right" style="color:var(--red)">세무만</td></tr>
+      <tr><td>자비스</td><td class="text-right">₩110,000</td><td>급여/세무</td><td class="text-right" style="color:var(--red)">급여만</td></tr>
+      <tr><td>Flex</td><td class="text-right">₩150,000</td><td>HR/급여</td><td class="text-right" style="color:var(--red)">HR만</td></tr>
+      <tr><td>채널톡</td><td class="text-right">₩89,000</td><td>고객 채팅</td><td class="text-right" style="color:var(--red)">채팅만</td></tr>
+      <tr><td>네이버웍스</td><td class="text-right">₩44,000</td><td>협업/메신저</td><td class="text-right" style="color:var(--red)">협업만</td></tr>
+      <tr><td>스윗</td><td class="text-right">₩120,000</td><td>프로젝트 관리</td><td class="text-right" style="color:var(--red)">PM만</td></tr>
+      <tr><td>플레이오토</td><td class="text-right">₩80,000</td><td>이커머스 연동</td><td class="text-right" style="color:var(--red)">EC만</td></tr>
+      <tr><td style="color:var(--gray-300)">위 7개 합산</td><td class="text-right" style="color:var(--gray-300)">₩692,000</td><td style="color:var(--gray-300)">각각 1개 영역</td><td class="text-right"></td></tr>
+      <tr style="background:rgba(16,185,129,0.15)"><td><strong style="color:var(--green)">LeanOS Business (10석)</strong></td><td class="text-right"><strong style="color:var(--green)">₩148,000</strong></td><td><strong style="color:var(--green)">올인원 (전 영역 통합)</strong></td><td class="text-right"><strong style="color:var(--green)">78% 절감</strong></td></tr>
+    </table>
+    <p style="font-size:13px;color:var(--gray-300);margin-top:8px">LeanOS 차별점: 경쟁사는 각각 1개 영역만 커버. LeanOS는 HR + 재무 + 프로젝트 + 계약 + 문서 + 커뮤니케이션 + 분석을 <strong style="color:#fff">하나의 플랫폼</strong>에서 해결합니다.</p>
+  </div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<section style="border-bottom:none;padding:32px 0">
+<div class="container" style="text-align:center">
+  <p style="color:var(--gray-400);font-size:12px">
+    (주)모티브이노베이션 | 대표: 채희웅 | 본 자료는 사업 검토 목적으로 작성되었으며, 수치는 추정치입니다.<br>
+    마케팅 비용 0원 &mdash; Product-Led Growth 전략 | CONFIDENTIAL | 2026.03
+  </p>
+</div>
+</section>
+
+<script>
+function fmt(n){
+  if(n>=1e8)return(n/1e8).toFixed(1)+'억';
+  if(n>=1e4)return Math.round(n/1e4).toLocaleString()+'만';
+  return n.toLocaleString();
+}
+function fmtFull(n){return '₩'+n.toLocaleString()}
+
+const ARPU_BASE=29000,SEAT_STARTER=5900,SEAT_BIZ=9900;
+function arpu(seats){
+  var starter=ARPU_BASE+seats*SEAT_STARTER;
+  var biz=49000+seats*SEAT_BIZ;
+  return Math.round(starter*0.6+biz*0.35+biz*1.5*0.05);
+}
+
+function calc(){
+  var organic=+document.getElementById('sOrganic').value;
+  var referral=+document.getElementById('sReferral').value;
+  var conv=+document.getElementById('sConv').value/100;
+  var seats=+document.getElementById('sSeats').value;
+  var churn=+document.getElementById('sChurn').value/100;
+
+  document.getElementById('vOrganic').textContent=organic;
+  document.getElementById('vReferral').textContent=referral;
+  document.getElementById('vConv').textContent=Math.round(conv*100)+'%';
+  document.getElementById('vSeats').textContent=seats;
+  document.getElementById('vChurn').textContent=Math.round(churn*100)+'%';
+
+  var avgARPU=arpu(seats);
+  var totalSignups=organic+referral;
+  var data=[];
+  var customers=0,cumRev=0;
+
+  for(var m=1;m<=36;m++){
+    var growthFactor=1+Math.min(m*0.02,0.5);
+    var monthOrganic=Math.round(organic*growthFactor);
+    var monthReferral=Math.round(referral*growthFactor);
+    var monthTotal=monthOrganic+monthReferral;
+    var newPaid=Math.round(monthTotal*conv);
+    var churned=Math.round(customers*churn);
+    customers=customers+newPaid-churned;
+    if(customers<0)customers=0;
+    var mrr=customers*avgARPU;
+    cumRev+=mrr;
+    data.push({m:m,organic:monthOrganic,referral:monthReferral,newPaid:newPaid,churned:churned,customers:customers,mrr:mrr,cumRev:cumRev});
+  }
+
+  document.getElementById('mrr12').textContent='₩'+fmt(data[11].mrr);
+  document.getElementById('arr12').textContent='₩'+fmt(data[11].mrr*12);
+  document.getElementById('cumul12').textContent='₩'+fmt(data[11].cumRev);
+  document.getElementById('cumul24').textContent='₩'+fmt(data[23].cumRev);
+  document.getElementById('cumul36').textContent='₩'+fmt(data[35].cumRev);
+
+  var tbody=document.querySelector('#monthlyTable tbody');
+  tbody.innerHTML='';
+  for(var i=0;i<12;i++){
+    var d=data[i];
+    tbody.innerHTML+='<tr><td>'+d.m+'개월</td><td class="text-right">'+d.organic+'</td><td class="text-right">'+d.referral+'</td><td class="text-right">+'+d.newPaid+'</td><td class="text-right" style="color:var(--red)">-'+d.churned+'</td><td class="text-right">'+d.customers+'</td><td class="text-right">'+fmtFull(d.mrr)+'</td><td class="text-right">'+fmtFull(d.cumRev)+'</td></tr>';
+  }
+
+  drawChart(data);
+}
+
+function drawChart(data){
+  var svg=document.getElementById('chart');
+  var W=1000,H=300,PL=70,PR=20,PT=20,PB=40;
+  var cW=W-PL-PR,cH=H-PT-PB;
+  var maxMRR=Math.max.apply(null,data.map(function(d){return d.mrr}))||1;
+
+  var html='<rect width="'+W+'" height="'+H+'" fill="transparent"/>';
+
+  for(var i=0;i<=4;i++){
+    var y=PT+cH*(1-i/4);
+    var val=fmt(maxMRR*i/4);
+    html+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>';
+    html+='<text x="'+(PL-8)+'" y="'+(y+4)+'" text-anchor="end" fill="#94a3b8" font-size="11">₩'+val+'</text>';
+  }
+
+  for(var i=0;i<36;i+=6){
+    var x=PL+cW*i/35;
+    html+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#94a3b8" font-size="11">'+(i||1)+'M</text>';
+  }
+  html+='<text x="'+(PL+cW)+'" y="'+(H-8)+'" text-anchor="middle" fill="#94a3b8" font-size="11">36M</text>';
+
+  var path='';
+  var areaPath='';
+  for(var i=0;i<data.length;i++){
+    var d=data[i];
+    var x=PL+cW*i/35;
+    var y=PT+cH*(1-d.mrr/maxMRR);
+    path+=(i===0?'M':'L')+x+','+y;
+    areaPath+=(i===0?'M':'L')+x+','+y;
+  }
+  areaPath+='L'+(PL+cW)+','+(PT+cH)+'L'+PL+','+(PT+cH)+'Z';
+
+  html+='<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></linearGradient></defs>';
+  html+='<path d="'+areaPath+'" fill="url(#areaGrad)" opacity="0.3"/>';
+  html+='<path d="'+path+'" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+
+  var keyPoints=[11,23,35];
+  for(var k=0;k<keyPoints.length;k++){
+    var idx=keyPoints[k];
+    var d=data[idx];
+    var x=PL+cW*idx/35;
+    var y=PT+cH*(1-d.mrr/maxMRR);
+    html+='<circle cx="'+x+'" cy="'+y+'" r="4" fill="#10b981" stroke="#fff" stroke-width="2"/>';
+    html+='<text x="'+x+'" y="'+(y-12)+'" text-anchor="middle" fill="#10b981" font-size="12" font-weight="600">₩'+fmt(d.mrr)+'</text>';
+  }
+
+  html+='<text x="'+(W/2)+'" y="'+H+'" text-anchor="middle" fill="#64748b" font-size="12">Zero Budget MRR 36개월 추이 (자연유입 + 추천)</text>';
+
+  svg.innerHTML=html;
+}
+
+calc();
+</script>
+</body>
+</html>
