@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Link from "next/link";
 
-const qc = new QueryClient();
 const SUPER_ADMIN_COMPANY = "모티브이노베이션";
 
 const NAV_ITEMS = [
@@ -36,108 +34,108 @@ function NavIcon({ type, active }: { type: string; active: boolean }) {
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-  const [denied, setDenied] = useState(false);
+  const [status, setStatus] = useState<"loading" | "ready" | "denied">("loading");
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) { router.replace("/auth"); return; }
-      const user = await getCurrentUser();
-      if (!user || user.role !== "owner" || user.companies?.name !== SUPER_ADMIN_COMPANY) {
-        setDenied(true);
-        return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) { router.replace("/auth"); return; }
+        const user = await getCurrentUser();
+        if (cancelled) return;
+        if (!user || user.role !== "owner" || user.companies?.name !== SUPER_ADMIN_COMPANY) {
+          setStatus("denied");
+          return;
+        }
+        setUserName(user.name || user.email || "Admin");
+        setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("denied");
       }
-      setUserName(user.name || user.email);
-      setReady(true);
     })();
+    return () => { cancelled = true; };
   }, [router]);
 
-  if (denied) {
+  // 인라인 스타일 — CSS 로딩 전에도 보이도록
+  if (status === "denied") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0f1a]">
-        <div className="text-center">
-          <div className="text-5xl mb-4">🔒</div>
-          <h1 className="text-xl font-bold text-white mb-2">접근 권한 없음</h1>
-          <p className="text-sm text-[#64748b] mb-6">OwnerView 플랫폼 관리자만 접근할 수 있습니다.</p>
-          <Link href="/dashboard" className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0f1a", color: "#fff" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>접근 권한 없음</h1>
+          <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>OwnerView 플랫폼 관리자만 접근할 수 있습니다.</p>
+          <a href="/dashboard" style={{ padding: "10px 24px", background: "#2563eb", color: "#fff", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             대시보드로 이동
-          </Link>
+          </a>
         </div>
       </div>
     );
   }
 
-  if (!ready) {
+  if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0f1a]">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0f1a" }}>
+        <div style={{ width: 32, height: 32, border: "2px solid #3b82f6", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     );
   }
 
   return (
-    <QueryClientProvider client={qc}>
-      <div className="min-h-screen flex bg-[#0b0f1a]">
-        {/* Sidebar */}
-        <aside className="w-56 bg-[#111827] border-r border-[#1e293b] flex flex-col fixed inset-y-0 left-0 z-40">
-          {/* Logo */}
-          <div className="p-5 border-b border-[#1e293b]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-white">OwnerView</div>
-                <div className="text-[10px] text-[#64748b] font-medium">Platform Admin</div>
-              </div>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#0b0f1a" }}>
+      {/* Sidebar */}
+      <aside className="w-56 bg-[#111827] border-r border-[#1e293b] flex flex-col fixed inset-y-0 left-0 z-40">
+        <div className="p-5 border-b border-[#1e293b]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">OwnerView</div>
+              <div className="text-[10px] text-[#64748b] font-medium">Platform Admin</div>
             </div>
           </div>
+        </div>
 
-          {/* Nav */}
-          <nav className="flex-1 py-3 px-2 space-y-0.5">
-            {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href || (item.href !== "/platform" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                    active
-                      ? "bg-blue-600/20 text-white"
-                      : "text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
-                  }`}
-                >
-                  <NavIcon type={item.icon} active={active} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+        <nav className="flex-1 py-3 px-2 space-y-0.5">
+          {NAV_ITEMS.map((item) => {
+            const active = pathname === item.href || (item.href !== "/platform" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  active ? "bg-blue-600/20 text-white" : "text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
+                }`}
+              >
+                <NavIcon type={item.icon} active={active} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-[#1e293b]">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                {userName.charAt(0)}
-              </div>
-              <div className="text-xs text-[#94a3b8] truncate">{userName}</div>
+        <div className="p-4 border-t border-[#1e293b]">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+              {userName.charAt(0)}
             </div>
-            <Link href="/dashboard" className="flex items-center gap-2 text-xs text-[#64748b] hover:text-white transition">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-              고객 앱으로 돌아가기
-            </Link>
+            <div className="text-xs text-[#94a3b8] truncate">{userName}</div>
           </div>
-        </aside>
+          <Link href="/dashboard" className="flex items-center gap-2 text-xs text-[#64748b] hover:text-white transition">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+            고객 앱으로 돌아가기
+          </Link>
+        </div>
+      </aside>
 
-        {/* Main */}
-        <main className="flex-1 ml-56 p-6 lg:p-8">
-          {children}
-        </main>
-      </div>
-    </QueryClientProvider>
+      <main className="flex-1 ml-56 p-6 lg:p-8">
+        {children}
+      </main>
+    </div>
   );
 }
