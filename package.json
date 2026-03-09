@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && touch out/.nojekyll",
+    "build": "next build && touch out/.nojekyll && echo 'www.owner-view.com' > out/CNAME",
+    "deploy": "npm run build && rsync -av --delete --exclude='.git' --exclude='out' --exclude='node_modules' --exclude='src' --exclude='scripts' --exclude='supabase' --exclude='public' --exclude='package*.json' --exclude='*.config.*' --exclude='.env*' --exclude='.claude' --exclude='.git*' out/ ./",
     "start": "next start",
     "lint": "next lint"
   },
