@@ -24,7 +24,9 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
   }, [interval]);
 
   return (
-    <span className={`relative inline-flex justify-center overflow-hidden px-1 ${className}`} style={{ height: "1.25em", width: "100%" }}>
+    <span className={`relative inline-flex justify-center overflow-hidden ${className}`} style={{ height: "1.25em" }}>
+      {/* Invisible sizer — ensures container is wide enough for longest text */}
+      <span className="invisible whitespace-nowrap px-1" aria-hidden="true">OwnerView</span>
       <span
         className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
