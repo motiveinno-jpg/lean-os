@@ -11,6 +11,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { getDealPipelineStatus, createDocumentFromDeal, onRevenueReceived, forceApproveDocument, type PipelineStage } from "@/lib/deal-pipeline";
 import { autoCreatePartnerFromDeal } from "@/lib/partners";
 import { applyCompanySeal } from "@/lib/signatures";
+import { createDocumentShare, sendShareEmail } from "@/lib/document-sharing";
 import { uploadFile } from "@/lib/file-storage";
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
@@ -295,6 +296,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   const [creating, setCreating] = useState(false); const [confirming, setConfirming] = useState(false); const [forceApproving, setForceApproving] = useState(false);
   const [contractTemplate, setContractTemplate] = useState('general');
   const [sealApplying, setSealApplying] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const queryClient = useQueryClient(); const db2 = supabase as any;
   const { data: stages = [] } = useQuery({ queryKey: ['deal-pipeline', dealId], queryFn: () => getDealPipelineStatus(dealId), enabled: !!dealId });
   const completedCount = stages.filter(s => s.status === 'completed').length;
@@ -315,6 +317,24 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   async function handleConfirmRevenue() { if (!companyId || !userId || confirming) return; setConfirming(true); setPipelineError(null); try { const { data: schedules } = await db2.from('deal_revenue_schedule').select('id, amount, status').eq('deal_id', dealId).eq('status', 'expected').order('due_date', { ascending: true }).limit(1); if (schedules && schedules.length > 0) { const entry = schedules[0]; await onRevenueReceived({ dealId, companyId, amount: Number(entry.amount), userId, revenueScheduleId: entry.id }); } queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`입금 확인 실패: ${err?.message || '알 수 없는 오류'}`); } setConfirming(false); }
   async function handleApplySeal(documentId: string) { if (!companyId || sealApplying) return; setSealApplying(true); setPipelineError(null); try { await applyCompanySeal({ documentId, companyId, appliedBy: userId || '' }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`직인 적용 실패: ${err?.message || '알 수 없는 오류'}`); } setSealApplying(false); }
 
+  async function handleSendEmail(documentId: string) {
+    if (!companyId || emailSending) return;
+    setEmailSending(true); setPipelineError(null);
+    try {
+      const { data: docData } = await db2.from('documents').select('name, content_json, deal_id').eq('id', documentId).single();
+      const { data: dealData } = await db2.from('deals').select('*, partners(name, contact_email)').eq('id', dealId).single();
+      const partnerEmail = dealData?.partners?.contact_email;
+      if (!partnerEmail) { setPipelineError('거래처 이메일이 등록되지 않았습니다. 거래처 정보에서 이메일을 등록해주세요.'); setEmailSending(false); return; }
+      const { data: comp } = await db2.from('companies').select('name').eq('id', companyId).single();
+      const share = await createDocumentShare({ documentId, companyId, createdBy: userId || '', expiresInDays: 30 });
+      const shareUrl = share.shareUrl || `${window.location.origin}/share/${share.shareToken}`;
+      const result = await sendShareEmail({ email: partnerEmail, recipientName: dealData?.partners?.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '' });
+      if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); }
+      else if (result.success) { alert('이메일 발송 완료'); }
+    } catch (err: any) { setPipelineError(`이메일 발송 실패: ${err?.message || '알 수 없는 오류'}`); }
+    setEmailSending(false);
+  }
+
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
       <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
@@ -326,6 +346,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
           {!hasQuote && companyId && userId && (<button onClick={handleCreateQuote} disabled={creating} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition">{creating ? '생성 중...' : '+ 견적서 생성'}</button>)}
           {forceApproveTarget && companyId && userId && (<button onClick={handleForceApprove} disabled={forceApproving} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-amber-700 transition">{forceApproving ? '처리 중...' : `임의 승인 (${activeQuote ? '견적서' : '계약서'})`}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleApplySeal((activeQuote?.documentId || activeContract?.documentId)!)} disabled={sealApplying} className="px-3 py-1.5 bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-800 transition">{sealApplying ? '적용 중...' : '직인 적용'}</button>)}
+          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleSendEmail((activeQuote?.documentId || activeContract?.documentId)!)} disabled={emailSending} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-indigo-700 transition">{emailSending ? '발송 중...' : '📧 이메일 발송'}</button>)}
           {canConfirmRevenue && companyId && userId && (<button onClick={handleConfirmRevenue} disabled={confirming} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-green-700 transition">{confirming ? '처리 중...' : '입금 확인'}</button>)}
         </div>
       </div>

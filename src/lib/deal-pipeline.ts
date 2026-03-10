@@ -54,6 +54,13 @@ export async function createDocumentFromDeal(params: {
   const partnerBizNo = deal.partners?.business_number || '';
   const contractTotal = Number(deal.contract_total || 0);
 
+  // Fetch company info for documents
+  const { data: company } = await db.from('companies').select('name, business_number, representative, address').eq('id', companyId).single();
+  const companyName = company?.name || '';
+  const companyBizNo = company?.business_number || '';
+  const companyRep = company?.representative || '';
+  const companyAddr = company?.address || '';
+
   // Build content JSON based on doc type
   const typeLabels: Record<DocChainType, string> = {
     invoice: '견적서',
@@ -148,6 +155,122 @@ export async function createDocumentFromDeal(params: {
   }
 
   const name = `${deal.name} - ${typeLabels[docType]}`;
+
+  // Generate human-readable body text
+  const fmt = (n: number) => n.toLocaleString('ko-KR');
+  const supplyAmt = contractTotal;
+  const taxAmt = Math.round(contractTotal * 0.1);
+  const totalAmt = supplyAmt + taxAmt;
+  const today = new Date().toISOString().split('T')[0];
+  const cj = contentJson as any;
+  const itemsArr: any[] = cj.items || [];
+
+  function buildItemsTable(items: any[]) {
+    let t = '\n┌──────┬──────────────────────┬──────────┬──────────┬──────────────┬────────────────┐\n';
+    t += '│  No  │ 품명                 │ 수량     │ 단가     │ 공급가액     │ 비고           │\n';
+    t += '├──────┼──────────────────────┼──────────┼──────────┼──────────────┼────────────────┤\n';
+    items.forEach((it: any, idx: number) => {
+      const n = String(idx + 1).padStart(4);
+      const nm = (it.name || '').slice(0, 18).padEnd(18);
+      const q = String(it.quantity || 1).padStart(6);
+      const u = fmt(Number(it.unitPrice || 0)).padStart(8);
+      const a = fmt(Number(it.supplyAmount || it.amount || 0)).padStart(12);
+      const note = (it.note || '').slice(0, 12).padEnd(12);
+      t += `│ ${n} │ ${nm} │ ${q} │ ${u} │ ${a} │ ${note} │\n`;
+    });
+    t += '└──────┴──────────────────────┴──────────┴──────────┴──────────────┴────────────────┘\n';
+    return t;
+  }
+
+  if (docType === 'invoice') {
+    const validUntil = cj.validUntil || '';
+    contentJson.body = `견 적 서
+
+수 신: ${partnerName} 귀하
+발 신: ${companyName}
+견적일자: ${today}
+
+아래와 같이 견적합니다.
+${buildItemsTable(itemsArr)}
+  공급가액:  ₩${fmt(supplyAmt)}
+  부가세(10%): ₩${fmt(taxAmt)}
+  ─────────────────────
+  합계금액:  ₩${fmt(totalAmt)} (VAT 포함)
+
+유효기간: ${validUntil}까지
+
+[결제조건]
+${cj.paymentRatio ? `선금 ${cj.paymentRatio.advance}% / 잔금 ${cj.paymentRatio.balance}%` : '협의'}
+
+${companyName}
+대표이사 ${companyRep} (직인)`;
+  }
+
+  if (docType === 'contract') {
+    const schedule = cj.paymentSchedule || [];
+    const scheduleText = schedule.map((s: any) => `  - ${s.label} (${s.ratio}%): ₩${fmt(s.amount)} — ${s.condition}`).join('\n');
+    contentJson.body = `표 준 용 역 계 약 서
+
+계약일자: ${today}
+
+"갑" ${companyName} (사업자등록번호: ${companyBizNo})
+     대표이사: ${companyRep}
+     주소: ${companyAddr}
+
+"을" ${partnerName} (사업자등록번호: ${partnerBizNo})
+
+
+제1조 (목적)
+본 계약은 "${deal.name}"에 관하여 갑과 을 사이의 권리·의무를 규정함을 목적으로 한다.
+
+제2조 (용역의 범위)
+을은 갑이 의뢰한 아래 용역을 성실히 수행한다.
+${buildItemsTable(itemsArr)}
+
+제3조 (계약금액 및 부가가치세)
+  공급가액:  ₩${fmt(supplyAmt)}
+  부가가치세(10%): ₩${fmt(taxAmt)}
+  ─────────────────────
+  합계금액:  ₩${fmt(totalAmt)} (VAT 포함)
+
+제4조 (대금지급)
+${scheduleText || cj.paymentTerms || '별도 협의'}
+
+제5조 (계약기간)
+${cj.contractStartDate || today} ~ ${cj.contractEndDate || '프로젝트 완료 시'}
+
+제6조 (납품 및 검수)
+을은 용역 완료 후 결과물을 갑에게 납품하고, 갑은 납품일로부터 7영업일 이내에 검수를 완료한다.
+검수 결과 하자가 발견된 경우 을은 갑의 요청에 따라 무상으로 보완한다.
+
+제7조 (지식재산권)
+본 계약에 의해 수행된 용역의 결과물에 대한 저작재산권 및 소유권은 대금 완납 시 갑에게 귀속된다.
+
+제8조 (비밀유지)
+계약 당사자는 본 계약의 이행과정에서 취득한 상대방의 기밀정보를 제3자에게 누설하지 아니하며,
+계약 종료 후에도 2년간 비밀유지 의무를 부담한다.
+
+제9조 (손해배상)
+계약 당사자가 본 계약을 위반하여 상대방에게 손해를 끼친 경우 그 손해를 배상한다.
+
+제10조 (계약해제 및 해지)
+1. 상대방이 본 계약상의 의무를 이행하지 않을 때 서면으로 최고한 후 7일 이내에 이행하지 않으면 계약을 해제·해지할 수 있다.
+2. 갑의 사정으로 계약을 해지하는 경우 기 수행된 부분에 대해서는 정산하여 지급한다.
+
+제11조 (불가항력)
+천재지변, 전쟁 등 불가항력적인 사유로 계약을 이행할 수 없는 경우 그 책임을 면한다.
+
+제12조 (분쟁해결)
+본 계약에 관한 분쟁은 갑의 소재지 관할법원을 제1심 법원으로 한다.
+
+본 계약의 성립을 증명하기 위하여 계약서 2통을 작성하고,
+갑·을이 각각 서명 날인한 후 각 1통씩 보관한다.
+
+${today}
+
+"갑" ${companyName}  대표이사 ${companyRep} (인)
+"을" ${partnerName}  대표이사 ______________ (인)`;
+  }
 
   const { data: doc, error } = await supabase
     .from('documents')

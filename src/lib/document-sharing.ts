@@ -197,27 +197,47 @@ export async function sendShareEmail(params: {
   senderName?: string;
   companyName?: string;
   message?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; fallbackMailto?: string }> {
+  const { email, recipientName, documentName, shareUrl, senderName, companyName, message } = params;
+
+  // Try Edge Function first
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return { success: false, error: '인증 필요' };
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-share-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify(params),
-    });
-
-    const data = await res.json();
-    if (!res.ok) return { success: false, error: data.error || '이메일 발송 실패' };
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || '이메일 발송 오류' };
+    if (session) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-share-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(params),
+      });
+      if (res.ok) return { success: true };
+    }
+  } catch {
+    // Edge Function not available — use mailto fallback
   }
+
+  // Fallback: generate mailto link with formatted body
+  const subject = `[${companyName || 'OwnerView'}] ${documentName} 검토 요청`;
+  const body = `${recipientName || '담당자'}님 안녕하세요.
+
+${senderName ? `${senderName} (${companyName || ''})` : companyName || ''}입니다.
+
+${documentName}을(를) 보내드립니다.
+아래 링크에서 문서를 확인하시고 검토 부탁드립니다.
+
+▶ 문서 확인: ${shareUrl}
+
+${message ? `[메시지]\n${message}\n` : ''}감사합니다.
+
+─────────────────
+${companyName || 'OwnerView'}
+${senderName || ''}`;
+
+  const mailto = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return { success: false, error: '자동 발송 불가 — 메일 앱으로 열기', fallbackMailto: mailto };
 }
 
 // ── Deactivate Share ──

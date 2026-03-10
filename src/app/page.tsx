@@ -834,13 +834,13 @@ export default function LandingPage() {
           <h1 className={`text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             회사의 <RollingText /> 현황
             <br />
-            자동으로 정리! 한 눈에보여요!
+            자동으로 한눈에!
           </h1>
           <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.15s" }}>
             현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
           </p>
           <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
-            소규모 회사 대표를 위한 올인원 운영 플랫폼
+            중소기업 대표를 위한 올인원 운영 플랫폼
           </p>
           <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
             <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
