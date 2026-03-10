@@ -832,12 +832,12 @@ export default function LandingPage() {
           </div>
 
           <h1 className={`text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            회사의 <RollingText /> 현황을
+            회사의 <RollingText /> 현황
             <br />
-            자동으로 정리해 한눈에 보여줍니다.
+            자동으로 정리! 한 눈에보여요!
           </h1>
           <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.15s" }}>
-            현금, 딜, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
+            현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
           </p>
           <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
             소규모 회사 대표를 위한 올인원 운영 플랫폼

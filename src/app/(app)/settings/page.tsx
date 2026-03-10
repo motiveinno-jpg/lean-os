@@ -1856,7 +1856,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
-  const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, hometax_id: "", vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
+  const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, hometax_id: "", hometax_password: "", hometax_login_method: "id_pw" as "id_pw" | "certificate", hometax_cert_password: "", vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
     queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("tax_settings").eq("id", companyId).single(); return data?.tax_settings || {}; },
@@ -1910,12 +1910,43 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         </div>
       </div>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-1">홈택스 연동</h2>
-        <p className="text-xs text-[var(--text-dim)] mb-4">국세청 홈택스와 연동하여 세금계산서 자동 제출</p>
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">현재 수동 엑셀 업로드 방식. 홈택스 API 연동 시 자동 제출 가능.</p></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">홈택스 ID</label><input value={settings.hometax_id} onChange={(e) => setSettings({ ...settings, hometax_id: e.target.value })} placeholder="홈택스 로그인 ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-          <div className="flex items-end"><button className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button></div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
+          <div>
+            <h2 className="text-sm font-bold">홈택스 연동</h2>
+            <p className="text-xs text-[var(--text-dim)]">국세청 홈택스와 연동하여 세금계산서 자동 조회/제출</p>
+          </div>
+        </div>
+        {/* 로그인 방식 선택 */}
+        <div className="mb-4">
+          <label className="block text-xs text-[var(--text-muted)] mb-2">로그인 방식</label>
+          <div className="flex gap-2">
+            {([{ v: "id_pw", l: "아이디/비밀번호", icon: "🔑" }, { v: "certificate", l: "공동인증서", icon: "📜" }] as const).map(opt => (
+              <button key={opt.v} onClick={() => setSettings({ ...settings, hometax_login_method: opt.v })}
+                className={`flex-1 py-3 px-4 rounded-xl text-xs font-semibold border transition ${settings.hometax_login_method === opt.v ? "bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-dim)]"}`}>
+                <span className="mr-1.5">{opt.icon}</span>{opt.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* 아이디/비밀번호 방식 */}
+        {settings.hometax_login_method === "id_pw" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">홈택스 ID</label><input value={settings.hometax_id} onChange={(e) => setSettings({ ...settings, hometax_id: e.target.value })} placeholder="홈택스 로그인 ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">홈택스 비밀번호</label><input type="password" value={settings.hometax_password} onChange={(e) => setSettings({ ...settings, hometax_password: e.target.value })} placeholder="홈택스 비밀번호" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+          </div>
+        )}
+        {/* 공동인증서 방식 */}
+        {settings.hometax_login_method === "certificate" && (
+          <div className="space-y-3 mb-4">
+            <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+              <p className="text-xs text-blue-400 font-medium">공동인증서(구 공인인증서)로 로그인합니다. 인증서 파일은 로컬 PC에서 자동 감지됩니다.</p>
+            </div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">인증서 비밀번호</label><input type="password" value={settings.hometax_cert_password} onChange={(e) => setSettings({ ...settings, hometax_cert_password: e.target.value })} placeholder="공동인증서 비밀번호" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button className="flex-1 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button>
         </div>
         <label className="flex items-center gap-2 mt-4 text-xs text-[var(--text-muted)]"><input type="checkbox" checked={settings.vat_auto_aggregate} onChange={(e) => setSettings({ ...settings, vat_auto_aggregate: e.target.checked })} className="rounded" /> 부가세 자동 집계 (매 분기별)</label>
       </div>
@@ -1964,6 +1995,10 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
   const [cards, setCards] = useState<ServiceEntry[]>([]);
   const [showPw, setShowPw] = useState<Record<string, boolean>>({});
   const [autoSign, setAutoSign] = useState({ auto_sign_tax_invoice: true, auto_sign_bank_transfer: true });
+  const [hometaxMethod, setHometaxMethod] = useState<"certificate" | "id_pw">("certificate");
+  const [hometaxCert, setHometaxCert] = useState("");
+  const [hometaxId, setHometaxId] = useState("");
+  const [hometaxPw, setHometaxPw] = useState("");
 
   // 인증정보 조회
   const { data: creds = [] } = useQuery({
@@ -2007,6 +2042,16 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           login_password: c.credentials?.login_password || "",
           cert_password: c.credentials?.cert_password || "",
         })));
+      }
+      // 홈택스
+      const ht = creds.find((c: any) => c.service === "hometax");
+      if (ht?.credentials) {
+        if (ht.credentials.login_method) setHometaxMethod(ht.credentials.login_method);
+        else if (ht.credentials.cert_password && !ht.credentials.login_id) setHometaxMethod("certificate");
+        else if (ht.credentials.login_id) setHometaxMethod("id_pw");
+        if (ht.credentials.cert_password) setHometaxCert(ht.credentials.cert_password);
+        if (ht.credentials.login_id) setHometaxId(ht.credentials.login_id);
+        if (ht.credentials.login_password) setHometaxPw(ht.credentials.login_password);
       }
       // 레거시: 기존 ibk/hometax/lottecard 데이터 마이그레이션
       const ibk = creds.find((c: any) => c.service === "ibk");
@@ -2054,14 +2099,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           credentials: { cert_password: b.cert_password, login_id: b.login_id, login_password: b.login_password, bank_name: b.company },
           updated_at: new Date().toISOString(),
         }), `은행 ${b.company} 저장`);
-        // 홈택스도 동일 인증서 비밀번호 사용 (첫 번째 은행 기준)
-        if (i === 0 && b.cert_password) {
-          check(await db2.from("automation_credentials").upsert({
-            company_id: companyId, service: "hometax",
-            credentials: { cert_password: b.cert_password },
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "company_id,service" }), "홈택스 저장");
-        }
+        // (홈택스는 아래에서 독립 저장)
       }
 
       // 카드 저장
@@ -2074,6 +2112,22 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           credentials: { login_id: c.login_id, login_password: c.login_password, cert_password: c.cert_password, card_company: c.company },
           updated_at: new Date().toISOString(),
         }), `카드 ${c.company} 저장`);
+      }
+
+      // 홈택스 독립 저장
+      const hometaxCreds: Record<string, string> = { login_method: hometaxMethod };
+      if (hometaxMethod === "certificate" && hometaxCert) {
+        hometaxCreds.cert_password = hometaxCert;
+      } else if (hometaxMethod === "id_pw" && hometaxId) {
+        hometaxCreds.login_id = hometaxId;
+        hometaxCreds.login_password = hometaxPw;
+      }
+      if (hometaxCert || hometaxId) {
+        check(await db2.from("automation_credentials").upsert({
+          company_id: companyId, service: "hometax",
+          credentials: hometaxCreds,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "company_id,service" }), "홈택스 저장");
       }
 
       // 자동서명 설정
@@ -2153,7 +2207,52 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
             ))}
           </div>
         )}
-        <p className="text-[10px] text-[var(--text-dim)] mt-2">첫 번째 은행의 인증서 비밀번호가 홈택스에도 사용됩니다</p>
+      </div>
+
+      {/* 홈택스 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
+          <div>
+            <div className="text-sm font-bold">홈택스</div>
+            <div className="text-[11px] text-[var(--text-dim)]">세금계산서 자동 조회 · 인증서 또는 ID/PW 선택</div>
+          </div>
+        </div>
+        <div className="mb-3">
+          <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-2">로그인 방식</div>
+          <div className="flex gap-2">
+            <button onClick={() => setHometaxMethod("certificate")}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "certificate" ? "bg-green-500/10 border-green-500/50 text-green-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+              📜 공동인증서
+            </button>
+            <button onClick={() => setHometaxMethod("id_pw")}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+              🔑 아이디/비밀번호
+            </button>
+          </div>
+        </div>
+        {hometaxMethod === "certificate" ? (
+          <div className="relative">
+            <input type={showPw["hometax_cert"] ? "text" : "password"} value={hometaxCert} onChange={(e) => setHometaxCert(e.target.value)}
+              placeholder="공동인증서 비밀번호" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+            <button type="button" onClick={() => setShowPw((p) => ({ ...p, hometax_cert: !p.hometax_cert }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+              {showPw["hometax_cert"] ? "숨기기" : "보기"}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <input type="text" value={hometaxId} onChange={(e) => setHometaxId(e.target.value)} placeholder="홈택스 ID"
+              className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+            <div className="relative">
+              <input type={showPw["hometax_pw"] ? "text" : "password"} value={hometaxPw} onChange={(e) => setHometaxPw(e.target.value)} placeholder="비밀번호"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+              <button type="button" onClick={() => setShowPw((p) => ({ ...p, hometax_pw: !p.hometax_pw }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                {showPw["hometax_pw"] ? "숨기기" : "보기"}
+              </button>
+            </div>
+          </div>
+        )}
+        <p className="text-[10px] text-[var(--text-dim)] mt-2">세무자동화 탭에서도 동일하게 설정할 수 있습니다</p>
       </div>
 
       {/* 카드 */}
