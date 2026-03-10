@@ -94,6 +94,7 @@ export default function TaxInvoicesPage() {
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
@@ -173,6 +174,23 @@ export default function TaxInvoicesPage() {
     queryKey: ["hometax-sync-logs", companyId],
     queryFn: () => getHomeTaxSyncLogs(companyId!),
     enabled: !!companyId && tab === "sync",
+  });
+
+  // Last sync time (항상 조회)
+  const { data: lastSyncData } = useQuery({
+    queryKey: ["last-sync-time", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data } = await db
+        .from('hometax_sync_log')
+        .select('completed_at')
+        .eq('company_id', companyId!)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1);
+      return data?.[0]?.completed_at || null;
+    },
+    enabled: !!companyId,
   });
 
   // Excel import handler
@@ -268,7 +286,7 @@ export default function TaxInvoicesPage() {
   return (
     <div className="max-w-[1200px]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold">세금계산서</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -289,6 +307,48 @@ export default function TaxInvoicesPage() {
             + 세금계산서 등록
           </button>
         </div>
+      </div>
+
+      {/* Sync bar */}
+      <div className="flex items-center justify-between bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {lastSyncData ? (
+            <span>
+              마지막 업데이트: <strong className="text-[var(--text)]">{new Date(lastSyncData).toLocaleString('ko', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>
+            </span>
+          ) : (
+            <span>아직 홈택스 동기화 이력이 없습니다</span>
+          )}
+        </div>
+        <button
+          onClick={async () => {
+            if (syncing) return;
+            setSyncing(true);
+            try {
+              const startDate = `${month}-01`;
+              const endDate = `${month}-31`;
+              await syncHomeTaxInvoices({ startDate, endDate });
+              invalidate();
+              queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
+              queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
+              queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
+            } catch (err: any) {
+              alert(`동기화 오류: ${err.message}`);
+            } finally {
+              setSyncing(false);
+            }
+          }}
+          disabled={syncing}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50"
+        >
+          <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {syncing ? "동기화 중..." : "최신자료 업데이트"}
+        </button>
       </div>
 
       {/* Summary Cards */}
