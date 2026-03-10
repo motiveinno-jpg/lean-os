@@ -24,9 +24,9 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
   }, [interval]);
 
   return (
-    <span className={`relative inline-flex overflow-hidden ${className}`} style={{ height: "1.25em", minWidth: "5.5em" }}>
+    <span className={`relative inline-flex justify-center overflow-hidden ${className}`} style={{ height: "1.25em", minWidth: "5.5em" }}>
       <span
-        className="absolute left-0 transition-all duration-500 ease-in-out whitespace-nowrap"
+        className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
           transform: showKr ? "translateY(-100%)" : "translateY(0)",
           opacity: showKr ? 0 : 1,
@@ -35,7 +35,7 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
         OwnerView
       </span>
       <span
-        className="absolute left-0 transition-all duration-500 ease-in-out whitespace-nowrap"
+        className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
           transform: showKr ? "translateY(0)" : "translateY(100%)",
           opacity: showKr ? 1 : 0,
