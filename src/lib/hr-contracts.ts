@@ -7,6 +7,8 @@ import { supabase } from './supabase';
 import { fillVariables } from './documents';
 import { calculatePayroll } from './payment-batch';
 import { calculateAnnualLeave, autoInitLeaveBalance } from './hr';
+import { logAuditTrail } from '@/lib/audit-trail';
+import { generatePackageHash, storeDocumentHash } from '@/lib/document-integrity';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -533,6 +535,18 @@ export async function createContractPackage(params: {
     items.push(item);
   }
 
+  // Audit: document_created
+  try {
+    await logAuditTrail(pkg.id, {
+      action: 'document_created',
+      timestamp: new Date().toISOString(),
+      actor: 'system',
+      details: `계약 패키지 생성: ${title}, 문서 ${items.length}건`,
+    });
+  } catch (e) {
+    console.error('Audit log error:', e);
+  }
+
   return { package: pkg, items };
 }
 
@@ -618,6 +632,18 @@ export async function sendContractPackage(
     sent_at: new Date().toISOString(),
     expires_at: expiresAt.toISOString(),
   }).eq('id', packageId);
+
+  // Audit: email_sent
+  try {
+    await logAuditTrail(packageId, {
+      action: 'email_sent',
+      timestamp: new Date().toISOString(),
+      actor: company?.name || 'system',
+      details: `서명 요청 이메일 발송: ${pkg.employees.email}`,
+    });
+  } catch (e) {
+    console.error('Audit log error:', e);
+  }
 
   return { success: true };
 }
@@ -794,6 +820,14 @@ async function onAllContractsSigned(packageId: string) {
   if (employee?.hire_date) {
     const year = new Date().getFullYear();
     await autoInitLeaveBalance(pkg.company_id, pkg.employee_id, employee.hire_date, year);
+  }
+
+  // Generate and store document hash for integrity verification
+  try {
+    const hash = await generatePackageHash(packageId);
+    await storeDocumentHash(packageId, hash);
+  } catch (e) {
+    console.error('Hash generation failed:', e);
   }
 }
 

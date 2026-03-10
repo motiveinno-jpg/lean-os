@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { logAuditTrail, getAuditTrail, generateAuditTrailCertificateHTML } from "@/lib/audit-trail";
+import { verifyDocumentIntegrity, generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -12,7 +14,10 @@ type PackageData = {
   title: string;
   status: string;
   expired: boolean;
-  employees: { name: string; department?: string; position?: string };
+  company_id?: string;
+  employees: { name: string; email?: string; department?: string; position?: string };
+  companies?: { name: string } | null;
+  notes?: string;
   items: {
     id: string;
     title: string;
@@ -50,6 +55,8 @@ function SignContent() {
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{ valid: boolean; hash: string } | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   // Canvas ref for drawing
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,7 +78,7 @@ function SignContent() {
       // Get package by sign_token
       const { data: p } = await db
         .from("hr_contract_packages")
-        .select("*, employees(name, department, position)")
+        .select("*, employees(name, email, department, position), companies(name)")
         .eq("sign_token", token)
         .single();
 
@@ -117,6 +124,19 @@ function SignContent() {
       if (firstUnsigned >= 0) setActiveItem(firstUnsigned);
 
       setLoading(false);
+
+      // Audit: document_opened
+      try {
+        logAuditTrail(p.id, {
+          action: 'document_opened',
+          timestamp: new Date().toISOString(),
+          actor: p.employees?.name || 'unknown',
+          userAgent: navigator.userAgent,
+          details: `서명 페이지 접속`,
+        });
+      } catch (e) {
+        console.error('Audit log error:', e);
+      }
     } catch {
       setInvalid(true);
       setLoading(false);
@@ -195,6 +215,18 @@ function SignContent() {
         })
         .eq("id", item.id);
 
+      // Audit: signature_submitted
+      try {
+        logAuditTrail(pkg.id, {
+          action: sigData.type === 'draw' ? 'signature_drawn' : 'signature_typed',
+          timestamp: new Date().toISOString(),
+          actor: pkg.employees?.name || 'unknown',
+          details: `서명 방식: ${sigData.type === 'draw' ? '직접 그리기' : '텍스트 입력'}`,
+        });
+      } catch (e) {
+        console.error('Audit log error:', e);
+      }
+
       // Lock associated document
       if (item.documents) {
         await db
@@ -216,6 +248,51 @@ function SignContent() {
           .update({ status: "completed", completed_at: new Date().toISOString() })
           .eq("id", pkg.id);
         setCompleted(true);
+
+        // Generate and store document hash
+        try {
+          const packageHash = await generatePackageHash(pkg.id);
+          await storeDocumentHash(pkg.id, packageHash);
+        } catch (e) {
+          console.error('Hash generation error:', e);
+        }
+
+        // Audit: document_completed
+        try {
+          await logAuditTrail(pkg.id, {
+            action: 'document_completed',
+            timestamp: new Date().toISOString(),
+            actor: pkg.employees?.name || 'unknown',
+            details: `전체 ${updatedItems.length}건 서명 완료`,
+          });
+        } catch (e) {
+          console.error('Audit log error:', e);
+        }
+
+        // Send completion notification email
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const signerEmail = pkg.employees?.email || '';
+          const companyName = pkg.companies?.name || '';
+          if (supabaseUrl && signerEmail) {
+            await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: signerEmail,
+                employeeName: pkg.employees?.name || '',
+                companyName,
+                packageTitle: pkg.title,
+                documentCount: updatedItems.length,
+                signUrl: window.location.href,
+                type: 'completion',
+                completedAt: new Date().toISOString(),
+              }),
+            });
+          }
+        } catch (e) {
+          console.error('Completion email failed:', e);
+        }
       } else if (someSigned) {
         await db
           .from("hr_contract_packages")
@@ -283,25 +360,136 @@ function SignContent() {
     );
   }
 
+  // ── Helpers for completed view ──
+  async function handleViewAuditTrail() {
+    if (!pkg) return;
+    try {
+      const auditEntries = await getAuditTrail(pkg.id);
+      // Extract hash from notes
+      let packageHash = 'N/A';
+      if (pkg.notes) {
+        try {
+          const meta = JSON.parse(pkg.notes);
+          packageHash = meta.document_hash || 'N/A';
+        } catch { /* ignore */ }
+      }
+      // Re-fetch notes to get latest hash
+      try {
+        const { data: freshPkg } = await db
+          .from("hr_contract_packages")
+          .select("notes")
+          .eq("id", pkg.id)
+          .single();
+        if (freshPkg?.notes) {
+          const meta = JSON.parse(freshPkg.notes);
+          if (meta.document_hash) packageHash = meta.document_hash;
+        }
+      } catch { /* ignore */ }
+
+      const html = generateAuditTrailCertificateHTML({
+        packageTitle: pkg.title,
+        companyName: pkg.companies?.name || '',
+        employeeName: pkg.employees?.name || '',
+        signerEmail: pkg.employees?.email || '',
+        documentNames: pkg.items.map((i) => i.title),
+        auditEntries,
+        documentHash: packageHash,
+      });
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); }
+    } catch (e) {
+      console.error('Audit trail error:', e);
+      alert('감사추적인증서를 불러오는 중 오류가 발생했습니다.');
+    }
+  }
+
+  async function handleVerifyIntegrity() {
+    if (!pkg) return;
+    setVerifying(true);
+    try {
+      const result = await verifyDocumentIntegrity(pkg.id);
+      setVerifyResult({ valid: result.valid, hash: result.storedHash });
+    } catch (e: any) {
+      console.error('Integrity check error:', e);
+      setVerifyResult({ valid: false, hash: e.message || '검증 실패' });
+    } finally {
+      setVerifying(false);
+    }
+  }
+
   // ── Completed ──
   if (completed) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-        <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+        <div className="w-full max-w-md">
+          {/* Success message */}
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">서명 완료</h1>
+            <p className="text-gray-600 text-sm">
+              모든 문서에 서명이 완료되었습니다
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              서명 완료 문서와 감사추적인증서가 이메일로 발송됩니다
+            </p>
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">서명 완료</h1>
-          <p className="text-gray-500 text-sm">
-            모든 계약서에 서명이 완료되었습니다. 감사합니다.
-          </p>
+
+          {/* Package info */}
           <div className="mt-6 p-4 bg-white rounded-xl border border-gray-200">
             <p className="text-sm text-gray-600">{pkg.title}</p>
             <p className="text-xs text-gray-400 mt-1">
               서명자: {pkg.employees?.name} | 문서: {pkg.items.length}건
             </p>
+          </div>
+
+          {/* Audit trail certificate button */}
+          <button
+            onClick={handleViewAuditTrail}
+            className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            감사추적인증서 보기
+          </button>
+
+          {/* Document integrity verification */}
+          <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-700">문서 무결성 검증</p>
+              <button
+                onClick={handleVerifyIntegrity}
+                disabled={verifying}
+                className="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50"
+              >
+                {verifying ? '검증 중...' : '검증하기'}
+              </button>
+            </div>
+            {verifyResult && (
+              <div className="mt-3">
+                {verifyResult.valid ? (
+                  <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <span className="text-green-600 mt-0.5">&#10003;</span>
+                    <div>
+                      <p className="text-sm font-medium text-green-700">문서가 서명 후 변경되지 않았습니다</p>
+                      <p className="text-xs text-green-600/70 mt-1 font-mono break-all">SHA-256: {verifyResult.hash}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <span className="text-red-600 mt-0.5">&#10007;</span>
+                    <div>
+                      <p className="text-sm font-medium text-red-700">문서가 변경된 것으로 감지됩니다</p>
+                      <p className="text-xs text-red-600/70 mt-1 font-mono break-all">{verifyResult.hash}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -338,7 +526,21 @@ function SignContent() {
           {pkg.items.map((item, idx) => (
             <button
               key={item.id}
-              onClick={() => { setActiveItem(idx); setSignMode(null); }}
+              onClick={() => {
+                setActiveItem(idx);
+                setSignMode(null);
+                // Audit: document_viewed
+                try {
+                  logAuditTrail(pkg.id, {
+                    action: 'document_viewed',
+                    timestamp: new Date().toISOString(),
+                    actor: pkg.employees?.name || 'unknown',
+                    details: `문서 확인: ${item.title}`,
+                  });
+                } catch (e) {
+                  console.error('Audit log error:', e);
+                }
+              }}
               className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
                 idx === activeItem
                   ? "bg-blue-600 text-white"
