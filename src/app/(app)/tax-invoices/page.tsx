@@ -12,6 +12,11 @@ import {
   getVATPreview,
   bulkImportTaxInvoices,
   parseHomeTaxExcel,
+  syncHomeTaxInvoices,
+  modifyTaxInvoice,
+  getInvoiceQueue,
+  approveQueueItem,
+  getHomeTaxSyncLogs,
   INVOICE_TYPES,
   INVOICE_STATUS,
 } from "@/lib/tax-invoice";
@@ -79,7 +84,7 @@ const MODIFICATION_REASONS = [
 export default function TaxInvoicesPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary">("sales");
+  const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">("sales");
   const [month, setMonth] = useState(getCurrentMonth());
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [showForm, setShowForm] = useState(false);
@@ -87,6 +92,9 @@ export default function TaxInvoicesPage() {
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [modifyTarget, setModifyTarget] = useState<any>(null);
   const [modifyReason, setModifyReason] = useState("");
+  const [modifyAmount, setModifyAmount] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
@@ -99,7 +107,10 @@ export default function TaxInvoicesPage() {
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) setCompanyId(u.company_id);
+      if (u) {
+        setCompanyId(u.company_id);
+        setUserId(u.id);
+      }
     });
   }, []);
 
@@ -150,6 +161,20 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId && (tab === "vat" || tab === "summary"),
   });
 
+  // Invoice queue (자동발행 대기)
+  const { data: queueItems = [], isLoading: queueLoading } = useQuery({
+    queryKey: ["invoice-queue", companyId],
+    queryFn: () => getInvoiceQueue(companyId!),
+    enabled: !!companyId && tab === "queue",
+  });
+
+  // Sync logs
+  const { data: syncLogs = [] } = useQuery({
+    queryKey: ["hometax-sync-logs", companyId],
+    queryFn: () => getHomeTaxSyncLogs(companyId!),
+    enabled: !!companyId && tab === "sync",
+  });
+
   // Excel import handler
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -184,6 +209,8 @@ export default function TaxInvoicesPage() {
         counterpartyBizno: form.counterpartyBizno || undefined,
         supplyAmount: Number(form.supplyAmount),
         issueDate: form.issueDate,
+        preferredDate: form.preferredDate || undefined,
+        expenseCategory: form.expenseCategory || undefined,
       }),
     onSuccess: () => {
       invalidate();
@@ -458,9 +485,11 @@ export default function TaxInvoicesPage() {
         {[
           { key: "sales" as const, label: "매출", count: salesInvoices.length },
           { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
+          { key: "queue" as const, label: "자동발행" },
           { key: "matching" as const, label: "3-Way 매칭" },
           { key: "summary" as const, label: "기간별 집계" },
           { key: "vat" as const, label: "VAT 미리보기" },
+          { key: "sync" as const, label: "홈택스 동기화" },
         ].map((t) => (
           <button
             key={t.key}
@@ -558,8 +587,14 @@ export default function TaxInvoicesPage() {
                         ) : (
                           <span className="text-[var(--text-dim)]">—</span>
                         )}
-                        {inv.revenue_schedule_id && (
+                        {inv.auto_issued && (
                           <span className="ml-1.5 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">자동</span>
+                        )}
+                        {inv.source === 'hometax_sync' && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 text-[10px]">홈택스</span>
+                        )}
+                        {inv.original_invoice_id && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 text-[10px]">수정</span>
                         )}
                       </td>
                       <td className="px-5 py-3 text-sm text-right">
@@ -671,13 +706,210 @@ export default function TaxInvoicesPage() {
           invoice={modifyTarget}
           reason={modifyReason}
           setReason={setModifyReason}
-          onClose={() => { setShowModifyModal(false); setModifyTarget(null); }}
-          onSubmit={() => {
-            alert(`수정세금계산서 발행 요청이 접수되었습니다.\n사유: ${MODIFICATION_REASONS.find(r => r.value === modifyReason)?.label || modifyReason}`);
-            setShowModifyModal(false);
-            setModifyTarget(null);
+          modifyAmount={modifyAmount}
+          setModifyAmount={setModifyAmount}
+          onClose={() => { setShowModifyModal(false); setModifyTarget(null); setModifyAmount(""); }}
+          onSubmit={async () => {
+            try {
+              await modifyTaxInvoice({
+                invoiceId: modifyTarget.id,
+                reason: modifyReason,
+                newSupplyAmount: modifyAmount ? Number(modifyAmount) : undefined,
+              });
+              invalidate();
+              setShowModifyModal(false);
+              setModifyTarget(null);
+              setModifyAmount("");
+            } catch (err: any) {
+              alert(`오류: ${err.message || '수정세금계산서 발행 실패'}`);
+            }
           }}
         />
+      )}
+
+      {/* Queue Tab (자동발행 대기) */}
+      {tab === "queue" && (
+        <div className="space-y-4">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mb-2">
+            <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+              <strong className="text-[var(--text)]">자동발행 큐</strong>: 딜 매출 스케줄이 확정되면 세금계산서가 자동으로 큐에 등록됩니다.
+              거래처 희망일이 설정된 경우 해당일까지 대기 후 발행됩니다. <span className="text-orange-400">승인 필요</span> 건은 확인 후 승인해주세요.
+            </div>
+          </div>
+
+          {queueLoading ? (
+            <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+          ) : queueItems.length === 0 ? (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+              <div className="text-4xl mb-4">⚡</div>
+              <div className="text-lg font-bold mb-2">대기 중인 자동발행 없음</div>
+              <div className="text-sm text-[var(--text-muted)]">딜의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
+            </div>
+          ) : (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="text-left px-5 py-3 font-medium">액션</th>
+                    <th className="text-left px-5 py-3 font-medium">거래처</th>
+                    <th className="text-right px-5 py-3 font-medium">금액</th>
+                    <th className="text-left px-5 py-3 font-medium">발행일</th>
+                    <th className="text-left px-5 py-3 font-medium">딜</th>
+                    <th className="text-center px-5 py-3 font-medium">상태</th>
+                    <th className="text-left px-5 py-3 font-medium">비고</th>
+                    <th className="text-center px-5 py-3 font-medium">승인</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queueItems.map((q: any) => {
+                    const p = q.payload || {};
+                    return (
+                      <tr key={q.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                        <td className="px-5 py-3 text-xs">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            q.action === 'issue' ? 'bg-blue-500/10 text-blue-400'
+                            : q.action === 'modify' ? 'bg-orange-500/10 text-orange-400'
+                            : 'bg-red-500/10 text-red-400'
+                          }`}>
+                            {q.action === 'issue' ? '발행' : q.action === 'modify' ? '수정' : '취소'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-sm font-medium">{p.counterparty_name || '—'}</td>
+                        <td className="px-5 py-3 text-sm text-right">{fmt(Number(p.total_amount || 0))}</td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">{p.issue_date || '—'}</td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{(q as any).deals?.name || p.deal_name || '—'}</td>
+                        <td className="px-5 py-3 text-center">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            q.status === 'needs_approval' ? 'bg-orange-500/10 text-orange-400'
+                            : q.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400'
+                            : q.status === 'processing' ? 'bg-blue-500/10 text-blue-400'
+                            : 'bg-gray-500/10 text-gray-400'
+                          }`}>
+                            {q.status === 'needs_approval' ? '승인 필요' : q.status === 'pending' ? '대기' : q.status === 'processing' ? '처리중' : q.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">{q.error_message || '—'}</td>
+                        <td className="px-5 py-3 text-center">
+                          {q.status === 'needs_approval' && userId && (
+                            <button
+                              onClick={async () => {
+                                await approveQueueItem(q.id, userId);
+                                queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
+                              }}
+                              className="px-3 py-1 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-xs font-semibold transition"
+                            >
+                              승인
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table></div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sync Tab (홈택스 동기화) */}
+      {tab === "sync" && (
+        <div className="space-y-4">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="text-sm font-bold">홈택스 세금계산서 동기화</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                  설정 &gt; 세무자동화에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (syncing) return;
+                  setSyncing(true);
+                  try {
+                    const startDate = `${month}-01`;
+                    const endDate = `${month}-31`;
+                    const result = await syncHomeTaxInvoices({ startDate, endDate });
+                    alert(`동기화 완료: ${JSON.stringify(result.results?.map((r: any) => `${r.type}: ${r.created}건 생성`) || [])}`);
+                    invalidate();
+                    queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
+                  } catch (err: any) {
+                    alert(`동기화 오류: ${err.message}`);
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                disabled={syncing}
+                className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              >
+                {syncing ? "동기화 중..." : `${month} 동기화 실행`}
+              </button>
+            </div>
+
+            {/* Automation flow diagram */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-4">
+              {[
+                { icon: "🔑", title: "홈택스 로그인", desc: "ID/PW 또는 공동인증서" },
+                { icon: "📥", title: "자동 조회", desc: "매출/매입 계산서 수집" },
+                { icon: "🔄", title: "중복 제거", desc: "승인번호 기준 dedup" },
+                { icon: "✅", title: "3-Way 매칭", desc: "계약↔계산서↔입금" },
+              ].map((step, i) => (
+                <div key={i} className="bg-[var(--bg-surface)] rounded-xl p-3 text-center relative">
+                  <div className="text-xl mb-1">{step.icon}</div>
+                  <div className="text-xs font-bold">{step.title}</div>
+                  <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{step.desc}</div>
+                  {i < 3 && <div className="hidden sm:block absolute right-[-10px] top-1/2 -translate-y-1/2 text-[var(--text-dim)]">→</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sync Logs */}
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="px-5 py-3 border-b border-[var(--border)]">
+              <span className="text-sm font-bold">동기화 이력</span>
+            </div>
+            {syncLogs.length === 0 ? (
+              <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 동기화 이력이 없습니다</div>
+            ) : (
+              <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="text-left px-5 py-2 font-medium">유형</th>
+                    <th className="text-center px-5 py-2 font-medium">상태</th>
+                    <th className="text-right px-5 py-2 font-medium">조회</th>
+                    <th className="text-right px-5 py-2 font-medium">신규</th>
+                    <th className="text-left px-5 py-2 font-medium">일시</th>
+                    <th className="text-left px-5 py-2 font-medium">오류</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncLogs.map((log: any) => (
+                    <tr key={log.id} className="border-b border-[var(--border)]/50 text-xs">
+                      <td className="px-5 py-2 font-medium">
+                        {log.sync_type === 'fetch_sales' ? '매출 조회' : log.sync_type === 'fetch_purchase' ? '매입 조회' : log.sync_type === 'modify' ? '수정발행' : log.sync_type}
+                      </td>
+                      <td className="px-5 py-2 text-center">
+                        <span className={`px-2 py-0.5 rounded-full ${
+                          log.status === 'completed' ? 'bg-green-500/10 text-green-400'
+                          : log.status === 'failed' ? 'bg-red-500/10 text-red-400'
+                          : 'bg-yellow-500/10 text-yellow-400'
+                        }`}>
+                          {log.status === 'completed' ? '완료' : log.status === 'failed' ? '실패' : '진행중'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-2 text-right">{log.invoices_fetched || 0}</td>
+                      <td className="px-5 py-2 text-right font-bold text-green-400">{log.invoices_created || 0}</td>
+                      <td className="px-5 py-2 text-[var(--text-dim)]">{log.completed_at ? new Date(log.completed_at).toLocaleString('ko') : '—'}</td>
+                      <td className="px-5 py-2 text-red-400 truncate max-w-[150px]">{log.error_message || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* 3-Way Matching Tab */}
@@ -1144,9 +1376,10 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
 }
 
 // ── Modification Modal (수정세금계산서) ──
-function ModificationModal({ invoice, reason, setReason, onClose, onSubmit }: {
-  invoice: any; reason: string; setReason: (r: string) => void; onClose: () => void; onSubmit: () => void;
+function ModificationModal({ invoice, reason, setReason, modifyAmount, setModifyAmount, onClose, onSubmit }: {
+  invoice: any; reason: string; setReason: (r: string) => void; modifyAmount: string; setModifyAmount: (v: string) => void; onClose: () => void; onSubmit: () => void;
 }) {
+  const [submitting, setSubmitting] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
@@ -1196,13 +1429,32 @@ function ModificationModal({ invoice, reason, setReason, onClose, onSubmit }: {
             </div>
           </div>
 
+          {/* 금액 변경 입력 (착오정정, 공급가액 변동 시) */}
+          {(reason === "error_correction" || reason === "price_change") && (
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1 font-medium">
+                {reason === "price_change" ? "변경 후 공급가액 *" : "정정 공급가액"}
+              </label>
+              <input
+                type="number"
+                value={modifyAmount}
+                onChange={(e) => setModifyAmount(e.target.value)}
+                placeholder={`현재: ${Number(invoice.supply_amount).toLocaleString()}`}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
             <button
-              onClick={onSubmit}
-              disabled={!reason}
+              onClick={async () => {
+                setSubmitting(true);
+                try { await onSubmit(); } finally { setSubmitting(false); }
+              }}
+              disabled={!reason || submitting || (reason === "price_change" && !modifyAmount)}
               className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
             >
-              수정세금계산서 발행 요청
+              {submitting ? "처리 중..." : "수정세금계산서 발행"}
             </button>
             <button
               onClick={onClose}

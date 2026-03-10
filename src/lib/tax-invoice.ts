@@ -17,6 +17,7 @@ export const INVOICE_STATUS = {
   issued: { label: '발행', bg: 'bg-blue-500/10', text: 'text-blue-400' },
   received: { label: '수취', bg: 'bg-blue-500/10', text: 'text-blue-400' },
   matched: { label: '매칭완료', bg: 'bg-green-500/10', text: 'text-green-400' },
+  modified: { label: '수정발행', bg: 'bg-orange-500/10', text: 'text-orange-400' },
   void: { label: '무효', bg: 'bg-red-500/10', text: 'text-red-400' },
 } as const;
 
@@ -32,6 +33,8 @@ export async function createTaxInvoice(params: {
   label?: string;
   revenueScheduleId?: string | null;
   status?: string;
+  preferredDate?: string;
+  expenseCategory?: string;
 }): Promise<TaxInvoice | null> {
   const taxAmount = Math.round(params.supplyAmount * 0.1);
   const totalAmount = params.supplyAmount + taxAmount;
@@ -54,6 +57,9 @@ export async function createTaxInvoice(params: {
       status,
       label: params.label || null,
       revenue_schedule_id: params.revenueScheduleId || null,
+      preferred_date: params.preferredDate || null,
+      expense_category: params.expenseCategory || null,
+      source: 'manual',
     })
     .select()
     .single();
@@ -356,6 +362,84 @@ export function parseHomeTaxExcel(rows: any[]) {
     totalAmount: Number(r['합계금액'] || r['합계'] || 0),
     issueDate: String(r['발행일'] || r['작성일자'] || ''),
   })).filter(r => r.counterpartyName && r.supplyAmount > 0);
+}
+
+// ── Sync HomeTax invoices ──
+export async function syncHomeTaxInvoices(params: {
+  type?: 'sales' | 'purchase' | 'both';
+  startDate: string;
+  endDate: string;
+}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다');
+
+  const res = await supabase.functions.invoke('sync-hometax-invoices', {
+    body: {
+      type: params.type || 'both',
+      start_date: params.startDate,
+      end_date: params.endDate,
+    },
+  });
+  if (res.error) throw res.error;
+  return res.data;
+}
+
+// ── Modify tax invoice (수정세금계산서) ──
+export async function modifyTaxInvoice(params: {
+  invoiceId: string;
+  reason: string;
+  newSupplyAmount?: number;
+  modificationDate?: string;
+}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다');
+
+  const res = await supabase.functions.invoke('modify-tax-invoice', {
+    body: {
+      invoice_id: params.invoiceId,
+      reason: params.reason,
+      new_supply_amount: params.newSupplyAmount,
+      modification_date: params.modificationDate,
+    },
+  });
+  if (res.error) throw res.error;
+  return res.data;
+}
+
+// ── Get invoice queue (자동발행 대기 큐) ──
+export async function getInvoiceQueue(companyId: string) {
+  const db = supabase as any;
+  const { data, error } = await db
+    .from('tax_invoice_queue')
+    .select('*, deals(name)')
+    .eq('company_id', companyId)
+    .in('status', ['pending', 'needs_approval', 'processing'])
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Approve queue item ──
+export async function approveQueueItem(queueId: string, userId: string) {
+  const db = supabase as any;
+  const { error } = await db
+    .from('tax_invoice_queue')
+    .update({ status: 'pending', approved_by: userId, approved_at: new Date().toISOString() })
+    .eq('id', queueId);
+  if (error) throw error;
+}
+
+// ── Get sync logs ──
+export async function getHomeTaxSyncLogs(companyId: string, limit = 20) {
+  const db = supabase as any;
+  const { data, error } = await db
+    .from('hometax_sync_log')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
 }
 
 // ── Bulk import tax invoices ──
