@@ -2433,7 +2433,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
 }
 
 // ── HR categories to exclude from document creation ──
-const HR_CATEGORIES = ['salary_contract', 'nda', 'non_compete', 'privacy_consent', 'comprehensive_labor'];
+const HR_CATEGORIES = ['salary_contract', 'nda', 'non_compete', 'privacy_consent', 'comprehensive_labor', 'contract_labor'];
 
 // ── Default Template Definitions ──
 const DEFAULT_TEMPLATES = [
