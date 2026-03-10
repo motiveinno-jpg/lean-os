@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import { logAudit } from './audit';
 import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
+import { createNotification } from './notifications';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -308,6 +309,29 @@ export async function createApprovalRequest(params: {
     afterJson: { title: params.title, amount, requestType: params.requestType, totalStages },
   });
 
+  // Notify all approvers of stage 1
+  try {
+    const { data: stage1Steps } = await db
+      .from('approval_steps')
+      .select('approver_id')
+      .eq('request_id', request.id)
+      .eq('stage', 1);
+    const approverIds = [...new Set((stage1Steps || []).map((s: any) => s.approver_id as string))];
+    for (const appId of approverIds) {
+      await createNotification({
+        companyId: params.companyId,
+        userId: appId as string,
+        type: 'approval_request',
+        title: `결재 요청: ${params.title}`,
+        message: amount > 0 ? `금액: ${amount.toLocaleString()}원` : undefined,
+        entityType: 'approval_request',
+        entityId: request.id,
+      });
+    }
+  } catch {
+    // Notification failure should not break the workflow
+  }
+
   return request as ApprovalRequest;
 }
 
@@ -424,6 +448,21 @@ export async function approveStep(
     action: 'approved',
     afterJson: { stage: step.stage, comment, requestId: step.request_id },
   });
+
+  // Notify the original requester
+  try {
+    await createNotification({
+      companyId: request.company_id,
+      userId: request.requester_id,
+      type: 'approval_approved',
+      title: `결재 승인: ${request.title}`,
+      message: comment || `${step.stage}단계 승인되었습니다.`,
+      entityType: 'approval_request',
+      entityId: request.id,
+    });
+  } catch {
+    // Notification failure should not break the workflow
+  }
 }
 
 /**
@@ -488,6 +527,21 @@ export async function rejectStep(
       action: 'rejected',
       afterJson: { stage: step.stage, comment, requestId: step.request_id },
     });
+
+    // Notify the original requester with rejection reason
+    try {
+      await createNotification({
+        companyId: request.company_id,
+        userId: request.requester_id,
+        type: 'approval_rejected',
+        title: `결재 반려: ${request.title}`,
+        message: comment || '반려되었습니다.',
+        entityType: 'approval_request',
+        entityId: request.id,
+      });
+    } catch {
+      // Notification failure should not break the workflow
+    }
   }
 }
 

@@ -81,6 +81,24 @@ export const NOTIFICATION_TYPES: Record<string, { label: string; icon: string; c
     color: 'text-sky-500',
     bg: 'bg-sky-500/10',
   },
+  approval_request: {
+    label: '결재 요청',
+    icon: 'file-search',
+    color: 'text-orange-500',
+    bg: 'bg-orange-500/10',
+  },
+  approval_approved: {
+    label: '결재 승인',
+    icon: 'check-circle',
+    color: 'text-green-600',
+    bg: 'bg-green-500/10',
+  },
+  approval_rejected: {
+    label: '결재 반려',
+    icon: 'x-circle',
+    color: 'text-red-500',
+    bg: 'bg-red-500/10',
+  },
 };
 
 export function getNotificationTypeInfo(type: string) {

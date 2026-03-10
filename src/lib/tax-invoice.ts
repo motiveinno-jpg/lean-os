@@ -6,6 +6,8 @@
 import { supabase } from './supabase';
 import type { TaxInvoice } from '@/types/models';
 
+export const DEFAULT_VAT_RATE = 0.1;
+
 // ── Tax invoice types ──
 export const INVOICE_TYPES = [
   { value: 'sales', label: '매출 (발행)' },
@@ -36,7 +38,7 @@ export async function createTaxInvoice(params: {
   preferredDate?: string;
   expenseCategory?: string;
 }): Promise<TaxInvoice | null> {
-  const taxAmount = Math.round(params.supplyAmount * 0.1);
+  const taxAmount = Math.round(params.supplyAmount * DEFAULT_VAT_RATE);
   const totalAmount = params.supplyAmount + taxAmount;
 
   // 파이프라인에서 자동 생성 시 status: 'draft' 강제
@@ -114,10 +116,12 @@ export interface ThreeWayMatchResult {
   dealId: string | null;
   dealName: string | null;
   invoiceAmount: number;
+  invoiceSupplyAmount: number;
+  invoiceTaxAmount: number;
   contractAmount: number;
   receivedAmount: number;
-  amountMatch: boolean;      // 계약금액 = 세금계산서
-  paymentMatch: boolean;     // 세금계산서 = 입금액
+  amountMatch: boolean;      // 계약금액 = 세금계산서 공급가액
+  paymentMatch: boolean;     // 세금계산서 합계 = 입금액
   fullMatch: boolean;        // 3-way 모두 일치
   gap: number;               // 차이
 }
@@ -166,10 +170,13 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   return invoices.map((inv: any) => {
     const deal = inv.deals;
     const contractAmount = Number(deal?.contract_total || 0);
+    const invoiceSupplyAmount = Number(inv.supply_amount || 0);
+    const invoiceTaxAmount = Number(inv.tax_amount || 0);
     const invoiceAmount = Number(inv.total_amount || 0);
     const receivedAmount = receivedByDeal.get(inv.deal_id) || 0;
 
-    const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceAmount) / contractAmount <= tolerance;
+    // Compare supply-to-supply: contract_total is supply amount, so compare against invoice supply_amount
+    const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceSupplyAmount) / contractAmount <= tolerance;
     const paymentMatch = invoiceAmount > 0 && Math.abs(invoiceAmount - receivedAmount) / invoiceAmount <= tolerance;
     const fullMatch = amountMatch && paymentMatch;
 
@@ -178,6 +185,8 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
       dealId: inv.deal_id,
       dealName: deal?.name || null,
       invoiceAmount,
+      invoiceSupplyAmount,
+      invoiceTaxAmount,
       contractAmount,
       receivedAmount,
       amountMatch,
@@ -458,8 +467,8 @@ export async function bulkImportTaxInvoices(companyId: string, items: {
     counterparty_name: item.counterpartyName,
     counterparty_bizno: item.counterpartyBizno || null,
     supply_amount: item.supplyAmount,
-    tax_amount: item.taxAmount || Math.round(item.supplyAmount * 0.1),
-    total_amount: item.totalAmount || Math.round(item.supplyAmount * 1.1),
+    tax_amount: item.taxAmount || Math.round(item.supplyAmount * DEFAULT_VAT_RATE),
+    total_amount: item.totalAmount || Math.round(item.supplyAmount * (1 + DEFAULT_VAT_RATE)),
     issue_date: item.issueDate,
     status: item.type === 'sales' ? 'issued' : 'received',
   }));

@@ -160,6 +160,8 @@ function getEntityRoute(entityType?: string, entityId?: string): string | null {
       return `/chat?channel=${entityId}`;
     case "payment":
       return `/payments`;
+    case "approval_request":
+      return `/approvals`;
     case "milestone":
       return `/deals`;
     default:
