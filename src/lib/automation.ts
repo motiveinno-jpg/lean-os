@@ -408,7 +408,7 @@ export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId:
   // Get deal info
   const { data: deal } = await db
     .from('deals')
-    .select('*, partners(name, business_number)')
+    .select('*, partners!deals_partner_id_fkey(name, business_number)')
     .eq('id', dealId)
     .single();
 

@@ -322,7 +322,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
     setEmailSending(true); setPipelineError(null);
     try {
       const { data: docData } = await db2.from('documents').select('name, content_json, deal_id').eq('id', documentId).single();
-      const { data: dealData } = await db2.from('deals').select('*, partners(name, contact_email)').eq('id', dealId).single();
+      const { data: dealData } = await db2.from('deals').select('*, partners!deals_partner_id_fkey(name, contact_email)').eq('id', dealId).single();
       const partnerEmail = dealData?.partners?.contact_email;
       if (!partnerEmail) { setPipelineError('거래처 이메일이 등록되지 않았습니다. 거래처 정보에서 이메일을 등록해주세요.'); setEmailSending(false); return; }
       const { data: comp } = await db2.from('companies').select('name').eq('id', companyId).single();

@@ -43,13 +43,14 @@ export async function createDocumentFromDeal(params: {
   const { companyId, dealId, docType, createdBy, items: passedItems, paymentRatio } = params;
 
   // Fetch deal + partner info
-  const { data: deal } = await db
+  const { data: deal, error: dealError } = await db
     .from('deals')
-    .select('*, partners(name, business_number, contact_email, contact_phone)')
+    .select('*, partners!deals_partner_id_fkey(name, business_number, contact_email, contact_phone)')
     .eq('id', dealId)
+    .eq('company_id', companyId)
     .single();
 
-  if (!deal) throw new Error('딜을 찾을 수 없습니다');
+  if (dealError || !deal) throw new Error(`딜을 찾을 수 없습니다 (id: ${dealId}, error: ${dealError?.message || 'no data'})`);
 
   const partnerName = deal.partners?.name || deal.counterparty || '';
   const partnerBizNo = deal.partners?.business_number || '';
