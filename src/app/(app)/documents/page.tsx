@@ -598,11 +598,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <table className="w-full min-w-[700px] text-xs">
                   <thead>
                     <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-left px-3 py-2 font-medium">품목명</th>
+                      <th className="text-left px-3 py-2 font-medium">품명</th>
                       <th className="text-right px-3 py-2 font-medium w-20">수량</th>
                       <th className="text-right px-3 py-2 font-medium w-28">단가</th>
                       <th className="text-right px-3 py-2 font-medium w-28">공급가액</th>
-                      <th className="text-right px-3 py-2 font-medium w-24">VAT</th>
+                      <th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th>
                       <th className="text-right px-3 py-2 font-medium w-28">합계</th>
                       <th className="text-left px-3 py-2 font-medium w-24">비고</th>
                       {canEdit && <th className="w-10" />}
@@ -1270,7 +1270,7 @@ function DocumentsPageInner() {
               }}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">빈 문서 (양식 없이)</option>
-                {templates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {templates.filter((t: any) => !HR_CATEGORIES.includes(t.type)).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div>
@@ -2432,82 +2432,92 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
   );
 }
 
+// ── HR categories to exclude from document creation ──
+const HR_CATEGORIES = ['salary_contract', 'nda', 'non_compete', 'privacy_consent', 'comprehensive_labor'];
+
 // ── Default Template Definitions ──
 const DEFAULT_TEMPLATES = [
   {
-    name: "표준 근로계약서",
+    name: "마케팅대행 계약서",
     type: "contract",
-    variables: ["회사명", "대표자명", "직원명", "주민등록번호", "직위", "부서", "연봉", "입사일", "계약기간", "근무장소", "근무시간"],
+    variables: ["회사명", "대표자명", "거래처명", "거래처대표", "계약금액", "계약기간", "계약시작일", "계약종료일", "업무범위"],
     content_json: {
-      title: "표준 근로계약서",
+      title: "마케팅대행 계약서",
       sections: [
-        { title: "제1조 (계약 당사자)", content: "사용자: {{회사명}} (대표: {{대표자명}})\n근로자: {{직원명}} (주민등록번호: {{주민등록번호}})" },
-        { title: "제2조 (근로계약기간)", content: "{{입사일}} 부터 {{계약기간}}\n수습기간: 입사일로부터 3개월" },
-        { title: "제3조 (근무장소 및 업무)", content: "근무장소: {{근무장소}}\n담당업무: {{부서}} {{직위}} 업무\n업무내용은 회사의 사정에 따라 변경될 수 있다." },
-        { title: "제4조 (근로시간)", content: "근무시간: {{근무시간}}\n휴게시간: 12:00~13:00 (1시간)\n주 5일 근무 (토, 일 휴무)" },
-        { title: "제5조 (임금)", content: "연봉: {{연봉}}원 (세전)\n매월 급여일: 매월 25일\n4대보험 및 소득세는 법정 기준에 따라 공제한다." },
-        { title: "제6조 (연차유급휴가)", content: "근로기준법에 따라 연차유급휴가를 부여한다.\n1년 미만 근로자: 1개월 개근 시 1일\n1년 이상 근로자: 15일 (2년마다 1일 가산, 최대 25일)" },
-        { title: "제7조 (계약의 해지)", content: "근로자가 퇴직하고자 할 때는 최소 30일 전에 서면으로 통보하여야 한다.\n근로기준법에 정한 정당한 사유 없이 해고하지 않는다." },
+        { title: "제1조 (계약 당사자)", content: "갑 (위탁자): {{회사명}} (대표: {{대표자명}})\n을 (수탁자): {{거래처명}} (대표: {{거래처대표}})" },
+        { title: "제2조 (계약 목적)", content: "갑은 을에게 마케팅 업무를 위탁하고, 을은 이를 성실히 수행한다." },
+        { title: "제3조 (업무 범위)", content: "을이 수행할 마케팅 업무의 범위는 다음과 같다.\n{{업무범위}}\n\n구체적인 업무 내용 및 산출물은 별첨 SOW(작업범위서)에 따른다." },
+        { title: "제4조 (계약 기간)", content: "계약기간: {{계약시작일}} ~ {{계약종료일}} ({{계약기간}})\n갑 또는 을이 계약 만료 30일 전까지 서면으로 해지 통보하지 않는 경우, 동일 조건으로 1년 자동 연장된다." },
+        { title: "제5조 (대행 수수료)", content: "총 계약금액: {{계약금액}}원 (부가가치세 별도)\n지급 조건:\n- 계약금: 계약 체결 시 총액의 30%\n- 중도금: 중간 보고 후 총액의 40%\n- 잔금: 최종 납품 후 총액의 30%\n\n을은 세금계산서를 발행하고, 갑은 세금계산서 수령 후 7영업일 이내에 지급한다." },
+        { title: "제6조 (산출물 및 보고)", content: "을은 월간 마케팅 실적 보고서를 갑에게 제출한다.\n모든 산출물의 저작권은 대금 완납 시 갑에게 귀속된다." },
+        { title: "제7조 (비밀유지)", content: "갑과 을은 본 계약의 이행과정에서 알게 된 상대방의 경영상, 기술상 비밀을 제3자에게 누설하지 않는다.\n본 조항은 계약 종료 후 2년간 유효하다." },
+        { title: "제8조 (계약 해지)", content: "일방이 본 계약을 위반한 경우, 상대방은 30일의 최고 기간을 두고 시정을 요구할 수 있으며, 시정되지 않을 경우 계약을 해지할 수 있다." },
       ],
     },
   },
   {
-    name: "비밀유지서약서 (NDA)",
-    type: "agreement",
-    variables: ["회사명", "직원명", "부서", "직위", "서약일"],
-    content_json: {
-      title: "비밀유지서약서",
-      sections: [
-        { title: "전문", content: "본인 {{직원명}}은(는) {{회사명}}(이하 '회사')에 재직하면서 알게 된 일체의 비밀정보에 대하여 다음과 같이 서약합니다." },
-        { title: "제1조 (비밀정보의 정의)", content: "비밀정보란 회사의 기술, 영업, 경영, 재무, 인사 등에 관한 정보로서 외부에 공개되지 않은 일체의 정보를 말한다.\n- 고객 목록, 거래 조건, 가격 정보\n- 기술 자료, 소스코드, 설계도면\n- 사업 계획, 마케팅 전략\n- 인사정보, 급여정보" },
-        { title: "제2조 (비밀유지 의무)", content: "1. 비밀정보를 제3자에게 누설하거나 공개하지 않는다.\n2. 업무 목적 외에 사용하지 않는다.\n3. 회사의 사전 승인 없이 복사, 복제하지 않는다.\n4. 퇴사 시 관련 자료를 모두 반환한다." },
-        { title: "제3조 (의무 존속기간)", content: "비밀유지 의무는 재직 중은 물론 퇴사 후 2년간 유효하다." },
-        { title: "제4조 (위반 시 책임)", content: "본 서약을 위반하여 회사에 손해를 끼친 경우, 민·형사상 책임을 부담한다." },
-      ],
-    },
-  },
-  {
-    name: "연봉계약서",
+    name: "디자인용역 계약서",
     type: "contract",
-    variables: ["회사명", "대표자명", "직원명", "직위", "부서", "연봉", "적용시작일", "적용종료일"],
+    variables: ["회사명", "대표자명", "거래처명", "거래처대표", "계약금액", "계약기간", "납품일", "프로젝트명"],
     content_json: {
-      title: "연봉계약서",
+      title: "디자인용역 계약서",
       sections: [
-        { title: "제1조 (계약 당사자)", content: "사용자: {{회사명}} (대표: {{대표자명}})\n근로자: {{직원명}} ({{부서}} / {{직위}})" },
-        { title: "제2조 (연봉)", content: "연봉 총액: {{연봉}}원 (세전)\n월 급여: 연봉의 1/12 (매월 25일 지급)\n상여금, 성과급은 별도 규정에 따른다." },
-        { title: "제3조 (적용기간)", content: "{{적용시작일}} ~ {{적용종료일}} (1년)\n기간 만료 시 재협의하여 갱신한다." },
-        { title: "제4조 (공제)", content: "4대보험료, 소득세, 주민세 등 법정 공제항목은 급여에서 원천징수한다." },
-        { title: "제5조 (기타)", content: "본 계약서에 명시되지 않은 사항은 근로기준법 및 회사 취업규칙에 따른다." },
+        { title: "제1조 (계약 당사자)", content: "갑 (발주자): {{회사명}} (대표: {{대표자명}})\n을 (수급자): {{거래처명}} (대표: {{거래처대표}})" },
+        { title: "제2조 (프로젝트 개요)", content: "프로젝트명: {{프로젝트명}}\n갑은 을에게 상기 프로젝트의 디자인 용역을 의뢰하고, 을은 이를 수행한다." },
+        { title: "제3조 (용역 범위 및 산출물)", content: "을이 갑에게 제공할 산출물은 다음과 같다.\n- 디자인 시안 (초안 포함 최대 3회 수정)\n- 최종 디자인 원본 파일\n- 스타일 가이드 문서\n\n상세 범위는 별첨 기획서에 따른다." },
+        { title: "제4조 (용역 기간)", content: "용역 기간: {{계약기간}}\n최종 납품일: {{납품일}}\n갑의 사유로 일정이 지연될 경우, 을의 납품일은 동일 기간만큼 연장된다." },
+        { title: "제5조 (용역 대금)", content: "총 용역 대금: {{계약금액}}원 (부가가치세 별도)\n- 착수금: 계약 체결 시 40%\n- 중도금: 디자인 시안 승인 시 30%\n- 잔금: 최종 납품 완료 후 30%\n\n을은 각 단계별 세금계산서를 발행한다." },
+        { title: "제6조 (지식재산권)", content: "용역 대금 완납 시 산출물에 대한 저작재산권은 갑에게 양도된다.\n을은 포트폴리오 목적으로 산출물을 사용할 수 있다." },
+        { title: "제7조 (하자 보수)", content: "을은 납품일로부터 3개월간 하자 보수 의무를 진다.\n하자 보수 범위는 계약 범위 내의 오류 수정에 한한다." },
       ],
     },
   },
   {
-    name: "퇴직합의서",
-    type: "agreement",
-    variables: ["회사명", "대표자명", "직원명", "부서", "직위", "입사일", "퇴직일", "퇴직금"],
+    name: "기본 용역계약서",
+    type: "contract",
+    variables: ["회사명", "대표자명", "거래처명", "거래처대표", "계약금액", "계약시작일", "계약종료일", "용역내용"],
     content_json: {
-      title: "퇴직합의서",
+      title: "용역계약서",
       sections: [
-        { title: "제1조 (합의 당사자)", content: "갑: {{회사명}} (대표: {{대표자명}})\n을: {{직원명}} ({{부서}} / {{직위}})" },
-        { title: "제2조 (퇴직일)", content: "을의 퇴직일은 {{퇴직일}}로 한다.\n(입사일: {{입사일}})" },
-        { title: "제3조 (퇴직금)", content: "갑은 을에게 퇴직금 {{퇴직금}}원을 퇴직일로부터 14일 이내에 지급한다.\n퇴직금은 근로자퇴직급여보장법에 따라 산정한다." },
-        { title: "제4조 (업무 인수인계)", content: "을은 퇴직일까지 담당 업무를 성실히 인수인계한다.\n회사 소유 물품(노트북, 사원증 등)은 퇴직일에 반납한다." },
-        { title: "제5조 (비밀유지)", content: "을은 퇴직 후에도 재직 중 취득한 회사의 비밀정보를 누설하지 않는다." },
-        { title: "제6조 (분쟁 해결)", content: "본 합의서와 관련된 분쟁은 상호 협의하여 해결하며, 합의가 이루어지지 않을 경우 관할법원에 따른다." },
+        { title: "제1조 (계약 당사자)", content: "갑 (위탁자): {{회사명}} (대표: {{대표자명}})\n을 (수탁자): {{거래처명}} (대표: {{거래처대표}})" },
+        { title: "제2조 (용역 내용)", content: "갑은 을에게 다음 용역을 위탁하고, 을은 이를 성실히 이행한다.\n\n{{용역내용}}" },
+        { title: "제3조 (계약 기간)", content: "계약 시작일: {{계약시작일}}\n계약 종료일: {{계약종료일}}\n기간 연장은 쌍방 합의에 의한다." },
+        { title: "제4조 (용역 대금)", content: "총 용역 대금: {{계약금액}}원 (부가가치세 별도)\n지급 방법: 을이 세금계산서 발행 후 갑은 수령일로부터 14일 이내 지급한다." },
+        { title: "제5조 (비밀유지)", content: "갑과 을은 계약 이행 과정에서 취득한 상대방의 비밀정보를 제3자에게 누설하지 아니한다.\n비밀유지 의무는 계약 종료 후 2년간 존속한다." },
+        { title: "제6조 (손해배상)", content: "일방의 귀책사유로 상대방에게 손해가 발생한 경우 이를 배상한다." },
+        { title: "제7조 (분쟁 해결)", content: "본 계약에 관한 분쟁은 갑의 주소지 관할법원을 전속관할로 한다." },
       ],
     },
   },
   {
-    name: "겸업금지서약서",
-    type: "agreement",
-    variables: ["회사명", "직원명", "부서", "직위", "서약일"],
+    name: "견적서",
+    type: "quote",
+    variables: ["회사명", "대표자명", "거래처명", "견적일자", "유효기간", "납품조건", "결제조건"],
     content_json: {
-      title: "겸업금지서약서",
+      title: "견적서",
       sections: [
-        { title: "전문", content: "본인 {{직원명}}은(는) {{회사명}}(이하 '회사')에 재직하는 동안 아래의 겸업금지 의무를 준수할 것을 서약합니다." },
-        { title: "제1조 (겸업금지)", content: "1. 회사의 사전 서면 승인 없이 다른 회사에 취업하거나 사업을 영위하지 않는다.\n2. 회사의 이익에 반하는 활동을 하지 않는다.\n3. 회사 업무시간 외에도 회사의 업무에 지장을 초래하는 활동을 하지 않는다." },
-        { title: "제2조 (경업금지)", content: "퇴사 후 1년간 동종업계에서 경쟁업체에 취업하거나 동종 사업을 영위하지 않는다.\n단, 회사가 별도 보상을 제공하는 경우에 한한다." },
-        { title: "제3조 (위반 시 조치)", content: "본 서약 위반 시 징계 처분 및 손해배상 책임을 질 수 있다." },
+        { title: "견적 정보", content: "공급자: {{회사명}} (대표: {{대표자명}})\n수신: {{거래처명}}\n견적일자: {{견적일자}}\n유효기간: {{유효기간}}" },
+        { title: "견적 품목", content: "[품목 테이블]\n\n※ 품목은 문서 생성 후 품목 편집 테이블에서 추가해 주세요.\n각 품목의 공급가액, 세액(10%), 합계가 자동 계산됩니다." },
+        { title: "거래 조건", content: "납품 조건: {{납품조건}}\n결제 조건: {{결제조건}}\n\n※ 상기 금액은 부가가치세 별도 금액이며, 세금계산서를 발행합니다." },
+        { title: "비고", content: "1. 본 견적서의 유효기간은 견적일로부터 {{유효기간}}입니다.\n2. 수량 및 사양 변경 시 단가가 변동될 수 있습니다.\n3. 기타 문의사항은 담당자에게 연락 바랍니다." },
+      ],
+    },
+  },
+  {
+    name: "업무제휴 계약서 (MOU)",
+    type: "agreement",
+    variables: ["회사명", "대표자명", "거래처명", "거래처대표", "제휴목적", "제휴기간", "계약시작일", "계약종료일"],
+    content_json: {
+      title: "업무제휴 계약서 (MOU)",
+      sections: [
+        { title: "제1조 (계약 당사자)", content: "갑: {{회사명}} (대표: {{대표자명}})\n을: {{거래처명}} (대표: {{거래처대표}})" },
+        { title: "제2조 (제휴 목적)", content: "갑과 을은 상호 발전과 시너지 창출을 위하여 다음의 분야에서 업무 제휴를 추진한다.\n\n{{제휴목적}}" },
+        { title: "제3조 (제휴 기간)", content: "제휴 기간: {{계약시작일}} ~ {{계약종료일}} ({{제휴기간}})\n쌍방 합의에 의해 연장할 수 있다." },
+        { title: "제4조 (상호 협력 사항)", content: "1. 갑과 을은 제휴 목적 달성을 위해 필요한 정보를 상호 제공한다.\n2. 공동 마케팅 및 판촉 활동에 협력한다.\n3. 각 사의 고객에게 상대방의 서비스를 상호 추천할 수 있다.\n4. 필요 시 공동 프로젝트를 추진할 수 있다." },
+        { title: "제5조 (비밀유지)", content: "갑과 을은 본 계약 체결 사실 및 이행 과정에서 알게 된 상대방의 경영상, 기술상 정보를 제3자에게 누설하지 아니한다." },
+        { title: "제6조 (비용 부담)", content: "제휴 활동에 소요되는 비용은 각 사가 부담함을 원칙으로 하며, 공동 사업의 비용 분담은 별도 합의한다." },
+        { title: "제7조 (계약 해지)", content: "일방이 본 계약의 내용을 위반하거나 제휴 목적 달성이 곤란하다고 판단될 경우, 상대방에게 30일 전 서면 통보 후 계약을 해지할 수 있다." },
+        { title: "제8조 (효력)", content: "본 계약은 양 당사자의 서명 날인 시 효력이 발생하며, 본 MOU에 명시되지 않은 세부 사항은 별도 계약으로 정한다." },
       ],
     },
   },
@@ -2675,7 +2685,7 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">양식명 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="표준 근로계약서"
+                placeholder="마케팅대행 계약서"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500" />
             </div>
             <div>
@@ -2772,7 +2782,7 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
             >
               {seeding ? "등록 중..." : "기본 양식 5종 등록하기"}
             </button>
-            <p className="text-[10px] text-[var(--text-dim)] mt-2">근로계약서 · 비밀유지서약서 · 연봉계약서 · 퇴직합의서 · 겸업금지서약서</p>
+            <p className="text-[10px] text-[var(--text-dim)] mt-2">마케팅대행 · 디자인용역 · 기본용역 · 견적서 · 업무제휴(MOU)</p>
           </div>
         ) : (
           <div className="divide-y divide-[var(--border)]/50">

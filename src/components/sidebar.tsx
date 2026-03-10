@@ -40,7 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/documents", label: "문서/계약", icon: "folder" },
       { href: "/approvals", label: "결재", icon: "clipboard-check", roles: ["owner", "admin", "employee"] },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/employees", label: "인사/급여", icon: "user-check", roles: ["owner", "admin", "employee"] },
+      { href: "/employees", label: "인사/급여/계약", icon: "user-check", roles: ["owner", "admin", "employee"] },
     ],
   },
   {

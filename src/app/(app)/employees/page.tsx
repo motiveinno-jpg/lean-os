@@ -21,6 +21,7 @@ import {
   getContractPackages, createContractPackage, sendContractPackage,
   getContractTemplates, cancelContractPackage, PACKAGE_STATUS,
 } from "@/lib/hr-contracts";
+import { applyCompanySeal } from "@/lib/signatures";
 import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
@@ -192,6 +193,37 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
+  const [showFlexSync, setShowFlexSync] = useState(false);
+
+  const currentYear = new Date().getFullYear();
+
+  // 잔여연차 조회
+  const { data: leaveBalancesForList = [] } = useQuery({
+    queryKey: ["leave-balances-list", companyId, currentYear],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("leave_balances")
+        .select("employee_id, total_days, used_days, remaining_days")
+        .eq("year", currentYear);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const leaveBalanceMap: Record<string, number> = {};
+  leaveBalancesForList.forEach((b: any) => {
+    leaveBalanceMap[b.employee_id] = b.remaining_days ?? (b.total_days - b.used_days);
+  });
+
+  // Flex 직원 데이터
+  const FLEX_EMPLOYEES = [
+    { name: "김혜진", position: "디자이너/과장", department: "컨텐츠팀", employeeNumber: "005", hireDate: "2022-04-01" },
+    { name: "성소희", position: "재무/회계", department: "경영지원팀", employeeNumber: "023", hireDate: "2023-10-05" },
+    { name: "연준호", position: "전략운영/본부장", department: "전략운영팀", employeeNumber: "034", hireDate: "2025-02-19" },
+    { name: "이가연", position: "마케팅팀/사원", department: "마케팅팀", employeeNumber: "042", hireDate: "2025-09-08" },
+    { name: "이경원", position: "마케팅팀/팀장", department: "마케팅팀", employeeNumber: "035", hireDate: "2025-02-19" },
+    { name: "채희웅", position: "CEO/대표", department: "대표", employeeNumber: "001", hireDate: "2021-10-05" },
+  ];
 
   // 초대 목록
   const { data: invitations = [] } = useQuery({
@@ -301,12 +333,55 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         <div className="text-xs text-[var(--text-dim)]">
           {pendingInvites.length > 0 && <span className="text-amber-500 font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowFlexSync(!showFlexSync)} className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Flex 직원 동기화
+          </button>
+          <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
+        </div>
       </div>
 
       {inviteMsg && (
         <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {inviteMsg.msg}
+        </div>
+      )}
+
+      {/* Flex 직원 동기화 패널 */}
+      {showFlexSync && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-purple-500/20 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <span className="w-5 h-5 rounded bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">F</span>
+                Flex 직원 동기화
+              </h4>
+              <p className="text-xs text-[var(--text-dim)] mt-0.5">Flex에서 가져온 구성원 데이터를 미리봅니다</p>
+            </div>
+            <button onClick={() => setShowFlexSync(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
+          </div>
+          <div className="space-y-2 mb-4">
+            {FLEX_EMPLOYEES.map((fe) => (
+              <div key={fe.employeeNumber} className="flex items-center justify-between px-4 py-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-600/10 flex items-center justify-center text-purple-400 font-bold text-sm">{fe.name.charAt(0)}</div>
+                  <div>
+                    <div className="text-sm font-medium">{fe.name}</div>
+                    <div className="text-[10px] text-[var(--text-dim)]">{fe.department} · {fe.position} · 사번{fe.employeeNumber}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">입사 {fe.hireDate}</div>
+              </div>
+            ))}
+          </div>
+          <button
+            disabled
+            className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed"
+          >
+            동기화 실행 (준비 중)
+          </button>
+          <p className="text-[10px] text-[var(--text-dim)] mt-2">Flex API 연동이 완료되면 자동으로 직원 데이터를 동기화합니다.</p>
         </div>
       )}
 
@@ -378,6 +453,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
               <th className="text-left px-5 py-3 font-medium">직위</th>
               <th className="text-right px-5 py-3 font-medium">연봉</th>
               <th className="text-left px-5 py-3 font-medium">입사일</th>
+              <th className="text-center px-5 py-3 font-medium">잔여연차</th>
               <th className="text-right px-5 py-3 font-medium">퇴직충당금</th>
               <th className="text-center px-5 py-3 font-medium">상태</th>
             </tr></thead>
@@ -398,6 +474,19 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
                     <td className="px-5 py-3 text-sm text-right">{Number(e.salary) > 0 ? `₩${(Number(e.salary) * 12).toLocaleString()}` : "—"}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.hire_date || "—"}</td>
+                    <td className="px-5 py-3 text-center">
+                      {leaveBalanceMap[e.id] !== undefined ? (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          leaveBalanceMap[e.id] <= 0 ? "bg-red-500/10 text-red-400"
+                            : leaveBalanceMap[e.id] <= 3 ? "bg-yellow-500/10 text-yellow-400"
+                            : "bg-green-500/10 text-green-400"
+                        }`}>
+                          {leaveBalanceMap[e.id]}일
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-[var(--text-dim)]">미설정</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
@@ -1173,6 +1262,15 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
   );
 }
 
+// ── HR 기본 서식 정의 ──
+const HR_TEMPLATES = [
+  { key: "comprehensive_labor", label: "포괄근로계약서", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+  { key: "salary_contract", label: "연봉계약서", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { key: "nda", label: "비밀유지서약서", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
+  { key: "non_compete", label: "겸업금지서약서", icon: "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" },
+  { key: "personal_info_consent", label: "개인정보이용동의서", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
+];
+
 // ── Contract Tab (전자계약 — 플렉스 스타일) ──
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [showCreate, setShowCreate] = useState(false);
@@ -1181,6 +1279,14 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchSending, setBatchSending] = useState(false);
+  const [selectedHrTemplate, setSelectedHrTemplate] = useState<string | null>(null);
+  const [sealApplying, setSealApplying] = useState<string | null>(null);
+  const [templatePreview, setTemplatePreview] = useState<{
+    salary: string;
+    workHours: string;
+    duty: string;
+    includeMealAllowance: boolean;
+  }>({ salary: "", workHours: "09:00~18:00", duty: "", includeMealAllowance: false });
 
   // 계약 내역
   const { data: contractList = [] } = useQuery({
@@ -1263,6 +1369,24 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
   const allEmployees = employees.filter((e: any) => ["active", "joined", "contract_pending"].includes(e.status));
 
+  // 선택된 직원 데이터로 템플릿 미리보기 자동 채움
+  const selectedEmployee = employees.find((e: any) => e.id === reqForm.employeeId);
+
+  // 직인 적용 핸들러
+  async function handleApplySeal(contractId: string) {
+    if (!companyId) return;
+    setSealApplying(contractId);
+    try {
+      await applyCompanySeal({ documentId: contractId, companyId, appliedBy: "system" });
+      queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
+      alert("직인이 적용되었습니다.");
+    } catch (err: any) {
+      alert("직인 적용 실패: " + (err.message || "알 수 없는 오류"));
+    } finally {
+      setSealApplying(null);
+    }
+  }
+
   function toggleTemplate(id: string) {
     setReqForm(prev => ({
       ...prev,
@@ -1302,6 +1426,136 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           계약 요청
         </button>
       </div>
+
+      {/* 기본 HR 서식 */}
+      <div className="mb-6">
+        <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          기본 HR 서식
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          {HR_TEMPLATES.map((ht) => (
+            <button
+              key={ht.key}
+              onClick={() => {
+                setSelectedHrTemplate(selectedHrTemplate === ht.key ? null : ht.key);
+                if (selectedHrTemplate !== ht.key) setShowCreate(true);
+              }}
+              className={`text-left px-4 py-3 rounded-xl border transition group ${
+                selectedHrTemplate === ht.key
+                  ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                  : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/40"
+              }`}
+            >
+              <svg className={`w-5 h-5 mb-1.5 ${selectedHrTemplate === ht.key ? "text-[var(--primary)]" : "text-[var(--text-dim)] group-hover:text-[var(--primary)]"}`} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={ht.icon} />
+              </svg>
+              <div className={`text-xs font-medium ${selectedHrTemplate === ht.key ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{ht.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 인라인 서식 미리보기/편집 */}
+      {selectedHrTemplate && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-bold text-[var(--primary)]">
+              {HR_TEMPLATES.find(t => t.key === selectedHrTemplate)?.label} 미리보기
+            </h4>
+            <button onClick={() => setSelectedHrTemplate(null)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
+          </div>
+
+          {/* 직원 자동 채움 필드 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직원명</label>
+              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
+                {selectedEmployee?.name || "(직원 선택 필요)"}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직급</label>
+              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
+                {selectedEmployee?.job_grade || selectedEmployee?.position || "—"}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직책</label>
+              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
+                {selectedEmployee?.position || "—"}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">부서</label>
+              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
+                {selectedEmployee?.department || "—"}
+              </div>
+            </div>
+          </div>
+
+          {/* 편집 가능 필드 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">연봉</label>
+              <input
+                type="text"
+                value={templatePreview.salary || (selectedEmployee ? String(Number(selectedEmployee.salary || 0) * 12) : "")}
+                onChange={(e) => setTemplatePreview({ ...templatePreview, salary: e.target.value })}
+                placeholder="36000000"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">근무시간</label>
+              <input
+                type="text"
+                value={templatePreview.workHours}
+                onChange={(e) => setTemplatePreview({ ...templatePreview, workHours: e.target.value })}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직무</label>
+              <input
+                type="text"
+                value={templatePreview.duty}
+                onChange={(e) => setTemplatePreview({ ...templatePreview, duty: e.target.value })}
+                placeholder="소프트웨어 개발"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={templatePreview.includeMealAllowance}
+                  onChange={(e) => setTemplatePreview({ ...templatePreview, includeMealAllowance: e.target.checked })}
+                  className="rounded border-[var(--border)]"
+                />
+                <span className="text-xs text-[var(--text)]">식대포함</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 text-xs text-[var(--text-muted)] leading-relaxed">
+            <p className="font-semibold text-[var(--text)] mb-2">{HR_TEMPLATES.find(t => t.key === selectedHrTemplate)?.label}</p>
+            <p>상기 {selectedHrTemplate === "nda" ? "비밀유지서약" : selectedHrTemplate === "non_compete" ? "겸업금지서약" : selectedHrTemplate === "personal_info_consent" ? "개인정보 이용 동의" : "근로계약"}에 관하여, 아래와 같이 체결합니다.</p>
+            <div className="mt-2 space-y-1">
+              <p>성명: {selectedEmployee?.name || "________"}</p>
+              <p>부서: {selectedEmployee?.department || "________"} / 직책: {selectedEmployee?.position || "________"}</p>
+              {(selectedHrTemplate === "comprehensive_labor" || selectedHrTemplate === "salary_contract") && (
+                <>
+                  <p>연봉: {templatePreview.salary ? `₩${Number(templatePreview.salary).toLocaleString()}` : "________"}{templatePreview.includeMealAllowance ? " (식대 포함)" : ""}</p>
+                  <p>근무시간: {templatePreview.workHours || "________"}</p>
+                  <p>직무: {templatePreview.duty || "________"}</p>
+                </>
+              )}
+            </div>
+            <p className="mt-3 text-[10px] text-[var(--text-dim)]">* 위 내용은 미리보기이며, 최종 계약서는 서식에 따라 생성됩니다.</p>
+          </div>
+        </div>
+      )}
 
       {/* 계약 요청 폼 */}
       {showCreate && (
@@ -1513,6 +1767,15 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                     {p.status === "completed" && (
                       <span className="px-3 py-2 text-xs text-green-400">서명 완료</span>
                     )}
+                    {/* 직인 적용 버튼 — 모든 상태에서 사용 가능 */}
+                    <button
+                      onClick={() => handleApplySeal(p.id)}
+                      disabled={sealApplying === p.id}
+                      className="px-3 py-2 text-xs font-medium text-orange-500 rounded-lg hover:bg-orange-500/10 transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                      {sealApplying === p.id ? "적용 중..." : "직인 적용"}
+                    </button>
                   </div>
                 </div>
               </div>
