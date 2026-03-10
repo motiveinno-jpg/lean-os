@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflect Logo Concepts</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: #F8FAFC;
+    color: #0F172A;
+    min-height: 100vh;
+    padding: 60px 24px;
+  }
+
+  .page-title {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  .page-title h1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 12px;
+  }
+  .page-title p {
+    font-size: 13px;
+    color: #CBD5E1;
+  }
+
+  .concept-section {
+    max-width: 1100px;
+    margin: 0 auto 80px;
+  }
+  .concept-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  /* ── Logo Display Grid ── */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+  .logo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    border-radius: 20px;
+    transition: transform 0.2s;
+  }
+  .logo-card:hover { transform: scale(1.02); }
+  .logo-card.dark { background: #0F172A; }
+  .logo-card.light { background: #FFFFFF; border: 1px solid #E2E8F0; }
+  .logo-card.blue { background: #2563EB; }
+  .logo-card.gray { background: #F1F5F9; border: 1px solid #E2E8F0; }
+
+  .logo-card .label {
+    margin-top: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #94A3B8;
+    letter-spacing: 1px;
+  }
+  .logo-card.dark .label,
+  .logo-card.blue .label { color: rgba(255,255,255,0.4); }
+
+  /* ── Wordmark Row ── */
+  .wordmark-row {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    flex-wrap: wrap;
+    padding: 40px;
+    background: #FFFFFF;
+    border-radius: 20px;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 32px;
+  }
+  .wordmark-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .wordmark-item .text {
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  .wordmark-item .text.dark { color: #0F172A; }
+  .wordmark-item .sub {
+    font-size: 12px;
+    color: #94A3B8;
+    font-weight: 500;
+  }
+
+  /* ── Usage Examples ── */
+  .usage-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .usage-card {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .usage-card .nav-mock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+  }
+  .usage-card .nav-mock.dark-nav { background: #0F172A; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .usage-card .nav-mock.light-nav { background: #FFFFFF; border: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; }
+  .usage-card .nav-text { font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+  .usage-card .nav-text.white { color: #FFFFFF; }
+  .usage-card .nav-text.dark { color: #0F172A; }
+  .usage-card .body-mock {
+    padding: 24px 20px;
+    min-height: 80px;
+  }
+  .usage-card .body-mock.dark-body { background: #1E293B; }
+  .usage-card .body-mock.light-body { background: #F8FAFC; border: 1px solid #E2E8F0; border-top: none; }
+  .usage-card .body-mock .placeholder {
+    height: 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .usage-card .body-mock.dark-body .placeholder { background: rgba(255,255,255,0.06); }
+  .usage-card .body-mock.light-body .placeholder { background: #E2E8F0; }
+
+  .divider {
+    height: 1px;
+    background: #E2E8F0;
+    margin: 60px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Reflect — Logo Concepts</h1>
+  <p>Concept C: Stacked Bars &nbsp;·&nbsp; Concept E: Split Square</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- CONCEPT C: STACKED BARS                     -->
+<!-- ════════════════════════════════════════════ -->
+<div class="concept-section">
+  <div class="concept-label">Concept C — Stacked Bars</div>
+
+  <div class="logo-grid">
+    <!-- Dark bg, white bars -->
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+      </svg>
+      <span class="label">Dark</span>
+    </div>
+
+    <!-- Light bg -->
+    <div class="logo-card light">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+      </svg>
+      <span class="label">Light</span>
+    </div>
+
+    <!-- Blue bg -->
+    <div class="logo-card blue">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="rgba(255,255,255,0.15)"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+      </svg>
+      <span class="label">On Blue</span>
+    </div>
+
+    <!-- Mono 1-color -->
+    <div class="logo-card gray">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="none" stroke="#0F172A" stroke-width="1.5"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="#0F172A"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="#0F172A"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="#0F172A"/>
+      </svg>
+      <span class="label">Mono</span>
+    </div>
+  </div>
+
+  <!-- Variation: bars with accent color on first bar -->
+  <div class="logo-grid">
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="#2563EB"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white" opacity="0.7"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white" opacity="0.4"/>
+      </svg>
+      <span class="label">Accent Variation</span>
+    </div>
+
+    <div class="logo-card light">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="#2563EB"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white" opacity="0.7"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white" opacity="0.4"/>
+      </svg>
+      <span class="label">Accent on Light</span>
+    </div>
+
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3" rx="1.5" fill="white"/>
+        <rect x="8" y="14" width="10" height="3" rx="1.5" fill="#60A5FA"/>
+        <rect x="8" y="19" width="13.5" height="3" rx="1.5" fill="white" opacity="0.5"/>
+      </svg>
+      <span class="label">Mixed Accent</span>
+    </div>
+
+    <div class="logo-card gray">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#2563EB"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white" opacity="0.6"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white" opacity="0.35"/>
+      </svg>
+      <span class="label">Blue Base</span>
+    </div>
+  </div>
+
+  <!-- Wordmark -->
+  <div class="wordmark-row">
+    <div class="wordmark-item">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+      </svg>
+      <div>
+        <div class="text dark">Reflect</div>
+      </div>
+    </div>
+    <div class="wordmark-item">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="#2563EB"/>
+        <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white" opacity="0.7"/>
+        <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white" opacity="0.4"/>
+      </svg>
+      <div>
+        <div class="text dark" style="font-size:18px;">Reflect</div>
+        <div class="sub">회사 상황판 OS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage mockups -->
+  <div class="usage-row">
+    <div class="usage-card">
+      <div class="nav-mock dark-nav">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="7" fill="rgba(255,255,255,0.08)"/>
+          <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+          <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+          <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+        </svg>
+        <span class="nav-text white">Reflect</span>
+      </div>
+      <div class="body-mock dark-body">
+        <div class="placeholder" style="width:60%"></div>
+        <div class="placeholder" style="width:80%"></div>
+        <div class="placeholder" style="width:45%"></div>
+      </div>
+    </div>
+    <div class="usage-card">
+      <div class="nav-mock light-nav">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="7" fill="#0F172A"/>
+          <rect x="8" y="9" width="16" height="3.5" rx="1.75" fill="white"/>
+          <rect x="8" y="14.25" width="11" height="3.5" rx="1.75" fill="white"/>
+          <rect x="8" y="19.5" width="14" height="3.5" rx="1.75" fill="white"/>
+        </svg>
+        <span class="nav-text dark">Reflect</span>
+      </div>
+      <div class="body-mock light-body">
+        <div class="placeholder" style="width:60%"></div>
+        <div class="placeholder" style="width:80%"></div>
+        <div class="placeholder" style="width:45%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- CONCEPT E: SPLIT SQUARE                     -->
+<!-- ════════════════════════════════════════════ -->
+<div class="concept-section">
+  <div class="concept-label">Concept E — Split Square</div>
+
+  <div class="logo-grid">
+    <!-- Dark bg: left solid, right reflected/lighter -->
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <!-- Left half solid -->
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+        <!-- Center divider line -->
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+        <!-- Right half - reflected/faded -->
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+      </svg>
+      <span class="label">Dark</span>
+    </div>
+
+    <div class="logo-card light">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+      </svg>
+      <span class="label">Light</span>
+    </div>
+
+    <div class="logo-card blue">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="rgba(255,255,255,0.12)"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+      </svg>
+      <span class="label">On Blue</span>
+    </div>
+
+    <div class="logo-card gray">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="none" stroke="#0F172A" stroke-width="1.5"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="#0F172A"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="#0F172A" stroke-width="0.5" opacity="0.3"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="#0F172A"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="#0F172A" opacity="0.15"/>
+      </svg>
+      <span class="label">Mono</span>
+    </div>
+  </div>
+
+  <!-- Variation: with blue accent -->
+  <div class="logo-grid">
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="#2563EB"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.2"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.15"/>
+      </svg>
+      <span class="label">Blue Accent</span>
+    </div>
+
+    <div class="logo-card light">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="#2563EB"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.2"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.15"/>
+      </svg>
+      <span class="label">Blue on Light</span>
+    </div>
+
+    <!-- Vertical bars variation -->
+    <div class="logo-card dark">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <!-- Left: 3 vertical bars -->
+        <rect x="7" y="8" width="3" height="16" rx="1.5" fill="white"/>
+        <rect x="11.5" y="11" width="3" height="13" rx="1.5" fill="white" opacity="0.7"/>
+        <!-- Mirror line -->
+        <line x1="16" y1="7" x2="16" y2="25" stroke="white" stroke-width="0.4" opacity="0.25"/>
+        <!-- Right: reflected bars (faded) -->
+        <rect x="17.5" y="11" width="3" height="13" rx="1.5" fill="white" opacity="0.15"/>
+        <rect x="22" y="8" width="3" height="16" rx="1.5" fill="white" opacity="0.08"/>
+      </svg>
+      <span class="label">Bar Reflection</span>
+    </div>
+
+    <div class="logo-card gray">
+      <svg width="72" height="72" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#2563EB"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.25"/>
+      </svg>
+      <span class="label">Blue Base</span>
+    </div>
+  </div>
+
+  <!-- Wordmark -->
+  <div class="wordmark-row">
+    <div class="wordmark-item">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.3"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+      </svg>
+      <div>
+        <div class="text dark">Reflect</div>
+      </div>
+    </div>
+    <div class="wordmark-item">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="7" fill="#0F172A"/>
+        <rect x="7" y="8" width="8" height="16" rx="2" fill="#2563EB"/>
+        <line x1="16" y1="8" x2="16" y2="24" stroke="white" stroke-width="0.5" opacity="0.2"/>
+        <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.15"/>
+      </svg>
+      <div>
+        <div class="text dark" style="font-size:18px;">Reflect</div>
+        <div class="sub">회사 상황판 OS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage mockups -->
+  <div class="usage-row">
+    <div class="usage-card">
+      <div class="nav-mock dark-nav">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="7" fill="rgba(255,255,255,0.08)"/>
+          <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+          <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+        </svg>
+        <span class="nav-text white">Reflect</span>
+      </div>
+      <div class="body-mock dark-body">
+        <div class="placeholder" style="width:60%"></div>
+        <div class="placeholder" style="width:80%"></div>
+        <div class="placeholder" style="width:45%"></div>
+      </div>
+    </div>
+    <div class="usage-card">
+      <div class="nav-mock light-nav">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="7" fill="#0F172A"/>
+          <rect x="7" y="8" width="8" height="16" rx="2" fill="white"/>
+          <rect x="17" y="8" width="8" height="16" rx="2" fill="white" opacity="0.2"/>
+        </svg>
+        <span class="nav-text dark">Reflect</span>
+      </div>
+      <div class="body-mock light-body">
+        <div class="placeholder" style="width:60%"></div>
+        <div class="placeholder" style="width:80%"></div>
+        <div class="placeholder" style="width:45%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

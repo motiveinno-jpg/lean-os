@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 라벨 -->
+    <key>Label</key>
+    <string>com.leanos.ibk-daily</string>
+
+    <!-- 실행할 스크립트 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/motive/lean-os/scripts/ibk-daily.sh</string>
+    </array>
+
+    <!-- 매일 오전 9시 30분 실행 (업무 시작 직후) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <!-- 환경 변수 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/motive</string>
+    </dict>
+
+    <!-- 로그 -->
+    <key>StandardOutPath</key>
+    <string>/Users/motive/Downloads/leanos-bank/logs/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/motive/Downloads/leanos-bank/logs/launchd-stderr.log</string>
+
+    <!-- 작업 디렉토리 -->
+    <key>WorkingDirectory</key>
+    <string>/Users/motive/lean-os</string>
+
+    <!-- 놓친 실행은 즉시 실행 (기기 꺼져 있었을 때) -->
+    <key>StartInterval</key>
+    <integer>0</integer>
+
+    <!-- 실패 시 재시도 안 함 (다음 날 자동 실행) -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- 사용자 세션에서만 실행 -->
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+</dict>
+</plist>

@@ -1,0 +1,135 @@
+{
+  "name": "LeanOS - 은행 거래내역 자동 수집",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "6시간마다 실행",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "resource": "imap",
+        "mailbox": "INBOX",
+        "options": {
+          "unseen": true,
+          "searchCriteria": ["UNSEEN", ["FROM", "은행이메일@bank.co.kr"]],
+          "download": true
+        }
+      },
+      "id": "email-trigger",
+      "name": "[대안] 이메일 트리거",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [0, 200],
+      "disabled": true,
+      "notes": "은행에서 이메일로 거래내역을 받는 경우 이 노드를 활성화하세요. IMAP 서버 설정 필요."
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.attachments[0].id }}",
+        "options": {}
+      },
+      "id": "download-attachment",
+      "name": "첨부파일 다운로드",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [250, 200],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "headerRow": true,
+          "sheetName": "Sheet1"
+        }
+      },
+      "id": "csv-parse",
+      "name": "CSV/Excel 파싱",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 1,
+      "position": [500, 100],
+      "notes": "은행 CSV/Excel 파일을 JSON으로 변환. 은행별 컬럼 매핑이 다를 수 있으므로 Function 노드에서 조정."
+    },
+    {
+      "parameters": {
+        "functionCode": "// ═══ 은행 CSV → LeanOS 포맷 변환 ═══\n// 은행별 컬럼명이 다르므로 여기서 매핑합니다.\n// 아래 매핑을 은행 CSV 형식에 맞게 수정하세요.\n\nconst results = [];\n\nfor (const item of items) {\n  const row = item.json;\n  \n  // ── 컬럼 매핑 (은행별로 수정) ──\n  // 국민은행: 거래일시, 출금액, 입금액, 거래후잔액, 적요, 거래점\n  // 신한은행: 거래일, 출금, 입금, 잔액, 적요, 메모\n  // 우리은행: 거래일자, 출금금액, 입금금액, 거래후잔액, 적요\n  \n  const dateStr = row['거래일시'] || row['거래일'] || row['거래일자'] || row['날짜'] || '';\n  const inAmt = Number(String(row['입금액'] || row['입금'] || row['입금금액'] || '0').replace(/[^0-9.-]/g, '')) || 0;\n  const outAmt = Number(String(row['출금액'] || row['출금'] || row['출금금액'] || '0').replace(/[^0-9.-]/g, '')) || 0;\n  const balance = Number(String(row['거래후잔액'] || row['잔액'] || '0').replace(/[^0-9.-]/g, '')) || null;\n  const counterparty = row['적요'] || row['거래처'] || row['상대'] || '';\n  const memo = row['메모'] || row['비고'] || row['거래점'] || '';\n  \n  if (inAmt === 0 && outAmt === 0) continue;\n  \n  // 날짜 정규화 (YYYY-MM-DD)\n  let txDate = dateStr;\n  if (txDate && !txDate.includes('-')) {\n    // 20260301 → 2026-03-01\n    txDate = txDate.replace(/(\\d{4})(\\d{2})(\\d{2})/, '$1-$2-$3');\n  }\n  \n  results.push({\n    json: {\n      transaction_date: txDate,\n      amount: inAmt > 0 ? inAmt : outAmt,\n      balance_after: balance,\n      type: inAmt > 0 ? 'income' : 'expense',\n      counterparty: counterparty,\n      description: memo,\n      memo: '',\n      raw_data: row\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "transform",
+      "name": "은행 포맷 → LeanOS 변환",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [750, 100]
+    },
+    {
+      "parameters": {
+        "batchSize": 50,
+        "options": {}
+      },
+      "id": "batch",
+      "name": "50건씩 배치",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [1000, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://njbvdkuvtdtkxyylwngn.supabase.co/functions/v1/receive-bank-transactions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "=여기에_company_id를_입력하세요"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify({ transactions: $items().map(i => i.json), source: 'n8n' }) }}",
+        "options": {}
+      },
+      "id": "send-to-leanos",
+      "name": "LeanOS API 전송",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 100],
+      "notes": "x-api-key에 LeanOS company_id를 입력하세요: c361afb9-8a52-4cac-add9-8992f0f7c09c"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 결과 로그\nconst result = items[0].json;\nconsole.log(`LeanOS 전송 완료: ${result.total}건 (자동매핑: ${result.auto_mapped}, 미매핑: ${result.unmapped})`);\nreturn items;"
+      },
+      "id": "log-result",
+      "name": "결과 로그",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1500, 100]
+    }
+  ],
+  "connections": {
+    "6시간마다 실행": { "main": [[{ "node": "CSV/Excel 파싱", "type": "main", "index": 0 }]] },
+    "[대안] 이메일 트리거": { "main": [[{ "node": "첨부파일 다운로드", "type": "main", "index": 0 }]] },
+    "첨부파일 다운로드": { "main": [[{ "node": "CSV/Excel 파싱", "type": "main", "index": 0 }]] },
+    "CSV/Excel 파싱": { "main": [[{ "node": "은행 포맷 → LeanOS 변환", "type": "main", "index": 0 }]] },
+    "은행 포맷 → LeanOS 변환": { "main": [[{ "node": "50건씩 배치", "type": "main", "index": 0 }]] },
+    "50건씩 배치": { "main": [[{ "node": "LeanOS API 전송", "type": "main", "index": 0 }]] },
+    "LeanOS API 전송": { "main": [[{ "node": "결과 로그", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
