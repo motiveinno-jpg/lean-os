@@ -24,7 +24,7 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
   }, [interval]);
 
   return (
-    <span className={`relative inline-flex justify-center overflow-hidden ${className}`} style={{ height: "1.25em", minWidth: "5.5em" }}>
+    <span className={`relative inline-flex justify-center overflow-hidden px-1 ${className}`} style={{ height: "1.25em", width: "100%" }}>
       <span
         className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
