@@ -47,6 +47,35 @@ function fmt(n: number) {
   return "₩" + Math.round(n).toLocaleString("ko");
 }
 
+// ── 비목 (Expense Categories) ──
+const EXPENSE_CATEGORIES = [
+  { value: "", label: "선택하세요" },
+  { value: "goods", label: "상품매출/매입" },
+  { value: "service", label: "용역/서비스" },
+  { value: "rent", label: "임대료" },
+  { value: "commission", label: "수수료" },
+  { value: "advertising", label: "광고선전비" },
+  { value: "consumables", label: "소모품비" },
+  { value: "transport", label: "운반비" },
+  { value: "maintenance", label: "수선유지비" },
+  { value: "insurance", label: "보험료" },
+  { value: "utilities", label: "수도광열비" },
+  { value: "communication", label: "통신비" },
+  { value: "travel", label: "여비교통비" },
+  { value: "education", label: "교육훈련비" },
+  { value: "other", label: "기타" },
+];
+
+// ── 수정세금계산서 사유 ──
+const MODIFICATION_REASONS = [
+  { value: "error_correction", label: "기재사항 착오정정", desc: "필요적 기재사항(공급가액, 세액 등)의 착오 정정" },
+  { value: "contract_cancel", label: "계약의 해제", desc: "공급 후 계약이 해제된 경우" },
+  { value: "return", label: "환입", desc: "공급한 재화가 환입(반품)된 경우" },
+  { value: "price_change", label: "공급가액 변동", desc: "계약 조건 변경 등으로 공급가액이 변동된 경우" },
+  { value: "inland_lc", label: "내국신용장 사후개설", desc: "내국신용장이 사후에 개설된 경우" },
+  { value: "duplicate", label: "착오에 의한 이중발급", desc: "동일 거래에 대해 이중으로 발급된 경우" },
+];
+
 export default function TaxInvoicesPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -54,12 +83,18 @@ export default function TaxInvoicesPage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [showForm, setShowForm] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [showModifyModal, setShowModifyModal] = useState(false);
+  const [modifyTarget, setModifyTarget] = useState<any>(null);
+  const [modifyReason, setModifyReason] = useState("");
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
     counterpartyBizno: "",
     supplyAmount: "",
     issueDate: "",
+    preferredDate: "",
+    expenseCategory: "",
   });
 
   useEffect(() => {
@@ -159,6 +194,8 @@ export default function TaxInvoicesPage() {
         counterpartyBizno: "",
         supplyAmount: "",
         issueDate: "",
+        preferredDate: "",
+        expenseCategory: "",
       });
     },
   });
@@ -353,6 +390,36 @@ export default function TaxInvoicesPage() {
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                거래처 희망일자
+              </label>
+              <input
+                type="date"
+                value={form.preferredDate}
+                onChange={(e) =>
+                  setForm({ ...form, preferredDate: e.target.value })
+                }
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">거래처가 희망하는 발행일</span>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                비목 (품목)
+              </label>
+              <select
+                value={form.expenseCategory}
+                onChange={(e) =>
+                  setForm({ ...form, expenseCategory: e.target.value })
+                }
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              >
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
             {Number(form.supplyAmount) > 0 && (
               <div className="flex items-end pb-1">
                 <div className="text-xs text-[var(--text-dim)]">
@@ -479,7 +546,8 @@ export default function TaxInvoicesPage() {
                   return (
                     <tr
                       key={inv.id}
-                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"
+                      onClick={() => setSelectedInvoice(inv)}
+                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
                     >
                       <td className="px-5 py-3 text-sm font-medium">
                         {inv.counterparty_name}
@@ -581,6 +649,35 @@ export default function TaxInvoicesPage() {
       {/* VAT Preview Tab */}
       {tab === "vat" && (
         <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
+      )}
+
+      {/* Invoice Detail Modal */}
+      {selectedInvoice && (
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          onModify={(inv: any) => {
+            setSelectedInvoice(null);
+            setModifyTarget(inv);
+            setModifyReason("");
+            setShowModifyModal(true);
+          }}
+        />
+      )}
+
+      {/* Modification Modal */}
+      {showModifyModal && modifyTarget && (
+        <ModificationModal
+          invoice={modifyTarget}
+          reason={modifyReason}
+          setReason={setModifyReason}
+          onClose={() => { setShowModifyModal(false); setModifyTarget(null); }}
+          onSubmit={() => {
+            alert(`수정세금계산서 발행 요청이 접수되었습니다.\n사유: ${MODIFICATION_REASONS.find(r => r.value === modifyReason)?.label || modifyReason}`);
+            setShowModifyModal(false);
+            setModifyTarget(null);
+          }}
+        />
       )}
 
       {/* 3-Way Matching Tab */}
@@ -889,6 +986,232 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
             })}
           </tbody>
         </table></div>
+      </div>
+    </div>
+  );
+}
+
+// ── Invoice Detail Modal (세금계산서 상세) ──
+function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onClose: () => void; onModify: (inv: any) => void }) {
+  const inv = invoice;
+  const supplyAmt = Number(inv.supply_amount || 0);
+  const taxAmt = Number(inv.tax_amount || 0);
+  const totalAmt = Number(inv.total_amount || 0);
+  const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-black">세금계산서</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl transition">&times;</button>
+        </div>
+
+        {/* Tax Invoice Form (국세청 양식 스타일) */}
+        <div className="p-6">
+          <div className="border-2 border-[var(--primary)] rounded-lg overflow-hidden">
+            {/* Title bar */}
+            <div className="bg-[var(--primary)]/10 px-4 py-2 text-center">
+              <span className="text-sm font-black text-[var(--primary)] tracking-widest">
+                전 자 세 금 계 산 서
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)] ml-2">
+                ({inv.type === "sales" ? "공급자 보관용" : "공급받는자 보관용"})
+              </span>
+            </div>
+
+            {/* Supplier / Receiver Info */}
+            <div className="grid grid-cols-2 divide-x divide-[var(--border)]">
+              {/* 공급자 */}
+              <div className="p-3">
+                <div className="text-[10px] font-bold text-[var(--primary)] mb-2 tracking-wider">공급자</div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "sales" ? "123-45-67890" : (inv.counterparty_bizno || "—")}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "sales" ? "(주)우리회사" : inv.counterparty_name}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">—</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">—</span></div>
+                </div>
+              </div>
+              {/* 공급받는자 */}
+              <div className="p-3">
+                <div className="text-[10px] font-bold text-orange-400 mb-2 tracking-wider">공급받는자</div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "purchase" ? "123-45-67890" : (inv.counterparty_bizno || "—")}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "purchase" ? "(주)우리회사" : inv.counterparty_name}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">—</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Amount summary */}
+            <div className="border-t border-[var(--border)] grid grid-cols-4 divide-x divide-[var(--border)] text-center">
+              <div className="p-2">
+                <div className="text-[10px] text-[var(--text-dim)]">작성일자</div>
+                <div className="text-xs font-bold mt-0.5">{inv.issue_date}</div>
+              </div>
+              <div className="p-2">
+                <div className="text-[10px] text-[var(--text-dim)]">공급가액</div>
+                <div className="text-xs font-bold mt-0.5 text-green-500">₩{supplyAmt.toLocaleString()}</div>
+              </div>
+              <div className="p-2">
+                <div className="text-[10px] text-[var(--text-dim)]">세액</div>
+                <div className="text-xs font-bold mt-0.5">₩{taxAmt.toLocaleString()}</div>
+              </div>
+              <div className="p-2">
+                <div className="text-[10px] text-[var(--text-dim)]">합계금액</div>
+                <div className="text-sm font-black mt-0.5 text-[var(--primary)]">₩{totalAmt.toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* Item detail table */}
+            <div className="border-t border-[var(--border)]">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="px-3 py-1.5 text-left font-medium">월/일</th>
+                    <th className="px-3 py-1.5 text-left font-medium">품목</th>
+                    <th className="px-3 py-1.5 text-right font-medium">수량</th>
+                    <th className="px-3 py-1.5 text-right font-medium">단가</th>
+                    <th className="px-3 py-1.5 text-right font-medium">공급가액</th>
+                    <th className="px-3 py-1.5 text-right font-medium">세액</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--border)]/50">
+                    <td className="px-3 py-2">{inv.issue_date?.slice(5)}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {inv.label || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">1</td>
+                    <td className="px-3 py-2 text-right">₩{supplyAmt.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right">₩{supplyAmt.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right">₩{taxAmt.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer info */}
+            <div className="border-t border-[var(--border)] px-4 py-2 grid grid-cols-3 text-xs">
+              <div>
+                <span className="text-[var(--text-dim)]">딜: </span>
+                <span className="font-medium">{inv.deals?.name || "—"}</span>
+              </div>
+              <div>
+                <span className="text-[var(--text-dim)]">비목: </span>
+                <span className="font-medium">{EXPENSE_CATEGORIES.find(c => c.value === inv.expense_category)?.label || inv.label || "—"}</span>
+              </div>
+              <div>
+                <span className="text-[var(--text-dim)]">거래처 희망일: </span>
+                <span className="font-medium">{inv.preferred_date || "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 mt-4">
+            <button
+              onClick={() => onModify(inv)}
+              className="px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
+            >
+              수정세금계산서 발행
+            </button>
+            <button
+              onClick={() => {
+                const printContent = document.querySelector('[data-invoice-print]');
+                if (printContent) window.print();
+              }}
+              className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"
+            >
+              인쇄
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition ml-auto"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modification Modal (수정세금계산서) ──
+function ModificationModal({ invoice, reason, setReason, onClose, onSubmit }: {
+  invoice: any; reason: string; setReason: (r: string) => void; onClose: () => void; onSubmit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <h3 className="text-sm font-black">수정세금계산서 발행</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            원본: {invoice.counterparty_name} / ₩{Number(invoice.total_amount).toLocaleString()} ({invoice.issue_date})
+          </p>
+        </div>
+        <div className="p-6 space-y-4">
+          {/* Rules info */}
+          <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-xs text-[var(--text-muted)] leading-relaxed space-y-2">
+            <div className="font-bold text-[var(--text)] text-sm mb-2">수정세금계산서 발행 규정</div>
+            <div>1. 공급시기가 속하는 과세기간에 대한 확정신고 기한 내 발행 가능</div>
+            <div>2. 착오정정은 당초 세금계산서와 수정세금계산서를 동시 발행</div>
+            <div>3. 계약해제/환입은 사유 발생일을 작성일자로 발행</div>
+            <div>4. 가산세: 미발행 시 공급가액의 1%, 지연발행 시 0.5%</div>
+          </div>
+
+          {/* Reason selection */}
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-2 font-medium">수정 사유 선택 *</label>
+            <div className="space-y-2">
+              {MODIFICATION_REASONS.map((r) => (
+                <label
+                  key={r.value}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                    reason === r.value
+                      ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                      : "border-[var(--border)] hover:border-[var(--text-muted)]"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="modifyReason"
+                    value={r.value}
+                    checked={reason === r.value}
+                    onChange={() => setReason(r.value)}
+                    className="mt-0.5 accent-[var(--primary)]"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold">{r.label}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">{r.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={onSubmit}
+              disabled={!reason}
+              className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
+            >
+              수정세금계산서 발행 요청
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition"
+            >
+              취소
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
