@@ -14,6 +14,7 @@ import { createTaxInvoice, markInvoiceMatched, issueTaxInvoice } from './tax-inv
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
 import { generateContractPDF } from './document-generator';
+import { createSignatureRequest, sendSignatureEmail, applyCompanySeal } from './signatures';
 import type { Json } from '@/types/models';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,6 +334,64 @@ export async function onDocumentApproved(params: {
       referenceTable: 'documents',
       summary: { title: `계약서 자동 생성됨 (견적서 승인 기반)` },
     });
+
+    // ── Auto-seal + signature request for the new contract ──
+    try {
+      // Fetch deal + partner info for signature
+      const { data: deal } = await db
+        .from('deals')
+        .select('name, partners!deals_partner_id_fkey(name, contact_email, contact_phone)')
+        .eq('id', doc.deal_id)
+        .single();
+
+      const partnerEmail = deal?.partners?.contact_email || '';
+      const partnerName = deal?.partners?.name || '';
+
+      // Auto-apply company seal if available
+      try {
+        await applyCompanySeal({
+          documentId: contractDocId,
+          companyId,
+          appliedBy: approverId,
+        });
+        await dispatchBusinessEvent({
+          dealId: doc.deal_id,
+          eventType: 'document_approved' as BusinessEventType,
+          userId: approverId,
+          referenceId: contractDocId,
+          referenceTable: 'documents',
+          summary: { title: `계약서 직인 자동 적용` },
+        });
+      } catch {
+        // No seal configured — skip silently
+      }
+
+      // Send signature request if partner has a valid email
+      if (partnerEmail && partnerEmail.includes('@')) {
+        const sigReq = await createSignatureRequest({
+          companyId,
+          documentId: contractDocId,
+          title: `${deal?.name || '계약'} - 계약서 서명 요청`,
+          signerName: partnerName,
+          signerEmail: partnerEmail,
+          createdBy: approverId,
+        });
+
+        await sendSignatureEmail(sigReq.id);
+
+        await dispatchBusinessEvent({
+          dealId: doc.deal_id,
+          eventType: 'document_approved' as BusinessEventType,
+          userId: approverId,
+          referenceId: sigReq.id,
+          referenceTable: 'signature_requests',
+          summary: { title: `서명 요청 자동 발송 (${partnerEmail})` },
+        });
+      }
+    } catch (sigErr) {
+      // Signature sending failure should not block the pipeline
+      console.error('Auto-signature request failed:', sigErr);
+    }
 
     return { nextAction: 'contract_created', createdDocId: contractDocId };
   }

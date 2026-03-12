@@ -298,6 +298,41 @@ export async function applyCompanySeal(params: {
   return { success: true, sealUrl: company.seal_url };
 }
 
+// ── Expire Overdue Signatures ──
+export async function expireOverdueSignatures(companyId?: string): Promise<number> {
+  const now = new Date().toISOString();
+
+  let query = db
+    .from('signature_requests')
+    .update({ status: 'expired' })
+    .lt('expires_at', now)
+    .in('status', ['pending', 'sent', 'viewed']);
+
+  if (companyId) {
+    query = query.eq('company_id', companyId);
+  }
+
+  const { data, error } = await query.select('id');
+  if (error) throw error;
+
+  const expiredCount = (data || []).length;
+
+  // Audit log each expired request
+  for (const row of (data || [])) {
+    await logAudit({
+      company_id: companyId || '',
+      user_id: 'system',
+      action: 'update',
+      entity_type: 'signature',
+      entity_id: row.id,
+      entity_name: '서명 요청 자동 만료',
+      metadata: { reason: 'overdue', expired_at: now },
+    });
+  }
+
+  return expiredCount;
+}
+
 // ── Get Single Signature Request ──
 export async function getSignatureRequest(id: string) {
   const { data, error } = await db
