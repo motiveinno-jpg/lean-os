@@ -30,10 +30,10 @@ function fmtW(n: number): string {
   return `${sign}${abs.toLocaleString()}`;
 }
 
-const ACCOUNT_STATUS: Record<string, { label: string; color: string }> = {
-  active: { label: "활성", color: "green" },
-  paused: { label: "일시중지", color: "yellow" },
-  cancelled: { label: "해지", color: "red" },
+const ACCOUNT_STATUS: Record<string, { label: string; color: string; bg: string; text: string }> = {
+  active: { label: "활성", color: "green", bg: "bg-green-500/10", text: "text-green-400" },
+  paused: { label: "일시중지", color: "yellow", bg: "bg-yellow-500/10", text: "text-yellow-400" },
+  cancelled: { label: "해지", color: "red", bg: "bg-red-500/10", text: "text-red-400" },
 };
 
 const ASSET_TYPES: Record<string, string> = {
@@ -594,7 +594,7 @@ export default function VaultPage() {
                         {acc.renewal_date ? new Date(acc.renewal_date).toLocaleDateString("ko") : "—"}
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full bg-${st.color}-500/10 text-${st.color}-400`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
                           {st.label}
                         </span>
                       </td>

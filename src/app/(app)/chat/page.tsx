@@ -227,21 +227,23 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const [sendError, setSendError] = useState<string | null>(null);
 
   const sendMut = useMutation({
-    mutationFn: (params: { content: string; mentionedUserIds?: string[]; replyToId?: string }) =>
-      params.mentionedUserIds?.length
+    mutationFn: (params: { content: string; mentionedUserIds?: string[]; replyToId?: string }) => {
+      if (!userId) throw new Error("Not authenticated");
+      return params.mentionedUserIds?.length
         ? sendMessageWithMentions({
             channelId,
-            senderId: userId!,
+            senderId: userId,
             content: params.content,
             mentionedUserIds: params.mentionedUserIds,
             replyToId: params.replyToId,
           })
         : sendMessage({
             channelId,
-            senderId: userId!,
+            senderId: userId,
             content: params.content,
             threadId: params.replyToId,
-          }),
+          });
+    },
     onSuccess: () => {
       setSendError(null);
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
@@ -253,7 +255,10 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   });
 
   const fileMut = useMutation({
-    mutationFn: (file: File) => uploadChatFile({ channelId, senderId: userId!, file }),
+    mutationFn: (file: File) => {
+      if (!userId) throw new Error("Not authenticated");
+      return uploadChatFile({ channelId, senderId: userId, file });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
       queryClient.invalidateQueries({ queryKey: ["chat-files", channelId] });
@@ -273,7 +278,8 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     mutationFn: ({ msgId, emoji }: { msgId: string; emoji: string }) => {
       const existing = reactionsMap?.get(msgId) || [];
       const hasOwn = existing.some((r: any) => r.user_id === userId && r.emoji === emoji);
-      return hasOwn ? removeReaction(msgId, userId!, emoji) : addReaction(msgId, userId!, emoji);
+      if (!userId) throw new Error("Not authenticated");
+      return hasOwn ? removeReaction(msgId, userId, emoji) : addReaction(msgId, userId, emoji);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-reactions", channelId] }),
   });
@@ -1099,13 +1105,16 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
   const dmChannels = channels.filter((ch: any) => ch.is_dm);
 
   const createMut = useMutation({
-    mutationFn: () => createChannel({
-      companyId: companyId!,
-      dealId: form.deal_id || undefined,
-      type: form.type,
-      name: form.name,
-      creatorUserId: userId!,
-    }),
+    mutationFn: () => {
+      if (!userId || !companyId) throw new Error("Not authenticated");
+      return createChannel({
+        companyId,
+        dealId: form.deal_id || undefined,
+        type: form.type,
+        name: form.name,
+        creatorUserId: userId,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
       setShowForm(false);
@@ -1126,10 +1135,13 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
   });
 
   const createDMMut = useMutation({
-    mutationFn: () => createDMChannel({
-      companyId: companyId!,
-      participantIds: [userId!, dmUserId],
-    }),
+    mutationFn: () => {
+      if (!userId || !companyId) throw new Error("Not authenticated");
+      return createDMChannel({
+        companyId,
+        participantIds: [userId, dmUserId],
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
       setShowDMForm(false);

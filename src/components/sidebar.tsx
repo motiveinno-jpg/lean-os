@@ -190,9 +190,9 @@ export function Sidebar() {
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                 {user?.name || user?.email?.split("@")[0] || ""}
                 <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${
-                  role === "owner" ? "bg-[#2563EB]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
+                  role === "owner" ? "bg-[#2563EB]" : role === "admin" ? "bg-[#0891B2]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
                 }`}>
-                  {role === "owner" ? "대표" : role === "partner" ? "파트너" : "직원"}
+                  {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
                 </span>
               </div>
             </div>

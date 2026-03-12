@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import * as XLSX from "xlsx";
 
 const ONBOARDING_KEY = "leanos-onboarding-done";
 const ONBOARDING_DISMISS_KEY = "leanos-onboarding-dismissed";

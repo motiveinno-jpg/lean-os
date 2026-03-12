@@ -208,6 +208,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       const { data } = await (supabase as any)
         .from("leave_balances")
         .select("employee_id, total_days, used_days, remaining_days")
+        .eq("company_id", companyId)
         .eq("year", currentYear);
       return data || [];
     },

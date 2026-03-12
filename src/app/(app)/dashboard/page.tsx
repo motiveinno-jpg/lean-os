@@ -1316,23 +1316,34 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
   });
 
   const toggleMut = useMutation({
-    mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) =>
-      toggleChecklistItem(itemId, userId!, completed),
+    mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) => {
+      if (!userId) throw new Error("Not authenticated");
+      return toggleChecklistItem(itemId, userId, completed);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
   });
 
   const completeMut = useMutation({
-    mutationFn: () => completeClosingChecklist(checklist!.id, userId!),
+    mutationFn: () => {
+      if (!userId) throw new Error("Not authenticated");
+      return completeClosingChecklist(checklist!.id, userId);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
   });
 
   const lockMut = useMutation({
-    mutationFn: () => lockClosingMonth(checklist!.id, userId!),
+    mutationFn: () => {
+      if (!userId) throw new Error("Not authenticated");
+      return lockClosingMonth(checklist!.id, userId);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
   });
 
   const unlockMut = useMutation({
-    mutationFn: () => unlockClosingMonth(checklist!.id, userId!),
+    mutationFn: () => {
+      if (!userId) throw new Error("Not authenticated");
+      return unlockClosingMonth(checklist!.id, userId);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
   });
 
@@ -2203,7 +2214,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
     queryKey: ["partner-sign-count", companyId, userId],
     queryFn: async () => {
       const { count } = await db
-        .from("doc_templates")
+        .from("signature_requests")
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId!)
         .eq("status", "pending_signature");

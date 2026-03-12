@@ -14,6 +14,7 @@ export const EXPENSE_CATEGORIES = [
   { value: 'entertainment', label: '접대비' },
   { value: 'supplies', label: '소모품' },
   { value: 'transport', label: '교통비' },
+  { value: 'transportation', label: '교통비' },
   { value: 'education', label: '교육비' },
   { value: 'equipment', label: '장비 구매' },
   { value: 'subscription', label: '구독료' },

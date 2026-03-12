@@ -150,6 +150,7 @@ export function generateInsuranceEDI(params: {
  * Download EDI files as a zip or individual files
  */
 export function downloadEDIFile(result: EDIResult) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const blob = new Blob([result.content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -630,7 +630,7 @@ async function createPaymentScheduleFromContract(params: {
       .select('id')
       .single();
 
-    createdIds.push(row?.id || '');
+    if (row?.id) createdIds.push(row.id);
   }
 
   // Create payment queue entry for first payment

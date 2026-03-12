@@ -905,6 +905,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
         auto_approve_threshold: form.auto_approve_threshold || null,
         min_amount: form.min_amount || null,
         max_amount: form.max_amount || null,
+        stages: stages.length > 0 ? stages : null,
       };
       if (editId) {
         const { error } = await db

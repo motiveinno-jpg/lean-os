@@ -108,7 +108,7 @@ export default function ApprovalsPage() {
     enabled: !!companyId,
   });
 
-  const isAdmin = userRole === "ceo" || userRole === "admin" || userRole === "owner";
+  const isAdmin = userRole === "admin" || userRole === "owner";
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: "my-approvals", label: "내 결재함", count: stats?.pending },
@@ -128,7 +128,7 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="text-xs text-[var(--text-dim)]">대기 중</div>
           <div className="text-lg font-bold text-yellow-500 mt-1">{stats?.pending ?? 0}건</div>

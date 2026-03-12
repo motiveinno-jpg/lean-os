@@ -111,7 +111,7 @@ function SignContent() {
             expired,
             companies: company || { name: "" },
             employees: { name: sigReq.signer_name, email: sigReq.signer_email, department: "", position: "" },
-            items: sigReq.documents ? [{ id: sigReq.id, documents: sigReq.documents, sort_order: 0 }] : [],
+            items: sigReq.documents ? [{ id: sigReq.id, title: sigReq.documents.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: sigReq.documents, sort_order: 0 }] : [],
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
           } as any);
@@ -245,15 +245,23 @@ function SignContent() {
     setSigning(true);
 
     try {
-      // Update item
-      await db
-        .from("hr_contract_package_items")
-        .update({
-          status: "signed",
-          signed_at: new Date().toISOString(),
-          signature_data: sigData,
-        })
-        .eq("id", item.id);
+      const isGeneralDoc = (pkg as any)._isGeneralDoc;
+
+      if (isGeneralDoc) {
+        // General document signing: update signature_requests table
+        const { saveSignature } = await import("@/lib/signatures");
+        await saveSignature((pkg as any)._signatureRequestId, sigData);
+      } else {
+        // HR contract package: update hr_contract_package_items
+        await db
+          .from("hr_contract_package_items")
+          .update({
+            status: "signed",
+            signed_at: new Date().toISOString(),
+            signature_data: sigData,
+          })
+          .eq("id", item.id);
+      }
 
       // Audit: signature_submitted
       try {
@@ -268,7 +276,7 @@ function SignContent() {
       }
 
       // Lock associated document
-      if (item.documents) {
+      if (item.documents && !isGeneralDoc) {
         await db
           .from("documents")
           .update({ status: "locked", locked_at: new Date().toISOString() })
@@ -282,7 +290,7 @@ function SignContent() {
       const allSigned = updatedItems.every((it) => it.status === "signed");
       const someSigned = updatedItems.some((it) => it.status === "signed");
 
-      if (allSigned) {
+      if (allSigned && !isGeneralDoc) {
         await db
           .from("hr_contract_packages")
           .update({ status: "completed", completed_at: new Date().toISOString() })
@@ -317,7 +325,10 @@ function SignContent() {
           if (supabaseUrl && signerEmail) {
             await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+              },
               body: JSON.stringify({
                 to: signerEmail,
                 employeeName: pkg.employees?.name || '',

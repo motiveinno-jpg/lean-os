@@ -382,26 +382,33 @@ export async function buildContractVariables(
   const nextYearStr = nextYear.toISOString().slice(0, 10);
 
   const vars: Record<string, string> = {
-    // Employee
+    // English keys (used in built-in templates)
+    employee_name: employee.name || '',
+    resident_number: employee.resident_number || '______-_______',
+    department: employee.department || '',
+    position: employee.position || '',
+    address: employee.address || '',
+    company_name: company.name || '',
+    representative_name: company.representative || company.ceo_name || '',
+    company_address: company.address || '',
+    start_date: employee.hire_date || today,
+    end_date: nextYearStr,
+    salary_amount: fmt(Number(employee.salary || 0)),
+    base_pay: fmt(basePay),
+    overtime_pay: fmt(otPay),
+
+    // Korean keys (for backward compatibility with custom templates)
     직원명: employee.name || '',
     주민등록번호: employee.resident_number || '______-_______',
     부서: employee.department || '',
     직급: employee.position || '',
     입사일: employee.hire_date || today,
-
-    // Company
     회사명: company.name || '',
     대표자명: company.representative || company.ceo_name || '',
-
-    // Contract period
     계약시작일: employee.hire_date || today,
     계약종료일: nextYearStr,
-
-    // Salary
     연봉: fmt(Number(employee.salary || 0)),
     월급여: fmt(monthlySalary),
-
-    // Comprehensive labor splits
     기본급: fmt(basePay),
     고정연장근로수당: fmt(otPay),
 

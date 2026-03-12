@@ -113,4 +113,9 @@ export const BANK_ROLES = [
   { value: 'TAX', label: '세금통장' },
   { value: 'PAYROLL', label: '급여통장' },
   { value: 'PROJECT', label: '프로젝트통장' },
+  { value: 'operating', label: '운영통장' },
+  { value: 'savings', label: '저축통장' },
+  { value: 'subsidy', label: '보조금통장' },
+  { value: 'project', label: '프로젝트통장' },
+  { value: 'loan', label: '대출통장' },
 ] as const;

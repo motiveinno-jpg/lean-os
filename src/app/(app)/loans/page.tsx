@@ -37,9 +37,13 @@ const LOAN_STATUS: Record<string, { label: string; bg: string; text: string }> =
 
 const LOAN_TYPES: Record<string, string> = {
   term: "기업대출",
+  term_loan: "기업대출",
   credit_line: "한도대출",
   facility: "시설대출",
   government: "정책자금",
+  policy_loan: "정책자금",
+  mortgage: "담보대출",
+  overdraft: "당좌대출",
 };
 
 export default function LoansPage() {

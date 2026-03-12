@@ -19,6 +19,12 @@ import { useToast } from "@/components/toast";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
 
+const DEAL_STATUS_LABEL: Record<string, string> = {
+  active: '진행중', pending: '대기', completed: '완료', archived: '아카이브',
+  negotiation: '협상중', proposal: '제안', contract_signed: '계약완료',
+  in_progress: '진행중', closed_won: '수주', closed_lost: '실주', dormant: '휴면',
+};
+
 // ── Priority & Risk Config (E-6) ──
 
 type DealPriority = 'high' | 'medium' | 'low';
@@ -131,8 +137,8 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId), enabled: !!dealId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
-  const createChannelMut = useMutation({ mutationFn: () => createChannel({ companyId: companyId!, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId! }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }) });
-  const sendChatMut = useMutation({ mutationFn: () => sendMessage({ channelId: dealChannel!.id, senderId: userId!, content: chatMsg }), onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); } });
+  const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }) });
+  const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); } });
 
   const tree = data?.nodes ? buildTree(data.nodes) : [];
   const deal = data?.deal;
@@ -163,7 +169,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         <div className="flex items-center gap-2">
           <Link href={dealChannel ? `/chat?channel=${dealChannel.id}` : `/chat`} className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">💬 채팅</Link>
           {deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 딜을 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{deal.status === 'active' ? '진행중' : deal.status === 'archived' ? '아카이브' : deal.status}</span>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -597,7 +603,7 @@ function DealsPageInner() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold">₩{Number(d.contract_total || 0).toLocaleString()}</div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-green-500/10 text-green-400' : d.status === 'completed' ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-500/10 text-gray-400'}`}>{d.status === 'active' ? '진행중' : d.status === 'completed' ? '완료' : d.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-green-500/10 text-green-400' : d.status === 'completed' ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[d.status || ''] || d.status || '대기'}</span>
                 </div>
               </div>
               {matchMap[d.id] && matchMap[d.id].contractTotal > 0 && (

@@ -125,7 +125,14 @@ export function fillVariables(
   const str = JSON.stringify(contentJson);
   let filled = str;
   for (const [key, value] of Object.entries(variables)) {
-    filled = filled.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    // Escape special characters that would break JSON.parse
+    const safeValue = value
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+    filled = filled.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), safeValue);
   }
   return JSON.parse(filled);
 }

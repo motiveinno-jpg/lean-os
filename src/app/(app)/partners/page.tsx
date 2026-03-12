@@ -9,19 +9,19 @@ import { verifyBusinessNumber } from "@/lib/business-verification";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
-  { value: "vendor", label: "Vendor" },
-  { value: "client", label: "Client" },
-  { value: "partner", label: "Partner" },
-  { value: "government", label: "Government" },
-  { value: "other", label: "Other" },
+  { value: "vendor", label: "공급업체" },
+  { value: "client", label: "고객사" },
+  { value: "partner", label: "파트너" },
+  { value: "government", label: "정부/공공기관" },
+  { value: "other", label: "기타" },
 ];
 
 const TYPE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  vendor: { bg: "bg-purple-500/15", text: "text-purple-400", label: "Vendor" },
-  client: { bg: "bg-blue-500/15", text: "text-blue-400", label: "Client" },
-  partner: { bg: "bg-green-500/15", text: "text-green-400", label: "Partner" },
-  government: { bg: "bg-red-500/15", text: "text-red-400", label: "Government" },
-  other: { bg: "bg-gray-500/15", text: "text-gray-400", label: "Other" },
+  vendor: { bg: "bg-purple-500/15", text: "text-purple-400", label: "공급업체" },
+  client: { bg: "bg-blue-500/15", text: "text-blue-400", label: "고객사" },
+  partner: { bg: "bg-green-500/15", text: "text-green-400", label: "파트너" },
+  government: { bg: "bg-red-500/15", text: "text-red-400", label: "정부/공공기관" },
+  other: { bg: "bg-gray-500/15", text: "text-gray-400", label: "기타" },
 };
 
 const EMPTY_FORM = {
@@ -35,7 +35,7 @@ const labelCls = "block text-xs text-[var(--text-muted)] mb-1";
 
 export default function PartnersPage() {
   const qc = useQueryClient();
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
   const [search, setSearch] = useState("");
@@ -72,13 +72,13 @@ export default function PartnersPage() {
     queryFn: async () => {
       if (debouncedSearch && debouncedSearch.length >= 2) {
         // 복합검색: 이름+담당자+이메일+사업자번호
-        let results = await searchPartners(companyId, debouncedSearch);
+        let results = await searchPartners(companyId!, debouncedSearch);
         if (typeFilter) results = results.filter((p: any) => p.type === typeFilter);
         if (activeFilter !== undefined) results = results.filter((p: any) => p.is_active === activeFilter);
         if (tagFilter) results = results.filter((p: any) => (p.tags || []).includes(tagFilter));
         return results;
       }
-      return getPartners(companyId, {
+      return getPartners(companyId!, {
         type: typeFilter || undefined,
         isActive: activeFilter,
         search: undefined,
@@ -110,7 +110,7 @@ export default function PartnersPage() {
       if (!detailPartner || partnerDeals.length === 0) return [];
       const dealIds = partnerDeals.map((d: any) => d.id);
       const { data } = await (supabase as any).from("documents")
-        .select("id, title, status, created_at, content_json")
+        .select("id, name, status, created_at, content_json")
         .in("deal_id", dealIds)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -139,7 +139,7 @@ export default function PartnersPage() {
 
   const saveMutation = useMutation({
     mutationFn: () => upsertPartner({
-      id: editingId || undefined, companyId, name: form.name, type: form.type,
+      id: editingId || undefined, companyId: companyId!, name: form.name, type: form.type,
       classification: form.classification || undefined,
       businessNumber: form.businessNumber || undefined,
       representative: form.representative || undefined,
@@ -161,7 +161,7 @@ export default function PartnersPage() {
   });
 
   const toggleActiveMutation = useMutation({
-    mutationFn: (p: any) => upsertPartner({ id: p.id, companyId, name: p.name, isActive: !p.is_active }),
+    mutationFn: (p: any) => upsertPartner({ id: p.id, companyId: companyId!, name: p.name, isActive: !p.is_active }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); },
   });
 
@@ -608,11 +608,11 @@ export default function PartnersPage() {
               <div>
                 <label className={labelCls}>구분 *</label>
                 <select value={form.type} onChange={(e) => setField("type", e.target.value)} className={inputCls}>
-                  <option value="vendor">Vendor</option>
-                  <option value="client">Client</option>
-                  <option value="partner">Partner</option>
-                  <option value="government">Government</option>
-                  <option value="other">Other</option>
+                  <option value="vendor">공급업체</option>
+                  <option value="client">고객사</option>
+                  <option value="partner">파트너</option>
+                  <option value="government">정부/공공기관</option>
+                  <option value="other">기타</option>
                 </select>
               </div>
               <div>

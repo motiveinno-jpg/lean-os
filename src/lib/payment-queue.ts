@@ -23,13 +23,17 @@ export async function createQueueEntry(params: {
 }): Promise<PaymentQueue | null> {
   // ── Dedup Strategy 1: approval_request_id ──
   if (params.approvalRequestId) {
-    const { data: existing } = await supabase
-      .from('payment_queue')
-      .select('*')
-      .eq('company_id', params.companyId)
-      .eq('approval_request_id', params.approvalRequestId)
-      .maybeSingle();
-    if (existing) return existing as PaymentQueue;
+    try {
+      const { data: existing } = await supabase
+        .from('payment_queue')
+        .select('*')
+        .eq('company_id', params.companyId)
+        .eq('approval_request_id', params.approvalRequestId)
+        .maybeSingle();
+      if (existing) return existing as PaymentQueue;
+    } catch {
+      // Column may not exist yet — skip this dedup strategy
+    }
   }
 
   // ── Dedup Strategy 2: cost_schedule_id ──
@@ -82,7 +86,8 @@ export async function createQueueEntry(params: {
     description: params.description || null,
     status: 'pending',
   };
-  if (params.approvalRequestId) row.approval_request_id = params.approvalRequestId;
+  // approval_request_id column may not exist yet in schema
+  // if (params.approvalRequestId) row.approval_request_id = params.approvalRequestId;
   if (params.dealId) row.deal_id = params.dealId;
   if (params.sourceType) row.payment_type = params.sourceType;
   if (params.sourceId) row.category = params.sourceId;

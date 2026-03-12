@@ -149,7 +149,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
     supabase.from('cash_snapshot').select('*').eq('company_id', companyId).single(),
     supabase.from('deals').select('*').eq('company_id', companyId),
     supabase.from('deal_revenue_schedule').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
-    supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))'),
+    supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
     supabase.from('transactions').select('*').eq('company_id', companyId),
     supabase.from('deal_nodes').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
     supabase.from('employees').select('*').eq('company_id', companyId).eq('status', 'active'),
@@ -1750,7 +1750,7 @@ export async function getCashPulseData(companyId: string) {
     // 2. Revenue schedules
     supabase.from('deal_revenue_schedule').select('amount, due_date, status, deals!inner(company_id)').eq('deals.company_id', companyId),
     // 3. Cost schedules
-    db.from('deal_cost_schedule').select('amount, due_date, status, deal_nodes!inner(deal_id, deals!inner(company_id))'),
+    db.from('deal_cost_schedule').select('amount, due_date, status, deal_nodes!inner(deal_id, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
     // 4. Recurring payments
     db.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
     // 5. Employee salary total

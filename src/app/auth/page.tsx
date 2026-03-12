@@ -89,11 +89,11 @@ export default function AuthPage() {
     }
 
     // 이메일 인증 없이 바로 세션이 생긴 경우 (Supabase 설정에 따라)
-    await createCompanyAndUser(authData.user.id, email, companyName.trim());
-    router.push("/dashboard");
+    const created = await createCompanyAndUser(authData.user.id, email, companyName.trim());
+    if (created) router.push("/dashboard");
   }
 
-  async function createCompanyAndUser(authId: string, userEmail: string, name: string) {
+  async function createCompanyAndUser(authId: string, userEmail: string, name: string): Promise<boolean> {
     const { data: company, error: compErr } = await supabase
       .from("companies")
       .insert({ name })
@@ -102,7 +102,7 @@ export default function AuthPage() {
     if (compErr) {
       console.error("회사 생성 실패:", compErr.message);
       setError("회사 정보 생성에 실패했습니다. 다시 시도해주세요.");
-      return;
+      return false;
     }
 
     const { error: userErr } = await supabase.from("users").insert({
@@ -116,7 +116,7 @@ export default function AuthPage() {
     if (userErr) {
       console.error("사용자 생성 실패:", userErr.message);
       setError("계정 설정에 실패했습니다. 다시 시도해주세요.");
-      return;
+      return false;
     }
 
     const { error: snapErr } = await supabase.from("cash_snapshot").insert({
@@ -125,6 +125,7 @@ export default function AuthPage() {
       monthly_fixed_cost: 0,
     });
     if (snapErr) console.error("cash_snapshot 생성 실패:", snapErr.message);
+    return true;
   }
 
   async function handleResendEmail() {

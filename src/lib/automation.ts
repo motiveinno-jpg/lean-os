@@ -610,13 +610,20 @@ export async function autoQueueApprovedExpenses(companyId: string) {
   if (!approved?.length) return { queued: 0 };
 
   // Get existing payment_queue entries linked via approval_request_id (FK-based dedup)
-  const { data: existingQueue } = await db
-    .from('payment_queue')
-    .select('approval_request_id')
-    .eq('company_id', companyId)
-    .not('approval_request_id', 'is', null);
-
-  const existingIds = new Set((existingQueue || []).map((q: any) => q.approval_request_id));
+  // Note: approval_request_id column may not exist yet — fall back to description-based dedup
+  let existingIds = new Set<string>();
+  try {
+    const { data: existingQueue, error: queueErr } = await db
+      .from('payment_queue')
+      .select('approval_request_id')
+      .eq('company_id', companyId)
+      .not('approval_request_id', 'is', null);
+    if (!queueErr && existingQueue) {
+      existingIds = new Set(existingQueue.map((q: any) => q.approval_request_id));
+    }
+  } catch {
+    // Column doesn't exist yet — skip FK-based dedup
+  }
   let queued = 0;
 
   for (const req of approved) {
