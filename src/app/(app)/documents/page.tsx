@@ -347,11 +347,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   allowFeedback: true,
                   expiresInDays: 30,
                 });
-                await navigator.clipboard.writeText(result.shareUrl);
                 setShareUrl(result.shareUrl);
                 setShowShareEmailInput(true);
                 setShareEmailAddress("");
                 invalidate();
+                try { await navigator.clipboard.writeText(result.shareUrl); } catch { /* clipboard not available */ }
               } catch (err: any) {
                 toast('공유 링크 생성 실패: ' + (err?.message || err), "error");
               }

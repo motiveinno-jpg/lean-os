@@ -88,7 +88,7 @@ export function ChatBubble({
 
         <div className="flex items-end gap-2 relative">
           {isOwn && (
-            <span className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">
+            <span className="text-[9px] text-[var(--text-dim)] mb-1 opacity-0 group-hover:opacity-100 transition">
               {time}
             </span>
           )}
@@ -137,8 +137,8 @@ export function ChatBubble({
           <div
             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
               isOwn
-                ? "bg-[#3B82F6] text-white rounded-br-md shadow-sm"
-                : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)] shadow-sm"
+                ? "bg-[var(--primary)] text-white rounded-br-md"
+                : "bg-[var(--bg-surface)] text-[var(--text)] rounded-bl-md"
             } ${pinned ? "ring-1 ring-yellow-500/50" : ""}`}
           >
             {/* File content */}
@@ -184,7 +184,7 @@ export function ChatBubble({
           </div>
 
           {!isOwn && (
-            <span className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">
+            <span className="text-[9px] text-[var(--text-dim)] mb-1 opacity-0 group-hover:opacity-100 transition">
               {time}
             </span>
           )}

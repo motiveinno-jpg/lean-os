@@ -21,7 +21,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/deals", label: "프로젝트/딜", icon: "briefcase" },
-      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin", "employee"] },
+      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin"] },
     ],
   },
   {

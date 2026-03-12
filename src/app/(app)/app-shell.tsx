@@ -79,7 +79,7 @@ function MobileBottomNav() {
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide"],
-  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/partners", "/guide", "/onboarding"],
+  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/guide", "/onboarding"],
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {

@@ -353,6 +353,53 @@ export async function syncIncome(companyId: string, month?: string): Promise<Syn
   }
 }
 
+// ── 4b. CODEF API Sync (은행 + 카드 실시간 연동) ──
+
+export async function syncCodefData(
+  companyId: string,
+  syncType: 'bank' | 'card' | 'all' = 'all',
+  startDate?: string,
+  endDate?: string,
+): Promise<SyncResult> {
+  try {
+    const { data: { session } } = await (supabase as any).auth.getSession();
+    if (!session) return resultErr('codef_sync', '로그인 필요');
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ companyId, syncType, startDate, endDate }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return resultErr('codef_sync', `CODEF 동기화 실패 (${res.status}): ${text}`);
+    }
+
+    const result = await res.json();
+
+    if (!result.success) {
+      return resultErr('codef_sync', result.message || 'CODEF 동기화 실패');
+    }
+
+    const bankCount = result.data?.bank?.count || 0;
+    const cardCount = result.data?.card?.count || 0;
+    const totalCount = bankCount + cardCount;
+
+    return resultOk(
+      'codef_sync',
+      totalCount,
+      `CODEF: 은행 ${bankCount}건, 카드 ${cardCount}건 동기화 완료`,
+    );
+  } catch (err: any) {
+    return resultErr('codef_sync', `CODEF 연동 오류: ${err.message}`);
+  }
+}
+
 // ── 5. Master Sync ──
 
 export async function syncAllData(
@@ -380,6 +427,10 @@ export async function syncAllData(
   // Run all syncs in sequence to avoid race conditions on shared data
   const results: SyncResult[] = [];
 
+  // CODEF API: 은행/카드 실데이터 수집 (먼저 실행)
+  results.push(await syncCodefData(companyId, 'all'));
+
+  // 로컬 데이터 정리/분류
   results.push(await syncBankBalances(companyId));
   results.push(await syncCardTransactions(companyId));
   results.push(await syncFixedCosts(companyId, month));
