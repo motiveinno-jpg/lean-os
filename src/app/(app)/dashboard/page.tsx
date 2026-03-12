@@ -652,11 +652,6 @@ export default function DashboardPage() {
         <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
       )}
 
-      {/* ═══ 시나리오 시뮬레이터 ═══ */}
-      {isWidgetVisible('cash_pulse') && cashPulse && (
-        <ScenarioSimulator pulse={cashPulse} />
-      )}
-
       {/* ═══ 승인센터 ═══ */}
       {isWidgetVisible('approval_center') && companyId && userId && (
         <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
@@ -837,90 +832,6 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
           ))}
         </div>
       </details>
-    </div>
-  );
-}
-
-function ScenarioSimulator({ pulse }: { pulse: CashPulseResult }) {
-  const [open, setOpen] = useState(false);
-  const [scenario, setScenario] = useState({ addEmployee: 0, addRevenue: 0, cutExpense: 0, addLoan: 0 });
-
-  const avgMonthlySalary = 3500000; // 평균 인건비
-  const monthlyBurn = pulse.monthlyBurn || 1;
-  const currentBalance = pulse.currentBalance || 0;
-  const origRunway = monthlyBurn > 0 ? Math.round(currentBalance / monthlyBurn * 10) / 10 : 99;
-
-  const adjustedBurn = monthlyBurn + (scenario.addEmployee * avgMonthlySalary) - scenario.cutExpense;
-  const adjustedIncome = scenario.addRevenue;
-  const adjustedBalance = currentBalance + scenario.addLoan;
-  const netBurn = Math.max(adjustedBurn - adjustedIncome, 1);
-  const newRunway = Math.round(adjustedBalance / netBurn * 10) / 10;
-  const diff = newRunway - origRunway;
-
-  if (!open) {
-    return (
-      <div className="mb-5">
-        <button onClick={() => setOpen(true)} className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition">
-          What-if 시나리오 시뮬레이터 열기
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-500" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">시나리오 시뮬레이터</h2>
-        </div>
-        <button onClick={() => setOpen(false)} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)]">닫기</button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <label className="block text-[10px] text-[var(--text-dim)] mb-1">직원 추가 (명)</label>
-          <input type="number" value={scenario.addEmployee} onChange={e => setScenario({...scenario, addEmployee: Number(e.target.value) || 0})} min={0} max={50}
-            className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-          <div className="text-[9px] text-[var(--text-dim)] mt-0.5">인당 월 {(avgMonthlySalary/10000).toFixed(0)}만원</div>
-        </div>
-        <div>
-          <label className="block text-[10px] text-[var(--text-dim)] mb-1">월 매출 증가 (원)</label>
-          <input type="number" value={scenario.addRevenue} onChange={e => setScenario({...scenario, addRevenue: Number(e.target.value) || 0})} step={1000000}
-            className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-        </div>
-        <div>
-          <label className="block text-[10px] text-[var(--text-dim)] mb-1">월 비용 절감 (원)</label>
-          <input type="number" value={scenario.cutExpense} onChange={e => setScenario({...scenario, cutExpense: Number(e.target.value) || 0})} step={500000}
-            className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-        </div>
-        <div>
-          <label className="block text-[10px] text-[var(--text-dim)] mb-1">자금 조달 (원)</label>
-          <input type="number" value={scenario.addLoan} onChange={e => setScenario({...scenario, addLoan: Number(e.target.value) || 0})} step={10000000}
-            className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-        </div>
-      </div>
-
-      <div className="p-3 rounded-xl bg-[var(--bg-surface)] flex items-center justify-between">
-        <div>
-          <div className="text-[10px] text-[var(--text-dim)]">현재 런웨이</div>
-          <div className="text-sm font-bold">{origRunway}개월</div>
-        </div>
-        <div className="text-lg font-bold text-[var(--text-dim)]">→</div>
-        <div>
-          <div className="text-[10px] text-[var(--text-dim)]">시뮬레이션 런웨이</div>
-          <div className={`text-sm font-bold ${newRunway > origRunway ? 'text-green-500' : newRunway < origRunway ? 'text-red-500' : ''}`}>
-            {newRunway > 99 ? '99+' : newRunway}개월
-          </div>
-        </div>
-        <div className={`px-2 py-1 rounded-lg text-xs font-bold ${diff > 0 ? 'bg-green-500/10 text-green-500' : diff < 0 ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'}`}>
-          {diff > 0 ? '+' : ''}{diff.toFixed(1)}개월
-        </div>
-      </div>
-
-      <div className="mt-3 text-[10px] text-[var(--text-dim)]">
-        조정 월 지출: ₩{fmtW(adjustedBurn)} | 조정 월 수입: ₩{fmtW(adjustedIncome)} | 순소진: ₩{fmtW(netBurn)}/월
-      </div>
     </div>
   );
 }
