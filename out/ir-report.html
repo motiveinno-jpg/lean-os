@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeanOS IR Report - 사업계획서 및 수익 시뮬레이션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#0f1729;--navy-light:#1a2744;--navy-mid:#243352;--blue:#3b82f6;--blue-light:#60a5fa;--cyan:#06b6d4;--white:#ffffff;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-300:#cbd5e1;--gray-400:#94a3b8;--gray-500:#64748b;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6}
+body{font-family:'Pretendard',system-ui,-apple-system,sans-serif;background:var(--navy);color:var(--white);line-height:1.7;font-size:15px}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+h1{font-size:28px;font-weight:800;letter-spacing:-0.5px}
+h2{font-size:22px;font-weight:700;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--blue);display:inline-block}
+h3{font-size:17px;font-weight:600;margin-bottom:12px;color:var(--blue-light)}
+section{padding:48px 0;border-bottom:1px solid var(--navy-mid)}
+p{margin-bottom:12px;color:var(--gray-200)}
+
+/* Header */
+.header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);padding:40px 0;text-align:center;border-bottom:3px solid var(--blue)}
+.header .logo{font-size:36px;font-weight:800;color:var(--blue);margin-bottom:4px}
+.header .logo span{color:var(--white)}
+.header .subtitle{font-size:20px;color:var(--gray-200);margin-top:8px}
+.header .date{color:var(--gray-400);font-size:13px;margin-top:8px}
+.header .badge{display:inline-block;background:var(--blue);color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;margin-top:12px}
+
+/* Cards & Tables */
+.card{background:var(--navy-light);border:1px solid var(--navy-mid);border-radius:12px;padding:24px;margin-bottom:20px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--navy-mid);border-radius:10px;padding:20px;text-align:center}
+.stat-card .value{font-size:28px;font-weight:800;color:var(--blue-light)}
+.stat-card .label{font-size:13px;color:var(--gray-400);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+th{background:var(--navy-mid);color:var(--blue-light);padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+tr:hover td{background:rgba(59,130,246,0.05)}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.tag-blue{background:rgba(59,130,246,0.2);color:var(--blue-light)}
+.tag-green{background:rgba(16,185,129,0.2);color:var(--green)}
+.tag-orange{background:rgba(245,158,11,0.2);color:var(--orange)}
+.tag-purple{background:rgba(139,92,246,0.2);color:var(--purple)}
+
+/* Simulation Controls */
+.sim-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.sim-field label{display:block;font-size:12px;color:var(--gray-400);margin-bottom:4px}
+.sim-field input[type=range]{width:100%;accent-color:var(--blue)}
+.sim-field .val{font-size:18px;font-weight:700;color:var(--blue-light)}
+
+/* SVG Chart */
+.chart-wrap{background:var(--navy-mid);border-radius:10px;padding:20px;margin-bottom:24px;overflow-x:auto}
+svg text{font-family:'Pretendard',sans-serif}
+
+/* Gantt */
+.gantt{display:grid;grid-template-columns:180px repeat(12,1fr);gap:2px;font-size:12px;margin-bottom:24px}
+.gantt-header{background:var(--navy-mid);padding:8px;font-weight:600;text-align:center;border-radius:4px}
+.gantt-label{background:var(--navy-mid);padding:8px;border-radius:4px;font-weight:500}
+.gantt-cell{border-radius:4px;min-height:32px}
+.gantt-fill{background:var(--blue);border-radius:4px;height:100%;opacity:0.8}
+.gantt-fill-green{background:var(--green)}
+.gantt-fill-orange{background:var(--orange)}
+.gantt-fill-purple{background:var(--purple)}
+.gantt-fill-cyan{background:var(--cyan)}
+
+/* Creative Cards */
+.creative-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.creative-card{background:var(--navy-mid);border-radius:10px;padding:20px;border-left:4px solid var(--blue)}
+.creative-card h4{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--white)}
+.creative-card p{font-size:13px;color:var(--gray-300);margin-bottom:0}
+
+/* Comparison */
+.compare-check{color:var(--green);font-weight:700}
+.compare-x{color:var(--gray-500)}
+.compare-partial{color:var(--orange)}
+
+/* Responsive */
+@media(max-width:768px){
+  .container{padding:0 16px}
+  h1{font-size:22px}h2{font-size:18px}
+  .sim-controls{grid-template-columns:1fr}
+  .card-grid{grid-template-columns:1fr 1fr}
+  .gantt{font-size:10px;grid-template-columns:100px repeat(12,1fr)}
+  table{font-size:11px}
+  th,td{padding:6px 8px}
+}
+
+/* Print */
+@media print{
+  body{background:#fff;color:#000;font-size:11px}
+  .container{max-width:100%}
+  section{padding:20px 0;page-break-inside:avoid}
+  .card,.stat-card,.chart-wrap,.gantt-header,.gantt-label{background:#f8f9fa;border:1px solid #ddd}
+  h2{color:#1a2744;border-color:#1a2744}
+  h3{color:#2563eb}
+  .stat-card .value{color:#1a2744}
+  p,td{color:#333}
+  th{background:#e9ecef;color:#1a2744}
+  .header{background:#fff;border-color:#1a2744}
+  .header .logo{color:#2563eb}
+  .header .logo span{color:#1a2744}
+  .sim-controls{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="container">
+    <div class="logo">Lean<span>OS</span></div>
+    <h1>사업계획서 및 수익 시뮬레이션</h1>
+    <div class="subtitle">올인원 회사운영 플랫폼 | IR Report</div>
+    <div class="date">2026년 3월 | (주)모티브이노베이션</div>
+    <div class="badge">CONFIDENTIAL</div>
+  </div>
+</div>
+
+<!-- 1. EXECUTIVE SUMMARY -->
+<section>
+<div class="container">
+  <h2>1. Executive Summary</h2>
+  <div class="card-grid">
+    <div class="stat-card"><div class="value">780만</div><div class="label">한국 중소기업/스타트업 (TAM)</div></div>
+    <div class="stat-card"><div class="value">72%</div><div class="label">경쟁사 대비 비용 절감</div></div>
+    <div class="stat-card"><div class="value">7+</div><div class="label">통합 대체 솔루션 수</div></div>
+    <div class="stat-card"><div class="value">4</div><div class="label">페르소나 (대표/관리자/직원/파트너)</div></div>
+  </div>
+  <div class="card">
+    <h3>LeanOS란?</h3>
+    <p>LeanOS는 한국 중소기업과 스타트업을 위한 <strong style="color:#fff">올인원 회사운영 OS</strong>입니다. HR, 재무, 프로젝트, 계약, 문서, 커뮤니케이션, 분석까지 — 기존에 7개 이상 솔루션에 분산되던 업무를 단일 플랫폼으로 통합합니다.</p>
+    <p>비즈넵+자비스+플레이오토+채널톡+네이버웍스+스윗+Flex를 한 곳에서 사용하면서도, 총 비용은 기존 대비 <strong style="color:var(--green)">72% 절감</strong>됩니다.</p>
+  </div>
+  <div class="card">
+    <h3>가격 플랜</h3>
+    <table>
+      <tr><th>플랜</th><th>기본료(월)</th><th>좌석당(월)</th><th>대상</th><th>주요 기능</th></tr>
+      <tr><td><span class="tag tag-green">Free</span></td><td>₩0</td><td>₩0 (3석)</td><td>1~3인 팀</td><td>기본 HR, 문서, 게시판</td></tr>
+      <tr><td><span class="tag tag-blue">Starter</span></td><td>₩29,000</td><td>₩5,900</td><td>5~15인</td><td>+급여, 계약, 프로젝트</td></tr>
+      <tr><td><span class="tag tag-purple">Business</span></td><td>₩49,000</td><td>₩9,900</td><td>15~50인</td><td>+분석, API, 결재, 자동화</td></tr>
+      <tr><td><span class="tag tag-orange">Enterprise</span></td><td>협의</td><td>협의</td><td>50인+</td><td>전용서버, SLA, 커스텀</td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 2. REVENUE SIMULATION -->
+<section>
+<div class="container">
+  <h2>2. 수익 시뮬레이션</h2>
+  <div class="card">
+    <div class="sim-controls">
+      <div class="sim-field">
+        <label>월 신규 가입 수</label>
+        <input type="range" id="sSignups" min="10" max="500" value="50" oninput="calc()">
+        <div class="val" id="vSignups">50</div>
+      </div>
+      <div class="sim-field">
+        <label>유료 전환율 (%)</label>
+        <input type="range" id="sConv" min="3" max="40" value="15" oninput="calc()">
+        <div class="val" id="vConv">15%</div>
+      </div>
+      <div class="sim-field">
+        <label>평균 좌석 수</label>
+        <input type="range" id="sSeats" min="1" max="20" value="3" oninput="calc()">
+        <div class="val" id="vSeats">3</div>
+      </div>
+      <div class="sim-field">
+        <label>월 해약률 (%)</label>
+        <input type="range" id="sChurn" min="1" max="20" value="5" oninput="calc()">
+        <div class="val" id="vChurn">5%</div>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="stat-card"><div class="value" id="mrrNow">-</div><div class="label">12개월차 MRR</div></div>
+      <div class="stat-card"><div class="value" id="arrNow">-</div><div class="label">12개월차 ARR</div></div>
+      <div class="stat-card"><div class="value" id="cumul12">-</div><div class="label">12개월 누적 매출</div></div>
+      <div class="stat-card"><div class="value" id="cumul36">-</div><div class="label">36개월 누적 매출</div></div>
+    </div>
+
+    <!-- SVG Chart -->
+    <div class="chart-wrap">
+      <svg id="chart" viewBox="0 0 1000 320" style="width:100%;height:auto"></svg>
+    </div>
+
+    <!-- Monthly Table -->
+    <div style="overflow-x:auto">
+      <table id="monthlyTable">
+        <thead><tr><th>월</th><th class="text-right">신규유료</th><th class="text-right">이탈</th><th class="text-right">순유료고객</th><th class="text-right">MRR</th><th class="text-right">누적매출</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 3. MARKETING PLAN -->
+<section>
+<div class="container">
+  <h2>3. 마케팅 전략</h2>
+  <div class="card-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card" style="border-top:3px solid var(--green)">
+      <h3>Phase 1: 런칭 (1~3개월)</h3>
+      <p><strong style="color:#fff">목표:</strong> 초기 500 가입, 브랜드 인지도 구축</p>
+      <p><strong style="color:#fff">전략:</strong> 얼리버드 50% 할인, 무료 마이그레이션, 창업 커뮤니티 타겟 광고</p>
+      <p><strong style="color:#fff">예산:</strong> ₩3,000만/월</p>
+    </div>
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <h3>Phase 2: 확장 (4~6개월)</h3>
+      <p><strong style="color:#fff">목표:</strong> 월 100+ 신규, 유료전환 20%</p>
+      <p><strong style="color:#fff">전략:</strong> 고객 사례 콘텐츠, 파트너십 프로그램, 리퍼럴 보상</p>
+      <p><strong style="color:#fff">예산:</strong> ₩4,000만/월</p>
+    </div>
+    <div class="card" style="border-top:3px solid var(--purple)">
+      <h3>Phase 3: 성장 (7~12개월)</h3>
+      <p><strong style="color:#fff">목표:</strong> 월 200+ 신규, ARR ₩10억 돌파</p>
+      <p><strong style="color:#fff">전략:</strong> 엔터프라이즈 영업팀, 세미나/웨비나, API 생태계 확장</p>
+      <p><strong style="color:#fff">예산:</strong> ₩5,000만/월</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>채널별 예산 배분</h3>
+    <table>
+      <tr><th>채널</th><th>Phase 1</th><th>Phase 2</th><th>Phase 3</th><th>KPI</th></tr>
+      <tr><td>SEO / 콘텐츠 마케팅</td><td>₩500만</td><td>₩800만</td><td>₩1,000만</td><td>월 오가닉 방문 10,000+</td></tr>
+      <tr><td>유료 광고 (네이버/카카오/구글)</td><td>₩1,200만</td><td>₩1,500만</td><td>₩1,500만</td><td>CPA ₩50,000 이하</td></tr>
+      <tr><td>파트너십 / 제휴</td><td>₩300만</td><td>₩700만</td><td>₩1,000만</td><td>파트너 30개사+</td></tr>
+      <tr><td>이벤트 / 세미나</td><td>₩500만</td><td>₩500만</td><td>₩800만</td><td>분기별 참석 200명+</td></tr>
+      <tr><td>PR / 언론</td><td>₩300만</td><td>₩300만</td><td>₩400만</td><td>월 기사 5건+</td></tr>
+      <tr><td>리퍼럴 프로그램</td><td>₩200만</td><td>₩200만</td><td>₩300만</td><td>추천 전환 15%+</td></tr>
+      <tr style="font-weight:700"><td>합계</td><td>₩3,000만</td><td>₩4,000만</td><td>₩5,000만</td><td></td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 4. CAMPAIGN CALENDAR -->
+<section>
+<div class="container">
+  <h2>4. 마케팅 캠페인 캘린더</h2>
+  <div class="card" style="overflow-x:auto">
+    <div class="gantt">
+      <div class="gantt-header"></div>
+      <div class="gantt-header">1월</div><div class="gantt-header">2월</div><div class="gantt-header">3월</div>
+      <div class="gantt-header">4월</div><div class="gantt-header">5월</div><div class="gantt-header">6월</div>
+      <div class="gantt-header">7월</div><div class="gantt-header">8월</div><div class="gantt-header">9월</div>
+      <div class="gantt-header">10월</div><div class="gantt-header">11월</div><div class="gantt-header">12월</div>
+
+      <div class="gantt-label">런칭 이벤트</div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+
+      <div class="gantt-label">콘텐츠 시리즈</div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-green"></div></div>
+
+      <div class="gantt-label">유료 광고 캠페인</div>
+      <div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-orange"></div></div>
+
+      <div class="gantt-label">무료 세미나/웨비나</div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-purple"></div></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-purple"></div></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-purple"></div></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-purple"></div></div>
+
+      <div class="gantt-label">파트너십 프로그램</div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill gantt-fill-cyan"></div></div>
+
+      <div class="gantt-label">리퍼럴 캠페인</div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"></div><div class="gantt-cell"></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+      <div class="gantt-cell"><div class="gantt-fill"></div></div>
+    </div>
+    <table>
+      <tr><th>캠페인</th><th>기간</th><th>총 예산</th><th>예상 리드</th><th>CPA 목표</th></tr>
+      <tr><td>런칭 이벤트 (얼리버드 50%)</td><td>1~2월</td><td>₩2,000만</td><td>500건</td><td>₩40,000</td></tr>
+      <tr><td>콘텐츠 시리즈 (블로그+영상)</td><td>연중</td><td>₩6,000만</td><td>3,000건</td><td>₩20,000</td></tr>
+      <tr><td>유료 광고</td><td>2~12월</td><td>₩1.5억</td><td>4,000건</td><td>₩37,500</td></tr>
+      <tr><td>무료 세미나 (분기별)</td><td>3/6/9/12월</td><td>₩2,400만</td><td>800건</td><td>₩30,000</td></tr>
+      <tr><td>파트너십 프로그램</td><td>4~12월</td><td>₩7,200만</td><td>1,500건</td><td>₩48,000</td></tr>
+      <tr><td>리퍼럴 캠페인</td><td>6~12월</td><td>₩2,100만</td><td>700건</td><td>₩30,000</td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 5. MARKETING CREATIVES -->
+<section>
+<div class="container">
+  <h2>5. 마케팅 크리에이티브</h2>
+
+  <h3>배너 광고 컨셉 (카카오/네이버)</h3>
+  <div class="creative-grid" style="margin-bottom:24px">
+    <div class="creative-card">
+      <h4>A. "7개를 1개로"</h4>
+      <p>7개 솔루션 아이콘이 LeanOS 하나로 수렴하는 애니메이션. 카피: "회사 운영, 하나로 끝. 월 ₩29,000부터"</p>
+    </div>
+    <div class="creative-card" style="border-color:var(--green)">
+      <h4>B. "72% 절감 계산기"</h4>
+      <p>현재 비용 입력 → LeanOS 전환 시 절감액 표시. 카피: "지금 얼마 쓰고 계세요? 72% 아껴드립니다"</p>
+    </div>
+    <div class="creative-card" style="border-color:var(--purple)">
+      <h4>C. "대표님의 하루"</h4>
+      <p>Before(탭 12개) vs After(LeanOS 1개) 비교. 카피: "12개 탭 대신, 1개 화면"</p>
+    </div>
+  </div>
+
+  <h3>SNS 콘텐츠 시리즈</h3>
+  <div class="creative-grid" style="margin-bottom:24px">
+    <div class="creative-card"><h4>1. 스타트업 생존기</h4><p>실제 사용 사례 기반 인포그래픽. 주 2회, 링크드인/인스타.</p></div>
+    <div class="creative-card"><h4>2. 1분 업무 팁</h4><p>LeanOS 기능별 숏폼 영상. 주 3회, 릴스/쇼츠.</p></div>
+    <div class="creative-card"><h4>3. 대표 인터뷰</h4><p>고객사 대표 인터뷰 카드뉴스. 월 2회, 전 채널.</p></div>
+    <div class="creative-card"><h4>4. 업계 트렌드</h4><p>SaaS/HR/재무 트렌드 분석 리포트. 월 1회, 블로그+뉴스레터.</p></div>
+  </div>
+
+  <h3>이메일 마케팅 시퀀스</h3>
+  <div class="card">
+    <table>
+      <tr><th>단계</th><th>시점</th><th>제목 예시</th><th>목표</th></tr>
+      <tr><td><span class="tag tag-green">웰컴</span></td><td>가입 즉시</td><td>"환영합니다! 3분 안에 첫 팀 세팅하기"</td><td>온보딩 완료율 60%+</td></tr>
+      <tr><td><span class="tag tag-blue">교육</span></td><td>D+3, D+7</td><td>"이 기능 하나로 주 5시간 절약됩니다"</td><td>핵심 기능 사용률 40%+</td></tr>
+      <tr><td><span class="tag tag-purple">업그레이드</span></td><td>D+14</td><td>"무료 플랜 한계를 느끼셨다면"</td><td>유료 전환 15%+</td></tr>
+      <tr><td><span class="tag tag-orange">리텐션</span></td><td>D+30, D+60</td><td>"새로운 기능이 추가되었습니다"</td><td>해약률 5% 이하</td></tr>
+    </table>
+  </div>
+
+  <h3>콘텐츠 마케팅 토픽 10선</h3>
+  <div class="card">
+    <ol style="padding-left:20px;color:var(--gray-200)">
+      <li>"스타트업 운영비, 연 1,000만원 줄이는 법" (비용절감 가이드)</li>
+      <li>"5인 이하 팀이 가장 많이 쓰는 SaaS 조합 분석"</li>
+      <li>"급여 관리 자동화: 엑셀에서 벗어나는 3단계"</li>
+      <li>"근로계약서부터 퇴직까지, HR 디지털 전환 로드맵"</li>
+      <li>"원격근무 시대, 팀 생산성 200% 올리는 프로젝트 관리법"</li>
+      <li>"경쟁사 비교: 네이버웍스 vs 스윗 vs LeanOS 완전 분석"</li>
+      <li>"ISO 인증 대비, 문서 관리 체계 구축 가이드"</li>
+      <li>"투자자가 보는 스타트업 내부 운영 시스템 체크리스트"</li>
+      <li>"2026년 중소기업 정부지원금 총정리 + 신청 자동화"</li>
+      <li>"창업 1년차 대표가 꼭 알아야 할 재무/노무 기초"</li>
+    </ol>
+  </div>
+</div>
+</section>
+
+<!-- 6. FINANCIAL PROJECTIONS -->
+<section>
+<div class="container">
+  <h2>6. 재무 전망 (3개년)</h2>
+  <div class="card">
+    <h3>손익계산서 (P&L)</h3>
+    <table>
+      <tr><th></th><th class="text-right">1차년도</th><th class="text-right">2차년도</th><th class="text-right">3차년도</th></tr>
+      <tr><td><strong style="color:#fff">매출</strong></td><td class="text-right">₩4.2억</td><td class="text-right">₩18.5억</td><td class="text-right">₩52억</td></tr>
+      <tr><td>- SaaS 구독료</td><td class="text-right">₩3.6억</td><td class="text-right">₩16억</td><td class="text-right">₩45억</td></tr>
+      <tr><td>- 부가서비스/컨설팅</td><td class="text-right">₩0.6억</td><td class="text-right">₩2.5억</td><td class="text-right">₩7억</td></tr>
+      <tr><td><strong style="color:#fff">매출원가 (COGS)</strong></td><td class="text-right">₩1.8억</td><td class="text-right">₩5.5억</td><td class="text-right">₩13억</td></tr>
+      <tr><td>- 서버/인프라</td><td class="text-right">₩0.6억</td><td class="text-right">₩2억</td><td class="text-right">₩5억</td></tr>
+      <tr><td>- 고객지원 인건비</td><td class="text-right">₩1.2억</td><td class="text-right">₩3.5억</td><td class="text-right">₩8억</td></tr>
+      <tr style="background:rgba(59,130,246,0.1)"><td><strong style="color:#fff">매출총이익</strong></td><td class="text-right"><strong>₩2.4억</strong></td><td class="text-right"><strong>₩13억</strong></td><td class="text-right"><strong>₩39억</strong></td></tr>
+      <tr><td>매출총이익률</td><td class="text-right">57%</td><td class="text-right">70%</td><td class="text-right">75%</td></tr>
+      <tr><td><strong style="color:#fff">판관비</strong></td><td class="text-right">₩8.4억</td><td class="text-right">₩12억</td><td class="text-right">₩20억</td></tr>
+      <tr><td>- 개발팀 인건비</td><td class="text-right">₩3.6억</td><td class="text-right">₩6억</td><td class="text-right">₩10억</td></tr>
+      <tr><td>- 마케팅비</td><td class="text-right">₩3.6억</td><td class="text-right">₩4.8억</td><td class="text-right">₩6억</td></tr>
+      <tr><td>- 기타 운영비</td><td class="text-right">₩1.2억</td><td class="text-right">₩1.2억</td><td class="text-right">₩4억</td></tr>
+      <tr style="background:rgba(239,68,68,0.1)"><td><strong style="color:#fff">영업이익</strong></td><td class="text-right" style="color:var(--red)"><strong>-₩6억</strong></td><td class="text-right"><strong>₩1억</strong></td><td class="text-right" style="color:var(--green)"><strong>₩19억</strong></td></tr>
+      <tr><td>영업이익률</td><td class="text-right" style="color:var(--red)">-143%</td><td class="text-right">5%</td><td class="text-right" style="color:var(--green)">37%</td></tr>
+    </table>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>BEP (손익분기점)</h3>
+      <p><strong style="color:var(--blue-light);font-size:24px">18~20개월차</strong></p>
+      <p>유료 고객 약 350개사, MRR ₩1,500만 시점에서 월 단위 BEP 달성 예상</p>
+      <p>누적 BEP: 24개월차 (누적 투자 회수)</p>
+    </div>
+    <div class="card">
+      <h3>Unit Economics</h3>
+      <table>
+        <tr><td>CAC (고객획득비용)</td><td class="text-right"><strong style="color:#fff">₩120,000</strong></td></tr>
+        <tr><td>ARPU (평균 객단가/월)</td><td class="text-right"><strong style="color:#fff">₩46,700</strong></td></tr>
+        <tr><td>평균 유지기간</td><td class="text-right"><strong style="color:#fff">20개월</strong></td></tr>
+        <tr><td>LTV (고객생애가치)</td><td class="text-right"><strong style="color:var(--green)">₩934,000</strong></td></tr>
+        <tr><td>LTV/CAC 비율</td><td class="text-right"><strong style="color:var(--green)">7.8x</strong></td></tr>
+        <tr><td>CAC 회수기간</td><td class="text-right"><strong style="color:#fff">2.6개월</strong></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>투자 유치 시나리오</h3>
+    <table>
+      <tr><th></th><th>Seed</th><th>Series A</th></tr>
+      <tr><td>시기</td><td>런칭 직후 (0~3개월)</td><td>BEP 전후 (18~24개월)</td></tr>
+      <tr><td>조달 목표</td><td>₩5~10억</td><td>₩30~50억</td></tr>
+      <tr><td>기업가치(Pre)</td><td>₩30~50억</td><td>₩200~300억</td></tr>
+      <tr><td>희석률</td><td>15~20%</td><td>15~20%</td></tr>
+      <tr><td>사용처</td><td>개발팀 확장 (5명→10명), 마케팅 집행</td><td>해외 진출, 엔터프라이즈 영업팀, AI 고도화</td></tr>
+      <tr><td>KPI 근거</td><td>MRR ₩500만+, 유료 100개사+</td><td>MRR ₩1.5억+, YoY 300%+, NRR 120%+</td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- 7. COMPETITIVE ANALYSIS -->
+<section>
+<div class="container">
+  <h2>7. 경쟁사 분석</h2>
+  <div class="card" style="overflow-x:auto">
+    <h3>기능 비교표</h3>
+    <table>
+      <tr>
+        <th>기능</th><th>LeanOS</th><th>비즈넵</th><th>자비스</th><th>플레이오토</th><th>채널톡</th><th>네이버웍스</th><th>스윗</th><th>Flex</th>
+      </tr>
+      <tr><td>HR/인사관리</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-partial">△</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-partial">△</td><td class="compare-x">-</td><td class="compare-check">O</td></tr>
+      <tr><td>급여/세무</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-check">O</td></tr>
+      <tr><td>프로젝트 관리</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-partial">△</td><td class="compare-check">O</td><td class="compare-x">-</td></tr>
+      <tr><td>메신저/채팅</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-x">-</td></tr>
+      <tr><td>전자결재</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-check">O</td><td class="compare-partial">△</td><td class="compare-partial">△</td></tr>
+      <tr><td>계약/문서관리</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-partial">△</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-partial">△</td><td class="compare-partial">△</td><td class="compare-x">-</td></tr>
+      <tr><td>재무/회계</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-partial">△</td></tr>
+      <tr><td>CRM/고객관리</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-x">-</td><td class="compare-x">-</td><td class="compare-x">-</td></tr>
+      <tr><td>분석/대시보드</td><td class="compare-check">O</td><td class="compare-partial">△</td><td class="compare-partial">△</td><td class="compare-partial">△</td><td class="compare-check">O</td><td class="compare-partial">△</td><td class="compare-partial">△</td><td class="compare-partial">△</td></tr>
+      <tr><td>API/연동</td><td class="compare-check">O</td><td class="compare-partial">△</td><td class="compare-partial">△</td><td class="compare-check">O</td><td class="compare-check">O</td><td class="compare-partial">△</td><td class="compare-check">O</td><td class="compare-check">O</td></tr>
+    </table>
+    <p style="font-size:12px;color:var(--gray-400);margin-top:8px">O = 완전 지원 | △ = 부분/제한적 | - = 미지원</p>
+  </div>
+
+  <div class="card">
+    <h3>월 비용 비교 (10인 팀 기준)</h3>
+    <table>
+      <tr><th>솔루션 조합</th><th class="text-right">월 비용</th><th class="text-right">vs LeanOS</th></tr>
+      <tr><td>비즈넵 + 스윗 + Flex + 채널톡</td><td class="text-right">₩350,000</td><td class="text-right" style="color:var(--red)">3.5x</td></tr>
+      <tr><td>자비스 + 네이버웍스 + Flex</td><td class="text-right">₩280,000</td><td class="text-right" style="color:var(--red)">2.8x</td></tr>
+      <tr><td>네이버웍스 + 자비스 + 채널톡 + 스윗</td><td class="text-right">₩420,000</td><td class="text-right" style="color:var(--red)">4.2x</td></tr>
+      <tr style="background:rgba(59,130,246,0.1)"><td><strong style="color:var(--blue-light)">LeanOS Business (10석)</strong></td><td class="text-right"><strong style="color:var(--green)">₩148,000</strong></td><td class="text-right"><strong style="color:var(--green)">1x (기준)</strong></td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<section style="border-bottom:none;padding:32px 0">
+<div class="container" style="text-align:center">
+  <p style="color:var(--gray-400);font-size:12px">
+    (주)모티브이노베이션 | 대표: 채희웅 | 본 자료는 투자 검토 목적으로 작성되었으며, 수치는 추정치입니다.<br>
+    CONFIDENTIAL &mdash; 무단 배포 금지 | 2026.03
+  </p>
+</div>
+</section>
+
+<script>
+// Revenue Simulation Engine
+function fmt(n){
+  if(n>=1e8)return(n/1e8).toFixed(1)+'억';
+  if(n>=1e4)return Math.round(n/1e4).toLocaleString()+'만';
+  return n.toLocaleString();
+}
+function fmtFull(n){return '₩'+n.toLocaleString()}
+
+// Weighted ARPU: 60% Starter, 30% Business, 10% Enterprise-ish
+const ARPU_BASE=29000,SEAT_STARTER=5900,SEAT_BIZ=9900;
+function arpu(seats){
+  const starter=ARPU_BASE+seats*SEAT_STARTER;
+  const biz=49000+seats*SEAT_BIZ;
+  return Math.round(starter*0.6+biz*0.35+biz*1.5*0.05);
+}
+
+function calc(){
+  const signups=+document.getElementById('sSignups').value;
+  const conv=+document.getElementById('sConv').value/100;
+  const seats=+document.getElementById('sSeats').value;
+  const churn=+document.getElementById('sChurn').value/100;
+
+  document.getElementById('vSignups').textContent=signups;
+  document.getElementById('vConv').textContent=Math.round(conv*100)+'%';
+  document.getElementById('vSeats').textContent=seats;
+  document.getElementById('vChurn').textContent=Math.round(churn*100)+'%';
+
+  const avgARPU=arpu(seats);
+  const months=36;
+  const data=[];
+  let customers=0,cumRev=0;
+
+  for(let m=1;m<=months;m++){
+    const newPaid=Math.round(signups*conv);
+    const churned=Math.round(customers*churn);
+    customers=customers+newPaid-churned;
+    if(customers<0)customers=0;
+    const mrr=customers*avgARPU;
+    cumRev+=mrr;
+    data.push({m,newPaid,churned,customers,mrr,cumRev});
+  }
+
+  document.getElementById('mrrNow').textContent='₩'+fmt(data[11].mrr);
+  document.getElementById('arrNow').textContent='₩'+fmt(data[11].mrr*12);
+  document.getElementById('cumul12').textContent='₩'+fmt(data[11].cumRev);
+  document.getElementById('cumul36').textContent='₩'+fmt(data[35].cumRev);
+
+  // Table (show 12 months)
+  const tbody=document.querySelector('#monthlyTable tbody');
+  tbody.innerHTML='';
+  for(let i=0;i<12;i++){
+    const d=data[i];
+    tbody.innerHTML+=`<tr><td>${d.m}개월</td><td class="text-right">+${d.newPaid}</td><td class="text-right" style="color:var(--red)">-${d.churned}</td><td class="text-right">${d.customers}</td><td class="text-right">${fmtFull(d.mrr)}</td><td class="text-right">${fmtFull(d.cumRev)}</td></tr>`;
+  }
+
+  // SVG Chart - MRR over 36 months
+  drawChart(data);
+}
+
+function drawChart(data){
+  const svg=document.getElementById('chart');
+  const W=1000,H=300,PAD_L=70,PAD_R=20,PAD_T=20,PAD_B=40;
+  const cW=W-PAD_L-PAD_R,cH=H-PAD_T-PAD_B;
+  const maxMRR=Math.max(...data.map(d=>d.mrr))||1;
+
+  let html=`<rect width="${W}" height="${H}" fill="transparent"/>`;
+
+  // Grid lines
+  for(let i=0;i<=4;i++){
+    const y=PAD_T+cH*(1-i/4);
+    const val=fmt(maxMRR*i/4);
+    html+=`<line x1="${PAD_L}" y1="${y}" x2="${W-PAD_R}" y2="${y}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+    html+=`<text x="${PAD_L-8}" y="${y+4}" text-anchor="end" fill="#94a3b8" font-size="11">₩${val}</text>`;
+  }
+
+  // X axis labels
+  for(let i=0;i<36;i+=6){
+    const x=PAD_L+cW*i/35;
+    html+=`<text x="${x}" y="${H-8}" text-anchor="middle" fill="#94a3b8" font-size="11">${i||1}M</text>`;
+  }
+  html+=`<text x="${PAD_L+cW}" y="${H-8}" text-anchor="middle" fill="#94a3b8" font-size="11">36M</text>`;
+
+  // Line path
+  let path='';
+  let areaPath='';
+  data.forEach((d,i)=>{
+    const x=PAD_L+cW*i/35;
+    const y=PAD_T+cH*(1-d.mrr/maxMRR);
+    path+=(i===0?'M':'L')+x+','+y;
+    areaPath+=(i===0?'M':'L')+x+','+y;
+  });
+  areaPath+=`L${PAD_L+cW},${PAD_T+cH}L${PAD_L},${PAD_T+cH}Z`;
+
+  html+=`<path d="${areaPath}" fill="url(#areaGrad)" opacity="0.3"/>`;
+  html+=`<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs>`;
+  html+=`<path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  // Key points: 12M, 24M, 36M
+  [11,23,35].forEach(i=>{
+    const d=data[i];
+    const x=PAD_L+cW*i/35;
+    const y=PAD_T+cH*(1-d.mrr/maxMRR);
+    html+=`<circle cx="${x}" cy="${y}" r="4" fill="#3b82f6" stroke="#fff" stroke-width="2"/>`;
+    html+=`<text x="${x}" y="${y-12}" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="600">₩${fmt(d.mrr)}</text>`;
+  });
+
+  html+=`<text x="${W/2}" y="${H}" text-anchor="middle" fill="#64748b" font-size="12">월간반복매출(MRR) 36개월 추이</text>`;
+
+  svg.innerHTML=html;
+}
+
+// Initialize
+calc();
+</script>
+</body>
+</html>
