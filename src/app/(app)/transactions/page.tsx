@@ -39,6 +39,7 @@ export default function TransactionsPage() {
   const cardFileRef = useRef<HTMLInputElement>(null);
   const receiptFileRef = useRef<HTMLInputElement>(null);
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
+  const [codefSyncing, setCodefSyncing] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -405,6 +406,30 @@ export default function TransactionsPage() {
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+          <button
+            onClick={async () => {
+              setCodefSyncing(true);
+              try {
+                const { syncCodefData } = await import('@/lib/data-sync');
+                const result = await syncCodefData(companyId!, 'all');
+                if (result.success) {
+                  toast('CODEF 동기화 완료', 'success');
+                  queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
+                } else {
+                  toast(result.error || 'CODEF 동기화 실패', 'error');
+                }
+              } catch (e: any) {
+                toast(e.message || '오류', 'error');
+              } finally {
+                setCodefSyncing(false);
+              }
+            }}
+            disabled={codefSyncing || !companyId}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50"
+          >
+            {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
+          </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
             {uploading ? "업로드 중..." : "CSV 업로드"}

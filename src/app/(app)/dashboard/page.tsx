@@ -652,6 +652,21 @@ export default function DashboardPage() {
         <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
       )}
 
+      {/* ═══ 시나리오 시뮬레이터 (위기모드) ═══ */}
+      {isWidgetVisible('scenario_simulator') && cashPulse && (
+        <div id="widget-scenario_simulator"><ScenarioSimulator pulse={cashPulse} /></div>
+      )}
+
+      {/* ═══ 미수금 현황 (위기모드) ═══ */}
+      {isWidgetVisible('overdue_receivables') && companyId && (
+        <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
+      )}
+
+      {/* ═══ 번레이트 추이 (위기모드) ═══ */}
+      {isWidgetVisible('burn_rate_trend') && companyId && (
+        <div id="widget-burn_rate_trend"><BurnRateTrendWidget companyId={companyId} /></div>
+      )}
+
       {/* ═══ 승인센터 ═══ */}
       {isWidgetVisible('approval_center') && companyId && userId && (
         <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
@@ -832,6 +847,182 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
           ))}
         </div>
       </details>
+    </div>
+  );
+}
+
+function ScenarioSimulator({ pulse }: { pulse: CashPulseResult }) {
+  const [addEmployees, setAddEmployees] = useState(0);
+  const [revenueChange, setRevenueChange] = useState(0);
+  const [cutExpenses, setCutExpenses] = useState(0);
+
+  const currentBurn = pulse.monthlyBurn || 0;
+  const currentBalance = pulse.currentBalance || 0;
+  const avgSalary = 4500000; // 평균 급여 추정
+
+  const newBurn = Math.max(0, currentBurn + (addEmployees * avgSalary) - cutExpenses);
+  const estimatedRevenue = Math.max(0, (currentBurn * 0.8) * (1 + revenueChange / 100));
+  const netBurn = Math.max(1, newBurn - estimatedRevenue);
+  const runway = Math.round(currentBalance / netBurn);
+
+  return (
+    <div className="mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-base">🔮</span>
+        <h3 className="text-sm font-bold text-[var(--text)]">시나리오 시뮬레이터</h3>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-medium">What-if</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <label className="block">
+          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">직원 추가</span>
+          <input type="number" value={addEmployees} onChange={e => setAddEmployees(Number(e.target.value))}
+            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
+        </label>
+        <label className="block">
+          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">매출 변동 (%)</span>
+          <input type="number" value={revenueChange} onChange={e => setRevenueChange(Number(e.target.value))}
+            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
+        </label>
+        <label className="block">
+          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">비용 절감 (원)</span>
+          <input type="number" value={cutExpenses} onChange={e => setCutExpenses(Number(e.target.value))}
+            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
+        </label>
+      </div>
+      <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-surface)]">
+        <div>
+          <div className="text-[11px] text-[var(--text-muted)]">예상 월 지출</div>
+          <div className="text-sm font-bold text-[var(--text)]">{(newBurn/10000).toFixed(0)}만원</div>
+        </div>
+        <div className="w-px h-8 bg-[var(--border)]" />
+        <div>
+          <div className="text-[11px] text-[var(--text-muted)]">예상 런웨이</div>
+          <div className={`text-sm font-bold ${runway <= 3 ? 'text-red-500' : runway <= 6 ? 'text-yellow-500' : 'text-green-500'}`}>{runway}개월</div>
+        </div>
+        <div className="w-px h-8 bg-[var(--border)]" />
+        <div>
+          <div className="text-[11px] text-[var(--text-muted)]">순 현금흐름</div>
+          <div className={`text-sm font-bold ${estimatedRevenue - newBurn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {((estimatedRevenue - newBurn)/10000).toFixed(0)}만원/월
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["overdue-invoices", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, due_date, status').eq('company_id', companyId).in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const now = new Date();
+  const overdue = invoices.filter((inv: any) => {
+    if (!inv.due_date) return false;
+    return new Date(inv.due_date) < now;
+  });
+  const totalOverdue = overdue.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
+  const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
+
+  return (
+    <div className="mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-base">💰</span>
+        <h3 className="text-sm font-bold text-[var(--text)]">미수금 현황</h3>
+        {overdue.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-bold">{overdue.length}건 연체</span>}
+      </div>
+      <div className="flex gap-4 mb-3">
+        <div className="flex-1 p-3 rounded-xl bg-[var(--bg-surface)]">
+          <div className="text-[11px] text-[var(--text-muted)]">미수금 합계</div>
+          <div className="text-sm font-bold text-[var(--text)]">{(totalPending/10000).toFixed(0)}만원</div>
+        </div>
+        <div className="flex-1 p-3 rounded-xl bg-red-500/5">
+          <div className="text-[11px] text-red-400">연체 금액</div>
+          <div className="text-sm font-bold text-red-500">{(totalOverdue/10000).toFixed(0)}만원</div>
+        </div>
+      </div>
+      {overdue.length > 0 && (
+        <div className="space-y-2">
+          {overdue.slice(0, 5).map((inv: any, i: number) => {
+            const days = Math.floor((now.getTime() - new Date(inv.due_date).getTime()) / 86400000);
+            return (
+              <div key={i} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+                <span className="text-[var(--text)]">{inv.counterparty_name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[var(--text-muted)]">{(Number(inv.total_amount)/10000).toFixed(0)}만원</span>
+                  <span className="text-red-400 font-bold">D+{days}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {invoices.length === 0 && <p className="text-xs text-[var(--text-muted)] text-center py-3">미수금 데이터 없음</p>}
+    </div>
+  );
+}
+
+function BurnRateTrendWidget({ companyId }: { companyId: string }) {
+  const { data: trends = [] } = useQuery({
+    queryKey: ["burn-rate-trend", companyId],
+    queryFn: async () => {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const { data } = await (supabase as any).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date');
+      if (!data) return [];
+      const monthly: Record<string, { expense: number; income: number }> = {};
+      data.forEach((tx: any) => {
+        const month = tx.transaction_date?.slice(0, 7);
+        if (!month) return;
+        if (!monthly[month]) monthly[month] = { expense: 0, income: 0 };
+        const amt = Math.abs(Number(tx.amount || 0));
+        if (tx.type === 'expense' || Number(tx.amount) < 0) monthly[month].expense += amt;
+        else monthly[month].income += amt;
+      });
+      return Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v }));
+    },
+    enabled: !!companyId,
+  });
+
+  const maxVal = Math.max(...trends.map(t => Math.max(t.expense, t.income)), 1);
+
+  return (
+    <div className="mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-base">📊</span>
+        <h3 className="text-sm font-bold text-[var(--text)]">번레이트 추이</h3>
+        <span className="text-[10px] text-[var(--text-muted)]">최근 6개월</span>
+      </div>
+      {trends.length > 0 ? (
+        <div className="space-y-2">
+          {trends.map((t, i) => (
+            <div key={i} className="flex items-center gap-3 text-xs">
+              <span className="w-14 text-[var(--text-muted)] shrink-0">{t.month.slice(5)}월</span>
+              <div className="flex-1 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 rounded bg-red-400/80" style={{ width: `${(t.expense / maxVal) * 100}%` }} />
+                  <span className="text-[var(--text-muted)] whitespace-nowrap">{(t.expense/10000).toFixed(0)}만</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 rounded bg-green-400/80" style={{ width: `${(t.income / maxVal) * 100}%` }} />
+                  <span className="text-[var(--text-muted)] whitespace-nowrap">{(t.income/10000).toFixed(0)}만</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--text-muted)]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-400/80" />지출</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-green-400/80" />수입</span>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-[var(--text-muted)] text-center py-3">거래 데이터 없음</p>
+      )}
     </div>
   );
 }

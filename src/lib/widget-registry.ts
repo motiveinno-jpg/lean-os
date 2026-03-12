@@ -12,6 +12,9 @@ export type WidgetId =
   | 'financial_overview'
   | 'closing_checklist'
   | 'automation_status'
+  | 'scenario_simulator'
+  | 'overdue_receivables'
+  | 'burn_rate_trend'
 ;
 
 export interface WidgetDef {
@@ -32,6 +35,9 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   { id: 'financial_overview', name: '재무 현황',    description: '월별 수입/지출 차트와 드릴다운',   category: 'cash', defaultVisible: false, defaultOrder: 5 },
   { id: 'closing_checklist', name: '월 마감',       description: '월 마감 체크리스트',              category: 'tax',  defaultVisible: false, defaultOrder: 6 },
   { id: 'automation_status', name: '자동화 엔진',   description: '15개 자동화 실행 상태',           category: 'ops',  defaultVisible: false, defaultOrder: 7 },
+  { id: 'scenario_simulator', name: '시나리오 시뮬레이터', description: 'What-if 런웨이 시뮬레이션', category: 'cash', defaultVisible: false, defaultOrder: 8 },
+  { id: 'overdue_receivables', name: '미수금 현황', description: '미수금/연체 상세 현황', category: 'cash', defaultVisible: false, defaultOrder: 9 },
+  { id: 'burn_rate_trend', name: '번레이트 추이', description: '월별 지출 추이와 런웨이 변화', category: 'cash', defaultVisible: false, defaultOrder: 10 },
 ];
 
 // ── Widget config per view ──
@@ -69,7 +75,9 @@ export const PRESET_VIEWS: PresetView[] = [
     id: 'crisis',
     name: '위기 모드',
     widgets: makeConfigs([
-      'cash_pulse', 'approval_center', 'today_actions', 'risk_zone',
+      'cash_pulse', 'scenario_simulator', 'risk_zone',
+      'overdue_receivables', 'burn_rate_trend',
+      'today_actions', 'approval_center',
     ]),
   },
   {

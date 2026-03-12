@@ -372,7 +372,11 @@ export async function triggerBatchExecution(batchId: string): Promise<{ triggere
   await db.from('payment_batches').update({ status: 'executing' }).eq('id', batchId);
 
   // n8n webhook URL (configurable via settings)
-  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK || 'http://localhost:5678/webhook/payment-batch';
+  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK;
+  if (!N8N_WEBHOOK_URL) {
+    await db.from('payment_batches').update({ status: 'failed' }).eq('id', batchId);
+    return { triggered: false };
+  }
 
   try {
     const response = await fetch(N8N_WEBHOOK_URL, {

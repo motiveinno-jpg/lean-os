@@ -604,3 +604,42 @@ function inferCategory(payee: string): string {
 
   return '기타 고정비';
 }
+
+// ── CODEF API Sync ──
+
+export async function syncCodefData(
+  companyId: string,
+  syncType: 'bank' | 'card' | 'all' = 'all',
+  startDate?: string,
+  endDate?: string,
+): Promise<{ success: boolean; error?: string; message?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '로그인이 필요합니다' };
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return { success: false, error: 'Supabase URL이 설정되지 않았습니다' };
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ companyId, syncType, startDate, endDate }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'CODEF 연동 오류' }));
+      return { success: false, error: err.error || `HTTP ${res.status}` };
+    }
+
+    const result = await res.json();
+    return {
+      success: true,
+      message: `CODEF 동기화 완료: ${JSON.stringify(result.results || {})}`,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'CODEF 동기화 실패' };
+  }
+}
