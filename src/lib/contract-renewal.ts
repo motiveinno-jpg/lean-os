@@ -277,8 +277,8 @@ export async function checkAndCreateAutoReminders(
     const expiryDate = new Date(contract.expiry_date);
 
     for (const threshold of RENEWAL_THRESHOLDS) {
-      // Only create reminders for thresholds the contract hasn't passed yet
-      if (contract.days_remaining > threshold.days) continue;
+      // Only create reminders for thresholds where the reminder date is still in the future
+      if (contract.days_remaining < threshold.days) continue;
 
       const reminderDate = new Date(expiryDate);
       reminderDate.setDate(reminderDate.getDate() - threshold.days);

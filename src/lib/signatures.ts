@@ -87,7 +87,8 @@ export async function sendSignatureEmail(signatureRequestId: string): Promise<{ 
   const req = await getSignatureRequest(signatureRequestId);
   if (!req) return { success: false, error: '서명 요청을 찾을 수 없습니다.' };
 
-  const signUrl = `${window.location.origin}/sign?token=${req.sign_token}`;
+  const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || 'https://ownerview.co');
+  const signUrl = `${origin}/sign?token=${req.sign_token}`;
 
   try {
     const { data, error } = await db.functions.invoke('send-signature-email', {
@@ -290,6 +291,8 @@ export async function applyCompanySeal(params: {
       status: 'signed',
       signer_name: company.name || '회사 직인',
       signer_email: 'seal@company',
+      sign_token: generateSignToken(),
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       signed_at: new Date().toISOString(),
       signature_data: { type: 'seal', data: company.seal_url },
       created_by: appliedBy,
@@ -312,7 +315,7 @@ export async function expireOverdueSignatures(companyId?: string): Promise<numbe
     query = query.eq('company_id', companyId);
   }
 
-  const { data, error } = await query.select('id');
+  const { data, error } = await query.select('id, company_id');
   if (error) throw error;
 
   const expiredCount = (data || []).length;
@@ -320,7 +323,7 @@ export async function expireOverdueSignatures(companyId?: string): Promise<numbe
   // Audit log each expired request
   for (const row of (data || [])) {
     await logAudit({
-      company_id: companyId || '',
+      company_id: row.company_id || companyId || '',
       user_id: 'system',
       action: 'update',
       entity_type: 'signature',

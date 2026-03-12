@@ -390,17 +390,23 @@ export async function getGeneralLedger(
     query = query.lte('journal_entries.entry_date', dateRange.to);
   }
 
-  // Order by entry date ascending for running balance
-  query = query.order('journal_entries(entry_date)', { ascending: true });
-
   const { data: lines, error } = await query;
 
   if (error) throw new Error(`Failed to fetch general ledger: ${error.message}`);
 
+  // Sort in-memory by entry_date since Supabase doesn't support ordering by relation columns
+  const sortedLines = ((lines ?? []) as unknown[]).sort((a: unknown, b: unknown) => {
+    const entryA = (a as Record<string, any>).journal_entries;
+    const entryB = (b as Record<string, any>).journal_entries;
+    const dateA = entryA?.entry_date || '';
+    const dateB = entryB?.entry_date || '';
+    return dateA.localeCompare(dateB);
+  });
+
   // Build ledger with running balance
   let runningBalance = 0;
 
-  return ((lines ?? []) as unknown[]).map((row: unknown) => {
+  return sortedLines.map((row: unknown) => {
     const line = row as Record<string, unknown>;
     const entry = line.journal_entries as Record<string, unknown>;
     const debit = Number(line.debit);

@@ -428,6 +428,8 @@ export async function generateWithholdingTax(params: WithholdingTaxParams): Prom
     const rate = o.withholdingRate ?? 3.3;
     return s + Math.floor(o.payment * rate / 100);
   }, 0);
+  const totalOtherIncomeTaxAll = otherIncome.reduce((s, o) => s + Math.floor(o.payment * 3 / 100), 0);
+  const totalOtherLocalTaxAll = totalOtherWithholdingAll - totalOtherIncomeTaxAll;
   const grandTotalTax = totalIncomeTax + totalLocalTax + totalOtherWithholdingAll;
 
   doc.setFontSize(11);
@@ -441,7 +443,7 @@ export async function generateWithholdingTax(params: WithholdingTaxParams): Prom
     head: [['구분', '소득세', '지방소득세', '합계']],
     body: [
       ['근로소득', fmt(totalIncomeTax), fmt(totalLocalTax), fmt(totalIncomeTax + totalLocalTax)],
-      ['사업소득', fmt(totalOtherWithholdingAll > 0 ? Math.floor(otherIncome.reduce((s, o) => s + o.payment, 0) * 3 / 100) : 0), fmt(totalOtherWithholdingAll > 0 ? totalOtherWithholdingAll - Math.floor(otherIncome.reduce((s, o) => s + o.payment, 0) * 3 / 100) : 0), fmt(totalOtherWithholdingAll)],
+      ['사업소득', fmt(totalOtherIncomeTaxAll), fmt(totalOtherLocalTaxAll), fmt(totalOtherWithholdingAll)],
       ['납부세액 합계', '-', '-', fmt(grandTotalTax)],
     ],
     styles: { fontSize: 10, cellPadding: 5, font: 'NanumGothic', halign: 'right' },

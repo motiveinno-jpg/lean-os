@@ -84,8 +84,7 @@ export async function syncBankBalances(companyId: string): Promise<SyncResult> {
         .select('amount, type')
         .eq('company_id', companyId)
         .eq('bank_account_id', account.id)
-        .order('created_at', { ascending: false })
-        .limit(500);
+        .order('created_at', { ascending: false });
 
       if (txErr) continue;
 

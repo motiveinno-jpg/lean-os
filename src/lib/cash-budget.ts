@@ -283,8 +283,9 @@ function estimateMonthlyPayment(row: any): number {
 
   if (!maturity || remaining <= 0) return 0;
 
+  const now = new Date();
   const monthsLeft = Math.max(1, Math.round(
-    (maturity.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30),
+    (maturity.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30),
   ));
 
   const loanType = row.loan_type || 'term';
@@ -480,7 +481,7 @@ export async function getMonthlyBudgetOverview(
       })
       .reduce((sum: number, fc: any) => sum + Number(fc.amount || 0), 0);
 
-    const totalFixed = Math.max(recurringTotal, fixedCostTotal) || recurringTotal + fixedCostTotal;
+    const totalFixed = recurringTotal + fixedCostTotal;
 
     // ── Variable Costs ──
     const monthPayments = payments.filter(
