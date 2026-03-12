@@ -275,15 +275,14 @@ ${today}
 "을" ${partnerName}  대표이사 ______________ (인)`;
   }
 
-  const { data: doc, error } = await supabase
+  const { data: doc, error } = await db
     .from('documents')
     .insert({
       company_id: companyId,
       deal_id: dealId,
       name,
       status: 'draft',
-      content_json: contentJson as unknown as Json,
-      content_type: docType,
+      content_json: contentJson,
       version: 1,
       created_by: createdBy,
     })

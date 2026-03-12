@@ -1960,6 +1960,239 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
 }
 
 // ═══════════════════════════════════════════
+// Certificate Finder Section — PC/USB 인증서 자동 탐색
+// ═══════════════════════════════════════════
+
+function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploading, onUpload }: {
+  certDerRef: React.RefObject<HTMLInputElement | null>;
+  certKeyRef: React.RefObject<HTMLInputElement | null>;
+  certFileStatus: { der: boolean; key: boolean };
+  certUploading: boolean;
+  onUpload: () => void;
+}) {
+  const [certSource, setCertSource] = useState<"auto" | "manual" | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [foundCerts, setFoundCerts] = useState<{ name: string; derFile: File; keyFile: File | null }[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [selectedCert, setSelectedCert] = useState<number | null>(null);
+
+  // File System Access API를 사용한 인증서 자동 탐색
+  async function scanForCerts() {
+    setScanning(true);
+    setScanError(null);
+    setFoundCerts([]);
+    setSelectedCert(null);
+
+    try {
+      // Check if File System Access API is available
+      if (!('showDirectoryPicker' in window)) {
+        setScanError("이 브라우저에서는 폴더 자동 탐색을 지원하지 않습니다. Chrome 또는 Edge 브라우저를 사용하거나, 아래 '직접 선택' 방식을 이용해주세요.");
+        setScanning(false);
+        return;
+      }
+
+      const dirHandle = await (window as any).showDirectoryPicker({ mode: "read" });
+      const certs: { name: string; derFile: File; keyFile: File | null }[] = [];
+
+      // Recursively scan for .der / .key pairs (up to 3 levels deep)
+      async function scanDir(handle: any, depth: number, path: string) {
+        if (depth > 3) return;
+        try {
+          for await (const entry of handle.values()) {
+            if (entry.kind === "directory") {
+              await scanDir(entry, depth + 1, `${path}/${entry.name}`);
+            } else if (entry.kind === "file" && entry.name === "signCert.der") {
+              const derFile = await entry.getFile();
+              // Look for matching signPri.key in same directory
+              let keyFile: File | null = null;
+              try {
+                const keyHandle = await handle.getFileHandle("signPri.key");
+                keyFile = await keyHandle.getFile();
+              } catch { /* key file not found in same dir */ }
+              certs.push({ name: path || dirHandle.name, derFile, keyFile });
+            }
+          }
+        } catch { /* permission denied or read error */ }
+      }
+
+      await scanDir(dirHandle, 0, "");
+
+      if (certs.length === 0) {
+        setScanError("선택한 폴더에서 인증서 파일(signCert.der)을 찾을 수 없습니다. 다른 폴더를 선택하거나 '직접 선택'을 이용해주세요.");
+      } else {
+        setFoundCerts(certs);
+        if (certs.length === 1) setSelectedCert(0);
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setScanError("폴더 접근 중 오류가 발생했습니다. 다시 시도해주세요.");
+      }
+    }
+    setScanning(false);
+  }
+
+  // Apply found cert to the file inputs
+  function applyFoundCert() {
+    if (selectedCert === null || !foundCerts[selectedCert]) return;
+    const cert = foundCerts[selectedCert];
+
+    // Create DataTransfer to set files on input elements
+    if (certDerRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(cert.derFile);
+      certDerRef.current.files = dt.files;
+    }
+    if (cert.keyFile && certKeyRef.current) {
+      const dt = new DataTransfer();
+      dt.items.add(cert.keyFile);
+      certKeyRef.current.files = dt.files;
+    }
+    onUpload();
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Step 1: 위치 선택 */}
+      {!certSource && (
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-[var(--text)]">인증서를 어떻게 등록하시겠습니까?</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button onClick={() => { setCertSource("auto"); }}
+              className="p-4 rounded-xl border-2 border-dashed border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/50 transition text-left">
+              <div className="text-sm font-bold text-purple-400 mb-1">자동 탐색</div>
+              <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                PC나 USB에서 인증서 폴더를 선택하면<br/>자동으로 인증서를 찾아줍니다
+              </div>
+            </button>
+            <button onClick={() => setCertSource("manual")}
+              className="p-4 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--bg-surface)] transition text-left">
+              <div className="text-sm font-bold text-[var(--text)] mb-1">직접 선택</div>
+              <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                인증서 파일(.der)과 개인키 파일(.key)을<br/>직접 선택하여 업로드합니다
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Auto scan mode */}
+      {certSource === "auto" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-[var(--text)]">인증서 자동 탐색</div>
+            <button onClick={() => { setCertSource(null); setFoundCerts([]); setScanError(null); }} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">방식 변경</button>
+          </div>
+
+          {/* 위치 안내 */}
+          <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">인증서가 저장된 폴더를 선택해주세요</div>
+            <div className="space-y-1.5 text-[10px] text-[var(--text-dim)]">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">PC</span>
+                <div>
+                  <div>Windows: <span className="font-mono bg-[var(--bg)] px-1 rounded">C:\Users\사용자명\AppData\LocalLow\NPKI</span></div>
+                  <div>또는 <span className="font-mono bg-[var(--bg)] px-1 rounded">C:\Program Files\NPKI</span></div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-400 mt-0.5">USB</span>
+                <span>USB 드라이브의 <span className="font-mono bg-[var(--bg)] px-1 rounded">NPKI</span> 폴더</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-amber-400 mt-0.5">Mac</span>
+                <span><span className="font-mono bg-[var(--bg)] px-1 rounded">~/Library/Preferences/NPKI</span></span>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={scanForCerts} disabled={scanning}
+            className="w-full py-3 rounded-xl text-xs font-bold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
+            {scanning ? "폴더를 탐색하고 있습니다..." : "폴더 선택하여 인증서 찾기"}
+          </button>
+
+          {scanError && (
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+              <div className="text-[11px] text-red-400">{scanError}</div>
+            </div>
+          )}
+
+          {/* Found certs */}
+          {foundCerts.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-semibold text-green-400">{foundCerts.length}개의 인증서를 발견했습니다</div>
+              {foundCerts.map((cert, idx) => (
+                <button key={idx} onClick={() => setSelectedCert(idx)}
+                  className={`w-full p-3 rounded-xl border text-left transition ${selectedCert === idx ? "bg-purple-500/10 border-purple-500/40" : "bg-[var(--bg-surface)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${selectedCert === idx ? "border-purple-400 bg-purple-400" : "border-[var(--border)]"}`}>
+                      {selectedCert === idx && <span className="text-white text-[8px]">V</span>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-medium truncate">{cert.name || "인증서"}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">
+                        signCert.der {cert.keyFile ? "+ signPri.key" : "(개인키 없음)"}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+              <button onClick={applyFoundCert} disabled={selectedCert === null || certUploading}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-600 border-purple-500 text-white hover:bg-purple-700 disabled:opacity-50">
+                {certUploading ? "업로드 중..." : "선택한 인증서 등록"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Manual mode */}
+      {certSource === "manual" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-[var(--text)]">인증서 직접 선택</div>
+            <button onClick={() => setCertSource(null)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">방식 변경</button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">인증서 파일 (.der)</div>
+              <div className="flex items-center gap-2">
+                <input ref={certDerRef} type="file" accept=".der" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                {certFileStatus.der && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">개인키 파일 (.key)</div>
+              <div className="flex items-center gap-2">
+                <input ref={certKeyRef} type="file" accept=".key" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                {certFileStatus.key && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
+              </div>
+            </div>
+          </div>
+          <button onClick={onUpload} disabled={certUploading}
+            className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
+            {certUploading ? "업로드 중..." : "인증서 업로드"}
+          </button>
+        </div>
+      )}
+
+      {/* 등록 상태 */}
+      {(certFileStatus.der || certFileStatus.key) && (
+        <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+          <div className="text-[10px] text-green-400 font-semibold">
+            {certFileStatus.der && certFileStatus.key ? "인증서 + 개인키 모두 등록됨" : certFileStatus.der ? "인증서만 등록됨 (개인키 필요)" : "개인키만 등록됨 (인증서 필요)"}
+          </div>
+        </div>
+      )}
+      <p className="text-[10px] text-[var(--text-dim)]">
+        인증서 파일은 암호화되어 안전하게 보관됩니다. 홈택스/은행 자동화 시 사용됩니다.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // Certificate Management Tab
 // ═══════════════════════════════════════════
 
@@ -2252,7 +2485,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
         </p>
       </div>
 
-      {/* 공동인증서 파일 업로드 */}
+      {/* 공동인증서 파일 업로드 — 위치 자동 탐색 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg">📜</div>
@@ -2261,40 +2494,15 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
             <div className="text-[11px] text-[var(--text-dim)]">홈택스, 은행 자동화에 필요한 공동인증서 파일</div>
           </div>
         </div>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">인증서 파일 (.der)</div>
-              <div className="flex items-center gap-2">
-                <input ref={certDerRef} type="file" accept=".der" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
-                {certFileStatus.der && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">업로드됨</span>}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">개인키 파일 (.key)</div>
-              <div className="flex items-center gap-2">
-                <input ref={certKeyRef} type="file" accept=".key" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
-                {certFileStatus.key && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">업로드됨</span>}
-              </div>
-            </div>
-          </div>
-          <button onClick={uploadCertFiles} disabled={certUploading}
-            className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
-            {certUploading ? "업로드 중..." : "인증서 업로드"}
-          </button>
-          {(certFileStatus.der || certFileStatus.key) && (
-            <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-              <div className="text-[10px] text-green-400 font-semibold">
-                {certFileStatus.der && certFileStatus.key ? "인증서 + 개인키 모두 등록됨" : certFileStatus.der ? "인증서만 등록됨 (개인키 필요)" : "개인키만 등록됨 (인증서 필요)"}
-              </div>
-            </div>
-          )}
-          <p className="text-[10px] text-[var(--text-dim)]">
-            인증서 파일은 암호화되어 안전하게 보관됩니다. 홈택스/은행 자동화 시 사용됩니다.
-          </p>
-        </div>
+
+        {/* 인증서 위치 안내 + 자동 탐색 */}
+        <CertFinderSection
+          certDerRef={certDerRef}
+          certKeyRef={certKeyRef}
+          certFileStatus={certFileStatus}
+          certUploading={certUploading}
+          onUpload={uploadCertFiles}
+        />
       </div>
 
       {/* 은행 */}
@@ -2315,7 +2523,9 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           </button>
         ) : (
           <div className="space-y-4">
-            {banks.map((b, i) => (
+            {banks.map((b, i) => {
+              const bankLoginMethod = (b as any).login_method || (b.cert_password && !b.login_id ? "certificate" : b.login_id ? "id_pw" : "certificate");
+              return (
               <div key={i} className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
                 <div className="flex items-center gap-2">
                   <select value={b.company} onChange={(e) => updateBank(i, "company", e.target.value)}
@@ -2324,28 +2534,44 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
                   </select>
                   <button onClick={() => removeBank(i)} className="px-2 py-2 text-red-400/60 hover:text-red-400 text-xs">삭제</button>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] font-semibold">로그인 방식</div>
-                <div className="relative">
-                  <input type={showPw[`bank_cert_${i}`] ? "text" : "password"} value={b.cert_password || ""} onChange={(e) => updateBank(i, "cert_password", e.target.value)}
-                    placeholder="공인인증서 비밀번호" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
-                  <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_cert_${i}`]: !p[`bank_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-                    {showPw[`bank_cert_${i}`] ? "숨기기" : "보기"}
+                <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">로그인 방식</div>
+                <div className="flex gap-2 mb-2">
+                  <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "certificate"; setBanks(arr); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "certificate" ? "bg-purple-500/10 border-purple-500/50 text-purple-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    📜 공동인증서
+                  </button>
+                  <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "id_pw"; setBanks(arr); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    🔑 아이디/비밀번호
                   </button>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)]">또는 ID/PW 로그인</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" value={b.login_id} onChange={(e) => updateBank(i, "login_id", e.target.value)} placeholder="아이디 (선택)"
-                    className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                  <div className="relative">
-                    <input type={showPw[`bank_pw_${i}`] ? "text" : "password"} value={b.login_password} onChange={(e) => updateBank(i, "login_password", e.target.value)} placeholder="비밀번호 (선택)"
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
-                    <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_pw_${i}`]: !p[`bank_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-                      {showPw[`bank_pw_${i}`] ? "숨기기" : "보기"}
-                    </button>
+                {bankLoginMethod === "certificate" ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input type={showPw[`bank_cert_${i}`] ? "text" : "password"} value={b.cert_password || ""} onChange={(e) => updateBank(i, "cert_password", e.target.value)}
+                        placeholder="공동인증서 비밀번호" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                      <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_cert_${i}`]: !p[`bank_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                        {showPw[`bank_cert_${i}`] ? "숨기기" : "보기"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-dim)]">상단에 등록된 공동인증서를 사용합니다</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input type="text" value={b.login_id} onChange={(e) => updateBank(i, "login_id", e.target.value)} placeholder="인터넷뱅킹 아이디"
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    <div className="relative">
+                      <input type={showPw[`bank_pw_${i}`] ? "text" : "password"} value={b.login_password} onChange={(e) => updateBank(i, "login_password", e.target.value)} placeholder="비밀번호"
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                      <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`bank_pw_${i}`]: !p[`bank_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                        {showPw[`bank_pw_${i}`] ? "숨기기" : "보기"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -2414,7 +2640,9 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           </button>
         ) : (
           <div className="space-y-4">
-            {cards.map((c, i) => (
+            {cards.map((c, i) => {
+              const cardLoginMethod = (c as any).login_method || (c.cert_password && !c.login_id ? "certificate" : c.login_id ? "id_pw" : "certificate");
+              return (
               <div key={i} className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
                 <div className="flex items-center gap-2">
                   <select value={c.company} onChange={(e) => updateCard(i, "company", e.target.value)}
@@ -2423,27 +2651,44 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
                   </select>
                   <button onClick={() => removeCard(i)} className="px-2 py-2 text-red-400/60 hover:text-red-400 text-xs">삭제</button>
                 </div>
-                <div className="relative">
-                  <input type={showPw[`card_cert_${i}`] ? "text" : "password"} value={c.cert_password || ""} onChange={(e) => updateCard(i, "cert_password", e.target.value)}
-                    placeholder="공인인증서 비밀번호 (선택)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
-                  <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_cert_${i}`]: !p[`card_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-                    {showPw[`card_cert_${i}`] ? "숨기기" : "보기"}
+                <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">로그인 방식</div>
+                <div className="flex gap-2 mb-2">
+                  <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "certificate"; setCards(arr); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "certificate" ? "bg-purple-500/10 border-purple-500/50 text-purple-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    📜 공동인증서
+                  </button>
+                  <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "id_pw"; setCards(arr); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    🔑 아이디/비밀번호
                   </button>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)]">또는 ID/PW 로그인</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" value={c.login_id} onChange={(e) => updateCard(i, "login_id", e.target.value)} placeholder="아이디 (선택)"
-                    className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                  <div className="relative">
-                    <input type={showPw[`card_pw_${i}`] ? "text" : "password"} value={c.login_password} onChange={(e) => updateCard(i, "login_password", e.target.value)} placeholder="비밀번호 (선택)"
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
-                    <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_pw_${i}`]: !p[`card_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-                      {showPw[`card_pw_${i}`] ? "숨기기" : "보기"}
-                    </button>
+                {cardLoginMethod === "certificate" ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input type={showPw[`card_cert_${i}`] ? "text" : "password"} value={c.cert_password || ""} onChange={(e) => updateCard(i, "cert_password", e.target.value)}
+                        placeholder="공동인증서 비밀번호" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                      <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_cert_${i}`]: !p[`card_cert_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                        {showPw[`card_cert_${i}`] ? "숨기기" : "보기"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-dim)]">상단에 등록된 공동인증서를 사용합니다</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input type="text" value={c.login_id} onChange={(e) => updateCard(i, "login_id", e.target.value)} placeholder="카드사 아이디"
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    <div className="relative">
+                      <input type={showPw[`card_pw_${i}`] ? "text" : "password"} value={c.login_password} onChange={(e) => updateCard(i, "login_password", e.target.value)} placeholder="비밀번호"
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] pr-14" />
+                      <button type="button" onClick={() => setShowPw((p) => ({ ...p, [`card_pw_${i}`]: !p[`card_pw_${i}`] }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                        {showPw[`card_pw_${i}`] ? "숨기기" : "보기"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

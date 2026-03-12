@@ -13,6 +13,7 @@ import { autoCreatePartnerFromDeal } from "@/lib/partners";
 import { applyCompanySeal } from "@/lib/signatures";
 import { createDocumentShare, sendShareEmail } from "@/lib/document-sharing";
 import { uploadFile } from "@/lib/file-storage";
+import { generateQuotePDF, generateContractPDF } from "@/lib/document-generator";
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
@@ -305,6 +306,15 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   const [contractTemplate, setContractTemplate] = useState('general');
   const [sealApplying, setSealApplying] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [emailModal, setEmailModal] = useState<{ documentId: string } | null>(null);
+  const [emailTab, setEmailTab] = useState<'existing' | 'new'>('existing');
+  const [partnerSearch, setPartnerSearch] = useState('');
+  const [partnerResults, setPartnerResults] = useState<any[]>([]);
+  const [selectedPartner, setSelectedPartner] = useState<any>(null);
+  const [newPartner, setNewPartner] = useState({ name: '', email: '', business_number: '', contact_phone: '' });
+  const [partnerSaving, setPartnerSaving] = useState(false);
   const queryClient = useQueryClient(); const db2 = supabase as any;
   const { data: stages = [] } = useQuery({ queryKey: ['deal-pipeline', dealId], queryFn: () => getDealPipelineStatus(dealId), enabled: !!dealId });
   const completedCount = stages.filter(s => s.status === 'completed').length;
@@ -325,22 +335,103 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   async function handleConfirmRevenue() { if (!companyId || !userId || confirming) return; setConfirming(true); setPipelineError(null); try { const { data: schedules } = await db2.from('deal_revenue_schedule').select('id, amount, status').eq('deal_id', dealId).eq('status', 'expected').order('due_date', { ascending: true }).limit(1); if (schedules && schedules.length > 0) { const entry = schedules[0]; await onRevenueReceived({ dealId, companyId, amount: Number(entry.amount), userId, revenueScheduleId: entry.id }); } queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`입금 확인 실패: ${err?.message || '알 수 없는 오류'}`); } setConfirming(false); }
   async function handleApplySeal(documentId: string) { if (!companyId || sealApplying) return; setSealApplying(true); setPipelineError(null); try { await applyCompanySeal({ documentId, companyId, appliedBy: userId || '' }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`직인 적용 실패: ${err?.message || '알 수 없는 오류'}`); } setSealApplying(false); }
 
-  async function handleSendEmail(documentId: string) {
-    if (!companyId || emailSending) return;
-    setEmailSending(true); setPipelineError(null);
+  // 견적서/계약서 미리보기
+  async function handlePreview(documentId: string) {
+    if (previewLoading) return;
+    setPreviewLoading(true); setPipelineError(null);
     try {
       const { data: docData } = await db2.from('documents').select('name, content_json, deal_id').eq('id', documentId).single();
-      const { data: dealData } = await db2.from('deals').select('*, partners!deals_partner_id_fkey(name, contact_email)').eq('id', dealId).single();
-      const partnerEmail = dealData?.partners?.contact_email;
-      if (!partnerEmail) { setPipelineError('거래처 이메일이 등록되지 않았습니다. 거래처 정보에서 이메일을 등록해주세요.'); setEmailSending(false); return; }
+      if (!docData) throw new Error('문서를 찾을 수 없습니다');
+      const cj = docData.content_json as any;
+      const { data: comp } = await db2.from('companies').select('name, business_number, representative, address, seal_url').eq('id', companyId).single();
+      const companyInfo = { name: comp?.name || '', businessNumber: comp?.business_number || '', representative: comp?.representative || '', address: comp?.address || '' };
+      let url: string;
+      if (cj?.type === 'contract') {
+        const html = generateContractPDF({ documentNumber: docData.name, date: new Date().toISOString().split('T')[0], partyA: { name: companyInfo.name, representative: companyInfo.representative, businessNumber: companyInfo.businessNumber, address: companyInfo.address }, partyB: { name: cj.partnerName || '' }, contractAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, items: (cj.items || []).map((it: any) => ({ name: it.name || '', spec: it.spec || '', qty: it.quantity || 1, unitPrice: it.unitPrice || 0, amount: it.supplyAmount || 0 })), contractSubject: cj.dealName || docData.name, contractStartDate: cj.contractStartDate || '', contractEndDate: cj.contractEndDate || '', paymentTerms: cj.paymentTerms || '', deliveryDeadline: cj.deliveryDeadline || '', inspectionPeriod: cj.inspectionPeriod || '7일', warrantyPeriod: cj.warrantyPeriod || '1년', latePenaltyRate: cj.latePenaltyRate || '0.1%', sealUrlA: comp?.seal_url || undefined });
+        const blob = new Blob([html], { type: 'text/html' });
+        url = URL.createObjectURL(blob);
+      } else {
+        const blob = await generateQuotePDF({ documentNumber: docData.name, companyInfo, counterparty: cj.partnerName || '', items: cj.items || [{ name: cj.dealName || '', quantity: 1, unitPrice: cj.contractTotal || 0, supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, note: '' }], supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, validUntil: cj.validUntil, sealUrl: comp?.seal_url || undefined });
+        url = URL.createObjectURL(blob);
+      }
+      setPreviewUrl(url);
+    } catch (err: any) { setPipelineError(`미리보기 실패: ${err?.message || '알 수 없는 오류'}`); }
+    setPreviewLoading(false);
+  }
+
+  // 이메일 발송 모달 열기 (거래처 검색/등록 포함)
+  function openEmailModal(documentId: string) {
+    setEmailModal({ documentId });
+    setEmailTab('existing');
+    setPartnerSearch('');
+    setPartnerResults([]);
+    setSelectedPartner(null);
+    setNewPartner({ name: '', email: '', business_number: '', contact_phone: '' });
+    // 기존 거래처 자동 로드
+    loadDealPartner(documentId);
+  }
+
+  async function loadDealPartner(documentId: string) {
+    const { data: dealData } = await db2.from('deals').select('*, partners!deals_partner_id_fkey(id, name, contact_email, business_number, contact_phone)').eq('id', dealId).single();
+    if (dealData?.partners?.contact_email) {
+      setSelectedPartner(dealData.partners);
+      setEmailTab('existing');
+    } else {
+      setEmailTab('new');
+    }
+  }
+
+  async function searchPartners(q: string) {
+    setPartnerSearch(q);
+    if (q.length < 1) { setPartnerResults([]); return; }
+    const { data } = await db2.from('partners').select('id, name, contact_email, business_number, contact_phone').eq('company_id', companyId).ilike('name', `%${q}%`).limit(8);
+    setPartnerResults(data || []);
+  }
+
+  async function registerNewPartner() {
+    if (!companyId || !newPartner.name || !newPartner.email) return;
+    setPartnerSaving(true);
+    try {
+      const { data: p, error } = await db2.from('partners').insert({ company_id: companyId, name: newPartner.name, contact_email: newPartner.email, business_number: newPartner.business_number || null, contact_phone: newPartner.contact_phone || null, type: 'client' }).select().single();
+      if (error) throw error;
+      // 딜에 거래처 연결
+      await db2.from('deals').update({ partner_id: p.id, counterparty: p.name }).eq('id', dealId);
+      setSelectedPartner(p);
+      setEmailTab('existing');
+      toast('거래처가 등록되었습니다', 'success');
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    } catch (err: any) { setPipelineError(`거래처 등록 실패: ${err?.message}`); }
+    setPartnerSaving(false);
+  }
+
+  async function selectExistingPartner(partner: any) {
+    setSelectedPartner(partner);
+    // 딜에 거래처 연결
+    await db2.from('deals').update({ partner_id: partner.id, counterparty: partner.name }).eq('id', dealId);
+    setPartnerSearch('');
+    setPartnerResults([]);
+    queryClient.invalidateQueries({ queryKey: ['deal-detail', dealId] });
+  }
+
+  async function handleSendEmailConfirm() {
+    if (!companyId || !emailModal || emailSending || !selectedPartner?.contact_email) return;
+    setEmailSending(true); setPipelineError(null);
+    try {
+      const { data: docData } = await db2.from('documents').select('name, content_json').eq('id', emailModal.documentId).single();
       const { data: comp } = await db2.from('companies').select('name').eq('id', companyId).single();
-      const share = await createDocumentShare({ documentId, companyId, createdBy: userId || '', expiresInDays: 30 });
+      const share = await createDocumentShare({ documentId: emailModal.documentId, companyId, createdBy: userId || '', expiresInDays: 30 });
       const shareUrl = share.shareUrl || `${window.location.origin}/share/${share.shareToken}`;
-      const result = await sendShareEmail({ email: partnerEmail, recipientName: dealData?.partners?.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '' });
+      const result = await sendShareEmail({ email: selectedPartner.contact_email, recipientName: selectedPartner.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '' });
       if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); }
-      else if (result.success) { toast('이메일 발송 완료', "success"); }
+      else if (result.success) { toast('이메일 발송 완료', 'success'); }
+      setEmailModal(null);
     } catch (err: any) { setPipelineError(`이메일 발송 실패: ${err?.message || '알 수 없는 오류'}`); }
     setEmailSending(false);
+  }
+
+  // Legacy direct send (fallback)
+  async function handleSendEmail(documentId: string) {
+    openEmailModal(documentId);
   }
 
   return (
@@ -353,6 +444,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
           </select>
           {!hasQuote && companyId && userId && (<button onClick={handleCreateQuote} disabled={creating} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition">{creating ? '생성 중...' : '+ 견적서 생성'}</button>)}
           {forceApproveTarget && companyId && userId && (<button onClick={handleForceApprove} disabled={forceApproving} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-amber-700 transition">{forceApproving ? '처리 중...' : `임의 승인 (${activeQuote ? '견적서' : '계약서'})`}</button>)}
+          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handlePreview((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-cyan-700 transition">{previewLoading ? '로딩...' : '미리보기'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleApplySeal((activeQuote?.documentId || activeContract?.documentId)!)} disabled={sealApplying} className="px-3 py-1.5 bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-800 transition">{sealApplying ? '적용 중...' : '직인 적용'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleSendEmail((activeQuote?.documentId || activeContract?.documentId)!)} disabled={emailSending} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-indigo-700 transition">{emailSending ? '발송 중...' : '📧 이메일 발송'}</button>)}
           {canConfirmRevenue && companyId && userId && (<button onClick={handleConfirmRevenue} disabled={confirming} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-green-700 transition">{confirming ? '처리 중...' : '입금 확인'}</button>)}
@@ -364,6 +456,92 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
         {PIPELINE_STAGES.map((ps, idx) => { const stage = stages.find(s => s.stage === ps.key); const status = stage?.status || 'pending'; const isCompleted = status === 'completed'; const isActive = status === 'active'; const docNum = (stage as any)?.document_number; return (<div key={ps.key} className="flex items-center flex-1"><div className={`flex-1 rounded-xl p-3 text-center transition ${isCompleted ? 'bg-green-500/8 border border-green-500/20' : isActive ? 'bg-blue-500/8 border border-blue-500/20' : 'bg-[var(--bg-surface)] border border-[var(--border)]'}`}><div className="text-lg mb-1">{ps.icon}</div><div className={`text-[10px] font-semibold ${isCompleted ? 'text-green-500' : isActive ? 'text-blue-500' : 'text-[var(--text-dim)]'}`}>{ps.label}</div>{docNum && (<div className="text-[8px] font-mono text-[var(--text-dim)] mt-0.5 truncate px-1" title={docNum}>{docNum}</div>)}<div className={`text-[9px] mt-0.5 ${isCompleted ? 'text-green-400' : isActive ? 'text-blue-400' : 'text-[var(--text-dim)]'}`}>{isCompleted ? '완료' : isActive ? '진행중' : '대기'}</div></div>{idx < PIPELINE_STAGES.length - 1 && (<div className={`w-4 h-0.5 mx-0.5 flex-shrink-0 rounded ${isCompleted ? 'bg-green-500/40' : 'bg-[var(--border)]'}`} />)}</div>); })}
       </div>
       <div className="px-5 pb-4"><div className="text-[10px] text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-lg p-2.5">자동 흐름: 견적서 승인 → 계약서 자동생성 → 계약서 승인 → 세금계산서 자동발행 + 입금 스케줄(선금{paymentRatio?.advance ?? 30}%/잔금{paymentRatio?.balance ?? 70}%) 자동생성</div></div>
+
+      {/* 견적서/계약서 미리보기 모달 */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-3xl h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold">문서 미리보기</h3>
+              <div className="flex items-center gap-2">
+                <a href={previewUrl} download="document.pdf" className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:bg-[var(--primary-hover)] transition">다운로드</a>
+                <button onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} className="px-3 py-1.5 text-[var(--text-muted)] hover:text-[var(--text)] text-xs">닫기</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe src={previewUrl} className="w-full h-full border-0" title="문서 미리보기" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 이메일 발송 모달 — 거래처 검색/신규등록 포함 */}
+      {emailModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEmailModal(null)}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold">문서 이메일 발송</h3>
+              <p className="text-[11px] text-[var(--text-dim)] mt-1">거래처를 선택하거나 새로 등록한 후 발송합니다</p>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* 탭 */}
+              <div className="flex gap-2">
+                <button onClick={() => setEmailTab('existing')} className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${emailTab === 'existing' ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]'}`}>기존 거래처 검색</button>
+                <button onClick={() => setEmailTab('new')} className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${emailTab === 'new' ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]'}`}>신규 거래처 등록</button>
+              </div>
+
+              {emailTab === 'existing' && (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <input value={partnerSearch} onChange={(e) => searchPartners(e.target.value)} placeholder="거래처명으로 검색..." className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    {partnerResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                        {partnerResults.map((p: any) => (
+                          <button key={p.id} onClick={() => selectExistingPartner(p)} className="w-full px-3 py-2.5 text-left hover:bg-[var(--bg-surface)] transition border-b border-[var(--border)]/50 last:border-0">
+                            <div className="text-xs font-semibold">{p.name}</div>
+                            <div className="text-[10px] text-[var(--text-dim)]">{p.contact_email || '이메일 미등록'} {p.business_number ? `| ${p.business_number}` : ''}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {emailTab === 'new' && (
+                <div className="space-y-3">
+                  <div><label className="block text-[10px] text-[var(--text-dim)] font-semibold mb-1">거래처명 *</label><input value={newPartner.name} onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })} placeholder="(주)ABC컴퍼니" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
+                  <div><label className="block text-[10px] text-[var(--text-dim)] font-semibold mb-1">이메일 *</label><input type="email" value={newPartner.email} onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })} placeholder="partner@company.com" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-[10px] text-[var(--text-dim)] font-semibold mb-1">사업자번호</label><input value={newPartner.business_number} onChange={(e) => setNewPartner({ ...newPartner, business_number: e.target.value })} placeholder="000-00-00000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
+                    <div><label className="block text-[10px] text-[var(--text-dim)] font-semibold mb-1">연락처</label><input value={newPartner.contact_phone} onChange={(e) => setNewPartner({ ...newPartner, contact_phone: e.target.value })} placeholder="010-0000-0000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
+                  </div>
+                  <button onClick={registerNewPartner} disabled={!newPartner.name || !newPartner.email || partnerSaving} className="w-full py-2.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50">{partnerSaving ? '등록 중...' : '거래처 등록 + CRM 저장'}</button>
+                </div>
+              )}
+
+              {/* 선택된 거래처 표시 */}
+              {selectedPartner && (
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-blue-400">{selectedPartner.name}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{selectedPartner.contact_email}{selectedPartner.business_number ? ` | ${selectedPartner.business_number}` : ''}</div>
+                    </div>
+                    <span className="text-[10px] text-green-400 font-semibold">발송 준비 완료</span>
+                  </div>
+                </div>
+              )}
+
+              {pipelineError && (<div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{pipelineError}</div>)}
+            </div>
+            <div className="px-5 py-4 border-t border-[var(--border)] flex gap-2">
+              <button onClick={handleSendEmailConfirm} disabled={!selectedPartner?.contact_email || emailSending} className="flex-1 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50">{emailSending ? '발송 중...' : '이메일 발송'}</button>
+              <button onClick={() => setEmailModal(null)} className="px-4 py-2.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">취소</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -495,9 +673,19 @@ function DealsPageInner() {
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [showDormant, setShowDormant] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [dealPartnerResults, setDealPartnerResults] = useState<any[]>([]);
+  const [dealPartnerFocused, setDealPartnerFocused] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => { getCurrentUser().then((u) => u && setCompanyId(u.company_id)); }, []);
+
+  async function searchDealPartners(q: string) {
+    setForm((prev: any) => ({ ...prev, counterparty: q }));
+    if (!companyId || q.length < 1) { setDealPartnerResults([]); return; }
+    const db2 = supabase as any;
+    const { data } = await db2.from('partners').select('id, name, contact_email, business_number').eq('company_id', companyId).ilike('name', `%${q}%`).limit(6);
+    setDealPartnerResults(data || []);
+  }
 
   const { data: deals = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["deals", companyId], queryFn: () => getDeals(companyId!), enabled: !!companyId });
   const { data: classifications = [] } = useQuery({ queryKey: ["deal-classifications", companyId], queryFn: () => getDealClassifications(companyId!), enabled: !!companyId });
@@ -550,7 +738,7 @@ function DealsPageInner() {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 (원) *</label><input type="number" min="1" value={form.contract_total} onChange={(e) => { setForm({ ...form, contract_total: e.target.value }); setFormError(""); }} placeholder="15000000" className={`w-full px-3 py-2.5 bg-[var(--bg)] border rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] ${formError && (!form.contract_total || Number(form.contract_total) <= 0) ? "border-red-400" : "border-[var(--border)]"}`} />{formError && (!form.contract_total || Number(form.contract_total) <= 0) && (<p className="text-xs text-red-500 mt-1">{formError}</p>)}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => setForm({ ...form, counterparty: e.target.value })} placeholder="예: (주)ABC컴퍼니" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div className="relative"><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => { setForm({ ...form, counterparty: e.target.value }); searchDealPartners(e.target.value); }} onFocus={() => setDealPartnerFocused(true)} onBlur={() => setTimeout(() => setDealPartnerFocused(false), 200)} placeholder="예: (주)ABC컴퍼니 (기존 거래처 검색)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{dealPartnerFocused && dealPartnerResults.length > 0 && (<div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">{dealPartnerResults.map((p: any) => (<button key={p.id} type="button" onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, counterparty: p.name }); setDealPartnerResults([]); setDealPartnerFocused(false); }} className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"><span className="font-medium">{p.name}</span>{p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}</button>))}</div>)}</div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => form.name && Number(form.contract_total) > 0 && createDeal.mutate()} disabled={!form.name || !form.contract_total || Number(form.contract_total) <= 0 || createDeal.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{createDeal.isPending ? "생성 중..." : "딜 생성"}</button>
