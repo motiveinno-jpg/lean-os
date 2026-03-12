@@ -372,7 +372,11 @@ export async function triggerBatchExecution(batchId: string): Promise<{ triggere
   await db.from('payment_batches').update({ status: 'executing' }).eq('id', batchId);
 
   // n8n webhook URL (configurable via settings)
-  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK || 'http://localhost:5678/webhook/payment-batch';
+  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK;
+  if (!N8N_WEBHOOK_URL) {
+    await db.from('payment_batches').update({ status: 'failed', error_message: 'N8N 웹훅 URL이 설정되지 않았습니다. 설정 > 은행연동에서 설정하세요.' }).eq('id', batchId);
+    throw new Error('N8N_PAYMENT_WEBHOOK 환경변수가 설정되지 않았습니다.');
+  }
 
   try {
     const response = await fetch(N8N_WEBHOOK_URL, {

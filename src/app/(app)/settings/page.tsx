@@ -47,13 +47,13 @@ export default function SettingsPage() {
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["bank-accounts", companyId],
     queryFn: () => getBankAccounts(companyId!),
-    enabled: !!companyId && mainTab === "general",
+    enabled: !!companyId,
   });
 
   const { data: routingRules = [] } = useQuery({
     queryKey: ["routing-rules", companyId],
     queryFn: () => getRoutingRules(companyId!),
-    enabled: !!companyId && mainTab === "general",
+    enabled: !!companyId,
   });
 
   const addBankMut = useMutation({
@@ -430,7 +430,7 @@ export default function SettingsPage() {
       {mainTab === "approval" && <ApprovalPolicyTab companyId={companyId} />}
 
       {/* ═══ Bank Integration Tab ═══ */}
-      {mainTab === "bank" && <BankIntegrationTab companyId={companyId} />}
+      {mainTab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
 
       {/* ═══ Tax Automation Tab ═══ */}
       {mainTab === "tax" && <TaxAutomationTab companyId={companyId} />}
@@ -1779,58 +1779,10 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
 // ═══════════════════════════════════════════
 // Bank Integration Tab
 // ═══════════════════════════════════════════
-function CodefSyncButton({ companyId }: { companyId: string | null }) {
-  const [syncing, setSyncing] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
-  async function handleSync(syncType: 'bank' | 'card' | 'all') {
-    if (!companyId || syncing) return;
-    setSyncing(true); setResult(null);
-    try {
-      const { data: { session } } = await (supabase as any).auth.getSession();
-      if (!session) { setResult({ success: false, message: '로그인 필요' }); return; }
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ companyId, syncType }),
-      });
-      const data = await res.json();
-      setResult({ success: data.success, message: data.message || (data.success ? '동기화 완료' : '동기화 실패') });
-    } catch (err: any) {
-      setResult({ success: false, message: err.message || '네트워크 오류' });
-    } finally { setSyncing(false); }
-  }
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <button onClick={() => handleSync('bank')} disabled={syncing} className="py-2.5 px-3 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 transition disabled:opacity-40">
-          {syncing ? '동기화 중...' : '은행 동기화'}
-        </button>
-        <button onClick={() => handleSync('card')} disabled={syncing} className="py-2.5 px-3 bg-purple-500 text-white rounded-xl text-xs font-semibold hover:bg-purple-600 transition disabled:opacity-40">
-          {syncing ? '동기화 중...' : '카드 동기화'}
-        </button>
-        <button onClick={() => handleSync('all')} disabled={syncing} className="py-2.5 px-3 bg-green-500 text-white rounded-xl text-xs font-semibold hover:bg-green-600 transition disabled:opacity-40">
-          {syncing ? '동기화 중...' : '전체 동기화'}
-        </button>
-      </div>
-      {result && (
-        <div className={`p-3 rounded-xl text-xs ${result.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-          {result.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BankIntegrationTab({ companyId }: { companyId: string | null }) {
+function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
-  const { data: bankAccounts = [] } = useQuery({
-    queryKey: ["bank-accounts", companyId],
-    queryFn: () => getBankAccounts(companyId!),
-    enabled: !!companyId,
-  });
   const [settings, setSettings] = useState({
     auto_transfer_enabled: false, auto_transfer_limit: 5000000, transfer_schedule: "immediate",
     retry_count: 3, retry_interval_hours: 1, openbanking_api_key: "",
@@ -1891,13 +1843,10 @@ function BankIntegrationTab({ companyId }: { companyId: string | null }) {
         </div>
       </div>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-1">CODEF API 연동</h2>
-        <p className="text-xs text-[var(--text-dim)] mb-4">CODEF API로 은행 거래내역과 카드 사용내역을 자동 수집합니다</p>
-        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 mb-4"><p className="text-xs text-blue-700"><span className="font-semibold">CODEF API</span>: 국내 전 은행/카드사 거래내역 자동 수집. 설정 탭에서 은행/카드 계정 등록 후 동기화 버튼을 누르세요. API 키는 <a href="https://codef.io" target="_blank" rel="noopener" className="underline font-semibold">codef.io</a>에서 발급받습니다.</p></div>
-        <div className="space-y-3 mb-4">
-          <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">CODEF Client ID</label><input type="text" value={settings.openbanking_api_key} onChange={(e) => setSettings({ ...settings, openbanking_api_key: e.target.value })} placeholder="CODEF Client ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-        </div>
-        <CodefSyncButton companyId={companyId} />
+        <h2 className="text-sm font-bold mb-1">API 연동</h2>
+        <p className="text-xs text-[var(--text-dim)] mb-4">오픈뱅킹 또는 n8n 웹훅으로 실제 이체를 실행합니다</p>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">현재 n8n 웹훅 방식으로 동작합니다. 오픈뱅킹 API 키 등록 시 직접 은행 API 이체가 가능합니다.</p></div>
+        <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">오픈뱅킹 API 키</label><div className="flex gap-2"><input type="password" value={settings.openbanking_api_key} onChange={(e) => setSettings({ ...settings, openbanking_api_key: e.target.value })} placeholder="API 키를 입력하세요" className="flex-1 px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /><button className="px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button></div></div>
       </div>
       <button onClick={saveSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "은행연동 설정 저장"}</button>
     </div>

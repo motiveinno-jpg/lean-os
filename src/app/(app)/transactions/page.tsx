@@ -21,8 +21,6 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
-  const [codefSyncing, setCodefSyncing] = useState(false);
-  const [codefResult, setCodefResult] = useState<string | null>(null);
   const [mapModal, setMapModal] = useState<any>(null);
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [ruleForm, setRuleForm] = useState({ rule_name: '', match_type: 'contains', match_field: 'counterparty', match_value: '', assign_category: '', assign_classification: '', assign_deal_id: '', is_fixed_cost: false });
@@ -406,22 +404,6 @@ export default function TransactionsPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 딜/분류 매핑</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={async () => {
-            setCodefSyncing(true); setCodefResult(null);
-            try {
-              const { syncCodefData } = await import('@/lib/data-sync');
-              const r = await syncCodefData(companyId!, 'all');
-              setCodefResult(r.status === 'success' ? r.message : `오류: ${r.message}`);
-              queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
-              queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
-              queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
-              queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
-            } catch (e: any) { setCodefResult(`오류: ${e.message}`); }
-            finally { setCodefSyncing(false); }
-          }} disabled={codefSyncing}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-            {codefSyncing ? "동기화 중..." : "CODEF 동기화"}
-          </button>
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
@@ -429,13 +411,6 @@ export default function TransactionsPage() {
           </button>
         </div>
       </div>
-
-      {codefResult && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${codefResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
-          {codefResult}
-          <button onClick={() => setCodefResult(null)} className="ml-2 opacity-60 hover:opacity-100">x</button>
-        </div>
-      )}
 
       {uploadResult && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${uploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
