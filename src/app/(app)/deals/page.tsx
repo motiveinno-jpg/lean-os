@@ -15,6 +15,7 @@ import { createDocumentShare, sendShareEmail } from "@/lib/document-sharing";
 import { uploadFile } from "@/lib/file-storage";
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
+import { useToast } from "@/components/toast";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
 
@@ -293,6 +294,7 @@ const CONTRACT_TEMPLATES = [
 ];
 
 function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, paymentRatio }: { dealId: string; companyId: string | null; userId: string | null; onRefresh: () => void; quoteItems?: any[]; paymentRatio?: { advance: number; balance: number } }) {
+  const { toast } = useToast();
   const [creating, setCreating] = useState(false); const [confirming, setConfirming] = useState(false); const [forceApproving, setForceApproving] = useState(false);
   const [contractTemplate, setContractTemplate] = useState('general');
   const [sealApplying, setSealApplying] = useState(false);
@@ -330,7 +332,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
       const shareUrl = share.shareUrl || `${window.location.origin}/share/${share.shareToken}`;
       const result = await sendShareEmail({ email: partnerEmail, recipientName: dealData?.partners?.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '' });
       if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); }
-      else if (result.success) { alert('이메일 발송 완료'); }
+      else if (result.success) { toast('이메일 발송 완료', "success"); }
     } catch (err: any) { setPipelineError(`이메일 발송 실패: ${err?.message || '알 수 없는 오류'}`); }
     setEmailSending(false);
   }

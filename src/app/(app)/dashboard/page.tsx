@@ -9,7 +9,7 @@ import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
 import { generateSampleData } from "@/lib/sample-data";
 import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export";
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
-import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist } from "@/lib/closing";
+import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth } from "@/lib/closing";
 import { BarChart } from "@/components/bar-chart";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
@@ -22,6 +22,7 @@ import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
 import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useToast } from "@/components/toast";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -468,10 +469,12 @@ export default function DashboardPage() {
             className="px-3 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
             {uploading ? '파싱 중...' : '엑셀 업로드'}
           </button>
+          {process.env.NODE_ENV === 'development' && (
           <button onClick={handleSampleData} disabled={generating}
             className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[11px] font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
             {generating ? '생성 중...' : '샘플 데이터'}
           </button>
+          )}
         </div>
       </div>
 
@@ -671,12 +674,14 @@ export default function DashboardPage() {
           <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
           <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {process.env.NODE_ENV === 'development' && (
             <button onClick={handleSampleData} disabled={generating}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
               <span className="text-2xl">🚀</span>
               <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
               <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
             </button>
+            )}
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
               <span className="text-2xl">📊</span>
@@ -897,9 +902,10 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
 }
 
 function ActionBtn({ text, href }: { text: string; href?: string }) {
+  const { toast } = useToast();
   const cls = "px-2 py-1 rounded text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition cursor-pointer";
   if (href) return <Link href={href} className={cls}>{text}</Link>;
-  return <button className={cls} onClick={() => alert(`[준비중] ${text}`)}>{text}</button>;
+  return <button className={cls} onClick={() => toast(`[준비중] ${text}`, "info")}>{text}</button>;
 }
 
 function GrowthSection({ growth }: { growth: FounderDashboardData['growth'] }) {
@@ -1061,10 +1067,10 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           </button>
           {/* PDF Download */}
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!finRaw || !companyId) return;
               const month = sliced[sliced.length - 1]?.month || new Date().toISOString().slice(0, 7);
-              generateMonthlyPLReport({
+              await generateMonthlyPLReport({
                 month,
                 companyName: '',
                 revenue: finData.totalRevenue,
@@ -1320,6 +1326,16 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
   });
 
+  const lockMut = useMutation({
+    mutationFn: () => lockClosingMonth(checklist!.id, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
+  });
+
+  const unlockMut = useMutation({
+    mutationFn: () => unlockClosingMonth(checklist!.id, userId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['closing-checklist'] }),
+  });
+
   if (!checklist) return null;
 
   const items = checklist.items || [];
@@ -1347,8 +1363,24 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
           <span className="text-[10px] text-[var(--text-dim)] mono-number">{pct}%</span>
         </div>
 
-        {checklist.status === 'completed' ? (
-          <div className="text-center py-3 text-sm text-[var(--success)] font-semibold">마감 완료</div>
+        {checklist.status === 'locked' ? (
+          <div className="text-center py-3">
+            <div className="text-sm text-[var(--text-dim)] font-semibold mb-2">🔒 마감 잠금됨</div>
+            <p className="text-[10px] text-[var(--text-dim)] mb-2">이 달의 데이터 수정이 잠금되었습니다</p>
+            <button onClick={() => { if (confirm("마감 잠금을 해제하시겠습니까? 데이터 수정이 가능해집니다.")) unlockMut.mutate(); }}
+              disabled={unlockMut.isPending}
+              className="px-3 py-1.5 text-[10px] bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
+              {unlockMut.isPending ? '해제 중...' : '잠금 해제'}
+            </button>
+          </div>
+        ) : checklist.status === 'completed' ? (
+          <div className="text-center py-3">
+            <div className="text-sm text-[var(--success)] font-semibold mb-2">마감 완료</div>
+            <button onClick={() => lockMut.mutate()} disabled={lockMut.isPending}
+              className="px-3 py-1.5 text-[10px] bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition disabled:opacity-50">
+              {lockMut.isPending ? '잠금 중...' : '🔒 마감 잠금'}
+            </button>
+          </div>
         ) : (
           <>
             <div className="space-y-1">

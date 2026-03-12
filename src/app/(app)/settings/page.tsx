@@ -3,15 +3,18 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { encryptCredential, decryptJsonCredentials } from "@/lib/crypto";
 import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule, getDealClassifications, upsertDealClassification, deleteDealClassification } from "@/lib/queries";
 import { COST_TYPES, BANK_ROLES } from "@/lib/routing";
 import type { BankAccount } from "@/types/models";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
 
 type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate";
 
 export default function SettingsPage() {
+  const { toast } = useToast();
   const [mainTab, setMainTab] = useState<MainTab>("general");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
@@ -1960,6 +1963,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
 // ═══════════════════════════════════════════
 
 function CertificateManagementTab({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
   const db2 = supabase as any;
   const queryClient = useQueryClient();
   const BANK_LIST = [
@@ -2000,6 +2004,65 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
   const [hometaxId, setHometaxId] = useState("");
   const [hometaxPw, setHometaxPw] = useState("");
 
+  // NPKI 인증서 파일 업로드
+  const [certUploading, setCertUploading] = useState(false);
+  const [certFileStatus, setCertFileStatus] = useState<{ der: boolean; key: boolean }>({ der: false, key: false });
+  const certDerRef = useRef<HTMLInputElement>(null);
+  const certKeyRef = useRef<HTMLInputElement>(null);
+
+  // 인증서 파일 존재 여부 확인
+  useEffect(() => {
+    if (!companyId) return;
+    (async () => {
+      const { data: derList } = await supabase.storage.from("certificates").list(companyId, { search: "signCert.der" });
+      const { data: keyList } = await supabase.storage.from("certificates").list(companyId, { search: "signPri.key" });
+      setCertFileStatus({
+        der: (derList || []).some((f: any) => f.name === "signCert.der"),
+        key: (keyList || []).some((f: any) => f.name === "signPri.key"),
+      });
+    })();
+  }, [companyId]);
+
+  async function uploadCertFiles() {
+    if (!companyId) return;
+    const derFile = certDerRef.current?.files?.[0];
+    const keyFile = certKeyRef.current?.files?.[0];
+    if (!derFile && !keyFile) { toast("업로드할 파일을 선택해주세요.", "error"); return; }
+    setCertUploading(true);
+    try {
+      if (derFile) {
+        const { error } = await supabase.storage.from("certificates").upload(`${companyId}/signCert.der`, derFile, { upsert: true });
+        if (error) throw new Error("인증서 파일 업로드 실패: " + error.message);
+      }
+      if (keyFile) {
+        const { error } = await supabase.storage.from("certificates").upload(`${companyId}/signPri.key`, keyFile, { upsert: true });
+        if (error) throw new Error("개인키 파일 업로드 실패: " + error.message);
+      }
+      // automation_credentials에 인증서 경로 저장
+      await db2.from("automation_credentials").upsert({
+        company_id: companyId,
+        service: "npki_cert",
+        credentials: {
+          cert_path: `${companyId}/signCert.der`,
+          key_path: `${companyId}/signPri.key`,
+          uploaded_at: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id,service" });
+      setCertFileStatus({
+        der: derFile ? true : certFileStatus.der,
+        key: keyFile ? true : certFileStatus.key,
+      });
+      if (certDerRef.current) certDerRef.current.value = "";
+      if (certKeyRef.current) certKeyRef.current.value = "";
+      queryClient.invalidateQueries({ queryKey: ["automation-credentials"] });
+      toast("인증서 파일이 업로드되었습니다.", "success");
+    } catch (err: any) {
+      console.error("cert upload error:", err);
+      toast(err.message || "업로드 실패", "error");
+    } finally { setCertUploading(false); }
+  }
+
   // 인증정보 조회
   const { data: creds = [] } = useQuery({
     queryKey: ["automation-credentials", companyId],
@@ -2020,49 +2083,76 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
 
   useEffect(() => { if (certSettings) setAutoSign((prev) => ({ ...prev, ...certSettings })); }, [certSettings]);
 
-  // 기존값 초기화
+  // 기존값 초기화 (decrypt encrypted credentials)
   useEffect(() => {
-    if (creds.length > 0) {
+    if (creds.length === 0) return;
+
+    async function loadDecrypted() {
+      // Helper to decrypt a credentials object, falling back gracefully
+      async function tryDecrypt(c: Record<string, unknown>): Promise<Record<string, any>> {
+        try {
+          return await decryptJsonCredentials(c) as Record<string, any>;
+        } catch {
+          return c as Record<string, any>;
+        }
+      }
+
       // 은행 목록
       const bankEntries = creds.filter((c: any) => c.service?.startsWith("bank_"));
       if (bankEntries.length > 0) {
-        setBanks(bankEntries.map((b: any) => ({
-          company: b.service.replace("bank_", "").replace(/_\d+$/, ""),
-          login_id: b.credentials?.login_id || "",
-          login_password: b.credentials?.login_password || "",
-          cert_password: b.credentials?.cert_password || "",
-        })));
+        const decryptedBanks = await Promise.all(bankEntries.map(async (b: any) => {
+          const dec = b.credentials ? await tryDecrypt(b.credentials) : {};
+          return {
+            company: b.service.replace("bank_", "").replace(/_\d+$/, ""),
+            login_id: dec.login_id || "",
+            login_password: dec.login_password || "",
+            cert_password: dec.cert_password || "",
+          };
+        }));
+        setBanks(decryptedBanks);
       }
+
       // 카드 목록
       const cardEntries = creds.filter((c: any) => c.service?.startsWith("card_"));
       if (cardEntries.length > 0) {
-        setCards(cardEntries.map((c: any) => ({
-          company: c.service.replace("card_", "").replace(/_\d+$/, ""),
-          login_id: c.credentials?.login_id || "",
-          login_password: c.credentials?.login_password || "",
-          cert_password: c.credentials?.cert_password || "",
-        })));
+        const decryptedCards = await Promise.all(cardEntries.map(async (c: any) => {
+          const dec = c.credentials ? await tryDecrypt(c.credentials) : {};
+          return {
+            company: c.service.replace("card_", "").replace(/_\d+$/, ""),
+            login_id: dec.login_id || "",
+            login_password: dec.login_password || "",
+            cert_password: dec.cert_password || "",
+          };
+        }));
+        setCards(decryptedCards);
       }
+
       // 홈택스
       const ht = creds.find((c: any) => c.service === "hometax");
       if (ht?.credentials) {
-        if (ht.credentials.login_method) setHometaxMethod(ht.credentials.login_method);
-        else if (ht.credentials.cert_password && !ht.credentials.login_id) setHometaxMethod("certificate");
-        else if (ht.credentials.login_id) setHometaxMethod("id_pw");
-        if (ht.credentials.cert_password) setHometaxCert(ht.credentials.cert_password);
-        if (ht.credentials.login_id) setHometaxId(ht.credentials.login_id);
-        if (ht.credentials.login_password) setHometaxPw(ht.credentials.login_password);
+        const dec = await tryDecrypt(ht.credentials);
+        if (dec.login_method) setHometaxMethod(dec.login_method);
+        else if (dec.cert_password && !dec.login_id) setHometaxMethod("certificate");
+        else if (dec.login_id) setHometaxMethod("id_pw");
+        if (dec.cert_password) setHometaxCert(dec.cert_password);
+        if (dec.login_id) setHometaxId(dec.login_id);
+        if (dec.login_password) setHometaxPw(dec.login_password);
       }
+
       // 레거시: 기존 ibk/hometax/lottecard 데이터 마이그레이션
       const ibk = creds.find((c: any) => c.service === "ibk");
       const lc = creds.find((c: any) => c.service === "lottecard");
       if (ibk?.credentials?.cert_password && bankEntries.length === 0) {
-        setBanks([{ company: "ibk", login_id: "", login_password: "", cert_password: ibk.credentials.cert_password }]);
+        const dec = await tryDecrypt(ibk.credentials);
+        setBanks([{ company: "ibk", login_id: "", login_password: "", cert_password: dec.cert_password || "" }]);
       }
       if (lc?.credentials?.login_id && cardEntries.length === 0) {
-        setCards([{ company: "lottecard", login_id: lc.credentials.login_id, login_password: lc.credentials.login_password || "" }]);
+        const dec = await tryDecrypt(lc.credentials);
+        setCards([{ company: "lottecard", login_id: dec.login_id || "", login_password: dec.login_password || "" }]);
       }
     }
+
+    loadDecrypted();
   }, [creds]);
 
   function addBank() { setBanks([...banks, { company: "ibk", login_id: "", login_password: "", cert_password: "" }]); }
@@ -2089,38 +2179,43 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       // 레거시 데이터도 정리
       check(await db2.from("automation_credentials").delete().eq("company_id", companyId).in("service", ["ibk", "lottecard"]), "레거시 삭제");
 
-      // 은행 저장
+      // 은행 저장 (encrypt sensitive fields server-side)
       for (let i = 0; i < banks.length; i++) {
         const b = banks[i];
         if (!b.cert_password && !b.login_id) continue;
+        const bankCreds: Record<string, string> = { bank_name: b.company, login_id: b.login_id };
+        if (b.login_password) bankCreds.login_password = (await encryptCredential(b.login_password)) || "";
+        if (b.cert_password) bankCreds.cert_password = (await encryptCredential(b.cert_password)) || "";
         check(await db2.from("automation_credentials").insert({
           company_id: companyId,
           service: `bank_${b.company}_${i}`,
-          credentials: { cert_password: b.cert_password, login_id: b.login_id, login_password: b.login_password, bank_name: b.company },
+          credentials: bankCreds,
           updated_at: new Date().toISOString(),
         }), `은행 ${b.company} 저장`);
-        // (홈택스는 아래에서 독립 저장)
       }
 
-      // 카드 저장
+      // 카드 저장 (encrypt sensitive fields server-side)
       for (let i = 0; i < cards.length; i++) {
         const c = cards[i];
         if (!c.login_id && !c.cert_password) continue;
+        const cardCreds: Record<string, string> = { card_company: c.company, login_id: c.login_id };
+        if (c.login_password) cardCreds.login_password = (await encryptCredential(c.login_password)) || "";
+        if (c.cert_password) cardCreds.cert_password = (await encryptCredential(c.cert_password)) || "";
         check(await db2.from("automation_credentials").insert({
           company_id: companyId,
           service: `card_${c.company}_${i}`,
-          credentials: { login_id: c.login_id, login_password: c.login_password, cert_password: c.cert_password, card_company: c.company },
+          credentials: cardCreds,
           updated_at: new Date().toISOString(),
         }), `카드 ${c.company} 저장`);
       }
 
-      // 홈택스 독립 저장
+      // 홈택스 독립 저장 (encrypt sensitive fields server-side)
       const hometaxCreds: Record<string, string> = { login_method: hometaxMethod };
       if (hometaxMethod === "certificate" && hometaxCert) {
-        hometaxCreds.cert_password = hometaxCert;
+        hometaxCreds.cert_password = (await encryptCredential(hometaxCert)) || "";
       } else if (hometaxMethod === "id_pw" && hometaxId) {
         hometaxCreds.login_id = hometaxId;
-        hometaxCreds.login_password = hometaxPw;
+        if (hometaxPw) hometaxCreds.login_password = (await encryptCredential(hometaxPw)) || "";
       }
       if (hometaxCert || hometaxId) {
         check(await db2.from("automation_credentials").upsert({
@@ -2139,7 +2234,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
       console.error("credential save error:", err);
-      alert("저장 실패: " + (err.message || "알 수 없는 오류"));
+      toast("저장 실패: " + (err.message || "알 수 없는 오류"), "error");
     } finally { setSaving(false); }
   }
 
@@ -2152,8 +2247,53 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
         <div className="text-sm font-semibold text-[var(--text)] mb-1">인증서 & 자동화 설정</div>
         <p className="text-xs text-[var(--text-muted)]">
           은행, 홈택스, 카드 로그인 정보를 등록하면 거래내역과 세금계산서가 자동으로 수집됩니다.
-          인증서 파일은 로컬 PC에서 자동 감지되므로 별도 업로드가 필요 없습니다.
+          공동인증서 파일(.der, .key)을 업로드하고 비밀번호를 등록하면 자동화가 활성화됩니다.
         </p>
+      </div>
+
+      {/* 공동인증서 파일 업로드 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg">📜</div>
+          <div>
+            <div className="text-sm font-bold">공동인증서 (NPKI)</div>
+            <div className="text-[11px] text-[var(--text-dim)]">홈택스, 은행 자동화에 필요한 공동인증서 파일</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">인증서 파일 (.der)</div>
+              <div className="flex items-center gap-2">
+                <input ref={certDerRef} type="file" accept=".der" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                {certFileStatus.der && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">업로드됨</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">개인키 파일 (.key)</div>
+              <div className="flex items-center gap-2">
+                <input ref={certKeyRef} type="file" accept=".key" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                {certFileStatus.key && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">업로드됨</span>}
+              </div>
+            </div>
+          </div>
+          <button onClick={uploadCertFiles} disabled={certUploading}
+            className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
+            {certUploading ? "업로드 중..." : "인증서 업로드"}
+          </button>
+          {(certFileStatus.der || certFileStatus.key) && (
+            <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+              <div className="text-[10px] text-green-400 font-semibold">
+                {certFileStatus.der && certFileStatus.key ? "인증서 + 개인키 모두 등록됨" : certFileStatus.der ? "인증서만 등록됨 (개인키 필요)" : "개인키만 등록됨 (인증서 필요)"}
+              </div>
+            </div>
+          )}
+          <p className="text-[10px] text-[var(--text-dim)]">
+            인증서 파일은 암호화되어 안전하게 보관됩니다. 홈택스/은행 자동화 시 사용됩니다.
+          </p>
+        </div>
       </div>
 
       {/* 은행 */}
@@ -2323,7 +2463,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 저장 */}
-      <button onClick={saveAll} disabled={saving || (banks.length === 0 && cards.length === 0)}
+      <button onClick={saveAll} disabled={saving}
         className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
         {saving ? "저장 중..." : saved ? "저장 완료" : "설정 저장"}
       </button>

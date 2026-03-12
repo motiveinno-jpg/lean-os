@@ -4,6 +4,8 @@
  */
 
 import { supabase } from './supabase';
+import { createQueueEntry } from './payment-queue';
+import { resolveBank } from './routing';
 
 // ── Types & Constants ──
 export const EXPENSE_CATEGORIES = [
@@ -68,17 +70,22 @@ export async function createExpenseRequest(params: {
   return data;
 }
 
+const EXPENSE_APPROVAL_THRESHOLD = 100000; // ₩100,000 이상 결재 필요
+
 async function autoCreateExpenseApproval(companyId: string, requesterId: string, expense: any) {
   try {
+    const amount = Number(expense.amount);
+    if (amount < EXPENSE_APPROVAL_THRESHOLD) return; // 기준 금액 미만은 결재 생략
+
     const { createApprovalRequest } = await import('./approval-workflow');
     await createApprovalRequest({
       companyId,
-      requestType: 'expense_report',
+      requestType: 'expense',
       requestId: expense.id,
       requesterId,
       title: `[경비] ${expense.title}`,
-      amount: Number(expense.amount),
-      description: expense.description || `경비 청구: ${expense.title}\n금액: ₩${Number(expense.amount).toLocaleString()}\n카테고리: ${expense.category}`,
+      amount,
+      description: expense.description || `경비 청구: ${expense.title}\n금액: ₩${amount.toLocaleString()}\n카테고리: ${expense.category}`,
     });
   } catch (err) {
     console.error('autoCreateExpenseApproval failed:', err);
@@ -127,10 +134,12 @@ export async function approveExpense(params: {
   if (approvalError) throw approvalError;
 
   // Update expense status
-  const { error } = await db
+  const { data: updatedExpense, error } = await db
     .from('expense_requests')
     .update({ status: 'approved', updated_at: new Date().toISOString() })
-    .eq('id', params.expenseId);
+    .eq('id', params.expenseId)
+    .select('id, title, amount, deal_id')
+    .single();
   if (error) {
     // Rollback: delete the approval record
     await db.from('expense_approvals').delete()
@@ -138,6 +147,29 @@ export async function approveExpense(params: {
       .eq('approver_id', params.approverId)
       .eq('status', 'approved');
     throw error;
+  }
+
+  // Auto-queue approved expense to payment queue
+  if (updatedExpense) {
+    try {
+      const amount = Number(updatedExpense.amount || 0);
+      if (amount > 0) {
+        const bank = await resolveBank(params.companyId, 'expense');
+        await createQueueEntry({
+          companyId: params.companyId,
+          amount,
+          description: `[경비승인] ${updatedExpense.title}`,
+          costType: 'expense',
+          dealId: updatedExpense.deal_id || undefined,
+          dealBankAccountId: bank?.id || null,
+          sourceType: 'expense_request',
+          sourceId: params.expenseId,
+        });
+      }
+    } catch (queueErr) {
+      // Payment queue creation failure should not block approval
+      console.error('Expense payment queue creation failed:', queueErr);
+    }
   }
 }
 

@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail, getAuditTrail, generateAuditTrailCertificateHTML } from "@/lib/audit-trail";
 import { verifyDocumentIntegrity, generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
+import { generateDocumentPDF } from "@/lib/document-generator";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -30,19 +32,22 @@ type PackageData = {
 
 export default function SignPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
-      <SignContent />
-    </Suspense>
+    <ToastProvider>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }
+      >
+        <SignContent />
+      </Suspense>
+    </ToastProvider>
   );
 }
 
 function SignContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
@@ -83,6 +88,41 @@ function SignContent() {
         .single();
 
       if (!p) {
+        // Fallback: check general document signature_requests
+        const { data: sigReq } = await db
+          .from("signature_requests")
+          .select("*, documents(name, content_json, status, company_id)")
+          .eq("sign_token", token)
+          .single();
+
+        if (sigReq) {
+          const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
+          // Get company name
+          const { data: company } = await db
+            .from("companies")
+            .select("name")
+            .eq("id", sigReq.documents?.company_id || sigReq.company_id)
+            .single();
+
+          setPkg({
+            id: sigReq.id,
+            title: sigReq.title,
+            status: sigReq.status,
+            expired,
+            companies: company || { name: "" },
+            employees: { name: sigReq.signer_name, email: sigReq.signer_email, department: "", position: "" },
+            items: sigReq.documents ? [{ id: sigReq.id, documents: sigReq.documents, sort_order: 0 }] : [],
+            _isGeneralDoc: true,
+            _signatureRequestId: sigReq.id,
+          } as any);
+          // Mark as viewed
+          if (sigReq.status === 'sent') {
+            await db.from("signature_requests").update({ status: "viewed", viewed_at: new Date().toISOString() }).eq("id", sigReq.id);
+          }
+          setLoading(false);
+          return;
+        }
+
         setInvalid(true);
         setLoading(false);
         return;
@@ -310,7 +350,7 @@ function SignContent() {
         setTypedName("");
       }
     } catch (err: any) {
-      alert("서명 처리 중 오류: " + (err.message || "알 수 없는 오류"));
+      toast("서명 처리 중 오류: " + (err.message || "알 수 없는 오류"), "error");
     } finally {
       setSigning(false);
     }
@@ -399,7 +439,47 @@ function SignContent() {
       if (w) { w.document.write(html); w.document.close(); }
     } catch (e) {
       console.error('Audit trail error:', e);
-      alert('감사추적인증서를 불러오는 중 오류가 발생했습니다.');
+      toast('감사추적인증서를 불러오는 중 오류가 발생했습니다.', "error");
+    }
+  }
+
+  async function handleDownloadSignedPDF() {
+    if (!pkg) return;
+    try {
+      // Gather all document sections into a single text content
+      const allSections: string[] = [];
+      for (const item of pkg.items) {
+        const doc = item.documents;
+        if (!doc?.content_json) continue;
+        const cj = doc.content_json;
+        if (cj.title) allSections.push(cj.title);
+        if (cj.sections) {
+          for (const sec of cj.sections) {
+            if (sec.heading) allSections.push(`\n${sec.heading}`);
+            if (sec.body) allSections.push(sec.body);
+          }
+        }
+        allSections.push(''); // blank line between documents
+      }
+
+      const blob = await generateDocumentPDF({
+        title: pkg.title,
+        content: allSections.join('\n'),
+        companyName: pkg.companies?.name || '',
+      });
+
+      // Trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${pkg.title || '서명완료문서'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('PDF generation error:', e);
+      toast('PDF 생성 중 오류가 발생했습니다.', 'error');
     }
   }
 
@@ -455,6 +535,17 @@ function SignContent() {
               <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             감사추적인증서 보기
+          </button>
+
+          {/* Signed document PDF download */}
+          <button
+            onClick={handleDownloadSignedPDF}
+            className="mt-3 w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            서명된 계약서 PDF 다운로드
           </button>
 
           {/* Document integrity verification */}

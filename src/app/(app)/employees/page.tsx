@@ -26,10 +26,13 @@ import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
 } from "@/lib/expenses";
+import { uploadEmployeeFile } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
+import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
-import type { PayrollItem } from "@/lib/payment-batch";
+import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation } from "@/lib/invitations";
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
@@ -38,6 +41,7 @@ type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "atte
 const EMPLOYEE_ROLE_TABS: Tab[] = ["attendance", "leave", "expenses", "certificates"];
 
 export default function EmployeesPage() {
+  const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("employees");
@@ -232,15 +236,20 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     enabled: !!companyId,
   });
 
-  // 회사명 (이메일 발송용)
+  // 회사명 + EDI용 회사정보 (이메일 발송용)
   const { data: companyData } = useQuery({
     queryKey: ["company-name", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name").eq("id", companyId!).single();
+      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId!).single();
       return data;
     },
     enabled: !!companyId,
   });
+
+  // 4대보험 취득신고 EDI state
+  const [showAcqEdi, setShowAcqEdi] = useState(false);
+  const [acqEdiData, setAcqEdiData] = useState<{ name: string; department: string; position: string; salary: string } | null>(null);
+  const [acqEdiGenerated, setAcqEdiGenerated] = useState(false);
 
   // 직원 초대 mutation
   const inviteMut = useMutation({
@@ -279,9 +288,12 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           : { ok: false, msg: result.error || "이메일 발송 실패 (초대 링크는 생성됨)" }
         );
       }
+      // 4대보험 취득신고 EDI 생성 안내
+      setAcqEdiData({ name: form.name || form.email.split("@")[0], department: form.department, position: form.position, salary: form.salary });
+      setShowAcqEdi(true);
+      setAcqEdiGenerated(false);
       setShowForm(false);
       setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "" });
-      setTimeout(() => setInviteMsg(null), 4000);
     },
     onError: (err: any) => {
       const msg = err.message || "";
@@ -345,6 +357,61 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       {inviteMsg && (
         <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {inviteMsg.msg}
+        </div>
+      )}
+
+      {/* 4대보험 취득신고 EDI 생성 패널 */}
+      {showAcqEdi && acqEdiData && (
+        <div className="mb-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-bold text-blue-400 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                4대보험 취득신고 EDI 생성
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 4대보험 취득신고 EDI 파일을 생성합니다.</p>
+            </div>
+            <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
+          </div>
+          <div className="grid grid-cols-4 gap-2 mb-3 text-[10px]">
+            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">국민연금</span></div>
+            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">건강보험</span></div>
+            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">고용보험</span></div>
+            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">산재보험</span></div>
+          </div>
+          {acqEdiGenerated ? (
+            <div className="text-xs text-green-400 font-medium text-center py-2">EDI 파일 4건 다운로드 완료</div>
+          ) : (
+            <button
+              onClick={() => {
+                if (!companyData) return;
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                const results = generateInsuranceEDI({
+                  company: {
+                    companyName: companyData.name || "",
+                    businessNumber: companyData.business_number || "",
+                    representativeName: companyData.representative || "",
+                    address: companyData.address || "",
+                  },
+                  employees: [{
+                    name: acqEdiData.name,
+                    residentNumber: "000000-0000000",
+                    joinDate: today,
+                    monthlySalary: Math.round((Number(acqEdiData.salary) || 0) / 12),
+                    department: acqEdiData.department || "",
+                    position: acqEdiData.position || "",
+                  }],
+                  reportType: "acquisition",
+                  reportDate: today,
+                });
+                results.forEach((r) => downloadEDIFile(r));
+                setAcqEdiGenerated(true);
+              }}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition"
+            >
+              EDI 파일 생성 (4건 다운로드)
+            </button>
+          )}
         </div>
       )}
 
@@ -507,9 +574,27 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
 // ── Employee Detail Panel ──
 function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
-  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
   const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
+
+  // Termination workflow state
+  const [showTermModal, setShowTermModal] = useState(false);
+  const [termDate, setTermDate] = useState(new Date().toISOString().slice(0, 10));
+  const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
+  const [terminating, setTerminating] = useState(false);
+  const [termLossReason, setTermLossReason] = useState("11");
+  const [ediGenerated, setEdiGenerated] = useState(false);
+
+  // Company data for EDI generation
+  const { data: companyInfo } = useQuery({
+    queryKey: ["company-info-edi", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
 
   // Fetch employee details
   const { data: emp } = useQuery({
@@ -616,9 +701,16 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
             <div className="text-xs text-[var(--text-dim)]">{emp.department || ""} {emp.position || ""}</div>
           </div>
         </div>
-        <button onClick={onClose} className="p-1.5 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] transition">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {emp.status !== "resigned" && (
+            <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
+              퇴사 처리
+            </button>
+          )}
+          <button onClick={onClose} className="p-1.5 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
       </div>
 
       {/* Detail Tabs */}
@@ -630,6 +722,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           { key: "leave", label: "휴가" },
           { key: "files", label: "서류" },
           { key: "onboarding", label: "온보딩" },
+          { key: "docs", label: "입사서류" },
           { key: "notes", label: "노트" },
           { key: "history", label: "발령" },
         ].map((t) => (
@@ -761,6 +854,11 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               ))
             )}
           </div>
+        )}
+
+        {/* 입사서류 Tab — Onboarding Document Checklist */}
+        {detailTab === "docs" && (
+          <OnboardingDocsSection employeeId={employeeId} companyId={companyId} emp={emp} queryClient={queryClient} />
         )}
 
         {/* Notes Tab (D-8: 관리자 인사노트) */}
@@ -937,6 +1035,333 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           </div>
         )}
       </div>
+
+      {/* Termination Modal */}
+      {showTermModal && (() => {
+        const retCalc = emp.hire_date && emp.salary
+          ? calculateRetirementPay({
+              startDate: emp.hire_date,
+              endDate: termDate,
+              last3MonthsSalary: Number(emp.salary) * 3,
+            })
+          : null;
+        const allChecked = termChecklist.equipment && termChecklist.systemAccess && termChecklist.handover && termChecklist.insurance;
+
+        async function confirmTermination() {
+          setTerminating(true);
+          try {
+            await (supabase as any).from("employees").update({
+              status: "resigned",
+              resignation_date: termDate,
+            }).eq("id", employeeId);
+            queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+            queryClient.invalidateQueries({ queryKey: ["employees"] });
+            setShowTermModal(false);
+          } finally {
+            setTerminating(false);
+          }
+        }
+
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowTermModal(false)}>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+                <div className="text-sm font-bold text-red-400">퇴사 처리</div>
+                <button onClick={() => setShowTermModal(false)} className="p-1 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* Employee name */}
+                <div className="text-xs text-[var(--text-dim)]">
+                  대상: <span className="font-semibold text-[var(--text)]">{emp.name}</span> ({emp.department || ""} {emp.position || ""})
+                </div>
+
+                {/* 퇴사일 */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">퇴사일</label>
+                  <input
+                    type="date"
+                    value={termDate}
+                    onChange={(e) => setTermDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                  />
+                </div>
+
+                {/* 퇴직금 계산 */}
+                {retCalc && (
+                  <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
+                    <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">퇴직금 계산 (예상)</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-[var(--text-dim)]">재직일수:</span> <span className="font-medium">{retCalc.totalDays}일</span></div>
+                      <div><span className="text-[var(--text-dim)]">1일 평균임금:</span> <span className="font-medium">₩{retCalc.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}</span></div>
+                      <div><span className="text-[var(--text-dim)]">수급 자격:</span> <span className={`font-medium ${retCalc.eligible ? "text-green-400" : "text-red-400"}`}>{retCalc.eligible ? "해당" : "미해당 (1년 미만)"}</span></div>
+                      <div><span className="text-[var(--text-dim)]">예상 퇴직금:</span> <span className="font-bold">₩{retCalc.retirementPay.toLocaleString("ko-KR")}</span></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 상실사유 */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">상실사유</label>
+                  <select
+                    value={termLossReason}
+                    onChange={(e) => setTermLossReason(e.target.value)}
+                    className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                  >
+                    {LOSS_REASONS.map((r) => (
+                      <option key={r.code} value={r.code}>{r.code} - {r.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 체크리스트 */}
+                <div>
+                  <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">퇴사 체크리스트</div>
+                  <div className="space-y-2">
+                    {([
+                      { key: "equipment" as const, label: "장비 반납 완료" },
+                      { key: "systemAccess" as const, label: "사내 시스템 접근 해제" },
+                      { key: "handover" as const, label: "인수인계 완료" },
+                      { key: "insurance" as const, label: ediGenerated ? "4대보험 상실 신고 (EDI 생성 완료)" : "4대보험 상실 신고" },
+                    ]).map((item) => (
+                      <label key={item.key} className="flex items-center gap-2.5 px-3 py-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] transition">
+                        <input
+                          type="checkbox"
+                          checked={termChecklist[item.key]}
+                          onChange={(e) => setTermChecklist((prev) => ({ ...prev, [item.key]: e.target.checked }))}
+                          className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
+                        />
+                        <span className={`text-xs ${termChecklist[item.key] ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4대보험 상실신고 EDI 생성 */}
+                <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">4대보험 상실신고 EDI</div>
+                    {ediGenerated && <span className="text-[10px] text-green-400 font-medium">생성 완료</span>}
+                  </div>
+                  <p className="text-[10px] text-[var(--text-dim)] mb-2">국민연금, 건강보험, 고용보험, 산재보험 상실신고 EDI 파일 4건을 일괄 생성합니다.</p>
+                  <button
+                    onClick={() => {
+                      if (!emp || !companyInfo) return;
+                      const reportDate = termDate.replace(/-/g, "");
+                      const results = generateInsuranceEDI({
+                        company: {
+                          companyName: companyInfo.name || "",
+                          businessNumber: companyInfo.business_number || "",
+                          representativeName: companyInfo.representative || "",
+                          address: companyInfo.address || "",
+                        },
+                        employees: [{
+                          name: emp.name || "",
+                          residentNumber: emp.resident_number || "000000-0000000",
+                          leaveDate: reportDate,
+                          monthlySalary: Number(emp.salary) || 0,
+                          department: emp.department || "",
+                          position: emp.position || "",
+                          leaveReason: termLossReason,
+                        }],
+                        reportType: "loss",
+                        reportDate,
+                      });
+                      results.forEach((r) => downloadEDIFile(r));
+                      setEdiGenerated(true);
+                      setTermChecklist((prev) => ({ ...prev, insurance: true }));
+                    }}
+                    disabled={!termDate || ediGenerated}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
+                  >
+                    {ediGenerated ? "EDI 파일 다운로드 완료" : "EDI 파일 생성 (4건 다운로드)"}
+                  </button>
+                </div>
+
+                {/* 확정 버튼 */}
+                <button
+                  onClick={confirmTermination}
+                  disabled={!allChecked || terminating}
+                  className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
+                >
+                  {terminating ? "처리 중..." : "퇴사 확정"}
+                </button>
+                {!allChecked && (
+                  <div className="text-[10px] text-center text-[var(--text-dim)]">모든 체크리스트를 완료해야 퇴사를 확정할 수 있습니다</div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── 입사서류 체크리스트 ──
+
+interface OnboardingDocItem {
+  key: string;
+  label: string;
+  optional?: boolean;
+  autoGen?: boolean;
+  completed?: boolean;
+  fileUrl?: string;
+  fileName?: string;
+  uploadedAt?: string;
+}
+
+const ONBOARDING_DOC_DEFAULTS: Omit<OnboardingDocItem, "completed" | "fileUrl" | "fileName" | "uploadedAt">[] = [
+  { key: "resident_reg", label: "주민등록등본" },
+  { key: "bank_copy", label: "통장사본" },
+  { key: "diploma", label: "졸업증명서" },
+  { key: "career_cert", label: "경력증명서", optional: true },
+  { key: "health_check", label: "건강검진서", optional: true },
+  { key: "nda", label: "비밀유지서약서", autoGen: true },
+  { key: "privacy_consent", label: "개인정보동의서", autoGen: true },
+];
+
+function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { employeeId: string; companyId: string; emp: any; queryClient: any }) {
+  const [uploading, setUploading] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Read existing onboarding_docs JSONB from employee record
+  const saved: Record<string, { completed: boolean; fileUrl?: string; fileName?: string; uploadedAt?: string }> =
+    (emp?.onboarding_docs && typeof emp.onboarding_docs === "object") ? emp.onboarding_docs : {};
+
+  const items: OnboardingDocItem[] = ONBOARDING_DOC_DEFAULTS.map((d) => ({
+    ...d,
+    completed: saved[d.key]?.completed || false,
+    fileUrl: saved[d.key]?.fileUrl,
+    fileName: saved[d.key]?.fileName,
+    uploadedAt: saved[d.key]?.uploadedAt,
+  }));
+
+  const completedCount = items.filter((i) => i.completed).length;
+  const requiredCount = items.filter((i) => !i.optional).length;
+  const requiredCompleted = items.filter((i) => !i.optional && i.completed).length;
+
+  async function saveDocState(key: string, update: Partial<OnboardingDocItem>) {
+    const current = { ...saved };
+    current[key] = { ...current[key], ...update } as any;
+    await (supabase as any).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
+    queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+  }
+
+  async function handleFileUpload(key: string, file: File) {
+    setUploading(key);
+    try {
+      const result = await uploadEmployeeFile({
+        companyId,
+        employeeId,
+        category: key,
+        file,
+      });
+      await saveDocState(key, {
+        completed: true,
+        fileUrl: result.file_url,
+        fileName: file.name,
+        uploadedAt: new Date().toISOString(),
+      });
+      toast("파일이 업로드되었습니다", "success");
+    } catch (err: any) {
+      toast(err.message || "업로드 실패", "error");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function toggleCheck(key: string, checked: boolean) {
+    await saveDocState(key, { completed: checked, uploadedAt: checked ? new Date().toISOString() : undefined });
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Progress summary */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span className="text-xs font-semibold">입사서류 진행률</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-24 h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+            <div className="h-full bg-[var(--primary)] rounded-full transition-all" style={{ width: `${items.length > 0 ? (completedCount / items.length) * 100 : 0}%` }} />
+          </div>
+          <span className="text-xs font-bold text-[var(--primary)]">{completedCount}/{items.length}</span>
+          {requiredCompleted === requiredCount && (
+            <span className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full font-medium">필수 완료</span>
+          )}
+        </div>
+      </div>
+
+      {/* Document checklist */}
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${item.completed ? "bg-green-500/5 border-green-500/20" : "bg-[var(--bg-card)] border-[var(--border)]"}`}>
+            {/* Checkbox */}
+            <input
+              type="checkbox"
+              checked={item.completed}
+              onChange={(e) => toggleCheck(item.key, e.target.checked)}
+              className="w-4 h-4 rounded accent-[var(--primary)] flex-shrink-0 cursor-pointer"
+            />
+
+            {/* Label + badges */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-medium ${item.completed ? "text-[var(--text)] line-through opacity-70" : "text-[var(--text)]"}`}>
+                  {item.label}
+                </span>
+                {item.optional && (
+                  <span className="text-[9px] px-1.5 py-0.5 bg-gray-500/10 text-[var(--text-dim)] rounded-full">선택</span>
+                )}
+                {item.autoGen && (
+                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-full font-medium">자동생성</span>
+                )}
+              </div>
+              {item.uploadedAt && (
+                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                  {item.fileName && <span>{item.fileName} · </span>}
+                  {new Date(item.uploadedAt).toLocaleDateString("ko-KR")} 제출
+                </div>
+              )}
+            </div>
+
+            {/* File link or upload button */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {item.fileUrl && (
+                <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">
+                  보기
+                </a>
+              )}
+              <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer transition ${uploading === item.key ? "opacity-50 pointer-events-none" : "bg-[var(--bg-surface)] hover:bg-[var(--primary)]/10 text-[var(--text-muted)] hover:text-[var(--primary)]"}`}>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                {uploading === item.key ? "업로드중..." : "업로드"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileUpload(item.key, f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Helper text */}
+      <p className="text-[10px] text-[var(--text-dim)] text-center">
+        "자동생성" 서류는 HR 템플릿에서 자동 생성되며, 직원 서명 후 체크됩니다.
+      </p>
     </div>
   );
 }
@@ -1146,12 +1571,13 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 
 // ── Certificate Quick Issue Button ──
 function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "employment" | "career"; label: string; emp: any; companyId: string; queryClient: any }) {
+  const { toast } = useToast();
   const [issuing, setIssuing] = useState(false);
   async function issue() {
     setIssuing(true);
     try {
       const { data: company } = await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).single();
-      if (!company) { alert("회사 정보를 불러올 수 없습니다"); return; }
+      if (!company) { toast("회사 정보를 불러올 수 없습니다", "error"); return; }
       const empData = { name: emp.name, department: emp.department || "", position: emp.position || "", hire_date: emp.hire_date, employee_number: emp.employee_number, birth_date: emp.birth_date };
       const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
 
@@ -1177,7 +1603,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       }
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
     } catch (err: any) {
-      alert(err.message || "증명서 생성 실패");
+      toast(err.message || "증명서 생성 실패", "error");
     } finally {
       setIssuing(false);
     }
@@ -1273,6 +1699,7 @@ const HR_TEMPLATES = [
 
 // ── Contract Tab (전자계약 — 플렉스 스타일) ──
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
+  const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [reqForm, setReqForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
   const [sending, setSending] = useState<string | null>(null);
@@ -1319,7 +1746,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
       setShowCreate(false);
       setReqForm({ employeeId: "", title: "", templateIds: [] });
     },
-    onError: (err: any) => alert(err.message),
+    onError: (err: any) => toast(err.message, "error"),
   });
 
   // 서명 요청 발송
@@ -1327,10 +1754,10 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     setSending(contractId);
     try {
       const result = await sendContractPackage(contractId);
-      if (!result.success) alert("발송 실패: " + (result.error || "알 수 없는 오류"));
+      if (!result.success) toast("발송 실패: " + (result.error || "알 수 없는 오류"), "error");
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setSending(null);
     }
@@ -1379,9 +1806,9 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     try {
       await applyCompanySeal({ documentId: contractId, companyId, appliedBy: "system" });
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
-      alert("직인이 적용되었습니다.");
+      toast("직인이 적용되었습니다.", "success");
     } catch (err: any) {
-      alert("직인 적용 실패: " + (err.message || "알 수 없는 오류"));
+      toast("직인 적용 실패: " + (err.message || "알 수 없는 오류"), "error");
     } finally {
       setSealApplying(null);
     }
@@ -1829,12 +2256,12 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
       companyId: companyId!, requesterId: userId!, title: form.title,
       amount: Number(form.amount), category: form.category, description: form.description,
     }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); setShowForm(false); setForm({ title: "", amount: "", category: "general", description: "" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["approval"] }); setShowForm(false); setForm({ title: "", amount: "", category: "general", description: "" }); },
   });
 
   const approve = useMutation({
     mutationFn: (expenseId: string) => approveExpense({ companyId: companyId!, expenseId, approverId: userId! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["payment-queue"] }); },
   });
 
   const reject = useMutation({
@@ -1909,6 +2336,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 
 // ── Attendance Tab ──
 function AttendanceTab({ employees, companyId, userId, queryClient, role }: any) {
+  const { toast } = useToast();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
@@ -1937,14 +2365,14 @@ function AttendanceTab({ employees, companyId, userId, queryClient, role }: any)
   const doCheckIn = useMutation({
     mutationFn: (employeeId: string) => checkIn(companyId!, employeeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => alert(err.message),
+    onError: (err: any) => toast(err.message, "error"),
   });
 
   // Check-out mutation
   const doCheckOut = useMutation({
     mutationFn: (employeeId: string) => checkOut(employeeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => alert(err.message),
+    onError: (err: any) => toast(err.message, "error"),
   });
 
   // Admin attendance correction
@@ -1960,7 +2388,7 @@ function AttendanceTab({ employees, companyId, userId, queryClient, role }: any)
       queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       setEditingRecordId(null);
     },
-    onError: (err: any) => alert(err.message),
+    onError: (err: any) => toast(err.message, "error"),
   });
 
   const startEditing = (record: any) => {
@@ -2434,8 +2862,10 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 
 // ── Payroll Preview Tab ──
 function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const generate = async () => {
     if (!companyId) return;
@@ -2447,15 +2877,35 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setLoading(false);
   };
 
+  const handleSendPayslips = async () => {
+    if (!companyId || !preview) return;
+    setSending(true);
+    try {
+      const { sendPayslipEmails } = await import("@/lib/payment-batch");
+      const result = await sendPayslipEmails("preview", companyId, `${new Date().toISOString().slice(0, 7)} 급여명세`);
+      toast(`급여명세서 발송 완료: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
+    } catch (err: any) {
+      toast("급여명세서 발송 실패: " + (err.message || ""), "error");
+    }
+    setSending(false);
+  };
+
   const fmtKRW = (n: number) => `₩${n.toLocaleString()}`;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
-        <button onClick={generate} disabled={loading || !companyId} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-          {loading ? "계산 중..." : "급여 명세 미리보기"}
-        </button>
+        <div className="flex gap-2">
+          {preview && preview.items.length > 0 && (
+            <button onClick={handleSendPayslips} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+              {sending ? "발송 중..." : `전 직원 명세서 발송 (${preview.items.length}명)`}
+            </button>
+          )}
+          <button onClick={generate} disabled={loading || !companyId} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+            {loading ? "계산 중..." : "급여 명세 미리보기"}
+          </button>
+        </div>
       </div>
 
       {!preview ? (
@@ -2524,6 +2974,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
 // ── Leave Tab ──
 function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any) {
+  const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
@@ -2614,7 +3065,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
       setShowForm(false);
       setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
     },
-    onError: (err: any) => alert(err.message),
+    onError: (err: any) => toast(err.message, "error"),
   });
 
   // Send promotion notice
@@ -3137,6 +3588,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
 
 // ── Certificate Tab ──
 function CertificateTab({ employees, companyId, userId, queryClient }: any) {
+  const { toast } = useToast();
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [certType, setCertType] = useState<"employment" | "career">("employment");
   const [purpose, setPurpose] = useState("");
@@ -3229,9 +3681,9 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
       queryClient.invalidateQueries({ queryKey: ["certificate-logs"] });
       setPurpose("");
-      alert(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`);
+      toast(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`, "success");
     } catch (err: any) {
-      alert("증명서 발급 실패: " + (err?.message || err));
+      toast("증명서 발급 실패: " + (err?.message || err), "error");
     } finally {
       setIsGenerating(false);
     }

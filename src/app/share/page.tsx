@@ -3,20 +3,24 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getShareByToken, recordShareView, submitShareFeedback } from "@/lib/document-sharing";
+import { ToastProvider, useToast } from "@/components/toast";
 
 export default function SharePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
-      <ShareContent />
-    </Suspense>
+    <ToastProvider>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <ShareContent />
+      </Suspense>
+    </ToastProvider>
   );
 }
 
 function ShareContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
@@ -88,7 +92,7 @@ function ShareContent() {
       });
       setFeedbackSent(true);
     } catch {
-      alert('피드백 전송 실패');
+      toast('피드백 전송 실패', "error");
     } finally {
       setSubmitting(false);
     }

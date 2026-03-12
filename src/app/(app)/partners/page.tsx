@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
 import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
+import { verifyBusinessNumber } from "@/lib/business-verification";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
@@ -45,6 +46,17 @@ export default function PartnersPage() {
   const [detailPartner, setDetailPartner] = useState<any>(null);
   const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs">("info");
   const [tagFilter, setTagFilter] = useState<string>("");
+  const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
+
+  const handleVerifyBiz = useCallback(async (bizNo: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!bizNo) return;
+    const cleaned = bizNo.replace(/[^0-9]/g, "");
+    if (!cleaned) return;
+    setBizVerifyResults((prev) => ({ ...prev, [cleaned]: { status: "loading", loading: true } }));
+    const result = await verifyBusinessNumber(cleaned);
+    setBizVerifyResults((prev) => ({ ...prev, [cleaned]: { status: result.status, loading: false } }));
+  }, []);
 
   useEffect(() => {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
@@ -291,7 +303,30 @@ export default function PartnersPage() {
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-[var(--text-muted)]">{p.business_number || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.business_number || "—"}</span>
+                          {p.business_number && (() => {
+                            const cleaned = (p.business_number as string).replace(/[^0-9]/g, "");
+                            const vr = bizVerifyResults[cleaned];
+                            if (vr?.loading) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 animate-pulse">...</span>;
+                            if (vr && !vr.loading) {
+                              const color = vr.status === "계속사업자" ? "bg-green-500/10 text-green-400"
+                                : vr.status === "휴업자" ? "bg-yellow-500/10 text-yellow-400"
+                                : vr.status === "폐업자" ? "bg-red-500/10 text-red-400"
+                                : "bg-gray-500/10 text-gray-400";
+                              return <span className={`text-[10px] px-1.5 py-0.5 rounded ${color}`}>{vr.status}</span>;
+                            }
+                            return (
+                              <button onClick={(e) => handleVerifyBiz(p.business_number, e)}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition whitespace-nowrap"
+                                title="국세청 사업자 진위확인">
+                                확인
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm">{p.contact_name || "—"}</td>
                       <td className="px-4 py-3 text-sm text-[var(--text-muted)]">{p.contact_phone || p.contact_email || "—"}</td>
                       <td className="px-4 py-3">
@@ -338,7 +373,29 @@ export default function PartnersPage() {
                   <h2 className="text-lg font-bold">{detailPartner.name}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     {(() => { const b = TYPE_BADGE[detailPartner.type] || TYPE_BADGE.other; return <span className={`text-[10px] px-2 py-0.5 rounded-full ${b.bg} ${b.text}`}>{b.label}</span>; })()}
-                    {detailPartner.business_number && <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>}
+                    {detailPartner.business_number && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>
+                        {(() => {
+                          const cleaned = (detailPartner.business_number as string).replace(/[^0-9]/g, "");
+                          const vr = bizVerifyResults[cleaned];
+                          if (vr?.loading) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 animate-pulse">확인중...</span>;
+                          if (vr && !vr.loading) {
+                            const color = vr.status === "계속사업자" ? "bg-green-500/10 text-green-400"
+                              : vr.status === "휴업자" ? "bg-yellow-500/10 text-yellow-400"
+                              : vr.status === "폐업자" ? "bg-red-500/10 text-red-400"
+                              : "bg-gray-500/10 text-gray-400";
+                            return <span className={`text-[10px] px-1.5 py-0.5 rounded ${color}`}>{vr.status}</span>;
+                          }
+                          return (
+                            <button onClick={() => handleVerifyBiz(detailPartner.business_number)}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition">
+                              사업자 확인
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

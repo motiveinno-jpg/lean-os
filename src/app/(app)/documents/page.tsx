@@ -9,7 +9,7 @@ import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/
 import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoice";
 import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
-import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal } from "@/lib/signatures";
+import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
@@ -18,12 +18,14 @@ import { FileList } from "@/components/file-list";
 import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
+import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
 // ── Document Detail (previously documents/[id]/client.tsx) ──
 
 function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -72,8 +74,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         signerPhone: signForm.signerPhone || undefined,
         createdBy: userId,
       });
-      // Send status to 'sent' immediately
-      await updateSignatureStatus(result.id, 'sent');
+      // Send signature email with sign link
+      const emailResult = await sendSignatureEmail(result.id);
+      if (emailResult.error) console.warn(emailResult.error);
       return result;
     },
     onSuccess: () => {
@@ -308,7 +311,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 a.click();
                 URL.revokeObjectURL(url);
               } catch (err: any) {
-                alert('PDF 생성 실패: ' + (err?.message || err));
+                toast('PDF 생성 실패: ' + (err?.message || err), "error");
               }
             }}
             className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition">
@@ -319,10 +322,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               if (!companyId || !userId) return;
               try {
                 await issueDocument(id, userId, companyId);
-                alert('문서번호가 발급되었습니다.');
+                toast('문서번호가 발급되었습니다.', "success");
                 invalidate();
               } catch (err: any) {
-                alert('문서번호 발급 실패: ' + (err?.message || err));
+                toast('문서번호 발급 실패: ' + (err?.message || err), "error");
               }
             }}
             className="px-4 py-2 bg-teal-500/10 text-teal-500 rounded-lg text-xs font-semibold hover:bg-teal-500/20 transition">
@@ -350,7 +353,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 setShareEmailAddress("");
                 invalidate();
               } catch (err: any) {
-                alert('공유 링크 생성 실패: ' + (err?.message || err));
+                toast('공유 링크 생성 실패: ' + (err?.message || err), "error");
               }
             }}
             className="px-4 py-2 bg-purple-500/10 text-purple-500 rounded-lg text-xs font-semibold hover:bg-purple-500/20 transition">
@@ -377,9 +380,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 try {
                   await forceApproveDocument({ documentId: id, companyId, approverId: userId, reason });
                   invalidate();
-                  alert('임의 승인이 완료되었습니다.');
+                  toast('임의 승인이 완료되었습니다.', "success");
                 } catch (err: any) {
-                  alert('임의 승인 실패: ' + (err?.message || ''));
+                  toast('임의 승인 실패: ' + (err?.message || ''), "error");
                 }
               }}
               className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-semibold hover:bg-amber-500/20 transition">
@@ -458,12 +461,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     setShareEmailAddress("");
                     setShowShareEmailInput(false);
                     setShareUrl("");
-                    alert('이메일이 발송되었습니다.');
+                    toast('이메일이 발송되었습니다.', "success");
                   } else {
-                    alert('이메일 발송 실패: ' + (res.error || ''));
+                    toast('이메일 발송 실패: ' + (res.error || ''), "error");
                   }
                 } catch (err: any) {
-                  alert('이메일 발송 실패: ' + (err?.message || err));
+                  toast('이메일 발송 실패: ' + (err?.message || err), "error");
                 } finally {
                   setShareSending(false);
                 }
@@ -777,7 +780,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       await applyCompanySeal({ documentId: id, companyId, appliedBy: userId });
                       invalidate();
                     } catch (err: any) {
-                      alert(err?.message || '직인 적용 실패');
+                      toast(err?.message || '직인 적용 실패', "error");
                     } finally {
                       setSealApplying(false);
                     }
@@ -1069,7 +1072,8 @@ function DocumentsPageInner() {
         signerPhone: signFormData.signerPhone || undefined,
         createdBy: userId,
       });
-      await updateSignatureStatus(result.id, 'sent');
+      const emailResult = await sendSignatureEmail(result.id);
+      if (emailResult.error) console.warn(emailResult.error);
       return result;
     },
     onSuccess: () => {
@@ -2092,6 +2096,7 @@ function DocumentsPageInner() {
 
 // ── File Storage Tab Component ──
 function FileStorageTab({ companyId, userId }: { companyId: string; userId: string }) {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [fileSearchTerm, setFileSearchTerm] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -2182,7 +2187,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       await deleteFile(fileId, userId, companyId);
       queryClient.invalidateQueries({ queryKey: ["storage-files"] });
     } catch (err: any) {
-      alert("삭제 실패: " + (err?.message || err));
+      toast("삭제 실패: " + (err?.message || err), "error");
     }
   };
 
@@ -2372,6 +2377,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
 // ── Share Status Panel ──
 function ShareStatusPanel({ documentId }: { documentId: string }) {
+  const { toast } = useToast();
   const { data: shares = [] } = useQuery({
     queryKey: ['document-shares', documentId],
     queryFn: async () => {
@@ -2417,7 +2423,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
                   onClick={async () => {
                     const base = window.location.origin;
                     await navigator.clipboard.writeText(`${base}/share?token=${share.share_token}`);
-                    alert('링크 복사됨');
+                    toast('링크 복사됨', "success");
                   }}
                   className="text-[10px] px-2 py-1 bg-purple-500/10 text-purple-500 rounded-lg hover:bg-purple-500/20 transition font-semibold"
                 >

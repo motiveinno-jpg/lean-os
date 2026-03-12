@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { logAudit } from './audit-log';
 import type { Json } from '@/types/models';
 
 // ── Document types ──
@@ -65,6 +66,17 @@ export async function createFromTemplate(params: {
     .single();
 
   if (error) throw error;
+
+  await logAudit({
+    company_id: params.companyId,
+    user_id: params.createdBy,
+    action: 'create',
+    entity_type: 'document',
+    entity_id: data.id,
+    entity_name: data.name,
+    metadata: { source: 'template', template_id: params.templateId },
+  });
+
   return data;
 }
 
@@ -91,6 +103,17 @@ export async function createBlankDocument(params: {
     .single();
 
   if (error) throw error;
+
+  await logAudit({
+    company_id: params.companyId,
+    user_id: params.createdBy,
+    action: 'create',
+    entity_type: 'document',
+    entity_id: data.id,
+    entity_name: data.name,
+    metadata: { source: 'blank', type: params.type },
+  });
+
   return data;
 }
 
@@ -162,6 +185,17 @@ export async function approveDocument(documentId: string, approverId: string, co
 
   // Dispatch business event if deal is linked
   const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).single();
+
+  await logAudit({
+    company_id: doc?.company_id || '',
+    user_id: approverId,
+    action: 'approve',
+    entity_type: 'document',
+    entity_id: documentId,
+    entity_name: doc?.name,
+    metadata: { comment },
+  });
+
   if (doc?.deal_id) {
     const { dispatchBusinessEvent } = await import('./business-events');
     await dispatchBusinessEvent({
@@ -197,7 +231,17 @@ export async function lockDocument(documentId: string, lockerId?: string) {
   if (error) throw error;
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name').eq('id', documentId).single();
+  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).single();
+
+  await logAudit({
+    company_id: doc?.company_id || '',
+    user_id: lockerId || 'system',
+    action: 'lock',
+    entity_type: 'document',
+    entity_id: documentId,
+    entity_name: doc?.name,
+  });
+
   if (doc?.deal_id && lockerId) {
     const { dispatchBusinessEvent } = await import('./business-events');
     await dispatchBusinessEvent({

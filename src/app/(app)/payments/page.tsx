@@ -10,6 +10,7 @@ import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useToast } from "@/components/toast";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
 
@@ -287,6 +288,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 // ── Tab 2: Payroll Batch ──
 
 function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
+  const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [lastResult, setLastResult] = useState<{ items: PayrollItem[] } | null>(null);
   const queryClient = useQueryClient();
@@ -318,7 +320,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
       invalidate();
     } catch (err: any) {
-      alert(err.message || '급여 배치 생성 실패');
+      toast(err.message || '급여 배치 생성 실패', "error");
     }
     setGenerating(false);
   }
@@ -428,6 +430,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
 // ── Tab 3: Fixed Cost Batch ──
 
 function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
+  const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const queryClient = useQueryClient();
 
@@ -457,7 +460,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
       invalidate();
     } catch (err: any) {
-      alert(err.message || '고정비 배치 생성 실패');
+      toast(err.message || '고정비 배치 생성 실패', "error");
     }
     setGenerating(false);
   }

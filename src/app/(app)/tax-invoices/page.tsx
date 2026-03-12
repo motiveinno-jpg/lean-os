@@ -23,6 +23,7 @@ import {
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
+import { useToast } from "@/components/toast";
 
 // ── Excel export ──
 function exportToExcel(invoices: any[], filename: string) {
@@ -82,6 +83,7 @@ const MODIFICATION_REASONS = [
 ];
 
 export default function TaxInvoicesPage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">("sales");
@@ -203,7 +205,7 @@ export default function TaxInvoicesPage() {
     const rows = XLSX.utils.sheet_to_json(ws);
     const parsed = parseHomeTaxExcel(rows);
     if (parsed.length === 0) {
-      alert("유효한 세금계산서 데이터가 없습니다");
+      toast("유효한 세금계산서 데이터가 없습니다", "error");
       return;
     }
     if (confirm(`${parsed.length}건의 세금계산서를 가져올까요?`)) {
@@ -336,7 +338,7 @@ export default function TaxInvoicesPage() {
               queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
               queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
             } catch (err: any) {
-              alert(`동기화 오류: ${err.message}`);
+              toast(`동기화 오류: ${err.message}`, "error");
             } finally {
               setSyncing(false);
             }
@@ -781,7 +783,7 @@ export default function TaxInvoicesPage() {
               setModifyTarget(null);
               setModifyAmount("");
             } catch (err: any) {
-              alert(`오류: ${err.message || '수정세금계산서 발행 실패'}`);
+              toast(`오류: ${err.message || '수정세금계산서 발행 실패'}`, "error");
             }
           }}
         />
@@ -891,11 +893,11 @@ export default function TaxInvoicesPage() {
                     const startDate = `${month}-01`;
                     const endDate = `${month}-31`;
                     const result = await syncHomeTaxInvoices({ startDate, endDate });
-                    alert(`동기화 완료: ${JSON.stringify(result.results?.map((r: any) => `${r.type}: ${r.created}건 생성`) || [])}`);
+                    toast(`동기화 완료: ${JSON.stringify(result.results?.map((r: any) => `${r.type}: ${r.created}건 생성`) || [])}`, "success");
                     invalidate();
                     queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
                   } catch (err: any) {
-                    alert(`동기화 오류: ${err.message}`);
+                    toast(`동기화 오류: ${err.message}`, "error");
                   } finally {
                     setSyncing(false);
                   }

@@ -11,10 +11,14 @@ import {
   updateVaultAccount,
   updateVaultAsset,
   updateVaultDoc,
+  deleteVaultAsset,
+  deleteVaultDoc,
   getDeals,
 } from "@/lib/queries";
+import { decryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
 import { uploadFile } from "@/lib/file-storage";
+import { useToast } from "@/components/toast";
 
 type Tab = "accounts" | "assets" | "docs" | "discovery";
 
@@ -45,6 +49,7 @@ const DOC_CATEGORIES: Record<string, string> = {
 };
 
 export default function VaultPage() {
+  const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("accounts");
@@ -196,6 +201,24 @@ export default function VaultPage() {
     },
   });
 
+  const deleteAssetMut = useMutation({
+    mutationFn: (id: string) => deleteVaultAsset(id),
+    onSuccess: () => {
+      invalidate();
+      setShowForm(false);
+      setEditingId(null);
+    },
+  });
+
+  const deleteDocMut = useMutation({
+    mutationFn: (id: string) => deleteVaultDoc(id),
+    onSuccess: () => {
+      invalidate();
+      setShowForm(false);
+      setEditingId(null);
+    },
+  });
+
   async function handleFileUpload(file: File) {
     if (!companyId || !userId) return;
     setFileUploading(true);
@@ -209,7 +232,7 @@ export default function VaultPage() {
       });
       setDocForm((prev) => ({ ...prev, fileUrl: result.fileUrl }));
     } catch (err: any) {
-      alert("파일 업로드 실패: " + (err?.message || "알 수 없는 오류"));
+      toast("파일 업로드 실패: " + (err?.message || "알 수 없는 오류"), "error");
     } finally {
       setFileUploading(false);
     }
@@ -256,7 +279,7 @@ export default function VaultPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">회사 금고</h1>
+          <h1 className="text-2xl font-extrabold">구독/자산 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             구독/자산/문서 통합 관리 + AI 반복결제 자동 탐지
           </p>
@@ -435,6 +458,8 @@ export default function VaultPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!assetForm.name) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name || createAssetMut.isPending || updateAssetMut.isPending}
               className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+            {editingId && <button onClick={() => { if (confirm("이 자산을 삭제하시겠습니까?")) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
+              className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
@@ -507,6 +532,8 @@ export default function VaultPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!docForm.name) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name || createDocMut.isPending || updateDocMut.isPending}
               className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+            {editingId && <button onClick={() => { if (confirm("이 문서를 삭제하시겠습니까?")) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
+              className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
@@ -538,7 +565,20 @@ export default function VaultPage() {
                 {vault.accounts.map((acc: any) => {
                   const st = ACCOUNT_STATUS[acc.status || "active"] || ACCOUNT_STATUS.active;
                   return (
-                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(acc.id); setAccForm({ serviceName: acc.service_name || "", url: acc.url || "", loginId: acc.login_id || "", loginPassword: acc.login_password || "", monthlyCost: String(acc.monthly_cost || ""), paymentMethod: acc.payment_method || "", billingDay: acc.billing_day ? String(acc.billing_day) : "", renewalDate: acc.renewal_date || "", notes: acc.notes || "" }); setShowForm(true); }}>
+                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={async () => {
+                      setEditingId(acc.id);
+                      // Decrypt the password if it's stored encrypted
+                      let plainPassword = "";
+                      if (acc.encrypted_password) {
+                        try {
+                          plainPassword = (await decryptCredential(acc.encrypted_password)) || "";
+                        } catch {
+                          plainPassword = "";
+                        }
+                      } else if (acc.login_password && acc.login_password !== "***encrypted***") {
+                        plainPassword = acc.login_password;
+                      }
+                      setAccForm({ serviceName: acc.service_name || "", url: acc.url || "", loginId: acc.login_id || "", loginPassword: plainPassword, monthlyCost: String(acc.monthly_cost || ""), paymentMethod: acc.payment_method || "", billingDay: acc.billing_day ? String(acc.billing_day) : "", renewalDate: acc.renewal_date || "", notes: acc.notes || "" }); setShowForm(true); }}>
                       <td className="p-4">
                         <div className="font-semibold">{acc.service_name}</div>
                         {acc.url && <div className="text-[10px] text-[var(--text-dim)] truncate max-w-[200px]">{acc.url}</div>}

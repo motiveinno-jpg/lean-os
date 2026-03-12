@@ -6,12 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard } from "@/lib/card-transactions";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { useToast } from "@/components/toast";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 type CardFilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 
 export default function TransactionsPage() {
+  const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('inbox');
@@ -300,7 +302,7 @@ export default function TransactionsPage() {
 
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
     } catch (err: any) {
-      alert(`영수증 업로드 실패: ${err.message}`);
+      toast(`영수증 업로드 실패: ${err.message}`, "error");
     } finally {
       setReceiptUploadingId(null);
       if (receiptFileRef.current) receiptFileRef.current.value = "";

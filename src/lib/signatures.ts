@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { logAudit } from './audit-log';
 
 const db = supabase as any;
 
@@ -23,6 +24,18 @@ export function getSignatureStatusInfo(status: string) {
   return SIGNATURE_STATUS.find(s => s.value === status) || SIGNATURE_STATUS[0];
 }
 
+// ── Generate Sign Token ──
+function generateSignToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  const array = new Uint8Array(48);
+  crypto.getRandomValues(array);
+  for (const byte of array) {
+    token += chars[byte % chars.length];
+  }
+  return token;
+}
+
 // ── Create Signature Request ──
 export async function createSignatureRequest(params: {
   companyId: string;
@@ -35,6 +48,7 @@ export async function createSignatureRequest(params: {
 }) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 14); // 14-day expiry
+  const signToken = generateSignToken();
 
   const { data, error } = await db
     .from('signature_requests')
@@ -46,6 +60,7 @@ export async function createSignatureRequest(params: {
       signer_name: params.signerName,
       signer_email: params.signerEmail,
       signer_phone: params.signerPhone || null,
+      sign_token: signToken,
       expires_at: expiresAt.toISOString(),
       created_by: params.createdBy,
     })
@@ -53,7 +68,48 @@ export async function createSignatureRequest(params: {
     .single();
 
   if (error) throw error;
+
+  await logAudit({
+    company_id: params.companyId,
+    user_id: params.createdBy,
+    action: 'create',
+    entity_type: 'signature',
+    entity_id: data.id,
+    entity_name: params.title,
+    metadata: { signer_name: params.signerName, signer_email: params.signerEmail, document_id: params.documentId },
+  });
+
   return data;
+}
+
+// ── Send Signature Email ──
+export async function sendSignatureEmail(signatureRequestId: string): Promise<{ success: boolean; error?: string }> {
+  const req = await getSignatureRequest(signatureRequestId);
+  if (!req) return { success: false, error: '서명 요청을 찾을 수 없습니다.' };
+
+  const signUrl = `${window.location.origin}/sign?token=${req.sign_token}`;
+
+  try {
+    const { data, error } = await db.functions.invoke('send-signature-email', {
+      body: {
+        to: req.signer_email,
+        signerName: req.signer_name,
+        title: req.title,
+        signUrl,
+        expiresAt: req.expires_at,
+      },
+    });
+
+    if (error) throw error;
+
+    // Update status to sent
+    await updateSignatureStatus(signatureRequestId, 'sent');
+    return { success: true };
+  } catch (err: any) {
+    // Even if email fails, update status so the link is still usable
+    await updateSignatureStatus(signatureRequestId, 'sent');
+    return { success: false, error: `이메일 발송 실패 (서명 링크는 생성됨): ${err.message}` };
+  }
 }
 
 // ── Get Signature Requests ──
@@ -138,6 +194,17 @@ export async function saveSignature(
     .single();
 
   if (error) throw error;
+
+  await logAudit({
+    company_id: data?.company_id || '',
+    user_id: 'signer',
+    action: 'sign',
+    entity_type: 'signature',
+    entity_id: id,
+    entity_name: data?.title,
+    metadata: { signature_type: signatureData.type, document_id: data?.document_id },
+    ip_address: ipAddress,
+  });
 
   // Auto-lock document when all signatures are collected
   if (data?.document_id) {

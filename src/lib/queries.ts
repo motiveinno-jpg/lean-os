@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { encryptCredential } from './crypto';
 import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
 
 // ── Auth helpers ──
@@ -1062,6 +1063,11 @@ export async function createVaultAccount(params: {
   ownerId?: string;
   notes?: string;
 }) {
+  // Encrypt the password server-side before storing
+  const encryptedPw = params.loginPassword
+    ? await encryptCredential(params.loginPassword)
+    : null;
+
   const { data, error } = await supabase
     .from('vault_accounts')
     .insert({
@@ -1069,7 +1075,8 @@ export async function createVaultAccount(params: {
       service_name: params.serviceName,
       url: params.url,
       login_id: params.loginId,
-      login_password: params.loginPassword,
+      login_password: encryptedPw ? '***encrypted***' : null,
+      encrypted_password: encryptedPw,
       monthly_cost: params.monthlyCost || 0,
       payment_method: params.paymentMethod,
       billing_day: params.billingDay,
@@ -1086,6 +1093,13 @@ export async function createVaultAccount(params: {
 }
 
 export async function updateVaultAccount(id: string, updates: Record<string, any>) {
+  // If login_password is being updated, encrypt it
+  if (updates.login_password && updates.login_password !== '***encrypted***') {
+    const encryptedPw = await encryptCredential(updates.login_password);
+    updates.encrypted_password = encryptedPw;
+    updates.login_password = '***encrypted***';
+  }
+
   const { error } = await supabase
     .from('vault_accounts')
     .update(updates)
@@ -1146,6 +1160,14 @@ export async function updateVaultAsset(id: string, updates: Record<string, any>)
   if (error) throw error;
 }
 
+export async function deleteVaultAsset(id: string) {
+  const { error } = await supabase
+    .from('vault_assets')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // ── Vault Docs (중요 문서) ──
 export async function getVaultDocs(companyId: string) {
   const { data } = await supabase
@@ -1186,6 +1208,14 @@ export async function updateVaultDoc(id: string, updates: Record<string, any>) {
   const { error } = await supabase
     .from('vault_docs')
     .update(updates)
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteVaultDoc(id: string) {
+  const { error } = await supabase
+    .from('vault_docs')
+    .delete()
     .eq('id', id);
   if (error) throw error;
 }

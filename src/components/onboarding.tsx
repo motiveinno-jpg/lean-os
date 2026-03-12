@@ -25,14 +25,19 @@ export function resetOnboardingDismiss(): void {
 
 // ── Step Definitions ──
 const STEPS = [
-  { num: 1, label: "AI 빠른설정" },
-  { num: 2, label: "회사 정보" },
-  { num: 3, label: "법인통장" },
-  { num: 4, label: "법인카드" },
-  { num: 5, label: "홈택스 연동" },
-  { num: 6, label: "직원 등록" },
-  { num: 7, label: "완료" },
+  { num: 1, label: "회사정보", icon: "building", desc: "사업자 정보를 등록하세요" },
+  { num: 2, label: "통장 등록", icon: "bank", desc: "법인통장을 연결하세요" },
+  { num: 3, label: "직원 등록", icon: "people", desc: "팀원을 추가하세요" },
+  { num: 4, label: "첫 프로젝트", icon: "sparkles", desc: "첫 거래를 만드세요" },
+  { num: 5, label: "완료", icon: "check", desc: "준비 완료!" },
 ];
+
+interface CompletionStatus {
+  companyInfo: boolean;
+  bankAccount: boolean;
+  employee: boolean;
+  deal: boolean;
+}
 
 interface OnboardingWizardProps {
   companyId: string;
@@ -41,11 +46,21 @@ interface OnboardingWizardProps {
 }
 
 // ═══════════════════════════════════════════
-// OnboardingWizard — 6-step Setup
+// OnboardingWizard — 5-step Company Setup
 // ═══════════════════════════════════════════
 export function OnboardingWizard({ companyId, companyName, onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Completion status from DB
+  const [status, setStatus] = useState<CompletionStatus>({
+    companyInfo: false,
+    bankAccount: false,
+    employee: false,
+    deal: false,
+  });
 
   // Step 1: Company
   const [company, setCompany] = useState({
@@ -65,23 +80,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     bank_name: "", account_number: "", alias: "", balance: "", role: "OPERATING",
   });
 
-  // Step 3: Card accounts
-  const [cards, setCards] = useState<Array<{
-    card_company: string; card_number: string; card_holder: string; card_alias: string;
-  }>>([]);
-  const [cardForm, setCardForm] = useState({
-    card_company: "", card_number: "", card_holder: "", card_alias: "",
-  });
-
-  // Step 4: Hometax
-  const [hometax, setHometax] = useState({
-    hometax_id: "",
-    hometax_pw: "",
-    cert_type: "none" as "none" | "joint" | "financial",
-    cert_dn: "",
-  });
-
-  // Step 5: Employees
+  // Step 3: Employees
   const [employees, setEmployees] = useState<Array<{
     name: string; position: string; department: string; email: string;
   }>>([]);
@@ -89,87 +88,183 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     name: "", position: "", department: "", email: "",
   });
 
-  // ── Save all data ──
-  const [saveError, setSaveError] = useState<string | null>(null);
+  // Step 4: Deal creation
+  const [dealName, setDealName] = useState("");
+  const [dealType, setDealType] = useState<"REVENUE" | "EXPENSE">("REVENUE");
+  const [dealAmount, setDealAmount] = useState("");
+  const [dealPartner, setDealPartner] = useState("");
 
-  const handleComplete = useCallback(async () => {
+  // ── Check completion status on mount ──
+  useEffect(() => {
+    async function checkStatus() {
+      const db = supabase as any;
+      try {
+        // Check company info
+        const { data: comp } = await db
+          .from("companies")
+          .select("name, business_number")
+          .eq("id", companyId)
+          .single();
+        const hasCompany = !!(comp?.name && comp?.business_number);
+
+        // Check bank accounts
+        const { count: bankCount } = await db
+          .from("bank_accounts")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId);
+        const hasBank = (bankCount ?? 0) > 0;
+
+        // Check employees
+        const { count: empCount } = await db
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId);
+        const hasEmployee = (empCount ?? 0) > 0;
+
+        // Check deals
+        const { count: dealCount } = await db
+          .from("deals")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId);
+        const hasDeal = (dealCount ?? 0) > 0;
+
+        const newStatus = {
+          companyInfo: hasCompany,
+          bankAccount: hasBank,
+          employee: hasEmployee,
+          deal: hasDeal,
+        };
+        setStatus(newStatus);
+
+        // Pre-fill company info if it exists
+        if (comp?.name) {
+          setCompany(prev => ({
+            ...prev,
+            companyName: comp.name || prev.companyName,
+            businessNumber: comp.business_number || prev.businessNumber,
+          }));
+        }
+
+        // Auto-advance to first incomplete step
+        if (hasCompany && hasBank && hasEmployee && hasDeal) {
+          // All done — go to completion
+          setStep(5);
+        } else if (hasCompany && hasBank && hasEmployee) {
+          setStep(4);
+        } else if (hasCompany && hasBank) {
+          setStep(3);
+        } else if (hasCompany) {
+          setStep(2);
+        } else {
+          setStep(1);
+        }
+      } catch (err) {
+        console.error("Status check error:", err);
+      }
+      setLoading(false);
+    }
+    checkStatus();
+  }, [companyId]);
+
+  // ── Save step data ──
+  const saveStep = useCallback(async (currentStep: number) => {
     setSaving(true);
     setSaveError(null);
     const db = supabase as any;
     try {
-      // 1. Company info
-      await db.from("companies").update({
-        name: company.companyName || companyName,
-        industry: company.industry || undefined,
-      }).eq("id", companyId);
-
-      // 2. Bank accounts
-      for (const bank of banks) {
-        await db.from("bank_accounts").insert({
-          company_id: companyId,
-          bank_name: bank.bank_name,
-          account_number: bank.account_number,
-          alias: bank.alias,
-          role: bank.role,
-          balance: parseInt(bank.balance.replace(/[^0-9]/g, ""), 10) || 0,
-          is_primary: banks.indexOf(bank) === 0,
-        });
+      if (currentStep === 1) {
+        // Save company info
+        await db.from("companies").update({
+          name: company.companyName || companyName,
+          business_number: company.businessNumber || undefined,
+          representative: company.representative || undefined,
+          address: company.address || undefined,
+          industry: company.industry || undefined,
+          phone: company.phone || undefined,
+        }).eq("id", companyId);
+        setStatus(prev => ({ ...prev, companyInfo: true }));
+      } else if (currentStep === 2) {
+        // Save bank accounts
+        for (const bank of banks) {
+          await db.from("bank_accounts").insert({
+            company_id: companyId,
+            bank_name: bank.bank_name,
+            account_number: bank.account_number,
+            alias: bank.alias,
+            role: bank.role,
+            balance: parseInt(bank.balance.replace(/[^0-9]/g, ""), 10) || 0,
+            is_primary: banks.indexOf(bank) === 0,
+          });
+        }
+        if (banks.length > 0) setStatus(prev => ({ ...prev, bankAccount: true }));
+      } else if (currentStep === 3) {
+        // Save employees
+        for (const emp of employees) {
+          await db.from("employees").insert({
+            company_id: companyId,
+            name: emp.name,
+            position: emp.position || null,
+            department: emp.department || null,
+            email: emp.email || null,
+            hire_date: new Date().toISOString().split("T")[0],
+            status: "active",
+          });
+        }
+        if (employees.length > 0) setStatus(prev => ({ ...prev, employee: true }));
+      } else if (currentStep === 4) {
+        // Create first deal
+        if (dealName) {
+          await db.from("deals").insert({
+            company_id: companyId,
+            name: dealName,
+            type: dealType,
+            amount: parseInt(dealAmount.replace(/[^0-9]/g, ""), 10) || 0,
+            partner_name: dealPartner || null,
+            status: "active",
+            stage: "lead",
+          });
+          setStatus(prev => ({ ...prev, deal: true }));
+        }
       }
-
-      // 3. Card accounts
-      for (const card of cards) {
-        await db.from("card_accounts").insert({
-          company_id: companyId,
-          card_company: card.card_company,
-          card_number: card.card_number,
-          card_holder: card.card_holder,
-          alias: card.card_alias,
-          is_active: true,
-        });
-      }
-
-      // 4. Hometax integration
-      if (hometax.hometax_id) {
-        await db.from("company_integrations").insert({
-          company_id: companyId,
-          service_type: "hometax",
-          service_name: "홈택스",
-          login_id: hometax.hometax_id,
-          login_pw_encrypted: hometax.hometax_pw,
-          cert_dn: hometax.cert_dn || null,
-          status: hometax.hometax_id ? "pending" : "disconnected",
-          metadata: { cert_type: hometax.cert_type },
-        });
-      }
-
-      // 5. Employees
-      for (const emp of employees) {
-        await db.from("employees").insert({
-          company_id: companyId,
-          name: emp.name,
-          position: emp.position || null,
-          department: emp.department || null,
-          email: emp.email || null,
-          hire_date: new Date().toISOString().split("T")[0],
-          status: "active",
-        });
-      }
-
-      localStorage.setItem(ONBOARDING_KEY, "true");
-      onComplete();
     } catch (err) {
-      console.error("Onboarding save error:", err);
+      console.error("Step save error:", err);
       setSaveError("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setSaving(false);
+      return false;
     }
     setSaving(false);
-  }, [company, banks, cards, hometax, employees, companyId, companyName, onComplete]);
+    return true;
+  }, [company, banks, employees, dealName, dealType, dealAmount, dealPartner, companyId, companyName]);
 
-  const handleNext = () => { if (step < 7) setStep(step + 1); };
+  const handleNext = useCallback(async () => {
+    if (step < 5) {
+      // Save current step data before advancing
+      const stepHasData = (
+        (step === 1 && company.companyName && company.businessNumber) ||
+        (step === 2 && banks.length > 0) ||
+        (step === 3 && employees.length > 0) ||
+        (step === 4 && dealName)
+      );
+      if (stepHasData) {
+        const ok = await saveStep(step);
+        if (!ok) return;
+      }
+      setStep(step + 1);
+    }
+  }, [step, company, banks, employees, dealName, saveStep]);
+
   const handleBack = () => { if (step > 1) setStep(step - 1); };
-  const handleSkip = () => { if (step < 7) setStep(step + 1); };
+
+  const handleSkip = () => {
+    if (step < 5) setStep(step + 1);
+  };
+
+  const handleFinish = useCallback(() => {
+    localStorage.setItem(ONBOARDING_KEY, "true");
+    onComplete();
+  }, [onComplete]);
 
   const handleDismiss = useCallback(() => {
-    // Only dismiss for this session — user can re-trigger from guide page
     sessionStorage.setItem(ONBOARDING_DISMISS_KEY, "true");
     onComplete();
   }, [onComplete]);
@@ -183,119 +278,6 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     return () => window.removeEventListener("keydown", handler);
   }, [handleDismiss]);
 
-  // AI File Upload — parse Excel and auto-fill forms
-  const aiFileRef = useRef<HTMLInputElement>(null);
-  const [aiUploading, setAiUploading] = useState(false);
-  const [aiResult, setAiResult] = useState<string | null>(null);
-
-  const handleAIUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAiUploading(true);
-    setAiResult(null);
-    try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
-      let employeesFound: typeof employees = [];
-      let banksFound: typeof banks = [];
-      let companyFound: Partial<typeof company> = {};
-      let matched = 0;
-
-      for (const sheetName of wb.SheetNames) {
-        const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
-        if (!rows.length) continue;
-        const headers = Object.keys(rows[0]).map(h => h.toLowerCase().trim());
-
-        // Detect employee list (name + salary or department or position)
-        const hasName = headers.some(h => h.includes("이름") || h.includes("name") || h.includes("성명"));
-        const hasSalary = headers.some(h => h.includes("급여") || h.includes("salary") || h.includes("월급") || h.includes("연봉"));
-        const hasDept = headers.some(h => h.includes("부서") || h.includes("dept") || h.includes("department"));
-        const hasPos = headers.some(h => h.includes("직위") || h.includes("직책") || h.includes("position"));
-
-        if (hasName && (hasSalary || hasDept || hasPos)) {
-          for (const row of rows) {
-            const vals = Object.entries(row);
-            const findVal = (keywords: string[]) => {
-              const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
-              return entry ? String(entry[1]).trim() : "";
-            };
-            const name = findVal(["이름", "name", "성명"]);
-            if (!name) continue;
-            employeesFound.push({
-              name,
-              position: findVal(["직위", "직책", "position"]),
-              department: findVal(["부서", "dept", "department"]),
-              email: findVal(["이메일", "email"]),
-            });
-          }
-          matched++;
-        }
-
-        // Detect bank accounts (bank_name + account_number)
-        const hasBank = headers.some(h => h.includes("은행") || h.includes("bank"));
-        const hasAcct = headers.some(h => h.includes("계좌") || h.includes("account"));
-        if (hasBank && hasAcct) {
-          for (const row of rows) {
-            const vals = Object.entries(row);
-            const findVal = (keywords: string[]) => {
-              const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
-              return entry ? String(entry[1]).trim() : "";
-            };
-            const bankName = findVal(["은행", "bank"]);
-            const acctNum = findVal(["계좌", "account"]);
-            if (!bankName || !acctNum) continue;
-            banksFound.push({
-              bank_name: bankName,
-              account_number: acctNum,
-              alias: findVal(["별칭", "alias", "용도"]) || bankName,
-              balance: findVal(["잔고", "잔액", "balance"]) || "0",
-              role: "OPERATING",
-            });
-          }
-          matched++;
-        }
-
-        // Detect company info (company name, business number, representative)
-        const hasCompany = headers.some(h => h.includes("회사") || h.includes("company") || h.includes("상호"));
-        const hasBizNum = headers.some(h => h.includes("사업자") || h.includes("business"));
-        if (hasCompany || hasBizNum) {
-          const row = rows[0];
-          const vals = Object.entries(row);
-          const findVal = (keywords: string[]) => {
-            const entry = vals.find(([k]) => keywords.some(kw => k.toLowerCase().includes(kw)));
-            return entry ? String(entry[1]).trim() : "";
-          };
-          const cn = findVal(["회사", "company", "상호", "법인"]);
-          if (cn) companyFound.companyName = cn;
-          const bn = findVal(["사업자", "business"]);
-          if (bn) companyFound.businessNumber = bn;
-          const rep = findVal(["대표", "representative"]);
-          if (rep) companyFound.representative = rep;
-          const addr = findVal(["주소", "address"]);
-          if (addr) companyFound.address = addr;
-          matched++;
-        }
-      }
-
-      // Apply parsed data
-      if (employeesFound.length > 0) setEmployees(employeesFound);
-      if (banksFound.length > 0) setBanks(banksFound);
-      if (Object.keys(companyFound).length > 0) setCompany(prev => ({ ...prev, ...companyFound }));
-
-      const parts = [];
-      if (employeesFound.length) parts.push(`직원 ${employeesFound.length}명`);
-      if (banksFound.length) parts.push(`통장 ${banksFound.length}개`);
-      if (companyFound.companyName) parts.push("회사 정보");
-      setAiResult(parts.length > 0
-        ? `자동 인식 완료: ${parts.join(", ")}. 다음 단계에서 확인하세요!`
-        : "파일에서 인식 가능한 데이터를 찾지 못했습니다. 수동으로 입력해주세요."
-      );
-    } catch {
-      setAiResult("파일 파싱 중 오류가 발생했습니다. 다른 파일을 시도해주세요.");
-    }
-    setAiUploading(false);
-  }, []);
-
   // Add helpers
   const addBank = () => {
     if (!bankForm.bank_name || !bankForm.account_number) return;
@@ -304,19 +286,27 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   };
   const removeBank = (i: number) => setBanks(banks.filter((_, idx) => idx !== i));
 
-  const addCard = () => {
-    if (!cardForm.card_company || !cardForm.card_number) return;
-    setCards([...cards, { ...cardForm }]);
-    setCardForm({ card_company: "", card_number: "", card_holder: "", card_alias: "" });
-  };
-  const removeCard = (i: number) => setCards(cards.filter((_, idx) => idx !== i));
-
   const addEmployee = () => {
     if (!empForm.name) return;
     setEmployees([...employees, { ...empForm }]);
     setEmpForm({ name: "", position: "", department: "", email: "" });
   };
   const removeEmployee = (i: number) => setEmployees(employees.filter((_, idx) => idx !== i));
+
+  // Completed step count for progress
+  const completedSteps = [status.companyInfo, status.bankAccount, status.employee, status.deal].filter(Boolean).length;
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg p-10 text-center"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="animate-spin w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-[var(--text-muted)]">설정 상태를 확인하는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleDismiss}>
@@ -333,25 +323,33 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        {/* ── Progress ── */}
+
+        {/* ── Progress Bar ── */}
         <div className="px-6 pt-5 pb-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-[var(--text)]">초기 설정</span>
+            <span className="text-xs text-[var(--text-dim)]">{step} / {STEPS.length} 단계</span>
+          </div>
           <div className="flex items-center gap-1">
             {STEPS.map((s, i) => (
               <div key={s.num} className="flex items-center flex-1">
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0"
+                <button
+                  onClick={() => setStep(s.num)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0 cursor-pointer"
                   style={{
-                    background: s.num <= step ? "var(--primary)" : "var(--bg-surface)",
-                    color: s.num <= step ? "#fff" : "var(--text-dim)",
-                    border: s.num <= step ? "2px solid var(--primary)" : "2px solid var(--border)",
+                    background: s.num === step ? "var(--primary)" : s.num < step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "var(--primary)" : "var(--bg-surface)",
+                    color: s.num <= step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "#fff" : "var(--text-dim)",
+                    border: s.num <= step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "2px solid var(--primary)" : "2px solid var(--border)",
+                    opacity: s.num === step ? 1 : 0.7,
                   }}
+                  title={s.label}
                 >
-                  {s.num < step ? (
+                  {(s.num < step || (s.num === 1 && status.companyInfo && step !== 1) || (s.num === 2 && status.bankAccount && step !== 2) || (s.num === 3 && status.employee && step !== 3) || (s.num === 4 && status.deal && step !== 4)) ? (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   ) : s.num}
-                </div>
+                </button>
                 {i < STEPS.length - 1 && (
                   <div className="flex-1 h-[2px] mx-1 rounded-full transition-all" style={{ background: s.num < step ? "var(--primary)" : "var(--border)" }} />
                 )}
@@ -359,49 +357,59 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             ))}
           </div>
           <div className="flex justify-between text-[9px] text-[var(--text-dim)] font-medium mt-1.5 px-0.5">
-            {STEPS.map(s => <span key={s.num} className="text-center" style={{ width: `${100/STEPS.length}%` }}>{s.label}</span>)}
+            {STEPS.map(s => (
+              <span key={s.num} className="text-center" style={{ width: `${100/STEPS.length}%`, color: s.num === step ? "var(--primary)" : undefined, fontWeight: s.num === step ? 700 : undefined }}>
+                {s.label}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* ── Content ── */}
         <div className="px-6 py-4 min-h-[360px] max-h-[60vh] overflow-y-auto flex flex-col">
           {step === 1 && (
-            <div className="flex-1">
-              <StepHeader title="AI 빠른 설정" desc="기존 관리파일(엑셀)을 업로드하면 AI가 직원, 통장, 회사정보를 자동으로 인식합니다." icon="sparkles" />
-              <div
-                onClick={() => aiFileRef.current?.click()}
-                className="border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer hover:border-[var(--primary)] transition"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <input ref={aiFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleAIUpload} />
-                <div className="text-4xl mb-3">📁</div>
-                {aiUploading ? (
-                  <div className="text-sm text-[var(--primary)] font-medium">파일 분석 중...</div>
-                ) : (
-                  <>
-                    <div className="text-sm font-semibold mb-1">엑셀/CSV 파일을 드래그하거나 클릭하세요</div>
-                    <div className="text-xs text-[var(--text-dim)]">직원 명단, 통장 목록, 회사 정보 등을 자동 인식합니다</div>
-                  </>
-                )}
-              </div>
-              {aiResult && (
-                <div className="mt-4 px-4 py-3 rounded-xl text-sm" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
-                  {aiResult}
-                </div>
-              )}
-              <div className="mt-6 text-center">
-                <button onClick={() => setStep(2)} className="text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition">
-                  파일 없이 수동으로 입력하기 →
-                </button>
-              </div>
-            </div>
+            <StepCompanyInfo
+              data={company}
+              set={setCompany}
+              isCompleted={status.companyInfo}
+            />
           )}
-          {step === 2 && <StepCompany data={company} set={setCompany} />}
-          {step === 3 && <StepBank banks={banks} form={bankForm} setForm={setBankForm} add={addBank} remove={removeBank} />}
-          {step === 4 && <StepCard cards={cards} form={cardForm} setForm={setCardForm} add={addCard} remove={removeCard} />}
-          {step === 5 && <StepHometax data={hometax} set={setHometax} />}
-          {step === 6 && <StepEmployees employees={employees} form={empForm} setForm={setEmpForm} add={addEmployee} remove={removeEmployee} />}
-          {step === 7 && <StepSummary company={company} banks={banks} cards={cards} hometax={hometax} employees={employees} />}
+          {step === 2 && (
+            <StepBankSetup
+              banks={banks}
+              form={bankForm}
+              setForm={setBankForm}
+              add={addBank}
+              remove={removeBank}
+              isCompleted={status.bankAccount}
+            />
+          )}
+          {step === 3 && (
+            <StepEmployeeSetup
+              employees={employees}
+              form={empForm}
+              setForm={setEmpForm}
+              add={addEmployee}
+              remove={removeEmployee}
+              isCompleted={status.employee}
+            />
+          )}
+          {step === 4 && (
+            <StepFirstDeal
+              dealName={dealName}
+              setDealName={setDealName}
+              dealType={dealType}
+              setDealType={setDealType}
+              dealAmount={dealAmount}
+              setDealAmount={setDealAmount}
+              dealPartner={dealPartner}
+              setDealPartner={setDealPartner}
+              isCompleted={status.deal}
+            />
+          )}
+          {step === 5 && (
+            <StepComplete status={status} />
+          )}
           {saveError && (
             <div className="mt-3 px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">
               {saveError}
@@ -412,7 +420,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         {/* ── Footer ── */}
         <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
           <div>
-            {step > 1 && step < 7 && (
+            {step > 1 && step < 5 && (
               <button onClick={handleBack} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] transition">
                 이전
               </button>
@@ -424,35 +432,29 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
                 나중에 하기
               </button>
             )}
-            {step >= 2 && step <= 6 && (
+            {step >= 1 && step <= 4 && (
               <button onClick={handleSkip} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
                 건너뛰기
               </button>
             )}
-            {step < 7 && (
-              <button onClick={handleNext} className="px-5 py-2 rounded-xl text-sm font-bold text-white transition" style={{ background: "var(--primary)" }}>
-                다음
+            {step < 5 && (
+              <button
+                onClick={handleNext}
+                disabled={saving}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
+                style={{ background: "var(--primary)" }}
+              >
+                {saving ? "저장 중..." : "다음"}
               </button>
             )}
-            {step === 7 && (
-              <>
-                {saveError && (
-                  <button
-                    onClick={() => { localStorage.setItem(ONBOARDING_KEY, "true"); onComplete(); }}
-                    className="px-4 py-2 rounded-xl text-xs font-medium text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition"
-                  >
-                    건너뛰고 시작
-                  </button>
-                )}
-                <button
-                  onClick={handleComplete}
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
-                  style={{ background: "var(--primary)" }}
-                >
-                  {saving ? "저장 중..." : saveError ? "다시 시도" : "설정 완료 — 시작하기"}
-                </button>
-              </>
+            {step === 5 && (
+              <button
+                onClick={handleFinish}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition"
+                style={{ background: "var(--primary)" }}
+              >
+                대시보드로 시작하기
+              </button>
             )}
           </div>
         </div>
@@ -462,12 +464,20 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
 }
 
 // ═══════════════════════════════════════════
-// Step 1: Company Info
+// Step 1: Company Info (회사정보)
 // ═══════════════════════════════════════════
-function StepCompany({ data, set }: { data: any; set: (d: any) => void }) {
+function StepCompanyInfo({ data, set, isCompleted }: { data: any; set: (d: any) => void; isCompleted: boolean }) {
   return (
     <div className="flex-1">
-      <StepHeader title="회사 기본 정보" desc="사업자 정보를 입력하세요. 세금계산서, 문서 생성에 사용됩니다." icon="building" />
+      <StepHeader
+        title="회사 기본 정보"
+        desc="사업자 정보를 입력하세요. 세금계산서, 문서 생성에 사용됩니다."
+        icon="building"
+        whyItMatters="정확한 사업자 정보는 세금계산서 발행, 계약서 작성 등 모든 공식 문서의 기반이 됩니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="이미 회사 정보가 등록되어 있습니다. 수정하거나 다음 단계로 넘어가세요." />
+      )}
       <div className="space-y-3">
         <Field label="회사명 *" value={data.companyName} onChange={(v) => set({ ...data, companyName: v })} placeholder="주식회사 예시" />
         <Field label="사업자등록번호 *" value={data.businessNumber} onChange={(v) => set({ ...data, businessNumber: v })} placeholder="000-00-00000" />
@@ -478,15 +488,16 @@ function StepCompany({ data, set }: { data: any; set: (d: any) => void }) {
         <Field label="사업장 주소" value={data.address} onChange={(v) => set({ ...data, address: v })} placeholder="서울시 강남구..." />
         <Field label="대표 전화" value={data.phone} onChange={(v) => set({ ...data, phone: v })} placeholder="02-1234-5678" />
       </div>
+      <LinkHint href="/settings" label="설정 페이지에서 더 상세한 회사 정보를 관리할 수 있습니다" />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 2: Bank Accounts
+// Step 2: Bank Account (통장 등록)
 // ═══════════════════════════════════════════
-function StepBank({ banks, form, setForm, add, remove }: {
-  banks: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
+function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
+  banks: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void; isCompleted: boolean;
 }) {
   const BANKS = ["국민", "신한", "우리", "하나", "기업", "농협", "카카오뱅크", "토스뱅크", "SC제일", "대구", "부산", "기타"];
   const ROLES = [
@@ -498,7 +509,15 @@ function StepBank({ banks, form, setForm, add, remove }: {
 
   return (
     <div className="flex-1">
-      <StepHeader title="법인통장 등록" desc="회사 통장을 등록하면 잔고 현황과 거래 내역을 관리할 수 있습니다." icon="bank" />
+      <StepHeader
+        title="법인통장 등록"
+        desc="회사 통장을 등록하면 잔고 현황과 거래 내역을 관리할 수 있습니다."
+        icon="bank"
+        whyItMatters="통장을 등록하면 자금 흐름(캐시플로우)을 자동 추적하고 런웨이를 계산할 수 있습니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="통장이 이미 등록되어 있습니다. 추가 등록하거나 다음으로 넘어가세요." />
+      )}
 
       {/* Added banks */}
       {banks.length > 0 && (
@@ -556,144 +575,28 @@ function StepBank({ banks, form, setForm, add, remove }: {
           + 통장 추가
         </button>
       </div>
+      <LinkHint href="/settings" label="설정 > 통장/카드 탭에서 더 상세하게 관리할 수 있습니다" />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 3: Card Accounts
+// Step 3: Employee Setup (직원 등록)
 // ═══════════════════════════════════════════
-function StepCard({ cards, form, setForm, add, remove }: {
-  cards: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
+function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted }: {
+  employees: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void; isCompleted: boolean;
 }) {
-  const CARD_COMPANIES = ["삼성", "현대", "KB국민", "신한", "롯데", "BC", "하나", "우리", "NH농협", "기타"];
-
   return (
     <div className="flex-1">
-      <StepHeader title="법인카드 등록" desc="법인카드를 등록하면 카드 사용내역을 자동 분류하고 세액공제를 관리합니다." icon="card" />
-
-      {cards.length > 0 && (
-        <div className="space-y-2 mb-4">
-          {cards.map((c, i) => (
-            <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-              <div>
-                <div className="text-sm font-medium text-[var(--text)]">{c.card_alias || `${c.card_company}카드`}</div>
-                <div className="text-xs text-[var(--text-dim)]">{c.card_company} •••• {c.card_number.slice(-4)}</div>
-              </div>
-              <button onClick={() => remove(i)} className="text-xs text-red-400 hover:text-red-500">삭제</button>
-            </div>
-          ))}
-        </div>
+      <StepHeader
+        title="직원 등록"
+        desc="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다."
+        icon="people"
+        whyItMatters="직원 등록은 급여 관리, 4대보험 처리, 근태 관리의 첫 단계입니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="직원이 이미 등록되어 있습니다. 추가 등록하거나 다음으로 넘어가세요." />
       )}
-
-      <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">카드사 *</label>
-            <select
-              value={form.card_company}
-              onChange={(e) => setForm({ ...form, card_company: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg text-xs bg-[var(--bg-card)] border border-[var(--border)] outline-none focus:border-[var(--primary)]"
-            >
-              <option value="">선택</option>
-              {CARD_COMPANIES.map(c => <option key={c} value={c}>{c}카드</option>)}
-            </select>
-          </div>
-          <Field label="카드번호 *" value={form.card_number} onChange={(v) => setForm({ ...form, card_number: v })} placeholder="1234-5678-9012-3456" small />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="카드 소지자" value={form.card_holder} onChange={(v) => setForm({ ...form, card_holder: v })} placeholder="홍길동" small />
-          <Field label="카드 별칭" value={form.card_alias} onChange={(v) => setForm({ ...form, card_alias: v })} placeholder="업무용 카드 1" small />
-        </div>
-        <button
-          onClick={add}
-          disabled={!form.card_company || !form.card_number}
-          className="w-full py-2 rounded-lg text-xs font-semibold text-[var(--primary)] bg-[var(--primary-light)] hover:bg-[var(--primary)]/20 transition disabled:opacity-40"
-        >
-          + 카드 추가
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// Step 4: HomeTax Integration
-// ═══════════════════════════════════════════
-function StepHometax({ data, set }: { data: any; set: (d: any) => void }) {
-  return (
-    <div className="flex-1">
-      <StepHeader title="홈택스 연동 설정" desc="홈택스를 연동하면 세금계산서를 자동으로 가져올 수 있습니다." icon="tax" />
-
-      <div className="space-y-3">
-        <Field label="홈택스 아이디" value={data.hometax_id} onChange={(v) => set({ ...data, hometax_id: v })} placeholder="홈택스 로그인 ID" />
-        <div>
-          <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">홈택스 비밀번호</label>
-          <input
-            type="password"
-            value={data.hometax_pw}
-            onChange={(e) => set({ ...data, hometax_pw: e.target.value })}
-            placeholder="••••••••"
-            className="w-full px-3 py-2.5 rounded-xl text-sm bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-2">공인인증서 유형</label>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { value: "none", label: "미등록", desc: "추후 등록" },
-              { value: "joint", label: "공동인증서", desc: "구 공인인증서" },
-              { value: "financial", label: "금융인증서", desc: "간편인증" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => set({ ...data, cert_type: opt.value })}
-                className="p-3 rounded-xl text-center transition border"
-                style={{
-                  background: data.cert_type === opt.value ? "var(--primary)" : "var(--bg-surface)",
-                  color: data.cert_type === opt.value ? "#fff" : "var(--text)",
-                  borderColor: data.cert_type === opt.value ? "var(--primary)" : "var(--border)",
-                }}
-              >
-                <div className="text-xs font-bold">{opt.label}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: data.cert_type === opt.value ? "rgba(255,255,255,0.8)" : "var(--text-dim)" }}>
-                  {opt.desc}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {data.cert_type !== "none" && (
-          <Field label="인증서 DN (선택)" value={data.cert_dn} onChange={(v) => set({ ...data, cert_dn: v })} placeholder="cn=홍길동,ou=..." />
-        )}
-
-        <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
-          <div className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <div className="text-xs text-blue-700 leading-relaxed">
-              <strong>자동 연동은 추후 지원 예정입니다.</strong><br />
-              현재는 홈택스에서 엑셀로 다운로드한 세금계산서를 업로드하여 사용할 수 있습니다. 계정 정보를 미리 등록해두면 자동 연동 시 바로 활성화됩니다.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// Step 5: Employees
-// ═══════════════════════════════════════════
-function StepEmployees({ employees, form, setForm, add, remove }: {
-  employees: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void;
-}) {
-  return (
-    <div className="flex-1">
-      <StepHeader title="직원 등록" desc="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다." icon="people" />
 
       {employees.length > 0 && (
         <div className="space-y-2 mb-4">
@@ -726,86 +629,117 @@ function StepEmployees({ employees, form, setForm, add, remove }: {
           + 직원 추가
         </button>
       </div>
+      <LinkHint href="/employees" label="직원 관리 페이지에서 급여, 근태까지 상세 설정할 수 있습니다" />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 6: Summary
+// Step 4: First Deal (첫 프로젝트)
 // ═══════════════════════════════════════════
-function StepSummary({ company, banks, cards, hometax, employees }: {
-  company: any; banks: any[]; cards: any[]; hometax: any; employees: any[];
+function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmount, setDealAmount, dealPartner, setDealPartner, isCompleted }: {
+  dealName: string; setDealName: (v: string) => void;
+  dealType: "REVENUE" | "EXPENSE"; setDealType: (v: "REVENUE" | "EXPENSE") => void;
+  dealAmount: string; setDealAmount: (v: string) => void;
+  dealPartner: string; setDealPartner: (v: string) => void;
+  isCompleted: boolean;
 }) {
-  const sections = [
-    {
-      icon: "building",
-      title: "회사 정보",
-      items: company.companyName ? [
-        company.companyName,
-        company.businessNumber ? `사업자번호: ${company.businessNumber}` : null,
-        company.representative ? `대표: ${company.representative}` : null,
-      ].filter(Boolean) : ["미입력"],
-    },
-    {
-      icon: "bank",
-      title: "법인통장",
-      items: banks.length > 0
-        ? banks.map(b => `${b.alias || b.bank_name} (${b.bank_name} ${b.account_number})`)
-        : ["건너뜀"],
-    },
-    {
-      icon: "card",
-      title: "법인카드",
-      items: cards.length > 0
-        ? cards.map(c => `${c.card_alias || c.card_company} (•••• ${c.card_number.slice(-4)})`)
-        : ["건너뜀"],
-    },
-    {
-      icon: "tax",
-      title: "홈택스",
-      items: hometax.hometax_id
-        ? [`아이디: ${hometax.hometax_id}`, `인증서: ${hometax.cert_type === "none" ? "미등록" : hometax.cert_type === "joint" ? "공동인증서" : "금융인증서"}`]
-        : ["건너뜀"],
-    },
-    {
-      icon: "people",
-      title: "직원",
-      items: employees.length > 0
-        ? employees.map(e => `${e.name}${e.position ? ` (${e.position})` : ""}`)
-        : ["건너뜀"],
-    },
+  return (
+    <div className="flex-1">
+      <StepHeader
+        title="첫 프로젝트(거래) 만들기"
+        desc="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
+        icon="sparkles"
+        whyItMatters="거래(딜)는 OwnerView의 핵심 단위입니다. 매출/비용 추적, 문서 관리가 모두 딜 기반으로 동작합니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="거래가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
+      )}
+
+      <div className="space-y-4">
+        {/* Deal type toggle */}
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">거래 유형</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: "REVENUE" as const, label: "매출 (수익)", icon: "+" },
+              { value: "EXPENSE" as const, label: "비용 (지출)", icon: "-" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setDealType(opt.value)}
+                className="p-3 rounded-xl text-center transition border"
+                style={{
+                  background: dealType === opt.value ? "var(--primary)" : "var(--bg-surface)",
+                  color: dealType === opt.value ? "#fff" : "var(--text)",
+                  borderColor: dealType === opt.value ? "var(--primary)" : "var(--border)",
+                }}
+              >
+                <div className="text-lg font-bold">{opt.icon}</div>
+                <div className="text-xs font-semibold mt-0.5">{opt.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Field label="거래(프로젝트)명 *" value={dealName} onChange={setDealName} placeholder="예: A사 웹사이트 개발 프로젝트" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="거래처" value={dealPartner} onChange={setDealPartner} placeholder="거래 상대방 이름" />
+          <Field label="예상 금액 (원)" value={dealAmount} onChange={(v) => setDealAmount(v.replace(/[^0-9]/g, ""))} placeholder="10,000,000" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 5: Complete (완료)
+// ═══════════════════════════════════════════
+function StepComplete({ status }: { status: CompletionStatus }) {
+  const items = [
+    { label: "회사 정보", done: status.companyInfo, icon: "building" },
+    { label: "통장 등록", done: status.bankAccount, icon: "bank" },
+    { label: "직원 등록", done: status.employee, icon: "people" },
+    { label: "첫 프로젝트", done: status.deal, icon: "sparkles" },
   ];
+  const doneCount = items.filter(i => i.done).length;
 
   return (
     <div className="flex-1 flex flex-col items-center">
-      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--primary)" }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--primary)" }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
-      <h2 className="text-lg font-bold text-[var(--text)] mb-1">초기 설정 완료!</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">등록한 정보로 OwnerView가 바로 동작합니다.</p>
+      <h2 className="text-xl font-bold text-[var(--text)] mb-1">
+        {doneCount === 4 ? "모든 설정 완료!" : "초기 설정 진행 중"}
+      </h2>
+      <p className="text-sm text-[var(--text-muted)] mb-6 text-center">
+        {doneCount === 4
+          ? "OwnerView가 준비되었습니다. 대시보드에서 바로 시작하세요!"
+          : `${doneCount}/4 단계를 완료했습니다. 나머지는 나중에 설정할 수 있습니다.`
+        }
+      </p>
 
       <div className="w-full space-y-2">
-        {sections.map((sec) => (
-          <div key={sec.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-            <SectionIcon type={sec.icon} />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)] mb-0.5">{sec.title}</div>
-              {sec.items.map((item, i) => (
-                <div key={i} className="text-[11px] text-[var(--text-muted)] truncate">{item}</div>
-              ))}
-            </div>
-            <div className="shrink-0 mt-0.5">
-              {sec.items[0] !== "건너뜀" && sec.items[0] !== "미입력" ? (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-600 font-semibold">완료</span>
-              ) : (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 font-semibold">스킵</span>
-              )}
-            </div>
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <SectionIcon type={item.icon} />
+            <span className="flex-1 text-sm font-medium text-[var(--text)]">{item.label}</span>
+            {item.done ? (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">완료</span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 font-bold">건너뜀</span>
+            )}
           </div>
         ))}
       </div>
+
+      {doneCount < 4 && (
+        <p className="mt-4 text-xs text-[var(--text-dim)] text-center">
+          건너뛴 항목은 설정 페이지에서 언제든 완료할 수 있습니다.
+        </p>
+      )}
     </div>
   );
 }
@@ -813,14 +747,55 @@ function StepSummary({ company, banks, cards, hometax, employees }: {
 // ═══════════════════════════════════════════
 // Shared Components
 // ═══════════════════════════════════════════
-function StepHeader({ title, desc, icon }: { title: string; desc: string; icon: string }) {
+function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: string; icon: string; whyItMatters?: string }) {
   return (
-    <div className="flex items-start gap-3 mb-5">
-      <SectionIcon type={icon} size="lg" />
-      <div>
-        <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>
+    <div className="mb-5">
+      <div className="flex items-start gap-3">
+        <SectionIcon type={icon} size="lg" />
+        <div>
+          <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>
+        </div>
       </div>
+      {whyItMatters && (
+        <div className="mt-3 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+          <div className="flex items-start gap-2">
+            <svg className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <p className="text-[11px] text-blue-700 leading-relaxed">{whyItMatters}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompletedBadge({ message }: { message: string }) {
+  return (
+    <div className="mb-4 px-3 py-2.5 rounded-xl bg-green-50 border border-green-200 flex items-start gap-2">
+      <svg className="w-4 h-4 text-green-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+      <span className="text-xs text-green-700">{message}</span>
+    </div>
+  );
+}
+
+function LinkHint({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="mt-4 text-center">
+      <a
+        href={href}
+        className="inline-flex items-center gap-1 text-xs text-[var(--text-dim)] hover:text-[var(--primary)] transition"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+        {label}
+      </a>
     </div>
   );
 }

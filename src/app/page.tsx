@@ -21,7 +21,7 @@ const COMPETITORS = [
 const PLANS = [
   { name: "Free", regularPrice: null, betaPrice: "0", unit: "원", period: "영구 무료", desc: "1~3인 1인대표", perSeat: null, hl: false, discount: null, features: ["직원 3명까지", "프로젝트 3개", "전자서명 월 3건", "생존 대시보드", "AI 분석 월 5회", "팀 채팅"] },
   { name: "Starter", regularPrice: "89,000", betaPrice: "29,000", unit: "원/월", period: "+5,900원/인", desc: "10인 이하", perSeat: 5900, hl: false, discount: "경쟁사 대비 약 89% 절감", features: ["직원/프로젝트 무제한", "4개 엔진 전체", "서명 월 50건", "AI 분석 월 100회", "파트너 10개 초대", "거래처 DB 무제한", "이메일 지원"] },
-  { name: "Business", regularPrice: "290,000", betaPrice: "49,000", unit: "원/월", period: "+9,900원/인", desc: "50인 이하", perSeat: 9900, hl: true, discount: "경쟁사 대비 약 80% 절감", features: ["Starter 전체 +", "AI 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 시뮬레이터", "우선 지원"] },
+  { name: "Business", regularPrice: "290,000", betaPrice: "49,000", unit: "원/월", period: "+9,900원/인", desc: "50인 이하", perSeat: 9900, hl: true, discount: "경쟁사 대비 약 80% 절감", features: ["Starter 전체 +", "AI 분석 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 대시보드 확장", "우선 지원"] },
   { name: "Enterprise", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "", desc: "50인+", perSeat: null, hl: false, discount: null, features: ["Business 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
 ];
 
@@ -30,7 +30,7 @@ const FAQS = [
   { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
   { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
-  { q: "보안은 안전한가요?", a: "AES-256 암호화, 역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용합니다." },
+  { q: "보안은 안전한가요?", a: "역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용하며, 모든 통신은 TLS로 암호화됩니다." },
   { q: "도입 비용이나 세팅비가 있나요?", a: "없습니다. 가입 즉시 사용 가능하며, Enterprise 플랜의 경우 무료 온보딩 지원을 제공합니다." },
 ];
 
@@ -145,7 +145,7 @@ const ENGINES = [
     icon: "🛡️",
     tagline: "\"우리 회사, 지금 속도면 몇 개월?\" — AI가 매일 답합니다",
     headline: "흩어진 통장을 하나로. 위험은 대표가 묻기 전에 알립니다.",
-    desc: "7개 은행 잔고, 카드 내역, 매출, 미수금 — 모두 자동 수집. \"직원 1명 더 뽑으면?\" 같은 시나리오 시뮬레이션까지. 현금이 바닥나기 전에, AI가 먼저 경고합니다.",
+    desc: "은행 잔고, 카드 내역, 매출, 미수금 — 한 화면에서 관리. 현금 소진 시점 예측, 생존 개월 수 자동 계산. 현금이 바닥나기 전에 먼저 경고합니다.",
     replaces: "CFO 1명",
     replacesCost: "연 6,000만원",
     color: "#3B82F6",
@@ -154,15 +154,15 @@ const ENGINES = [
       { label: "생존 개월", value: "4.6개월", sub: "+0.8" },
       { label: "리스크 감지", value: "3건", sub: "실시간" },
     ],
-    apis: ["오픈뱅킹 API", "홈택스 API", "DART 공시", "Claude AI"],
+    apis: ["은행 거래내역 연동", "홈택스 연동 (예정)", "재무 자동분석", "AI 리스크 감지"],
     steps: [
-      { step: "자동 수집", detail: "통장·카드 거래내역 오픈뱅킹 자동 연동" },
+      { step: "거래 등록", detail: "통장·카드 거래내역 수동 입력 또는 엑셀 업로드" },
       { step: "AI 분류", detail: "수입/지출 자동 분류 + 고정비 패턴 감지" },
       { step: "선제 알림", detail: "현금 소진 시점 예측 + 위험 신호 대표 알림" },
     ],
     features: [
       { icon: "📊", name: "6-Pack 생존지표", desc: "현금·매출·고정비·미수금·생존기간·마진율" },
-      { icon: "🔮", name: "시나리오 시뮬레이터", desc: "\"직원 1명 추가하면?\" 즉시 계산" },
+      { icon: "🔮", name: "생존 개월 계산", desc: "현금 잔고 ÷ 월 고정비 = 생존 기간" },
       { icon: "⚠️", name: "미수금 자동 경고", desc: "30일 초과 미수금 즉시 알림" },
       { icon: "📈", name: "월별 재무 리포트", desc: "대표용 자동 생성 + 이메일 발송" },
     ],
@@ -183,7 +183,7 @@ const ENGINES = [
       { label: "자동화율", value: "94%", sub: "수동→자동" },
       { label: "평균 수금", value: "D+7", sub: "-12일 단축" },
     ],
-    apis: ["전자서명 엔진", "홈택스 API", "이메일/알림 API", "Claude AI"],
+    apis: ["전자서명 엔진", "세금계산서 관리", "이메일/알림", "3-Way 매칭"],
     steps: [
       { step: "견적→계약", detail: "견적 승인 즉시 계약서 자동 생성 + 서명 요청" },
       { step: "서명→발행", detail: "서명 완료 시 세금계산서 자동 발행 + 매출 등록" },
@@ -212,7 +212,7 @@ const ENGINES = [
       { label: "4대보험", value: "자동계산", sub: "2026 요율" },
       { label: "경비 처리", value: "12건/월", sub: "AI 분류" },
     ],
-    apis: ["4대보험공단 요율", "국세청 간이세액표", "오픈뱅킹 이체", "n8n 자동화"],
+    apis: ["4대보험공단 요율", "국세청 간이세액표", "급여 배치처리", "자동 명세서"],
     steps: [
       { step: "직원 등록", detail: "4대보험·원천세 요율 자동 매칭" },
       { step: "배치 생성", detail: "매월 20일 전 직원 급여 자동 산출 → 대표 알림" },
@@ -241,7 +241,7 @@ const ENGINES = [
       { label: "이력 추적", value: "360°", sub: "전체 뷰" },
       { label: "휴면 감지", value: "AI", sub: "자동 알림" },
     ],
-    apis: ["공공데이터 포털", "DART 기업정보", "이메일 파싱", "Claude AI"],
+    apis: ["사업자 정보 조회", "거래 이력 추적", "파트너 포털", "관계 분석"],
     steps: [
       { step: "자동 등록", detail: "견적·계약·채팅 발생 → 거래처 자동 등록 + 이력 축적" },
       { step: "AI 분석", detail: "거래 패턴 분석 → 휴면·위험 거래처 자동 감지" },
@@ -756,7 +756,7 @@ export default function LandingPage() {
       });
       setPartnerSent(true);
     } catch {
-      alert("문의 접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setPartnerSent(false);
     } finally {
       setPartnerSending(false);
     }

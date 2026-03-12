@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/toast";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase as any;
@@ -24,6 +25,7 @@ function fmtW(n: number): string {
 }
 
 export default function BillingPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("plan");
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -546,7 +548,7 @@ export default function BillingPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
                 onClick={() => {
                   // TODO: 토스페이먼츠 결제 연동
-                  alert("토스페이먼츠 결제 연동 준비 중입니다. 곧 오픈합니다!");
+                  toast("토스페이먼츠 결제 연동 준비 중입니다. 곧 오픈합니다!", "info");
                   setShowUpgradeModal(null);
                 }}
               >
@@ -583,7 +585,7 @@ export default function BillingPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition"
                 onClick={() => {
                   // TODO: 실제 해지 로직
-                  alert("해지 처리가 완료되었습니다.");
+                  toast("해지 처리가 완료되었습니다.", "success");
                   setShowCancelModal(false);
                 }}
               >

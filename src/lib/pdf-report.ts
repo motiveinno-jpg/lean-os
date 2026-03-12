@@ -5,6 +5,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { loadKoreanFont } from './pdf-korean-font';
 
 interface MonthlyPLData {
   month: string;
@@ -36,21 +37,21 @@ function fmtKRW(n: number): string {
   return `${sign}${abs.toLocaleString()}`;
 }
 
-export function generateMonthlyPLReport(data: MonthlyPLData) {
+export async function generateMonthlyPLReport(data: MonthlyPLData) {
   const doc = new jsPDF('p', 'mm', 'a4');
+  await loadKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 15;
 
   // ── Header ──
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Monthly P&L Report`, 14, y);
+  doc.setFont('NanumGothic', 'normal');
+  doc.text(`월간 손익 리포트`, 14, y);
   y += 8;
 
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text(`${data.companyName}  |  ${data.month}  |  Generated: ${new Date().toLocaleDateString('ko-KR')}`, 14, y);
+  doc.text(`${data.companyName}  |  ${data.month}  |  생성일: ${new Date().toLocaleDateString('ko-KR')}`, 14, y);
   y += 10;
 
   // ── Summary Box ──
@@ -60,13 +61,13 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
 
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
-  doc.text('Revenue', 24, y + 8);
-  doc.text('Expense', 74, y + 8);
-  doc.text('Net Income', 124, y + 8);
-  doc.text('Runway', 168, y + 8);
+  doc.text('매출', 24, y + 8);
+  doc.text('비용', 74, y + 8);
+  doc.text('순이익', 124, y + 8);
+  doc.text('런웨이', 168, y + 8);
 
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('NanumGothic', 'normal');
   doc.setTextColor(59, 130, 246);
   doc.text(`${fmtKRW(data.revenue)}`, 24, y + 18);
   doc.setTextColor(239, 68, 68);
@@ -74,21 +75,21 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
   doc.setTextColor(data.netIncome >= 0 ? 34 : 239, data.netIncome >= 0 ? 197 : 68, data.netIncome >= 0 ? 94 : 68);
   doc.text(`${fmtKRW(data.netIncome)}`, 124, y + 18);
   doc.setTextColor(60, 60, 60);
-  doc.text(`${data.runwayMonths < 999 ? `${data.runwayMonths}mo` : 'Safe'}`, 168, y + 18);
+  doc.text(`${data.runwayMonths < 999 ? `${data.runwayMonths}개월` : '안전'}`, 168, y + 18);
 
   y += 36;
 
   // ── Deal Breakdown Table ──
   if (data.dealBreakdown.length > 0) {
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NanumGothic', 'normal');
     doc.setTextColor(30, 30, 30);
-    doc.text('Deal Breakdown', 14, y);
+    doc.text('딜별 손익', 14, y);
     y += 4;
 
     autoTable(doc, {
       startY: y,
-      head: [['Deal', 'Type', 'Revenue', 'Cost', 'Margin %']],
+      head: [['딜명', '유형', '매출', '비용', '마진율']],
       body: data.dealBreakdown.map(d => [
         d.dealName,
         d.classification,
@@ -96,7 +97,7 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
         fmtKRW(d.cost),
         `${d.margin.toFixed(1)}%`,
       ]),
-      styles: { fontSize: 8, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 3, font: 'NanumGothic' },
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       margin: { left: 14, right: 14 },
@@ -111,16 +112,16 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
 
   if (revenueItems.length > 0) {
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NanumGothic', 'normal');
     doc.setTextColor(30, 30, 30);
-    doc.text('Revenue Items', 14, y);
+    doc.text('매출 항목', 14, y);
     y += 4;
 
     autoTable(doc, {
       startY: y,
-      head: [['Name', 'Counterparty', 'Amount']],
+      head: [['항목명', '거래처', '금액']],
       body: revenueItems.map(i => [i.name, i.counterparty || '-', fmtKRW(i.amount)]),
-      styles: { fontSize: 8, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 3, font: 'NanumGothic' },
       headStyles: { fillColor: [34, 197, 94], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       margin: { left: 14, right: 14 },
@@ -134,16 +135,16 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
     if (y > 240) { doc.addPage(); y = 15; }
 
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('NanumGothic', 'normal');
     doc.setTextColor(30, 30, 30);
-    doc.text('Expense Items', 14, y);
+    doc.text('비용 항목', 14, y);
     y += 4;
 
     autoTable(doc, {
       startY: y,
-      head: [['Name', 'Category', 'Amount']],
+      head: [['항목명', '분류', '금액']],
       body: expenseItems.map(i => [i.name, i.category, fmtKRW(i.amount)]),
-      styles: { fontSize: 8, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 3, font: 'NanumGothic' },
       headStyles: { fillColor: [239, 68, 68], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       margin: { left: 14, right: 14 },
@@ -159,7 +160,7 @@ export function generateMonthlyPLReport(data: MonthlyPLData) {
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `OwnerView Financial Report  |  ${data.companyName}  |  Page ${i}/${pageCount}`,
+      `OwnerView 재무 리포트  |  ${data.companyName}  |  ${i}/${pageCount} 페이지`,
       pageW / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' },

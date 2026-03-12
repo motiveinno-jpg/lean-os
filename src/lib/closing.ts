@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { logAudit } from './audit-log';
 
 // ── Default checklist items for a new month ──
 const DEFAULT_ITEMS = [
@@ -99,6 +100,86 @@ export async function completeClosingChecklist(checklistId: string, userId: stri
     })
     .eq('id', checklistId);
   if (error) throw error;
+
+  const { data: cl } = await supabase
+    .from('closing_checklists')
+    .select('company_id, month')
+    .eq('id', checklistId)
+    .single();
+
+  await logAudit({
+    company_id: cl?.company_id || '',
+    user_id: userId,
+    action: 'approve',
+    entity_type: 'closing',
+    entity_id: checklistId,
+    entity_name: cl?.month ? `${cl.month} 월마감` : undefined,
+  });
+}
+
+// ── Lock/Unlock Closing Month ──
+export async function lockClosingMonth(checklistId: string, userId: string) {
+  const { error } = await supabase
+    .from('closing_checklists')
+    .update({
+      status: 'locked',
+      locked_at: new Date().toISOString(),
+      locked_by: userId,
+    })
+    .eq('id', checklistId);
+  if (error) throw error;
+
+  const { data: cl } = await supabase
+    .from('closing_checklists')
+    .select('company_id, month')
+    .eq('id', checklistId)
+    .single();
+
+  await logAudit({
+    company_id: cl?.company_id || '',
+    user_id: userId,
+    action: 'lock',
+    entity_type: 'closing',
+    entity_id: checklistId,
+    entity_name: cl?.month ? `${cl.month} 월마감` : undefined,
+  });
+}
+
+export async function unlockClosingMonth(checklistId: string, userId: string) {
+  const { error } = await supabase
+    .from('closing_checklists')
+    .update({
+      status: 'completed',
+      locked_at: null,
+      locked_by: null,
+    })
+    .eq('id', checklistId);
+  if (error) throw error;
+
+  const { data: cl } = await supabase
+    .from('closing_checklists')
+    .select('company_id, month')
+    .eq('id', checklistId)
+    .single();
+
+  await logAudit({
+    company_id: cl?.company_id || '',
+    user_id: userId,
+    action: 'unlock',
+    entity_type: 'closing',
+    entity_id: checklistId,
+    entity_name: cl?.month ? `${cl.month} 월마감` : undefined,
+  });
+}
+
+export async function isMonthLocked(companyId: string, month: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('closing_checklists')
+    .select('status')
+    .eq('company_id', companyId)
+    .eq('month', month)
+    .maybeSingle();
+  return data?.status === 'locked';
 }
 
 // ── Get closing history ──

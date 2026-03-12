@@ -81,6 +81,29 @@ export function calculatePayroll(baseSalary: number, name: string, employeeId: s
   };
 }
 
+// ── Calculate retirement pay (Korean Labor Standards Act) ──
+
+/**
+ * 퇴직금 계산 (근로기준법 기준)
+ * 퇴직금 = (1일 평균임금 × 30일) × (총 재직일수 / 365)
+ * 평균임금 = 퇴직 전 3개월 총 급여 / 퇴직 전 3개월 총 일수
+ */
+export function calculateRetirementPay(params: {
+  startDate: string; // 입사일 YYYY-MM-DD
+  endDate: string;   // 퇴사일 YYYY-MM-DD
+  last3MonthsSalary: number; // 퇴직 전 3개월 총 급여 (세전)
+  last3MonthsDays?: number;  // 퇴직 전 3개월 총 일수 (기본 90일)
+}): { retirementPay: number; totalDays: number; dailyAvgWage: number; eligible: boolean } {
+  const start = new Date(params.startDate);
+  const end = new Date(params.endDate);
+  const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const eligible = totalDays >= 365; // 1년 이상 근무
+  const last3MonthsDays = params.last3MonthsDays || 90;
+  const dailyAvgWage = params.last3MonthsSalary / last3MonthsDays;
+  const retirementPay = eligible ? Math.round((dailyAvgWage * 30) * (totalDays / 365)) : 0;
+  return { retirementPay, totalDays, dailyAvgWage, eligible };
+}
+
 // ── Create payroll batch for all active employees ──
 
 export async function createPayrollBatch(companyId: string, monthLabel?: string): Promise<{ batchId: string; items: PayrollItem[] }> {
