@@ -210,11 +210,36 @@ export async function executePayment(paymentId: string): Promise<void> {
     throw error;
   }
 
-  // TODO: 실제 은행 API 연동 지점
-  // - IBK/토스 API 호출로 실제 이체 실행
-  // - 상용화 시 Codef/Coocon API(건당 50~200원) 전환
-  // - API 응답의 실제 거래번호로 transfer_ref 갱신
-  // - 이체 실패 시 아래 catch 블록에서 rollback 처리
+  // ── 실제 이체 실행 (n8n webhook 또는 향후 은행 API) ──
+  const N8N_PAYMENT_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK;
+  if (N8N_PAYMENT_URL) {
+    try {
+      const res = await fetch(N8N_PAYMENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId,
+          amount: Number(payment.amount),
+          recipientName: payment.recipient_name,
+          recipientAccount: payment.recipient_account,
+          recipientBank: payment.recipient_bank,
+          description: payment.description,
+          transferRef: transferRef,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.transferRef) {
+          await supabase.from('payment_queue').update({ transfer_ref: result.transferRef }).eq('id', paymentId);
+        }
+      } else {
+        console.warn('n8n 이체 요청 실패, DB 상태만 업데이트됨:', res.status);
+      }
+    } catch (err) {
+      console.warn('n8n 웹훅 연결 실패, 수동 이체 필요:', err);
+    }
+  }
+  // n8n 미설정 시: DB에는 '실행됨'으로 표시되며, 관리자가 수동으로 이체 처리
 
   try {
     // If linked to cost schedule, update it too

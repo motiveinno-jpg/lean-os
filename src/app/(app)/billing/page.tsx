@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +18,18 @@ const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommen
   business: { icon: "🏢", recommended: true, features: ["Starter 전체 +", "AI 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 시뮬레이터", "우선 지원"] },
   enterprise: { icon: "🏗️", features: ["Business 전체 +", "SSO/SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장"] },
 };
+
+// Toss Payments SDK
+async function loadTossPayments(): Promise<any> {
+  if ((window as any).TossPayments) return (window as any).TossPayments;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://js.tosspayments.com/v2/standard';
+    script.onload = () => resolve((window as any).TossPayments);
+    script.onerror = () => reject(new Error('Toss SDK 로드 실패'));
+    document.head.appendChild(script);
+  });
+}
 
 function fmtW(n: number): string {
   if (n === 0) return "무료";
@@ -134,6 +146,50 @@ export default function BillingPage() {
       setFbDesc("");
     },
   });
+
+  // Handle Toss payment callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment');
+    if (paymentStatus === 'success') {
+      const planSlug = params.get('plan');
+      const orderId = params.get('orderId');
+      const paymentKey = params.get('paymentKey');
+      if (planSlug && companyId) {
+        (async () => {
+          try {
+            if (subscription?.id) {
+              await db.from('subscriptions').update({
+                plan_slug: planSlug,
+                status: 'active',
+                toss_order_id: orderId,
+                toss_payment_key: paymentKey,
+                updated_at: new Date().toISOString(),
+              }).eq('id', subscription.id);
+            } else {
+              await db.from('subscriptions').insert({
+                company_id: companyId,
+                plan_slug: planSlug,
+                status: 'active',
+                billing_cycle: params.get('cycle') || 'monthly',
+                seat_count: 1,
+                toss_order_id: orderId,
+                toss_payment_key: paymentKey,
+              });
+            }
+            qc.invalidateQueries({ queryKey: ['subscription'] });
+            toast("결제가 완료되었습니다! 플랜이 업그레이드되었습니다.", "success");
+          } catch {
+            toast("구독 업데이트 중 오류가 발생했습니다.", "error");
+          }
+        })();
+      }
+      window.history.replaceState({}, '', '/billing');
+    } else if (paymentStatus === 'fail') {
+      toast("결제에 실패했습니다. 다시 시도해주세요.", "error");
+      window.history.replaceState({}, '', '/billing');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentPlan = subscription?.subscription_plans as any;
   const currentSlug = currentPlan?.slug || "free";
@@ -546,9 +602,55 @@ export default function BillingPage() {
               </button>
               <button
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
-                onClick={() => {
-                  // TODO: 토스페이먼츠 결제 연동
-                  toast("토스페이먼츠 결제 연동 준비 중입니다. 곧 오픈합니다!", "info");
+                onClick={async () => {
+                  const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+                  if (!TOSS_CLIENT_KEY) {
+                    toast("토스페이먼츠 클라이언트 키가 설정되지 않았습니다. 관리자에게 문의하세요.", "error");
+                    setShowUpgradeModal(null);
+                    return;
+                  }
+
+                  if (showUpgradeModal === "free") {
+                    // Downgrade to free
+                    if (!subscription?.id) { setShowUpgradeModal(null); return; }
+                    await db.from('subscriptions').update({
+                      plan_slug: 'free',
+                      status: 'active',
+                      updated_at: new Date().toISOString(),
+                    }).eq('id', subscription.id);
+                    qc.invalidateQueries({ queryKey: ['subscription'] });
+                    toast("Free 플랜으로 변경되었습니다.", "success");
+                    setShowUpgradeModal(null);
+                    return;
+                  }
+
+                  try {
+                    const TossPayments = await loadTossPayments();
+                    const toss = TossPayments(TOSS_CLIENT_KEY);
+                    const plan = (plans || []).find((p: any) => p.slug === showUpgradeModal);
+                    if (!plan) return;
+
+                    const basePrice = cycle === "annual" ? Math.round(plan.base_price * 0.8) : plan.base_price;
+                    const seatPrice = cycle === "annual" ? Math.round(plan.per_seat_price * 0.8) : plan.per_seat_price;
+                    const totalAmount = basePrice + seatPrice * (subscription?.seat_count || 1);
+                    const orderId = `OV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+                    const payment = toss.payment({ customerKey: user?.id || 'guest' });
+                    await payment.requestPayment({
+                      method: "CARD",
+                      amount: { currency: "KRW", value: totalAmount },
+                      orderId,
+                      orderName: `OwnerView ${plan.name} (${cycle === "annual" ? "연간" : "월간"})`,
+                      successUrl: `${window.location.origin}/billing?payment=success&plan=${showUpgradeModal}&cycle=${cycle}&orderId=${orderId}`,
+                      failUrl: `${window.location.origin}/billing?payment=fail`,
+                    });
+                  } catch (err: any) {
+                    if (err.code === "USER_CANCEL") {
+                      toast("결제가 취소되었습니다.", "info");
+                    } else {
+                      toast(err.message || "결제 처리 중 오류가 발생했습니다.", "error");
+                    }
+                  }
                   setShowUpgradeModal(null);
                 }}
               >
@@ -583,9 +685,28 @@ export default function BillingPage() {
               </button>
               <button
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition"
-                onClick={() => {
-                  // TODO: 실제 해지 로직
-                  toast("해지 처리가 완료되었습니다.", "success");
+                onClick={async () => {
+                  try {
+                    if (subscription?.id) {
+                      await db.from('subscriptions').update({
+                        status: 'cancelling',
+                        cancel_reason: cancelReason || null,
+                        cancel_requested_at: new Date().toISOString(),
+                      }).eq('id', subscription.id);
+
+                      // Log cancellation
+                      await db.from('billing_events').insert({
+                        company_id: companyId,
+                        event_type: 'subscription_cancel',
+                        metadata: { plan: subscription.plan_slug, reason: cancelReason },
+                      });
+
+                      qc.invalidateQueries({ queryKey: ['subscription'] });
+                      toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
+                    }
+                  } catch {
+                    toast("해지 처리 중 오류가 발생했습니다.", "error");
+                  }
                   setShowCancelModal(false);
                 }}
               >

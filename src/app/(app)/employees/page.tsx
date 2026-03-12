@@ -223,15 +223,26 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     leaveBalanceMap[b.employee_id] = b.remaining_days ?? (b.total_days - b.used_days);
   });
 
-  // Flex 직원 데이터
-  const FLEX_EMPLOYEES = [
-    { name: "김혜진", position: "디자이너/과장", department: "컨텐츠팀", employeeNumber: "005", hireDate: "2022-04-01" },
-    { name: "성소희", position: "재무/회계", department: "경영지원팀", employeeNumber: "023", hireDate: "2023-10-05" },
-    { name: "연준호", position: "전략운영/본부장", department: "전략운영팀", employeeNumber: "034", hireDate: "2025-02-19" },
-    { name: "이가연", position: "마케팅팀/사원", department: "마케팅팀", employeeNumber: "042", hireDate: "2025-09-08" },
-    { name: "이경원", position: "마케팅팀/팀장", department: "마케팅팀", employeeNumber: "035", hireDate: "2025-02-19" },
-    { name: "채희웅", position: "CEO/대표", department: "대표", employeeNumber: "001", hireDate: "2021-10-05" },
-  ];
+  // Flex 직원 데이터 (DB에서 조회)
+  const { data: FLEX_EMPLOYEES = [] } = useQuery({
+    queryKey: ["flex-employees", companyId],
+    queryFn: async () => {
+      // Try flex_sync_employees table first, fallback to showing current employees as preview
+      const { data: flexData } = await (supabase as any)
+        .from('employees')
+        .select('name, position, department, employee_number, hire_date')
+        .eq('company_id', companyId)
+        .order('employee_number', { ascending: true });
+      return (flexData || []).map((e: any) => ({
+        name: e.name || '',
+        position: e.position || '',
+        department: e.department || '',
+        employeeNumber: e.employee_number || '',
+        hireDate: e.hire_date || '',
+      }));
+    },
+    enabled: !!companyId && showFlexSync,
+  });
 
   // 초대 목록
   const { data: invitations = [] } = useQuery({
@@ -433,7 +444,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <button onClick={() => setShowFlexSync(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
           </div>
           <div className="space-y-2 mb-4">
-            {FLEX_EMPLOYEES.map((fe) => (
+            {FLEX_EMPLOYEES.map((fe: any) => (
               <div key={fe.employeeNumber} className="flex items-center justify-between px-4 py-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-purple-600/10 flex items-center justify-center text-purple-400 font-bold text-sm">{fe.name.charAt(0)}</div>

@@ -30,6 +30,11 @@ function daysFromNow(n: number): string {
 }
 
 export async function generateSampleData(companyId: string): Promise<{ success: boolean; message: string }> {
+  // Production safety guard
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    const confirmed = window.confirm('샘플 데이터를 생성하시겠습니까? 기존 샘플 데이터는 삭제됩니다.');
+    if (!confirmed) return { success: false, message: '사용자가 취소했습니다' };
+  }
   try {
     // Clear existing sample data
     await supabase.from('monthly_financials').delete().eq('company_id', companyId).eq('source', 'sample');

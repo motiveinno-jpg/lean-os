@@ -30,6 +30,20 @@ export default function SystemPage() {
     },
   });
 
+  // DB에서 릴리스 노트 조회 (없으면 기본값 사용)
+  const { data: releaseLog = FALLBACK_RELEASES } = useQuery({
+    queryKey: ["release-notes"],
+    queryFn: async () => {
+      const { data } = await db
+        .from('release_notes')
+        .select('version, date, title, changes')
+        .order('date', { ascending: false })
+        .limit(20);
+      if (data && data.length > 0) return data;
+      return FALLBACK_RELEASES;
+    },
+  });
+
   const roleCounts = users.reduce((acc: Record<string, number>, u: any) => {
     acc[u.role] = (acc[u.role] || 0) + 1;
     return acc;
@@ -111,7 +125,7 @@ export default function SystemPage() {
         <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6 md:col-span-2">
           <h3 className="font-bold text-white mb-4">작업일지 / 릴리즈 로그</h3>
           <div className="space-y-4 max-h-[600px] overflow-y-auto">
-            {RELEASE_LOG.map((release, idx) => (
+            {releaseLog.map((release: any, idx: number) => (
               <div key={idx} className="p-4 rounded-xl bg-[#0b0f1a] border border-[#1e293b]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -125,7 +139,7 @@ export default function SystemPage() {
                 <p className="text-sm text-[#94a3b8] mb-2">{release.summary}</p>
                 {release.items.length > 0 && (
                   <ul className="space-y-1">
-                    {release.items.map((item, i) => (
+                    {release.items.map((item: any, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-[#64748b]">
                         <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.severity === 'critical' ? 'bg-red-400' : item.severity === 'high' ? 'bg-orange-400' : item.severity === 'medium' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                         <span>{item.text}</span>
@@ -142,8 +156,8 @@ export default function SystemPage() {
   );
 }
 
-// ── Release Log Data ──
-const RELEASE_LOG: { version: string; date: string; type: string; summary: string; items: { severity: string; text: string }[] }[] = [
+// ── Release Log Data (fallback) ──
+const FALLBACK_RELEASES: { version: string; date: string; type: string; summary: string; items: { severity: string; text: string }[] }[] = [
   {
     version: "v2.4.0",
     date: "2026-03-12",
