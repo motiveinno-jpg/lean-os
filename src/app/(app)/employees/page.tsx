@@ -34,6 +34,8 @@ import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation } from "@/lib/invitations";
+import dynamic from "next/dynamic";
+const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
 
@@ -198,6 +200,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
   const [showFlexSync, setShowFlexSync] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "orgchart">("list");
 
   const currentYear = new Date().getFullYear();
 
@@ -509,7 +512,90 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         </div>
       )}
 
-      {/* 직원 목록 */}
+      {/* 뷰 전환: 목록 / 조직도 */}
+      <div className="flex items-center gap-2 mb-4">
+        <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "list" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>목록
+        </button>
+        <button onClick={() => setViewMode("orgchart")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "orgchart" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>조직도
+        </button>
+      </div>
+
+      {viewMode === "orgchart" ? (
+        /* ── 조직도 뷰 ── */
+        (() => {
+          const active = employees.filter((e: any) => e.status === "active" || e.status === "joined" || e.status === "contract_pending");
+          const deptMap: Record<string, any[]> = {};
+          const ceo = active.filter((e: any) => (e.position || "").toLowerCase().includes("ceo") || (e.position || "").includes("대표") || (e.department || "").includes("대표"));
+          active.forEach((e: any) => {
+            if (ceo.some((c: any) => c.id === e.id)) return;
+            const dept = e.department || "미배정";
+            if (!deptMap[dept]) deptMap[dept] = [];
+            deptMap[dept].push(e);
+          });
+          const deptEntries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
+          const DEPT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899"];
+          return (
+            <div className="flex flex-col items-center gap-6">
+              {/* CEO / 대표 */}
+              {ceo.length > 0 && (
+                <div className="flex flex-col items-center">
+                  {ceo.map((e: any) => (
+                    <div key={e.id} onClick={() => setDetailEmpId(e.id)} className="bg-[var(--bg-card)] border-2 border-[var(--primary)] rounded-2xl px-8 py-5 text-center cursor-pointer hover:shadow-lg transition">
+                      <div className="w-14 h-14 mx-auto rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold text-xl mb-2">{(e.name || "?")[0]}</div>
+                      <div className="text-sm font-bold">{e.name}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{e.position || "대표"}</div>
+                    </div>
+                  ))}
+                  <div className="w-px h-8 bg-[var(--border)]" />
+                </div>
+              )}
+              {/* 부서 연결선 */}
+              <div className="w-full max-w-3xl flex justify-center">
+                <div className="h-px flex-1 bg-[var(--border)]" style={{ maxWidth: `${Math.min(deptEntries.length * 200, 800)}px` }} />
+              </div>
+              {/* 부서 카드 그리드 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
+                {deptEntries.map(([dept, members], dIdx) => {
+                  const color = DEPT_COLORS[dIdx % DEPT_COLORS.length];
+                  const lead = members.find((m: any) => (m.position || "").includes("팀장") || (m.position || "").includes("본부장") || (m.position || "").includes("리드"));
+                  const others = members.filter((m: any) => m.id !== lead?.id);
+                  return (
+                    <div key={dept} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2" style={{ borderLeftColor: color, borderLeftWidth: "4px" }}>
+                        <span className="text-sm font-bold">{dept}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{members.length}명</span>
+                      </div>
+                      <div className="p-4 space-y-2">
+                        {lead && (
+                          <div onClick={() => setDetailEmpId(lead.id)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-[var(--bg-surface)] transition" style={{ backgroundColor: `${color}08` }}>
+                            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: color }}>{(lead.name || "?")[0]}</div>
+                            <div>
+                              <div className="text-sm font-semibold">{lead.name}</div>
+                              <div className="text-[10px] text-[var(--text-dim)]">{lead.position || "팀장"}</div>
+                            </div>
+                          </div>
+                        )}
+                        {others.map((m: any) => (
+                          <div key={m.id} onClick={() => setDetailEmpId(m.id)} className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer hover:bg-[var(--bg-surface)] transition">
+                            <div className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)] font-medium text-sm">{(m.name || "?")[0]}</div>
+                            <div>
+                              <div className="text-sm font-medium">{m.name}</div>
+                              <div className="text-[10px] text-[var(--text-dim)]">{m.position || "—"}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+      /* ── 직원 목록 뷰 ── */
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {employees.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm text-[var(--text-muted)]">등록된 직원이 없습니다<br/><span className="text-xs">위 "직원 초대" 버튼으로 팀원을 초대하세요</span></div></div>
@@ -566,6 +652,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           </table></div>
         )}
       </div>
+      )}
 
       {/* Employee Detail Panel */}
       {detailEmpId && <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />}
@@ -1715,6 +1802,12 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     duty: string;
     includeMealAllowance: boolean;
   }>({ salary: "", workHours: "09:00~18:00", duty: "", includeMealAllowance: false });
+  const [wizardStep, setWizardStep] = useState(1); // 1: 대상 선택, 2: 서식 선택, 3: 미리보기/확인
+  const [contractSubTab, setContractSubTab] = useState<"contracts" | "company_docs">("contracts");
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateBody, setNewTemplateBody] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // 계약 내역
   const { data: contractList = [] } = useQuery({
@@ -1846,15 +1939,125 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           <h3 className="text-base font-bold text-[var(--text)]">전자계약</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">구성원에게 계약서를 발송하고 전자서명을 받습니다</p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          계약 요청
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTemplateEditor(!showTemplateEditor)}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            + 계약서식 추가
+          </button>
+          <button
+            onClick={() => { setShowCreate(!showCreate); setWizardStep(1); }}
+            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            계약 요청
+          </button>
+        </div>
       </div>
 
+      {/* 서식 에디터 (WYSIWYG) */}
+      {showTemplateEditor && (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                계약서식 에디터
+              </h4>
+              <p className="text-[10px] text-[var(--text-dim)] mt-0.5">서식을 작성하고 저장하면 계약 요청 시 사용할 수 있습니다. {"{{직원명}}, {{부서}}, {{직위}}, {{연봉}}"} 등의 변수를 사용하세요.</p>
+            </div>
+            <button onClick={() => setShowTemplateEditor(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
+          </div>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
+            <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+          </div>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
+            <RichEditor content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                if (!newTemplateName.trim() || !newTemplateBody.trim() || !companyId) return;
+                setSavingTemplate(true);
+                try {
+                  await (supabase as any).from("doc_templates").insert({
+                    company_id: companyId,
+                    name: newTemplateName.trim(),
+                    body: newTemplateBody,
+                    variables: (newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, "")),
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+                  toast("서식이 저장되었습니다.", "success");
+                  setNewTemplateName("");
+                  setNewTemplateBody("");
+                  setShowTemplateEditor(false);
+                } catch (err: any) { toast("저장 실패: " + (err.message || ""), "error"); }
+                setSavingTemplate(false);
+              }}
+              disabled={!newTemplateName.trim() || !newTemplateBody.trim() || savingTemplate}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+            >
+              {savingTemplate ? "저장 중..." : "서식 저장"}
+            </button>
+            <div className="flex flex-wrap gap-1.5">
+              {["{{직원명}}", "{{부서}}", "{{직위}}", "{{연봉}}", "{{입사일}}", "{{회사명}}", "{{대표자}}"].map(v => (
+                <button key={v} type="button" onClick={() => setNewTemplateBody(prev => prev + v)} className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition">{v}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 서브탭: 계약 관리 / 회사 문서 */}
+      <div className="flex gap-1 mb-5 bg-[var(--bg-surface)] rounded-lg p-0.5 w-fit">
+        <button onClick={() => setContractSubTab("contracts")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "contracts" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>계약 관리</button>
+        <button onClick={() => setContractSubTab("company_docs")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "company_docs" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>회사 문서</button>
+      </div>
+
+      {/* 회사 문서 관리 */}
+      {contractSubTab === "company_docs" && (
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {[
+              { key: "business_reg", label: "사업자등록증", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", desc: "사업자등록증 사본" },
+              { key: "employment_rules", label: "취업규칙", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253", desc: "회사 취업규칙/사규" },
+              { key: "corporate_reg", label: "법인등기부등본", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", desc: "법인 등기부등본" },
+              { key: "seal_cert", label: "인감증명서", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", desc: "법인 인감증명서" },
+              { key: "bank_cert", label: "통장사본", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", desc: "법인 통장 사본" },
+              { key: "etc_docs", label: "기타 문서", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", desc: "기타 회사 필수 문서" },
+            ].map(doc => (
+              <div key={doc.key} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 transition group">
+                <div className="flex items-start justify-between mb-3">
+                  <svg className="w-6 h-6 text-[var(--text-dim)] group-hover:text-[var(--primary)] transition" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={doc.icon} /></svg>
+                  <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition">
+                    업로드
+                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={async (ev) => {
+                      const file = ev.target.files?.[0];
+                      if (!file || !companyId) return;
+                      try {
+                        const path = `company-docs/${companyId}/${doc.key}_${Date.now()}.${file.name.split('.').pop()}`;
+                        await supabase.storage.from("documents").upload(path, file, { upsert: true });
+                        toast(`${doc.label} 업로드 완료`, "success");
+                      } catch (err: any) { toast("업로드 실패: " + (err.message || ""), "error"); }
+                    }} />
+                  </label>
+                </div>
+                <div className="text-sm font-semibold mb-0.5">{doc.label}</div>
+                <div className="text-[10px] text-[var(--text-dim)]">{doc.desc}</div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-xs text-[var(--text-muted)]">
+            <p>회사 필수 문서를 관리합니다. 업로드된 문서는 계약서 발송, 증명서 발급 등에 활용됩니다.</p>
+          </div>
+        </div>
+      )}
+
+      {contractSubTab === "contracts" && <>
       {/* 기본 HR 서식 */}
       <div className="mb-6">
         <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
@@ -1985,87 +2188,116 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
         </div>
       )}
 
-      {/* 계약 요청 폼 */}
+      {/* 계약 요청 스텝 위저드 */}
       {showCreate && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <h4 className="text-sm font-bold mb-4">새 계약 요청</h4>
+          {/* 스텝 인디케이터 */}
+          <div className="flex items-center gap-2 mb-6">
+            {[{ n: 1, label: "대상 선택" }, { n: 2, label: "서식 선택" }, { n: 3, label: "확인 및 발송" }].map((s, i) => (
+              <div key={s.n} className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${wizardStep >= s.n ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]"}`}>{s.n}</div>
+                <span className={`text-xs font-medium ${wizardStep >= s.n ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{s.label}</span>
+                {i < 2 && <div className={`w-8 h-px ${wizardStep > s.n ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`} />}
+              </div>
+            ))}
+          </div>
 
           {/* Step 1: 대상 선택 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          {wizardStep === 1 && (
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 선택 *</label>
-              <select
-                value={reqForm.employeeId}
-                onChange={e => setReqForm({...reqForm, employeeId: e.target.value})}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              >
-                <option value="">구성원을 선택하세요</option>
-                {allEmployees.map((e: any) => (
-                  <option key={e.id} value={e.id}>{e.name} · {e.department || "미배정"} · {e.position || "미지정"}</option>
-                ))}
-              </select>
+              <h4 className="text-sm font-bold mb-4">Step 1: 구성원 선택</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 *</label>
+                  <select value={reqForm.employeeId} onChange={e => setReqForm({...reqForm, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                    <option value="">구성원을 선택하세요</option>
+                    {allEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name} · {e.department || "미배정"} · {e.position || "미지정"}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약 제목</label>
+                  <input value={reqForm.title} onChange={e => setReqForm({...reqForm, title: e.target.value})} placeholder={`${new Date().getFullYear()}년 연봉계약`} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+              </div>
+              {reqForm.employeeId && selectedEmployee && (
+                <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold">{(selectedEmployee.name || "?")[0]}</div>
+                    <div>
+                      <div className="text-sm font-semibold">{selectedEmployee.name}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{selectedEmployee.department || "미배정"} · {selectedEmployee.position || "미지정"} · {selectedEmployee.email || ""}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => reqForm.employeeId && setWizardStep(2)} disabled={!reqForm.employeeId} className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">다음</button>
+                <button onClick={() => { setShowCreate(false); setWizardStep(1); setReqForm({ employeeId: "", title: "", templateIds: [] }); }} className="px-4 py-2.5 text-sm text-[var(--text-muted)]">취소</button>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약 제목</label>
-              <input
-                value={reqForm.title}
-                onChange={e => setReqForm({...reqForm, title: e.target.value})}
-                placeholder={`${new Date().getFullYear()}년 연봉계약`}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Step 2: 서식 선택 */}
-          <div className="mb-5">
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-2">계약서 서식 선택 *</label>
-            {templates.length === 0 ? (
-              <p className="text-xs text-[var(--text-dim)]">등록된 서식이 없습니다. 설정에서 계약서 템플릿을 먼저 등록하세요.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {templates.map((t: any) => {
-                  const selected = reqForm.templateIds.includes(t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => toggleTemplate(t.id)}
-                      className={`text-left px-4 py-3 rounded-xl border transition ${
-                        selected
-                          ? "border-[var(--primary)] bg-[var(--primary)]/5"
-                          : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                          selected ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"
-                        }`}>
-                          {selected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+          {wizardStep === 2 && (
+            <div>
+              <h4 className="text-sm font-bold mb-4">Step 2: 계약서 서식 선택</h4>
+              {templates.length === 0 ? (
+                <p className="text-xs text-[var(--text-dim)] mb-4">등록된 서식이 없습니다. HR 서식을 사용해주세요.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+                  {templates.map((t: any) => {
+                    const selected = reqForm.templateIds.includes(t.id);
+                    return (
+                      <button key={t.id} onClick={() => toggleTemplate(t.id)} className={`text-left px-4 py-3 rounded-xl border transition ${selected ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50"}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selected ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"}`}>
+                            {selected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                          </div>
+                          <span className="text-sm font-medium">{t.name}</span>
                         </div>
-                        <span className="text-sm font-medium">{t.name}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setWizardStep(1)} className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl">이전</button>
+                <button onClick={() => reqForm.templateIds.length > 0 && setWizardStep(3)} disabled={reqForm.templateIds.length === 0} className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">다음</button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* 액션 버튼 */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => reqForm.employeeId && reqForm.templateIds.length > 0 && createContract.mutate()}
-              disabled={!reqForm.employeeId || reqForm.templateIds.length === 0 || createContract.isPending}
-              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
-            >
-              {createContract.isPending ? "생성 중..." : "계약 요청하기"}
-            </button>
-            <button
-              onClick={() => { setShowCreate(false); setReqForm({ employeeId: "", title: "", templateIds: [] }); }}
-              className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl transition"
-            >
-              취소
-            </button>
-          </div>
+          {/* Step 3: 확인 및 발송 */}
+          {wizardStep === 3 && (
+            <div>
+              <h4 className="text-sm font-bold mb-4">Step 3: 확인 및 발송</h4>
+              <div className="bg-[var(--bg-surface)] rounded-xl p-5 mb-4 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-muted)]">대상</span>
+                  <span className="font-semibold">{selectedEmployee?.name || "—"} ({selectedEmployee?.department || "미배정"})</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-muted)]">제목</span>
+                  <span className="font-semibold">{reqForm.title || `${selectedEmployee?.name || ""} ${new Date().getFullYear()}년 계약`}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-[var(--text-muted)]">선택된 서식 ({reqForm.templateIds.length}건)</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {reqForm.templateIds.map(tid => {
+                      const t = templates.find((tt: any) => tt.id === tid);
+                      return <span key={tid} className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-medium">{t?.name || tid}</span>;
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setWizardStep(2)} className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl">이전</button>
+                <button onClick={() => { createContract.mutate(); setWizardStep(1); }} disabled={createContract.isPending} className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition">
+                  {createContract.isPending ? "생성 중..." : "계약 요청 발송"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2243,6 +2475,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           </div>
         </>
       )}
+      </>}
     </div>
   );
 }
@@ -3471,6 +3704,51 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
           </div>
         </div>
       </div>
+
+      {/* 연차 상세 월별 Breakdown */}
+      {!isEmployee && balances.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[900px]">
+              <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
+                <th className="text-center px-2 py-2.5 font-medium">총부여</th>
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
+                <th className="text-center px-2 py-2.5 font-medium">합계</th>
+                <th className="text-center px-2 py-2.5 font-medium">잔여</th>
+              </tr></thead>
+              <tbody>
+                {balances.map((b: any) => {
+                  const approved = leaveRequests.filter((r: any) => r.status === "approved" && r.employee_id === b.employee_id);
+                  const monthUsage = Array(12).fill(0);
+                  approved.forEach((r: any) => {
+                    const start = new Date(r.start_date);
+                    if (start.getFullYear() === currentYear) {
+                      monthUsage[start.getMonth()] += Number(r.days || 0);
+                    }
+                  });
+                  const totalUsed = monthUsage.reduce((s, v) => s + v, 0);
+                  const remaining = b.total_days - totalUsed;
+                  return (
+                    <tr key={b.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                      <td className="px-4 py-2.5 text-sm font-medium sticky left-0 bg-[var(--bg-card)]">{b.employees?.name || "—"}</td>
+                      <td className="px-2 py-2.5 text-xs text-center font-semibold">{b.total_days}</td>
+                      {monthUsage.map((u, i) => (
+                        <td key={i} className="px-2 py-2.5 text-center">
+                          {u > 0 ? <span className="text-xs font-semibold text-red-400">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
+                        </td>
+                      ))}
+                      <td className="px-2 py-2.5 text-xs text-center font-bold text-red-400">{totalUsed > 0 ? totalUsed : "-"}</td>
+                      <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-red-400" : remaining <= 3 ? "text-yellow-400" : "text-green-400"}`}>{remaining}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+      )}
 
       {/* Leave Promotion (연차촉진) Section */}
       {!isEmployee && (
