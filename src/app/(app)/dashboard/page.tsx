@@ -23,6 +23,7 @@ import { useBoard } from "@/components/board-context";
 import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { MorningBrief } from "@/components/morning-brief";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -433,21 +434,17 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ HEADER ═══ */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-lg font-black tracking-tight">생존 현황판</h1>
-            <div className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider"
-              style={{ background: !hasData ? 'rgba(100,116,139,0.08)' : cfg.bg, color: !hasData ? '#64748b' : cfg.color, border: `1px solid ${!hasData ? 'rgba(100,116,139,0.2)' : cfg.border}` }}>
-              {!hasData ? '데이터를 입력해주세요' : cfg.label}
-            </div>
-          </div>
-          <p className="text-[11px] text-[var(--text-dim)]">
-            {companyName} · {userName} · {new Date().toLocaleDateString('ko-KR')}
-          </p>
-        </div>
+      {/* ═══ 아침 브리핑 — 자연어 요약 ═══ */}
+      <MorningBrief
+        userName={userName}
+        companyName={companyName}
+        cashPulse={cashPulse}
+        dashboard={dashboard}
+        hasData={hasData}
+      />
 
+      {/* ═══ 액션 바 (동기화 / 업로드) ═══ */}
+      <div className="flex items-center justify-end mb-4">
         {/* Sync / Upload buttons */}
         <div className="flex items-center gap-2">
           {role === "owner" && (
@@ -599,9 +596,8 @@ export default function DashboardPage() {
         const pending = pulse?.pendingApprovalCount ?? 0;
 
         return (
-          <div className={`rounded-2xl p-1 mb-4 survival-bar ${
-            pLevel === 'critical' || pLevel === 'danger' ? 'animate-glow-red' : pLevel === 'warning' ? 'animate-glow-orange' : ''
-          }`} style={{ border: `1px solid ${pc.border}` }}>
+          <div className="rounded-2xl p-1 mb-4 survival-bar bg-[var(--bg-card)]"
+            style={{ border: `1px solid ${pc.border}` }}>
             <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
               {/* 통장 잔고 */}
               <div className="px-4 py-3">

@@ -1102,7 +1102,7 @@ export async function updateVaultAccount(id: string, updates: Record<string, any
 
   const { error } = await supabase
     .from('vault_accounts')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id);
   if (error) throw error;
 }
@@ -1155,7 +1155,7 @@ export async function createVaultAsset(params: {
 export async function updateVaultAsset(id: string, updates: Record<string, any>) {
   const { error } = await supabase
     .from('vault_assets')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id);
   if (error) throw error;
 }
@@ -1207,7 +1207,7 @@ export async function createVaultDoc(params: {
 export async function updateVaultDoc(id: string, updates: Record<string, any>) {
   const { error } = await supabase
     .from('vault_docs')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id);
   if (error) throw error;
 }

@@ -1,7 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// 브라우저 클라이언트 re-export (기존 import 호환성 유지)
+// 서버 컴포넌트에서는 supabase-server.ts 사용
+// 관리자 작업에는 supabase-admin.ts 사용
+export { supabase, createSupabaseBrowserClient } from './supabase-browser';
