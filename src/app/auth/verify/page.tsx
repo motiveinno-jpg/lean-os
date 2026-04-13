@@ -20,7 +20,18 @@ export default function VerifyEmailPage() {
     async function handleVerification() {
       if (handled) return;
       try {
-        // Supabase가 URL hash에서 토큰을 자동 처리
+        // PKCE: 이메일 인증 링크의 code 파라미터 교환
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        if (code) {
+          const { error: codeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (codeError) {
+            setErrorMessage(codeError.message);
+            setState("error");
+            return;
+          }
+        }
+
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
