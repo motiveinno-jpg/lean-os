@@ -202,7 +202,7 @@
 <div class="status-banner">
   <h2>현재 진행 상황 (4/13 기준)</h2>
   <div class="status-grid">
-    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">Vercel SSR 배포 완료</span> lean-os.vercel.app</div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">Vercel SSR 배포 완료</span> www.owner-view.com</div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">DB 마이그레이션 6건 적용</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">TypeScript 빌드 에러 0건</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">입금 자동매칭 엔진 완성</span></div>
@@ -211,9 +211,11 @@
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">DNS 변경 완료 (owner-view.com → Vercel)</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">SSL 인증서 발급 (HTTPS 정상)</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">GitHub ↔ Vercel 자동배포 연동</span></div>
-    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">CODEF API 미신청</span></div>
-    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">토스페이먼츠 가맹점 미등록</span></div>
-    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">Google/Kakao OAuth 미설정</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">이메일 인증(PKCE) 수정 완료</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">회원가입 풀플로우 검증 완료</span></div>
+    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">CODEF API 미신청 (본부장)</span></div>
+    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">토스페이먼츠 가맹점 미등록 (본부장)</span></div>
+    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">Google/Kakao OAuth 미설정 (본부장)</span></div>
   </div>
 </div>
 
@@ -493,12 +495,13 @@
         <span class="tag tag-urgent">즉시</span>
       </div>
       <div class="card-body">
-        <p>현재 접속 가능한 주소로 회원가입을 해주세요.</p>
+        <p>아래 주소로 접속하여 회원가입을 해주세요.</p>
         <div class="steps">
-          <div class="step"><a href="https://lean-os.vercel.app" target="_blank">https://lean-os.vercel.app</a> 접속</div>
-          <div class="step">회원가입 (이메일/비밀번호)</div>
-          <div class="step">로그인 → 대시보드 진입 확인</div>
-          <div class="step">접속이 안 되거나 에러가 나면 스크린샷 찍어서 공유</div>
+          <div class="step"><a href="https://www.owner-view.com/auth" target="_blank">https://www.owner-view.com</a> 접속 (메인 도메인)</div>
+          <div class="step">회원가입 탭 → 회사명 + 이메일 + 비밀번호(영문+숫자+특수기호 8자 이상) + 약관동의</div>
+          <div class="step">이메일 인증 메일 확인 → 인증 버튼 클릭 → 자동 로그인</div>
+          <div class="step">대시보드 진입 확인</div>
+          <div class="step">접속이 안 되거나 에러가 나면 스크린샷 찍어서 GitHub Issues에 등록</div>
         </div>
         <div class="callout callout-warning">
           <strong>Google/Kakao 로그인은 아직 안 됩니다</strong>
@@ -766,8 +769,8 @@
         <tbody>
           <tr><td>CODEF 발급 지연</td><td style="color:var(--danger)">높음</td><td>엑셀 업로드로 대체, 연동은 키 발급 후</td></tr>
           <tr><td>토스 심사 지연</td><td style="color:var(--warning)">중간</td><td>테스트키로 개발, 운영키는 런칭 직전</td></tr>
-          <tr><td>GitHub 비밀번호 분실</td><td style="color:var(--warning)">중간</td><td>이메일 재설정으로 복구</td></tr>
-          <tr><td>Cloudflare 계정 미확인</td><td style="color:var(--warning)">중간</td><td>lean-os.vercel.app으로 우선 운영</td></tr>
+          <tr><td style="text-decoration:line-through;color:var(--dim)">GitHub 비밀번호 분실</td><td style="color:var(--success)">해결됨</td><td>4/13 복구 완료</td></tr>
+          <tr><td style="text-decoration:line-through;color:var(--dim)">Cloudflare DNS 미설정</td><td style="color:var(--success)">해결됨</td><td>4/13 owner-view.com → Vercel DNS 완료</td></tr>
           <tr><td>Supabase 무료 한도</td><td style="color:var(--dim)">낮음</td><td>4,000개사 접속 시 Pro($25/월) 전환</td></tr>
         </tbody>
       </table>
@@ -794,6 +797,11 @@
             <li><span class="tag tag-done">완료</span> SSL 인증서 발급 (HTTPS 정상) — 4/13</li>
             <li><span class="tag tag-done">완료</span> GitHub ↔ Vercel 자동배포 연동 — 4/13</li>
             <li><span class="tag tag-done">완료</span> GitHub 비밀번호 복구 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> 이메일 인증(PKCE) 코드교환 버그 수정 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> Google/Kakao OAuth 버튼 임시 제거 (미설정) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> Git 자동배포 에러 해결 (vercel.json 추가) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> 회원가입 → 인증 → 대시보드 풀플로우 검증 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> 사용자 자동생성 안전장치 추가 (autoSetupUser) — 4/13</li>
             <li><span class="tag tag-done">완료</span> Resend 이메일 서비스 설정 (Pro, 50K/월) — 이전</li>
             <li><span class="tag tag-done">완료</span> Stripe 결제 실가동 + 상품 4개 생성 — 이전</li>
           </ul>
