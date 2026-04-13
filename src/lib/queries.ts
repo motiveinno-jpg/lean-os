@@ -31,11 +31,50 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       .select('*, companies(*)')
       .eq('id', user.id)
       .maybeSingle();
-    if (!fallback || !fallback.company_id) return null;
-    return fallback as unknown as CurrentUser;
+    if (fallback?.company_id) return fallback as unknown as CurrentUser;
+
+    // 인증은 됐지만 users 레코드가 없는 경우 — 자동 생성 (verify 페이지 실패 복구)
+    return await autoSetupUser(user);
   }
   if (!data.company_id) return null;
   return data as unknown as CurrentUser;
+}
+
+async function autoSetupUser(authUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<CurrentUser | null> {
+  const companyName = (authUser.user_metadata?.company_name as string) || authUser.email?.split('@')[0] || '내 회사';
+  const displayName = (authUser.user_metadata?.display_name as string) || authUser.email?.split('@')[0] || '사용자';
+  const userEmail = authUser.email || '';
+
+  const { data: company, error: compErr } = await supabase
+    .from('companies')
+    .insert({ name: companyName })
+    .select()
+    .single();
+  if (compErr) { console.error('autoSetupUser company error:', compErr.message); return null; }
+
+  const { error: userErr } = await supabase.from('users').insert({
+    id: authUser.id,
+    auth_id: authUser.id,
+    company_id: company.id,
+    email: userEmail,
+    name: displayName,
+    role: 'owner',
+  });
+  if (userErr) { console.error('autoSetupUser user error:', userErr.message); return null; }
+
+  await supabase.from('cash_snapshot').insert({
+    company_id: company.id,
+    current_balance: 0,
+    monthly_fixed_cost: 0,
+  });
+
+  // 생성 후 다시 조회
+  const { data: created } = await supabase
+    .from('users')
+    .select('*, companies(*)')
+    .eq('auth_id', authUser.id)
+    .maybeSingle();
+  return created as unknown as CurrentUser;
 }
 
 // ── Survival Data Types ──
