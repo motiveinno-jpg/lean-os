@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OwnerView 실서비스 전환 - 팀 브리핑 (2026-04-13)</title>
+<style>
+  :root {
+    --bg: #F8FAFC;
+    --card: #FFFFFF;
+    --border: #E2E8F0;
+    --text: #0F172A;
+    --muted: #64748B;
+    --dim: #94A3B8;
+    --primary: #2563EB;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --accent: #7C3AED;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* Header */
+  .header { margin-bottom: 40px; }
+  .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .header .subtitle { font-size: 15px; color: var(--muted); }
+  .header .date { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+  /* Status Banner */
+  .status-banner {
+    background: linear-gradient(135deg, #EFF6FF, #F0FDF4);
+    border: 1px solid #BFDBFE;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+  .status-banner h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .status-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .status-done { color: var(--success); font-weight: 600; }
+  .status-pending { color: var(--warning); font-weight: 600; }
+  .status-blocked { color: var(--danger); font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-done { background: var(--success); }
+  .dot-pending { background: var(--warning); }
+  .dot-blocked { background: var(--danger); }
+
+  /* Section */
+  .section { margin-bottom: 32px; }
+  .section h2 {
+    font-size: 18px; font-weight: 700;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--text);
+    margin-bottom: 16px;
+  }
+  .section h3 { font-size: 15px; font-weight: 700; margin: 20px 0 10px; color: var(--text); }
+
+  /* Tabs */
+  .tab-container { margin-bottom: 32px; }
+  .tab-buttons { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+  .tab-btn {
+    padding: 14px 28px;
+    font-size: 15px;
+    font-weight: 700;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn .badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+    background: var(--primary); color: white;
+  }
+  .tab-content { display: none; padding-top: 24px; }
+  .tab-content.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .card-number {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: white;
+    flex-shrink: 0;
+  }
+  .card-title { font-size: 15px; font-weight: 700; }
+  .card-body { font-size: 14px; color: var(--muted); }
+  .card-body p { margin-bottom: 8px; }
+  .card-body ul { padding-left: 20px; margin-bottom: 8px; }
+  .card-body li { margin-bottom: 4px; }
+  .card-body a { color: var(--primary); text-decoration: none; font-weight: 600; }
+  .card-body a:hover { text-decoration: underline; }
+  .card-body code {
+    background: #F1F5F9; padding: 2px 6px; border-radius: 4px;
+    font-size: 13px; font-family: 'SF Mono', Consolas, monospace;
+  }
+
+  .priority-high { border-left: 4px solid var(--danger); }
+  .priority-medium { border-left: 4px solid var(--warning); }
+  .priority-normal { border-left: 4px solid var(--primary); }
+  .priority-done { border-left: 4px solid var(--success); opacity: 0.7; }
+
+  /* Tag */
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 6px; margin-right: 4px;
+  }
+  .tag-urgent { background: #FEE2E2; color: var(--danger); }
+  .tag-wait { background: #FEF3C7; color: #92400E; }
+  .tag-done { background: #D1FAE5; color: #065F46; }
+  .tag-info { background: #EFF6FF; color: var(--primary); }
+  .tag-phase { background: #F3E8FF; color: var(--accent); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { font-weight: 700; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; background: #F8FAFC; }
+
+  /* Steps */
+  .steps { counter-reset: step; }
+  .step {
+    position: relative;
+    padding: 12px 0 12px 40px;
+    font-size: 14px;
+    border-left: 2px solid var(--border);
+    margin-left: 14px;
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute; left: -14px; top: 10px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary); color: white;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step:last-child { border-left-color: transparent; }
+
+  /* Callout */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout-warning { background: #FEF3C7; border: 1px solid #FCD34D; }
+  .callout-info { background: #EFF6FF; border: 1px solid #93C5FD; }
+  .callout-success { background: #D1FAE5; border: 1px solid #6EE7B7; }
+  .callout-danger { background: #FEE2E2; border: 1px solid #FCA5A5; }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* Timeline */
+  .timeline { margin: 16px 0; }
+  .timeline-item { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #F1F5F9; }
+  .timeline-week {
+    flex-shrink: 0; width: 80px; font-size: 12px; font-weight: 700;
+    color: var(--primary); padding-top: 2px;
+  }
+  .timeline-content { flex: 1; font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .status-grid { grid-template-columns: 1fr; }
+    .tab-btn { padding: 12px 16px; font-size: 14px; }
+    .container { padding: 20px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>OwnerView 실서비스 전환 브리핑</h1>
+  <div class="subtitle">(주)모티브이노베이션 — 올인원 경영 OS</div>
+  <div class="date">2026년 4월 13일 업데이트 | 작성: Claude (개발 전담)</div>
+</div>
+
+<!-- Status Banner -->
+<div class="status-banner">
+  <h2>현재 진행 상황 (4/13 기준)</h2>
+  <div class="status-grid">
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">Vercel SSR 배포 완료</span> lean-os.vercel.app</div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">DB 마이그레이션 6건 적용</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">TypeScript 빌드 에러 0건</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">입금 자동매칭 엔진 완성</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">Edge Function 4개 배포</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">대시보드 아침브리핑 UI</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">DNS 변경 완료 (owner-view.com → Vercel)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">SSL 인증서 발급 (HTTPS 정상)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">GitHub ↔ Vercel 자동배포 연동</span></div>
+    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">CODEF API 미신청</span></div>
+    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">토스페이먼츠 가맹점 미등록</span></div>
+    <div class="status-item"><div class="dot dot-blocked"></div><span class="status-blocked">Google/Kakao OAuth 미설정</span></div>
+  </div>
+</div>
+
+<!-- 프로젝트 개요 -->
+<div class="section">
+  <h2>프로젝트 개요</h2>
+  <div class="card">
+    <div class="card-body">
+      <p><strong>OwnerView란?</strong> 중소기업 대표가 회사의 돈, 사람, 문서, 거래를 한 곳에서 관리하는 올인원 경영 OS입니다.</p>
+      <p><strong>목표:</strong> 정부사업(네이버광고대행) 참여 기업 약 4,000개사에 무료 1개월 이용권 배포 → 유료 전환</p>
+      <p><strong>타임라인:</strong> 2개월 내 첫 유료 고객 확보 (2026년 6월 초 목표)</p>
+      <p><strong>현재 상태:</strong> 코드 25,000줄 완성, Vercel SSR 배포 완료. 외부 서비스 연동 + QA 단계 진입</p>
+      <p><strong>접속 주소:</strong></p>
+      <ul>
+        <li><a href="https://www.owner-view.com" target="_blank">https://www.owner-view.com</a> (메인 주소 — 접속 가능)</li>
+        <li><a href="https://lean-os.vercel.app" target="_blank">https://lean-os.vercel.app</a> (백업 주소)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>MVP 9대 기능</h3>
+  <table>
+    <thead><tr><th>#</th><th>기능</th><th>코드</th><th>실작동</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>CEO 대시보드 (6-Pack 생존지표)</td><td style="color:var(--success)">완성</td><td style="color:var(--success)">작동</td><td>아침 브리핑 UI 적용</td></tr>
+      <tr><td>2</td><td>딜 파이프라인</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>견적~정산 전체 흐름</td></tr>
+      <tr><td>3</td><td>세금계산서 3-Way 매칭</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>회계담당자 검증 필수</td></tr>
+      <tr><td>4</td><td>거래내역 자동분류</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>CODEF 연동 후 실작동</td></tr>
+      <tr><td>5</td><td>직원관리 + 급여</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>4대보험 자동계산</td></tr>
+      <tr><td>6</td><td>문서 + 전자서명</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td></td></tr>
+      <tr><td>7</td><td>거래처 DB</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>사업자등록번호 자동검증</td></tr>
+      <tr><td>8</td><td>팀 채팅</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td>Supabase Realtime</td></tr>
+      <tr><td>9</td><td>Vault (구독/계정 관리)</td><td style="color:var(--success)">완성</td><td style="color:var(--warning)">QA필요</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Tab Container -->
+<div class="tab-container">
+  <div class="tab-buttons">
+    <button class="tab-btn active" onclick="switchTab('junho')">
+      연준호 본부장 <span class="badge">12건</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('dangjung')">
+      정다정 회계담당자 <span class="badge">8건</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('common')">
+      공통 안내
+    </button>
+  </div>
+
+  <!-- ═══ 연준호 본부장 탭 ═══ -->
+  <div id="tab-junho" class="tab-content active">
+
+    <div class="callout callout-danger">
+      <strong>최우선: 아래 3가지를 이번 주 안에 완료해주세요</strong>
+      이 작업들이 밀리면 전체 일정이 지연됩니다. 특히 CODEF는 발급에 1~2주 걸리므로 즉시 신청해야 합니다.
+    </div>
+
+    <!-- Task 1 -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">1</div>
+        <div class="card-title">CODEF API 사용 신청</div>
+        <span class="tag tag-urgent">긴급</span>
+        <span class="tag tag-phase">Phase 3 차단</span>
+      </div>
+      <div class="card-body">
+        <p>은행/카드 거래내역을 자동으로 불러오는 핵심 API입니다. <strong>발급에 3~7영업일</strong> 걸리므로 가장 먼저 신청해야 합니다.</p>
+        <div class="steps">
+          <div class="step"><a href="https://codef.io" target="_blank">codef.io</a> 접속 → 회원가입</div>
+          <div class="step">사업자등록증 사본 준비 (PDF 또는 이미지)</div>
+          <div class="step">API 사용 신청 → "은행 거래내역 조회" + "카드 거래내역 조회" 선택</div>
+          <div class="step">테스트 키(Client ID / Secret) 발급되면 Claude에게 전달</div>
+          <div class="step">정식 키 발급 후 Supabase 환경변수에 설정 (Claude가 처리)</div>
+        </div>
+        <div class="callout callout-info">
+          <strong>참고</strong> API 키가 나올 때까지 거래내역은 엑셀 업로드로 대체됩니다. 기능 개발은 테스트 키로 먼저 진행합니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 2 — 완료 -->
+    <div class="card" style="opacity:0.6">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--success)">2</div>
+        <div class="card-title" style="text-decoration:line-through">GitHub 비밀번호 재설정 + Vercel 연동</div>
+        <span class="tag tag-done">완료 (4/13)</span>
+      </div>
+      <div class="card-body">
+        <p>대표님이 직접 완료. GitHub ↔ Vercel 자동배포 연동됨. 이제 git push → 자동 배포.</p>
+      </div>
+    </div>
+
+    <!-- Task 3 — 완료 -->
+    <div class="card" style="opacity:0.6">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--success)">3</div>
+        <div class="card-title" style="text-decoration:line-through">Cloudflare DNS 변경 (owner-view.com)</div>
+        <span class="tag tag-done">완료 (4/13)</span>
+      </div>
+      <div class="card-body">
+        <p>대표님이 직접 완료. Cloudflare 계정: chae8512@naver.com → CNAME 2개를 cname.vercel-dns.com으로 변경 완료.</p>
+      </div>
+    </div>
+
+    <!-- Task 4 -->
+    <div class="card priority-medium">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--warning)">4</div>
+        <div class="card-title">Google OAuth 설정</div>
+        <span class="tag tag-wait">이번 주</span>
+      </div>
+      <div class="card-body">
+        <p>사용자가 구글 계정으로 로그인할 수 있게 하는 설정입니다.</p>
+        <div class="steps">
+          <div class="step"><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → motiveinno@gmail.com 로그인</div>
+          <div class="step">새 프로젝트 생성: "OwnerView"</div>
+          <div class="step">API 및 서비스 → 사용자 인증 정보 → OAuth 2.0 클라이언트 ID 만들기</div>
+          <div class="step">
+            승인된 리디렉션 URI 추가:
+            <ul>
+              <li><code>https://njbvdkuvtdtkxyylwngn.supabase.co/auth/v1/callback</code></li>
+            </ul>
+          </div>
+          <div class="step">발급된 Client ID + Client Secret → Claude에게 전달 (Supabase Auth 설정에 입력)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 5 -->
+    <div class="card priority-medium">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--warning)">5</div>
+        <div class="card-title">Kakao OAuth 설정</div>
+        <span class="tag tag-wait">이번 주</span>
+      </div>
+      <div class="card-body">
+        <p>사용자가 카카오 계정으로 로그인할 수 있게 하는 설정입니다.</p>
+        <div class="steps">
+          <div class="step"><a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a> → 로그인</div>
+          <div class="step">내 애플리케이션 → 애플리케이션 추가 → "OwnerView"</div>
+          <div class="step">카카오 로그인 → 활성화 ON</div>
+          <div class="step">
+            Redirect URI 추가:
+            <ul>
+              <li><code>https://njbvdkuvtdtkxyylwngn.supabase.co/auth/v1/callback</code></li>
+            </ul>
+          </div>
+          <div class="step">REST API 키 → Claude에게 전달</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 6 -->
+    <div class="card priority-medium">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--warning)">6</div>
+        <div class="card-title">토스페이먼츠 가맹점 등록</div>
+        <span class="tag tag-wait">이번 주</span>
+        <span class="tag tag-phase">Phase 3</span>
+      </div>
+      <div class="card-body">
+        <p>유료 구독 결제를 받기 위한 가맹점 등록입니다. 심사에 3~5영업일 소요.</p>
+        <div class="steps">
+          <div class="step"><a href="https://developers.tosspayments.com" target="_blank">developers.tosspayments.com</a> → 회원가입</div>
+          <div class="step">가맹점 등록 신청 (사업자등록증, 통장사본 필요)</div>
+          <div class="step">테스트 키는 즉시 발급됨 → Claude에게 전달</div>
+          <div class="step">심사 완료 후 실운영 키 교체 (Claude가 처리)</div>
+        </div>
+        <div class="callout callout-info">
+          <strong>참고</strong> 기존 테스트 MID <code>gmotivuy0z</code>가 있으나 실키는 미발급 상태. 가맹점 재신청 필요.
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 7 -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">7</div>
+        <div class="card-title">공공데이터포털 API 신청</div>
+        <span class="tag tag-info">즉시 발급</span>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step"><a href="https://data.go.kr" target="_blank">data.go.kr</a> → 회원가입/로그인</div>
+          <div class="step">"사업자등록정보 진위확인 API" 검색 → 활용 신청</div>
+          <div class="step">발급된 API 키 → Claude에게 전달</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 8 -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">8</div>
+        <div class="card-title">Sentry 계정 생성 (에러 모니터링)</div>
+        <span class="tag tag-info">즉시 발급</span>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step"><a href="https://sentry.io" target="_blank">sentry.io</a> → motiveinno@gmail.com 으로 가입</div>
+          <div class="step">프로젝트 생성: Platform = Next.js</div>
+          <div class="step">DSN 키 → Claude에게 전달</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 9~12: QA -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">9</div>
+        <div class="card-title">페르소나 A(대표) QA 테스트</div>
+        <span class="tag tag-phase">Phase 4 (Week 5~7)</span>
+      </div>
+      <div class="card-body">
+        <p>대표 역할로 전체 서비스 흐름을 테스트합니다. Phase 2~3 완료 후 진행.</p>
+        <ul>
+          <li>회원가입 → 온보딩 → 회사정보 입력</li>
+          <li>대시보드에서 생존지표 6-Pack 확인</li>
+          <li>딜(프로젝트) 생성 → 견적서 작성 → 계약 → 세금계산서</li>
+          <li>직원 초대 → 역할 부여 → 승인 요청 처리</li>
+          <li>결제(구독) 테스트</li>
+        </ul>
+        <p>발견한 버그는 <strong>GitHub Issues</strong>에 스크린샷과 함께 등록 (공통 안내 탭 참고)</p>
+      </div>
+    </div>
+
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">10</div>
+        <div class="card-title">4,000개사 이메일 리스트 정리</div>
+        <span class="tag tag-phase">Phase 5 (Week 7~8)</span>
+      </div>
+      <div class="card-body">
+        <p>정부사업 참여 기업 목록에서 이메일 주소, 대표자명, 업종을 추출하여 CSV로 정리합니다.</p>
+        <p>필드: <code>email, company_name, ceo_name, industry, phone</code></p>
+      </div>
+    </div>
+
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">11</div>
+        <div class="card-title">초대 메일 문구 작성</div>
+        <span class="tag tag-phase">Phase 5</span>
+      </div>
+      <div class="card-body">
+        <p>4,000개사에 발송할 무료 1개월 이용권 초대 이메일 문구를 작성합니다. HTML 템플릿은 Claude가 제작.</p>
+      </div>
+    </div>
+
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">12</div>
+        <div class="card-title">운영 키 전환</div>
+        <span class="tag tag-phase">Phase 5</span>
+      </div>
+      <div class="card-body">
+        <p>런칭 직전 토스/CODEF 테스트 키 → 운영 키 전환. CEO 최종 런칭 승인 요청.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 정다정 회계담당자 탭 ═══ -->
+  <div id="tab-dangjung" class="tab-content">
+
+    <div class="callout callout-info">
+      <strong>회계담당자의 핵심 역할</strong>
+      숫자의 정확성을 검증하는 것입니다. 세금계산서 매칭, 4대보험 계산, 급여 자동계산, VAT 처리가 정확한지 실제 데이터로 대조해주세요. 기술적인 부분은 Claude가 처리하니, 회계/세무 관점의 피드백에 집중하시면 됩니다.
+    </div>
+
+    <!-- Task 1 -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">1</div>
+        <div class="card-title">서비스 접속 및 회원가입</div>
+        <span class="tag tag-urgent">즉시</span>
+      </div>
+      <div class="card-body">
+        <p>현재 접속 가능한 주소로 회원가입을 해주세요.</p>
+        <div class="steps">
+          <div class="step"><a href="https://lean-os.vercel.app" target="_blank">https://lean-os.vercel.app</a> 접속</div>
+          <div class="step">회원가입 (이메일/비밀번호)</div>
+          <div class="step">로그인 → 대시보드 진입 확인</div>
+          <div class="step">접속이 안 되거나 에러가 나면 스크린샷 찍어서 공유</div>
+        </div>
+        <div class="callout callout-warning">
+          <strong>Google/Kakao 로그인은 아직 안 됩니다</strong>
+          사업본부장이 OAuth를 설정하면 활성화됩니다. 지금은 이메일/비밀번호로만 가입 가능합니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 2 -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">2</div>
+        <div class="card-title">인증 풀플로우 검증</div>
+        <span class="tag tag-urgent">이번 주</span>
+      </div>
+      <div class="card-body">
+        <p>가입부터 로그인까지 전체 흐름이 정상 작동하는지 확인합니다.</p>
+        <ul>
+          <li>이메일 회원가입 → 로그인 → 대시보드 → 로그아웃 → 재로그인</li>
+          <li>비밀번호 찾기(재설정) 기능 테스트</li>
+          <li>잘못된 비밀번호 입력 시 에러 메시지 확인</li>
+          <li>모바일(핸드폰)에서도 동일하게 테스트</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Task 3 -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">3</div>
+        <div class="card-title">세금계산서 3-Way 매칭 검증</div>
+        <span class="tag tag-urgent">Phase 2</span>
+      </div>
+      <div class="card-body">
+        <p>세금계산서 ↔ 계약서(딜) ↔ 입금내역 자동 대조 기능의 <strong>숫자 정확성</strong>을 검증합니다.</p>
+        <ul>
+          <li>테스트 딜(프로젝트) 생성 → 계약금액 입력</li>
+          <li>세금계산서 수동 등록 (공급가액, 세액, 합계금액)</li>
+          <li>거래내역(입금) 등록</li>
+          <li><strong>검증 포인트:</strong></li>
+          <li>공급가액 + 세액 = 합계금액이 맞는지</li>
+          <li>계약금액과 세금계산서 금액이 일치/불일치 표시가 정확한지</li>
+          <li>입금액과 세금계산서 금액 매칭이 맞는지</li>
+          <li>부분 입금 시 잔액 계산이 정확한지</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Task 4 -->
+    <div class="card priority-medium">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--warning)">4</div>
+        <div class="card-title">급여 자동계산 검증</div>
+        <span class="tag tag-wait">Phase 2</span>
+      </div>
+      <div class="card-body">
+        <p>직원 급여 계산의 정확성을 검증합니다.</p>
+        <ul>
+          <li>테스트 직원 등록 (기본급 300만원 등 설정)</li>
+          <li><strong>검증 포인트:</strong></li>
+          <li>국민연금 (4.5%), 건강보험 (3.545%), 장기요양 (건강보험의 12.81%)</li>
+          <li>고용보험 (0.9%), 소득세, 지방소득세</li>
+          <li>공제 합계와 실수령액 계산이 정확한지</li>
+          <li>연봉 기준 / 월급 기준 계산이 맞는지</li>
+        </ul>
+        <div class="callout callout-warning">
+          <strong>2026년 요율 기준으로 확인해주세요</strong>
+          보험료율이 매년 변경되므로 현행 요율과 시스템 적용 요율을 대조해주세요.
+        </div>
+      </div>
+    </div>
+
+    <!-- Task 5 -->
+    <div class="card priority-medium">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--warning)">5</div>
+        <div class="card-title">거래내역 자동분류 검증</div>
+        <span class="tag tag-wait">Phase 2</span>
+      </div>
+      <div class="card-body">
+        <p>엑셀로 거래내역을 업로드하면 자동으로 분류되는 기능을 검증합니다.</p>
+        <ul>
+          <li>실제 은행 거래내역 엑셀 파일 준비 (회사 계좌)</li>
+          <li>대시보드 → 엑셀 업로드 → 자동 분류 결과 확인</li>
+          <li>수입/지출 구분이 맞는지</li>
+          <li>거래처명 인식이 정확한지</li>
+          <li>카테고리 자동 분류가 합리적인지</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Task 6 -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">6</div>
+        <div class="card-title">입금 자동매칭 검증</div>
+        <span class="tag tag-phase">Phase 2~3</span>
+      </div>
+      <div class="card-body">
+        <p>새로 구현된 입금 자동매칭 엔진의 정확성을 검증합니다.</p>
+        <ul>
+          <li>수입예정(매출 스케줄)에 예상 금액, 예상 입금일, 송금자명 입력</li>
+          <li>실제 거래내역 등록 (금액, 날짜, 송금자)</li>
+          <li>자동매칭 결과 확인: 맞는 건을 맞다고 하는지, 틀린 건을 걸러내는지</li>
+          <li>85점 이상 자동확정 / 60~84점 승인대기 / 60점 미만 무시 기준이 합리적인지</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Task 7 -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">7</div>
+        <div class="card-title">페르소나 B(회계) 시나리오 테스트</div>
+        <span class="tag tag-phase">Phase 4 (Week 5~7)</span>
+      </div>
+      <div class="card-body">
+        <p>회계 담당자 역할로 전체 서비스 흐름을 테스트합니다.</p>
+        <ul>
+          <li>초대 수락 → 로그인 → 본인 역할 확인</li>
+          <li>세금계산서 등록 → 3-Way 매칭</li>
+          <li>거래내역 분류 → 카테고리 수정</li>
+          <li>직원 급여 계산 → 명세서 확인</li>
+          <li>월 마감 체크리스트 진행</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Task 8 -->
+    <div class="card priority-normal">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--primary)">8</div>
+        <div class="card-title">버그 리포팅</div>
+        <span class="tag tag-info">상시</span>
+      </div>
+      <div class="card-body">
+        <p>테스트 중 발견한 문제는 GitHub Issues로 등록해주세요. (공통 안내 탭 참고)</p>
+        <p>특히 <strong>숫자가 틀린 경우</strong>는 기대값(올바른 값)과 실제값을 함께 적어주시면 빠르게 수정할 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 공통 안내 탭 ═══ -->
+  <div id="tab-common" class="tab-content">
+
+    <div class="section">
+      <h2>서비스 접속 방법</h2>
+      <div class="card">
+        <div class="card-body">
+          <table>
+            <tr><th>주소</th><th>상태</th><th>비고</th></tr>
+            <tr>
+              <td><a href="https://lean-os.vercel.app" target="_blank">lean-os.vercel.app</a></td>
+              <td style="color:var(--success); font-weight:700">접속 가능</td>
+              <td>Vercel 배포 주소 (현재 사용)</td>
+            </tr>
+            <tr>
+              <td>www.owner-view.com</td>
+              <td style="color:var(--warning); font-weight:700">DNS 변경 대기</td>
+              <td>아직 구버전(GitHub Pages)을 가리킴</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>버그 리포팅 방법 (GitHub Issues)</h2>
+      <div class="card">
+        <div class="card-body">
+          <p><strong>저장소:</strong> <a href="https://github.com/motiveinno-jpg/lean-os/issues" target="_blank">github.com/motiveinno-jpg/lean-os/issues</a></p>
+          <p style="margin-top:12px"><strong>이슈 작성 양식:</strong></p>
+          <div style="background:#F1F5F9; padding:16px; border-radius:8px; font-size:13px; font-family:monospace; white-space:pre-line; margin-top:8px">
+<strong>제목:</strong> [페이지명] 간단한 설명
+예) [세금계산서] 공급가액 소수점이 표시됨
+
+<strong>본문:</strong>
+1. 어디서: (어떤 페이지, 어떤 버튼)
+2. 무엇을 했더니: (클릭, 입력 등)
+3. 예상 결과: (이렇게 되어야 하는데)
+4. 실제 결과: (이렇게 됨)
+5. 스크린샷: (필수!)
+
+<strong>라벨:</strong> bug / ux / feature / critical
+          </div>
+          <div class="callout callout-warning" style="margin-top:12px">
+            <strong>GitHub 계정이 없으면</strong>
+            <a href="https://github.com/signup" target="_blank">github.com/signup</a> 에서 무료 가입 후 이슈를 등록할 수 있습니다.
+            GitHub 사용이 어려우면 카카오톡이나 이메일로 보내주셔도 됩니다 — Claude가 대신 이슈로 등록합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>8주 타임라인</h2>
+      <div class="card">
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-week">Week 1~2</div>
+              <div class="timeline-content">
+                <strong>Phase 1: 인프라 전환</strong><br>
+                Vercel SSR 배포 <span class="tag tag-done">완료</span><br>
+                인증(이메일/Google/Kakao) 실작동<br>
+                CODEF API 신청<br>
+                <strong>완료 기준:</strong> 가입 → 로그인 → 대시보드 진입 성공
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-week">Week 2~3</div>
+              <div class="timeline-content">
+                <strong>Phase 2: 핵심 기능 검증</strong><br>
+                대시보드, 딜, 세금계산서, 거래내역, 급여 등 실데이터 테스트<br>
+                <strong>완료 기준:</strong> 데이터 입력 → 대시보드 실시간 반영
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-week">Week 3~5</div>
+              <div class="timeline-content">
+                <strong>Phase 3: 외부 연동</strong><br>
+                CODEF 은행연동, 홈택스, 토스 결제, n8n 자동화<br>
+                <strong>완료 기준:</strong> 외부 API 3개 이상 연결 성공
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-week">Week 5~7</div>
+              <div class="timeline-content">
+                <strong>Phase 4: QA + 버그 수정</strong><br>
+                페르소나 A(본부장) + B(회계담당자) 전수 테스트<br>
+                모바일 반응형, 보안 강화<br>
+                <strong>완료 기준:</strong> Critical 버그 0건
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-week">Week 7~8</div>
+              <div class="timeline-content">
+                <strong>Phase 5: 런칭</strong><br>
+                4,000개사 초대 메일 발송, 운영 키 전환, 모니터링<br>
+                <strong>완료 기준:</strong> CEO 런칭 승인
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>팀 구성 및 역할</h2>
+      <table>
+        <thead><tr><th>이름</th><th>역할</th><th>담당 영역</th></tr></thead>
+        <tbody>
+          <tr><td><strong>채희웅 대표</strong></td><td>CEO</td><td>최종 의사결정, 런칭 승인 (휘슬에 집중, 오너뷰는 위임)</td></tr>
+          <tr><td><strong>Claude</strong></td><td>개발 전담</td><td>코드 개발, 배포, 버그 수정, 인프라 관리</td></tr>
+          <tr><td><strong>연준호 본부장</strong></td><td>사업본부장</td><td>외부 서비스 가입, DNS/설정, 비즈니스 QA, 런칭 준비</td></tr>
+          <tr><td><strong>정다정</strong></td><td>회계담당자</td><td>회계/세무 기능 검증, 숫자 정확성 QA, 도메인 피드백</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>주요 리스크</h2>
+      <table>
+        <thead><tr><th>리스크</th><th>영향</th><th>대책</th></tr></thead>
+        <tbody>
+          <tr><td>CODEF 발급 지연</td><td style="color:var(--danger)">높음</td><td>엑셀 업로드로 대체, 연동은 키 발급 후</td></tr>
+          <tr><td>토스 심사 지연</td><td style="color:var(--warning)">중간</td><td>테스트키로 개발, 운영키는 런칭 직전</td></tr>
+          <tr><td>GitHub 비밀번호 분실</td><td style="color:var(--warning)">중간</td><td>이메일 재설정으로 복구</td></tr>
+          <tr><td>Cloudflare 계정 미확인</td><td style="color:var(--warning)">중간</td><td>lean-os.vercel.app으로 우선 운영</td></tr>
+          <tr><td>Supabase 무료 한도</td><td style="color:var(--dim)">낮음</td><td>4,000개사 접속 시 Pro($25/월) 전환</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>이미 완료된 작업 (히스토리)</h2>
+      <div class="card priority-done">
+        <div class="card-body">
+          <ul>
+            <li><span class="tag tag-done">완료</span> Vercel 계정 생성 (motiveinno@gmail.com) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> Vercel 프로덕션 배포 (40/40 페이지) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> next.config.ts: 정적빌드(output:export) → SSR 전환 — 4/11</li>
+            <li><span class="tag tag-done">완료</span> DB 마이그레이션 6건 적용 (스키마 버그 수정) — 4/11</li>
+            <li><span class="tag tag-done">완료</span> TypeScript 빌드 에러 13건 → 0건 수정 — 4/11</li>
+            <li><span class="tag tag-done">완료</span> Supabase 클라이언트 서버/브라우저/어드민 분리 — 이전 세션</li>
+            <li><span class="tag tag-done">완료</span> middleware.ts 인증 가드 구현 — 이전 세션</li>
+            <li><span class="tag tag-done">완료</span> 입금 자동매칭 엔진 (auto-match.ts) — 4/11</li>
+            <li><span class="tag tag-done">완료</span> auto-match-payments Edge Function 배포 — 4/11</li>
+            <li><span class="tag tag-done">완료</span> confirm-toss-payment Edge Function 배포 — 4/11</li>
+            <li><span class="tag tag-done">완료</span> 대시보드 "아침 브리핑" UI 리디자인 — 4/11</li>
+            <li><span class="tag tag-done">완료</span> Vercel 커스텀 도메인 등록 (owner-view.com) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> Cloudflare DNS → Vercel 전환 완료 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> SSL 인증서 발급 (HTTPS 정상) — 4/13</li>
+            <li><span class="tag tag-done">완료</span> GitHub ↔ Vercel 자동배포 연동 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> GitHub 비밀번호 복구 — 4/13</li>
+            <li><span class="tag tag-done">완료</span> Resend 이메일 서비스 설정 (Pro, 50K/월) — 이전</li>
+            <li><span class="tag tag-done">완료</span> Stripe 결제 실가동 + 상품 4개 생성 — 이전</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>버그/피드백 보고 방법</h2>
+      <div class="card" style="border-left:4px solid var(--primary)">
+        <div class="card-body">
+          <p style="font-size:16px;font-weight:700;margin-bottom:12px;">GitHub Issues에 직접 등록해 주세요 — Claude가 바로 확인하고 수정합니다.</p>
+          <div class="steps">
+            <div class="step"><a href="https://github.com/motiveinno-jpg/lean-os/issues/new" target="_blank" style="font-weight:700;color:var(--primary)">이 링크 클릭</a> (GitHub 로그인 필요)</div>
+            <div class="step">제목: <code>[버그] 간단한 설명</code> 또는 <code>[개선] 간단한 설명</code></div>
+            <div class="step">본문에 아래 내용 포함:
+              <ul style="margin-top:8px">
+                <li><strong>어디서:</strong> 페이지 이름 또는 URL</li>
+                <li><strong>뭘 했을 때:</strong> 클릭한 버튼, 입력한 값 등</li>
+                <li><strong>어떻게 됐는지:</strong> 에러 메시지, 빈 화면, 잘못된 값 등</li>
+                <li><strong>스크린샷:</strong> 가능하면 반드시 첨부 (드래그 앤 드롭)</li>
+              </ul>
+            </div>
+            <div class="step">등록하면 Claude가 자동으로 확인하고 수정합니다</div>
+          </div>
+          <div style="margin-top:16px;padding:12px 16px;background:#F0F7FF;border-radius:8px;font-size:14px;">
+            <strong>GitHub 계정이 없는 경우:</strong> 대표님에게 카톡으로 스크린샷 + 설명 보내주세요. 대표님이 Claude에게 전달합니다.
+          </div>
+          <div style="margin-top:12px;padding:12px 16px;background:#F0FDF4;border-radius:8px;font-size:14px;">
+            <strong>예시:</strong><br/>
+            제목: [버그] 딜 파이프라인에서 견적서 저장 시 에러<br/>
+            본문: /deals 페이지 → 새 딜 생성 → 견적서 금액 입력 후 저장 클릭 → "undefined" 에러 표시 + 스크린샷
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.closest('.tab-btn')?.classList.add('active');
+}
+</script>
+</body>
+</html>
