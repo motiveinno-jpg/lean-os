@@ -2250,6 +2250,8 @@ export type Database = {
           last_activity_at: string | null
           name: string
           partner_id: string | null
+          priority: string | null
+          risk_level: string | null
           start_date: string | null
           status: string | null
         }
@@ -2269,6 +2271,8 @@ export type Database = {
           last_activity_at?: string | null
           name: string
           partner_id?: string | null
+          priority?: string | null
+          risk_level?: string | null
           start_date?: string | null
           status?: string | null
         }
@@ -2288,6 +2292,8 @@ export type Database = {
           last_activity_at?: string | null
           name?: string
           partner_id?: string | null
+          priority?: string | null
+          risk_level?: string | null
           start_date?: string | null
           status?: string | null
         }
