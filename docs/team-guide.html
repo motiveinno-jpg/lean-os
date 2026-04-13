@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오너뷰 실무자 협업 가이드</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --border: #2a2a2a;
+    --text: #e5e5e5;
+    --text-muted: #888;
+    --accent: #3b82f6;
+    --accent-soft: rgba(59,130,246,0.12);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-soft: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --orange: #f97316;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .header .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .header .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #fff;
+  }
+  .header .logo-text {
+    font-size: 24px; font-weight: 700; color: var(--text);
+  }
+  .header h1 {
+    font-size: 32px; font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header p {
+    color: var(--text-muted); font-size: 15px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-number {
+    display: inline-block;
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 700;
+    text-align: center; line-height: 28px;
+    margin-right: 10px;
+  }
+  .section h2 {
+    font-size: 22px; font-weight: 700;
+    margin-bottom: 20px;
+    display: flex; align-items: center;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 16px; font-weight: 700;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card p, .card li {
+    font-size: 14px; color: var(--text-muted); line-height: 1.8;
+  }
+  .card ul { padding-left: 20px; }
+  .card li { margin-bottom: 4px; }
+
+  /* Role badges */
+  .role-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    margin-left: 8px;
+  }
+  .role-biz { background: var(--accent-soft); color: var(--accent); }
+  .role-acc { background: var(--green-soft); color: var(--green); }
+  .role-dev { background: rgba(168,85,247,0.12); color: #a855f7; }
+  .role-ceo { background: var(--yellow-soft); color: var(--yellow); }
+
+  /* Role overview table */
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 600px) {
+    .role-grid { grid-template-columns: 1fr; }
+  }
+  .role-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .role-card .role-title {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .role-card .role-desc {
+    font-size: 13px; color: var(--text-muted); line-height: 1.6;
+  }
+
+  /* Step cards */
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 3px 0 0 3px;
+  }
+  .step .step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .step .step-title {
+    font-size: 16px; font-weight: 700;
+  }
+  .step .step-time {
+    font-size: 12px; color: var(--text-muted);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .step ol {
+    padding-left: 20px;
+  }
+  .step li {
+    font-size: 14px; color: var(--text-muted);
+    margin-bottom: 6px; line-height: 1.7;
+  }
+  .step .deliver {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--accent-soft);
+    border-radius: 8px;
+    font-size: 13px; color: var(--accent); font-weight: 600;
+  }
+
+  /* Issue template */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-muted);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    margin: 12px 0;
+  }
+
+  /* Checklist table */
+  .check-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .check-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .check-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .check-table tr:last-child td { border-bottom: none; }
+  .check-table .num {
+    width: 36px;
+    text-align: center;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Schedule */
+  .schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 12px 0;
+  }
+  .schedule-table th {
+    background: var(--surface2);
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .schedule-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  .schedule-table .week {
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* Alert boxes */
+  .alert {
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin: 16px 0;
+    line-height: 1.7;
+  }
+  .alert-red {
+    background: var(--red-soft);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: #fca5a5;
+  }
+  .alert-yellow {
+    background: var(--yellow-soft);
+    border: 1px solid rgba(234,179,8,0.2);
+    color: #fde68a;
+  }
+  .alert-blue {
+    background: var(--accent-soft);
+    border: 1px solid rgba(59,130,246,0.2);
+    color: #93c5fd;
+  }
+
+  /* Severity badges */
+  .sev { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .sev-critical { background: var(--red-soft); color: var(--red); }
+  .sev-high { background: var(--yellow-soft); color: var(--yellow); }
+  .sev-low { background: var(--green-soft); color: var(--green); }
+
+  /* FAQ */
+  .faq-item {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .faq-item:last-child { border-bottom: none; }
+  .faq-q {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .faq-a {
+    font-size: 14px; color: var(--text-muted); line-height: 1.7;
+  }
+
+  /* Highlight */
+  strong { color: var(--text); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Print */
+  @media print {
+    body { background: #fff; color: #000; }
+    .card, .step, .role-card { border-color: #ddd; background: #f9f9f9; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">O</div>
+      <span class="logo-text">OwnerView</span>
+    </div>
+    <h1>실무자 협업 가이드</h1>
+    <p>회계담당자 &middot; 사업본부장을 위한 참여 안내서 &middot; 2026.04.08</p>
+  </div>
+
+  <!-- 1. 프로젝트 개요 -->
+  <div class="section">
+    <h2><span class="section-number">1</span> 프로젝트 개요</h2>
+
+    <div class="card">
+      <h3>무엇을 만드나요?</h3>
+      <p><strong>오너뷰</strong>는 중소기업 대표가 회사 상태를 한눈에 파악하고,<br>
+      견적 &rarr; 계약 &rarr; 세금계산서 &rarr; 정산까지 전자동으로 돌리는 <strong>올인원 경영 OS</strong>입니다.</p>
+      <br>
+      <p>리멤버 + 모두사인 + 플렉스 + 먼데이 + 자비스를 하나로 합친 서비스입니다.</p>
+    </div>
+
+    <div class="card">
+      <h3>목표</h3>
+      <ul>
+        <li><strong>2개월 내</strong> 실서비스 런칭</li>
+        <li>정부사업 참여 <strong>4,000개 기업</strong>에 무료 1개월 이용권 배포</li>
+        <li>무료 체험 &rarr; <strong>유료 전환</strong></li>
+      </ul>
+    </div>
+
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge role-dev">AI 개발</span> Claude</div>
+        <div class="role-desc">코드 수정, 버그 수정, 기능 구현, 배포 전담</div>
+      </div>
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge role-acc">회계/세무 QA</span> 회계담당자</div>
+        <div class="role-desc">세금계산서, 급여, 거래내역 등 숫자 정확성 테스트</div>
+      </div>
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge role-biz">비즈니스 QA</span> 사업본부장</div>
+        <div class="role-desc">딜 관리, 대시보드, 전체 UX 테스트 + 서비스 가입 대행</div>
+      </div>
+      <div class="role-card">
+        <div class="role-title"><span class="role-badge role-ceo">최종 승인</span> 대표님</div>
+        <div class="role-desc">주요 방향 결정, 런칭 승인</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 사업본부장 Day 1 -->
+  <div class="section">
+    <h2><span class="section-number">2</span> 사업본부장 — Day 1 즉시 할 일</h2>
+    <p style="color:var(--text-muted); margin-bottom:20px;">아래 서비스에 가입하고, 발급된 키/정보를 <strong>대표님 또는 Claude</strong>에게 전달해주세요.</p>
+
+    <div class="alert alert-red">
+      <strong>API 키, 비밀번호 등 민감 정보는 절대 GitHub이나 공개 채널에 올리지 마세요.</strong><br>
+      대표님에게 직접(카톡/슬랙 DM) 전달해주세요.
+    </div>
+
+    <!-- Vercel -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-title">2-1. Vercel 가입 + GitHub 연동</span>
+        <span class="step-time">5분</span>
+      </div>
+      <ol>
+        <li><a href="https://vercel.com" target="_blank">vercel.com</a> 접속</li>
+        <li>"Sign Up" &rarr; <strong>"Continue with GitHub"</strong> 클릭</li>
+        <li>GitHub 계정: <code>motiveinno-jpg</code> 으로 로그인</li>
+        <li>Vercel 대시보드에서 "Import Project" &rarr; <code>lean-os</code> 저장소 선택</li>
+        <li>Framework Preset: <strong>Next.js</strong> (자동 감지됨)</li>
+        <li>"Deploy" 클릭</li>
+      </ol>
+      <div class="deliver">전달: Vercel 프로젝트 URL (예: lean-os-xxxxx.vercel.app)</div>
+    </div>
+
+    <!-- Google OAuth -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-title">2-2. Google OAuth 설정</span>
+        <span class="step-time">10분</span>
+      </div>
+      <ol>
+        <li><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> 접속 (회사 Google 계정)</li>
+        <li>좌측 메뉴 &rarr; "API 및 서비스" &rarr; "사용자 인증 정보"</li>
+        <li>"사용자 인증 정보 만들기" &rarr; "OAuth 클라이언트 ID"</li>
+        <li>애플리케이션 유형: <strong>웹 애플리케이션</strong></li>
+        <li>이름: <code>OwnerView</code></li>
+        <li>승인된 리다이렉트 URI 추가:<br>
+            <code>https://njbvdkuvtdtkxyylwngn.supabase.co/auth/v1/callback</code></li>
+      </ol>
+      <div class="deliver">전달: 클라이언트 ID + 클라이언트 보안 비밀번호</div>
+    </div>
+
+    <!-- Kakao OAuth -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-title">2-3. Kakao OAuth 설정</span>
+        <span class="step-time">10분</span>
+      </div>
+      <ol>
+        <li><a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a> 접속 &rarr; 로그인</li>
+        <li>"내 애플리케이션" &rarr; "애플리케이션 추가하기"</li>
+        <li>앱 이름: <code>OwnerView</code>, 사업자명: <code>모티브이노베이션</code></li>
+        <li>생성 후 &rarr; "앱 키" 메뉴에서 <strong>REST API 키</strong> 복사</li>
+        <li>"카카오 로그인" &rarr; 활성화 설정 <strong>ON</strong></li>
+        <li>"Redirect URI" 추가:<br>
+            <code>https://njbvdkuvtdtkxyylwngn.supabase.co/auth/v1/callback</code></li>
+      </ol>
+      <div class="deliver">전달: REST API 키</div>
+    </div>
+
+    <!-- CODEF -->
+    <div class="step" style="border-color: var(--orange);">
+      <div class="step-header">
+        <span class="step-title">2-4. CODEF API 신청 (은행 연동)</span>
+        <span class="step-time">15분 (발급 3~7영업일)</span>
+      </div>
+      <div class="alert alert-yellow" style="margin-top:0; margin-bottom:12px;">
+        발급에 시간이 걸리므로 <strong>가장 먼저 신청</strong>해주세요!
+      </div>
+      <ol>
+        <li><a href="https://codef.io" target="_blank">codef.io</a> 접속 &rarr; 회원가입</li>
+        <li>"API 사용 신청" 클릭</li>
+        <li>필요 서류: <strong>사업자등록증, 대표자 신분증 사본</strong></li>
+        <li>용도: "자사 서비스 은행 거래내역 연동"</li>
+      </ol>
+      <div class="deliver">발급 후 전달: Client ID + Client Secret</div>
+    </div>
+
+    <!-- 공공데이터포털 -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-title">2-5. 공공데이터포털 API 신청</span>
+        <span class="step-time">5분 (즉시 발급)</span>
+      </div>
+      <ol>
+        <li><a href="https://data.go.kr" target="_blank">data.go.kr</a> 접속 &rarr; 회원가입</li>
+        <li>검색: "세금계산서" &rarr; "국세청 세금계산서 발급 내역 조회 서비스"</li>
+        <li>"활용신청" 클릭 &rarr; 사유: "사내 경영관리 시스템 연동"</li>
+      </ol>
+      <div class="deliver">전달: API 인증키</div>
+    </div>
+
+    <!-- 토스 (나중) -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-title">2-6. 토스페이먼츠 가맹점 등록</span>
+        <span class="step-time">Week 2에 진행</span>
+      </div>
+      <ol>
+        <li><a href="https://developers.tosspayments.com" target="_blank">developers.tosspayments.com</a> 접속</li>
+        <li>"가맹점 등록" &rarr; 사업자 정보 입력</li>
+        <li>서류: 사업자등록증, 통장사본</li>
+        <li><strong>테스트 키</strong>는 즉시 발급 &rarr; 먼저 전달</li>
+        <li><strong>운영 키</strong>는 심사 완료 후 (3~5영업일)</li>
+      </ol>
+      <div class="deliver">전달: 클라이언트 키 + 시크릿 키 (테스트용/운영용 각각)</div>
+    </div>
+  </div>
+
+  <!-- 3. 버그 리포트 -->
+  <div class="section">
+    <h2><span class="section-number">3</span> 버그/이슈 보고하는 방법</h2>
+
+    <div class="card">
+      <h3>GitHub Issues 사용</h3>
+      <p><a href="https://github.com/motiveinno-jpg/lean-os/issues" target="_blank">github.com/motiveinno-jpg/lean-os/issues</a> 에서 "New Issue" 클릭 후 아래 양식으로 작성해주세요.</p>
+    </div>
+
+    <div class="code-block">[화면이름] 문제 한줄 설명
+
+## 어디서 발생했나요?
+- 페이지: (예: 대시보드, 딜 관리, 세금계산서)
+- URL: (브라우저 주소창의 주소)
+
+## 무엇이 문제인가요?
+(구체적으로. 예: "매출 합계가 실제와 100만원 차이남")
+
+## 재현 방법
+1. OO 페이지에 접속
+2. OO 버튼 클릭
+3. 문제 발생
+
+## 스크린샷
+(반드시 첨부! 캡처 후 붙여넣기하면 자동 업로드)
+
+## 심각도
+- 긴급: 서비스 사용 불가
+- 중요: 기능은 되지만 결과가 잘못됨
+- 개선: 불편하지만 사용 가능</div>
+
+    <div class="card">
+      <h3>스크린샷 찍는 법</h3>
+      <ul>
+        <li><strong>Mac</strong>: <code>Cmd + Shift + 4</code> &rarr; 영역 드래그</li>
+        <li><strong>Windows</strong>: <code>Win + Shift + S</code></li>
+        <li><strong>iPhone</strong>: 전원 + 볼륨 업 동시 누르기</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>심각도 기준</h3>
+      <p style="margin-bottom:8px;">이슈 제목 앞에 심각도를 표시해주세요:</p>
+      <ul>
+        <li><span class="sev sev-critical">긴급</span> 로그인 안 됨, 페이지 안 열림, 데이터 유실</li>
+        <li><span class="sev sev-high">중요</span> 숫자 틀림, 기능 오작동, 저장 안 됨</li>
+        <li><span class="sev sev-low">개선</span> 디자인, 문구, 속도, 편의성</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4. QA 체크리스트 -->
+  <div class="section">
+    <h2><span class="section-number">4</span> QA 테스트 체크리스트</h2>
+    <p style="color:var(--text-muted); margin-bottom:20px;">서비스가 작동하기 시작하면 (Week 2~), 아래를 하나씩 테스트해주세요.</p>
+
+    <div class="card">
+      <h3><span class="role-badge role-acc">회계담당자</span> 테스트 목록</h3>
+      <table class="check-table">
+        <thead><tr><th class="num">#</th><th>테스트</th><th>확인할 것</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>세금계산서 수동 입력</td><td>공급가액 입력 시 세액 자동 계산 정확한지</td></tr>
+          <tr><td class="num">2</td><td>세금계산서 5건 입력 후 매칭</td><td>거래내역과 자동 매칭되는지</td></tr>
+          <tr><td class="num">3</td><td>거래내역 Excel 업로드</td><td>파일 인식되는지, 자동 분류 정확한지</td></tr>
+          <tr><td class="num">4</td><td>직원 급여 계산</td><td>국민연금 4.5%, 건보 3.545% 등 정확한지</td></tr>
+          <tr><td class="num">5</td><td>경비 청구 &rarr; 승인</td><td>청구서 작성 후 승인자에게 표시되는지</td></tr>
+          <tr><td class="num">6</td><td>대시보드 매출 합계</td><td>입력한 데이터 합계와 대시보드 수치 일치하는지</td></tr>
+          <tr><td class="num">7</td><td>미수금 표시</td><td>발행했는데 입금 안 된 건이 정확히 표시되는지</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3><span class="role-badge role-biz">사업본부장</span> 테스트 목록</h3>
+      <table class="check-table">
+        <thead><tr><th class="num">#</th><th>테스트</th><th>확인할 것</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>회원가입 (이메일)</td><td>가입 &rarr; 인증메일 &rarr; 로그인 성공하는지</td></tr>
+          <tr><td class="num">2</td><td>회원가입 (Google)</td><td>Google 계정으로 바로 로그인되는지</td></tr>
+          <tr><td class="num">3</td><td>회원가입 (Kakao)</td><td>카카오 계정으로 바로 로그인되는지</td></tr>
+          <tr><td class="num">4</td><td>온보딩 위저드</td><td>회사 정보 입력 &rarr; 완료까지 막힘 없는지</td></tr>
+          <tr><td class="num">5</td><td>딜 생성</td><td>새 딜 생성 &rarr; 스테이지 변경 &rarr; 저장되는지</td></tr>
+          <tr><td class="num">6</td><td>딜에 문서 첨부</td><td>견적서/계약서 파일 업로드 되는지</td></tr>
+          <tr><td class="num">7</td><td>거래처 등록</td><td>신규 거래처 추가 &rarr; 딜과 연결되는지</td></tr>
+          <tr><td class="num">8</td><td>팀원 초대</td><td>이메일로 초대 &rarr; 수락 &rarr; 로그인 되는지</td></tr>
+          <tr><td class="num">9</td><td>대시보드 6개 위젯</td><td>모두 숫자가 표시되는지 (빈칸 없는지)</td></tr>
+          <tr><td class="num">10</td><td>모바일 접속</td><td>핸드폰에서 주요 화면 사용 가능한지</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-blue">
+      <strong>테스트 결과 보고 방법</strong><br>
+      &bull; 통과 &rarr; 별도 보고 불필요<br>
+      &bull; 실패 &rarr; GitHub Issues에 버그 등록 (위의 양식대로, 스크린샷 필수)<br>
+      &bull; 애매함 &rarr; 이슈에 "질문" 이라고 표시해서 등록
+    </div>
+  </div>
+
+  <!-- 5. 주간 일정 -->
+  <div class="section">
+    <h2><span class="section-number">5</span> 8주 일정표</h2>
+
+    <table class="schedule-table">
+      <thead>
+        <tr><th style="width:80px">주차</th><th>사업본부장</th><th>회계담당자</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="week">1주차</td>
+          <td>Vercel / Google / Kakao / CODEF 가입<br>DNS 변경, 환경변수 설정</td>
+          <td>테스트 계정 준비<br>서비스 접속 확인</td>
+        </tr>
+        <tr>
+          <td class="week">2주차</td>
+          <td>로그인 테스트 (이메일/Google/Kakao)<br>토스페이먼츠 가맹점 등록</td>
+          <td>세금계산서 입력 테스트<br>거래내역 분류 테스트</td>
+        </tr>
+        <tr>
+          <td class="week">3주차</td>
+          <td>딜 생성/관리 테스트<br>거래처 등록 테스트<br>대시보드 확인</td>
+          <td>급여 계산 정확성 검증<br>경비 청구/승인 테스트</td>
+        </tr>
+        <tr>
+          <td class="week">4주차</td>
+          <td>CODEF 은행 연동 테스트<br>문서 업로드/전자서명</td>
+          <td>은행 거래내역 실데이터 대조<br>홈택스 세금계산서 동기화 테스트</td>
+        </tr>
+        <tr>
+          <td class="week">5~6주차</td>
+          <td colspan="2" style="text-align:center;">
+            <strong>전체 시나리오 QA</strong><br>
+            가입 &rarr; 온보딩 &rarr; 데이터입력 &rarr; 대시보드확인 &rarr; 결제 풀플로우
+          </td>
+        </tr>
+        <tr>
+          <td class="week">7주차</td>
+          <td>초대 메일 문구 작성<br>4,000개사 이메일 리스트 정리</td>
+          <td>결제 풀플로우 최종 테스트<br>(실 카드 테스트)</td>
+        </tr>
+        <tr>
+          <td class="week">8주차</td>
+          <td colspan="2" style="text-align:center;">
+            <strong>런칭!</strong> 4,000개사 초대 메일 발송
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. FAQ -->
+  <div class="section">
+    <h2><span class="section-number">6</span> 자주 묻는 질문</h2>
+
+    <div class="card" style="padding:8px 24px;">
+      <div class="faq-item">
+        <div class="faq-q">Q: GitHub를 처음 써봐요. 어렵지 않나요?</div>
+        <div class="faq-a">Issues 탭에서 "New Issue" 버튼만 누르면 됩니다. 글 쓰고 스크린샷 붙이면 끝. 코드를 볼 필요 전혀 없습니다.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: 테스트 중 서비스가 안 돼요</div>
+        <div class="faq-a">개발 중이므로 일시적으로 안 될 수 있습니다. 30분 후 다시 시도해보시고, 계속 안 되면 이슈를 등록해주세요.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: API 키를 어디에 전달하나요?</div>
+        <div class="faq-a">대표님에게 카톡이나 슬랙 DM으로 직접 전달해주세요. <strong>절대 GitHub이나 공개 채널에 올리지 마세요.</strong></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: 긴급한 문제가 발생했어요</div>
+        <div class="faq-a">GitHub Issue에 제목 앞에 [긴급] 표시하고, 대표님에게 바로 연락해주세요.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: Claude(AI 개발자)와 직접 대화할 수 있나요?</div>
+        <div class="faq-a">직접 대화는 어렵지만, GitHub Issues에 올리신 내용을 Claude가 확인하고 수정합니다. 이슈에 댓글로 추가 정보를 남기시면 됩니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center; padding:40px 0 0; border-top:1px solid var(--border); color:var(--text-muted); font-size:13px;">
+    <p>&copy; 2026 모티브이노베이션. 이 문서는 프로젝트 진행에 따라 업데이트됩니다.</p>
+    <p style="margin-top:8px;">문의: 채희웅 대표님에게 연락</p>
+  </div>
+
+</div>
+
+</body>
+</html>
