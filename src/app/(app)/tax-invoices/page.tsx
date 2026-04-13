@@ -23,6 +23,7 @@ import {
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
+import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 
 // ── Excel export ──
@@ -118,7 +119,7 @@ export default function TaxInvoicesPage() {
   }, []);
 
   // Fetch all invoices
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["tax-invoices-full", companyId, month],
     queryFn: async () => {
       const startDate = `${month}-01`;
@@ -287,6 +288,7 @@ export default function TaxInvoicesPage() {
 
   return (
     <div className="max-w-[1200px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

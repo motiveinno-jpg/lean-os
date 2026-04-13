@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard } from "@/lib/card-transactions";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards';
@@ -48,7 +49,7 @@ export default function TransactionsPage() {
     });
   }, []);
 
-  const { data: bankTx = [], isLoading } = useQuery({
+  const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ['bank-transactions', companyId, filterStatus, filterType],
     queryFn: () => getBankTransactions(companyId!, {
       status: filterStatus === 'all' ? undefined : filterStatus,
@@ -399,6 +400,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="max-w-[1100px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">거래내역</h1>
