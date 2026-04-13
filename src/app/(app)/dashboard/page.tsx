@@ -466,7 +466,7 @@ export default function DashboardPage() {
             className="px-3 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
             {uploading ? '파싱 중...' : '엑셀 업로드'}
           </button>
-          {process.env.NODE_ENV === 'development' && (
+          {!hasData && (
           <button onClick={handleSampleData} disabled={generating}
             className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[11px] font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
             {generating ? '생성 중...' : '샘플 데이터'}
@@ -685,14 +685,12 @@ export default function DashboardPage() {
           <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
           <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {process.env.NODE_ENV === 'development' && (
             <button onClick={handleSampleData} disabled={generating}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
               <span className="text-2xl">🚀</span>
               <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
               <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
             </button>
-            )}
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
               <span className="text-2xl">📊</span>
