@@ -270,6 +270,9 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const inviteMut = useMutation({
     mutationFn: async () => {
       if (!companyId || !userId) throw new Error("인증 필요");
+      const trimmedEmail = form.email.trim().toLowerCase();
+      if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) throw new Error("올바른 이메일 주소를 입력해주세요.");
+      if (!form.department?.trim()) throw new Error("부서를 입력해주세요.");
       // 1. 초대 레코드 생성
       const invitation = await createEmployeeInvitation({
         companyId, email: form.email, name: form.name || undefined,

@@ -280,7 +280,7 @@ export default function TaxInvoicesPage() {
   const currentList = tab === "sales" ? salesInvoices : tab === "purchase" ? purchaseInvoices : [];
 
   const canSubmit =
-    form.counterpartyName &&
+    form.counterpartyName?.trim() &&
     form.supplyAmount &&
     form.issueDate &&
     Number(form.supplyAmount) > 0;
