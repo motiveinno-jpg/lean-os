@@ -372,7 +372,7 @@ export function Sidebar() {
 
       {/* Mobile sidebar drawer */}
       <div
-        className={`md:hidden fixed left-0 top-0 z-50 h-screen transition-transform duration-200 ${
+        className={`md:hidden fixed left-0 top-0 z-50 h-screen w-60 max-w-[85vw] transition-transform duration-200 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
