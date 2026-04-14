@@ -28,6 +28,8 @@ export interface PayrollItem {
   employeeId: string;
   employeeName: string;
   baseSalary: number;
+  nonTaxableAmount: number;
+  taxableIncome: number;
   nationalPension: number;
   healthInsurance: number;
   employmentInsurance: number;
@@ -35,6 +37,13 @@ export interface PayrollItem {
   localIncomeTax: number;
   deductionsTotal: number;
   netPay: number;
+  employerCosts: {
+    nationalPension: number;
+    healthInsurance: number;
+    employmentInsurance: number;
+    industrialAccident: number;
+    total: number;
+  };
 }
 
 // ── Korean Social Insurance Rates (2026) ──
@@ -44,33 +53,143 @@ const RATES = {
   healthInsurance: 0.03545,     // 건강보험 3.545% (직원분)
   longTermCare: 0.1295,         // 장기요양 건강보험의 12.95%
   employmentInsurance: 0.009,   // 고용보험 0.9% (직원분)
+  industrialAccident: 0.007,    // 산재보험 0.7% (사업주 부담)
 };
 
-// Simplified income tax table (간이세액표 근사)
-function estimateIncomeTax(monthlySalary: number): number {
-  if (monthlySalary <= 1060000) return 0;
-  if (monthlySalary <= 1500000) return Math.round(monthlySalary * 0.02);
-  if (monthlySalary <= 3000000) return Math.round(monthlySalary * 0.04);
-  if (monthlySalary <= 5000000) return Math.round(monthlySalary * 0.06);
-  if (monthlySalary <= 8000000) return Math.round(monthlySalary * 0.1);
-  return Math.round(monthlySalary * 0.15);
+// 국민연금 상한/하한 (2026 기준)
+const NATIONAL_PENSION_CEILING = 5_900_000;
+const NATIONAL_PENSION_FLOOR = 390_000;
+
+// 건강보험 상한/하한 (2026 기준)
+const HEALTH_INSURANCE_CEILING = 119_625_307;
+const HEALTH_INSURANCE_FLOOR = 279_266;
+
+// 간이세액표 기반 소득세 근사 (국세청 2025 간이세액표, 1인 기준)
+// dependents: 부양가족 수 (본인 포함, 기본 1)
+interface TaxBracket {
+  threshold: number;
+  tax: number;
+}
+
+const SIMPLIFIED_TAX_TABLE: TaxBracket[] = [
+  { threshold: 1_060_000, tax: 0 },
+  { threshold: 1_500_000, tax: 19_000 },
+  { threshold: 2_000_000, tax: 26_000 },
+  { threshold: 2_500_000, tax: 32_000 },
+  { threshold: 3_000_000, tax: 39_000 },
+  { threshold: 3_500_000, tax: 58_000 },
+  { threshold: 4_000_000, tax: 83_000 },
+  { threshold: 5_000_000, tax: 138_000 },
+  { threshold: 6_000_000, tax: 205_000 },
+  { threshold: 7_000_000, tax: 286_000 },
+  { threshold: 8_000_000, tax: 377_000 },
+  { threshold: 10_000_000, tax: 581_000 },
+];
+
+// 부양가족 수에 따른 세액 감면 근사 (1인당 약 12,500원/월 감면)
+const DEPENDENTS_DEDUCTION_PER_PERSON = 12_500;
+
+function estimateIncomeTax(
+  monthlySalary: number,
+  dependents = 1,
+): number {
+  if (monthlySalary <= SIMPLIFIED_TAX_TABLE[0].threshold) return 0;
+
+  // Find the bracket via interpolation between table entries
+  let tax = 0;
+  const lastEntry = SIMPLIFIED_TAX_TABLE[SIMPLIFIED_TAX_TABLE.length - 1];
+
+  if (monthlySalary > lastEntry.threshold) {
+    // Above the table: use the last known tax + marginal rate ~38% on excess
+    const MARGINAL_RATE_ABOVE_TABLE = 0.38;
+    const excess = monthlySalary - lastEntry.threshold;
+    tax = lastEntry.tax + Math.round(excess * MARGINAL_RATE_ABOVE_TABLE);
+  } else {
+    // Interpolate between brackets for accuracy
+    for (let i = 1; i < SIMPLIFIED_TAX_TABLE.length; i++) {
+      const prev = SIMPLIFIED_TAX_TABLE[i - 1];
+      const curr = SIMPLIFIED_TAX_TABLE[i];
+      if (monthlySalary <= curr.threshold) {
+        const ratio =
+          (monthlySalary - prev.threshold) /
+          (curr.threshold - prev.threshold);
+        tax = Math.round(prev.tax + ratio * (curr.tax - prev.tax));
+        break;
+      }
+    }
+  }
+
+  // Apply dependents deduction (본인=1이므로 추가 부양가족분만 감면)
+  const additionalDependents = Math.max(0, dependents - 1);
+  const dependentsDeduction =
+    additionalDependents * DEPENDENTS_DEDUCTION_PER_PERSON;
+  tax = Math.max(0, tax - dependentsDeduction);
+
+  return tax;
 }
 
 // ── Calculate payroll for a single employee ──
 
-export function calculatePayroll(baseSalary: number, name: string, employeeId: string): PayrollItem {
-  const np = Math.round(baseSalary * RATES.nationalPension);
-  const hi = Math.round(baseSalary * RATES.healthInsurance);
+export interface PayrollOptions {
+  nonTaxableAmount?: number; // 비과세 금액 (식대 200,000 등)
+  dependents?: number;       // 부양가족 수 (본인 포함, 기본 1)
+  industrialAccidentRate?: number; // 산재보험율 (기본 0.7%)
+}
+
+export function calculatePayroll(
+  baseSalary: number,
+  name: string,
+  employeeId: string,
+  options: PayrollOptions = {},
+): PayrollItem {
+  const {
+    nonTaxableAmount = 0,
+    dependents = 1,
+    industrialAccidentRate = RATES.industrialAccident,
+  } = options;
+
+  // 비과세 차감 → 과세소득 산출
+  const taxableIncome = Math.max(0, baseSalary - nonTaxableAmount);
+
+  // 국민연금: 상한/하한 적용
+  const pensionBase = Math.min(
+    NATIONAL_PENSION_CEILING,
+    Math.max(NATIONAL_PENSION_FLOOR, taxableIncome),
+  );
+  const np = Math.round(pensionBase * RATES.nationalPension);
+
+  // 건강보험: 상한/하한 적용
+  const healthBase = Math.min(
+    HEALTH_INSURANCE_CEILING,
+    Math.max(HEALTH_INSURANCE_FLOOR, taxableIncome),
+  );
+  const hi = Math.round(healthBase * RATES.healthInsurance);
   const ltc = Math.round(hi * RATES.longTermCare);
-  const ei = Math.round(baseSalary * RATES.employmentInsurance);
-  const it = estimateIncomeTax(baseSalary);
-  const lit = Math.round(it * 0.1); // 지방소득세 = 소득세의 10%
+
+  // 고용보험
+  const ei = Math.round(taxableIncome * RATES.employmentInsurance);
+
+  // 소득세 (간이세액표 기반)
+  const it = estimateIncomeTax(taxableIncome, dependents);
+
+  // 지방소득세 = 소득세의 10%
+  const lit = Math.round(it * 0.1);
+
   const deductions = np + hi + ltc + ei + it + lit;
+
+  // 사업주 부담분 (직원 급여에서 차감하지 않음)
+  const employerNp = np; // 국민연금 사업주 부담 = 직원분과 동일
+  const employerHi = hi + ltc; // 건강보험 사업주 부담 = 직원분과 동일
+  const employerEi = Math.round(taxableIncome * 0.0135); // 고용보험 사업주 1.35%
+  const employerIa = Math.round(taxableIncome * industrialAccidentRate);
+  const employerTotal = employerNp + employerHi + employerEi + employerIa;
 
   return {
     employeeId,
     employeeName: name,
     baseSalary,
+    nonTaxableAmount,
+    taxableIncome,
     nationalPension: np,
     healthInsurance: hi + ltc,
     employmentInsurance: ei,
@@ -78,6 +197,13 @@ export function calculatePayroll(baseSalary: number, name: string, employeeId: s
     localIncomeTax: lit,
     deductionsTotal: deductions,
     netPay: baseSalary - deductions,
+    employerCosts: {
+      nationalPension: employerNp,
+      healthInsurance: employerHi,
+      employmentInsurance: employerEi,
+      industrialAccident: employerIa,
+      total: employerTotal,
+    },
   };
 }
 
