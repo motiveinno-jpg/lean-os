@@ -149,7 +149,7 @@ export default function SettingsPage() {
           <button
             key={t.key}
             onClick={() => setMainTab(t.key)}
-            className={`whitespace-nowrap shrink-0 px-3 py-2 rounded-md text-sm font-semibold transition ${
+            className={`whitespace-nowrap shrink-0 px-4 py-2.5 rounded-md text-sm font-semibold min-h-[44px] transition ${
               mainTab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
             }`}
           >

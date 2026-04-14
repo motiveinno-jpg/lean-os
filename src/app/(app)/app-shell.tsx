@@ -64,7 +64,7 @@ function MobileBottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 min-w-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 min-w-0 min-h-[44px] transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}
             >
               <BottomTabIcon name={tab.icon} active={active} />
               <span className={`text-[10px] font-medium truncate ${active ? "text-[var(--primary)]" : ""}`}>{tab.label}</span>

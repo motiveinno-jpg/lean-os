@@ -1544,12 +1544,15 @@ function DocumentsPageInner() {
           {filteredDocuments.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📄</div>
-              <div className="text-lg font-bold mb-2">
-                {searchTerm || typeFilter !== "all" ? "검색 결과가 없습니다" : "문서가 없습니다"}
+              <div className="text-sm font-medium text-[var(--text)]">
+                {searchTerm || typeFilter !== "all" ? "검색 결과가 없습니다" : "계약서, NDA 등 문서를 만들어보세요"}
               </div>
-              <div className="text-sm text-[var(--text-muted)]">
-                {searchTerm || typeFilter !== "all" ? "다른 검색어나 필터를 시도하세요" : "계약서, 견적서, 제안서를 생성하세요"}
+              <div className="text-xs text-[var(--text-muted)] mt-1">
+                {searchTerm || typeFilter !== "all" ? "다른 검색어나 필터를 시도하세요" : "계약서, 견적서, 제안서를 AI로 빠르게 생성할 수 있습니다"}
               </div>
+              {!searchTerm && typeFilter === "all" && (
+                <button onClick={() => setShowDocForm(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 새 문서</button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto"><table className="w-full min-w-[700px]">

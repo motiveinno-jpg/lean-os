@@ -157,9 +157,16 @@ const CATEGORY_TOOLTIPS: Record<CategoryKey, string> = {
 /* Print CSS */
 const PRINT_CSS = `
 @media print {
+  body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
-  #pnl-printable, #pnl-printable * { visibility: visible; }
-  #pnl-printable { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  #pnl-printable, #pnl-printable * { visibility: visible; color: black !important; }
+  #pnl-printable {
+    position: absolute; left: 0; top: 0; width: 100%;
+    padding: 20px; background: white !important;
+  }
+  nav, .sidebar, .no-print, button { display: none !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ddd; padding: 4px 8px; }
   @page { margin: 15mm; }
 }
 `;
@@ -600,8 +607,10 @@ export default function PnlPage() {
 
   if (!data || !computed) {
     return (
-      <div style={{ padding: 40, color: "var(--text-muted)", fontSize: 14 }}>
-        데이터가 없습니다. 거래내역을 먼저 등록해주세요.
+      <div className="p-16 text-center">
+        <div className="text-4xl mb-3">📊</div>
+        <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 손익계산서가 자동 생성됩니다</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">거래내역 페이지에서 매출/비용을 먼저 등록해주세요</div>
       </div>
     );
   }
@@ -644,7 +653,7 @@ export default function PnlPage() {
               margin: "4px 0 0",
             }}
           >
-            {formatMonthLabel(months[0])} ~ {formatMonthLabel(months[months.length - 1])} 월별 손익 현황
+            {formatMonthLabel(months[0])} ~ {formatMonthLabel(months[months.length - 1])} 월별 손익 현황 (단위: 원)
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

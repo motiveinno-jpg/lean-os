@@ -1242,7 +1242,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               <button
                 key={p}
                 onClick={() => { setPeriod(p); setDrillMonth(null); }}
-                className={`px-2.5 py-1 text-[10px] font-semibold transition ${
+                className={`px-3 py-2 text-[10px] font-semibold min-h-[44px] transition ${
                   period === p ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--border)]'
                 }`}
               >
@@ -1253,7 +1253,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           {/* Excel Download */}
           <button
             onClick={() => exportFinancialReport(sliced.map(m => ({ month: m.month, revenue: m.revenue, expense: m.expense, netIncome: m.netIncome })))}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition"
+            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition"
           >
             Excel
           </button>
@@ -1286,7 +1286,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
                 })),
               });
             }}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition"
+            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition"
           >
             PDF
           </button>

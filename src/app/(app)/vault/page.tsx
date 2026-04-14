@@ -829,8 +829,9 @@ export default function VaultPage() {
           {!vault?.accounts?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🔐</div>
-              <div className="text-lg font-bold mb-2">구독/계정이 없습니다</div>
-              <div className="text-sm text-[var(--text-muted)]">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
+              <div className="text-sm font-medium text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
+              <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 계정 추가</button>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[700px]">

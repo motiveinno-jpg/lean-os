@@ -37,11 +37,17 @@ interface AgingBucket {
 /* ── Print Styles ── */
 const PRINT_STYLE = `
 @media print {
+  body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
-  #matching-print-area, #matching-print-area * { visibility: visible; }
-  #matching-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-  button, [role="tablist"] { display: none !important; }
-  .no-print { display: none !important; }
+  #matching-print-area, #matching-print-area * { visibility: visible; color: black !important; }
+  #matching-print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: white !important;
+  }
+  nav, .sidebar, .no-print, button, [role="tablist"] { display: none !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ddd; padding: 4px 8px; }
+  @page { margin: 15mm; }
 }
 `;
 
@@ -612,9 +618,9 @@ export default function MatchingPage() {
           {results.length === 0 ? (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
               <div className="text-4xl mb-4">🔗</div>
-              <div className="text-lg font-bold mb-2">매칭을 실행하세요</div>
-              <div className="text-sm text-[var(--text-muted)]">
-                거래내역과 딜 스케줄을 비교하여 자동으로 매칭합니다.
+              <div className="text-sm font-medium text-[var(--text)]">{transactions.length === 0 ? "거래내역이 등록되면 자동 매칭이 시작됩니다" : "매칭을 실행하세요"}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">
+                {transactions.length === 0 ? "거래내역 페이지에서 은행/카드 내역을 먼저 업로드해주세요" : "거래내역과 딜 스케줄을 비교하여 자동으로 매칭합니다"}
               </div>
             </div>
           ) : (

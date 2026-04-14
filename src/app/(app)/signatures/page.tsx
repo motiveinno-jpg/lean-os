@@ -226,7 +226,7 @@ export default function SignaturesDashboardPage() {
             {isLoading ? (
               <tr><td colSpan={8} className="p-8 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-12 text-center"><div className="text-3xl mb-2">✍️</div><div className="text-sm text-[var(--text-muted)]">서명 요청이 없습니다.</div></td></tr>
+              <tr><td colSpan={8} className="p-12 text-center"><div className="text-4xl mb-3">✍️</div><div className="text-sm font-medium text-[var(--text)]">문서에 서명을 요청해보세요</div><div className="text-xs text-[var(--text-muted)] mt-1">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div><button onClick={() => setShowInviteModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button></td></tr>
             ) : (
               filtered.map((r: any) => {
                 const info = getSignatureStatusInfo(r.status);

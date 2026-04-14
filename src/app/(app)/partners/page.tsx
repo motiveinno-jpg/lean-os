@@ -597,7 +597,9 @@ export default function PartnersPage() {
         ) : partners.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">🏢</div>
-            <div className="text-sm text-[var(--text-muted)]">등록된 거래처가 없습니다</div>
+            <div className="text-sm font-medium text-[var(--text)]">거래처를 추가하면 딜, 세금계산서에서 바로 연결됩니다</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">매출처, 매입처, 협력사를 한곳에서 관리하세요</div>
+            <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 거래처 추가</button>
           </div>
         ) : (
           <div className="overflow-x-auto">

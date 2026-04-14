@@ -219,9 +219,16 @@ const HEALTH_COLORS: Record<string, string> = {
 /* ------------------------------------------------------------------ */
 const PRINT_CSS = `
 @media print {
+  body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
-  #bs-printable, #bs-printable * { visibility: visible; }
-  #bs-printable { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  #bs-printable, #bs-printable * { visibility: visible; color: black !important; }
+  #bs-printable {
+    position: absolute; left: 0; top: 0; width: 100%;
+    padding: 20px; background: white !important;
+  }
+  nav, .sidebar, .no-print, button { display: none !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ddd; padding: 4px 8px; }
   @page { margin: 15mm; }
 }
 `;
@@ -448,8 +455,10 @@ export default function BalanceSheetPage() {
 
   if (!data) {
     return (
-      <div style={{ padding: 40, color: "var(--text-muted)", fontSize: 14 }}>
-        데이터가 없습니다. 계좌 정보를 먼저 등록해주세요.
+      <div className="p-16 text-center">
+        <div className="text-4xl mb-3">📋</div>
+        <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 대차대조표가 자동 생성됩니다</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">거래내역과 계좌 정보를 먼저 등록해주세요</div>
       </div>
     );
   }

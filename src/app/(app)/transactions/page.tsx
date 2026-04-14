@@ -718,9 +718,9 @@ export default function TransactionsPage() {
             ) : filteredBankTx.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="text-4xl mb-4">{tab === 'inbox' ? '✅' : '🏦'}</div>
-                <div className="text-lg font-bold mb-2">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '거래내역이 없습니다'}</div>
-                <div className="text-sm text-[var(--text-muted)]">
-                  {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요.'}
+                <div className="text-sm font-medium text-[var(--text)]">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                  {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
                 </div>
               </div>
             ) : (

@@ -71,7 +71,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                 <button
                   key={t.key}
                   onClick={() => setFilter(t.key as any)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
+                  className={`px-3 py-2 rounded-md text-[11px] font-medium min-h-[44px] transition ${
                     filter === t.key
                       ? "bg-[var(--primary)] text-white"
                       : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
@@ -84,14 +84,14 @@ function FilesGalleryView({ files }: { files: any[] }) {
             <div className="flex gap-1">
               <button
                 onClick={() => setLayout("grid")}
-                className={`p-1.5 rounded-md transition ${layout === "grid" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                className={`p-2.5 rounded-md transition ${layout === "grid" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
                 title="그리드 보기"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M4 6h6v6H4zM14 6h6v6h-6zM4 16h6v4H4zM14 16h6v4h-6z" /></svg>
               </button>
               <button
                 onClick={() => setLayout("list")}
-                className={`p-1.5 rounded-md transition ${layout === "list" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                className={`p-2.5 rounded-md transition ${layout === "list" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
                 title="리스트 보기"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -1552,7 +1552,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-[var(--text-muted)]">딜 채널 ({dealChannels.length})</h2>
           <button onClick={() => { setShowForm(!showForm); setShowTeamForm(false); setShowDMForm(false); }}
-            className="w-6 h-6 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
+            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
             +
           </button>
         </div>
@@ -1594,8 +1594,9 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
         {dealChannels.length === 0 ? (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
-            <div className="text-2xl mb-2">💬</div>
-            <div className="text-sm text-[var(--text-muted)]">딜 채널이 없습니다</div>
+            <div className="text-4xl mb-3">💬</div>
+            <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어 소통을 시작하세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">딜을 생성하면 자동으로 채널이 만들어집니다</div>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1611,7 +1612,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-[var(--text-muted)]">팀 채널 ({teamChannels.length})</h2>
           <button onClick={() => { setShowTeamForm(!showTeamForm); setShowForm(false); setShowDMForm(false); }}
-            className="w-6 h-6 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
+            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
             +
           </button>
         </div>
@@ -1634,7 +1635,10 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
         {teamChannels.length === 0 ? (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
-            <div className="text-sm text-[var(--text-muted)]">팀 채널이 없습니다</div>
+            <div className="text-4xl mb-3">👥</div>
+            <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어보세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">부서별, 프로젝트별 소통 공간을 만들 수 있습니다</div>
+            <button onClick={() => { setShowTeamForm(true); setShowForm(false); setShowDMForm(false); }} className="mt-3 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 채널 만들기</button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1650,7 +1654,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-[var(--text-muted)]">DM ({dmChannels.length})</h2>
           <button onClick={() => { setShowDMForm(!showDMForm); setShowForm(false); setShowTeamForm(false); }}
-            className="w-6 h-6 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
+            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
             +
           </button>
         </div>
@@ -1678,7 +1682,9 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
         {dmChannels.length === 0 ? (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
-            <div className="text-sm text-[var(--text-muted)]">DM이 없습니다</div>
+            <div className="text-4xl mb-3">✉️</div>
+            <div className="text-sm font-medium text-[var(--text)]">팀원에게 DM을 보내보세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">1:1 대화로 빠르게 소통할 수 있습니다</div>
           </div>
         ) : (
           <div className="space-y-2">

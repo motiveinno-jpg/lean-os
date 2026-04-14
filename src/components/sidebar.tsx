@@ -401,7 +401,7 @@ export function Sidebar() {
               </div>
               <button
                 onClick={() => setMobileOpen(false)}
-                className="p-1 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-dim)]"
+                className="p-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-dim)]"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -418,7 +418,7 @@ export function Sidebar() {
                 setMobileOpen(false);
                 openGlobalSearch();
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs min-h-[44px] text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" />
@@ -447,7 +447,7 @@ export function Sidebar() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] transition-all ${
+                        className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
                           active
                             ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
@@ -472,7 +472,7 @@ export function Sidebar() {
           <div className="px-3 pb-1">
             <button
               onClick={toggleTheme}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-left"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-left"
             >
               {theme === "light" ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -491,7 +491,7 @@ export function Sidebar() {
           <div className="p-3 border-t border-[var(--border)]">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
             >
               <svg
                 className="w-4 h-4"

@@ -35,8 +35,9 @@ function ensurePrintStyles() {
   style.id = PRINT_STYLE_ID;
   style.textContent = `
     @media print {
+      body { background: white !important; color: black !important; }
       body * { visibility: hidden; }
-      [data-print-area], [data-print-area] * { visibility: visible; }
+      [data-print-area], [data-print-area] * { visibility: visible; color: black !important; }
       [data-print-area] {
         position: absolute;
         left: 0;
@@ -47,7 +48,10 @@ function ensurePrintStyles() {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-      .no-print { display: none !important; }
+      nav, .sidebar, .no-print, button { display: none !important; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 4px 8px; }
+      @page { margin: 15mm; }
     }
   `;
   document.head.appendChild(style);
@@ -922,11 +926,11 @@ export default function TaxInvoicesPage() {
           ) : currentList.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🧾</div>
-              <div className="text-lg font-bold mb-2">
-                {tab === "sales" ? "매출 계산서" : "매입 계산서"}가 없습니다
+              <div className="text-sm font-medium text-[var(--text)]">
+                세금계산서가 등록되면 3-Way 매칭이 시작됩니다
               </div>
-              <div className="text-sm text-[var(--text-muted)]">
-                {month} 기간에 등록된 세금계산서가 없습니다
+              <div className="text-xs text-[var(--text-muted)] mt-1">
+                홈택스 엑셀을 업로드하거나 직접 등록할 수 있습니다
               </div>
             </div>
           ) : (

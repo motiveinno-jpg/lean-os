@@ -292,7 +292,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
         <div className="flex gap-1 flex-wrap">
           {([['all', '전체'], ['update', '변경'], ['approve', '승인'], ['note', '메모'], ['file', '파일']] as const).map(([key, label]) => (
             <button key={key} onClick={() => setFilter(key as any)}
-              className={`text-xs px-2.5 py-1 rounded-lg transition ${filter === key ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
+              className={`text-xs px-3 py-2 rounded-lg min-h-[44px] transition ${filter === key ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
               {label}
             </button>
           ))}
@@ -1149,12 +1149,12 @@ function DealsPageInner() {
       {/* Classification + Priority Filter (E-6) */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         {activeCls.length > 1 && (<>
-          <button onClick={() => setFilterCls(null)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${!filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>전체 ({deals.length})</button>
-          {activeCls.map(cls => { const count = deals.filter((d: any) => (d.classification || 'B2B') === cls).length; return (<button key={cls} onClick={() => setFilterCls(filterCls === cls ? null : cls)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>{cls} ({count})</button>); })}
+          <button onClick={() => setFilterCls(null)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${!filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>전체 ({deals.length})</button>
+          {activeCls.map(cls => { const count = deals.filter((d: any) => (d.classification || 'B2B') === cls).length; return (<button key={cls} onClick={() => setFilterCls(filterCls === cls ? null : cls)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>{cls} ({count})</button>); })}
         </>)}
         <span className="text-[var(--border)] mx-1">|</span>
-        <button onClick={() => setFilterPriority(null)} className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition ${!filterPriority ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>우선순위 전체</button>
-        {(['high', 'medium', 'low'] as DealPriority[]).map(p => { const cfg = PRIORITY_CONFIG[p]; return (<button key={p} onClick={() => setFilterPriority(filterPriority === p ? null : p)} className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition ${filterPriority === p ? '' : 'bg-[var(--bg-surface)]'}`} style={filterPriority === p ? { backgroundColor: cfg.bg, color: cfg.color } : { color: 'var(--text-muted)' }}>{cfg.label}</button>); })}
+        <button onClick={() => setFilterPriority(null)} className={`px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] transition ${!filterPriority ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>우선순위 전체</button>
+        {(['high', 'medium', 'low'] as DealPriority[]).map(p => { const cfg = PRIORITY_CONFIG[p]; return (<button key={p} onClick={() => setFilterPriority(filterPriority === p ? null : p)} className={`px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] transition ${filterPriority === p ? '' : 'bg-[var(--bg-surface)]'}`} style={filterPriority === p ? { backgroundColor: cfg.bg, color: cfg.color } : { color: 'var(--text-muted)' }}>{cfg.label}</button>); })}
       </div>
 
       <div className="flex items-center gap-3 mb-4">

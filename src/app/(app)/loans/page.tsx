@@ -24,10 +24,16 @@ type Tab = "list" | "payments" | "register" | "match";
 /* ── Print Styles ── */
 const PRINT_STYLES = `
 @media print {
+  body { background: white !important; color: black !important; }
   body * { visibility: hidden; }
-  .loans-print-area, .loans-print-area * { visibility: visible; }
-  .loans-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-  .no-print { display: none !important; }
+  .loans-print-area, .loans-print-area * { visibility: visible; color: black !important; }
+  .loans-print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: white !important;
+  }
+  nav, .sidebar, .no-print, button { display: none !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ddd; padding: 4px 8px; }
   @page { margin: 20mm; }
 }
 `;
@@ -359,8 +365,9 @@ export default function LoansPage() {
           {loans.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🏦</div>
-              <div className="text-sm text-[var(--text-muted)]">등록된 대출이 없습니다</div>
-              <button onClick={() => setTab("register")} className="mt-3 text-xs text-[var(--primary)] hover:underline">대출 등록하기</button>
+              <div className="text-sm font-medium text-[var(--text)]">대출 정보를 등록하면 상환 일정이 자동 관리됩니다</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">이자, 원금 상환 스케줄을 한눈에 확인하세요</div>
+              <button onClick={() => setTab("register")} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 대출 등록</button>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
