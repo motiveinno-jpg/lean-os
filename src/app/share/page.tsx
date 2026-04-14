@@ -157,11 +157,14 @@ function ShareContent() {
               <span className="text-gray-500">VAT: <span className="font-semibold text-gray-900">₩{items.reduce((s: number, it: any) => s + Number(it.taxAmount || 0), 0).toLocaleString()}</span></span>
               <span className="text-blue-600 font-bold">합계: ₩{items.reduce((s: number, it: any) => s + Number(it.totalAmount || (Number(it.supplyAmount || it.amount || 0) + Number(it.taxAmount || 0))), 0).toLocaleString()}</span>
             </div>
+            {isQuote && contentJson.validUntil && (
+              <div className="mt-2 text-[11px] text-gray-400 text-right">견적 유효기한: {new Date(contentJson.validUntil).toLocaleDateString('ko-KR')}</div>
+            )}
           </div>
         )}
 
-        {/* Contract Payment Schedule */}
-        {isContract && paymentSchedule.length > 0 && (
+        {/* Payment Schedule (both quote and contract) */}
+        {(isContract || isQuote) && paymentSchedule.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
             <h2 className="text-sm font-bold text-gray-900 mb-3">결제조건</h2>
             <table className="w-full text-xs">

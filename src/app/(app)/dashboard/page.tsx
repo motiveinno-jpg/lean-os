@@ -330,6 +330,9 @@ export default function DashboardPage() {
           <TodayActions dashboard={dashboard} />
         </div>
 
+        {/* 딜 파이프라인 요약 */}
+        {companyId && <DealPipelineSummary companyId={companyId} />}
+
         {/* 바로가기 */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-3">
@@ -1683,6 +1686,112 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function DealPipelineSummary({ companyId }: { companyId: string }) {
+  const db2 = supabase as any;
+  const { data: deals = [] } = useQuery({
+    queryKey: ['pipeline-summary', companyId],
+    queryFn: async () => {
+      const { data } = await db2.from('deals')
+        .select('id, name, status, contract_total, counterparty')
+        .eq('company_id', companyId)
+        .in('status', ['active', 'pending'])
+        .order('created_at', { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: docs = [] } = useQuery({
+    queryKey: ['pipeline-docs', companyId],
+    queryFn: async () => {
+      const { data } = await db2.from('documents')
+        .select('id, deal_id, type, status, name')
+        .eq('company_id', companyId)
+        .in('status', ['draft', 'review', 'issued'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: pendingRevenue = [] } = useQuery({
+    queryKey: ['pipeline-pending-revenue', companyId],
+    queryFn: async () => {
+      const { data } = await db2.from('deal_revenue_schedule')
+        .select('id, deal_id, amount, label, status, due_date')
+        .eq('status', 'expected')
+        .order('due_date')
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  if (deals.length === 0) return null;
+
+  const totalPipeline = deals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0);
+  const pendingAmount = pendingRevenue.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+  const draftDocs = docs.filter((d: any) => d.status === 'draft').length;
+  const reviewDocs = docs.filter((d: any) => d.status === 'review' || d.status === 'issued').length;
+
+  const overdue = pendingRevenue.filter((r: any) => r.due_date && new Date(r.due_date) < new Date());
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">딜 파이프라인</h2>
+        <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 진행중</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+        <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+          <div className="text-[10px] text-[var(--text-dim)]">파이프라인 총액</div>
+          <div className="text-sm font-bold text-blue-400 mt-0.5">{totalPipeline > 0 ? `₩${totalPipeline.toLocaleString()}` : '—'}</div>
+        </Link>
+        <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+          <div className="text-[10px] text-[var(--text-dim)]">미수금 예정</div>
+          <div className={`text-sm font-bold mt-0.5 ${overdue.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{pendingAmount > 0 ? `₩${pendingAmount.toLocaleString()}` : '—'}</div>
+          {overdue.length > 0 && <div className="text-[9px] text-red-400 mt-0.5">{overdue.length}건 연체</div>}
+        </Link>
+        <Link href="/documents" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+          <div className="text-[10px] text-[var(--text-dim)]">문서 대기</div>
+          <div className="text-sm font-bold text-yellow-400 mt-0.5">{draftDocs > 0 ? `${draftDocs}건 초안` : '—'}</div>
+          {reviewDocs > 0 && <div className="text-[9px] text-purple-400 mt-0.5">{reviewDocs}건 검토/발송</div>}
+        </Link>
+        <Link href="/signatures" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+          <div className="text-[10px] text-[var(--text-dim)]">서명 요청</div>
+          <div className="text-sm font-bold text-purple-400 mt-0.5">{reviewDocs > 0 ? `${reviewDocs}건` : '—'}</div>
+        </Link>
+      </div>
+      {deals.length > 0 && (
+        <div className="space-y-1.5">
+          {deals.slice(0, 5).map((d: any) => {
+            const dealDocs = docs.filter((doc: any) => doc.deal_id === d.id);
+            const hasQuote = dealDocs.some((doc: any) => doc.type === 'invoice');
+            const hasContract = dealDocs.some((doc: any) => doc.type === 'contract');
+            const hasTaxInvoice = dealDocs.some((doc: any) => doc.type === 'tax_invoice');
+            return (
+              <Link key={d.id} href={`/deals?deal=${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold truncate">{d.name}</div>
+                  <div className="text-[10px] text-[var(--text-dim)]">{d.counterparty || '거래처 미등록'} | ₩{Number(d.contract_total || 0).toLocaleString()}</div>
+                </div>
+                <div className="flex gap-1">
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${hasQuote ? 'bg-blue-500/10 text-blue-400' : 'bg-[var(--bg-surface)] text-[var(--text-dim)]'}`}>견적</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${hasContract ? 'bg-green-500/10 text-green-400' : 'bg-[var(--bg-surface)] text-[var(--text-dim)]'}`}>계약</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${hasTaxInvoice ? 'bg-purple-500/10 text-purple-400' : 'bg-[var(--bg-surface)] text-[var(--text-dim)]'}`}>세금</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
