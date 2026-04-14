@@ -61,9 +61,9 @@ export default function SettingsPage() {
   const addBankMut = useMutation({
     mutationFn: () => upsertBankAccount({
       company_id: companyId!,
-      bank_name: bankForm.bank_name,
-      account_number: bankForm.account_number,
-      alias: bankForm.alias,
+      bank_name: bankForm.bank_name.trim(),
+      account_number: bankForm.account_number.trim(),
+      alias: bankForm.alias.trim(),
       role: bankForm.role,
       balance: Number(bankForm.balance) || 0,
       is_primary: bankForm.is_primary,
@@ -92,6 +92,14 @@ export default function SettingsPage() {
       setRuleForm({ cost_type: "default", bank_account_id: "" });
     },
   });
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShowBankForm(false); setShowRuleForm(false); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   async function save() {
     if (!companyId) return;
@@ -280,8 +288,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => bankForm.bank_name && bankForm.account_number && addBankMut.mutate()}
-                    disabled={!bankForm.bank_name || !bankForm.account_number || addBankMut.isPending}
+                    onClick={() => bankForm.bank_name.trim() && bankForm.account_number.trim() && addBankMut.mutate()}
+                    disabled={!bankForm.bank_name.trim() || !bankForm.account_number.trim() || addBankMut.isPending}
                     className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
                   >
                     추가
@@ -294,8 +302,9 @@ export default function SettingsPage() {
             )}
 
             {bankAccounts.length === 0 ? (
-              <div className="text-center py-8 text-sm text-[var(--text-muted)]">
-                등록된 통장이 없습니다
+              <div className="text-center py-8">
+                <div className="text-2xl mb-2">🏦</div>
+                <div className="text-sm text-[var(--text-muted)]">등록된 통장이 없습니다</div>
               </div>
             ) : (
               <div className="space-y-2">

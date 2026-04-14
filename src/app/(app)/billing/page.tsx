@@ -36,7 +36,7 @@ export default function BillingPage() {
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const qc = useQueryClient();
 
-  const { data: user, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
+  const { data: user, isLoading: isUserLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id;
 
   // 사용량 통계 (현재 월 기준)
@@ -162,6 +162,16 @@ export default function BillingPage() {
     },
   });
 
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (showUpgradeModal) { setShowUpgradeModal(null); return; }
+      if (showCancelModal) { setShowCancelModal(false); return; }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showUpgradeModal, showCancelModal]);
+
   // Handle Stripe checkout callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -237,6 +247,9 @@ export default function BillingPage() {
     { key: "invoices", label: "청구서", icon: "🧾" },
     { key: "referral", label: "추천/피드백", icon: "🎁" },
   ];
+
+  if (isUserLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">

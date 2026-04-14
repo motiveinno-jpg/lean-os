@@ -30,8 +30,10 @@ export default function PaymentsPage() {
         setCompanyId(u.company_id);
         setUserId(u.id);
       }
-    });
+    }).finally(() => setIsInitLoading(false));
   }, []);
+
+  const [isInitLoading, setIsInitLoading] = useState(true);
 
   const { data: queue = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["payment-queue", companyId],
@@ -55,6 +57,9 @@ export default function PaymentsPage() {
     { key: 'fixed', label: '고정비 일괄' },
     { key: 'recurring', label: '반복 결제 설정' },
   ];
+
+  if (isInitLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
     <div className="max-w-[1100px]">
@@ -144,6 +149,16 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const [refundStep, setRefundStep] = useState<1 | 2>(1);
   const [refundSubmitting, setRefundSubmitting] = useState(false);
 
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (receiptItem) { setReceiptItem(null); return; }
+      if (refundItem && !refundSubmitting) { setRefundItem(null); return; }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [receiptItem, refundItem, refundSubmitting]);
+
   async function submitRefund() {
     if (!refundItem || !refundReason.trim() || !userId) return;
     setRefundSubmitting(true);
@@ -178,12 +193,13 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     }
   }
 
-  const approveMut = useMutation({ mutationFn: (id: string) => approvePayment(id, userId), onSuccess: invalidate });
-  const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: invalidate });
-  const executeMut = useMutation({ mutationFn: (id: string) => executePayment(id), onSuccess: invalidate });
+  const approveMut = useMutation({ mutationFn: (id: string) => approvePayment(id, userId), onSuccess: () => { invalidate(); queueToast("승인되었습니다", "success"); }, onError: (err: Error) => { queueToast("승인 실패: " + (err?.message || ""), "error"); } });
+  const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: () => { invalidate(); queueToast("거부되었습니다", "success"); }, onError: (err: Error) => { queueToast("거부 실패: " + (err?.message || ""), "error"); } });
+  const executeMut = useMutation({ mutationFn: (id: string) => executePayment(id), onSuccess: () => { invalidate(); queueToast("실행 완료", "success"); }, onError: (err: Error) => { queueToast("실행 실패: " + (err?.message || ""), "error"); } });
   const createMut = useMutation({
     mutationFn: () => createQueueEntry({ companyId, amount: Number(form.amount), description: form.description }),
-    onSuccess: () => { invalidate(); setShowForm(false); setForm({ amount: "", description: "" }); },
+    onSuccess: () => { invalidate(); setShowForm(false); setForm({ amount: "", description: "" }); queueToast("결제가 등록되었습니다", "success"); },
+    onError: (err: Error) => { queueToast("등록 실패: " + (err?.message || ""), "error"); },
   });
 
   const filtered = filter === "all" ? queue : queue.filter((q: any) => q.status === filter);
@@ -552,12 +568,14 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
 
   const approveMut = useMutation({
     mutationFn: (batchId: string) => approveBatch(batchId, userId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); toast("급여 배치가 승인되었습니다", "success"); },
+    onError: (err: Error) => { toast("승인 실패: " + (err?.message || ""), "error"); },
   });
 
   const executeMut = useMutation({
     mutationFn: (batchId: string) => triggerBatchExecution(batchId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); toast("이체가 실행되었습니다", "success"); },
+    onError: (err: Error) => { toast("실행 실패: " + (err?.message || ""), "error"); },
   });
 
   async function handleGenerate() {
@@ -693,12 +711,14 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
   const approveMut = useMutation({
     mutationFn: (batchId: string) => approveBatch(batchId, userId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); toast("고정비 배치가 승인되었습니다", "success"); },
+    onError: (err: Error) => { toast("승인 실패: " + (err?.message || ""), "error"); },
   });
 
   const executeMut = useMutation({
     mutationFn: (batchId: string) => triggerBatchExecution(batchId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); toast("이체가 실행되었습니다", "success"); },
+    onError: (err: Error) => { toast("실행 실패: " + (err?.message || ""), "error"); },
   });
 
   async function handleGenerate() {
@@ -789,6 +809,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 // ── Tab 4: Recurring Payments ──
 
 function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+  const { toast: recurToast } = useToast();
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["bank-accounts", companyId],
     queryFn: () => getBankAccounts(companyId),
@@ -826,7 +847,9 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       invalidate();
       setShowForm(false);
       setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
+      recurToast("반복결제가 등록되었습니다", "success");
     },
+    onError: (err: Error) => { recurToast("등록 실패: " + (err?.message || ""), "error"); },
   });
 
   const toggleMut = useMutation({
@@ -838,7 +861,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       category: item.category,
       isActive: !item.is_active,
     }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }); recurToast("상태가 변경되었습니다", "success"); },
   });
 
   const categories: Record<string, string> = {
@@ -1304,6 +1327,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
 // ── Tab: 지출결의서/품의서 ──
 
 function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
+  const { toast: expToast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [requestType, setRequestType] = useState<'expense' | 'purchase_request'>('expense');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -1346,22 +1370,27 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       invalidate();
       setShowForm(false);
       setForm({ title: '', description: '', amount: '', category: 'general', dealId: '' });
+      expToast("지출결의가 등록되었습니다", "success");
     },
+    onError: (err: Error) => { expToast("등록 실패: " + (err?.message || ""), "error"); },
   });
 
   const approveMut = useMutation({
     mutationFn: (id: string) => approveExpense({ companyId, expenseId: id, approverId: userId }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); expToast("승인되었습니다", "success"); },
+    onError: (err: Error) => { expToast("승인 실패: " + (err?.message || ""), "error"); },
   });
 
   const rejectMut = useMutation({
     mutationFn: (id: string) => rejectExpense({ companyId, expenseId: id, approverId: userId }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); expToast("반려되었습니다", "success"); },
+    onError: (err: Error) => { expToast("반려 실패: " + (err?.message || ""), "error"); },
   });
 
   const paidMut = useMutation({
     mutationFn: (id: string) => markExpensePaid(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['expense-requests'] }); invalidate(); expToast("지급 처리되었습니다", "success"); },
+    onError: (err: Error) => { expToast("지급 처리 실패: " + (err?.message || ""), "error"); },
   });
 
   const categoryLabels: Record<string, string> = {};

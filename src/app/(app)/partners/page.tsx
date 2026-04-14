@@ -7,6 +7,7 @@ import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useToast } from "@/components/toast";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
@@ -109,6 +110,7 @@ function calcRelationshipScore(opts: { dealCount: number; contractTotal: number;
 
 export default function PartnersPage() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
@@ -171,6 +173,17 @@ export default function PartnersPage() {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (showModal) { setShowModal(false); setEditingId(null); setForm(EMPTY_FORM); return; }
+      if (detailPartner) { setDetailPartner(null); return; }
+      if (importPreview || importError) { if (!importing) { setImportPreview(null); setImportError(null); } return; }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showModal, detailPartner, importPreview, importError, importing]);
 
   const { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
@@ -307,7 +320,9 @@ export default function PartnersPage() {
       qc.invalidateQueries({ queryKey: ["partner-comms", detailPartner?.id] });
       setCommForm({ type: "phone", summary: "", notes: "" });
       setShowCommForm(false);
+      toast("커뮤니케이션이 기록되었습니다", "success");
     },
+    onError: (err: Error) => { toast("기록 실패: " + (err?.message || ""), "error"); },
   });
 
   const deleteCommMutation = useMutation({
@@ -317,6 +332,7 @@ export default function PartnersPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["partner-comms", detailPartner?.id] });
+      toast("기록이 삭제되었습니다", "success");
     },
   });
 
@@ -345,17 +361,19 @@ export default function PartnersPage() {
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       notes: form.notes || undefined,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast(editingId ? "거래처가 수정되었습니다" : "거래처가 등록되었습니다", "success"); },
+    onError: (err: Error) => { toast("저장 실패: " + (err?.message || "알 수 없는 오류"), "error"); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deletePartner(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast("거래처가 삭제되었습니다", "success"); },
+    onError: (err: Error) => { toast("삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"); },
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: (p: any) => upsertPartner({ id: p.id, companyId: companyId!, name: p.name, isActive: !p.is_active }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); toast("상태가 변경되었습니다", "success"); },
   });
 
   const openCreate = useCallback(() => {
@@ -432,6 +450,7 @@ export default function PartnersPage() {
       }
       setImportPreview(null);
       qc.invalidateQueries({ queryKey: ["partners"] });
+      toast(`${importPreview.length}건 거래처가 임포트되었습니다`, "success");
     } catch (err: any) {
       setImportError(`저장 실패: ${err?.message || "오류"}`);
     }

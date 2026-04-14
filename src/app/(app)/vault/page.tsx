@@ -94,7 +94,7 @@ export default function VaultPage() {
   const createAccMut = useMutation({
     mutationFn: () => createVaultAccount({
       companyId: companyId!,
-      serviceName: accForm.serviceName,
+      serviceName: accForm.serviceName.trim(),
       url: accForm.url || undefined,
       loginId: accForm.loginId || undefined,
       loginPassword: accForm.loginPassword || undefined,
@@ -116,7 +116,7 @@ export default function VaultPage() {
     mutationFn: () => createVaultAsset({
       companyId: companyId!,
       type: assetForm.type,
-      name: assetForm.name,
+      name: assetForm.name.trim(),
       purchaseDate: assetForm.purchaseDate || undefined,
       value: Number(assetForm.value) || 0,
       location: assetForm.location || undefined,
@@ -134,7 +134,7 @@ export default function VaultPage() {
     mutationFn: () => createVaultDoc({
       companyId: companyId!,
       category: docForm.category,
-      name: docForm.name,
+      name: docForm.name.trim(),
       fileUrl: docForm.fileUrl || undefined,
       linkedDealId: docForm.linkedDealId || undefined,
       expiryDate: docForm.expiryDate || undefined,
@@ -276,6 +276,14 @@ export default function VaultPage() {
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
 
   useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShowAccessLogId(null); setShowForm(false); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  useEffect(() => {
     if (!usageKey) return;
     try { setUsage(JSON.parse(localStorage.getItem(usageKey) || "{}")); } catch { setUsage({}); }
   }, [usageKey]);
@@ -393,6 +401,8 @@ export default function VaultPage() {
     { key: "docs", label: "문서", count: vault?.docs?.length || 0 },
     { key: "discovery", label: "자동 탐지", count: stats.pendingDiscoveryCount },
   ];
+
+  if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
     <div className="max-w-[900px]">
@@ -683,7 +693,7 @@ export default function VaultPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { if (!accForm.serviceName) return; if (editingId) updateAccMut.mutate(); else createAccMut.mutate(); }} disabled={!accForm.serviceName || createAccMut.isPending || updateAccMut.isPending}
+            <button onClick={() => { if (!accForm.serviceName.trim()) return; if (editingId) updateAccMut.mutate(); else createAccMut.mutate(); }} disabled={!accForm.serviceName.trim() || createAccMut.isPending || updateAccMut.isPending}
               className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
@@ -730,7 +740,7 @@ export default function VaultPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { if (!assetForm.name) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name || createAssetMut.isPending || updateAssetMut.isPending}
+            <button onClick={() => { if (!assetForm.name.trim()) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name.trim() || createAssetMut.isPending || updateAssetMut.isPending}
               className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 자산을 삭제하시겠습니까?")) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
               className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
@@ -804,7 +814,7 @@ export default function VaultPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { if (!docForm.name) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name || createDocMut.isPending || updateDocMut.isPending}
+            <button onClick={() => { if (!docForm.name.trim()) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name.trim() || createDocMut.isPending || updateDocMut.isPending}
               className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 문서를 삭제하시겠습니까?")) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
               className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
@@ -815,7 +825,7 @@ export default function VaultPage() {
 
       {/* ═══ Accounts Tab ═══ */}
       {tab === "accounts" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
           {!vault?.accounts?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🔐</div>
@@ -823,7 +833,7 @@ export default function VaultPage() {
               <div className="text-sm text-[var(--text-muted)]">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
@@ -948,7 +958,7 @@ export default function VaultPage() {
 
       {/* ═══ Assets Tab ═══ */}
       {tab === "assets" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
           {!vault?.assets?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📦</div>
@@ -956,7 +966,7 @@ export default function VaultPage() {
               <div className="text-sm text-[var(--text-muted)]">유형/무형 자산을 등록하세요</div>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
@@ -1005,7 +1015,7 @@ export default function VaultPage() {
 
       {/* ═══ Docs Tab ═══ */}
       {tab === "docs" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
           {!vault?.docs?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📄</div>
@@ -1013,7 +1023,7 @@ export default function VaultPage() {
               <div className="text-sm text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>

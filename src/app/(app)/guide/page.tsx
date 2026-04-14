@@ -1,1022 +1,524 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
 
 // ── Types ──
-type GuideCategory = {
+type CategoryTab = '전체' | '재무' | '영업' | 'HR' | '운영';
+
+type GuideFeature = {
   id: string;
   icon: string;
-  name: string;
+  title: string;
+  category: CategoryTab;
   description: string;
   route: string;
-  steps: GuideStep[];
+  keyFeatures: string[];
+  tips?: string;
 };
 
-type GuideStep = {
-  title: string;
-  description: string;
-  // Cursor animation positions: [startX%, startY%] -> [endX%, endY%]
-  cursorFrom: [number, number];
-  cursorTo: [number, number];
-  clickAt: [number, number];
-  // Mockup elements to render
-  mockElements: MockElement[];
-  spotlightArea?: { x: number; y: number; w: number; h: number };
-};
-
-type MockElement = {
-  type: 'button' | 'card' | 'input' | 'table-row' | 'tab' | 'badge' | 'chart-bar' | 'text' | 'icon-btn';
-  label: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  color?: string;
-  highlight?: boolean;
-};
-
-// ── Categories Data ──
-const CATEGORIES: GuideCategory[] = [
+// ── Feature Data (14 features) ──
+const FEATURES: GuideFeature[] = [
   {
     id: 'dashboard',
     icon: '📊',
-    name: '대시보드',
-    description: '6-Pack 생존지표, 승인 대기, 재무 드릴다운',
+    title: '대시보드',
+    category: '재무',
+    description:
+      '회사의 생존지표 6-Pack(현금잔고, 번율, 런웨이, 매출채권, 매입채무, 미수금)을 실시간으로 모니터링합니다. AI 브리핑이 매일 아침 핵심 변동사항을 요약해 드리며, 승인 대기 항목도 한눈에 처리할 수 있습니다.',
     route: '/dashboard',
-    steps: [
-      {
-        title: '생존지표 6-Pack 확인',
-        description: '현금 잔고, 번율, 런웨이, 매출채권, 매입채무, 미수금 등 핵심 지표를 한눈에 파악합니다.',
-        cursorFrom: [10, 10], cursorTo: [50, 30], clickAt: [50, 30],
-        mockElements: [
-          { type: 'card', label: '현금 잔고', x: 5, y: 10, w: 28, h: 35, color: '#2563eb' },
-          { type: 'card', label: '런웨이', x: 36, y: 10, w: 28, h: 35, color: '#16a34a' },
-          { type: 'card', label: '번율', x: 67, y: 10, w: 28, h: 35, color: '#ea580c' },
-          { type: 'chart-bar', label: '', x: 5, y: 55, w: 90, h: 35 },
-        ],
-      },
-      {
-        title: '승인 대기 처리',
-        description: '결제 승인, 문서 승인 등 대기 중인 항목을 빠르게 처리합니다.',
-        cursorFrom: [80, 10], cursorTo: [85, 55], clickAt: [85, 55],
-        mockElements: [
-          { type: 'card', label: '승인 대기 3건', x: 60, y: 10, w: 35, h: 15, color: '#dc2626', highlight: true },
-          { type: 'table-row', label: '결제 요청 #1042', x: 60, y: 30, w: 35, h: 10 },
-          { type: 'table-row', label: '문서 승인 #2087', x: 60, y: 42, w: 35, h: 10 },
-          { type: 'button', label: '승인', x: 78, y: 55, w: 15, h: 8, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '재무 드릴다운',
-        description: '매출/비용 항목을 클릭하면 하위 상세 내역까지 드릴다운하여 확인할 수 있습니다.',
-        cursorFrom: [10, 50], cursorTo: [30, 65], clickAt: [30, 65],
-        mockElements: [
-          { type: 'chart-bar', label: '월별 매출', x: 5, y: 10, w: 55, h: 40 },
-          { type: 'card', label: '매출 상세', x: 5, y: 55, w: 55, h: 38, highlight: true },
-          { type: 'table-row', label: '제품 A — ₩12,500,000', x: 8, y: 65, w: 48, h: 8 },
-          { type: 'table-row', label: '제품 B — ₩8,300,000', x: 8, y: 75, w: 48, h: 8 },
-        ],
-      },
+    keyFeatures: [
+      '6-Pack 생존지표 카드 — 현금잔고, 번율, 런웨이, 매출채권, 매입채무, 미수금',
+      'AI 데일리 브리핑 — 전일 대비 변동사항 자동 요약',
+      '승인 대기함 — 결제/문서/휴가 승인을 대시보드에서 즉시 처리',
+      '재무 드릴다운 — 매출/비용 항목 클릭 시 상세 내역 확인',
+      '기간별 트렌드 차트 — 월별/분기별 추이 시각화',
     ],
+    tips: '대시보드는 로그인 후 첫 화면입니다. 매일 아침 확인하면 회사 상태를 빠르게 파악할 수 있습니다.',
   },
   {
     id: 'deals',
     icon: '📋',
-    name: '프로젝트/딜',
-    description: '딜 생성, 칸반보드, 파이프라인, 마일스톤',
+    title: '딜 파이프라인',
+    category: '영업',
+    description:
+      '프로젝트와 거래(딜)를 생성하고, 진행 상태를 칸반보드/테이블/캘린더/간트차트 4가지 뷰로 관리합니다. 리드부터 성사까지 전 과정을 추적하며, 파이프라인 금액과 전환율을 실시간으로 확인할 수 있습니다.',
     route: '/deals',
-    steps: [
-      {
-        title: '새 딜 생성',
-        description: '"+ 새 딜" 버튼을 눌러 거래처, 금액, 담당자 등 기본 정보를 입력합니다.',
-        cursorFrom: [80, 5], cursorTo: [88, 8], clickAt: [88, 8],
-        mockElements: [
-          { type: 'button', label: '+ 새 딜', x: 80, y: 3, w: 15, h: 8, color: '#2563eb', highlight: true },
-          { type: 'input', label: '딜 이름', x: 25, y: 25, w: 50, h: 8 },
-          { type: 'input', label: '거래처', x: 25, y: 38, w: 50, h: 8 },
-          { type: 'input', label: '예상 금액', x: 25, y: 51, w: 50, h: 8 },
-        ],
-      },
-      {
-        title: '칸반보드로 딜 관리',
-        description: '드래그 앤 드롭으로 딜의 진행 상태를 변경합니다. (리드 → 제안 → 협상 → 성사)',
-        cursorFrom: [15, 40], cursorTo: [55, 40], clickAt: [55, 40],
-        mockElements: [
-          { type: 'card', label: '리드', x: 3, y: 10, w: 22, h: 80, color: '#94a3b8' },
-          { type: 'card', label: '제안', x: 27, y: 10, w: 22, h: 80, color: '#3b82f6' },
-          { type: 'card', label: '협상', x: 51, y: 10, w: 22, h: 80, color: '#f59e0b', highlight: true },
-          { type: 'card', label: '성사', x: 75, y: 10, w: 22, h: 80, color: '#22c55e' },
-        ],
-      },
-      {
-        title: '파이프라인 현황 확인',
-        description: '전체 딜의 단계별 금액과 전환율을 시각적으로 확인합니다.',
-        cursorFrom: [5, 15], cursorTo: [50, 30], clickAt: [50, 30],
-        mockElements: [
-          { type: 'chart-bar', label: '파이프라인', x: 5, y: 10, w: 90, h: 35 },
-          { type: 'badge', label: '총 12건 / ₩1.2억', x: 5, y: 50, w: 30, h: 8, color: '#2563eb' },
-          { type: 'badge', label: '전환율 34%', x: 38, y: 50, w: 22, h: 8, color: '#22c55e' },
-        ],
-      },
-      {
-        title: '마일스톤 추적',
-        description: '딜 상세에서 마일스톤을 설정하고 진척도를 관리합니다.',
-        cursorFrom: [10, 60], cursorTo: [45, 75], clickAt: [45, 75],
-        mockElements: [
-          { type: 'table-row', label: '1단계: 샘플 발송 ✅', x: 10, y: 60, w: 60, h: 8 },
-          { type: 'table-row', label: '2단계: 견적 확정 ✅', x: 10, y: 70, w: 60, h: 8 },
-          { type: 'table-row', label: '3단계: 계약서 서명 🔄', x: 10, y: 80, w: 60, h: 8, highlight: true },
-        ],
-      },
+    keyFeatures: [
+      '4가지 뷰 — 칸반보드, 테이블, 캘린더, 간트차트',
+      '드래그 앤 드롭 — 칸반에서 딜 상태를 직관적으로 변경',
+      '파이프라인 대시보드 — 단계별 금액, 건수, 전환율 시각화',
+      '마일스톤 추적 — 딜별 세부 단계와 진척도 관리',
+      '거래처 연동 — 딜에서 바로 거래처/담당자 확인',
     ],
-  },
-  {
-    id: 'partners',
-    icon: '🏢',
-    name: '거래처 CRM',
-    description: '거래처 등록, 파트너 초대, 360도 뷰',
-    route: '/partners',
-    steps: [
-      {
-        title: '거래처 등록',
-        description: '사업자등록번호, 회사명, 연락처 등을 입력하여 새 거래처를 등록합니다.',
-        cursorFrom: [80, 5], cursorTo: [88, 8], clickAt: [88, 8],
-        mockElements: [
-          { type: 'button', label: '+ 거래처 등록', x: 75, y: 3, w: 20, h: 8, color: '#2563eb', highlight: true },
-          { type: 'input', label: '사업자등록번호', x: 20, y: 25, w: 55, h: 8 },
-          { type: 'input', label: '회사명', x: 20, y: 38, w: 55, h: 8 },
-          { type: 'input', label: '대표 연락처', x: 20, y: 51, w: 55, h: 8 },
-        ],
-      },
-      {
-        title: '파트너 초대',
-        description: '이메일로 거래처를 초대하여 공동 작업 환경을 구축합니다.',
-        cursorFrom: [60, 20], cursorTo: [75, 35], clickAt: [75, 35],
-        mockElements: [
-          { type: 'input', label: 'partner@example.com', x: 20, y: 25, w: 45, h: 8 },
-          { type: 'button', label: '초대 전송', x: 68, y: 25, w: 15, h: 8, color: '#2563eb', highlight: true },
-          { type: 'badge', label: '대기 중 2명', x: 20, y: 40, w: 18, h: 7, color: '#f59e0b' },
-          { type: 'badge', label: '활성 5명', x: 42, y: 40, w: 15, h: 7, color: '#22c55e' },
-        ],
-      },
-      {
-        title: '360도 뷰',
-        description: '거래처별 딜, 결제, 문서, 채팅 이력을 한곳에서 확인할 수 있습니다. 거래처 상세 페이지에서 모든 연관 데이터를 통합 조회합니다.',
-        cursorFrom: [10, 30], cursorTo: [50, 50], clickAt: [50, 50],
-        mockElements: [
-          { type: 'tab', label: '딜 내역', x: 5, y: 10, w: 20, h: 7, highlight: true },
-          { type: 'tab', label: '결제', x: 27, y: 10, w: 15, h: 7 },
-          { type: 'tab', label: '문서', x: 44, y: 10, w: 15, h: 7 },
-          { type: 'tab', label: '채팅', x: 61, y: 10, w: 15, h: 7 },
-          { type: 'card', label: '총 거래액 ₩85,000,000', x: 5, y: 25, w: 40, h: 15, color: '#2563eb' },
-          { type: 'card', label: '진행 딜 3건', x: 50, y: 25, w: 40, h: 15, color: '#16a34a' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'payments',
-    icon: '💰',
-    name: '결제 관리',
-    description: '결제 요청, 대표 승인, 급여 배치',
-    route: '/payments',
-    steps: [
-      {
-        title: '결제 요청 생성',
-        description: '결제 항목, 금액, 계좌를 선택하여 결제 요청을 등록합니다.',
-        cursorFrom: [80, 5], cursorTo: [88, 8], clickAt: [88, 8],
-        mockElements: [
-          { type: 'button', label: '+ 결제 요청', x: 78, y: 3, w: 18, h: 8, color: '#2563eb', highlight: true },
-          { type: 'input', label: '결제 항목', x: 20, y: 25, w: 55, h: 8 },
-          { type: 'input', label: '금액', x: 20, y: 38, w: 30, h: 8 },
-          { type: 'input', label: '수취 계좌', x: 20, y: 51, w: 55, h: 8 },
-        ],
-      },
-      {
-        title: '대표 승인 처리',
-        description: '대기 중인 결제를 확인하고 승인/반려 처리합니다.',
-        cursorFrom: [30, 40], cursorTo: [80, 55], clickAt: [80, 55],
-        mockElements: [
-          { type: 'table-row', label: '외주비 결제 — ₩5,500,000', x: 5, y: 30, w: 65, h: 10 },
-          { type: 'table-row', label: '사무용품 — ₩320,000', x: 5, y: 42, w: 65, h: 10 },
-          { type: 'button', label: '승인', x: 72, y: 30, w: 12, h: 8, color: '#22c55e', highlight: true },
-          { type: 'button', label: '반려', x: 86, y: 30, w: 10, h: 8, color: '#ef4444' },
-        ],
-      },
-      {
-        title: '급여 배치 실행',
-        description: '월 급여를 배치로 생성하고 일괄 승인하여 처리합니다.',
-        cursorFrom: [10, 60], cursorTo: [50, 75], clickAt: [50, 75],
-        mockElements: [
-          { type: 'card', label: '2026년 3월 급여', x: 5, y: 10, w: 50, h: 12, color: '#2563eb' },
-          { type: 'table-row', label: '김직원 — ₩3,200,000', x: 5, y: 30, w: 60, h: 8 },
-          { type: 'table-row', label: '박대리 — ₩3,800,000', x: 5, y: 40, w: 60, h: 8 },
-          { type: 'button', label: '배치 승인', x: 35, y: 55, w: 20, h: 8, color: '#2563eb', highlight: true },
-          { type: 'badge', label: '총 ₩7,000,000', x: 5, y: 55, w: 22, h: 8, color: '#64748b' },
-        ],
-      },
-    ],
+    tips: '칸반보드에서 카드를 드래그하면 딜 상태가 자동으로 변경됩니다.',
   },
   {
     id: 'tax-invoices',
     icon: '🧾',
-    name: '세금계산서',
-    description: '발행, 3-Way 매칭, 홈택스 임포트',
+    title: '세금계산서',
+    category: '재무',
+    description:
+      '전자세금계산서를 발행하고, 수신한 계산서를 관리합니다. 홈택스 엑셀 파일을 임포트할 수 있으며, 세금계산서-발주서-입고증 간 3-Way 매칭으로 누락이나 불일치를 자동 검증합니다.',
     route: '/tax-invoices',
-    steps: [
-      {
-        title: '세금계산서 발행',
-        description: '거래처, 품목, 금액을 입력하여 전자세금계산서를 발행합니다.',
-        cursorFrom: [80, 5], cursorTo: [88, 8], clickAt: [88, 8],
-        mockElements: [
-          { type: 'button', label: '+ 계산서 발행', x: 75, y: 3, w: 20, h: 8, color: '#2563eb', highlight: true },
-          { type: 'input', label: '공급받는자', x: 15, y: 25, w: 60, h: 8 },
-          { type: 'input', label: '공급가액', x: 15, y: 38, w: 30, h: 8 },
-          { type: 'text', label: '세액 (자동계산)', x: 48, y: 38, w: 25, h: 8 },
-        ],
-      },
-      {
-        title: '3-Way 매칭',
-        description: '세금계산서 ↔ 발주서 ↔ 입고증을 자동으로 매칭하여 검증합니다.',
-        cursorFrom: [20, 30], cursorTo: [50, 50], clickAt: [50, 50],
-        mockElements: [
-          { type: 'card', label: '세금계산서', x: 5, y: 20, w: 28, h: 25, color: '#2563eb' },
-          { type: 'card', label: '발주서', x: 36, y: 20, w: 28, h: 25, color: '#8b5cf6' },
-          { type: 'card', label: '입고증', x: 67, y: 20, w: 28, h: 25, color: '#22c55e' },
-          { type: 'badge', label: '매칭 완료 ✓', x: 35, y: 52, w: 25, h: 8, color: '#22c55e', highlight: true },
-        ],
-      },
-      {
-        title: '홈택스 임포트',
-        description: '홈택스에서 다운받은 엑셀 파일을 업로드하면 자동으로 등록됩니다.',
-        cursorFrom: [10, 15], cursorTo: [30, 20], clickAt: [30, 20],
-        mockElements: [
-          { type: 'button', label: '홈택스 임포트', x: 5, y: 5, w: 22, h: 8, color: '#2563eb', highlight: true },
-          { type: 'card', label: 'Excel 파일을 드래그하세요', x: 15, y: 25, w: 65, h: 30, color: '#94a3b8' },
-          { type: 'badge', label: '23건 임포트 완료', x: 30, y: 65, w: 30, h: 8, color: '#22c55e' },
-        ],
-      },
+    keyFeatures: [
+      '전자세금계산서 발행 — 거래처/품목/금액 입력, 세액 자동계산',
+      '3-Way 매칭 — 세금계산서 + 발주서 + 입고증 자동 대사',
+      '홈택스 임포트 — 엑셀 파일 업로드로 일괄 등록',
+      '매입/매출 분류 — 탭으로 구분하여 관리',
+      '부가세 신고 지원 — 기간별 합계 자동 집계',
     ],
+    tips: '홈택스에서 다운받은 엑셀을 드래그 앤 드롭하면 한 번에 등록됩니다.',
   },
   {
     id: 'transactions',
     icon: '🏦',
-    name: '거래내역',
-    description: '거래내역 확인, AI 자동 분류',
+    title: '거래내역',
+    category: '재무',
+    description:
+      '법인 계좌의 입출금 거래내역을 조회하고, AI가 거래 내용을 분석하여 계정과목을 자동 분류합니다. 분류 결과를 검토하고 필요시 수동 수정할 수 있어 회계 처리 시간을 크게 줄여줍니다.',
     route: '/transactions',
-    steps: [
-      {
-        title: '거래내역 조회',
-        description: '연결된 계좌의 거래내역을 기간별, 분류별로 필터링하여 확인합니다.',
-        cursorFrom: [10, 10], cursorTo: [30, 15], clickAt: [30, 15],
-        mockElements: [
-          { type: 'input', label: '2026.01 ~ 2026.03', x: 5, y: 5, w: 30, h: 8, highlight: true },
-          { type: 'tab', label: '전체', x: 5, y: 18, w: 12, h: 6, highlight: true },
-          { type: 'tab', label: '입금', x: 19, y: 18, w: 12, h: 6 },
-          { type: 'tab', label: '출금', x: 33, y: 18, w: 12, h: 6 },
-          { type: 'table-row', label: '(주)ABC 입금 — ₩15,000,000', x: 5, y: 30, w: 70, h: 8 },
-          { type: 'table-row', label: '급여 출금 — ₩7,000,000', x: 5, y: 40, w: 70, h: 8 },
-          { type: 'table-row', label: '사무실 임대료 — ₩1,500,000', x: 5, y: 50, w: 70, h: 8 },
-        ],
-      },
-      {
-        title: 'AI 자동 분류',
-        description: 'AI가 거래내역을 분석하여 계정과목을 자동으로 분류합니다.',
-        cursorFrom: [75, 5], cursorTo: [85, 8], clickAt: [85, 8],
-        mockElements: [
-          { type: 'button', label: 'AI 분류 실행', x: 75, y: 3, w: 20, h: 8, color: '#8b5cf6', highlight: true },
-          { type: 'table-row', label: '인건비 → 급여', x: 10, y: 30, w: 50, h: 8 },
-          { type: 'badge', label: '95%', x: 62, y: 30, w: 10, h: 8, color: '#22c55e' },
-          { type: 'table-row', label: '임차료 → 임대료', x: 10, y: 42, w: 50, h: 8 },
-          { type: 'badge', label: '92%', x: 62, y: 42, w: 10, h: 8, color: '#22c55e' },
-          { type: 'table-row', label: '기타 → 미분류', x: 10, y: 54, w: 50, h: 8 },
-          { type: 'badge', label: '확인 필요', x: 62, y: 54, w: 15, h: 8, color: '#f59e0b' },
-        ],
-      },
-      {
-        title: '분류 결과 확인 및 수정',
-        description: 'AI 분류 결과를 검토하고 필요한 경우 수동으로 수정합니다.',
-        cursorFrom: [60, 54], cursorTo: [65, 57], clickAt: [65, 57],
-        mockElements: [
-          { type: 'table-row', label: '기타 출금 — ₩350,000', x: 10, y: 25, w: 55, h: 10 },
-          { type: 'badge', label: '미분류', x: 67, y: 27, w: 12, h: 6, color: '#f59e0b', highlight: true },
-          { type: 'card', label: '계정과목 선택', x: 60, y: 40, w: 30, h: 30, color: '#e2e8f0' },
-          { type: 'text', label: '접대비', x: 63, y: 48, w: 24, h: 5 },
-          { type: 'text', label: '복리후생비', x: 63, y: 55, w: 24, h: 5 },
-          { type: 'text', label: '소모품비', x: 63, y: 62, w: 24, h: 5 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'matching',
-    icon: '🔍',
-    name: '매칭 엔진',
-    description: '세금계산서↔거래 자동 매칭',
-    route: '/matching',
-    steps: [
-      {
-        title: '자동 매칭 실행',
-        description: '"매칭 실행" 버튼으로 세금계산서와 거래내역을 AI가 자동 매칭합니다.',
-        cursorFrom: [70, 5], cursorTo: [85, 8], clickAt: [85, 8],
-        mockElements: [
-          { type: 'button', label: '매칭 실행', x: 75, y: 3, w: 20, h: 8, color: '#2563eb', highlight: true },
-          { type: 'card', label: '미매칭 12건', x: 5, y: 18, w: 25, h: 12, color: '#ef4444' },
-          { type: 'card', label: '매칭 완료 48건', x: 35, y: 18, w: 25, h: 12, color: '#22c55e' },
-          { type: 'card', label: '확인 필요 3건', x: 65, y: 18, w: 25, h: 12, color: '#f59e0b' },
-        ],
-      },
-      {
-        title: '매칭 결과 검토',
-        description: '자동 매칭된 결과를 검토하고 신뢰도가 낮은 항목을 수동으로 확인합니다.',
-        cursorFrom: [10, 40], cursorTo: [50, 55], clickAt: [50, 55],
-        mockElements: [
-          { type: 'table-row', label: '세금계산서 #1024 ↔ 입금 03/01', x: 5, y: 38, w: 70, h: 8 },
-          { type: 'badge', label: '98%', x: 78, y: 38, w: 10, h: 8, color: '#22c55e' },
-          { type: 'table-row', label: '세금계산서 #1025 ↔ 입금 03/02', x: 5, y: 48, w: 70, h: 8, highlight: true },
-          { type: 'badge', label: '72%', x: 78, y: 48, w: 10, h: 8, color: '#f59e0b' },
-          { type: 'button', label: '확인', x: 78, y: 58, w: 12, h: 7, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '수동 매칭',
-        description: '자동 매칭이 어려운 건을 직접 세금계산서와 거래를 연결합니다.',
-        cursorFrom: [15, 35], cursorTo: [55, 55], clickAt: [55, 55],
-        mockElements: [
-          { type: 'card', label: '세금계산서 목록', x: 3, y: 10, w: 45, h: 80, color: '#e2e8f0' },
-          { type: 'card', label: '거래내역 목록', x: 52, y: 10, w: 45, h: 80, color: '#e2e8f0' },
-          { type: 'table-row', label: '#1030 — ₩2,200,000', x: 6, y: 25, w: 38, h: 8, highlight: true },
-          { type: 'table-row', label: '03/05 입금 ₩2,200,000', x: 55, y: 35, w: 38, h: 8, highlight: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'documents',
-    icon: '📝',
-    name: '문서/계약',
-    description: '문서 생성, 전자서명, 리비전',
-    route: '/documents',
-    steps: [
-      {
-        title: '문서 템플릿 선택',
-        description: 'PI, CI, PL, 계약서 등 필요한 문서 템플릿을 선택합니다.',
-        cursorFrom: [20, 20], cursorTo: [35, 35], clickAt: [35, 35],
-        mockElements: [
-          { type: 'card', label: 'PI (견적서)', x: 5, y: 15, w: 28, h: 25, color: '#2563eb' },
-          { type: 'card', label: 'CI (상업송장)', x: 36, y: 15, w: 28, h: 25, color: '#8b5cf6' },
-          { type: 'card', label: 'PL (포장명세)', x: 67, y: 15, w: 28, h: 25, color: '#ea580c' },
-          { type: 'card', label: '계약서', x: 5, y: 48, w: 28, h: 25, color: '#22c55e', highlight: true },
-        ],
-      },
-      {
-        title: '전자서명 요청',
-        description: '문서를 생성한 뒤, 상대방에게 전자서명을 요청합니다.',
-        cursorFrom: [60, 40], cursorTo: [80, 50], clickAt: [80, 50],
-        mockElements: [
-          { type: 'card', label: '계약서 미리보기', x: 5, y: 10, w: 55, h: 75, color: '#f1f5f9' },
-          { type: 'button', label: '서명 요청', x: 65, y: 45, w: 18, h: 8, color: '#2563eb', highlight: true },
-          { type: 'badge', label: '상태: 작성완료', x: 65, y: 20, w: 25, h: 7, color: '#f59e0b' },
-        ],
-      },
-      {
-        title: '리비전 관리',
-        description: '문서 수정 이력을 추적하고 이전 버전과 비교합니다.',
-        cursorFrom: [65, 60], cursorTo: [80, 70], clickAt: [80, 70],
-        mockElements: [
-          { type: 'table-row', label: 'v3 — 2026.03.04 (현재)', x: 10, y: 30, w: 60, h: 8, highlight: true },
-          { type: 'table-row', label: 'v2 — 2026.03.02', x: 10, y: 40, w: 60, h: 8 },
-          { type: 'table-row', label: 'v1 — 2026.02.28 (초안)', x: 10, y: 50, w: 60, h: 8 },
-          { type: 'button', label: '비교', x: 73, y: 30, w: 12, h: 7, color: '#8b5cf6', highlight: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'chat',
-    icon: '💬',
-    name: '팀 채팅',
-    description: '채널, 딜별 채팅, 멘션, 액션카드',
-    route: '/chat',
-    steps: [
-      {
-        title: '채널 참여',
-        description: '팀 채널, 프로젝트 채널, DM 등 필요한 채팅방에 참여합니다.',
-        cursorFrom: [5, 20], cursorTo: [20, 35], clickAt: [20, 35],
-        mockElements: [
-          { type: 'card', label: '채널 목록', x: 2, y: 5, w: 25, h: 90, color: '#f8fafc' },
-          { type: 'text', label: '# 일반', x: 4, y: 15, w: 20, h: 5 },
-          { type: 'text', label: '# 영업팀', x: 4, y: 22, w: 20, h: 5 },
-          { type: 'text', label: '# 딜-ABC컴퍼니', x: 4, y: 29, w: 20, h: 5, highlight: true },
-          { type: 'card', label: '채팅 영역', x: 30, y: 5, w: 67, h: 90, color: '#f8fafc' },
-        ],
-      },
-      {
-        title: '멘션으로 알림',
-        description: '@이름으로 팀원을 멘션하면 즉시 알림이 전달됩니다.',
-        cursorFrom: [35, 85], cursorTo: [55, 88], clickAt: [55, 88],
-        mockElements: [
-          { type: 'card', label: '채팅 영역', x: 5, y: 5, w: 90, h: 75 },
-          { type: 'input', label: '@김팀장 견적서 확인 부탁드립니다', x: 5, y: 83, w: 75, h: 10, highlight: true },
-          { type: 'button', label: '전송', x: 82, y: 83, w: 12, h: 10, color: '#2563eb' },
-        ],
-      },
-      {
-        title: '액션카드 생성',
-        description: '채팅 내에서 바로 결제 요청, 문서 생성 등 액션카드를 만듭니다.',
-        cursorFrom: [40, 50], cursorTo: [55, 55], clickAt: [55, 55],
-        mockElements: [
-          { type: 'card', label: '💰 결제 요청 액션카드', x: 15, y: 25, w: 50, h: 30, color: '#eff6ff', highlight: true },
-          { type: 'text', label: '금액: ₩5,500,000', x: 20, y: 35, w: 30, h: 5 },
-          { type: 'text', label: '항목: 외주 개발비', x: 20, y: 42, w: 30, h: 5 },
-          { type: 'button', label: '승인', x: 25, y: 49, w: 12, h: 5, color: '#22c55e' },
-          { type: 'button', label: '반려', x: 40, y: 49, w: 12, h: 5, color: '#ef4444' },
-        ],
-      },
+    keyFeatures: [
+      '거래내역 조회 — 기간별, 입금/출금 필터링',
+      'AI 자동 분류 — 거래 내용 분석 후 계정과목 자동 매핑',
+      '신뢰도 표시 — AI 분류 결과에 대한 확신도 퍼센트 제공',
+      '수동 수정 — 미분류/오분류 항목을 직접 계정과목 지정',
+      '분류 학습 — 수동 수정 내역을 AI가 학습하여 정확도 향상',
     ],
   },
   {
     id: 'employees',
     icon: '👥',
-    name: '인사/급여',
-    description: '직원 등록, 급여 자동계산, 근태',
+    title: '직원관리',
+    category: 'HR',
+    description:
+      '직원 인사정보를 등록하고, 연봉 기준으로 4대보험과 소득세를 자동 계산하여 급여명세서를 생성합니다. 출퇴근 기록, 연차 관리, 초과근무 현황까지 HR 업무를 한곳에서 처리할 수 있습니다.',
     route: '/employees',
-    steps: [
-      {
-        title: '직원 등록',
-        description: '이름, 부서, 직급, 연봉 등 기본 인사 정보를 등록합니다.',
-        cursorFrom: [80, 5], cursorTo: [88, 8], clickAt: [88, 8],
-        mockElements: [
-          { type: 'button', label: '+ 직원 등록', x: 78, y: 3, w: 18, h: 8, color: '#2563eb', highlight: true },
-          { type: 'input', label: '이름', x: 20, y: 22, w: 55, h: 8 },
-          { type: 'input', label: '부서', x: 20, y: 34, w: 25, h: 8 },
-          { type: 'input', label: '직급', x: 48, y: 34, w: 25, h: 8 },
-          { type: 'input', label: '연봉', x: 20, y: 46, w: 55, h: 8 },
-        ],
-      },
-      {
-        title: '급여 자동 계산',
-        description: '연봉 기준으로 4대보험, 소득세를 자동 계산하여 급여명세서를 생성합니다.',
-        cursorFrom: [10, 25], cursorTo: [40, 40], clickAt: [40, 40],
-        mockElements: [
-          { type: 'card', label: '급여 계산', x: 5, y: 10, w: 55, h: 50, color: '#f8fafc' },
-          { type: 'text', label: '기본급: ₩3,333,333', x: 10, y: 22, w: 40, h: 5 },
-          { type: 'text', label: '국민연금: -₩150,000', x: 10, y: 30, w: 40, h: 5 },
-          { type: 'text', label: '건강보험: -₩111,960', x: 10, y: 38, w: 40, h: 5 },
-          { type: 'text', label: '소득세: -₩85,420', x: 10, y: 46, w: 40, h: 5 },
-          { type: 'badge', label: '실수령: ₩2,985,953', x: 10, y: 55, w: 30, h: 8, color: '#2563eb' },
-        ],
-      },
-      {
-        title: '근태 관리',
-        description: '출퇴근 기록, 연차 사용 내역, 초과근무를 한눈에 관리합니다.',
-        cursorFrom: [60, 20], cursorTo: [75, 35], clickAt: [75, 35],
-        mockElements: [
-          { type: 'tab', label: '출퇴근', x: 5, y: 8, w: 15, h: 7, highlight: true },
-          { type: 'tab', label: '연차', x: 22, y: 8, w: 12, h: 7 },
-          { type: 'tab', label: '초과근무', x: 36, y: 8, w: 15, h: 7 },
-          { type: 'table-row', label: '03/04 — 09:02 ~ 18:15', x: 5, y: 22, w: 60, h: 8 },
-          { type: 'table-row', label: '03/03 — 08:55 ~ 18:30', x: 5, y: 32, w: 60, h: 8 },
-          { type: 'badge', label: '잔여 연차: 12일', x: 70, y: 22, w: 22, h: 8, color: '#2563eb' },
-        ],
-      },
+    keyFeatures: [
+      '인사정보 관리 — 이름, 부서, 직급, 입사일, 연봉 등록',
+      '급여 자동계산 — 4대보험(국민연금/건강/고용/산재) + 소득세 산출',
+      '급여명세서 생성 — 기본급, 공제항목, 실수령액 자동 계산',
+      '근태 관리 — 출퇴근 기록, 연차 잔여일, 초과근무 추적',
+      '급여 배치 — 월급여 일괄 생성 및 승인 처리',
+    ],
+    tips: '연봉을 입력하면 실수령액이 즉시 계산되어 표시됩니다.',
+  },
+  {
+    id: 'documents',
+    icon: '📝',
+    title: '문서관리',
+    category: '운영',
+    description:
+      'PI(견적서), CI(상업송장), PL(포장명세), 계약서 등 비즈니스 문서를 템플릿 기반으로 빠르게 생성합니다. 문서 버전 관리(리비전)를 지원하여 수정 이력을 추적하고, 이전 버전과 비교할 수 있습니다.',
+    route: '/documents',
+    keyFeatures: [
+      '문서 템플릿 — PI, CI, PL, 계약서 등 사전 정의된 양식',
+      '버전 관리 — 문서 수정 시 리비전 자동 생성',
+      '버전 비교 — 이전 버전과의 차이점 확인',
+      '전자서명 연동 — 문서에서 바로 서명 요청 가능',
+      '문서 검색 — 제목, 거래처, 날짜 등으로 빠른 검색',
+    ],
+  },
+  {
+    id: 'signatures',
+    icon: '✍️',
+    title: '전자서명',
+    category: '운영',
+    description:
+      '계약서, 동의서 등 서명이 필요한 문서에 대해 전자서명을 요청하고 관리합니다. 서명 상태(대기/완료/거부)를 실시간으로 추적하며, 서명 완료 시 자동으로 알림을 받을 수 있습니다.',
+    route: '/signatures',
+    keyFeatures: [
+      '서명 요청 — 이메일로 상대방에게 전자서명 요청',
+      '서명 상태 추적 — 대기/진행/완료/거부 실시간 확인',
+      '다중 서명자 — 순차 또는 동시 서명 설정',
+      '서명 완료 알림 — 모든 서명 완료 시 자동 통보',
+      '법적 효력 — 전자서명법 준수, 서명 이력 보관',
+    ],
+  },
+  {
+    id: 'partners',
+    icon: '🏢',
+    title: '거래처',
+    category: '영업',
+    description:
+      '거래처(고객사, 공급사, 협력사)를 등록하고, 사업자등록번호/연락처/담당자 정보를 체계적으로 관리합니다. 거래처별 딜, 결제, 문서, 채팅 이력을 360도 뷰로 한곳에서 조회할 수 있습니다.',
+    route: '/partners',
+    keyFeatures: [
+      '거래처 등록 — 사업자등록번호, 회사명, 연락처, 담당자',
+      '파트너 초대 — 이메일로 거래처를 플랫폼에 초대',
+      '360도 뷰 — 딜/결제/문서/채팅 이력 통합 조회',
+      '거래처 분류 — 고객사/공급사/협력사 태그 관리',
+      '거래 현황 — 거래처별 매출/매입 금액 요약',
+    ],
+  },
+  {
+    id: 'chat',
+    icon: '💬',
+    title: '채팅',
+    category: '운영',
+    description:
+      '팀원 간 실시간 메시징을 지원합니다. 팀 채널, 프로젝트별 채널, 1:1 DM을 만들 수 있으며, @멘션으로 알림을 보내고, 채팅 내에서 결제 요청/문서 생성 등 액션카드를 바로 만들 수 있습니다.',
+    route: '/chat',
+    keyFeatures: [
+      '채널 관리 — 팀 채널, 프로젝트 채널, DM 생성',
+      '@멘션 알림 — 팀원을 멘션하면 즉시 알림 전달',
+      '액션카드 — 채팅에서 바로 결제 요청/문서 생성',
+      '딜 연동 채팅 — 딜별 전용 채팅방 자동 생성',
+      '파일 공유 — 채팅 내 파일/이미지 첨부 및 미리보기',
     ],
   },
   {
     id: 'vault',
     icon: '🔒',
-    name: '금고/구독/자산',
-    description: '구독 관리, 자산 관리, 문서 금고, 반복결제 자동 탐지',
+    title: 'Vault',
+    category: '운영',
+    description:
+      'SaaS 구독 서비스를 등록하고 월별 비용/결제일/담당자를 관리합니다. 거래내역에서 반복 결제를 자동 탐지하여 미등록 구독을 발견하고, 회사 자산(노트북, 모니터 등)과 보안 문서(사업자등록증, 통장사본 등)도 한곳에서 관리합니다.',
     route: '/vault',
-    steps: [
-      {
-        title: '구독 서비스 관리',
-        description: '회사에서 사용 중인 SaaS/구독 서비스를 등록하고, 월 비용, 결제일, 담당자를 관리합니다. 자동 탐지 엔진이 거래 내역에서 반복 결제를 감지하여 추천합니다.',
-        cursorFrom: [10, 15], cursorTo: [40, 25], clickAt: [40, 25],
-        mockElements: [
-          { type: 'card', label: 'Slack — ₩15,000/월', x: 5, y: 10, w: 28, h: 20, color: '#2563eb', highlight: true },
-          { type: 'card', label: 'Figma — ₩12,000/월', x: 36, y: 10, w: 28, h: 20, color: '#8b5cf6' },
-          { type: 'card', label: 'AWS — ₩250,000/월', x: 67, y: 10, w: 28, h: 20, color: '#ea580c' },
-          { type: 'badge', label: '월 총 ₩277,000', x: 5, y: 38, w: 25, h: 7, color: '#2563eb' },
-          { type: 'badge', label: '자동 탐지 2건', x: 35, y: 38, w: 20, h: 7, color: '#f59e0b' },
-        ],
-      },
-      {
-        title: '자산(Asset) 관리',
-        description: '노트북, 모니터, 서버 등 회사 자산을 등록하고 상태(사용 중/수리 중/퇴직반납)를 추적합니다.',
-        cursorFrom: [10, 50], cursorTo: [35, 60], clickAt: [35, 60],
-        mockElements: [
-          { type: 'card', label: '자산 목록', x: 5, y: 10, w: 90, h: 80, color: '#f8fafc' },
-          { type: 'table-row', label: 'MacBook Pro 16" — 김직원', x: 8, y: 22, w: 65, h: 8 },
-          { type: 'badge', label: '사용 중', x: 75, y: 22, w: 15, h: 8, color: '#22c55e' },
-          { type: 'table-row', label: 'Dell 27" 모니터 — 공용', x: 8, y: 34, w: 65, h: 8 },
-          { type: 'badge', label: '사용 중', x: 75, y: 34, w: 15, h: 8, color: '#22c55e' },
-          { type: 'table-row', label: 'iPad Air — 박대리', x: 8, y: 46, w: 65, h: 8 },
-          { type: 'badge', label: '수리 중', x: 75, y: 46, w: 15, h: 8, color: '#f59e0b' },
-          { type: 'button', label: '+ 자산 등록', x: 8, y: 60, w: 18, h: 7, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '보안 문서 금고',
-        description: '사업자등록증, 통장사본, 계약서 등 중요 문서를 안전하게 보관합니다. 만료일이 다가오면 알림을 받을 수 있습니다.',
-        cursorFrom: [10, 40], cursorTo: [35, 55], clickAt: [35, 55],
-        mockElements: [
-          { type: 'card', label: '문서 금고', x: 5, y: 10, w: 90, h: 80, color: '#f8fafc' },
-          { type: 'icon-btn', label: '🔐', x: 10, y: 20, w: 8, h: 8 },
-          { type: 'table-row', label: '사업자등록증.pdf', x: 20, y: 20, w: 50, h: 7 },
-          { type: 'table-row', label: '통장사본_우리은행.pdf', x: 20, y: 30, w: 50, h: 7 },
-          { type: 'table-row', label: '임대차계약서.pdf — 만료 D-30', x: 20, y: 40, w: 50, h: 7, highlight: true },
-          { type: 'table-row', label: '법인인감증명서.pdf', x: 20, y: 50, w: 50, h: 7 },
-          { type: 'button', label: '+ 파일 추가', x: 20, y: 62, w: 18, h: 7, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '360도 뷰 — 구독 + 자산 + 문서 통합',
-        description: '구독 서비스, 물리 자산, 보관 문서를 한 화면에서 파악하고, 월별 총 비용과 갱신 일정을 한눈에 확인합니다.',
-        cursorFrom: [10, 10], cursorTo: [50, 35], clickAt: [50, 35],
-        mockElements: [
-          { type: 'tab', label: '구독', x: 5, y: 5, w: 15, h: 7, highlight: true },
-          { type: 'tab', label: '자산', x: 22, y: 5, w: 12, h: 7 },
-          { type: 'tab', label: '문서', x: 36, y: 5, w: 12, h: 7 },
-          { type: 'tab', label: '자동탐지', x: 50, y: 5, w: 15, h: 7 },
-          { type: 'card', label: '월 구독비 ₩277,000', x: 5, y: 18, w: 28, h: 15, color: '#2563eb' },
-          { type: 'card', label: '총 자산 12건', x: 36, y: 18, w: 28, h: 15, color: '#16a34a' },
-          { type: 'card', label: '보관 문서 8건', x: 67, y: 18, w: 28, h: 15, color: '#8b5cf6' },
-          { type: 'chart-bar', label: '월별 구독 비용 추이', x: 5, y: 40, w: 90, h: 35 },
-        ],
-      },
+    keyFeatures: [
+      '구독 관리 — SaaS 서비스별 비용, 결제일, 담당자 등록',
+      '자동 탐지 — 거래내역에서 반복 결제 패턴 감지',
+      '자산 관리 — 회사 장비/기기 등록 및 상태 추적',
+      '보안 문서 금고 — 사업자등록증, 통장사본 등 안전 보관',
+      '만료일 알림 — 문서/구독 만료 전 자동 알림',
     ],
+  },
+  {
+    id: 'loans',
+    icon: '🏛️',
+    title: '대출',
+    category: '재무',
+    description:
+      '법인 대출 현황을 등록하고, 상환 일정/이자율/잔액을 한눈에 관리합니다. 대출별 상환 스케줄을 자동 생성하며, 상환일 도래 시 알림을 받을 수 있어 연체를 방지합니다.',
+    route: '/loans',
+    keyFeatures: [
+      '대출 등록 — 금융기관, 대출금, 이자율, 만기일 입력',
+      '상환 스케줄 — 원리금/원금균등 상환 일정 자동 생성',
+      '상환 추적 — 납입 현황, 잔여 원금 실시간 확인',
+      '상환일 알림 — 상환 예정일 전 자동 알림',
+      '대출 현황 요약 — 전체 대출 잔액, 월 상환액 대시보드',
+    ],
+  },
+  {
+    id: 'matching',
+    icon: '🔍',
+    title: '매칭',
+    category: '재무',
+    description:
+      '세금계산서와 거래내역(입출금)을 AI가 자동 매칭하여 대사(reconciliation) 작업을 처리합니다. 매칭 신뢰도를 표시하고, 낮은 신뢰도 항목은 수동 매칭으로 직접 연결할 수 있습니다.',
+    route: '/matching',
+    keyFeatures: [
+      'AI 자동 매칭 — 세금계산서와 거래내역 자동 대사',
+      '신뢰도 표시 — 매칭별 확신도 퍼센트 제공',
+      '수동 매칭 — 미매칭/저신뢰 항목을 직접 연결',
+      '매칭 현황 — 매칭 완료/미매칭/확인 필요 건수 요약',
+      '미수금 관리 — 매칭되지 않은 매출 계산서로 미수금 추적',
+    ],
+  },
+  {
+    id: 'reports',
+    icon: '📈',
+    title: 'P&L / B/S',
+    category: '재무',
+    description:
+      '손익계산서(P&L)와 재무상태표(B/S)를 자동 생성합니다. 거래내역과 계정과목 분류를 기반으로 기간별 재무제표를 실시간 확인할 수 있으며, 전기 대비 비교와 항목별 드릴다운을 지원합니다.',
+    route: '/reports',
+    keyFeatures: [
+      '손익계산서 — 매출/비용/영업이익/당기순이익 자동 산출',
+      '재무상태표 — 자산/부채/자본 현황 자동 집계',
+      '기간 비교 — 전월/전분기/전년 대비 증감 분석',
+      '항목 드릴다운 — 계정과목 클릭 시 상세 거래 내역 확인',
+      'PDF 내보내기 — 재무제표를 PDF로 다운로드',
+    ],
+    tips: '거래내역의 계정과목 분류가 정확할수록 재무제표도 정확해집니다.',
   },
   {
     id: 'settings',
     icon: '⚙️',
-    name: '설정',
-    description: '회사 정보, 계좌 관리, 초대',
+    title: '설정',
+    category: '운영',
+    description:
+      '회사 기본 정보(상호, 사업자등록번호, 주소)를 설정하고, 결제에 사용할 은행 계좌를 관리합니다. 팀원 초대와 역할 부여, 알림 설정, 보안 설정 등 서비스 전반의 환경을 구성합니다.',
     route: '/settings',
-    steps: [
-      {
-        title: '회사 정보 설정',
-        description: '회사명, 사업자등록번호, 주소 등 기본 정보를 설정합니다.',
-        cursorFrom: [10, 15], cursorTo: [40, 30], clickAt: [40, 30],
-        mockElements: [
-          { type: 'input', label: '회사명', x: 10, y: 15, w: 60, h: 8 },
-          { type: 'input', label: '사업자등록번호', x: 10, y: 28, w: 40, h: 8 },
-          { type: 'input', label: '대표자명', x: 10, y: 41, w: 40, h: 8 },
-          { type: 'input', label: '주소', x: 10, y: 54, w: 60, h: 8 },
-          { type: 'button', label: '저장', x: 55, y: 67, w: 15, h: 8, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '계좌 관리',
-        description: '결제에 사용할 은행 계좌를 등록하고 관리합니다.',
-        cursorFrom: [10, 40], cursorTo: [30, 50], clickAt: [30, 50],
-        mockElements: [
-          { type: 'card', label: '우리은행 1005-xxx-xxx', x: 10, y: 15, w: 35, h: 15, color: '#2563eb' },
-          { type: 'card', label: '국민은행 940-xxx-xxx', x: 50, y: 15, w: 35, h: 15, color: '#f59e0b' },
-          { type: 'button', label: '+ 계좌 추가', x: 10, y: 38, w: 20, h: 8, color: '#2563eb', highlight: true },
-        ],
-      },
-      {
-        title: '팀원 초대',
-        description: '이메일로 팀원을 초대하고 역할(관리자/직원/파트너)을 부여합니다.',
-        cursorFrom: [10, 60], cursorTo: [50, 70], clickAt: [50, 70],
-        mockElements: [
-          { type: 'input', label: 'team@example.com', x: 10, y: 55, w: 40, h: 8, highlight: true },
-          { type: 'badge', label: '관리자', x: 53, y: 56, w: 12, h: 6, color: '#8b5cf6' },
-          { type: 'button', label: '초대', x: 68, y: 55, w: 12, h: 8, color: '#2563eb' },
-          { type: 'table-row', label: '김관리 — 관리자 (활성)', x: 10, y: 70, w: 50, h: 7 },
-          { type: 'table-row', label: '박직원 — 직원 (활성)', x: 10, y: 79, w: 50, h: 7 },
-        ],
-      },
+    keyFeatures: [
+      '회사 정보 — 상호, 사업자등록번호, 대표자, 주소 설정',
+      '계좌 관리 — 결제용 은행 계좌 등록/수정/삭제',
+      '팀원 초대 — 이메일로 초대, 관리자/직원/파트너 역할 부여',
+      '알림 설정 — 이메일/인앱 알림 항목별 on/off',
+      '보안 설정 — 비밀번호 변경, 2단계 인증 등',
     ],
   },
 ];
 
-// ── Cursor Simulation Component ──
-function CursorSimulation({
-  steps,
-  currentStep,
-  isPlaying,
-  onTogglePlay,
+const CATEGORY_TABS: CategoryTab[] = ['전체', '재무', '영업', 'HR', '운영'];
+
+const CATEGORY_TAB_ICONS: Record<CategoryTab, string> = {
+  '전체': '🏠',
+  '재무': '💰',
+  '영업': '📊',
+  'HR': '👥',
+  '운영': '⚙️',
+};
+
+const CATEGORY_TAB_COUNTS: Record<CategoryTab, number> = FEATURES.reduce(
+  (acc, f) => {
+    acc[f.category] = (acc[f.category] || 0) + 1;
+    return acc;
+  },
+  { '전체': FEATURES.length, '재무': 0, '영업': 0, 'HR': 0, '운영': 0 } as Record<CategoryTab, number>,
+);
+
+// ── Accordion Card Component ──
+function FeatureCard({
+  feature,
+  isExpanded,
+  onToggle,
 }: {
-  steps: GuideStep[];
-  currentStep: number;
-  isPlaying: boolean;
-  onTogglePlay: () => void;
+  feature: GuideFeature;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
-  const step = steps[currentStep];
-  if (!step) return null;
-
-  const renderMockElement = (el: MockElement, idx: number) => {
-    const baseStyle: React.CSSProperties = {
-      position: 'absolute',
-      left: `${el.x}%`,
-      top: `${el.y}%`,
-      width: `${el.w}%`,
-      height: `${el.h}%`,
-      borderRadius: el.type === 'badge' ? '9999px' : el.type === 'button' || el.type === 'icon-btn' ? '6px' : '8px',
-      transition: 'all 0.3s ease',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: el.type === 'button' || el.type === 'badge' || el.type === 'icon-btn' ? 'center' : 'flex-start',
-      fontSize: '11px',
-      fontWeight: el.type === 'button' || el.type === 'badge' ? 600 : 400,
-      overflow: 'hidden',
-      whiteSpace: 'nowrap' as const,
-      textOverflow: 'ellipsis',
-    };
-
-    switch (el.type) {
-      case 'button':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: el.highlight ? (el.color || '#2563eb') : '#e2e8f0',
-              color: el.highlight ? '#fff' : '#475569',
-              paddingLeft: '8px',
-              paddingRight: '8px',
-              boxShadow: el.highlight ? `0 2px 8px ${el.color || '#2563eb'}33` : 'none',
-              cursor: 'default',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'card':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: '#fff',
-              border: el.highlight ? `2px solid ${el.color || '#2563eb'}` : '1px solid #e2e8f0',
-              color: '#1e293b',
-              padding: '8px 10px',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: '2px',
-              boxShadow: el.highlight ? `0 0 0 3px ${(el.color || '#2563eb')}15` : '0 1px 3px rgba(0,0,0,0.06)',
-            }}
-          >
-            {el.color && (
-              <div style={{ width: '20px', height: '3px', backgroundColor: el.color, borderRadius: '2px', marginBottom: '2px' }} />
-            )}
-            <span style={{ fontSize: '10px', fontWeight: 600 }}>{el.label}</span>
-          </div>
-        );
-      case 'input':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: '#fff',
-              border: el.highlight ? '2px solid #2563eb' : '1px solid #d1d5db',
-              color: '#9ca3af',
-              paddingLeft: '8px',
-              fontSize: '10px',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'table-row':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: el.highlight ? '#eff6ff' : '#fff',
-              borderBottom: '1px solid #f1f5f9',
-              color: '#334155',
-              paddingLeft: '10px',
-              fontSize: '10px',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'tab':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: 'transparent',
-              borderBottom: el.highlight ? '2px solid #2563eb' : '2px solid transparent',
-              color: el.highlight ? '#2563eb' : '#94a3b8',
-              justifyContent: 'center',
-              fontWeight: el.highlight ? 600 : 400,
-              fontSize: '10px',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'badge':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: el.highlight ? (el.color || '#2563eb') : `${el.color || '#94a3b8'}18`,
-              color: el.highlight ? '#fff' : (el.color || '#475569'),
-              paddingLeft: '8px',
-              paddingRight: '8px',
-              fontSize: '10px',
-              fontWeight: 600,
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'chart-bar':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              padding: '8px',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              justifyContent: 'flex-end',
-              gap: '3px',
-            }}
-          >
-            <div style={{ display: 'flex', width: '100%', alignItems: 'flex-end', justifyContent: 'space-around', height: '70%', padding: '0 5%' }}>
-              {[40, 65, 55, 80, 70, 90, 75].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '10%',
-                    height: `${h}%`,
-                    backgroundColor: i === 5 ? '#2563eb' : '#93c5fd',
-                    borderRadius: '2px 2px 0 0',
-                    transition: 'height 0.5s ease',
-                  }}
-                />
-              ))}
-            </div>
-            {el.label && <span style={{ fontSize: '8px', color: '#94a3b8' }}>{el.label}</span>}
-          </div>
-        );
-      case 'text':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: 'transparent',
-              color: el.highlight ? '#2563eb' : '#475569',
-              fontSize: '10px',
-              paddingLeft: '4px',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      case 'icon-btn':
-        return (
-          <div
-            key={idx}
-            style={{
-              ...baseStyle,
-              backgroundColor: '#f1f5f9',
-              borderRadius: '8px',
-              justifyContent: 'center',
-              fontSize: '16px',
-            }}
-          >
-            {el.label}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="relative">
-      {/* Mockup area */}
-      <div
-        className="relative bg-gray-50 border border-gray-200 rounded-xl overflow-hidden"
-        style={{ height: '280px' }}
+    <div
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: `1px solid ${isExpanded ? 'var(--primary)' : 'var(--border)'}`,
+        borderRadius: '12px',
+        overflow: 'hidden',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+        boxShadow: isExpanded ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
+      }}
+    >
+      {/* Header — always visible */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          textAlign: 'left',
+          cursor: 'pointer',
+          background: 'none',
+          border: 'none',
+          color: 'var(--text)',
+        }}
+        aria-expanded={isExpanded}
       >
-        {/* Mock elements */}
-        {step.mockElements.map((el, i) => renderMockElement(el, i))}
-
-        {/* Animated cursor */}
-        <div
-          className="absolute z-30 pointer-events-none"
+        <span
           style={{
-            animation: isPlaying
-              ? `cursorMove_${currentStep} 3s ease-in-out infinite`
-              : 'none',
-            left: `${step.cursorFrom[0]}%`,
-            top: `${step.cursorFrom[1]}%`,
+            fontSize: '24px',
+            lineHeight: '1.2',
+            flexShrink: 0,
+            marginTop: '2px',
           }}
         >
-          {/* Cursor SVG */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5.65376 12.3673H5.46026L5.31717 12.4976L0.500002 16.8829L0.500002 1.19841L11.7841 12.3673H5.65376Z"
-              fill="#2563eb"
-              stroke="white"
-              strokeWidth="1"
-            />
-          </svg>
-        </div>
-
-        {/* Click ripple */}
-        {isPlaying && (
-          <div
-            className="absolute z-20 pointer-events-none"
+          {feature.icon}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <h3
+              style={{
+                fontSize: '15px',
+                fontWeight: 700,
+                color: 'var(--text)',
+                margin: 0,
+              }}
+            >
+              {feature.title}
+            </h3>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--primary-light, #EFF6FF)',
+                color: 'var(--primary)',
+              }}
+            >
+              {feature.category}
+            </span>
+          </div>
+          <p
             style={{
-              left: `${step.clickAt[0]}%`,
-              top: `${step.clickAt[1]}%`,
-              transform: 'translate(-50%, -50%)',
+              fontSize: '13px',
+              color: 'var(--text-muted)',
+              margin: 0,
+              lineHeight: 1.6,
+              display: isExpanded ? 'block' : '-webkit-box',
+              WebkitLineClamp: isExpanded ? undefined : 2,
+              WebkitBoxOrient: isExpanded ? undefined : 'vertical',
+              overflow: isExpanded ? 'visible' : 'hidden',
             }}
           >
-            <div
-              className="rounded-full border-2 border-blue-500"
-              style={{
-                width: '24px',
-                height: '24px',
-                animation: 'clickRipple 3s ease-in-out infinite',
-                animationDelay: '1.5s',
-                opacity: 0,
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between mt-3 px-1">
-        <span className="text-xs text-gray-500 font-medium">
-          {currentStep + 1} / {steps.length}
-        </span>
-        <button
-          onClick={onTogglePlay}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-gray-100 hover:bg-gray-200 text-gray-700"
-        >
-          {isPlaying ? (
-            <>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-              일시정지
-            </>
-          ) : (
-            <>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              재생
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Keyframes injection */}
-      <style>{`
-        @keyframes cursorMove_${currentStep} {
-          0% { left: ${step.cursorFrom[0]}%; top: ${step.cursorFrom[1]}%; }
-          40% { left: ${step.cursorTo[0]}%; top: ${step.cursorTo[1]}%; }
-          50% { left: ${step.clickAt[0]}%; top: ${step.clickAt[1]}%; transform: scale(0.85); }
-          55% { transform: scale(1); }
-          100% { left: ${step.clickAt[0]}%; top: ${step.clickAt[1]}%; }
-        }
-        @keyframes clickRipple {
-          0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
-          50% { opacity: 0; }
-          55% { opacity: 0.8; transform: translate(-50%,-50%) scale(0.5); }
-          80% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); }
-          100% { opacity: 0; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// ── Spotlight Overlay ──
-function SpotlightOverlay({
-  step,
-  stepIndex,
-  totalSteps,
-  onNext,
-  onPrev,
-  onClose,
-}: {
-  step: GuideStep;
-  stepIndex: number;
-  totalSteps: number;
-  onNext: () => void;
-  onPrev: () => void;
-  onClose: () => void;
-}) {
-  const spot = step.spotlightArea || {
-    x: step.clickAt[0] - 8,
-    y: step.clickAt[1] - 5,
-    w: 20,
-    h: 15,
-  };
-
-  return (
-    <div className="fixed inset-0 z-50">
-      {/* Dark overlay with cutout */}
-      <svg className="absolute inset-0 w-full h-full">
-        <defs>
-          <mask id="spotlight-mask">
-            <rect width="100%" height="100%" fill="white" />
-            <rect
-              x={`${spot.x}%`}
-              y={`${spot.y}%`}
-              width={`${spot.w}%`}
-              height={`${spot.h}%`}
-              rx="12"
-              fill="black"
-            />
-          </mask>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.6)"
-          mask="url(#spotlight-mask)"
-        />
-        {/* Highlight border */}
-        <rect
-          x={`${spot.x}%`}
-          y={`${spot.y}%`}
-          width={`${spot.w}%`}
-          height={`${spot.h}%`}
-          rx="12"
+            {feature.description}
+          </p>
+        </div>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
           fill="none"
-          stroke="#3b82f6"
+          stroke="var(--text-muted)"
           strokeWidth="2"
-          className="animate-pulse"
-        />
-      </svg>
-
-      {/* Tooltip */}
-      <div
-        className="absolute bg-white rounded-xl shadow-xl border border-gray-200 p-4 max-w-sm z-10"
-        style={{
-          left: `${Math.min(Math.max(spot.x, 5), 60)}%`,
-          top: `${spot.y + spot.h + 3}%`,
-        }}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
-            {stepIndex + 1}
-          </div>
-          <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
-        </div>
-        <p className="text-xs text-gray-600 mb-3 leading-relaxed">{step.description}</p>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-400">
-            {stepIndex + 1} / {totalSteps}
-          </span>
-          <div className="flex gap-2">
-            {stepIndex > 0 && (
-              <button
-                onClick={onPrev}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-              >
-                이전
-              </button>
-            )}
-            {stepIndex < totalSteps - 1 ? (
-              <button
-                onClick={onNext}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-              >
-                다음
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-              >
-                완료
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-gray-500 hover:text-gray-700 shadow transition-colors"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M18 6L6 18M6 6l12 12" />
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            flexShrink: 0,
+            marginTop: '4px',
+            transition: 'transform 0.2s ease',
+            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
+
+      {/* Expandable content */}
+      <div
+        style={{
+          maxHeight: isExpanded ? '600px' : '0px',
+          overflow: 'hidden',
+          transition: 'max-height 0.3s ease',
+        }}
+      >
+        <div
+          style={{
+            padding: '0 20px 20px 56px',
+          }}
+        >
+          {/* Key Features */}
+          <div style={{ marginBottom: '16px' }}>
+            <h4
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '10px',
+              }}
+            >
+              핵심 기능
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              {feature.keyFeatures.map((kf, i) => (
+                <li
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    fontSize: '13px',
+                    color: 'var(--text)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--primary)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ flexShrink: 0, marginTop: '2px' }}
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>{kf}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Tip */}
+          {feature.tips && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--primary-light, #EFF6FF)',
+                marginBottom: '16px',
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0, marginTop: '1px' }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              <p style={{ fontSize: '12px', color: 'var(--primary)', margin: 0, lineHeight: 1.5 }}>
+                {feature.tips}
+              </p>
+            </div>
+          )}
+
+          {/* Action Link */}
+          <Link
+            href={feature.route}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#FFFFFF',
+              backgroundColor: 'var(--primary)',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--primary-hover, #1D4ED8)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--primary)';
+            }}
+          >
+            {feature.title} 시작하기
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14" />
+              <path d="M12 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1025,332 +527,376 @@ function SpotlightOverlay({
 // Main Component
 // ═══════════════════════════════════════════
 export default function GuidePage() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [tutorialMode, setTutorialMode] = useState(false);
-  const [tutorialStep, setTutorialStep] = useState(0);
+  const [activeTab, setActiveTab] = useState<CategoryTab>('전체');
   const [searchQuery, setSearchQuery] = useState('');
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const selected = CATEGORIES.find((c) => c.id === selectedCategory);
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
-  // Auto-advance steps
-  useEffect(() => {
-    if (isPlaying && selected) {
-      timerRef.current = setInterval(() => {
-        setCurrentStep((prev) => (prev + 1) % selected.steps.length);
-      }, 4000);
+  const expandAll = useCallback(() => {
+    setExpandedIds(new Set(FEATURES.map((f) => f.id)));
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setExpandedIds(new Set());
+  }, []);
+
+  const filteredFeatures = useMemo(() => {
+    let result = FEATURES;
+
+    if (activeTab !== '전체') {
+      result = result.filter((f) => f.category === activeTab);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isPlaying, selected]);
 
-  const togglePlay = useCallback(() => {
-    setIsPlaying((p) => !p);
-  }, []);
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      result = result.filter(
+        (f) =>
+          f.title.toLowerCase().includes(query) ||
+          f.description.toLowerCase().includes(query) ||
+          f.keyFeatures.some((kf) => kf.toLowerCase().includes(query)),
+      );
+    }
 
-  const handleCategoryClick = useCallback((id: string) => {
-    setSelectedCategory(id);
-    setCurrentStep(0);
-    setIsPlaying(true);
-  }, []);
+    return result;
+  }, [activeTab, searchQuery]);
 
-  const handleBack = useCallback(() => {
-    setSelectedCategory(null);
-    setCurrentStep(0);
-    setIsPlaying(true);
-  }, []);
-
-  const startTutorial = useCallback(() => {
-    setTutorialMode(true);
-    setTutorialStep(0);
-  }, []);
-
-  // Filter categories by search
-  const filteredCategories = searchQuery.trim()
-    ? CATEGORIES.filter(
-        (c) =>
-          c.name.includes(searchQuery) ||
-          c.description.includes(searchQuery) ||
-          c.steps.some((s) => s.title.includes(searchQuery) || s.description.includes(searchQuery))
-      )
-    : CATEGORIES;
-
-  // ── Category Grid View ──
-  if (!selectedCategory) {
-    return (
-      <div className="min-h-screen bg-gray-50/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">사용 가이드</h1>
-            <p className="text-sm text-gray-500">
-              OwnerView의 모든 기능을 빠르게 배워보세요
-            </p>
-          </div>
-
-          {/* Search */}
-          <div className="relative mb-6">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              placeholder="기능 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-            />
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-            {[
-              { label: '전체 기능', value: '14개', color: '#2563eb' },
-              { label: '가이드 스텝', value: `${CATEGORIES.reduce((a, c) => a + c.steps.length, 0)}개`, color: '#8b5cf6' },
-              { label: '인터랙티브', value: '커서 시뮬레이션', color: '#16a34a' },
-              { label: '튜토리얼', value: '스포트라이트', color: '#ea580c' },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
-                <div className="text-xs text-gray-500 mb-0.5">{stat.label}</div>
-                <div className="text-sm font-semibold" style={{ color: stat.color }}>
-                  {stat.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Re-trigger Onboarding */}
-          <div className="mb-6 bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">초기 설정 다시 하기</h3>
-              <p className="text-xs text-gray-500 mt-0.5">회사 정보, 통장, 카드, 직원 등 초기 설정을 다시 시작합니다.</p>
-            </div>
-            <button
-              onClick={() => {
-                resetOnboardingDismiss();
-                window.location.href = '/dashboard';
-              }}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap"
-            >
-              온보딩 다시 시작
-            </button>
-          </div>
-
-          {/* Category Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCategories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.id)}
-                className="group bg-white rounded-xl border border-gray-100 p-5 text-left shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform duration-200">
-                    {cat.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm mb-1 group-hover:text-blue-600 transition-colors">
-                      {cat.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      {cat.description}
-                    </p>
-                    <div className="mt-2 flex items-center gap-1 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <span>가이드 보기</span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {filteredCategories.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-3xl mb-3">🔍</div>
-              <p className="text-sm text-gray-500">
-                &quot;{searchQuery}&quot;에 해당하는 가이드가 없습니다
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Detail View ──
-  if (!selected) return null;
+  const isAllExpanded = filteredFeatures.length > 0 && filteredFeatures.every((f) => expandedIds.has(f.id));
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* Back + Header */}
-        <div className="mb-6">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg)',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '860px',
+          margin: '0 auto',
+          padding: '32px 16px 64px',
+        }}
+      >
+        {/* ── Header ── */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1
+            style={{
+              fontSize: '22px',
+              fontWeight: 800,
+              color: 'var(--text)',
+              margin: '0 0 4px',
+            }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            전체 가이드
-          </button>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">{selected.icon}</span>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{selected.name}</h1>
-              <p className="text-sm text-gray-500">{selected.description}</p>
-            </div>
+            사용 가이드
+          </h1>
+          <p
+            style={{
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              margin: 0,
+            }}
+          >
+            OwnerView의 모든 기능을 확인하고 빠르게 시작하세요. 총 {FEATURES.length}개 기능을 제공합니다.
+          </p>
+        </div>
+
+        {/* ── Onboarding Reset ── */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: '0 0 2px' }}>
+              초기 설정 다시 하기
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+              회사 정보, 통장, 카드, 직원 등 초기 설정을 다시 시작합니다.
+            </p>
           </div>
-          <div className="flex items-center gap-3 mt-3">
-            <Link
-              href={selected.route}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
-            >
-              해당 메뉴로 이동
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </Link>
+          <button
+            onClick={() => {
+              resetOnboardingDismiss();
+              window.location.href = '/dashboard';
+            }}
+            style={{
+              padding: '8px 16px',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            온보딩 다시 시작
+          </button>
+        </div>
+
+        {/* ── Search ── */}
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--text-muted)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }}
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="기능명, 설명, 핵심 기능 키워드로 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="기능 검색"
+            style={{
+              width: '100%',
+              paddingLeft: '38px',
+              paddingRight: '16px',
+              paddingTop: '10px',
+              paddingBottom: '10px',
+              fontSize: '13px',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text)',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-light, rgba(37,99,235,0.1))';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          />
+        </div>
+
+        {/* ── Category Tabs ── */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '16px',
+            overflowX: 'auto',
+            paddingBottom: '4px',
+          }}
+          role="tablist"
+          aria-label="기능 카테고리"
+        >
+          {CATEGORY_TABS.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                role="tab"
+                aria-selected={isActive}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  fontSize: '13px',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? '#FFFFFF' : 'var(--text-muted)',
+                  backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-card)',
+                  border: `1px solid ${isActive ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ fontSize: '14px' }}>{CATEGORY_TAB_ICONS[tab]}</span>
+                {tab}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'var(--bg)',
+                    color: isActive ? '#FFFFFF' : 'var(--text-muted)',
+                  }}
+                >
+                  {CATEGORY_TAB_COUNTS[tab]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Expand/Collapse Controls ── */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+          }}
+        >
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              margin: 0,
+            }}
+          >
+            {filteredFeatures.length}개 기능
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={startTutorial}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 transition-colors"
+              onClick={isAllExpanded ? collapseAll : expandAll}
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'var(--primary)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '6px',
+              }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4M12 8h.01" />
-              </svg>
-              튜토리얼 모드
+              {isAllExpanded ? '모두 접기' : '모두 펼치기'}
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Step List (left) */}
-          <div className="lg:col-span-2 space-y-3">
-            {selected.steps.map((step, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setCurrentStep(idx);
-                  setIsPlaying(false);
-                }}
-                className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
-                  currentStep === idx
-                    ? 'bg-blue-50 border-blue-200 shadow-sm'
-                    : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                      currentStep === idx
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <h4
-                      className={`text-sm font-semibold mb-0.5 transition-colors ${
-                        currentStep === idx ? 'text-blue-700' : 'text-gray-900'
-                      }`}
-                    >
-                      {step.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
+        {/* ── Feature Cards ── */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          {filteredFeatures.map((feature) => (
+            <FeatureCard
+              key={feature.id}
+              feature={feature}
+              isExpanded={expandedIds.has(feature.id)}
+              onToggle={() => toggleExpand(feature.id)}
+            />
+          ))}
+        </div>
+
+        {/* ── Empty State ── */}
+        {filteredFeatures.length === 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '64px 16px',
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 4px' }}>
+              검색 결과가 없습니다
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+              다른 키워드로 검색하거나 카테고리 탭을 변경해 보세요.
+            </p>
           </div>
+        )}
 
-          {/* Simulation Area (right) */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-6">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    {selected.steps[currentStep]?.title}
-                  </h3>
-                  <div className="flex items-center gap-1">
-                    {selected.steps.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setCurrentStep(idx);
-                          setIsPlaying(false);
-                        }}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          currentStep === idx ? 'bg-blue-600' : 'bg-gray-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <CursorSimulation
-                  steps={selected.steps}
-                  currentStep={currentStep}
-                  isPlaying={isPlaying}
-                  onTogglePlay={togglePlay}
-                />
-                <p className="mt-3 text-xs text-gray-500 leading-relaxed">
-                  {selected.steps[currentStep]?.description}
-                </p>
-              </div>
-
-              {/* Navigation Tips */}
-              <div className="mt-4 bg-blue-50 rounded-xl border border-blue-100 p-4">
-                <div className="flex items-start gap-2">
-                  <svg className="flex-shrink-0 mt-0.5 text-blue-600" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 16v-4M12 8h.01" />
-                  </svg>
-                  <div>
-                    <p className="text-xs font-medium text-blue-800 mb-0.5">팁</p>
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      좌측 단계를 클릭하면 해당 동작의 시뮬레이션을 확인할 수 있습니다.
-                      &quot;튜토리얼 모드&quot;를 활성화하면 스포트라이트 가이드가 시작됩니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* ── Quick Links Footer ── */}
+        <div
+          style={{
+            marginTop: '40px',
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            padding: '20px',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '14px',
+              fontWeight: 700,
+              color: 'var(--text)',
+              margin: '0 0 12px',
+            }}
+          >
+            바로가기
+          </h3>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: '8px',
+            }}
+          >
+            {FEATURES.map((f) => (
+              <Link
+                key={f.id}
+                href={f.route}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'var(--text)',
+                  textDecoration: 'none',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.backgroundColor = 'var(--primary-light, #EFF6FF)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>{f.icon}</span>
+                {f.title}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
-
-      {/* Spotlight Overlay */}
-      {tutorialMode && selected && selected.steps[tutorialStep] && (
-        <SpotlightOverlay
-          step={selected.steps[tutorialStep]}
-          stepIndex={tutorialStep}
-          totalSteps={selected.steps.length}
-          onNext={() => setTutorialStep((p) => Math.min(p + 1, selected.steps.length - 1))}
-          onPrev={() => setTutorialStep((p) => Math.max(p - 1, 0))}
-          onClose={() => {
-            setTutorialMode(false);
-            setTutorialStep(0);
-          }}
-        />
-      )}
     </div>
   );
 }

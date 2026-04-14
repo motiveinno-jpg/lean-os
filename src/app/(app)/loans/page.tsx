@@ -192,7 +192,7 @@ export default function LoansPage() {
     });
   }, []);
 
-  const { data: summary, error: mainError, refetch } = useQuery({
+  const { data: summary, isLoading: summaryLoading, error: mainError, refetch } = useQuery({
     queryKey: ["loan-summary", companyId],
     queryFn: () => getLoanSummary(companyId!),
     enabled: !!companyId,
@@ -288,6 +288,14 @@ export default function LoansPage() {
     { label: "총 이자 비용 (예상)", value: fmtW(annualInterestEstimate), sub: "연간 추정", highlight: true },
   ];
 
+  if (summaryLoading) {
+    return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (mainError) {
+    return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
+  }
+
   return (
     <div className="max-w-[900px] loans-print-area">
       {/* Print CSS injection */}
@@ -303,7 +311,8 @@ export default function LoansPage() {
         </div>
         <button
           onClick={() => window.print()}
-          className="no-print text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] flex items-center gap-1.5"
+          aria-label="인쇄"
+          className="no-print text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] flex items-center gap-1.5 cursor-pointer"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
@@ -637,9 +646,9 @@ export default function LoansPage() {
                           <td className="px-4 py-3 text-xs font-mono text-[var(--primary)]">{p.payment_number || "-"}</td>
                           <td className="px-4 py-3 text-xs font-medium">{loan?.name || "-"}</td>
                           <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{p.payment_date}</td>
-                          <td className="px-4 py-3 text-xs text-right font-medium">₩{Number(p.principal_amount).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">₩{Number(p.interest_amount).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-xs text-right font-bold">₩{Number(p.total_amount).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-xs text-right font-medium">₩{Number(p.principal_amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">₩{Number(p.interest_amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-xs text-right font-bold">₩{Number(p.total_amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-center">
                             {p.bank_transaction_id ? (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">연결됨</span>
@@ -733,8 +742,8 @@ export default function LoansPage() {
 
                             {/* Match reasons */}
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {candidate.reasons.map((r, i) => (
-                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{r}</span>
+                              {candidate.reasons.map((r) => (
+                                <span key={r} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{r}</span>
                               ))}
                             </div>
                           </div>

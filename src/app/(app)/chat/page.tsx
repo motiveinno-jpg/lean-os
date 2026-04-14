@@ -410,6 +410,14 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     });
   }, []);
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { if (showInvite) setShowInvite(false); else if (showSearch) setShowSearch(false); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [showInvite, showSearch]);
+
   const { data: channel } = useQuery({
     queryKey: ["chat-channel", channelId],
     queryFn: () => getChannel(channelId, companyId!),
@@ -1436,6 +1444,14 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
   const [teamName, setTeamName] = useState("");
   const [dmUserId, setDmUserId] = useState("");
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShowForm(false); setShowTeamForm(false); setShowDMForm(false); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [setShowForm]);
+
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
     queryFn: () => getChannels(companyId!),
@@ -1475,7 +1491,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         companyId,
         dealId: form.deal_id || undefined,
         type: form.type,
-        name: form.name,
+        name: form.name.trim(),
         creatorUserId: userId,
       });
     },
@@ -1489,7 +1505,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
   const createTeamMut = useMutation({
     mutationFn: () => createTeamChannel({
       companyId: companyId!,
-      name: teamName,
+      name: teamName.trim(),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
@@ -1512,6 +1528,8 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setDmUserId("");
     },
   });
+
+  if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
     <div className="max-w-[800px]">
@@ -1567,7 +1585,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => form.name && createMut.mutate()} disabled={!form.name || createMut.isPending}
+              <button onClick={() => form.name.trim() && createMut.mutate()} disabled={!form.name.trim() || createMut.isPending}
                 className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">생성</button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
             </div>
@@ -1576,6 +1594,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
         {dealChannels.length === 0 ? (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+            <div className="text-2xl mb-2">💬</div>
             <div className="text-sm text-[var(--text-muted)]">딜 채널이 없습니다</div>
           </div>
         ) : (
@@ -1606,7 +1625,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
                 placeholder="마케팅팀, 개발팀..." className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] max-w-xs" />
             </div>
             <div className="flex gap-2">
-              <button onClick={() => teamName && createTeamMut.mutate()} disabled={!teamName || createTeamMut.isPending}
+              <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
                 className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">생성</button>
               <button onClick={() => setShowTeamForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
             </div>

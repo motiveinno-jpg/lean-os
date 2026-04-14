@@ -8,7 +8,7 @@
  * - 새 서명 요청 (문서 선택 → 다중 서명자 초대)
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
@@ -45,7 +45,7 @@ export default function SignaturesDashboardPage() {
     });
   }, []);
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ["signature-requests", companyId],
     queryFn: () => getSignatureRequests(companyId!),
     enabled: !!companyId,
@@ -119,6 +119,9 @@ export default function SignaturesDashboardPage() {
       return r && r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
     });
   }, [selectedIds, requests]);
+
+  if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  if (error) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
     <div className="space-y-5 p-5">
@@ -196,8 +199,8 @@ export default function SignaturesDashboardPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
             <tr className="text-left">
               <th className="p-3 w-10">
@@ -223,7 +226,7 @@ export default function SignaturesDashboardPage() {
             {isLoading ? (
               <tr><td colSpan={8} className="p-8 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-8 text-center text-[var(--text-muted)]">서명 요청이 없습니다.</td></tr>
+              <tr><td colSpan={8} className="p-12 text-center"><div className="text-3xl mb-2">✍️</div><div className="text-sm text-[var(--text-muted)]">서명 요청이 없습니다.</div></td></tr>
             ) : (
               filtered.map((r: any) => {
                 const info = getSignatureStatusInfo(r.status);
@@ -357,6 +360,12 @@ function InviteModal({
 
   const validSigners = signers.filter((s) => s.name.trim() && s.email.trim());
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const submit = async () => {
     if (!docId) {
       toast("문서를 선택하세요", "error");
@@ -373,7 +382,7 @@ function InviteModal({
         companyId,
         documentId: docId,
         title: title.trim() || doc?.name || "서명 요청",
-        signers: validSigners,
+        signers: validSigners.map((s) => ({ name: s.name.trim(), email: s.email.trim(), phone: s.phone.trim() })),
         createdBy: userId,
         sendEmails: sendNow,
       });

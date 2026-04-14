@@ -526,6 +526,14 @@ export default function TaxInvoicesPage() {
     form.issueDate &&
     Number(form.supplyAmount) > 0;
 
+  if (isLoading && invoices.length === 0) {
+    return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (mainError) {
+    return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
+  }
+
   return (
     <div className="max-w-[1200px]" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
@@ -542,12 +550,14 @@ export default function TaxInvoicesPage() {
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
+            aria-label="조회 월 선택"
             className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-[var(--text-muted)]"
           />
           <button
             onClick={() => window.print()}
-            className="no-print px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition flex items-center gap-1.5"
+            className="no-print px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition flex items-center gap-1.5 cursor-pointer"
             title="현재 페이지 인쇄"
+            aria-label="인쇄"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -1220,7 +1230,7 @@ export default function TaxInvoicesPage() {
                 { icon: "🔄", title: "중복 제거", desc: "승인번호 기준 dedup" },
                 { icon: "✅", title: "3-Way 매칭", desc: "계약↔계산서↔입금" },
               ].map((step, i) => (
-                <div key={i} className="bg-[var(--bg-surface)] rounded-xl p-3 text-center relative">
+                <div key={step.title} className="bg-[var(--bg-surface)] rounded-xl p-3 text-center relative">
                   <div className="text-xl mb-1">{step.icon}</div>
                   <div className="text-xs font-bold">{step.title}</div>
                   <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{step.desc}</div>

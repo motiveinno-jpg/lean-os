@@ -1127,7 +1127,15 @@ function DocumentsPageInner() {
     });
   }, []);
 
-  const { data: documents = [], error: mainError, refetch: mainRefetch } = useQuery({
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShowDocForm(false); setShowInvForm(false); setShowSignForm(false); setShowArchiveForm(false); setSelectedSignature(null); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  const { data: documents = [], error: mainError, refetch: mainRefetch, isLoading: mainLoading } = useQuery({
     queryKey: ["documents", companyId],
     queryFn: () => getDocuments(companyId!),
     enabled: !!companyId,
@@ -1272,14 +1280,13 @@ function DocumentsPageInner() {
           companyId: companyId!,
           templateId: docForm.template_id,
           dealId: docForm.deal_id || undefined,
-          name: docForm.name,
+          name: docForm.name.trim(),
           createdBy: userId!,
         });
       } else {
-        // Create blank document
         newDoc = await createBlankDocument({
           companyId: companyId!, dealId: docForm.deal_id || undefined,
-          name: docForm.name, type: docForm.type, createdBy: userId!,
+          name: docForm.name.trim(), type: docForm.type, createdBy: userId!,
         });
       }
 
@@ -1316,7 +1323,6 @@ function DocumentsPageInner() {
     return getDocTypeInfo(classified);
   }, [docForm.name]);
 
-  // If an ID is selected, show the detail view
   if (selectedId) {
     return (
       <DocumentDetailView
@@ -1325,6 +1331,8 @@ function DocumentsPageInner() {
       />
     );
   }
+
+  if (!companyId || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
     <div className="max-w-[1100px]">

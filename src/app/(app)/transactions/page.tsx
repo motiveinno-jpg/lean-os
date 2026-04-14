@@ -429,6 +429,14 @@ export default function TransactionsPage() {
   const categoryEntries = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
   const categoryTotal = categoryEntries.reduce((s, [, v]) => s + v, 0);
 
+  if (!companyId && !isLoading) {
+    return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (mainError) {
+    return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
+  }
+
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
@@ -477,6 +485,7 @@ export default function TransactionsPage() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="거래처, 적요 검색..."
+            aria-label="거래처, 적요 검색"
             className="w-full px-3 py-2 pl-9 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2">
@@ -532,7 +541,7 @@ export default function TransactionsPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-5 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
         <StatCard label="전체" value={s.total} />
         <StatCard label="미매핑" value={s.unmapped} color={s.unmapped > 0 ? 'var(--warning)' : 'var(--success)'} />
         <StatCard label="자동매핑" value={s.autoMapped} color="var(--primary)" />
@@ -715,7 +724,7 @@ export default function TransactionsPage() {
                 </div>
               </div>
             ) : (
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     {tab === 'inbox' && <th className="text-center px-2 py-3 font-medium w-8">
@@ -796,7 +805,7 @@ export default function TransactionsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
         </>
@@ -814,7 +823,7 @@ export default function TransactionsPage() {
           )}
 
           {/* Card Stats Row */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="총 사용액" value={`₩${fmtW(cs.totalSpent)}`} color="var(--danger)" />
             <StatCard label="공제 가능" value={`₩${fmtW(cs.deductible)}`} color="var(--success)" />
             <StatCard label="공제 불가" value={`₩${fmtW(cs.nonDeductible)}`} color="var(--warning)" />
@@ -891,7 +900,7 @@ export default function TransactionsPage() {
                 <div className="text-sm text-[var(--text-muted)]">카드를 등록하고 CSV를 업로드하세요.</div>
               </div>
             ) : (
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-4 py-3 font-medium">날짜</th>
@@ -966,7 +975,7 @@ export default function TransactionsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
         </div>

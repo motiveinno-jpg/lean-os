@@ -64,7 +64,7 @@ export default function MatchingPage() {
     getCurrentUser().then((u) => u && setCompanyId(u.company_id));
   }, []);
 
-  const { data: transactions = [], error: mainError, refetch: mainRefetch } = useQuery({
+  const { data: transactions = [], isLoading: txLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["match-transactions", companyId],
     queryFn: async () => {
       const { data } = await supabase
@@ -477,6 +477,14 @@ export default function MatchingPage() {
   const partialCount = threeWayResults.filter(r => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length;
   const noMatchCount = threeWayResults.filter(r => !r.amountMatch && !r.paymentMatch).length;
 
+  if (txLoading) {
+    return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (mainError) {
+    return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
+  }
+
   return (
     <div className="max-w-[1000px]" id="matching-print-area">
       <style dangerouslySetInnerHTML={{ __html: PRINT_STYLE }} />
@@ -490,15 +498,16 @@ export default function MatchingPage() {
         </div>
         <button
           onClick={() => window.print()}
-          className="no-print px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition"
+          className="no-print px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition cursor-pointer"
           title="인쇄"
+          aria-label="인쇄"
         >
           🖨️ 인쇄
         </button>
       </div>
 
       {/* ── Matching Statistics Dashboard ── */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 거래 건수</div>
           <div className="text-xl font-extrabold mt-1">{transactions.length}</div>
@@ -571,14 +580,15 @@ export default function MatchingPage() {
             <button
               onClick={executeMatching}
               disabled={running || transactions.length === 0}
-              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              aria-label="매칭 실행"
+              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 cursor-pointer"
             >
               {running ? "매칭 중..." : "매칭 실행"}
             </button>
           </div>
 
           {/* Summary */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
               <div className="text-xs text-[var(--text-dim)]">미매칭 거래</div>
               <div className="text-lg font-bold mt-1">
@@ -717,8 +727,8 @@ export default function MatchingPage() {
                               >
                                 {match.score}점
                               </span>
-                              {match.reasons.map((r, i) => (
-                                <span key={i} className="text-[10px] text-[var(--text-dim)]">
+                              {match.reasons.map((r) => (
+                                <span key={r} className="text-[10px] text-[var(--text-dim)]">
                                   {r}
                                 </span>
                               ))}
@@ -892,7 +902,7 @@ export default function MatchingPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">거래처명</th>
@@ -936,7 +946,7 @@ export default function MatchingPage() {
                     );
                   })}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </>
@@ -981,7 +991,7 @@ export default function MatchingPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">딜</th>
@@ -1033,7 +1043,7 @@ export default function MatchingPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </>

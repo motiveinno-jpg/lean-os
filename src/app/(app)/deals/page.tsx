@@ -472,6 +472,16 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   const progress = stages.length > 0 ? Math.round((completedCount / stages.length) * 100) : 0;
   const [pipelineError, setPipelineError] = useState<string | null>(null);
 
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (emailModal) { setEmailModal(null); return; }
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); return; }
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [emailModal, previewUrl]);
+
   async function handleCreateQuote() { if (!companyId || !userId || creating) return; setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
 
   const hasQuote = stages.some(s => s.stage === 'quote' && s.status !== 'pending');
@@ -1063,6 +1073,7 @@ function DealsPageInner() {
   const [dealPartnerResults, setDealPartnerResults] = useState<any[]>([]);
   const [dealPartnerFocused, setDealPartnerFocused] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => { getCurrentUser().then((u) => u && setCompanyId(u.company_id)); }, []);
 
@@ -1094,8 +1105,8 @@ function DealsPageInner() {
 
   const createDeal = useMutation({
     mutationFn: async () => { if (!companyId) throw new Error("회사 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."); const contractAmount = Number(form.contract_total); if (!contractAmount || contractAmount <= 0) throw new Error("계약금액은 1원 이상이어야 합니다"); if (!form.name.trim()) throw new Error("딜명을 입력해주세요."); const { data: newDeal, error } = await supabase.from("deals").insert({ company_id: companyId, name: form.name.trim(), classification: form.classification, contract_total: contractAmount, status: "active", start_date: form.start_date || null, end_date: form.end_date || null, priority: form.priority }).select().single(); if (error) throw error; if (form.counterparty.trim() && newDeal) { try { await autoCreatePartnerFromDeal(companyId, newDeal.id, form.counterparty.trim()); } catch (e) { console.error("거래처 자동 등록 실패:", e); } } },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); queryClient.invalidateQueries({ queryKey: ["partners"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium" }); setFormError(""); },
-    onError: (err: Error) => { setFormError(err.message); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); queryClient.invalidateQueries({ queryKey: ["partners"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium" }); setFormError(""); toast("딜이 생성되었습니다", "success"); },
+    onError: (err: Error) => { setFormError(err.message); toast("딜 생성 실패: " + err.message, "error"); },
   });
 
   // E-6: Filter by classification and priority

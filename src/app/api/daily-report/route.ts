@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8515924083:AAFN5Kl49vX_GoCkut5vzjkk5r4l4P0B4aU';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '7790078977';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const CRON_SECRET = process.env.CRON_SECRET;
 
 function getSupabaseAdmin() {
@@ -155,6 +155,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Invalid cron secret' } },
       { status: 401 },
+    );
+  }
+
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return NextResponse.json(
+      { error: { code: 'CONFIG_MISSING', message: 'Telegram credentials not configured' } },
+      { status: 500 },
     );
   }
 

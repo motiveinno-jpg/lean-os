@@ -59,15 +59,22 @@ export default function EmployeesPage() {
     });
   }, []);
 
-  // Employee 역할이면 허용 탭으로 강제 이동
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
       setTab("attendance");
     }
   }, [isEmployee, tab]);
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowForm(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
   // ── Employees ──
-  const { data: employees = [], error: mainError, refetch: mainRefetch } = useQuery({
+  const { data: employees = [], error: mainError, refetch: mainRefetch, isLoading: mainLoading } = useQuery({
     queryKey: ["employees", companyId],
     queryFn: async () => {
       const { data } = await supabase
@@ -116,6 +123,8 @@ export default function EmployeesPage() {
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
+
+  if (!companyId || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
     <div className="max-w-[1000px]">
@@ -490,7 +499,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} placeholder="36000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div className="flex items-end gap-2">
-              <button onClick={() => form.email && inviteMut.mutate()} disabled={!form.email || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+              <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
                 {inviteMut.isPending ? "전송중..." : "초대 전송"}
               </button>
               <button onClick={() => setShowForm(false)} className="px-3 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
@@ -762,13 +771,20 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
 
-  // Termination workflow state
   const [showTermModal, setShowTermModal] = useState(false);
   const [termDate, setTermDate] = useState(new Date().toISOString().slice(0, 10));
   const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
   const [terminating, setTerminating] = useState(false);
   const [termLossReason, setTermLossReason] = useState("11");
   const [ediGenerated, setEdiGenerated] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { if (showTermModal) setShowTermModal(false); else onClose(); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [showTermModal, onClose]);
 
   // Retirement pay calculation state
   const [retirementEndDate, setRetirementEndDate] = useState(new Date().toISOString().slice(0, 10));
@@ -1907,7 +1923,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 *</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
-          <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">등록</button>
+          <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addSalary.isPending ? "등록 중..." : "등록"}</button>
         </div>
       )}
 
@@ -2659,8 +2675,8 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 
   const addExpense = useMutation({
     mutationFn: () => createExpenseRequest({
-      companyId: companyId!, requesterId: userId!, title: form.title,
-      amount: Number(form.amount), category: form.category, description: form.description,
+      companyId: companyId!, requesterId: userId!, title: form.title.trim(),
+      amount: Number(form.amount), category: form.category, description: form.description.trim(),
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["approval"] }); setShowForm(false); setForm({ title: "", amount: "", category: "general", description: "" }); },
   });
@@ -2693,7 +2709,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
             </div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
-          <button onClick={() => form.title && form.amount && addExpense.mutate()} disabled={!form.title || !form.amount} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">청구</button>
+          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addExpense.isPending ? "청구 중..." : "청구"}</button>
         </div>
       )}
 

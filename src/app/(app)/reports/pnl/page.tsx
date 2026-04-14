@@ -669,6 +669,7 @@ export default function PnlPage() {
           </label>
           <button
             onClick={handleExportCsv}
+            aria-label="CSV 다운로드"
             style={{
               display: "flex",
               alignItems: "center",
@@ -709,6 +710,7 @@ export default function PnlPage() {
           </button>
           <button
             onClick={() => window.print()}
+            aria-label="인쇄"
             style={{
               display: "flex",
               alignItems: "center",
