@@ -11,6 +11,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth } from "@/lib/closing";
 import { BarChart } from "@/components/bar-chart";
+import { LineChart } from "@/components/line-chart";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
@@ -374,9 +375,37 @@ export default function DashboardPage() {
     );
   }
 
+  // ── Mobile swipe between preset views (touch only) ──
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!swipeStart.current) return;
+    const start = swipeStart.current;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const dt = Date.now() - start.t;
+    swipeStart.current = null;
+    // require horizontal swipe, ignore vertical scroll
+    if (dt > 600 || Math.abs(dx) < 80 || Math.abs(dy) > 50) return;
+    if (editing) return;
+    const ids = PRESET_VIEWS.map((v) => v.id);
+    const idx = ids.indexOf(activeViewId);
+    if (idx < 0) return;
+    if (dx < 0 && idx < ids.length - 1) setActiveView(ids[idx + 1]);
+    if (dx > 0 && idx > 0) setActiveView(ids[idx - 1]);
+  }, [editing, activeViewId, setActiveView]);
+
   // ── Owner Dashboard (전체 CEO 뷰) ──
   return (
-    <div className="max-w-[1100px]">
+    <div
+      className="max-w-[1100px] pb-20 md:pb-0"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* ═══ 온보딩 위저드 ═══ */}
       {showOnboarding && companyId && (
@@ -396,43 +425,9 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* ═══ GETTING STARTED GUIDE ═══ */}
-      {dealCount !== null && dealCount < 3 && !showOnboarding && (
-        <div className="mb-5 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: 'var(--primary)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            </div>
-            <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>시작 가이드</h3>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary)', color: '#fff' }}>NEW</span>
-          </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-            OwnerView를 최대한 활용하려면 아래 항목을 완료하세요.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <GuideActionCard
-              href="/deals"
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>}
-              label="첫 딜 만들기"
-              done={dealCount > 0}
-            />
-            <GuideActionCard
-              href="/partners"
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
-              label="거래처 등록"
-            />
-            <GuideActionCard
-              href="/settings"
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
-              label="팀원 초대"
-            />
-            <GuideActionCard
-              href="/chat"
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
-              label="채팅 시작"
-            />
-          </div>
-        </div>
+      {/* ═══ GETTING STARTED CHECKLIST (실데이터 진행률) ═══ */}
+      {!showOnboarding && companyId && (
+        <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
       )}
 
       {/* ═══ 아침 브리핑 — 자연어 요약 ═══ */}
@@ -1340,6 +1335,60 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
         </div>
       )}
 
+      {/* Monthly Revenue Trend (Line) + Cash Flow (Area) */}
+      {sliced.length > 1 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-[var(--text)]">월별 매출 추이</span>
+              <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-[var(--primary)]" />매출
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-[var(--warning)]" />순이익
+                </span>
+              </div>
+            </div>
+            <LineChart
+              labels={sliced.map(m => m.label)}
+              series={[
+                { label: '매출', color: 'var(--primary)', values: sliced.map(m => m.revenue) },
+                { label: '순이익', color: 'var(--warning)', values: sliced.map(m => m.netIncome) },
+              ]}
+              height={200}
+            />
+          </div>
+
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-[var(--text)]">현금흐름 (누적)</span>
+              <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-[var(--success)]" />누적 순현금
+                </span>
+              </div>
+            </div>
+            <LineChart
+              labels={sliced.map(m => m.label)}
+              series={[
+                {
+                  label: '누적 순현금',
+                  color: 'var(--success)',
+                  area: true,
+                  values: sliced.reduce<number[]>((acc, m, i) => {
+                    const prev = i === 0 ? 0 : acc[i - 1];
+                    acc.push(prev + (m.revenue - m.expense));
+                    return acc;
+                  }, []),
+                },
+              ]}
+              height={200}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Classification Breakdown */}
       {finData.classificationBreakdown.length > 0 && (
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-3">
@@ -1675,6 +1724,170 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// GettingStartedChecklist — 실데이터 카운트 기반 진행률
+// ═══════════════════════════════════════════
+const CHECKLIST_DISMISS_KEY = "leanos-getting-started-dismissed";
+
+interface ChecklistStatus {
+  company: boolean;
+  bank: boolean;
+  partner: boolean;
+  deal: boolean;
+  employee: boolean;
+  transaction: boolean;
+}
+
+function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CHECKLIST_DISMISS_KEY) === "1") setDismissed(true);
+    } catch {}
+  }, []);
+
+  const { data: status } = useQuery<ChecklistStatus>({
+    queryKey: ["getting-started", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const [company, bank, partner, deal, employee, transaction] = await Promise.all([
+        db.from("companies").select("id, business_number").eq("id", companyId).single(),
+        db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        db.from("transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+      ]);
+      return {
+        company: !!company.data?.business_number,
+        bank: (bank.count ?? 0) > 0,
+        partner: (partner.count ?? 0) > 0,
+        deal: (deal.count ?? initialDealCount) > 0,
+        employee: (employee.count ?? 0) > 0,
+        transaction: (transaction.count ?? 0) > 0,
+      };
+    },
+    enabled: !!companyId && !dismissed,
+    refetchInterval: 60_000,
+  });
+
+  const items = [
+    { key: "company" as const, href: "/settings", label: "회사 정보 등록", desc: "사업자등록번호와 회사 정보를 입력하세요", icon: "🏢" },
+    { key: "bank" as const, href: "/settings", label: "법인통장 연결", desc: "메인 계좌를 등록하면 잔고가 자동 추적됩니다", icon: "🏦" },
+    { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "최소 1개 이상의 매출처/매입처를 추가하세요", icon: "🤝" },
+    { key: "deal" as const, href: "/deals", label: "첫 프로젝트 생성", desc: "수주 한 건을 등록하면 매출/원가 추적이 시작됩니다", icon: "📋" },
+    { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하면 결재/급여를 사용할 수 있습니다", icon: "👥" },
+    { key: "transaction" as const, href: "/import-hub", label: "거래내역 가져오기", desc: "엑셀 또는 자동 동기화로 첫 거래를 입력하세요", icon: "💸" },
+  ];
+
+  const completedCount = status ? items.filter((i) => status[i.key]).length : 0;
+  const totalCount = items.length;
+  const progressPct = (completedCount / totalCount) * 100;
+  const allDone = completedCount === totalCount;
+
+  if (dismissed) return null;
+  // 완료 후 자동 숨김 (3일간 표시 후 사라지지만, 여기선 사용자 dismiss만)
+  if (allDone) {
+    return (
+      <div className="mb-5 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/[.05] p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--success)] text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-[var(--text)]">초기 설정이 모두 완료되었습니다 🎉</div>
+            <div className="text-[11px] text-[var(--text-muted)]">이제 OwnerView의 모든 기능을 사용할 수 있습니다.</div>
+          </div>
+        </div>
+        <button
+          onClick={() => { try { localStorage.setItem(CHECKLIST_DISMISS_KEY, "1"); } catch {} setDismissed(true); }}
+          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+        >
+          숨기기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-5 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: 'var(--primary)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <h3 className="text-sm font-bold text-[var(--text)]">시작 체크리스트</h3>
+        <span className="ml-auto text-[11px] font-semibold mono-number text-[var(--primary)]">
+          {completedCount}/{totalCount} 완료
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-4">
+        <div
+          className="h-full bg-[var(--primary)] transition-all duration-500"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+
+      <p className="text-xs mb-4 text-[var(--text-muted)]">
+        실제 데이터를 입력해야 OwnerView가 가치를 발휘합니다. 항목을 클릭하면 해당 페이지로 이동합니다.
+      </p>
+
+      <div className="space-y-2">
+        {items.map((item) => {
+          const done = status?.[item.key] ?? false;
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition hover:shadow-sm ${
+                done
+                  ? "bg-[var(--success)]/[.04] border-[var(--success)]/20"
+                  : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]"
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-xs ${
+                  done ? "bg-[var(--success)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]"
+                }`}
+              >
+                {done ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <span className="text-[10px]">{item.icon}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-xs font-semibold ${done ? "text-[var(--text-muted)] line-through" : "text-[var(--text)]"}`}>
+                  {item.label}
+                </div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{item.desc}</div>
+              </div>
+              {!done && (
+                <span className="text-[10px] font-semibold text-[var(--primary)] shrink-0">
+                  시작 →
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-end mt-3">
+        <button
+          onClick={() => { try { localStorage.setItem(CHECKLIST_DISMISS_KEY, "1"); } catch {} setDismissed(true); }}
+          className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+        >
+          나중에 보기
+        </button>
+      </div>
     </div>
   );
 }

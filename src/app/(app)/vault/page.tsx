@@ -268,6 +268,82 @@ export default function VaultPage() {
     totalDocs: 0, expiringDocsCount: 0, pendingDiscoveryCount: 0,
   };
 
+  // ── Renewal alert analysis ──
+  const accounts: any[] = vault?.accounts || [];
+  const docs: any[] = vault?.docs || [];
+  const now = Date.now();
+  const DAY = 1000 * 60 * 60 * 24;
+
+  type AlertLevel = "critical" | "warning" | "info";
+  interface RenewalAlert {
+    id: string;
+    level: AlertLevel;
+    title: string;
+    subtitle: string;
+    daysLeft: number;
+    kind: "account" | "doc";
+    targetId: string;
+  }
+
+  const renewalAlerts: RenewalAlert[] = [];
+  accounts.forEach((a) => {
+    if (a.status !== "active" || !a.renewal_date) return;
+    const days = Math.round((new Date(a.renewal_date).getTime() - now) / DAY);
+    if (days > 30 || days < -3) return;
+    renewalAlerts.push({
+      id: `acc-${a.id}`,
+      level: days < 0 ? "critical" : days <= 7 ? "critical" : days <= 14 ? "warning" : "info",
+      title: a.service_name || "이름 없음",
+      subtitle: days < 0
+        ? `${Math.abs(days)}일 전 갱신 예정이었음 — 상태 확인 필요`
+        : days === 0
+        ? "오늘 갱신"
+        : `${days}일 후 갱신 · 월 ${fmtW(a.monthly_cost || 0)}원`,
+      daysLeft: days,
+      kind: "account",
+      targetId: a.id,
+    });
+  });
+  docs.forEach((d) => {
+    if (!d.expiry_date) return;
+    const days = Math.round((new Date(d.expiry_date).getTime() - now) / DAY);
+    if (days > 30 || days < -3) return;
+    renewalAlerts.push({
+      id: `doc-${d.id}`,
+      level: days < 0 ? "critical" : days <= 7 ? "critical" : days <= 14 ? "warning" : "info",
+      title: d.name || "문서",
+      subtitle: days < 0
+        ? `${Math.abs(days)}일 전 만료됨`
+        : days === 0
+        ? "오늘 만료"
+        : `${days}일 후 만료 · ${DOC_CATEGORIES[d.category] || d.category || "문서"}`,
+      daysLeft: days,
+      kind: "doc",
+      targetId: d.id,
+    });
+  });
+  renewalAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
+
+  // ── Duplicate subscription detection ──
+  const normalize = (s: string) =>
+    (s || "").toLowerCase().replace(/\s+/g, "").replace(/[-_.]/g, "").replace(/(pro|plus|team|enterprise|business|personal|프로|팀|비즈니스)$/i, "");
+  const groups = new Map<string, any[]>();
+  accounts.filter((a) => a.status === "active").forEach((a) => {
+    const key = normalize(a.service_name);
+    if (!key) return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(a);
+  });
+  const duplicateGroups = Array.from(groups.values()).filter((g) => g.length > 1);
+  const duplicateWaste = duplicateGroups.reduce((sum, g) => {
+    const sorted = [...g].sort((x, y) => (y.monthly_cost || 0) - (x.monthly_cost || 0));
+    return sum + sorted.slice(1).reduce((s, a) => s + (a.monthly_cost || 0), 0);
+  }, 0);
+
+  const [showAlerts, setShowAlerts] = useState(true);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const visibleAlerts = renewalAlerts.filter((a) => !dismissedAlerts.has(a.id));
+
   const TABS: { key: Tab; label: string; count: number }[] = [
     { key: "accounts", label: "구독/계정", count: vault?.accounts?.length || 0 },
     { key: "assets", label: "자산", count: vault?.assets?.length || 0 },
@@ -306,6 +382,136 @@ export default function VaultPage() {
           )}
         </div>
       </div>
+
+      {/* ── Renewal & Duplicate Alerts ── */}
+      {showAlerts && (visibleAlerts.length > 0 || duplicateGroups.length > 0) && (
+        <div className="mb-5 space-y-2">
+          {visibleAlerts.length > 0 && (
+            <div className={`rounded-xl border p-4 ${
+              visibleAlerts.some((a) => a.level === "critical")
+                ? "bg-red-500/5 border-red-500/30"
+                : "bg-yellow-500/5 border-yellow-500/30"
+            }`}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🔔</span>
+                  <div>
+                    <div className="text-sm font-bold">
+                      갱신/만료 예정 {visibleAlerts.length}건
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      30일 이내 갱신되거나 만료되는 항목입니다
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAlerts(false)}
+                  className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)] transition"
+                >
+                  모두 접기
+                </button>
+              </div>
+              <div className="space-y-1.5 max-h-[260px] overflow-y-auto">
+                {visibleAlerts.slice(0, 8).map((alert) => {
+                  const levelColor =
+                    alert.level === "critical" ? "text-red-400 bg-red-500/10" :
+                    alert.level === "warning" ? "text-yellow-400 bg-yellow-500/10" :
+                    "text-blue-400 bg-blue-500/10";
+                  return (
+                    <div
+                      key={alert.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2 bg-[var(--bg-card)] rounded-lg border border-[var(--border)]/50"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${levelColor}`}>
+                          {alert.daysLeft < 0 ? `D+${Math.abs(alert.daysLeft)}` : `D-${alert.daysLeft}`}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-semibold truncate">{alert.title}</div>
+                          <div className="text-[10px] text-[var(--text-muted)] truncate">{alert.subtitle}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setTab(alert.kind === "account" ? "accounts" : "docs");
+                            setTimeout(() => {
+                              const row = document.getElementById(`vault-row-${alert.targetId}`);
+                              if (row) {
+                                row.scrollIntoView({ behavior: "smooth", block: "center" });
+                                row.classList.add("ring-2", "ring-[var(--primary)]");
+                                setTimeout(() => row.classList.remove("ring-2", "ring-[var(--primary)]"), 2000);
+                              }
+                            }, 100);
+                          }}
+                          className="text-[10px] px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded transition font-medium"
+                        >
+                          이동
+                        </button>
+                        <button
+                          onClick={() => setDismissedAlerts((prev) => new Set(prev).add(alert.id))}
+                          className="text-[10px] px-2 py-1 text-[var(--text-dim)] hover:text-[var(--text-muted)] transition"
+                          title="접기"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {visibleAlerts.length > 8 && (
+                  <div className="text-[10px] text-[var(--text-dim)] text-center py-1">
+                    외 {visibleAlerts.length - 8}건 더
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {duplicateGroups.length > 0 && (
+            <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">🔍</span>
+                <div>
+                  <div className="text-sm font-bold">중복 구독 의심 {duplicateGroups.length}건</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    유사한 서비스에 월 <span className="font-semibold text-purple-400">{fmtW(duplicateWaste)}원</span> 중복 지출 가능성
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {duplicateGroups.map((group, gi) => (
+                  <div key={gi} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border)]/50 p-3">
+                    <div className="text-[10px] text-[var(--text-muted)] mb-1.5">
+                      유사 서비스 {group.length}개 그룹
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {group.map((a: any) => (
+                        <div
+                          key={a.id}
+                          className="flex items-center gap-2 px-2.5 py-1 bg-[var(--bg-surface)] rounded-md text-xs"
+                        >
+                          <span className="font-semibold">{a.service_name}</span>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            월 {(a.monthly_cost || 0).toLocaleString()}원
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {!showAlerts && (visibleAlerts.length > 0 || duplicateGroups.length > 0) && (
+        <button
+          onClick={() => setShowAlerts(true)}
+          className="mb-4 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] transition flex items-center gap-1"
+        >
+          🔔 알림 {visibleAlerts.length + duplicateGroups.length}건 펼치기
+        </button>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-3 mb-6">
@@ -567,7 +773,7 @@ export default function VaultPage() {
                 {vault.accounts.map((acc: any) => {
                   const st = ACCOUNT_STATUS[acc.status || "active"] || ACCOUNT_STATUS.active;
                   return (
-                    <tr key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={async () => {
+                    <tr id={`vault-row-${acc.id}`} key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={async () => {
                       setEditingId(acc.id);
                       // Decrypt the password if it's stored encrypted
                       let plainPassword = "";
@@ -705,7 +911,7 @@ export default function VaultPage() {
                 {vault.docs.map((d: any) => {
                   const isExpiring = d.expiry_date && ((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 30;
                   return (
-                    <tr key={d.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(d.id); setDocForm({ category: d.category || "contract", name: d.name || "", fileUrl: d.file_url || "", linkedDealId: d.linked_deal_id || "", expiryDate: d.expiry_date || "", tags: (d.tags || []).join(", ") }); setShowForm(true); }}>
+                    <tr id={`vault-row-${d.id}`} key={d.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(d.id); setDocForm({ category: d.category || "contract", name: d.name || "", fileUrl: d.file_url || "", linkedDealId: d.linked_deal_id || "", expiryDate: d.expiry_date || "", tags: (d.tags || []).join(", ") }); setShowForm(true); }}>
                       <td className="p-4">
                         <div className="font-semibold">{d.name}</div>
                       </td>

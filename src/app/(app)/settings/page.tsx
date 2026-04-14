@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 import BulkInvite from "@/components/bulk-invite";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -115,6 +115,7 @@ export default function SettingsPage() {
     { key: "bank", label: "은행연동" },
     { key: "tax", label: "세무자동화" },
     { key: "certificate", label: "인증서" },
+    { key: "notifications", label: "알림" },
     { key: "invite", label: "대량 초대" },
   ];
 
@@ -442,9 +443,490 @@ export default function SettingsPage() {
       {/* ═══ Certificate Management Tab ═══ */}
       {mainTab === "certificate" && <CertificateManagementTab companyId={companyId} />}
 
+      {/* ═══ Notifications Tab ═══ */}
+      {mainTab === "notifications" && <NotificationsTab companyId={companyId} />}
+
       {/* ═══ Bulk Invite Tab ═══ */}
       {mainTab === "invite" && companyId && <BulkInvite companyId={companyId} />}
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Notifications Tab — 채널별 + 이벤트별 세분화
+// ═══════════════════════════════════════════
+type NotifChannel = "email" | "push" | "telegram";
+type NotifEvent =
+  | "approval_pending"
+  | "deal_status"
+  | "payment_due"
+  | "tax_invoice"
+  | "chat_mention"
+  | "weekly_report"
+  | "system_alert";
+
+interface NotifPrefs {
+  email: { enabled: boolean; address: string; events: Record<NotifEvent, boolean> };
+  push: { enabled: boolean; events: Record<NotifEvent, boolean> };
+  telegram: { enabled: boolean; chatId: string; events: Record<NotifEvent, boolean> };
+  quietHours: { enabled: boolean; start: string; end: string };
+}
+
+const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string }[] = [
+  { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
+  { key: "deal_status", label: "프로젝트 상태 변경", desc: "딜이 다음 단계로 이동하거나 완료될 때" },
+  { key: "payment_due", label: "결제 마감 임박", desc: "D-7 이내 결제/지급 예정" },
+  { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "신규 세금계산서 발행 또는 매입 수신" },
+  { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때" },
+  { key: "weekly_report", label: "주간 리포트", desc: "매주 월요일 오전 9시 요약 리포트" },
+  { key: "system_alert", label: "시스템 경고", desc: "런웨이/현금흐름 임계치 알림" },
+];
+
+const DEFAULT_NOTIF_PREFS: NotifPrefs = {
+  email: {
+    enabled: true,
+    address: "",
+    events: {
+      approval_pending: true,
+      deal_status: false,
+      payment_due: true,
+      tax_invoice: true,
+      chat_mention: false,
+      weekly_report: true,
+      system_alert: true,
+    },
+  },
+  push: {
+    enabled: false,
+    events: {
+      approval_pending: true,
+      deal_status: true,
+      payment_due: true,
+      tax_invoice: false,
+      chat_mention: true,
+      weekly_report: false,
+      system_alert: true,
+    },
+  },
+  telegram: {
+    enabled: false,
+    chatId: "",
+    events: {
+      approval_pending: true,
+      deal_status: false,
+      payment_due: true,
+      tax_invoice: false,
+      chat_mention: false,
+      weekly_report: true,
+      system_alert: true,
+    },
+  },
+  quietHours: { enabled: false, start: "22:00", end: "08:00" },
+};
+
+const NOTIF_STORAGE_KEY = "leanos-notification-prefs";
+
+function NotificationsTab({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unknown">("unknown");
+  const [telegramTesting, setTelegramTesting] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw);
+        setPrefs({ ...DEFAULT_NOTIF_PREFS, ...stored });
+      }
+    } catch {}
+    setLoaded(true);
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushSupported(true);
+      setPushPermission(Notification.permission);
+    }
+
+    // Try to load user email
+    getCurrentUser().then((u) => {
+      if (u?.email) {
+        setPrefs((p) => ({ ...p, email: { ...p.email, address: p.email.address || u.email } }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
+      // Best-effort persist to supabase if a notification_prefs table exists
+      if (companyId) {
+        const u = await getCurrentUser();
+        if (u) {
+          await (supabase as any)
+            .from("notification_prefs")
+            .upsert({
+              user_id: u.id,
+              company_id: companyId,
+              prefs,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "user_id" })
+            .then(() => {}, () => {}); // ignore if table missing
+        }
+      }
+      toast("알림 설정 저장됨", "success");
+    } catch (err: any) {
+      toast(`저장 실패: ${err.message || err}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function requestPushPermission() {
+    if (!pushSupported) return;
+    const result = await Notification.requestPermission();
+    setPushPermission(result);
+    if (result === "granted") {
+      setPrefs((p) => ({ ...p, push: { ...p.push, enabled: true } }));
+      toast("푸시 알림 권한 허용됨", "success");
+    } else {
+      toast("푸시 알림 권한 거부됨 — 브라우저 설정에서 허용해주세요", "error");
+    }
+  }
+
+  async function testTelegram() {
+    if (!prefs.telegram.chatId.trim()) {
+      toast("텔레그램 Chat ID를 입력해주세요", "error");
+      return;
+    }
+    setTelegramTesting(true);
+    try {
+      const res = await fetch("/api/notifications/telegram-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: prefs.telegram.chatId }),
+      });
+      if (res.ok) {
+        toast("테스트 메시지 발송 — 텔레그램을 확인하세요", "success");
+      } else {
+        toast("발송 실패 — Chat ID를 확인하세요", "error");
+      }
+    } catch {
+      toast("네트워크 오류 — 잠시 후 다시 시도하세요", "error");
+    } finally {
+      setTelegramTesting(false);
+    }
+  }
+
+  function setEventEnabled(channel: NotifChannel, event: NotifEvent, enabled: boolean) {
+    setPrefs((p) => ({
+      ...p,
+      [channel]: {
+        ...(p[channel] as any),
+        events: { ...(p[channel] as any).events, [event]: enabled },
+      },
+    }));
+  }
+
+  function setAllEvents(channel: NotifChannel, enabled: boolean) {
+    setPrefs((p) => {
+      const next = { ...((p[channel] as any).events) };
+      for (const ev of NOTIF_EVENTS) next[ev.key] = enabled;
+      return { ...p, [channel]: { ...(p[channel] as any), events: next } };
+    });
+  }
+
+  if (!loaded) {
+    return <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <h2 className="text-base font-bold mb-1">알림 설정</h2>
+        <p className="text-xs text-[var(--text-muted)]">
+          이메일 · 푸시 · 텔레그램 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
+        </p>
+      </div>
+
+      {/* Email Channel */}
+      <ChannelSection
+        title="📧 이메일"
+        desc="가장 중요한 알림 — 결재/세금계산서/주간 리포트에 권장"
+        enabled={prefs.email.enabled}
+        onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
+      >
+        <div className="mb-4">
+          <label className="block text-xs text-[var(--text-muted)] mb-1.5">수신 이메일 주소</label>
+          <input
+            type="email"
+            value={prefs.email.address}
+            onChange={(e) => setPrefs((p) => ({ ...p, email: { ...p.email, address: e.target.value } }))}
+            placeholder="you@example.com"
+            disabled={!prefs.email.enabled}
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm disabled:opacity-50"
+          />
+        </div>
+        <EventGrid
+          channel="email"
+          enabled={prefs.email.enabled}
+          values={prefs.email.events}
+          onChange={setEventEnabled}
+          onAll={setAllEvents}
+        />
+      </ChannelSection>
+
+      {/* Push Channel */}
+      <ChannelSection
+        title="🔔 브라우저 푸시"
+        desc="실시간 데스크톱 알림 — 채팅 멘션/긴급 알림에 적합"
+        enabled={prefs.push.enabled}
+        onToggle={(v) => {
+          if (v && pushPermission !== "granted") {
+            requestPushPermission();
+          } else {
+            setPrefs((p) => ({ ...p, push: { ...p.push, enabled: v } }));
+          }
+        }}
+        disabled={!pushSupported}
+      >
+        {!pushSupported && (
+          <div className="text-xs text-[var(--warning)] mb-3">
+            현재 브라우저에서 푸시 알림을 지원하지 않습니다.
+          </div>
+        )}
+        {pushSupported && pushPermission === "denied" && (
+          <div className="text-xs text-[var(--danger)] mb-3">
+            푸시 권한이 거부되었습니다. 브라우저 주소창 옆 자물쇠 아이콘에서 알림을 허용해주세요.
+          </div>
+        )}
+        {pushSupported && pushPermission !== "granted" && pushPermission !== "denied" && (
+          <button
+            onClick={requestPushPermission}
+            className="mb-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition"
+          >
+            푸시 권한 요청
+          </button>
+        )}
+        <EventGrid
+          channel="push"
+          enabled={prefs.push.enabled && pushSupported}
+          values={prefs.push.events}
+          onChange={setEventEnabled}
+          onAll={setAllEvents}
+        />
+      </ChannelSection>
+
+      {/* Telegram Channel */}
+      <ChannelSection
+        title="✈️ 텔레그램"
+        desc="모바일에서 가장 빠른 알림 — @motive_hajun_bot에게 /start 입력 후 Chat ID 발급받으세요"
+        enabled={prefs.telegram.enabled}
+        onToggle={(v) => setPrefs((p) => ({ ...p, telegram: { ...p.telegram, enabled: v } }))}
+      >
+        <div className="mb-4">
+          <label className="block text-xs text-[var(--text-muted)] mb-1.5">Telegram Chat ID</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={prefs.telegram.chatId}
+              onChange={(e) => setPrefs((p) => ({ ...p, telegram: { ...p.telegram, chatId: e.target.value } }))}
+              placeholder="예: 123456789"
+              disabled={!prefs.telegram.enabled}
+              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm disabled:opacity-50"
+            />
+            <button
+              onClick={testTelegram}
+              disabled={!prefs.telegram.enabled || telegramTesting}
+              className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--primary-light)] text-[var(--primary)] hover:opacity-90 transition disabled:opacity-50"
+            >
+              {telegramTesting ? "발송중..." : "테스트"}
+            </button>
+          </div>
+          <p className="text-[10px] text-[var(--text-dim)] mt-1.5">
+            텔레그램에서 @motive_hajun_bot에게 메시지를 보낸 뒤, Chat ID를 입력하세요.
+          </p>
+        </div>
+        <EventGrid
+          channel="telegram"
+          enabled={prefs.telegram.enabled}
+          values={prefs.telegram.events}
+          onChange={setEventEnabled}
+          onAll={setAllEvents}
+        />
+      </ChannelSection>
+
+      {/* Quiet Hours */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-bold">방해금지 시간대</h3>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">설정한 시간에는 긴급 알림을 제외하고 모든 알림이 보류됩니다.</p>
+          </div>
+          <Toggle
+            checked={prefs.quietHours.enabled}
+            onChange={(v) => setPrefs((p) => ({ ...p, quietHours: { ...p.quietHours, enabled: v } }))}
+          />
+        </div>
+        {prefs.quietHours.enabled && (
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <div>
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">시작</label>
+              <input
+                type="time"
+                value={prefs.quietHours.start}
+                onChange={(e) => setPrefs((p) => ({ ...p, quietHours: { ...p.quietHours, start: e.target.value } }))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">종료</label>
+              <input
+                type="time"
+                value={prefs.quietHours.end}
+                onChange={(e) => setPrefs((p) => ({ ...p, quietHours: { ...p.quietHours, end: e.target.value } }))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Save bar */}
+      <div className="sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2">
+        <button
+          onClick={() => setPrefs(DEFAULT_NOTIF_PREFS)}
+          className="px-4 py-2 rounded-lg text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+        >
+          기본값으로
+        </button>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="px-5 py-2 rounded-lg text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition disabled:opacity-50"
+        >
+          {saving ? "저장중..." : "저장"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChannelSection({
+  title,
+  desc,
+  enabled,
+  onToggle,
+  disabled,
+  children,
+}: {
+  title: string;
+  desc: string;
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 ${disabled ? "opacity-60" : ""}`}>
+      <div className="flex items-start justify-between mb-4 gap-4">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold">{title}</h3>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{desc}</p>
+        </div>
+        <Toggle checked={enabled} onChange={onToggle} disabled={disabled} />
+      </div>
+      <div className={enabled ? "" : "opacity-50 pointer-events-none"}>{children}</div>
+    </div>
+  );
+}
+
+function EventGrid({
+  channel,
+  enabled,
+  values,
+  onChange,
+  onAll,
+}: {
+  channel: NotifChannel;
+  enabled: boolean;
+  values: Record<NotifEvent, boolean>;
+  onChange: (channel: NotifChannel, event: NotifEvent, enabled: boolean) => void;
+  onAll: (channel: NotifChannel, enabled: boolean) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">이벤트별 수신</span>
+        <div className="flex gap-2 text-[10px]">
+          <button
+            onClick={() => onAll(channel, true)}
+            disabled={!enabled}
+            className="text-[var(--primary)] hover:underline disabled:opacity-50"
+          >
+            모두 켜기
+          </button>
+          <span className="text-[var(--text-dim)]">·</span>
+          <button
+            onClick={() => onAll(channel, false)}
+            disabled={!enabled}
+            className="text-[var(--text-muted)] hover:underline disabled:opacity-50"
+          >
+            모두 끄기
+          </button>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {NOTIF_EVENTS.map((ev) => (
+          <label
+            key={ev.key}
+            className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] transition cursor-pointer"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-[var(--text)]">{ev.label}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{ev.desc}</div>
+            </div>
+            <Toggle
+              checked={!!values[ev.key]}
+              onChange={(v) => onChange(channel, ev.key, v)}
+              disabled={!enabled}
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${
+        checked ? "bg-[var(--primary)]" : "bg-[var(--border)]"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0"
+        }`}
+      />
+    </button>
   );
 }
 

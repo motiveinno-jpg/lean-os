@@ -133,6 +133,11 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     enabled: !!companyId,
   });
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const { toast: queueToast } = useToast();
+
   const approveMut = useMutation({ mutationFn: (id: string) => approvePayment(id, userId), onSuccess: invalidate });
   const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: invalidate });
   const executeMut = useMutation({ mutationFn: (id: string) => executePayment(id), onSuccess: invalidate });
@@ -142,6 +147,60 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   });
 
   const filtered = filter === "all" ? queue : queue.filter((q: any) => q.status === filter);
+
+  function toggleOne(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleAllSelectable() {
+    const selectable = filtered.filter((q: any) => q.status === 'pending' || q.status === 'approved').map((q: any) => q.id);
+    setSelectedIds(prev => {
+      const allSelected = selectable.length > 0 && selectable.every((id: string) => prev.has(id));
+      return allSelected ? new Set() : new Set(selectable);
+    });
+  }
+  function clearSelection() { setSelectedIds(new Set()); }
+
+  async function runBulk(action: 'approve' | 'reject' | 'execute') {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    // 액션별로 가능한 항목만 필터
+    const candidates = filtered.filter((q: any) => {
+      if (!selectedIds.has(q.id)) return false;
+      if (action === 'approve' || action === 'reject') return q.status === 'pending';
+      if (action === 'execute') return q.status === 'approved';
+      return false;
+    });
+    if (candidates.length === 0) {
+      queueToast(action === 'execute' ? '실행 가능한 항목이 없습니다 (승인완료 상태만 가능)' : '대기 중인 항목이 없습니다', 'info');
+      return;
+    }
+    const verb = action === 'approve' ? '승인' : action === 'reject' ? '거부' : '실행';
+    if (!confirm(`${candidates.length}건 ${verb}하시겠습니까?`)) return;
+    setBulkRunning(true);
+    setBulkProgress({ done: 0, total: candidates.length, failed: 0 });
+    let failed = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      try {
+        const id = candidates[i].id;
+        if (action === 'approve') await approvePayment(id, userId);
+        else if (action === 'reject') await rejectPayment(id, userId);
+        else await executePayment(id);
+      } catch { failed++; }
+      setBulkProgress({ done: i + 1, total: candidates.length, failed });
+    }
+    setBulkRunning(false);
+    setSelectedIds(new Set());
+    invalidate();
+    queueToast(`${verb} 완료: ${candidates.length - failed}/${candidates.length}${failed > 0 ? ` (실패 ${failed}건)` : ''}`, failed > 0 ? 'error' : 'success');
+  }
+
+  const selectableInView = filtered.filter((q: any) => q.status === 'pending' || q.status === 'approved');
+  const allSelected = selectableInView.length > 0 && selectableInView.every((q: any) => selectedIds.has(q.id));
+  const selectedSum = filtered.filter((q: any) => selectedIds.has(q.id)).reduce((s: number, q: any) => s + Number(q.amount || 0), 0);
   const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
     pending: { label: "승인대기", bg: "bg-yellow-500/10", text: "text-yellow-400" },
     approved: { label: "승인완료", bg: "bg-blue-500/10", text: "text-blue-400" },
@@ -224,6 +283,42 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         ))}
       </div>
 
+      {/* 벌크 액션바 — 선택 항목이 있을 때만 표시 */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="text-sm font-semibold text-[var(--primary)]">
+            {selectedIds.size}건 선택됨 · ₩{selectedSum.toLocaleString()}
+          </div>
+          {bulkRunning && (
+            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <span>처리 중 {bulkProgress.done}/{bulkProgress.total}</span>
+              <div className="w-32 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${bulkProgress.total > 0 ? (bulkProgress.done / bulkProgress.total) * 100 : 0}%` }} />
+              </div>
+              {bulkProgress.failed > 0 && <span className="text-red-400">실패 {bulkProgress.failed}</span>}
+            </div>
+          )}
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => runBulk('approve')} disabled={bulkRunning}
+              className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
+              일괄 승인
+            </button>
+            <button onClick={() => runBulk('reject')} disabled={bulkRunning}
+              className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
+              일괄 거부
+            </button>
+            <button onClick={() => runBulk('execute')} disabled={bulkRunning}
+              className="px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
+              일괄 실행
+            </button>
+            <button onClick={clearSelection} disabled={bulkRunning}
+              className="px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs font-semibold transition disabled:opacity-50">
+              선택 해제
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Queue */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {filtered.length === 0 ? (
@@ -236,6 +331,12 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="px-3 py-3 w-10">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAllSelectable}
+                    disabled={selectableInView.length === 0}
+                    className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30"
+                    title="선택 가능 항목 전체 선택" />
+                </th>
                 <th className="text-left px-5 py-3 font-medium">설명</th>
                 <th className="text-right px-5 py-3 font-medium">금액</th>
                 <th className="text-left px-5 py-3 font-medium">통장</th>
@@ -247,8 +348,16 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             <tbody>
               {filtered.map((item: any) => {
                 const sc = statusConfig[item.status] || statusConfig.pending;
+                const selectable = item.status === 'pending' || item.status === 'approved';
+                const isSelected = selectedIds.has(item.id);
                 return (
-                  <tr key={item.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                  <tr key={item.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition ${isSelected ? 'bg-[var(--primary)]/5' : ''}`}>
+                    <td className="px-3 py-3">
+                      <input type="checkbox" checked={isSelected} disabled={!selectable}
+                        onChange={() => toggleOne(item.id)}
+                        className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={selectable ? '선택' : '벌크 액션 불가 (실행/거부 완료)'} />
+                    </td>
                     <td className="px-5 py-3 text-sm">{item.description || "—"}</td>
                     <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(item.amount).toLocaleString()}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{item.bank_accounts?.alias || item.bank_accounts?.bank_name || "미지정"}</td>

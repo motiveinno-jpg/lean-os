@@ -335,6 +335,36 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   async function handleConfirmRevenue() { if (!companyId || !userId || confirming) return; setConfirming(true); setPipelineError(null); try { const { data: schedules } = await db2.from('deal_revenue_schedule').select('id, amount, status').eq('deal_id', dealId).eq('status', 'expected').order('due_date', { ascending: true }).limit(1); if (schedules && schedules.length > 0) { const entry = schedules[0]; await onRevenueReceived({ dealId, companyId, amount: Number(entry.amount), userId, revenueScheduleId: entry.id }); } queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`입금 확인 실패: ${err?.message || '알 수 없는 오류'}`); } setConfirming(false); }
   async function handleApplySeal(documentId: string) { if (!companyId || sealApplying) return; setSealApplying(true); setPipelineError(null); try { await applyCompanySeal({ documentId, companyId, appliedBy: userId || '' }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`직인 적용 실패: ${err?.message || '알 수 없는 오류'}`); } setSealApplying(false); }
 
+  // 견적서/계약서 직접 다운로드 (모달 미사용)
+  async function handleDownload(documentId: string) {
+    if (previewLoading) return;
+    setPreviewLoading(true); setPipelineError(null);
+    try {
+      const { data: docData } = await db2.from('documents').select('name, content_json').eq('id', documentId).single();
+      if (!docData) throw new Error('문서를 찾을 수 없습니다');
+      const cj = docData.content_json as any;
+      const { data: comp } = await db2.from('companies').select('name, business_number, representative, address, seal_url').eq('id', companyId).single();
+      const companyInfo = { name: comp?.name || '', businessNumber: comp?.business_number || '', representative: comp?.representative || '', address: comp?.address || '' };
+      let blob: Blob;
+      let ext = 'pdf';
+      if (cj?.type === 'contract') {
+        const html = generateContractPDF({ documentNumber: docData.name, date: new Date().toISOString().split('T')[0], partyA: { name: companyInfo.name, representative: companyInfo.representative, businessNumber: companyInfo.businessNumber, address: companyInfo.address }, partyB: { name: cj.partnerName || '' }, contractAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, items: (cj.items || []).map((it: any) => ({ name: it.name || '', spec: it.spec || '', qty: it.quantity || 1, unitPrice: it.unitPrice || 0, amount: it.supplyAmount || 0 })), contractSubject: cj.dealName || docData.name, contractStartDate: cj.contractStartDate || '', contractEndDate: cj.contractEndDate || '', paymentTerms: cj.paymentTerms || '', deliveryDeadline: cj.deliveryDeadline || '', inspectionPeriod: cj.inspectionPeriod || '7일', warrantyPeriod: cj.warrantyPeriod || '1년', latePenaltyRate: cj.latePenaltyRate || '0.1%', sealUrlA: comp?.seal_url || undefined });
+        blob = new Blob([html], { type: 'text/html' });
+        ext = 'html';
+      } else {
+        blob = await generateQuotePDF({ documentNumber: docData.name, companyInfo, counterparty: cj.partnerName || '', items: cj.items || [{ name: cj.dealName || '', quantity: 1, unitPrice: cj.contractTotal || 0, supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, note: '' }], supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, validUntil: cj.validUntil, sealUrl: comp?.seal_url || undefined });
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docData.name || '견적서'}.${ext}`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(`다운로드 완료: ${docData.name}.${ext}`, 'success');
+    } catch (err: any) { setPipelineError(`다운로드 실패: ${err?.message || '알 수 없는 오류'}`); }
+    setPreviewLoading(false);
+  }
+
   // 견적서/계약서 미리보기
   async function handlePreview(documentId: string) {
     if (previewLoading) return;
@@ -445,6 +475,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
           {!hasQuote && companyId && userId && (<button onClick={handleCreateQuote} disabled={creating} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition">{creating ? '생성 중...' : '+ 견적서 생성'}</button>)}
           {forceApproveTarget && companyId && userId && (<button onClick={handleForceApprove} disabled={forceApproving} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-amber-700 transition">{forceApproving ? '처리 중...' : `임의 승인 (${activeQuote ? '견적서' : '계약서'})`}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handlePreview((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-cyan-700 transition">{previewLoading ? '로딩...' : '미리보기'}</button>)}
+          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleDownload((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-emerald-700 transition" title="견적서/계약서 PDF 직접 다운로드">{previewLoading ? '...' : '⬇ 다운로드'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleApplySeal((activeQuote?.documentId || activeContract?.documentId)!)} disabled={sealApplying} className="px-3 py-1.5 bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-800 transition">{sealApplying ? '적용 중...' : '직인 적용'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleSendEmail((activeQuote?.documentId || activeContract?.documentId)!)} disabled={emailSending} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-indigo-700 transition">{emailSending ? '발송 중...' : '📧 이메일 발송'}</button>)}
           {canConfirmRevenue && companyId && userId && (<button onClick={handleConfirmRevenue} disabled={confirming} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-green-700 transition">{confirming ? '처리 중...' : '입금 확인'}</button>)}

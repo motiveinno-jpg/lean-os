@@ -14,6 +14,354 @@ import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 
+// ── Chat Files Gallery with thumbnails + preview modal ──
+function FilesGalleryView({ files }: { files: any[] }) {
+  const [preview, setPreview] = useState<any | null>(null);
+  const [filter, setFilter] = useState<"all" | "image" | "pdf" | "doc">("all");
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
+
+  const isImg = (f: any) => f.mime_type?.startsWith("image/");
+  const isPdf = (f: any) => f.mime_type?.includes("pdf");
+  const isVideo = (f: any) => f.mime_type?.startsWith("video/");
+  const isAudio = (f: any) => f.mime_type?.startsWith("audio/");
+  const fileIcon = (f: any) => {
+    if (isImg(f)) return "🖼";
+    if (isPdf(f)) return "📕";
+    if (isVideo(f)) return "🎬";
+    if (isAudio(f)) return "🎵";
+    if (/(word|doc)/i.test(f.mime_type || "")) return "📝";
+    if (/(sheet|excel|csv)/i.test(f.mime_type || "")) return "📊";
+    if (/zip|archive/i.test(f.mime_type || "")) return "🗜";
+    return "📎";
+  };
+  const fmtSize = (n: number) => {
+    if (!n) return "";
+    if (n < 1024) return `${n}B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)}KB`;
+    return `${(n / 1024 / 1024).toFixed(1)}MB`;
+  };
+
+  const visible = files.filter((f: any) => {
+    if (filter === "all") return true;
+    if (filter === "image") return isImg(f);
+    if (filter === "pdf") return isPdf(f);
+    if (filter === "doc") return !isImg(f) && !isPdf(f);
+    return true;
+  });
+
+  const imgs = files.filter(isImg);
+  const pdfs = files.filter(isPdf);
+  const others = files.filter((f) => !isImg(f) && !isPdf(f));
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
+      {files.length === 0 ? (
+        <div className="p-12 text-center text-sm text-[var(--text-muted)]">파일이 없습니다</div>
+      ) : (
+        <>
+          {/* Filter + Layout Toolbar */}
+          <div className="sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)] px-4 py-2.5 flex items-center justify-between gap-2">
+            <div className="flex gap-1">
+              {[
+                { key: "all", label: `전체 (${files.length})` },
+                { key: "image", label: `이미지 (${imgs.length})` },
+                { key: "pdf", label: `PDF (${pdfs.length})` },
+                { key: "doc", label: `기타 (${others.length})` },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setFilter(t.key as any)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
+                    filter === t.key
+                      ? "bg-[var(--primary)] text-white"
+                      : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setLayout("grid")}
+                className={`p-1.5 rounded-md transition ${layout === "grid" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                title="그리드 보기"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M4 6h6v6H4zM14 6h6v6h-6zM4 16h6v4H4zM14 16h6v4h-6z" /></svg>
+              </button>
+              <button
+                onClick={() => setLayout("list")}
+                className={`p-1.5 rounded-md transition ${layout === "list" ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                title="리스트 보기"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+            </div>
+          </div>
+
+          {layout === "grid" ? (
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {visible.map((f: any) => (
+                <button
+                  key={f.id}
+                  onClick={() => setPreview(f)}
+                  className="group text-left bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]/60 overflow-hidden hover:border-[var(--primary)]/50 hover:shadow-lg transition"
+                >
+                  <div className="aspect-square bg-[var(--bg)] flex items-center justify-center overflow-hidden relative">
+                    {isImg(f) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={f.file_url}
+                        alt={f.file_name}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                    ) : isPdf(f) ? (
+                      <div className="flex flex-col items-center gap-1 text-red-400">
+                        <span className="text-4xl">📕</span>
+                        <span className="text-[9px] font-semibold tracking-widest">PDF</span>
+                      </div>
+                    ) : isVideo(f) ? (
+                      <span className="text-4xl">🎬</span>
+                    ) : (
+                      <span className="text-4xl">{fileIcon(f)}</span>
+                    )}
+                    {isPdf(f) && (
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[9px] rounded">
+                        미리보기
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2">
+                    <div className="text-[11px] font-medium truncate">{f.file_name}</div>
+                    <div className="text-[9px] text-[var(--text-dim)] truncate mt-0.5">
+                      {(f.users as any)?.name || (f.users as any)?.email || "—"}
+                      {f.file_size ? ` · ${fmtSize(f.file_size)}` : ""}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border)]/50">
+              {visible.map((f: any) => (
+                <button
+                  key={f.id}
+                  onClick={() => setPreview(f)}
+                  className="w-full px-5 py-3 flex items-center justify-between hover:bg-[var(--bg-surface)] transition text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {isImg(f) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={f.file_url} alt="" className="w-10 h-10 object-cover rounded border border-[var(--border)]" />
+                    ) : (
+                      <span className="text-xl w-10 text-center">{fileIcon(f)}</span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{f.file_name}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">
+                        {(f.users as any)?.name || (f.users as any)?.email || "—"}
+                        {f.file_size ? ` · ${fmtSize(f.file_size)}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-[var(--text-dim)] shrink-0">
+                    {f.created_at ? new Date(f.created_at).toLocaleDateString("ko") : "—"}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Preview Modal */}
+      {preview && (
+        <FilePreviewModal
+          file={preview}
+          files={visible}
+          onClose={() => setPreview(null)}
+          onNavigate={(f) => setPreview(f)}
+          isImg={isImg}
+          isPdf={isPdf}
+          isVideo={isVideo}
+          isAudio={isAudio}
+          fileIcon={fileIcon}
+          fmtSize={fmtSize}
+        />
+      )}
+    </div>
+  );
+}
+
+function FilePreviewModal({
+  file, files, onClose, onNavigate, isImg, isPdf, isVideo, isAudio, fileIcon, fmtSize,
+}: {
+  file: any;
+  files: any[];
+  onClose: () => void;
+  onNavigate: (f: any) => void;
+  isImg: (f: any) => boolean;
+  isPdf: (f: any) => boolean;
+  isVideo: (f: any) => boolean;
+  isAudio: (f: any) => boolean;
+  fileIcon: (f: any) => string;
+  fmtSize: (n: number) => string;
+}) {
+  const idx = files.findIndex((f) => f.id === file.id);
+  const prev = idx > 0 ? files[idx - 1] : null;
+  const next = idx >= 0 && idx < files.length - 1 ? files[idx + 1] : null;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && prev) onNavigate(prev);
+      if (e.key === "ArrowRight" && next) onNavigate(next);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, onNavigate, prev, next]);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col" onClick={onClose}>
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-5 py-3 border-b border-white/10 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xl">{fileIcon(file)}</span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">{file.file_name}</div>
+            <div className="text-[11px] text-white/60">
+              {(file.users as any)?.name || (file.users as any)?.email || "—"}
+              {file.file_size ? ` · ${fmtSize(file.file_size)}` : ""}
+              {file.created_at ? ` · ${new Date(file.created_at).toLocaleString("ko")}` : ""}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={file.file_url}
+            download={file.file_name}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold transition"
+          >
+            다운로드
+          </a>
+          <a
+            href={file.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold transition"
+          >
+            새 탭에서 열기
+          </a>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-lg transition"
+            title="닫기 (Esc)"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      {/* Viewer */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+        {prev && (
+          <button
+            onClick={() => onNavigate(prev)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition flex items-center justify-center"
+            title="이전 (←)"
+          >
+            ‹
+          </button>
+        )}
+        {next && (
+          <button
+            onClick={() => onNavigate(next)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition flex items-center justify-center"
+            title="다음 (→)"
+          >
+            ›
+          </button>
+        )}
+
+        <div className="max-w-[92vw] max-h-full w-full flex items-center justify-center p-4">
+          {isImg(file) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={file.file_url} alt={file.file_name} className="max-h-[82vh] max-w-full object-contain rounded shadow-2xl" />
+          ) : isPdf(file) ? (
+            <iframe
+              src={`${file.file_url}#toolbar=1&navpanes=0`}
+              title={file.file_name}
+              className="w-[92vw] h-[82vh] bg-white rounded shadow-2xl"
+            />
+          ) : isVideo(file) ? (
+            <video src={file.file_url} controls autoPlay className="max-h-[82vh] max-w-full rounded shadow-2xl bg-black" />
+          ) : isAudio(file) ? (
+            <div className="bg-[var(--bg-card)] rounded-2xl p-8 min-w-[420px] text-center">
+              <div className="text-5xl mb-4">🎵</div>
+              <div className="text-sm font-semibold mb-4 text-[var(--text)]">{file.file_name}</div>
+              <audio src={file.file_url} controls autoPlay className="w-full" />
+            </div>
+          ) : (
+            <div className="bg-[var(--bg-card)] rounded-2xl p-10 text-center max-w-md">
+              <div className="text-6xl mb-4">{fileIcon(file)}</div>
+              <div className="text-base font-semibold text-[var(--text)] mb-2">{file.file_name}</div>
+              <div className="text-xs text-[var(--text-muted)] mb-5">
+                브라우저에서 직접 미리볼 수 없는 파일 형식입니다
+              </div>
+              <div className="flex gap-2 justify-center">
+                <a
+                  href={file.file_url}
+                  download={file.file_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-sm font-semibold transition"
+                >
+                  다운로드
+                </a>
+                <a
+                  href={file.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg text-sm font-semibold transition border border-[var(--border)]"
+                >
+                  새 탭에서 열기
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer: thumb strip for images */}
+      {files.filter(isImg).length > 1 && isImg(file) && (
+        <div
+          className="border-t border-white/10 px-4 py-2 overflow-x-auto flex gap-2 bg-black/40"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {files.filter(isImg).map((f) => (
+            <button
+              key={f.id}
+              onClick={() => onNavigate(f)}
+              className={`shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition ${
+                f.id === file.id ? "border-[var(--primary)]" : "border-transparent opacity-60 hover:opacity-100"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.file_url} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Inline edit component ──
 function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c: string) => void; onCancel: () => void }) {
   const [text, setText] = useState(content);
@@ -691,33 +1039,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       )}
 
       {tab === "files" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
-          {files.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">파일이 없습니다</div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]/50">
-              {files.map((f: any) => (
-                <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer"
-                  className="px-5 py-3 flex items-center justify-between hover:bg-[var(--bg-surface)] transition block">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">
-                      {f.mime_type?.startsWith('image/') ? '🖼' : f.mime_type?.includes('pdf') ? '📕' : '📎'}
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium">{f.file_name}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">
-                        {(f.users as any)?.name || (f.users as any)?.email || '—'} · {f.file_size ? formatFileSize(f.file_size) : ''}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-[var(--text-dim)]">
-                    {f.created_at ? new Date(f.created_at).toLocaleDateString('ko') : '—'}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilesGalleryView files={files} />
       )}
 
       {tab === "events" && (

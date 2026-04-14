@@ -34,6 +34,79 @@ const EMPTY_FORM = {
 const inputCls = "w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]";
 const labelCls = "block text-xs text-[var(--text-muted)] mb-1";
 
+// ── CSV 파서 (간단한 RFC4180 호환, "" 이스케이프 + 줄바꿈 안의 따옴표 처리) ──
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = "", row: string[] = [], inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuote = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuote = true;
+      else if (c === ',') { row.push(field); field = ""; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell.trim().length > 0));
+}
+
+const CSV_FIELD_MAP: Record<string, string> = {
+  "이름": "name", "name": "name", "거래처명": "name",
+  "구분": "type", "type": "type",
+  "분류": "classification", "classification": "classification",
+  "사업자번호": "businessNumber", "business_number": "businessNumber", "businessnumber": "businessNumber",
+  "대표자": "representative", "representative": "representative",
+  "담당자": "contactName", "contact_name": "contactName", "contactname": "contactName",
+  "이메일": "contactEmail", "contact_email": "contactEmail", "contactemail": "contactEmail", "email": "contactEmail",
+  "연락처": "contactPhone", "contact_phone": "contactPhone", "contactphone": "contactPhone", "phone": "contactPhone",
+  "주소": "address", "address": "address",
+  "은행명": "bankName", "bank_name": "bankName", "bankname": "bankName",
+  "계좌번호": "accountNumber", "account_number": "accountNumber", "accountnumber": "accountNumber",
+  "태그": "tags", "tags": "tags",
+  "메모": "notes", "notes": "notes",
+};
+
+const TYPE_LABEL_TO_VALUE: Record<string, string> = {
+  "공급업체": "vendor", "vendor": "vendor",
+  "고객사": "client", "client": "client",
+  "파트너": "partner", "partner": "partner",
+  "정부": "government", "정부/공공기관": "government", "government": "government",
+  "기타": "other", "other": "other",
+};
+
+// ── 관계점수: 0~100 (딜수, 계약총액, 최근 커뮤니케이션, 결제 이행률 가중) ──
+function calcRelationshipScore(opts: { dealCount: number; contractTotal: number; lastCommDaysAgo: number | null; paidRatio: number; }): { score: number; tier: 'A' | 'B' | 'C' | 'D'; color: string; bg: string } {
+  let score = 0;
+  // 딜 수: 최대 30점 (5건 이상이면 만점)
+  score += Math.min(opts.dealCount * 6, 30);
+  // 계약 총액: 최대 30점 (1억 이상 만점)
+  score += Math.min(Math.floor(opts.contractTotal / 100_000_000 * 30), 30);
+  // 최근 커뮤니케이션: 최대 25점 (7일 내 만점, 90일 초과 0점)
+  if (opts.lastCommDaysAgo !== null) {
+    if (opts.lastCommDaysAgo <= 7) score += 25;
+    else if (opts.lastCommDaysAgo <= 30) score += 18;
+    else if (opts.lastCommDaysAgo <= 90) score += 10;
+  }
+  // 결제 이행률: 최대 15점
+  score += Math.round(opts.paidRatio * 15);
+  score = Math.max(0, Math.min(100, score));
+  const tier: 'A' | 'B' | 'C' | 'D' = score >= 75 ? 'A' : score >= 50 ? 'B' : score >= 25 ? 'C' : 'D';
+  const palette = {
+    A: { color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+    B: { color: 'text-blue-400', bg: 'bg-blue-500/15' },
+    C: { color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
+    D: { color: 'text-gray-400', bg: 'bg-gray-500/15' },
+  };
+  return { score, tier, ...palette[tier] };
+}
+
 export default function PartnersPage() {
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -45,7 +118,10 @@ export default function PartnersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [detailPartner, setDetailPartner] = useState<any>(null);
-  const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs" | "comms">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs" | "comms" | "timeline">("info");
+  const [importPreview, setImportPreview] = useState<any[] | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
@@ -239,6 +315,76 @@ export default function PartnersPage() {
     setShowModal(false); setEditingId(null); setForm(EMPTY_FORM);
   }, []);
 
+  // CSV 임포트: 파일 → 파싱 → 미리보기 (실제 저장은 confirm 시점)
+  const handleCSVFile = useCallback(async (file: File) => {
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) { setImportError("헤더 + 1행 이상이 필요합니다"); return; }
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      const fieldKeys = headers.map(h => CSV_FIELD_MAP[h] || CSV_FIELD_MAP[h.replace(/\s+/g, "")] || null);
+      if (!fieldKeys.includes("name")) { setImportError("'이름' 또는 'name' 컬럼이 필수입니다"); return; }
+      const preview = rows.slice(1).map((row) => {
+        const obj: any = { type: "client" };
+        row.forEach((cell, i) => {
+          const key = fieldKeys[i];
+          if (!key) return;
+          const value = cell.trim();
+          if (!value) return;
+          if (key === "type") obj.type = TYPE_LABEL_TO_VALUE[value.toLowerCase()] || TYPE_LABEL_TO_VALUE[value] || "client";
+          else if (key === "tags") obj.tags = value.split(/[,;|]/).map(t => t.trim()).filter(Boolean);
+          else obj[key] = value;
+        });
+        return obj;
+      }).filter((o: any) => o.name);
+      if (preview.length === 0) { setImportError("유효한 행이 없습니다"); return; }
+      setImportPreview(preview);
+    } catch (err: any) {
+      setImportError(err?.message || "CSV 파싱 실패");
+    }
+  }, []);
+
+  const confirmImport = useCallback(async () => {
+    if (!importPreview || !companyId) return;
+    setImporting(true);
+    try {
+      // 직렬 처리(에러 추적 용이) — 행 수가 많지 않은 일반 CRM 사용처를 가정
+      for (const row of importPreview) {
+        await upsertPartner({
+          companyId, name: row.name, type: row.type || "client",
+          classification: row.classification || undefined,
+          businessNumber: row.businessNumber || undefined,
+          representative: row.representative || undefined,
+          contactName: row.contactName || undefined,
+          contactEmail: row.contactEmail || undefined,
+          contactPhone: row.contactPhone || undefined,
+          address: row.address || undefined,
+          bankName: row.bankName || undefined,
+          accountNumber: row.accountNumber || undefined,
+          tags: row.tags || [],
+          notes: row.notes || undefined,
+        });
+      }
+      setImportPreview(null);
+      qc.invalidateQueries({ queryKey: ["partners"] });
+    } catch (err: any) {
+      setImportError(`저장 실패: ${err?.message || "오류"}`);
+    }
+    setImporting(false);
+  }, [importPreview, companyId, qc]);
+
+  const downloadCSVTemplate = useCallback(() => {
+    const headers = ["이름", "구분", "분류", "사업자번호", "대표자", "담당자", "이메일", "연락처", "주소", "은행명", "계좌번호", "태그", "메모"];
+    const sample = ["예시상사", "client", "원자재", "123-45-67890", "홍길동", "김담당", "kim@example.com", "010-1234-5678", "서울시 강남구", "신한은행", "110-123-456789", "VIP, 장기거래", "주력 고객"];
+    const csv = [headers, sample].map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `거래처_템플릿.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }, []);
+
   const handleExport = useCallback(async () => {
     const XLSX = await import("xlsx");
     const rows = partners.map((p: any) => ({
@@ -268,6 +414,16 @@ export default function PartnersPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={downloadCSVTemplate}
+            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-xl text-xs font-semibold transition"
+            title="CSV 템플릿 다운로드">
+            템플릿
+          </button>
+          <label className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-sm font-semibold transition cursor-pointer">
+            CSV 임포트
+            <input type="file" accept=".csv,text/csv" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
+          </label>
           <button onClick={handleExport}
             className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-sm font-semibold transition">
             Excel 내보내기
@@ -413,7 +569,25 @@ export default function PartnersPage() {
       </div>
 
       {/* 360도뷰 Detail Panel */}
-      {detailPartner && (
+      {detailPartner && (() => {
+        const dealCount = partnerDeals.length;
+        const contractTotal = partnerDeals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0);
+        const lastCommDate = partnerComms[0]?.comm_date ? new Date(partnerComms[0].comm_date) : null;
+        const lastCommDaysAgo = lastCommDate ? Math.floor((Date.now() - lastCommDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+        const totalPayments = partnerPayments.length || 0;
+        const paidCount = partnerPayments.filter((p: any) => p.status === "received").length;
+        const paidRatio = totalPayments > 0 ? paidCount / totalPayments : 0;
+        const rs = calcRelationshipScore({ dealCount, contractTotal, lastCommDaysAgo, paidRatio });
+
+        // 타임라인 머지: deals(생성), payments(due/received), comms(comm_date)
+        type TimelineItem = { date: string; kind: 'deal' | 'payment' | 'comm'; title: string; sub?: string; amount?: number; status?: string };
+        const timeline: TimelineItem[] = [
+          ...partnerDeals.map((d: any) => ({ date: d.created_at, kind: 'deal' as const, title: d.name, sub: `상태: ${d.status || '—'}`, amount: Number(d.contract_total || 0), status: d.status })),
+          ...partnerPayments.map((p: any) => ({ date: p.due_date || p.created_at, kind: 'payment' as const, title: p.label || '결제', amount: Number(p.amount || 0), status: p.status })),
+          ...partnerComms.map((c: any) => ({ date: c.comm_date || c.created_at, kind: 'comm' as const, title: c.summary, sub: COMM_TYPE_LABEL[c.comm_type] || c.comm_type })),
+        ].filter(t => t.date).sort((a, b) => (a.date < b.date ? 1 : -1));
+
+        return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}>
@@ -427,6 +601,9 @@ export default function PartnersPage() {
                   <h2 className="text-lg font-bold">{detailPartner.name}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     {(() => { const b = TYPE_BADGE[detailPartner.type] || TYPE_BADGE.other; return <span className={`text-[10px] px-2 py-0.5 rounded-full ${b.bg} ${b.text}`}>{b.label}</span>; })()}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${rs.bg} ${rs.color}`} title={`딜 ${dealCount}건 / 계약 ${contractTotal.toLocaleString()}원 / 최근 소통 ${lastCommDaysAgo === null ? '없음' : lastCommDaysAgo + '일전'} / 결제이행 ${(paidRatio * 100).toFixed(0)}%`}>
+                      관계점수 {rs.score} · {rs.tier}
+                    </span>
                     {detailPartner.business_number && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>
@@ -466,6 +643,7 @@ export default function PartnersPage() {
             <div className="flex border-b border-[var(--border)]">
               {([
                 { key: "info" as const, label: "기본정보" },
+                { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
                 { key: "deals" as const, label: `딜 (${partnerDeals.length})` },
                 { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
                 { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
@@ -516,6 +694,44 @@ export default function PartnersPage() {
                     <div className="col-span-2 bg-[var(--bg-surface)] rounded-xl p-3">
                       <div className="text-[10px] text-[var(--text-dim)] mb-1">메모</div>
                       <div className="text-sm whitespace-pre-wrap">{detailPartner.notes}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 타임라인 탭 — 모든 활동 시간순 머지 */}
+              {detailTab === "timeline" && (
+                <div>
+                  {timeline.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">활동 내역이 없습니다</div>
+                  ) : (
+                    <div className="relative pl-8">
+                      <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[var(--border)]" />
+                      <div className="space-y-4">
+                        {timeline.map((t, i) => {
+                          const palette = t.kind === 'deal'
+                            ? { dot: 'bg-blue-500', icon: '📋', tag: 'bg-blue-500/10 text-blue-400', label: '딜' }
+                            : t.kind === 'payment'
+                            ? { dot: t.status === 'received' ? 'bg-green-500' : t.status === 'overdue' ? 'bg-red-500' : 'bg-yellow-500', icon: '💰', tag: 'bg-purple-500/10 text-purple-400', label: '결제' }
+                            : { dot: 'bg-emerald-500', icon: '💬', tag: 'bg-emerald-500/10 text-emerald-400', label: '소통' };
+                          return (
+                            <div key={i} className="relative">
+                              <div className={`absolute -left-[22px] top-2 w-3 h-3 rounded-full ${palette.dot} ring-2 ring-[var(--bg-card)]`} />
+                              <div className="bg-[var(--bg-surface)] rounded-xl p-3 border border-[var(--border)]/50">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${palette.tag}`}>{palette.icon} {palette.label}</span>
+                                  <span className="text-xs text-[var(--text-dim)]">{(t.date || '').slice(0, 10)}</span>
+                                </div>
+                                <div className="text-sm font-medium">{t.title}</div>
+                                {t.sub && <div className="text-xs text-[var(--text-muted)] mt-0.5">{t.sub}</div>}
+                                {typeof t.amount === 'number' && t.amount > 0 && (
+                                  <div className="text-xs font-semibold text-[var(--primary)] mt-1">{t.amount.toLocaleString()}원</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -738,6 +954,70 @@ export default function PartnersPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* CSV Import Preview Modal */}
+      {(importPreview || importError) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+              <div>
+                <h2 className="text-lg font-bold">CSV 임포트 미리보기</h2>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건 가져옵니다` : "오류"}</p>
+              </div>
+              <button onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
+            </div>
+            {importError && (
+              <div className="mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">{importError}</div>
+            )}
+            {importPreview && (
+              <div className="flex-1 overflow-auto px-6 py-4">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
+                      <th className="text-left px-2 py-2 font-medium">이름</th>
+                      <th className="text-left px-2 py-2 font-medium">구분</th>
+                      <th className="text-left px-2 py-2 font-medium">사업자번호</th>
+                      <th className="text-left px-2 py-2 font-medium">담당자</th>
+                      <th className="text-left px-2 py-2 font-medium">이메일</th>
+                      <th className="text-left px-2 py-2 font-medium">태그</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.slice(0, 50).map((r: any, i: number) => (
+                      <tr key={i} className="border-b border-[var(--border)]/30">
+                        <td className="px-2 py-1.5 font-medium">{r.name}</td>
+                        <td className="px-2 py-1.5">{TYPE_BADGE[r.type]?.label || r.type}</td>
+                        <td className="px-2 py-1.5 text-[var(--text-muted)]">{r.businessNumber || "—"}</td>
+                        <td className="px-2 py-1.5">{r.contactName || "—"}</td>
+                        <td className="px-2 py-1.5 text-[var(--text-muted)]">{r.contactEmail || "—"}</td>
+                        <td className="px-2 py-1.5 text-[var(--text-muted)]">{(r.tags || []).join(", ") || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importPreview.length > 50 && (
+                  <div className="text-xs text-[var(--text-dim)] text-center mt-3">… 외 {importPreview.length - 50}건 (저장 시 모두 처리)</div>
+                )}
+              </div>
+            )}
+            {importPreview && (
+              <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+                <button onClick={() => setImportPreview(null)} disabled={importing}
+                  className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-main)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
+                  취소
+                </button>
+                <button onClick={confirmImport} disabled={importing}
+                  className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                  {importing ? `저장 중... (${importPreview.length}건)` : `${importPreview.length}건 저장`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

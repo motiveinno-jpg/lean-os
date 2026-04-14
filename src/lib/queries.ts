@@ -1452,6 +1452,46 @@ export async function getBankTransactionStats(companyId: string) {
   };
 }
 
+export interface MonthlyIncomeExpense {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+export async function getMonthlyIncomeExpense(companyId: string): Promise<MonthlyIncomeExpense[]> {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const { data } = await supabase
+    .from('bank_transactions')
+    .select('transaction_date, type, amount')
+    .eq('company_id', companyId)
+    .gte('transaction_date', startDate)
+    .order('transaction_date', { ascending: true });
+
+  const items = data || [];
+  const buckets: Record<string, { income: number; expense: number }> = {};
+
+  for (let i = 0; i < 6; i++) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - i));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    buckets[key] = { income: 0, expense: 0 };
+  }
+
+  for (const row of items) {
+    const key = (row.transaction_date as string).slice(0, 7);
+    if (buckets[key]) {
+      const amt = Number(row.amount || 0);
+      if (row.type === 'income') buckets[key].income += amt;
+      else buckets[key].expense += amt;
+    }
+  }
+
+  return Object.entries(buckets).map(([month, v]) => ({ month, ...v }));
+}
+
 /** 어제 거래 요약 — Morning Brief AI 브리핑용 */
 export interface YesterdayTxSummary {
   incomeCount: number;

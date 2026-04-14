@@ -63,9 +63,110 @@ function SignContent() {
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; hash: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
 
-  // Canvas ref for drawing
+  // Canvas ref for drawing (high-quality signature pad)
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
+  // Stroke state: current stroke points + history of completed strokes for undo / emptiness detection
+  const currentStroke = useRef<Array<{ x: number; y: number; t: number }>>([]);
+  const strokes = useRef<Array<Array<{ x: number; y: number; t: number }>>>([]);
+  const lastWidth = useRef<number>(2);
+  const [hasInk, setHasInk] = useState(false);
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+
+  // Initialize canvas with devicePixelRatio scaling for crisp retina rendering
+  const setupCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    const ctx = canvas.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
+    ctx.fillStyle = "#0f172a";
+  }, []);
+
+  // Redraw all completed strokes (used after undo)
+  const redrawAll = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    strokes.current.forEach((stroke) => renderStroke(ctx, stroke));
+    setHasInk(strokes.current.length > 0);
+    void dpr;
+    void rect;
+  }, []);
+
+  // Render one stroke with velocity-based variable line width + quadratic smoothing
+  function renderStroke(ctx: CanvasRenderingContext2D, pts: Array<{ x: number; y: number; t: number }>) {
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    let prevWidth = 2.4;
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dt = Math.max(1, p1.t - p0.t);
+      const velocity = dist / dt;
+      // Slower = thicker, faster = thinner
+      const targetWidth = Math.max(1.1, Math.min(3.4, 3.4 - velocity * 12));
+      const width = prevWidth + (targetWidth - prevWidth) * 0.35;
+      prevWidth = width;
+
+      const midX = (p0.x + p1.x) / 2;
+      const midY = (p0.y + p1.y) / 2;
+
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      if (i === 1) {
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(midX, midY);
+      } else {
+        const p_1 = pts[i - 2];
+        const prevMidX = (p_1.x + p0.x) / 2;
+        const prevMidY = (p_1.y + p0.y) / 2;
+        ctx.moveTo(prevMidX, prevMidY);
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+      }
+      ctx.stroke();
+    }
+  }
+
+  useEffect(() => {
+    if (signMode !== "draw") return;
+    // Wait a tick for the canvas to mount
+    const id = requestAnimationFrame(() => {
+      setupCanvas();
+      redrawAll();
+    });
+    const onResize = () => {
+      setupCanvas();
+      redrawAll();
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [signMode, setupCanvas, redrawAll]);
+  void lastWidth;
 
   useEffect(() => {
     if (!token) {
@@ -183,43 +284,97 @@ function SignContent() {
     }
   }
 
-  // Canvas drawing handlers
+  // Canvas drawing handlers (high-quality smooth signature pad)
+  const getPoint = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top, t: performance.now() };
+  };
+
   const startDraw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ("touches" in e) e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     isDrawing.current = true;
-    const ctx = canvas.getContext("2d")!;
-    const rect = canvas.getBoundingClientRect();
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    currentStroke.current = [getPoint(e)];
   }, []);
 
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing.current) return;
+    if ("touches" in e) e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    const rect = canvas.getBoundingClientRect();
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#1e293b";
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }, []);
+    const pt = getPoint(e);
+    const stroke = currentStroke.current;
+    // Skip points too close together to prevent jitter
+    const last = stroke[stroke.length - 1];
+    if (last && Math.hypot(pt.x - last.x, pt.y - last.y) < 0.8) return;
+    stroke.push(pt);
+
+    // Incremental render: just the last segment
+    if (stroke.length >= 2) {
+      const i = stroke.length - 1;
+      const p0 = stroke[i - 1];
+      const p1 = stroke[i];
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dt = Math.max(1, p1.t - p0.t);
+      const velocity = dist / dt;
+      const targetWidth = Math.max(1.1, Math.min(3.4, 3.4 - velocity * 12));
+      lastWidth.current = lastWidth.current + (targetWidth - lastWidth.current) * 0.35;
+
+      const midX = (p0.x + p1.x) / 2;
+      const midY = (p0.y + p1.y) / 2;
+
+      ctx.lineWidth = lastWidth.current;
+      ctx.beginPath();
+      if (stroke.length === 2) {
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(midX, midY);
+      } else {
+        const p_1 = stroke[i - 2];
+        const prevMidX = (p_1.x + p0.x) / 2;
+        const prevMidY = (p_1.y + p0.y) / 2;
+        ctx.moveTo(prevMidX, prevMidY);
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+      }
+      ctx.stroke();
+    }
+    if (!hasInk) setHasInk(true);
+  }, [hasInk]);
 
   const endDraw = useCallback(() => {
+    if (!isDrawing.current) return;
     isDrawing.current = false;
+    if (currentStroke.current.length > 0) {
+      strokes.current.push(currentStroke.current);
+      currentStroke.current = [];
+      lastWidth.current = 2.4;
+    }
   }, []);
 
   const clearCanvas = () => {
+    strokes.current = [];
+    currentStroke.current = [];
+    lastWidth.current = 2.4;
+    setHasInk(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  };
+
+  const undoStroke = () => {
+    if (strokes.current.length === 0) return;
+    strokes.current.pop();
+    redrawAll();
   };
 
   async function handleSign() {
@@ -234,6 +389,10 @@ function SignContent() {
     } else if (signMode === "draw") {
       const canvas = canvasRef.current;
       if (!canvas) return;
+      if (strokes.current.length === 0) {
+        toast("서명을 그려주세요", "error");
+        return;
+      }
       sigData = { type: "draw", data: canvas.toDataURL("image/png") };
     } else if (signMode === "type") {
       if (!typedName.trim()) return;
@@ -261,6 +420,19 @@ function SignContent() {
             signature_data: sigData,
           })
           .eq("id", item.id);
+      }
+
+      // Save signature as default for this employee if requested
+      if (saveAsDefault && signMode !== "saved" && (pkg as any).employee_id) {
+        try {
+          await db
+            .from("employees")
+            .update({ saved_signature: sigData })
+            .eq("id", (pkg as any).employee_id);
+          setSavedSignature(sigData);
+        } catch (e) {
+          console.error("Failed to save default signature:", e);
+        }
       }
 
       // Audit: signature_submitted
@@ -771,12 +943,11 @@ function SignContent() {
 
               {signMode === "draw" && (
                 <div>
-                  <div className="relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3">
+                  <div className="relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3 bg-white">
                     <canvas
                       ref={canvasRef}
-                      width={600}
-                      height={200}
-                      className="w-full h-[150px] cursor-crosshair touch-none bg-gray-50"
+                      className="w-full h-[180px] cursor-crosshair touch-none select-none"
+                      style={{ touchAction: "none" }}
                       onMouseDown={startDraw}
                       onMouseMove={draw}
                       onMouseUp={endDraw}
@@ -785,14 +956,41 @@ function SignContent() {
                       onTouchMove={draw}
                       onTouchEnd={endDraw}
                     />
-                    <button
-                      onClick={clearCanvas}
-                      className="absolute top-2 right-2 px-2 py-1 text-xs bg-white/80 hover:bg-white rounded border border-gray-200 text-gray-500"
-                    >
-                      지우기
-                    </button>
+                    {/* Baseline guide */}
+                    <div className="pointer-events-none absolute inset-x-8 bottom-8 border-b border-dashed border-gray-200" />
+                    {!hasInk && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="text-gray-300 text-sm">여기에 서명하세요</span>
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button
+                        onClick={undoStroke}
+                        disabled={!hasInk}
+                        className="px-2 py-1 text-xs bg-white/90 hover:bg-white rounded border border-gray-200 text-gray-600 disabled:opacity-40"
+                        type="button"
+                      >
+                        ↶ 되돌리기
+                      </button>
+                      <button
+                        onClick={clearCanvas}
+                        disabled={!hasInk}
+                        className="px-2 py-1 text-xs bg-white/90 hover:bg-white rounded border border-gray-200 text-gray-600 disabled:opacity-40"
+                        type="button"
+                      >
+                        전체 지우기
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mb-4">위 영역에 서명을 그려주세요</p>
+                  <label className="flex items-center gap-2 text-xs text-gray-500 mb-4 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveAsDefault}
+                      onChange={(e) => setSaveAsDefault(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded"
+                    />
+                    기본 서명으로 저장 (다음 문서에서 자동 재사용)
+                  </label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setSignMode(null); clearCanvas(); }}
@@ -802,8 +1000,8 @@ function SignContent() {
                     </button>
                     <button
                       onClick={handleSign}
-                      disabled={signing}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                      disabled={signing || !hasInk}
+                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-40"
                     >
                       {signing ? "처리 중..." : "서명 완료"}
                     </button>

@@ -634,7 +634,13 @@ export default function BillingPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
                 onClick={async () => {
                   if (showUpgradeModal === "free") {
-                    if (!subscription?.id) { setShowUpgradeModal(null); return; }
+                    setShowUpgradeModal(null);
+                    // Stripe 구독자는 portal에서 정식 해지 → 결제기간 종료시 free 전환 (직접 DB조작 금지)
+                    if (hasStripeSubscription) {
+                      await handleOpenPortal();
+                      return;
+                    }
+                    if (!subscription?.id) return;
                     await db.from('subscriptions').update({
                       status: 'canceled',
                       cancel_reason: '사용자 다운그레이드 (Free)',
@@ -643,11 +649,15 @@ export default function BillingPage() {
                     }).eq('id', subscription.id);
                     qc.invalidateQueries({ queryKey: ['subscription'] });
                     toast("Free 플랜으로 변경되었습니다.", "success");
-                    setShowUpgradeModal(null);
                     return;
                   }
 
                   setShowUpgradeModal(null);
+                  // 이미 Stripe 구독자이면 portal에서 플랜 변경 (중복 구독 방지)
+                  if (hasStripeSubscription && currentSlug !== 'free') {
+                    await handleOpenPortal();
+                    return;
+                  }
                   await handleStripeCheckout(showUpgradeModal);
                 }}
               >
