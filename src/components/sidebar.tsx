@@ -170,7 +170,7 @@ export function Sidebar() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/auth");
+    window.location.href = "/auth";
   }
 
   const sidebarWidth = collapsed ? "w-[68px]" : "w-60";
