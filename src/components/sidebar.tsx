@@ -32,6 +32,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/transactions", label: "거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
       { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
+      { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
+      { href: "/reports/bs", label: "대차대조표", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
   {
@@ -98,6 +100,7 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "help-circle": return <svg {...props}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
     case "crown": return <svg {...props}><path d="M2 20h20M4 17l2-12 4 5 2-8 2 8 4-5 2 12"/></svg>;
     case "upload": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+    case "bar-chart": return <svg {...props}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }

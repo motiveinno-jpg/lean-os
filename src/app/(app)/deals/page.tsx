@@ -618,14 +618,101 @@ function KanbanBoard({ deals, clsColorMap, onSelectDeal, assignmentMap }: { deal
   );
 }
 
-// ── View Toggle (E-3: calendar added) ──
-type ViewMode = 'table' | 'kanban' | 'calendar';
+// ── Gantt Chart View ──
+function GanttView({ deals, clsColorMap }: { deals: any[]; clsColorMap: Record<string, string> }) {
+  const today = new Date();
+  const allDates = deals.flatMap((d: any) => [d.start_date, d.end_date].filter(Boolean).map((s: string) => new Date(s).getTime()));
+  if (allDates.length === 0) return <div className="text-center py-16 text-[var(--text-muted)]">날짜가 있는 딜이 없습니다</div>;
+  const minDate = new Date(Math.min(...allDates));
+  const maxDate = new Date(Math.max(...allDates, today.getTime() + 30 * 86400000));
+  minDate.setDate(1);
+  maxDate.setMonth(maxDate.getMonth() + 1, 0);
+  const totalDays = Math.max(1, Math.ceil((maxDate.getTime() - minDate.getTime()) / 86400000));
+  const months: { label: string; startPct: number; widthPct: number }[] = [];
+  const cursor = new Date(minDate);
+  while (cursor <= maxDate) {
+    const mStart = new Date(cursor);
+    const mEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+    const startPct = ((mStart.getTime() - minDate.getTime()) / 86400000 / totalDays) * 100;
+    const widthPct = ((Math.min(mEnd.getTime(), maxDate.getTime()) - mStart.getTime()) / 86400000 / totalDays) * 100;
+    months.push({ label: `${cursor.getFullYear()}.${String(cursor.getMonth() + 1).padStart(2, '0')}`, startPct, widthPct });
+    cursor.setMonth(cursor.getMonth() + 1, 1);
+  }
+  const todayPct = ((today.getTime() - minDate.getTime()) / 86400000 / totalDays) * 100;
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
+      <div className="overflow-x-auto">
+        <div className="min-w-[900px]">
+          {/* Month Header */}
+          <div className="relative h-8 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+            {months.map((m, i) => (
+              <div key={i} className="absolute top-0 h-full flex items-center justify-center text-[10px] font-semibold text-[var(--text-muted)] border-r border-[var(--border)]/30" style={{ left: `${200 + (m.startPct / 100) * 700}px`, width: `${(m.widthPct / 100) * 700}px` }}>
+                {m.label}
+              </div>
+            ))}
+            <div className="absolute top-0 left-0 h-full w-[200px] flex items-center px-4 text-[10px] font-bold text-[var(--text-muted)] border-r border-[var(--border)]">프로젝트</div>
+          </div>
+
+          {/* Rows */}
+          {deals.filter((d: any) => d.start_date).map((d: any, idx: number) => {
+            const start = new Date(d.start_date);
+            const end = d.end_date ? new Date(d.end_date) : new Date(start.getTime() + 90 * 86400000);
+            const leftPct = ((start.getTime() - minDate.getTime()) / 86400000 / totalDays) * 100;
+            const widthPct = Math.max(1, ((end.getTime() - start.getTime()) / 86400000 / totalDays) * 100);
+            const barColor = clsColorMap[d.classification || 'B2B'] || '#3b82f6';
+            const isCompleted = d.status === 'completed' || d.status === 'closed_won';
+
+            return (
+              <div key={d.id} className={`relative h-10 flex items-center ${idx % 2 === 0 ? 'bg-[var(--bg)]' : 'bg-[var(--bg-card)]'} border-b border-[var(--border)]/20 hover:bg-[var(--primary)]/5 transition`}>
+                {/* Deal Name */}
+                <div className="w-[200px] shrink-0 px-4 flex items-center gap-2 border-r border-[var(--border)]/30">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: barColor }} />
+                  <span className="text-xs font-semibold text-[var(--text)] truncate">{d.name}</span>
+                </div>
+                {/* Bar Area */}
+                <div className="flex-1 relative h-full" style={{ width: '700px' }}>
+                  <div
+                    className="absolute top-2 h-6 rounded-md flex items-center px-2 text-[9px] font-bold text-white transition-all hover:brightness-110"
+                    style={{
+                      left: `${(leftPct / 100) * 700}px`,
+                      width: `${Math.max(30, (widthPct / 100) * 700)}px`,
+                      backgroundColor: barColor,
+                      opacity: isCompleted ? 0.5 : 0.85,
+                    }}
+                  >
+                    <span className="truncate">{d.contract_total ? `₩${(Number(d.contract_total) / 10000).toFixed(0)}만` : ''}</span>
+                  </div>
+                  {/* Today Marker */}
+                  {todayPct >= 0 && todayPct <= 100 && (
+                    <div className="absolute top-0 h-full w-px bg-red-500/60" style={{ left: `${(todayPct / 100) * 700}px` }} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Today Label */}
+          {todayPct >= 0 && todayPct <= 100 && (
+            <div className="relative h-5 bg-[var(--bg-surface)]">
+              <div className="absolute text-[9px] font-bold text-red-400" style={{ left: `${200 + (todayPct / 100) * 700 - 10}px` }}>오늘</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── View Toggle (E-3: calendar + gantt added) ──
+type ViewMode = 'table' | 'kanban' | 'calendar' | 'gantt';
 function ViewToggle({ viewMode, onChange }: { viewMode: ViewMode; onChange: (v: ViewMode) => void }) {
   return (
     <div className="inline-flex rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-surface)]">
       <button onClick={() => onChange('table')} className={`px-4 py-2 text-xs font-semibold transition-all ${viewMode === 'table' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'}`}><span className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>테이블</span></button>
       <button onClick={() => onChange('kanban')} className={`px-4 py-2 text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'}`}><span className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="3" width="6" height="12" rx="1"/><rect x="16" y="3" width="6" height="15" rx="1"/></svg>칸반</span></button>
       <button onClick={() => onChange('calendar')} className={`px-4 py-2 text-xs font-semibold transition-all ${viewMode === 'calendar' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'}`}><span className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>캘린더</span></button>
+      <button onClick={() => onChange('gantt')} className={`px-4 py-2 text-xs font-semibold transition-all ${viewMode === 'gantt' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]'}`}><span className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="20" y2="11"/><line x1="4" y1="16" x2="14" y2="16"/></svg>간트</span></button>
     </div>
   );
 }
@@ -719,7 +806,7 @@ function DealsPageInner() {
   if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => router.push("/deals")} />;
 
   return (
-    <div className={viewMode === 'kanban' || viewMode === 'calendar' ? 'max-w-full' : 'max-w-[1000px]'}>
+    <div className={viewMode === 'kanban' || viewMode === 'calendar' || viewMode === 'gantt' ? 'max-w-full' : 'max-w-[1000px]'}>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-extrabold">딜 관리</h1><p className="text-sm text-[var(--text-muted)] mt-1">모든 프로젝트/계약을 딜 단위로 관리합니다</p></div>
@@ -774,6 +861,8 @@ function DealsPageInner() {
         <KanbanBoard deals={filteredDeals} clsColorMap={clsColorMap} onSelectDeal={(id) => router.push(`/deals?id=${id}`)} assignmentMap={assignmentMap} />
       ) : viewMode === 'calendar' ? (
         <CalendarView deals={filteredDeals} clsColorMap={clsColorMap} onSelectDeal={(id) => router.push(`/deals?id=${id}`)} />
+      ) : viewMode === 'gantt' ? (
+        <GanttView deals={filteredDeals} clsColorMap={clsColorMap} />
       ) : (
         <div className="space-y-3">
           {filteredDeals.map((d: any) => (

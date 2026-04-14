@@ -45,7 +45,9 @@ export default function PartnersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [detailPartner, setDetailPartner] = useState<any>(null);
-  const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs" | "comms">("info");
+  const [showCommForm, setShowCommForm] = useState(false);
+  const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
   const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
 
@@ -134,6 +136,56 @@ export default function PartnersPage() {
     },
     enabled: !!detailPartner?.id && partnerDeals.length > 0,
   });
+
+  // 커뮤니케이션 로그
+  const { data: partnerComms = [] } = useQuery({
+    queryKey: ["partner-comms", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner) return [];
+      const { data } = await (supabase as any).from("partner_communications")
+        .select("id, comm_type, summary, notes, comm_date, created_at")
+        .eq("partner_id", detailPartner.id)
+        .order("comm_date", { ascending: false });
+      return data || [];
+    },
+    enabled: !!detailPartner?.id,
+  });
+
+  const addCommMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).from("partner_communications").insert({
+        partner_id: detailPartner.id,
+        company_id: companyId,
+        comm_type: commForm.type,
+        summary: commForm.summary,
+        notes: commForm.notes || null,
+        comm_date: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["partner-comms", detailPartner?.id] });
+      setCommForm({ type: "phone", summary: "", notes: "" });
+      setShowCommForm(false);
+    },
+  });
+
+  const deleteCommMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("partner_communications").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["partner-comms", detailPartner?.id] });
+    },
+  });
+
+  const COMM_TYPE_LABEL: Record<string, string> = {
+    phone: "전화",
+    email: "이메일",
+    meeting: "미팅",
+    other: "기타",
+  };
 
   // 태그 목록 수집 (필터용)
   const allTags = Array.from(new Set(partners.flatMap((p: any) => p.tags || []))) as string[];
@@ -299,7 +351,7 @@ export default function PartnersPage() {
                 {partners.map((p: any) => {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
-                    <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); }}
+                    <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
                       className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition">
                       <td className="px-5 py-3 text-sm font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-center">
@@ -417,6 +469,7 @@ export default function PartnersPage() {
                 { key: "deals" as const, label: `딜 (${partnerDeals.length})` },
                 { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
                 { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
+                { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
               ]).map((tab) => (
                 <button key={tab.key} onClick={() => setDetailTab(tab.key)}
                   className={`px-5 py-3 text-sm font-medium transition border-b-2 ${
@@ -585,6 +638,102 @@ export default function PartnersPage() {
                         ))}
                       </tbody>
                     </table>
+                  )}
+                </div>
+              )}
+
+              {/* 커뮤니케이션 로그 탭 */}
+              {detailTab === "comms" && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--text-main)]">커뮤니케이션 로그</h3>
+                    <button
+                      onClick={() => setShowCommForm(!showCommForm)}
+                      className="px-3 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-semibold transition">
+                      {showCommForm ? "취소" : "+ 새 기록 추가"}
+                    </button>
+                  </div>
+
+                  {showCommForm && (
+                    <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 border border-[var(--border)]">
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className={labelCls}>유형 *</label>
+                          <select
+                            value={commForm.type}
+                            onChange={(e) => setCommForm((prev) => ({ ...prev, type: e.target.value }))}
+                            className={inputCls}>
+                            <option value="phone">전화</option>
+                            <option value="email">이메일</option>
+                            <option value="meeting">미팅</option>
+                            <option value="other">기타</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>요약 *</label>
+                          <input
+                            value={commForm.summary}
+                            onChange={(e) => setCommForm((prev) => ({ ...prev, summary: e.target.value }))}
+                            placeholder="커뮤니케이션 요약"
+                            className={inputCls}
+                          />
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <label className={labelCls}>상세 메모</label>
+                        <textarea
+                          value={commForm.notes}
+                          onChange={(e) => setCommForm((prev) => ({ ...prev, notes: e.target.value }))}
+                          rows={3}
+                          placeholder="상세 내용..."
+                          className={inputCls + " resize-none"}
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => commForm.summary && addCommMutation.mutate()}
+                          disabled={!commForm.summary || addCommMutation.isPending}
+                          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-sm font-semibold transition disabled:opacity-50">
+                          {addCommMutation.isPending ? "저장 중..." : "저장"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {partnerComms.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">커뮤니케이션 기록이 없습니다</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {partnerComms.map((c: any) => {
+                        const typeLabel = COMM_TYPE_LABEL[c.comm_type] || c.comm_type;
+                        const typeBadge = c.comm_type === "phone" ? "bg-blue-500/10 text-blue-400"
+                          : c.comm_type === "email" ? "bg-purple-500/10 text-purple-400"
+                          : c.comm_type === "meeting" ? "bg-green-500/10 text-green-400"
+                          : "bg-gray-500/10 text-gray-400";
+                        return (
+                          <div key={c.id} className="bg-[var(--bg-surface)] rounded-xl p-4 border border-[var(--border)]/50">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeBadge}`}>{typeLabel}</span>
+                                  <span className="text-xs text-[var(--text-dim)]">{c.comm_date?.slice(0, 10)}</span>
+                                </div>
+                                <div className="text-sm font-medium mb-1">{c.summary}</div>
+                                {c.notes && (
+                                  <div className="text-xs text-[var(--text-muted)] whitespace-pre-wrap">{c.notes}</div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => { if (confirm("이 기록을 삭제하시겠습니까?")) deleteCommMutation.mutate(c.id); }}
+                                className="text-xs text-[var(--text-dim)] hover:text-red-400 transition shrink-0"
+                                title="삭제">
+                                삭제
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}

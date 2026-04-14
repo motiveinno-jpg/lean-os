@@ -688,6 +688,9 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const [termLossReason, setTermLossReason] = useState("11");
   const [ediGenerated, setEdiGenerated] = useState(false);
 
+  // Retirement pay calculation state
+  const [retirementEndDate, setRetirementEndDate] = useState(new Date().toISOString().slice(0, 10));
+
   // Company data for EDI generation
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info-edi", companyId],
@@ -893,6 +896,79 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 <InfoRow label="예금주" value={emp.bank_holder} />
               </div>
             </div>
+            {/* 퇴직금 계산 */}
+            {emp.hire_date && emp.salary && (() => {
+              const retCalcResult = calculateRetirementPay({
+                startDate: emp.hire_date,
+                endDate: retirementEndDate,
+                last3MonthsSalary: Number(emp.salary) * 3,
+              });
+              const hireDate = new Date(emp.hire_date);
+              const endDate = new Date(retirementEndDate);
+              const diffMs = endDate.getTime() - hireDate.getTime();
+              const totalDaysRaw = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+              const tenureYears = Math.floor(totalDaysRaw / 365);
+              const tenureMonths = Math.floor((totalDaysRaw % 365) / 30);
+              const tenureDays = totalDaysRaw % 365 % 30;
+
+              return (
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    퇴직금 계산
+                  </div>
+                  <div className="bg-[var(--bg)] rounded-xl border border-[var(--border)] p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">입사일</div>
+                        <div className="font-medium">{emp.hire_date}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴직일 (예상)</div>
+                        <input
+                          type="date"
+                          value={retirementEndDate}
+                          onChange={(e) => setRetirementEndDate(e.target.value)}
+                          className="w-full px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근속기간</div>
+                        <div className="font-medium">
+                          {tenureYears > 0 && `${tenureYears}년 `}{tenureMonths > 0 && `${tenureMonths}개월 `}{tenureDays}일
+                          <span className="text-[var(--text-dim)] ml-1">({totalDaysRaw}일)</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">월 평균임금</div>
+                        <div className="font-medium">{`₩${Number(emp.salary).toLocaleString("ko-KR")}`}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">1일 평균임금</div>
+                        <div className="font-medium">{`₩${retCalcResult.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}`}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">수급 자격</div>
+                        <div className={`font-medium ${retCalcResult.eligible ? "text-green-400" : "text-amber-500"}`}>
+                          {retCalcResult.eligible ? "해당 (1년 이상)" : "미해당 (1년 미만)"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-[var(--border)] pt-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-[var(--text-muted)]">예상 퇴직금</div>
+                        <div className="text-lg font-bold text-[var(--primary)]">
+                          {`₩${retCalcResult.retirementPay.toLocaleString("ko-KR")}`}
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                        산정 기준: 평균임금 x 30일 x 재직일수 / 365일 (근로기준법 제34조)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
