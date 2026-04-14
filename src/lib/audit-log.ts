@@ -6,7 +6,8 @@ import { supabase } from './supabase';
 
 export type AuditAction =
   | 'create' | 'update' | 'delete' | 'approve' | 'reject'
-  | 'sign' | 'send' | 'lock' | 'unlock' | 'login' | 'export';
+  | 'sign' | 'send' | 'lock' | 'unlock' | 'login' | 'export'
+  | 'remind' | 'revoke' | 'view';
 
 export interface AuditLogEntry {
   company_id: string;
@@ -70,6 +71,7 @@ export function formatAuditAction(action: AuditAction): string {
     approve: '승인', reject: '반려', sign: '서명',
     send: '발송', lock: '잠금', unlock: '잠금해제',
     login: '로그인', export: '내보내기',
+    remind: '리마인드', revoke: '취소', view: '조회',
   };
   return map[action] || action;
 }

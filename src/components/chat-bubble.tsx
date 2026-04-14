@@ -36,6 +36,27 @@ interface ChatBubbleProps {
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
 
+// Parse @mentions and **bold** in content; return JSX with highlighted mentions
+function renderContent(text: string, isOwn: boolean) {
+  if (!text) return null;
+  const parts = text.split(/(@[\w가-힣.\-_]+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@')) {
+      return (
+        <span
+          key={i}
+          className={`font-semibold px-1 rounded ${
+            isOwn ? 'bg-white/20 text-white' : 'bg-[var(--primary)]/15 text-[var(--primary)]'
+          }`}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 export function ChatBubble({
   senderName, content, time, isOwn, type, pinned,
   editedAt, deletedAt, replyTo, reactions, metadata, actionCard,
@@ -163,7 +184,7 @@ export function ChatBubble({
                 )}
               </div>
             ) : (
-              content
+              <span className="whitespace-pre-wrap break-words">{renderContent(content, isOwn)}</span>
             )}
 
             {/* Action card inline */}

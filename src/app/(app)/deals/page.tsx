@@ -209,10 +209,161 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">서브딜 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
       {assignments.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">담당자</h2></div><div className="divide-y divide-[var(--border)]/50">{assignments.map((a: any) => (<div key={a.id} className="flex items-center justify-between px-5 py-3"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">{(a.users?.name || a.users?.email || '?')[0]}</div><span className="text-sm">{a.users?.name || a.users?.email}</span></div><span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.role === 'manager' ? '담당자' : a.role === 'reviewer' ? '검토자' : '참여자'}</span></div>))}</div></div>)}
       <ProjectFilesSection dealId={dealId} companyId={companyId} userId={userId} />
+      <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">💬 딜 채팅</h2>{dealChannel && (<Link href={`/chat?channel=${dealChannel.id}`} className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">전체 채팅 보기 &rarr;</Link>)}</div>
         {!dealChannel ? (<div className="p-6 text-center"><div className="text-sm text-[var(--text-muted)] mb-3">이 딜에 연결된 채팅이 없습니다</div><button onClick={() => userId && companyId && createChannelMut.mutate()} disabled={createChannelMut.isPending || !userId} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{createChannelMut.isPending ? '생성 중...' : '딜 채팅 생성'}</button></div>) : (<div><div className="px-5 py-3 max-h-48 overflow-y-auto">{recentMessages.length === 0 ? (<div className="text-center text-xs text-[var(--text-dim)] py-4">메시지가 없습니다</div>) : (recentMessages.map((msg: any) => (<div key={msg.id} className="flex items-start gap-2 py-1.5"><div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[9px] font-bold text-[var(--primary)] flex-shrink-0 mt-0.5">{(msg.users?.name || msg.users?.email || '?')[0].toUpperCase()}</div><div className="min-w-0"><span className="text-[10px] font-semibold text-[var(--text-muted)]">{msg.users?.name || msg.users?.email}</span><div className="text-xs text-[var(--text)]">{msg.content}</div></div></div>)))}</div><div className="px-5 py-3 border-t border-[var(--border)]/50 flex gap-2"><input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && chatMsg.trim() && sendChatMut.mutate()} placeholder="빠른 메시지..." className="flex-1 px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /><button onClick={() => chatMsg.trim() && sendChatMut.mutate()} disabled={!chatMsg.trim() || sendChatMut.isPending} className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-30">전송</button></div></div>)}
       </div>
+    </div>
+  );
+}
+
+// ── Deal Activity Log (audit_logs + deal_files + milestones 머지) ──
+
+const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
+  create: { label: '생성', icon: '✨', color: 'text-emerald-400' },
+  update: { label: '수정', icon: '✏️', color: 'text-blue-400' },
+  delete: { label: '삭제', icon: '🗑️', color: 'text-red-400' },
+  approve: { label: '승인', icon: '✅', color: 'text-green-400' },
+  reject: { label: '거부', icon: '❌', color: 'text-red-400' },
+  sign: { label: '서명', icon: '✍️', color: 'text-purple-400' },
+  send: { label: '발송', icon: '📤', color: 'text-cyan-400' },
+  lock: { label: '잠금', icon: '🔒', color: 'text-orange-400' },
+  unlock: { label: '해제', icon: '🔓', color: 'text-gray-400' },
+  export: { label: '내보내기', icon: '⬇️', color: 'text-indigo-400' },
+};
+
+function DealActivityLog({ dealId, companyId, userId }: { dealId: string; companyId: string | null; userId: string | null }) {
+  const db2 = supabase as any;
+  const [filter, setFilter] = useState<'all' | 'update' | 'approve' | 'file' | 'note'>('all');
+  const [newNote, setNewNote] = useState('');
+  const [posting, setPosting] = useState(false);
+  const { toast } = useToast();
+
+  const { data: logs = [], refetch } = useQuery({
+    queryKey: ['deal-activity', dealId],
+    queryFn: async () => {
+      const { data } = await db2.from('audit_logs')
+        .select('id, action, entity_type, entity_name, changes, metadata, created_at, user_id, users:user_id(name, email)')
+        .eq('entity_type', 'deal')
+        .eq('entity_id', dealId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      return data || [];
+    },
+    enabled: !!dealId,
+  });
+
+  async function postNote() {
+    if (!newNote.trim() || !companyId || !userId) return;
+    setPosting(true);
+    try {
+      await db2.from('audit_logs').insert({
+        company_id: companyId,
+        user_id: userId,
+        action: 'update',
+        entity_type: 'deal',
+        entity_id: dealId,
+        entity_name: '딜 메모',
+        metadata: { kind: 'note', content: newNote.trim() },
+        created_at: new Date().toISOString(),
+      });
+      setNewNote('');
+      refetch();
+      toast('메모가 추가되었습니다', 'success');
+    } catch (e: any) {
+      toast('메모 저장 실패: ' + (e.message || ''), 'error');
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  const filtered = (logs as any[]).filter((l) => {
+    if (filter === 'all') return true;
+    if (filter === 'note') return l.metadata?.kind === 'note';
+    if (filter === 'file') return l.metadata?.kind === 'file' || l.entity_name?.includes('파일');
+    return l.action === filter;
+  });
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
+      <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-sm font-bold">📝 활동 로그 <span className="text-xs text-[var(--text-dim)] font-normal ml-1">({(logs as any[]).length}건)</span></h2>
+        <div className="flex gap-1 flex-wrap">
+          {([['all', '전체'], ['update', '변경'], ['approve', '승인'], ['note', '메모'], ['file', '파일']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setFilter(key as any)}
+              className={`text-xs px-2.5 py-1 rounded-lg transition ${filter === key ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 메모 입력 */}
+      <div className="px-5 py-3 border-b border-[var(--border)]/50 flex gap-2">
+        <input value={newNote} onChange={(e) => setNewNote(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !posting && postNote()}
+          placeholder="이 딜에 대한 메모를 추가하면 로그에 기록됩니다 (예: '클라이언트 수정요청 반영 완료')"
+          className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+        <button onClick={postNote} disabled={!newNote.trim() || posting}
+          className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40">
+          {posting ? '저장 중' : '메모 추가'}
+        </button>
+      </div>
+
+      {/* 로그 리스트 */}
+      {filtered.length === 0 ? (
+        <div className="p-10 text-center text-sm text-[var(--text-muted)]">
+          {(logs as any[]).length === 0 ? '아직 기록된 활동이 없습니다. 딜 정보를 수정하면 자동으로 쌓입니다.' : '이 필터에 해당하는 활동이 없습니다.'}
+        </div>
+      ) : (
+        <div className="divide-y divide-[var(--border)]/50 max-h-[500px] overflow-y-auto">
+          {filtered.map((log: any) => {
+            const meta = ACTION_META[log.action] || ACTION_META.update;
+            const userLabel = log.users?.name || log.users?.email || '시스템';
+            const when = log.created_at ? new Date(log.created_at) : null;
+            const whenStr = when ? `${when.toLocaleDateString('ko-KR')} ${when.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}` : '—';
+            const isNote = log.metadata?.kind === 'note';
+            const changeEntries = log.changes && typeof log.changes === 'object' ? Object.entries(log.changes as Record<string, any>) : [];
+            return (
+              <div key={log.id} className="px-5 py-3 hover:bg-[var(--bg-surface)] transition">
+                <div className="flex items-start gap-3">
+                  <div className={`w-7 h-7 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-xs flex-shrink-0 ${meta.color}`}>{isNote ? '💬' : meta.icon}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold">{userLabel}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${meta.color} bg-[var(--bg-surface)]`}>{isNote ? '메모' : meta.label}</span>
+                      {log.entity_name && !isNote && <span className="text-[10px] text-[var(--text-dim)]">{log.entity_name}</span>}
+                      <span className="text-[10px] text-[var(--text-dim)] ml-auto">{whenStr}</span>
+                    </div>
+                    {isNote ? (
+                      <div className="text-sm mt-1 whitespace-pre-wrap">{log.metadata?.content}</div>
+                    ) : changeEntries.length > 0 ? (
+                      <div className="mt-1.5 space-y-0.5">
+                        {changeEntries.slice(0, 5).map(([field, diff]: [string, any]) => (
+                          <div key={field} className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+                            <span className="font-mono text-[var(--text-dim)]">{field}:</span>
+                            <span className="line-through text-red-400/70 truncate max-w-[30%]">{String(diff?.old ?? '—')}</span>
+                            <span className="text-[var(--text-dim)]">→</span>
+                            <span className="text-green-400 truncate max-w-[30%]">{String(diff?.new ?? '—')}</span>
+                          </div>
+                        ))}
+                        {changeEntries.length > 5 && (
+                          <div className="text-[10px] text-[var(--text-dim)]">+ {changeEntries.length - 5}개 필드 더 변경됨</div>
+                        )}
+                      </div>
+                    ) : log.metadata && Object.keys(log.metadata).length > 0 ? (
+                      <div className="text-[11px] text-[var(--text-muted)] mt-1 font-mono bg-[var(--bg)] rounded px-2 py-1">
+                        {JSON.stringify(log.metadata).slice(0, 160)}{JSON.stringify(log.metadata).length > 160 ? '…' : ''}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

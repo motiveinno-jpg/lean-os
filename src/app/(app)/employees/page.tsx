@@ -537,77 +537,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       </div>
 
       {viewMode === "orgchart" ? (
-        /* ── 조직도 뷰 ── */
-        (() => {
-          const active = employees.filter((e: any) => e.status === "active" || e.status === "joined" || e.status === "contract_pending");
-          const deptMap: Record<string, any[]> = {};
-          const ceo = active.filter((e: any) => (e.position || "").toLowerCase().includes("ceo") || (e.position || "").includes("대표") || (e.department || "").includes("대표"));
-          active.forEach((e: any) => {
-            if (ceo.some((c: any) => c.id === e.id)) return;
-            const dept = e.department || "미배정";
-            if (!deptMap[dept]) deptMap[dept] = [];
-            deptMap[dept].push(e);
-          });
-          const deptEntries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
-          const DEPT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899"];
-          return (
-            <div className="flex flex-col items-center gap-6">
-              {/* CEO / 대표 */}
-              {ceo.length > 0 && (
-                <div className="flex flex-col items-center">
-                  {ceo.map((e: any) => (
-                    <div key={e.id} onClick={() => setDetailEmpId(e.id)} className="bg-[var(--bg-card)] border-2 border-[var(--primary)] rounded-2xl px-8 py-5 text-center cursor-pointer hover:shadow-lg transition">
-                      <div className="w-14 h-14 mx-auto rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold text-xl mb-2">{(e.name || "?")[0]}</div>
-                      <div className="text-sm font-bold">{e.name}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{e.position || "대표"}</div>
-                    </div>
-                  ))}
-                  <div className="w-px h-8 bg-[var(--border)]" />
-                </div>
-              )}
-              {/* 부서 연결선 */}
-              <div className="w-full max-w-3xl flex justify-center">
-                <div className="h-px flex-1 bg-[var(--border)]" style={{ maxWidth: `${Math.min(deptEntries.length * 200, 800)}px` }} />
-              </div>
-              {/* 부서 카드 그리드 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
-                {deptEntries.map(([dept, members], dIdx) => {
-                  const color = DEPT_COLORS[dIdx % DEPT_COLORS.length];
-                  const lead = members.find((m: any) => (m.position || "").includes("팀장") || (m.position || "").includes("본부장") || (m.position || "").includes("리드"));
-                  const others = members.filter((m: any) => m.id !== lead?.id);
-                  return (
-                    <div key={dept} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-                      <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2" style={{ borderLeftColor: color, borderLeftWidth: "4px" }}>
-                        <span className="text-sm font-bold">{dept}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{members.length}명</span>
-                      </div>
-                      <div className="p-4 space-y-2">
-                        {lead && (
-                          <div onClick={() => setDetailEmpId(lead.id)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-[var(--bg-surface)] transition" style={{ backgroundColor: `${color}08` }}>
-                            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: color }}>{(lead.name || "?")[0]}</div>
-                            <div>
-                              <div className="text-sm font-semibold">{lead.name}</div>
-                              <div className="text-[10px] text-[var(--text-dim)]">{lead.position || "팀장"}</div>
-                            </div>
-                          </div>
-                        )}
-                        {others.map((m: any) => (
-                          <div key={m.id} onClick={() => setDetailEmpId(m.id)} className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer hover:bg-[var(--bg-surface)] transition">
-                            <div className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)] font-medium text-sm">{(m.name || "?")[0]}</div>
-                            <div>
-                              <div className="text-sm font-medium">{m.name}</div>
-                              <div className="text-[10px] text-[var(--text-dim)]">{m.position || "—"}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()
+        /* ── 조직도 뷰 (SVG 트리) ── */
+        <OrgChartSVG employees={employees} onSelect={setDetailEmpId} />
       ) : (
       /* ── 직원 목록 뷰 ── */
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
@@ -670,6 +601,157 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* Employee Detail Panel */}
       {detailEmpId && <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />}
+    </div>
+  );
+}
+
+// ── SVG 트리 조직도 ──
+const ORG_DEPT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#14b8a6"];
+
+function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id: string) => void }) {
+  const active = employees.filter((e: any) => e.status === "active" || e.status === "joined" || e.status === "contract_pending");
+  const ceo = active.filter((e: any) => (e.position || "").toLowerCase().includes("ceo") || (e.position || "").includes("대표") || (e.department || "").includes("대표"));
+  const ceoIds = new Set(ceo.map((c: any) => c.id));
+  const deptMap: Record<string, any[]> = {};
+  active.forEach((e: any) => {
+    if (ceoIds.has(e.id)) return;
+    const d = e.department || "미배정";
+    if (!deptMap[d]) deptMap[d] = [];
+    deptMap[d].push(e);
+  });
+  const deptEntries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
+
+  if (active.length === 0) {
+    return (
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+        <div className="text-4xl mb-4">🏢</div>
+        <div className="text-sm text-[var(--text-muted)]">등록된 직원이 없어 조직도를 표시할 수 없습니다</div>
+      </div>
+    );
+  }
+
+  // 좌표 계산
+  const NODE_W = 180;
+  const NODE_H = 64;
+  const DEPT_GAP_X = 24;
+  const ROW_GAP_Y = 80;
+  const MEMBER_GAP_Y = 12;
+  const MEMBER_H = 48;
+  const PAD_X = 40;
+  const PAD_Y = 30;
+
+  const ceoY = PAD_Y;
+  const busY = ceoY + NODE_H + 36;
+  const deptHeaderY = busY + 16;
+  const memberStartY = deptHeaderY + NODE_H + 18;
+
+  const totalDeptW = deptEntries.length * NODE_W + Math.max(0, deptEntries.length - 1) * DEPT_GAP_X;
+  const svgW = Math.max(720, totalDeptW + PAD_X * 2);
+  const tallestCol = Math.max(1, ...deptEntries.map(([, m]) => m.length));
+  const svgH = memberStartY + tallestCol * (MEMBER_H + MEMBER_GAP_Y) + PAD_Y;
+
+  const ceoX = svgW / 2;
+  const startX = (svgW - totalDeptW) / 2;
+  const deptCenters = deptEntries.map((_, i) => startX + i * (NODE_W + DEPT_GAP_X) + NODE_W / 2);
+
+  const downloadSvg = () => {
+    const el = document.getElementById("orgchart-svg");
+    if (!el) return;
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `조직도_${new Date().toISOString().slice(0, 10)}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+        <div className="text-xs text-[var(--text-muted)]">총 {active.length}명 · {deptEntries.length}개 부서</div>
+        <button onClick={downloadSvg} className="text-xs px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] border border-[var(--border)] rounded-lg font-semibold transition">
+          ⬇ SVG 다운로드
+        </button>
+      </div>
+      <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
+        <svg id="orgchart-svg" xmlns="http://www.w3.org/2000/svg" width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ background: "transparent" }}>
+          <defs>
+            <style>{`
+              .org-node { cursor: pointer; }
+              .org-node:hover rect { filter: brightness(1.08); }
+              .org-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 600; font-size: 13px; fill: #fff; }
+              .org-pos { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.85); }
+              .dept-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; fill: #fff; }
+              .dept-count { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.85); }
+              .member-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 500; fill: var(--text, #e5e7eb); }
+              .member-pos { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--text-muted, #9ca3af); }
+            `}</style>
+          </defs>
+
+          {/* CEO */}
+          {ceo.length > 0 && (
+            <g className="org-node" onClick={() => onSelect(ceo[0].id)} transform={`translate(${ceoX - NODE_W / 2}, ${ceoY})`}>
+              <rect width={NODE_W} height={NODE_H} rx={12} fill="#1d4ed8" stroke="#3b82f6" strokeWidth={2} />
+              <circle cx={28} cy={NODE_H / 2} r={18} fill="rgba(255,255,255,0.18)" />
+              <text x={28} y={NODE_H / 2 + 5} textAnchor="middle" className="org-name" fontSize={16}>{(ceo[0].name || "?")[0]}</text>
+              <text x={56} y={26} className="org-name">{ceo[0].name}</text>
+              <text x={56} y={44} className="org-pos">{ceo[0].position || "대표"}</text>
+            </g>
+          )}
+
+          {/* CEO -> 버스 수직선 */}
+          {ceo.length > 0 && deptEntries.length > 0 && (
+            <line x1={ceoX} y1={ceoY + NODE_H} x2={ceoX} y2={busY} stroke="#475569" strokeWidth={1.5} />
+          )}
+
+          {/* 수평 버스 */}
+          {deptEntries.length > 1 && (
+            <line x1={deptCenters[0]} y1={busY} x2={deptCenters[deptCenters.length - 1]} y2={busY} stroke="#475569" strokeWidth={1.5} />
+          )}
+
+          {/* 부서별 */}
+          {deptEntries.map(([dept, members], dIdx) => {
+            const color = ORG_DEPT_COLORS[dIdx % ORG_DEPT_COLORS.length];
+            const cx = deptCenters[dIdx];
+            const headX = cx - NODE_W / 2;
+            const lead = members.find((m: any) => (m.position || "").includes("팀장") || (m.position || "").includes("본부장") || (m.position || "").includes("리드"));
+            const others = members.filter((m: any) => m.id !== lead?.id);
+            const ordered = lead ? [lead, ...others] : members;
+            return (
+              <g key={dept}>
+                {/* 버스 -> 부서 헤더 */}
+                <line x1={cx} y1={busY} x2={cx} y2={deptHeaderY} stroke="#475569" strokeWidth={1.5} />
+                {/* 부서 헤더 */}
+                <g>
+                  <rect x={headX} y={deptHeaderY} width={NODE_W} height={NODE_H} rx={10} fill={color} />
+                  <text x={cx} y={deptHeaderY + 26} textAnchor="middle" className="dept-name">{dept}</text>
+                  <text x={cx} y={deptHeaderY + 46} textAnchor="middle" className="dept-count">{members.length}명</text>
+                </g>
+                {/* 헤더 -> 멤버 그룹 수직선 */}
+                {ordered.length > 0 && (
+                  <line x1={cx} y1={deptHeaderY + NODE_H} x2={cx} y2={memberStartY + ordered.length * (MEMBER_H + MEMBER_GAP_Y) - MEMBER_GAP_Y - MEMBER_H / 2} stroke={`${color}66`} strokeWidth={1.2} strokeDasharray="3,3" />
+                )}
+                {/* 멤버 카드 */}
+                {ordered.map((m: any, mi: number) => {
+                  const my = memberStartY + mi * (MEMBER_H + MEMBER_GAP_Y);
+                  const mx = headX;
+                  return (
+                    <g key={m.id} className="org-node" onClick={() => onSelect(m.id)}>
+                      <line x1={cx} y1={my + MEMBER_H / 2} x2={mx + 4} y2={my + MEMBER_H / 2} stroke={`${color}66`} strokeWidth={1.2} strokeDasharray="3,3" />
+                      <rect x={mx} y={my} width={NODE_W} height={MEMBER_H} rx={8} fill="var(--bg-surface, #1f2937)" stroke={`${color}55`} strokeWidth={1} />
+                      <circle cx={mx + 22} cy={my + MEMBER_H / 2} r={14} fill={`${color}22`} />
+                      <text x={mx + 22} y={my + MEMBER_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{(m.name || "?")[0]}</text>
+                      <text x={mx + 44} y={my + 19} className="member-name">{m.name}</text>
+                      <text x={mx + 44} y={my + 36} className="member-pos">{m.position || "—"}</text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -3190,6 +3272,53 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [periodLabel, setPeriodLabel] = useState(() => `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`);
+
+  const { data: companyMeta } = useQuery({
+    queryKey: ["company-meta-payroll", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("name, representative").eq("id", companyId!).single();
+      return data as { name: string; representative: string | null } | null;
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: empMap = {} } = useQuery({
+    queryKey: ["payroll-emp-meta", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("employees").select("id, department, position").eq("company_id", companyId!);
+      const m: Record<string, { department: string | null; position: string | null }> = {};
+      (data || []).forEach((e: any) => { m[e.id] = { department: e.department, position: e.position }; });
+      return m;
+    },
+    enabled: !!companyId,
+  });
+
+  const downloadOne = async (item: PayrollItem) => {
+    try {
+      const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
+      const meta = (empMap as Record<string, { department: string | null; position: string | null }>)[item.employeeId] || {};
+      downloadPayslipPDF({
+        item,
+        companyName: companyMeta?.name || "회사",
+        representative: companyMeta?.representative || undefined,
+        periodLabel,
+        department: meta.department || undefined,
+        position: meta.position || undefined,
+      });
+      toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
+    } catch (err: any) {
+      toast("PDF 생성 실패: " + (err.message || ""), "error");
+    }
+  };
+
+  const downloadAll = async () => {
+    if (!preview) return;
+    for (const item of preview.items) {
+      await downloadOne(item);
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  };
 
   const generate = async () => {
     if (!companyId) return;
@@ -3220,11 +3349,22 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          <input
+            value={periodLabel}
+            onChange={(e) => setPeriodLabel(e.target.value)}
+            placeholder="2026년 4월"
+            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs w-28"
+          />
           {preview && preview.items.length > 0 && (
-            <button onClick={handleSendPayslips} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-              {sending ? "발송 중..." : `전 직원 명세서 발송 (${preview.items.length}명)`}
-            </button>
+            <>
+              <button onClick={downloadAll} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
+                전체 PDF 다운로드
+              </button>
+              <button onClick={handleSendPayslips} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                {sending ? "발송 중..." : `전 직원 명세서 발송 (${preview.items.length}명)`}
+              </button>
+            </>
           )}
           <button onClick={generate} disabled={loading || !companyId} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
             {loading ? "계산 중..." : "급여 명세 미리보기"}
@@ -3272,6 +3412,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th className="text-right px-4 py-3 font-medium">지방소득세</th>
                 <th className="text-right px-4 py-3 font-medium">공제합계</th>
                 <th className="text-right px-4 py-3 font-medium">실수령</th>
+                <th className="text-center px-4 py-3 font-medium">PDF</th>
               </tr></thead>
               <tbody>
                 {preview.items.map((item) => (
@@ -3285,6 +3426,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.localIncomeTax)}</td>
                     <td className="px-4 py-3 text-sm text-right text-red-400">-{fmtKRW(item.deductionsTotal)}</td>
                     <td className="px-4 py-3 text-sm text-right font-bold text-green-400">{fmtKRW(item.netPay)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
+                        ⬇ PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -4060,6 +4206,9 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
   return (
     <div>
+      {/* 연말정산 간소화 자료 수집 */}
+      <YearEndTaxSection employees={activeEmployees} companyId={companyId} />
+
       {/* Issue Form */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
         <h3 className="text-sm font-bold mb-4">증명서 발급</h3>
@@ -4163,6 +4312,169 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             </tbody>
           </table></div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── 연말정산 간소화 자료 수집 ──
+function YearEndTaxSection({ employees, companyId }: { employees: any[]; companyId: string | null }) {
+  const { toast } = useToast();
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const storageKey = companyId ? `yet:${companyId}:${year}` : "";
+
+  type Status = "pending" | "submitted" | "reviewed";
+  const [statuses, setStatuses] = useState<Record<string, Status>>({});
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      setStatuses(raw ? JSON.parse(raw) : {});
+    } catch { setStatuses({}); }
+  }, [storageKey]);
+
+  const persist = (next: Record<string, Status>) => {
+    setStatuses(next);
+    if (storageKey) {
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
+    }
+  };
+
+  const setStatus = (id: string, s: Status) => persist({ ...statuses, [id]: s });
+
+  const counts = useMemo(() => {
+    const c = { pending: 0, submitted: 0, reviewed: 0 };
+    employees.forEach((e: any) => {
+      const s = statuses[e.id] || "pending";
+      c[s] += 1;
+    });
+    return c;
+  }, [employees, statuses]);
+
+  const total = employees.length || 1;
+  const completedPct = Math.round(((counts.submitted + counts.reviewed) / total) * 100);
+
+  const sendReminderToAll = () => {
+    const subject = encodeURIComponent(`[연말정산] ${year}년 간소화 자료 제출 안내`);
+    const body = encodeURIComponent(
+      `안녕하세요.\n\n${year}년 연말정산 간소화 자료 제출 기간입니다.\n\n` +
+      `1) 홈택스 (https://www.hometax.go.kr) 접속 → 장려금·연말정산·전자기부금 → 연말정산 간소화\n` +
+      `2) 본인 인증 후 PDF 일괄 다운로드\n` +
+      `3) 부양가족 자료가 있는 경우 별도 동의 후 추가 다운로드\n` +
+      `4) 의료비/기부금/월세 등 별도 영수증이 있다면 함께 첨부\n\n` +
+      `회신: 회사 메일로 PDF 첨부 후 회신 부탁드립니다.\n\n감사합니다.`
+    );
+    const emails = employees.map((e: any) => e.email).filter(Boolean).join(",");
+    if (!emails) {
+      toast("등록된 이메일이 있는 직원이 없습니다", "error");
+      return;
+    }
+    window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`;
+  };
+
+  const STATUS_META: Record<Status, { label: string; bg: string; text: string }> = {
+    pending: { label: "미제출", bg: "bg-red-500/10", text: "text-red-400" },
+    submitted: { label: "제출완료", bg: "bg-blue-500/10", text: "text-blue-400" },
+    reviewed: { label: "검토완료", bg: "bg-green-500/10", text: "text-green-400" },
+  };
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            🧾 연말정산 간소화 자료 수집
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{year}년</span>
+          </h3>
+          <p className="text-xs text-[var(--text-muted)] mt-1">홈택스 간소화 자료 제출 현황을 직원별로 추적합니다</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs">
+            {[currentYear, currentYear - 1, currentYear - 2].map((y) => <option key={y} value={y}>{y}년 귀속</option>)}
+          </select>
+          <a href="https://www.hometax.go.kr" target="_blank" rel="noopener noreferrer" className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+            홈택스 열기 ↗
+          </a>
+          <button onClick={sendReminderToAll} className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-xl text-xs font-semibold transition border border-amber-500/30">
+            전체 안내 발송
+          </button>
+        </div>
+      </div>
+
+      {/* 진행률 바 */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-xs mb-2">
+          <span className="text-[var(--text-muted)]">제출 진행률</span>
+          <span className="font-bold">{counts.submitted + counts.reviewed} / {employees.length}명 ({completedPct}%)</span>
+        </div>
+        <div className="h-2 bg-[var(--bg-surface)] rounded-full overflow-hidden flex">
+          <div className="bg-blue-500" style={{ width: `${(counts.submitted / total) * 100}%` }} />
+          <div className="bg-green-500" style={{ width: `${(counts.reviewed / total) * 100}%` }} />
+        </div>
+        <div className="flex gap-4 mt-2 text-[10px]">
+          <span className="text-red-400">미제출 {counts.pending}명</span>
+          <span className="text-blue-400">제출완료 {counts.submitted}명</span>
+          <span className="text-green-400">검토완료 {counts.reviewed}명</span>
+        </div>
+      </div>
+
+      {employees.length === 0 ? (
+        <div className="text-center py-8 text-xs text-[var(--text-dim)]">재직 중인 직원이 없습니다</div>
+      ) : (
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-3 py-2 font-medium">직원</th>
+                <th className="text-left px-3 py-2 font-medium">이메일</th>
+                <th className="text-center px-3 py-2 font-medium">상태</th>
+                <th className="text-right px-3 py-2 font-medium">상태 변경</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((e: any) => {
+                const s = statuses[e.id] || "pending";
+                const meta = STATUS_META[s];
+                return (
+                  <tr key={e.id} className="border-b border-[var(--border)]/50">
+                    <td className="px-3 py-2 text-sm">
+                      <span className="font-medium">{e.name}</span>
+                      <span className="text-[10px] text-[var(--text-dim)] ml-2">{e.department || ""}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-[var(--text-muted)]">{e.email || "—"}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${meta.bg} ${meta.text}`}>{meta.label}</span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="inline-flex gap-1">
+                        {(["pending", "submitted", "reviewed"] as Status[]).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setStatus(e.id, opt)}
+                            className={`text-[10px] px-2 py-1 rounded-md transition ${s === opt ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg)]"}`}
+                          >
+                            {STATUS_META[opt].label}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 p-3 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]/50">
+        <div className="text-[10px] font-semibold text-[var(--text-muted)] mb-1.5">📌 안내</div>
+        <ul className="text-[11px] text-[var(--text-muted)] leading-relaxed space-y-0.5">
+          <li>• 홈택스 일정: 매년 1월 15일부터 간소화 자료 일괄제공</li>
+          <li>• 부양가족 자료는 부양가족 본인이 자료제공 동의 후 조회 가능</li>
+          <li>• 의료비/기부금/월세 등은 간소화에 누락될 수 있어 별도 영수증 수집 권장</li>
+        </ul>
       </div>
     </div>
   );

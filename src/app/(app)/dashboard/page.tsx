@@ -12,6 +12,8 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth } from "@/lib/closing";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
+import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
+import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
@@ -1389,6 +1391,20 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
         </div>
       )}
 
+      {/* Pipeline Funnel + Upcoming Schedule */}
+      {companyId && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-[var(--text)]">딜 파이프라인</span>
+              <Link href="/deals" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">전체 보기 →</Link>
+            </div>
+            <DealFunnel companyId={companyId} />
+          </div>
+          <UpcomingScheduleCard companyId={companyId} windowDays={30} />
+        </div>
+      )}
+
       {/* Classification Breakdown */}
       {finData.classificationBreakdown.length > 0 && (
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-3">
@@ -1726,6 +1742,48 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
       ))}
     </div>
   );
+}
+
+// ═══════════════════════════════════════════
+// DealFunnel — 딜 파이프라인 깔때기 (5단계)
+// ═══════════════════════════════════════════
+const FUNNEL_STAGES: { key: string; label: string; color: string; matches: (d: any) => boolean }[] = [
+  { key: "lead",       label: "리드/문의",   color: "var(--text-muted)", matches: (d) => d.status === "pending" && !d.is_dormant },
+  { key: "active",     label: "진행 중",     color: "var(--primary)",    matches: (d) => d.status === "active" && !d.is_dormant },
+  { key: "quoted",     label: "견적/제안",   color: "var(--warning)",    matches: (d) => d.status === "active" && Number(d.contract_total || 0) > 0 && !d.is_dormant },
+  { key: "won",        label: "수주 성공",   color: "var(--success)",    matches: (d) => d.status === "completed" || d.status === "closed_won" },
+  { key: "lost",       label: "실패/보류",   color: "var(--danger)",     matches: (d) => d.status === "archived" || d.status === "closed_lost" || d.is_dormant },
+];
+
+function DealFunnel({ companyId }: { companyId: string }) {
+  const { data: stages = [], isLoading } = useQuery<FunnelStage[]>({
+    queryKey: ["deal-funnel", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("deals")
+        .select("id, status, is_dormant, contract_total")
+        .eq("company_id", companyId);
+      if (error) throw error;
+      const deals = data || [];
+      return FUNNEL_STAGES.map((s) => {
+        const matched = deals.filter(s.matches);
+        return {
+          label: s.label,
+          count: matched.length,
+          amount: matched.reduce((sum: number, d: any) => sum + (Number(d.contract_total) || 0), 0),
+          color: s.color,
+        };
+      });
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
+  if (isLoading) {
+    return <div className="text-[11px] text-[var(--text-dim)] text-center py-8">불러오는 중…</div>;
+  }
+  return <FunnelChart stages={stages} height={220} />;
 }
 
 // ═══════════════════════════════════════════

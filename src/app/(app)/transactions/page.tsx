@@ -21,9 +21,11 @@ export default function TransactionsPage() {
   const [tab, setTab] = useState<Tab>('inbox');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('unmapped');
   const [filterType, setFilterType] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [mapModal, setMapModal] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [ruleForm, setRuleForm] = useState({ rule_name: '', match_type: 'contains', match_field: 'counterparty', match_value: '', assign_category: '', assign_classification: '', assign_deal_id: '', is_fixed_cost: false });
   // Card tab state
@@ -405,6 +407,28 @@ export default function TransactionsPage() {
   const s = stats || { total: 0, unmapped: 0, autoMapped: 0, manualMapped: 0, totalIncome: 0, totalExpense: 0 };
   const cs = cardStats || { total: 0, unmapped: 0, autoMapped: 0, totalSpent: 0, deductible: 0, nonDeductible: 0 };
 
+  /* Search filter */
+  const filteredBankTx = searchQuery.trim()
+    ? bankTx.filter((tx: any) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          (tx.counterparty || '').toLowerCase().includes(q) ||
+          (tx.description || '').toLowerCase().includes(q) ||
+          (tx.category || '').toLowerCase().includes(q)
+        );
+      })
+    : bankTx;
+
+  /* Category breakdown for expense donut chart */
+  const categoryBreakdown = bankTx.reduce((acc: Record<string, number>, tx: any) => {
+    if (tx.type !== 'expense' && tx.type !== '출금') return acc;
+    const cat = tx.category || '미분류';
+    acc[cat] = (acc[cat] || 0) + Number(tx.amount);
+    return acc;
+  }, {} as Record<string, number>);
+  const categoryEntries = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
+  const categoryTotal = categoryEntries.reduce((s, [, v]) => s + v, 0);
+
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
@@ -446,6 +470,60 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex-1 relative">
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="거래처, 적요 검색..."
+            className="w-full px-3 py-2 pl-9 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+          </svg>
+        </div>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={() => {
+              selectedIds.forEach(id => mapMut.mutate({ id }));
+              setSelectedIds(new Set());
+            }}
+            className="px-3 py-2 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold"
+          >
+            선택 {selectedIds.size}건 매핑
+          </button>
+        )}
+        <button
+          onClick={() => {
+            if (!bankTx.length) return;
+            const lines = ['날짜,거래처,적요,유형,금액,상태,카테고리'];
+            bankTx.forEach((tx: any) => {
+              lines.push([
+                tx.transaction_date,
+                `"${(tx.counterparty || '').replace(/"/g, '""')}"`,
+                `"${(tx.description || '').replace(/"/g, '""')}"`,
+                tx.type === 'income' ? '입금' : '출금',
+                tx.amount,
+                tx.mapping_status === 'unmapped' ? '미매핑' : tx.mapping_status === 'auto_mapped' ? '자동' : tx.mapping_status === 'manual_mapped' ? '수동' : '무시',
+                tx.category || '',
+              ].join(','));
+            });
+            const bom = '\uFEFF';
+            const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `거래내역_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] text-sm rounded-xl font-semibold transition"
+        >
+          CSV 내보내기
+        </button>
+      </div>
+
       {uploadResult && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${uploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
           {uploadResult}
@@ -462,8 +540,36 @@ export default function TransactionsPage() {
         <StatCard label="총 출금" value={`₩${fmtW(s.totalExpense)}`} color="var(--danger)" />
       </div>
 
-      {/* Monthly Income/Expense Chart */}
-      {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
+      {/* Monthly Income/Expense Chart + Category Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        <div className="md:col-span-2">
+          {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
+        </div>
+        {categoryEntries.length > 0 && (
+          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+            <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">지출 카테고리 분포</p>
+            <div className="space-y-2">
+              {categoryEntries.slice(0, 6).map(([cat, amount]) => {
+                const pct = categoryTotal > 0 ? Math.round((amount / categoryTotal) * 100) : 0;
+                return (
+                  <div key={cat}>
+                    <div className="flex items-center justify-between text-xs mb-0.5">
+                      <span className="text-[var(--text-muted)] truncate max-w-[120px]">{cat}</span>
+                      <span className="text-[var(--text-dim)] mono-number">{pct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%`, transition: 'width 0.3s' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {categoryEntries.length > 6 && (
+              <p className="text-[9px] text-[var(--text-dim)] mt-2">외 {categoryEntries.length - 6}개 카테고리</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)]">
@@ -600,18 +706,31 @@ export default function TransactionsPage() {
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
-            ) : bankTx.length === 0 ? (
+            ) : filteredBankTx.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="text-4xl mb-4">{tab === 'inbox' ? '✅' : '🏦'}</div>
-                <div className="text-lg font-bold mb-2">{tab === 'inbox' ? '처리할 거래가 없습니다' : '거래내역이 없습니다'}</div>
+                <div className="text-lg font-bold mb-2">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '거래내역이 없습니다'}</div>
                 <div className="text-sm text-[var(--text-muted)]">
-                  {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요.'}
+                  {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요.'}
                 </div>
               </div>
             ) : (
               <table className="w-full">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    {tab === 'inbox' && <th className="text-center px-2 py-3 font-medium w-8">
+                      <input type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === filteredBankTx.filter((t: any) => t.mapping_status === 'unmapped').length}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedIds(new Set(filteredBankTx.filter((t: any) => t.mapping_status === 'unmapped').map((t: any) => t.id)));
+                          } else {
+                            setSelectedIds(new Set());
+                          }
+                        }}
+                        className="accent-[var(--primary)]"
+                      />
+                    </th>}
                     <th className="text-left px-4 py-3 font-medium">날짜</th>
                     <th className="text-left px-4 py-3 font-medium">거래처</th>
                     <th className="text-left px-4 py-3 font-medium">적요</th>
@@ -622,8 +741,21 @@ export default function TransactionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bankTx.map((tx: any) => (
+                  {filteredBankTx.map((tx: any) => (
                     <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
+                      {tab === 'inbox' && tx.mapping_status === 'unmapped' && (
+                        <td className="text-center px-2 py-2.5 w-8">
+                          <input type="checkbox" checked={selectedIds.has(tx.id)}
+                            onChange={e => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) next.add(tx.id); else next.delete(tx.id);
+                              setSelectedIds(next);
+                            }}
+                            className="accent-[var(--primary)]"
+                          />
+                        </td>
+                      )}
+                      {tab === 'inbox' && tx.mapping_status !== 'unmapped' && <td className="w-8" />}
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-4 py-2.5 text-sm">{tx.counterparty || "—"}</td>
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>

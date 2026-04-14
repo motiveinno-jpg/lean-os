@@ -387,6 +387,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [tab, setTab] = useState<"chat" | "participants" | "events" | "files">("chat");
   const [showSearch, setShowSearch] = useState(false);
+  const [showPinnedAll, setShowPinnedAll] = useState(false);
   const [replyTo, setReplyTo] = useState<{ messageId: string; senderName: string; content: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
@@ -713,12 +714,53 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
 
       {pinnedMessages.length > 0 && tab === 'chat' && (
         <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2 mb-2 shrink-0">
-          <div className="text-[10px] font-semibold text-yellow-400 mb-1">
-            📌 고정 메시지 ({pinnedMessages.length})
-          </div>
-          <div className="text-xs text-[var(--text-muted)] truncate">
-            {(pinnedMessages[0] as any).content}
-          </div>
+          <button
+            onClick={() => setShowPinnedAll(v => !v)}
+            className="flex items-center justify-between w-full text-[10px] font-semibold text-yellow-400 mb-1"
+          >
+            <span>📌 고정 메시지 ({pinnedMessages.length})</span>
+            <span className="text-[var(--text-dim)]">{showPinnedAll ? '접기 ▴' : '펼치기 ▾'}</span>
+          </button>
+          {!showPinnedAll ? (
+            <button
+              onClick={() => {
+                const id = (pinnedMessages[0] as any).id;
+                const el = document.getElementById(`msg-${id}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el?.classList.add('ring-2', 'ring-yellow-400');
+                setTimeout(() => el?.classList.remove('ring-2', 'ring-yellow-400'), 2000);
+              }}
+              className="text-xs text-[var(--text-muted)] truncate text-left w-full hover:text-[var(--text)]"
+            >
+              {(pinnedMessages[0] as any).content}
+            </button>
+          ) : (
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {pinnedMessages.map((m: any) => (
+                <div key={m.id} className="flex items-center gap-2 group">
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById(`msg-${m.id}`);
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el?.classList.add('ring-2', 'ring-yellow-400');
+                      setTimeout(() => el?.classList.remove('ring-2', 'ring-yellow-400'), 2000);
+                    }}
+                    className="flex-1 text-left text-xs text-[var(--text-muted)] truncate hover:text-[var(--text)]"
+                  >
+                    <span className="text-[var(--text-dim)] mr-1">{m.users?.name || m.users?.email || '—'}:</span>
+                    {m.content}
+                  </button>
+                  <button
+                    onClick={() => pinMut.mutate({ msgId: m.id, pinned: false })}
+                    className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--text-dim)] hover:text-red-400"
+                    title="고정 해제"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

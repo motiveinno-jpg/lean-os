@@ -9,6 +9,7 @@ import PnlChart from "./pnl-chart";
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 const MONTHS_TO_SHOW = 6;
+const PREV_MONTHS_TO_SHOW = 12; // fetch 12 months so we can compute previous period
 
 const COGS_KEYWORDS = ["외주", "인프라", "서버", "호스팅", "AWS", "클라우드", "도메인"];
 const SALARY_KEYWORDS = ["급여", "인건비", "상여", "보너스"];
@@ -54,6 +55,7 @@ interface MonthlyRow {
 
 interface PnlData {
   months: string[];
+  prevMonths: string[]; // previous period months for comparison
   revenue: MonthlyRow;
   otherRevenue: MonthlyRow;
   outsourcing: MonthlyRow;
@@ -137,12 +139,38 @@ function formatMonthLabel(month: string): string {
   return `${parseInt(mm, 10)}월`;
 }
 
+/* Category tooltip descriptions for classification criteria */
+const CATEGORY_TOOLTIPS: Record<CategoryKey, string> = {
+  revenue: "은행 입금 내역 중 '입금' 유형의 거래 합계",
+  otherRevenue: "세금계산서 매출이 은행 입금보다 클 때의 차액 (미수금 등)",
+  outsourcing: "거래처/적요에 '외주' 키워드가 포함된 지출",
+  infrastructure: "거래처/적요에 '인프라, 서버, 호스팅, AWS, 클라우드, 도메인' 키워드가 포함된 지출",
+  salary: "거래처/적요에 '급여, 인건비, 상여, 보너스' 키워드가 포함된 지출 또는 등록 직원 월급여",
+  rent: "거래처/적요에 '임대, 월세, 관리비, 스파크플러스' 키워드가 포함된 지출",
+  software: "거래처/적요에 '소프트웨어, SaaS, 구독, 라이선스' 키워드가 포함된 지출",
+  professional: "거래처/적요에 '세무, 법무, 회계, 컨설팅, 자문' 키워드가 포함된 지출",
+  welfare: "거래처/적요에 '복리후생, 식대, 경조사, 체육, 건강검진' 키워드가 포함된 지출",
+  insurance: "거래처/적요에 '4대보험, 국민연금, 건강보험, 고용보험, 산재보험' 키워드가 포함된 지출 또는 등록 직원 급여의 약 9.5%",
+  otherOpex: "위 분류에 해당하지 않는 나머지 지출",
+};
+
+/* Print CSS */
+const PRINT_CSS = `
+@media print {
+  body * { visibility: hidden; }
+  #pnl-printable, #pnl-printable * { visibility: visible; }
+  #pnl-printable { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  @page { margin: 15mm; }
+}
+`;
+
 /* ------------------------------------------------------------------ */
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
 async function fetchPnlData(companyId: string): Promise<PnlData> {
-  const months = getLastNMonths(MONTHS_TO_SHOW);
-  const startDate = `${months[0]}-01`;
+  const allMonths = getLastNMonths(PREV_MONTHS_TO_SHOW);
+  const months = allMonths.slice(-MONTHS_TO_SHOW);
+  const startDate = `${allMonths[0]}-01`;
 
   const [txRes, tiRes, empRes] = await Promise.all([
     supabase
@@ -167,24 +195,26 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
   const taxInvoices = tiRes.data || [];
   const employees = empRes.data || [];
 
-  const revenue = emptyRow(months);
-  const otherRevenue = emptyRow(months);
-  const outsourcing = emptyRow(months);
-  const infrastructure = emptyRow(months);
-  const salary = emptyRow(months);
-  const rent = emptyRow(months);
-  const software = emptyRow(months);
-  const professional = emptyRow(months);
-  const welfare = emptyRow(months);
-  const insurance = emptyRow(months);
-  const otherOpex = emptyRow(months);
-  const salesRevenue = emptyRow(months);
-  const purchaseCost = emptyRow(months);
-  const totalSalary = emptyRow(months);
+  const prevMonths = allMonths.slice(0, MONTHS_TO_SHOW);
+
+  const revenue = emptyRow(allMonths);
+  const otherRevenue = emptyRow(allMonths);
+  const outsourcing = emptyRow(allMonths);
+  const infrastructure = emptyRow(allMonths);
+  const salary = emptyRow(allMonths);
+  const rent = emptyRow(allMonths);
+  const software = emptyRow(allMonths);
+  const professional = emptyRow(allMonths);
+  const welfare = emptyRow(allMonths);
+  const insurance = emptyRow(allMonths);
+  const otherOpex = emptyRow(allMonths);
+  const salesRevenue = emptyRow(allMonths);
+  const purchaseCost = emptyRow(allMonths);
+  const totalSalary = emptyRow(allMonths);
 
   for (const tx of transactions) {
     const month = toMonth(tx.transaction_date);
-    if (!months.includes(month)) continue;
+    if (!allMonths.includes(month)) continue;
     const amt = Math.abs(tx.amount);
 
     if (tx.type === "income" || tx.type === "입금") {
@@ -210,7 +240,7 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
 
   for (const ti of taxInvoices) {
     const month = toMonth(ti.issue_date);
-    if (!months.includes(month)) continue;
+    if (!allMonths.includes(month)) continue;
     if (ti.type === "sales" || ti.type === "매출") {
       salesRevenue[month] += ti.supply_amount;
     } else if (ti.type === "purchase" || ti.type === "매입") {
@@ -224,7 +254,7 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
     0,
   );
 
-  for (const m of months) {
+  for (const m of allMonths) {
     totalSalary[m] = monthlySalaryTotal;
     if (monthlySalaryTotal > salary[m]) {
       salary[m] = Math.max(salary[m], monthlySalaryTotal);
@@ -235,7 +265,7 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
   }
 
   // Cross-reference: if tax invoice sales > bank income, use tax invoice figure
-  for (const m of months) {
+  for (const m of allMonths) {
     if (salesRevenue[m] > revenue[m]) {
       otherRevenue[m] += salesRevenue[m] - revenue[m];
     }
@@ -243,6 +273,7 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
 
   return {
     months,
+    prevMonths,
     revenue,
     otherRevenue,
     outsourcing,
@@ -268,6 +299,8 @@ export default function PnlPage() {
   const [data, setData] = useState<PnlData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [tooltipKey, setTooltipKey] = useState<CategoryKey | null>(null);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -288,32 +321,46 @@ export default function PnlPage() {
 
   const computed = useMemo(() => {
     if (!data) return null;
-    const { months } = data;
+    const { months, prevMonths } = data;
+    const allM = [...prevMonths, ...months];
 
-    const totalRevenue = emptyRow(months);
-    const cogs = emptyRow(months);
-    const grossProfit = emptyRow(months);
-    const totalOpex = emptyRow(months);
-    const operatingIncome = emptyRow(months);
-    const netIncome = emptyRow(months);
+    const totalRevenue = emptyRow(allM);
+    const cogs = emptyRow(allM);
+    const grossProfit = emptyRow(allM);
+    const totalOpex = emptyRow(allM);
+    const operatingIncome = emptyRow(allM);
+    const netIncome = emptyRow(allM);
 
-    for (const m of months) {
-      totalRevenue[m] = data.revenue[m] + data.otherRevenue[m];
-      cogs[m] = data.outsourcing[m] + data.infrastructure[m];
+    for (const m of allM) {
+      totalRevenue[m] = (data.revenue[m] || 0) + (data.otherRevenue[m] || 0);
+      cogs[m] = (data.outsourcing[m] || 0) + (data.infrastructure[m] || 0);
       grossProfit[m] = totalRevenue[m] - cogs[m];
       totalOpex[m] =
-        data.salary[m] +
-        data.rent[m] +
-        data.software[m] +
-        data.professional[m] +
-        data.welfare[m] +
-        data.insurance[m] +
-        data.otherOpex[m];
+        (data.salary[m] || 0) +
+        (data.rent[m] || 0) +
+        (data.software[m] || 0) +
+        (data.professional[m] || 0) +
+        (data.welfare[m] || 0) +
+        (data.insurance[m] || 0) +
+        (data.otherOpex[m] || 0);
       operatingIncome[m] = grossProfit[m] - totalOpex[m];
       netIncome[m] = operatingIncome[m];
     }
 
-    return { totalRevenue, cogs, grossProfit, totalOpex, operatingIncome, netIncome };
+    /* Previous period sums for comparison */
+    const sumPrev = (row: MonthlyRow) => prevMonths.reduce((s, m) => s + (row[m] || 0), 0);
+    const sumCurr = (row: MonthlyRow) => months.reduce((s, m) => s + (row[m] || 0), 0);
+
+    const prevTotals = {
+      totalRevenue: sumPrev(totalRevenue),
+      cogs: sumPrev(cogs),
+      grossProfit: sumPrev(grossProfit),
+      totalOpex: sumPrev(totalOpex),
+      operatingIncome: sumPrev(operatingIncome),
+      netIncome: sumPrev(netIncome),
+    };
+
+    return { totalRevenue, cogs, grossProfit, totalOpex, operatingIncome, netIncome, prevTotals, sumPrev, sumCurr };
   }, [data]);
 
   const handleExportCsv = useCallback(() => {
@@ -367,11 +414,19 @@ export default function PnlPage() {
     label: string,
     row: MonthlyRow,
     months: string[],
-    options?: { isBold?: boolean; isSubtotal?: boolean; isTotal?: boolean; indent?: boolean },
+    options?: {
+      isBold?: boolean;
+      isSubtotal?: boolean;
+      isTotal?: boolean;
+      indent?: boolean;
+      categoryKey?: CategoryKey;
+      prevTotal?: number;
+    },
   ) => {
-    const total = sumRow(row);
+    const total = months.reduce((s, m) => s + (row[m] || 0), 0);
     const isHighlight = options?.isSubtotal || options?.isTotal;
-    const isNegativeRow = total < 0;
+    const delta = options?.prevTotal !== undefined ? total - options.prevTotal : undefined;
+    const hasTooltip = options?.categoryKey && CATEGORY_TOOLTIPS[options.categoryKey];
 
     return (
       <tr
@@ -393,9 +448,18 @@ export default function PnlPage() {
             left: 0,
             background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
             zIndex: 2,
+            cursor: hasTooltip ? "help" : undefined,
           }}
+          title={hasTooltip ? CATEGORY_TOOLTIPS[options!.categoryKey!] : undefined}
+          onMouseEnter={() => options?.categoryKey && setTooltipKey(options.categoryKey)}
+          onMouseLeave={() => setTooltipKey(null)}
         >
           {label}
+          {hasTooltip && (
+            <span style={{ marginLeft: 4, fontSize: 10, color: "var(--text-dim)", verticalAlign: "super" }}>
+              ?
+            </span>
+          )}
         </td>
         {months.map((m) => (
           <td
@@ -405,12 +469,12 @@ export default function PnlPage() {
               fontSize: 13,
               fontWeight: isHighlight ? 600 : 400,
               textAlign: "right",
-              color: row[m] < 0 ? "var(--danger)" : isHighlight ? "var(--text)" : "var(--text-muted)",
+              color: (row[m] || 0) < 0 ? "var(--danger)" : isHighlight ? "var(--text)" : "var(--text-muted)",
               background: isHighlight ? "var(--bg-surface)" : undefined,
               whiteSpace: "nowrap",
             }}
           >
-            {formatKrw(row[m])}
+            {formatKrw(row[m] || 0)}
           </td>
         ))}
         <td
@@ -424,20 +488,45 @@ export default function PnlPage() {
             whiteSpace: "nowrap",
             borderLeft: "1px solid var(--border)",
             position: "sticky",
-            right: 0,
+            right: isCompareMode ? 120 : 0,
             zIndex: 2,
           }}
         >
           {formatKrw(total)}
         </td>
+        {isCompareMode && (
+          <td
+            style={{
+              padding: "10px 16px",
+              fontSize: 12,
+              fontWeight: 500,
+              textAlign: "right",
+              whiteSpace: "nowrap",
+              color: delta === undefined || delta === 0
+                ? "var(--text-dim)"
+                : delta > 0 ? "#10b981" : "#ef4444",
+              background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
+              borderLeft: "1px solid var(--border)",
+              position: "sticky",
+              right: 0,
+              zIndex: 2,
+            }}
+          >
+            {delta === undefined || delta === 0
+              ? "-"
+              : `${delta > 0 ? "+" : ""}${formatKrw(delta)} ${delta > 0 ? "\u25B2" : "\u25BC"}`}
+          </td>
+        )}
       </tr>
     );
   };
 
+  const getColCount = (monthsArr: string[]) => monthsArr.length + 2 + (isCompareMode ? 1 : 0);
+
   const renderSectionHeader = (label: string, months: string[]) => (
     <tr key={`header-${label}`}>
       <td
-        colSpan={months.length + 2}
+        colSpan={getColCount(months)}
         style={{
           padding: "14px 16px 6px",
           fontSize: 11,
@@ -459,7 +548,7 @@ export default function PnlPage() {
   const renderDivider = (months: string[], key: string) => (
     <tr key={key}>
       <td
-        colSpan={months.length + 2}
+        colSpan={getColCount(months)}
         style={{ padding: 0, height: 1, background: "var(--border)" }}
       />
     </tr>
@@ -519,8 +608,12 @@ export default function PnlPage() {
 
   const { months } = data;
 
+  /* Helper: sum previous period for a data row */
+  const prevSum = (row: MonthlyRow) => data.prevMonths.reduce((s, m) => s + (row[m] || 0), 0);
+
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1400 }}>
+    <div id="pnl-printable" style={{ padding: "24px 28px", maxWidth: 1400 }}>
+      <style>{PRINT_CSS}</style>
       {/* Header */}
       <div
         style={{
@@ -554,46 +647,98 @@ export default function PnlPage() {
             {formatMonthLabel(months[0])} ~ {formatMonthLabel(months[months.length - 1])} 월별 손익 현황
           </p>
         </div>
-        <button
-          onClick={handleExportCsv}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 16px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-card)",
-            color: "var(--text-muted)",
-            fontSize: 13,
-            cursor: "pointer",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--primary)";
-            (e.target as HTMLElement).style.color = "var(--primary)";
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--border)";
-            (e.target as HTMLElement).style.color = "var(--text-muted)";
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
           >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          CSV 다운로드
-        </button>
+            <input
+              type="checkbox"
+              checked={isCompareMode}
+              onChange={(e) => setIsCompareMode(e.target.checked)}
+              style={{ accentColor: "var(--primary)" }}
+            />
+            전기 비교
+          </label>
+          <button
+            onClick={handleExportCsv}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg-card)",
+              color: "var(--text-muted)",
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.borderColor = "var(--primary)";
+              (e.target as HTMLElement).style.color = "var(--primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.borderColor = "var(--border)";
+              (e.target as HTMLElement).style.color = "var(--text-muted)";
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            CSV 다운로드
+          </button>
+          <button
+            onClick={() => window.print()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg-card)",
+              color: "var(--text-muted)",
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.borderColor = "var(--primary)";
+              (e.target as HTMLElement).style.color = "var(--primary)";
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.borderColor = "var(--border)";
+              (e.target as HTMLElement).style.color = "var(--text-muted)";
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            인쇄
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -608,46 +753,64 @@ export default function PnlPage() {
         {[
           {
             label: "총 매출",
-            value: sumRow(computed.totalRevenue),
+            value: computed.sumCurr(computed.totalRevenue),
+            prev: computed.prevTotals.totalRevenue,
             color: "var(--primary)",
           },
           {
             label: "매출총이익",
-            value: sumRow(computed.grossProfit),
+            value: computed.sumCurr(computed.grossProfit),
+            prev: computed.prevTotals.grossProfit,
             color: "#10b981",
           },
           {
             label: "영업이익",
-            value: sumRow(computed.operatingIncome),
-            color: sumRow(computed.operatingIncome) >= 0 ? "#10b981" : "var(--danger)",
+            value: computed.sumCurr(computed.operatingIncome),
+            prev: computed.prevTotals.operatingIncome,
+            color: computed.sumCurr(computed.operatingIncome) >= 0 ? "#10b981" : "var(--danger)",
           },
           {
             label: "당기순이익",
-            value: sumRow(computed.netIncome),
-            color: sumRow(computed.netIncome) >= 0 ? "#10b981" : "var(--danger)",
+            value: computed.sumCurr(computed.netIncome),
+            prev: computed.prevTotals.netIncome,
+            color: computed.sumCurr(computed.netIncome) >= 0 ? "#10b981" : "var(--danger)",
           },
-        ].map((card) => (
-          <div
-            key={card.label}
-            style={{
-              padding: "18px 20px",
-              borderRadius: 12,
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-            }}
-          >
+        ].map((card) => {
+          const d = card.value - card.prev;
+          const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
+          return (
             <div
-              style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, fontWeight: 500 }}
+              key={card.label}
+              style={{
+                padding: "18px 20px",
+                borderRadius: 12,
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+              }}
             >
-              {card.label}
+              <div
+                style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, fontWeight: 500 }}
+              >
+                {card.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: card.color }}>
+                {card.value < 0 ? "-" : ""}
+                {Math.abs(card.value).toLocaleString("ko-KR")}
+                <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>원</span>
+              </div>
+              {isCompareMode && card.prev !== 0 && (
+                <div style={{
+                  marginTop: 6,
+                  fontSize: 11,
+                  color: d === 0 ? "var(--text-dim)" : d > 0 ? "#10b981" : "#ef4444",
+                  fontWeight: 500,
+                }}>
+                  전기 대비 {d > 0 ? "+" : ""}{pct}% {d > 0 ? "\u25B2" : d < 0 ? "\u25BC" : ""}
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: card.color }}>
-              {card.value < 0 ? "-" : ""}
-              {Math.abs(card.value).toLocaleString("ko-KR")}
-              <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>원</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Chart */}
@@ -728,29 +891,48 @@ export default function PnlPage() {
                   whiteSpace: "nowrap",
                   borderLeft: "1px solid var(--border)",
                   position: "sticky",
-                  right: 0,
+                  right: isCompareMode ? 120 : 0,
                   background: "var(--bg-surface)",
                   zIndex: 3,
                 }}
               >
                 합계
               </th>
+              {isCompareMode && (
+                <th
+                  style={{
+                    padding: "12px 16px",
+                    textAlign: "right",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-dim)",
+                    whiteSpace: "nowrap",
+                    borderLeft: "1px solid var(--border)",
+                    position: "sticky",
+                    right: 0,
+                    background: "var(--bg-surface)",
+                    zIndex: 3,
+                  }}
+                >
+                  전기 대비
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {/* Revenue Section */}
             {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출", data.revenue, months, { indent: true })}
-            {renderRow("기타수익", data.otherRevenue, months, { indent: true })}
-            {renderRow("총 매출", computed.totalRevenue, months, { isSubtotal: true, isBold: true })}
+            {renderRow("매출", data.revenue, months, { indent: true, categoryKey: "revenue", prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
+            {renderRow("기타수익", data.otherRevenue, months, { indent: true, categoryKey: "otherRevenue", prevTotal: isCompareMode ? prevSum(data.otherRevenue) : undefined })}
+            {renderRow("총 매출", computed.totalRevenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? computed.prevTotals.totalRevenue : undefined })}
 
             {renderDivider(months, "div-1")}
 
             {/* Cost of Revenue */}
             {renderSectionHeader("매출원가 (COGS)", months)}
-            {renderRow("외주비", data.outsourcing, months, { indent: true })}
-            {renderRow("인프라비용", data.infrastructure, months, { indent: true })}
-            {renderRow("매출원가 합계", computed.cogs, months, { isSubtotal: true, isBold: true })}
+            {renderRow("외주비", data.outsourcing, months, { indent: true, categoryKey: "outsourcing", prevTotal: isCompareMode ? prevSum(data.outsourcing) : undefined })}
+            {renderRow("인프라비용", data.infrastructure, months, { indent: true, categoryKey: "infrastructure", prevTotal: isCompareMode ? prevSum(data.infrastructure) : undefined })}
+            {renderRow("매출원가 합계", computed.cogs, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? computed.prevTotals.cogs : undefined })}
 
             {renderDivider(months, "div-2")}
 
@@ -758,22 +940,24 @@ export default function PnlPage() {
             {renderRow("매출총이익 (Gross Profit)", computed.grossProfit, months, {
               isTotal: true,
               isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.grossProfit : undefined,
             })}
 
             {renderDivider(months, "div-3")}
 
             {/* Operating Expenses */}
             {renderSectionHeader("운영비용 (Operating Expenses)", months)}
-            {renderRow("급여", data.salary, months, { indent: true })}
-            {renderRow("임대료", data.rent, months, { indent: true })}
-            {renderRow("소프트웨어", data.software, months, { indent: true })}
-            {renderRow("전문서비스", data.professional, months, { indent: true })}
-            {renderRow("복리후생", data.welfare, months, { indent: true })}
-            {renderRow("4대보험", data.insurance, months, { indent: true })}
-            {renderRow("기타 운영비", data.otherOpex, months, { indent: true })}
+            {renderRow("급여", data.salary, months, { indent: true, categoryKey: "salary", prevTotal: isCompareMode ? prevSum(data.salary) : undefined })}
+            {renderRow("임대료", data.rent, months, { indent: true, categoryKey: "rent", prevTotal: isCompareMode ? prevSum(data.rent) : undefined })}
+            {renderRow("소프트웨어", data.software, months, { indent: true, categoryKey: "software", prevTotal: isCompareMode ? prevSum(data.software) : undefined })}
+            {renderRow("전문서비스", data.professional, months, { indent: true, categoryKey: "professional", prevTotal: isCompareMode ? prevSum(data.professional) : undefined })}
+            {renderRow("복리후생", data.welfare, months, { indent: true, categoryKey: "welfare", prevTotal: isCompareMode ? prevSum(data.welfare) : undefined })}
+            {renderRow("4대보험", data.insurance, months, { indent: true, categoryKey: "insurance", prevTotal: isCompareMode ? prevSum(data.insurance) : undefined })}
+            {renderRow("기타 운영비", data.otherOpex, months, { indent: true, categoryKey: "otherOpex", prevTotal: isCompareMode ? prevSum(data.otherOpex) : undefined })}
             {renderRow("운영비용 합계", computed.totalOpex, months, {
               isSubtotal: true,
               isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.totalOpex : undefined,
             })}
 
             {renderDivider(months, "div-4")}
@@ -782,6 +966,7 @@ export default function PnlPage() {
             {renderRow("영업이익 (Operating Income)", computed.operatingIncome, months, {
               isTotal: true,
               isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.operatingIncome : undefined,
             })}
 
             {renderDivider(months, "div-5")}
@@ -790,10 +975,29 @@ export default function PnlPage() {
             {renderRow("당기순이익 (Net Income)", computed.netIncome, months, {
               isTotal: true,
               isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.netIncome : undefined,
             })}
           </tbody>
         </table>
       </div>
+
+      {/* Category Tooltip */}
+      {tooltipKey && CATEGORY_TOOLTIPS[tooltipKey] && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--primary)",
+            color: "#fff",
+            fontSize: 12,
+            lineHeight: 1.5,
+            maxWidth: 500,
+          }}
+        >
+          <strong>{CATEGORY_LABELS[tooltipKey]}</strong>: {CATEGORY_TOOLTIPS[tooltipKey]}
+        </div>
+      )}
 
       {/* Footer note */}
       <div

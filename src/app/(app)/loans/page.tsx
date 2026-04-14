@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import {
@@ -20,6 +20,119 @@ import {
 import { QueryErrorBanner } from "@/components/query-status";
 
 type Tab = "list" | "payments" | "register" | "match";
+
+/* ── Print Styles ── */
+const PRINT_STYLES = `
+@media print {
+  body * { visibility: hidden; }
+  .loans-print-area, .loans-print-area * { visibility: visible; }
+  .loans-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+  @page { margin: 20mm; }
+}
+`;
+
+/* ── Maturity Badge ── */
+function MaturityBadge({ maturityDate }: { maturityDate: string | null | undefined }) {
+  if (!maturityDate) return null;
+  const daysLeft = Math.ceil(
+    (new Date(maturityDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+  );
+  if (daysLeft < 0) {
+    return (
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+        만기 초과
+      </span>
+    );
+  }
+  if (daysLeft <= 7) {
+    return (
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+        D-{daysLeft}
+      </span>
+    );
+  }
+  if (daysLeft <= 30) {
+    return (
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 font-semibold">
+        D-{daysLeft}
+      </span>
+    );
+  }
+  return null;
+}
+
+/* ── Repayment Schedule Projection ── */
+interface ScheduleRow {
+  month: string;
+  principal: number;
+  interest: number;
+  remainingAfter: number;
+}
+
+function buildRepaymentSchedule(loans: LoanRow[]): ScheduleRow[] {
+  const activeLoans = loans.filter(
+    (l) => l.status === "active" && Number(l.remaining_balance) > 0,
+  );
+  if (activeLoans.length === 0) return [];
+
+  const MONTHS_AHEAD = 6;
+  const schedule: ScheduleRow[] = [];
+  const now = new Date();
+
+  // Track remaining per loan across months
+  const loanState = activeLoans.map((l) => ({
+    remaining: Number(l.remaining_balance) || 0,
+    rate: Number(l.interest_rate) || 0,
+    maturity: l.maturity_date ? new Date(l.maturity_date) : null,
+  }));
+
+  for (let m = 1; m <= MONTHS_AHEAD; m++) {
+    const targetDate = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    const monthLabel = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`;
+    let totalPrincipal = 0;
+    let totalInterest = 0;
+
+    for (const ls of loanState) {
+      if (ls.remaining <= 0) continue;
+      // Check if loan already matured
+      if (ls.maturity && targetDate > ls.maturity) continue;
+
+      const monthlyInterest = Math.round((ls.remaining * ls.rate) / 100 / 12);
+
+      // Estimate monthly principal: if maturity exists, divide remaining by months left
+      let monthlyPrincipal = 0;
+      if (ls.maturity) {
+        const monthsLeft = Math.max(
+          1,
+          (ls.maturity.getFullYear() - targetDate.getFullYear()) * 12 +
+            (ls.maturity.getMonth() - targetDate.getMonth()) +
+            1,
+        );
+        monthlyPrincipal = Math.round(ls.remaining / monthsLeft);
+      } else {
+        // No maturity: assume interest-only
+        monthlyPrincipal = 0;
+      }
+
+      monthlyPrincipal = Math.min(monthlyPrincipal, ls.remaining);
+      ls.remaining = Math.max(0, ls.remaining - monthlyPrincipal);
+
+      totalPrincipal += monthlyPrincipal;
+      totalInterest += monthlyInterest;
+    }
+
+    const totalRemaining = loanState.reduce((s, ls) => s + ls.remaining, 0);
+    schedule.push({
+      month: monthLabel,
+      principal: totalPrincipal,
+      interest: totalInterest,
+      remainingAfter: totalRemaining,
+    });
+  }
+
+  return schedule;
+}
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);
@@ -153,15 +266,33 @@ export default function LoansPage() {
     { key: "register", label: "대출 등록" },
   ];
 
+  // Annual estimated interest cost
+  const annualInterestEstimate = useMemo(() => {
+    return loans
+      .filter((l) => l.status === "active")
+      .reduce((sum, l) => {
+        const balance = Number(l.remaining_balance) || 0;
+        const rate = Number(l.interest_rate) || 0;
+        return sum + Math.round((balance * rate) / 100);
+      }, 0);
+  }, [loans]);
+
+  // Repayment schedule for list tab
+  const repaymentSchedule = useMemo(() => buildRepaymentSchedule(loans), [loans]);
+
   const statCards = [
     { label: "총 대출금", value: fmtW(summary?.totalOriginal || 0), sub: summary?.totalOriginal ? "" : "은행 확인 필요" },
     { label: "현재 잔금", value: fmtW(summary?.totalRemaining || 0), sub: summary?.totalRemaining ? "" : "은행 확인 필요" },
     { label: "최근 납부", value: fmtW(summary?.monthlyPayment || 0), sub: "월 납부액" },
     { label: "총 상환", value: `${summary?.totalPayments || 0}회차`, sub: "납부 완료" },
+    { label: "총 이자 비용 (예상)", value: fmtW(annualInterestEstimate), sub: "연간 추정", highlight: true },
   ];
 
   return (
-    <div className="max-w-[900px]">
+    <div className="max-w-[900px] loans-print-area">
+      {/* Print CSS injection */}
+      <style dangerouslySetInnerHTML={{ __html: PRINT_STYLES }} />
+
       <QueryErrorBanner error={mainError} onRetry={refetch} />
 
       {/* Header */}
@@ -170,14 +301,32 @@ export default function LoansPage() {
           <h1 className="text-2xl font-extrabold">대출 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">대출 현황, 상환 이력, 잔금 추적</p>
         </div>
+        <button
+          onClick={() => window.print()}
+          className="no-print text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] flex items-center gap-1.5"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+          </svg>
+          인쇄
+        </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {statCards.map((c) => (
-          <div key={c.label} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div
+            key={c.label}
+            className={`rounded-2xl border p-4 ${
+              (c as { highlight?: boolean }).highlight
+                ? "bg-[var(--warning)]/5 border-[var(--warning)]/30"
+                : "bg-[var(--bg-card)] border-[var(--border)]"
+            }`}
+          >
             <div className="text-[11px] text-[var(--text-dim)] mb-1">{c.label}</div>
-            <div className="text-lg font-bold">{c.value}</div>
+            <div className={`text-lg font-bold ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
+              {c.value}
+            </div>
             {c.sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
           </div>
         ))}
@@ -220,6 +369,7 @@ export default function LoansPage() {
                             <span className="font-bold text-sm">{loan.name}</span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                             <span className="text-[10px] text-[var(--text-dim)]">{LOAN_TYPES[loan.loan_type] || loan.loan_type}</span>
+                            <MaturityBadge maturityDate={loan.maturity_date} />
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mb-2">{loan.lender}</div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -348,6 +498,55 @@ export default function LoansPage() {
                 })}
               </div>
             </div>
+
+            {/* Repayment Schedule Projection */}
+            {repaymentSchedule.length > 0 && (
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mt-4">
+                <h3 className="text-sm font-bold mb-3">상환 스케줄 (향후 6개월 예상)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px]">
+                    <thead>
+                      <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
+                        <th className="text-left px-3 py-2 font-medium">월</th>
+                        <th className="text-right px-3 py-2 font-medium">예상 원금</th>
+                        <th className="text-right px-3 py-2 font-medium">예상 이자</th>
+                        <th className="text-right px-3 py-2 font-medium">합계</th>
+                        <th className="text-right px-3 py-2 font-medium">잔금</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {repaymentSchedule.map((row) => (
+                        <tr key={row.month} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)]/50">
+                          <td className="px-3 py-2.5 text-xs font-medium">{row.month}</td>
+                          <td className="px-3 py-2.5 text-xs text-right font-medium">{fmtW(row.principal)}</td>
+                          <td className="px-3 py-2.5 text-xs text-right text-[var(--text-muted)]">{fmtW(row.interest)}</td>
+                          <td className="px-3 py-2.5 text-xs text-right font-bold">{fmtW(row.principal + row.interest)}</td>
+                          <td className="px-3 py-2.5 text-xs text-right text-[var(--text-muted)]">{fmtW(row.remainingAfter)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-[var(--border)]">
+                        <td className="px-3 py-2.5 text-xs font-bold">합계</td>
+                        <td className="px-3 py-2.5 text-xs text-right font-bold">
+                          {fmtW(repaymentSchedule.reduce((s, r) => s + r.principal, 0))}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-right font-bold text-[var(--warning)]">
+                          {fmtW(repaymentSchedule.reduce((s, r) => s + r.interest, 0))}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-right font-bold">
+                          {fmtW(repaymentSchedule.reduce((s, r) => s + r.principal + r.interest, 0))}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-right text-[var(--text-dim)]">-</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)] mt-2">
+                  * 만기일 기준 균등분할 추정. 실제 상환 조건과 다를 수 있습니다.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </>)}

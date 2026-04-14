@@ -39,6 +39,31 @@ export default function BillingPage() {
   const { data: user, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id;
 
+  // 사용량 통계 (현재 월 기준)
+  const { data: usage } = useQuery({
+    queryKey: ["usage", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+      const iso = monthStart.toISOString();
+      const [emp, deals, sigs, ai, partners] = await Promise.all([
+        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
+        db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        db.from("signatures").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
+        db.from("ai_usage_logs").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
+        db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+      ]);
+      return {
+        employees: emp.count || 0,
+        deals: deals.count || 0,
+        signatures: sigs.count || 0,
+        aiCalls: ai.count || 0,
+        partners: partners.count || 0,
+      };
+    },
+    enabled: !!companyId,
+  });
+
   // 요금제 목록
   const { data: plans } = useQuery({
     queryKey: ["plans"],
@@ -275,6 +300,54 @@ export default function BillingPage() {
       {/* Plan Tab */}
       {tab === "plan" && (
         <div>
+          {/* 사용량 카드 — 현재 플랜 한도 대비 */}
+          {usage && (() => {
+            const limits: Record<string, { employees: number; aiCalls: number; signatures: number; partners: number }> = {
+              free:       { employees: 3,    aiCalls: 5,    signatures: 3,    partners: 5 },
+              starter:    { employees: 9999, aiCalls: 100,  signatures: 50,   partners: 10 },
+              business:   { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
+              enterprise: { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
+            };
+            const lim = limits[currentSlug] || limits.free;
+            const items: { label: string; used: number; limit: number; icon: string }[] = [
+              { label: "활성 직원", used: usage.employees, limit: lim.employees, icon: "👥" },
+              { label: "AI 분석 (이번 달)", used: usage.aiCalls, limit: lim.aiCalls, icon: "🤖" },
+              { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures, icon: "✍️" },
+              { label: "거래처", used: usage.partners, limit: lim.partners, icon: "🏢" },
+            ];
+            return (
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[var(--text)]">이번 달 사용량</h3>
+                  <span className="text-xs text-[var(--text-muted)]">{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {items.map((it) => {
+                    const unlimited = it.limit >= 9999;
+                    const pct = unlimited ? 0 : Math.min(100, Math.round((it.used / Math.max(1, it.limit)) * 100));
+                    const danger = !unlimited && pct >= 80;
+                    const barColor = danger ? "bg-red-500" : pct >= 60 ? "bg-yellow-500" : "bg-blue-500";
+                    return (
+                      <div key={it.label} className="bg-[var(--bg-surface)] rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 mb-1"><span className="text-sm">{it.icon}</span><span className="text-xs text-[var(--text-muted)]">{it.label}</span></div>
+                        <div className="flex items-baseline gap-1">
+                          <span className={`text-lg font-extrabold ${danger ? "text-red-500" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
+                          <span className="text-xs text-[var(--text-dim)]">/ {unlimited ? "무제한" : it.limit.toLocaleString()}</span>
+                        </div>
+                        {!unlimited && (
+                          <div className="mt-2 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
+                            <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                          </div>
+                        )}
+                        {danger && <div className="text-[10px] text-red-500 mt-1 font-semibold">⚠️ 한도 임박 - 업그레이드 권장</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="flex justify-center gap-2 mb-6">
             <button
               onClick={() => setCycle("monthly")}
@@ -464,25 +537,65 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
-              {(invoices || []).map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-surface)] transition">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      inv.status === "paid" ? "bg-green-500" : inv.status === "failed" ? "bg-red-500" : "bg-yellow-500"
-                    }`} />
-                    <div>
-                      <div className="font-semibold text-sm text-[var(--text)]">{inv.invoice_number}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{inv.description || "구독 결제"}</div>
+              {(invoices || []).map((inv: any) => {
+                const statusLabel = inv.status === "paid" ? "결제완료" : inv.status === "failed" ? "결제실패" : inv.status === "refunded" ? "환불" : "대기";
+                const statusColor = inv.status === "paid" ? "text-green-400" : inv.status === "failed" ? "text-red-400" : inv.status === "refunded" ? "text-orange-400" : "text-yellow-400";
+                return (
+                  <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-surface)] transition gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        inv.status === "paid" ? "bg-green-500" : inv.status === "failed" ? "bg-red-500" : inv.status === "refunded" ? "bg-orange-500" : "bg-yellow-500"
+                      }`} />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-[var(--text)] truncate">{inv.invoice_number}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">{inv.description || "구독 결제"} · <span className={statusColor}>{statusLabel}</span></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="font-bold text-sm text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        {inv.status === "failed" && hasStripeSubscription && (
+                          <button onClick={handleOpenPortal} disabled={isPaymentLoading}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50">
+                            재시도
+                          </button>
+                        )}
+                        <button onClick={() => {
+                          const w = window.open('', '_blank', 'width=700,height=900');
+                          if (!w) { toast('팝업이 차단되었습니다', 'error'); return; }
+                          const rows = [
+                            ['청구서 번호', inv.invoice_number || '—'],
+                            ['상태', statusLabel],
+                            ['발행일', new Date(inv.created_at).toLocaleDateString('ko-KR')],
+                            ['설명', inv.description || '구독 결제'],
+                            ['소계', `₩${Number(inv.subtotal || inv.total_amount || 0).toLocaleString()}`],
+                            ['VAT', `₩${Number(inv.tax_amount || 0).toLocaleString()}`],
+                          ];
+                          w.document.write(`<html><head><title>${inv.invoice_number || 'Invoice'}</title>
+<style>body{font-family:'Apple SD Gothic Neo',sans-serif;padding:40px;color:#000;max-width:600px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;margin:16px 0}
+td{padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
+td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight:600}
+.total{font-size:24px;font-weight:900;text-align:right;margin-top:20px;padding-top:16px;border-top:2px solid #000}
+.foot{text-align:center;color:#999;font-size:10px;margin-top:40px}</style></head>
+<body onload="window.print()"><h1>청구서 / INVOICE</h1><div class="sub">OwnerView (오너뷰) · (주)모티브이노베이션</div>
+<table>${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
+<div class="total">총액: ₩${Number(inv.total_amount || 0).toLocaleString()}</div>
+<div class="foot">본 청구서는 전자적으로 발행되었으며 날인이 없어도 유효합니다.</div>
+</body></html>`);
+                          w.document.close();
+                        }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition">
+                          PDF
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-sm text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
-                    <div className="text-xs text-[var(--text-muted)]">
-                      {new Date(inv.created_at).toLocaleDateString("ko-KR")}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

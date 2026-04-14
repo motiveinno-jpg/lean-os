@@ -268,6 +268,49 @@ export default function VaultPage() {
     totalDocs: 0, expiringDocsCount: 0, pendingDiscoveryCount: 0,
   };
 
+  // ── 사용량 추적 (localStorage 기반) ──
+  // { [accountId]: { lastOpenedAt: ISO, opens: [{ at, by }], seats: number, usedSeats: number } }
+  const usageKey = companyId ? `vault:usage:${companyId}` : "";
+  const [usage, setUsage] = useState<Record<string, { lastOpenedAt?: string; opens?: { at: string; by?: string }[]; seats?: number; usedSeats?: number }>>({});
+  const [showAccessLogId, setShowAccessLogId] = useState<string | null>(null);
+  const [showUnusedOnly, setShowUnusedOnly] = useState(false);
+
+  useEffect(() => {
+    if (!usageKey) return;
+    try { setUsage(JSON.parse(localStorage.getItem(usageKey) || "{}")); } catch { setUsage({}); }
+  }, [usageKey]);
+
+  const persistUsage = (next: typeof usage) => {
+    setUsage(next);
+    if (usageKey) { try { localStorage.setItem(usageKey, JSON.stringify(next)); } catch { /* ignore */ } }
+  };
+
+  const recordOpen = (accountId: string, accountUrl?: string) => {
+    const now = new Date().toISOString();
+    const cur = usage[accountId] || {};
+    const opens = [...(cur.opens || []), { at: now, by: userId || undefined }].slice(-50);
+    persistUsage({ ...usage, [accountId]: { ...cur, lastOpenedAt: now, opens } });
+    if (accountUrl) {
+      try { window.open(accountUrl, "_blank", "noopener,noreferrer"); } catch { /* ignore */ }
+    }
+  };
+
+  const setSeats = (accountId: string, field: "seats" | "usedSeats", value: number) => {
+    const cur = usage[accountId] || {};
+    persistUsage({ ...usage, [accountId]: { ...cur, [field]: value } });
+  };
+
+  // 미사용 분석
+  const UNUSED_DAYS = 30;
+  const unusedAccounts = (vault?.accounts || []).filter((a: any) => {
+    if (a.status !== "active") return false;
+    const lastOpen = usage[a.id]?.lastOpenedAt;
+    if (!lastOpen) return true; // 아예 한 번도 안 열림
+    const days = (now - new Date(lastOpen).getTime()) / DAY;
+    return days >= UNUSED_DAYS;
+  });
+  const unusedMonthlyCost = unusedAccounts.reduce((s: number, a: any) => s + Number(a.monthly_cost || 0), 0);
+
   // ── Renewal alert analysis ──
   const accounts: any[] = vault?.accounts || [];
   const docs: any[] = vault?.docs || [];
@@ -511,6 +554,29 @@ export default function VaultPage() {
         >
           🔔 알림 {visibleAlerts.length + duplicateGroups.length}건 펼치기
         </button>
+      )}
+
+      {/* 미사용 구독 경고 */}
+      {tab === "accounts" && unusedAccounts.length > 0 && (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-base">💤</span>
+              <div>
+                <div className="text-sm font-bold">{UNUSED_DAYS}일 이상 미사용 구독 {unusedAccounts.length}건</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  월 <span className="font-semibold text-orange-400">{fmtW(unusedMonthlyCost)}원</span> 절감 가능 — 해지 검토 권장
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowUnusedOnly(!showUnusedOnly)}
+              className="text-[10px] px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-md font-semibold transition border border-orange-500/30"
+            >
+              {showUnusedOnly ? "전체 보기" : "미사용만 필터"}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Summary Cards */}
@@ -762,16 +828,22 @@ export default function VaultPage() {
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
                   <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">월 비용</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">결제수단</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">사용 좌석</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">마지막 사용</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">갱신일</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">출처</th>
                   <th className="p-4"></th>
                 </tr>
               </thead>
               <tbody>
-                {vault.accounts.map((acc: any) => {
+                {vault.accounts
+                  .filter((acc: any) => !showUnusedOnly || unusedAccounts.some((u: any) => u.id === acc.id))
+                  .map((acc: any) => {
                   const st = ACCOUNT_STATUS[acc.status || "active"] || ACCOUNT_STATUS.active;
+                  const u = usage[acc.id] || {};
+                  const lastOpenDays = u.lastOpenedAt ? Math.floor((now - new Date(u.lastOpenedAt).getTime()) / DAY) : null;
+                  const isUnused = unusedAccounts.some((x: any) => x.id === acc.id);
+                  const seatPct = u.seats && u.seats > 0 ? Math.min(100, Math.round(((u.usedSeats || 0) / u.seats) * 100)) : null;
                   return (
                     <tr id={`vault-row-${acc.id}`} key={acc.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={async () => {
                       setEditingId(acc.id);
@@ -793,10 +865,43 @@ export default function VaultPage() {
                       </td>
                       <td className="p-4 text-right font-bold mono-number">
                         {(acc.monthly_cost || 0).toLocaleString()}원
+                        <div className="text-[10px] text-[var(--text-dim)] font-normal">{acc.payment_method || ""}{acc.billing_day ? ` · ${acc.billing_day}일` : ""}</div>
                       </td>
-                      <td className="p-4 text-center text-xs text-[var(--text-muted)]">
-                        <div>{acc.payment_method || "—"}</div>
-                        {acc.billing_day && <div className="text-[10px] text-[var(--text-dim)]">매월 {acc.billing_day}일</div>}
+                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            min={0}
+                            value={u.usedSeats ?? ""}
+                            onChange={(e) => setSeats(acc.id, "usedSeats", Number(e.target.value))}
+                            placeholder="0"
+                            className="w-10 px-1 py-0.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs text-center"
+                          />
+                          <span className="text-[var(--text-dim)] text-xs">/</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={u.seats ?? ""}
+                            onChange={(e) => setSeats(acc.id, "seats", Number(e.target.value))}
+                            placeholder="총"
+                            className="w-10 px-1 py-0.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs text-center"
+                          />
+                        </div>
+                        {seatPct !== null && (
+                          <div className="mt-1 h-1 bg-[var(--bg-surface)] rounded-full overflow-hidden w-16 mx-auto">
+                            <div className={`h-full ${seatPct >= 90 ? "bg-red-500" : seatPct >= 70 ? "bg-yellow-500" : "bg-green-500"}`} style={{ width: `${seatPct}%` }} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 text-center text-xs">
+                        {lastOpenDays === null ? (
+                          <span className="text-red-400">미접속</span>
+                        ) : (
+                          <span className={lastOpenDays >= UNUSED_DAYS ? "text-orange-400" : "text-[var(--text-muted)]"}>
+                            {lastOpenDays === 0 ? "오늘" : `${lastOpenDays}일 전`}
+                          </span>
+                        )}
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{(u.opens?.length || 0)}회</div>
                       </td>
                       <td className="p-4 text-center text-xs text-[var(--text-muted)]">
                         {acc.renewal_date ? new Date(acc.renewal_date).toLocaleDateString("ko") : "—"}
@@ -805,21 +910,32 @@ export default function VaultPage() {
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
                           {st.label}
                         </span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          acc.source === "auto_discovered"
-                            ? "bg-purple-500/10 text-purple-400"
-                            : "bg-gray-500/10 text-gray-400"
-                        }`}>
-                          {acc.source === "auto_discovered" ? "AI탐지" : "수동"}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        {acc.status === "active" && (
-                          <button onClick={(e) => { e.stopPropagation(); cancelAccMut.mutate(acc.id); }}
-                            className="text-[10px] text-red-400 hover:text-red-300 transition">해지</button>
+                        {isUnused && (
+                          <div className="text-[10px] text-orange-400 mt-1">💤 미사용</div>
                         )}
+                      </td>
+                      <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col items-end gap-1">
+                          {acc.url && (
+                            <button
+                              onClick={() => recordOpen(acc.id, acc.url)}
+                              className="text-[10px] px-2 py-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded transition font-medium"
+                              title="방문 (사용 기록 적재)"
+                            >
+                              ↗ 방문
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setShowAccessLogId(acc.id)}
+                            className="text-[10px] px-2 py-1 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] rounded transition"
+                          >
+                            로그
+                          </button>
+                          {acc.status === "active" && (
+                            <button onClick={() => cancelAccMut.mutate(acc.id)}
+                              className="text-[10px] text-red-400 hover:text-red-300 transition">해지</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1007,6 +1123,43 @@ export default function VaultPage() {
           )}
         </div>
       )}
+
+      {/* 접근 로그 모달 */}
+      {showAccessLogId && (() => {
+        const acc = (vault?.accounts || []).find((a: any) => a.id === showAccessLogId);
+        const u = usage[showAccessLogId] || {};
+        const opens = (u.opens || []).slice().reverse();
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAccessLogId(null)}>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-bold">{acc?.service_name} 접근 로그</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">최근 50건 · 총 {opens.length}회 접속</div>
+                </div>
+                <button onClick={() => setShowAccessLogId(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">✕</button>
+              </div>
+              <div className="overflow-y-auto p-4">
+                {opens.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-[var(--text-dim)]">기록된 접근이 없습니다<br /><span className="text-[10px]">"방문" 버튼을 클릭하면 자동으로 기록됩니다</span></div>
+                ) : (
+                  <div className="space-y-1">
+                    {opens.map((o, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-xs">
+                        <span className="font-mono text-[var(--text-muted)]">{new Date(o.at).toLocaleString("ko")}</span>
+                        <span className="text-[10px] text-[var(--text-dim)]">{o.by ? `사용자 ${o.by.slice(0, 8)}` : "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
+                ※ 로컬 기록 (이 디바이스 기준). 다른 사용자의 접근은 각자 디바이스에서 추적됩니다.
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

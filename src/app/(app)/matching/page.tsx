@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
@@ -26,6 +26,25 @@ interface ReceivableItem {
   type: "invoice" | "schedule";
 }
 
+interface AgingBucket {
+  label: string;
+  filterKey: ReceivableFilter;
+  count: number;
+  amount: number;
+  color: string;
+}
+
+/* ── Print Styles ── */
+const PRINT_STYLE = `
+@media print {
+  body * { visibility: hidden; }
+  #matching-print-area, #matching-print-area * { visibility: visible; }
+  #matching-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  button, [role="tablist"] { display: none !important; }
+  .no-print { display: none !important; }
+}
+`;
+
 export default function MatchingPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("transaction");
@@ -36,6 +55,8 @@ export default function MatchingPage() {
   const [threeWayRunning, setThreeWayRunning] = useState(false);
   const [receivableFilter, setReceivableFilter] = useState<ReceivableFilter>("all");
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkReminding, setBulkReminding] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -226,6 +247,88 @@ export default function MatchingPage() {
   const over30Total = receivableItems.filter((i) => i.overdue_days >= 30).reduce((s, i) => s + i.total_amount, 0);
   const over90Total = receivableItems.filter((i) => i.overdue_days >= 90).reduce((s, i) => s + i.total_amount, 0);
 
+  // ── Aging Buckets for Chart ──
+  const agingBuckets = useMemo<AgingBucket[]>(() => {
+    const buckets: AgingBucket[] = [
+      { label: "30일 이내", filterKey: "under30", count: 0, amount: 0, color: "#22c55e" },
+      { label: "30-60일", filterKey: "30to60", count: 0, amount: 0, color: "#eab308" },
+      { label: "60-90일", filterKey: "60to90", count: 0, amount: 0, color: "#f97316" },
+      { label: "90일 초과", filterKey: "over90", count: 0, amount: 0, color: "#ef4444" },
+    ];
+    for (const item of receivableItems) {
+      if (item.overdue_days < 30) { buckets[0].count++; buckets[0].amount += item.total_amount; }
+      else if (item.overdue_days < 60) { buckets[1].count++; buckets[1].amount += item.total_amount; }
+      else if (item.overdue_days < 90) { buckets[2].count++; buckets[2].amount += item.total_amount; }
+      else { buckets[3].count++; buckets[3].amount += item.total_amount; }
+    }
+    return buckets;
+  }, [receivableItems]);
+
+  const agingMaxAmount = Math.max(...agingBuckets.map((b) => b.amount), 1);
+
+  // ── Bulk approve all review matches ──
+  const handleBulkApprove = useCallback(async () => {
+    const reviewMatches = results.filter((r) => r.status === "review");
+    if (reviewMatches.length === 0) return;
+    setBulkApproving(true);
+    try {
+      for (const match of reviewMatches) {
+        await confirmMatch(match);
+      }
+      toast(`${reviewMatches.length}건 일괄 승인 완료`, "success");
+    } catch {
+      toast("일괄 승인 중 오류가 발생했습니다.", "error");
+    } finally {
+      setBulkApproving(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results]);
+
+  // ── Bulk send reminders for all overdue items ──
+  const handleBulkReminder = useCallback(async () => {
+    const overdueItems = filteredReceivables.filter((i) => i.overdue_days > 0);
+    if (overdueItems.length === 0) return;
+    setBulkReminding(true);
+    let successCount = 0;
+    let failCount = 0;
+    try {
+      for (const item of overdueItems) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) { failCount++; continue; }
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-payment-reminder`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              counterparty_name: item.counterparty_name,
+              document_name: item.label,
+              amount: item.total_amount,
+              due_date: item.due_date,
+              overdue_days: item.overdue_days,
+              invoice_id: item.type === "invoice" ? item.id : undefined,
+              deal_id: item.deal_id,
+            }),
+          });
+          if (res.ok) successCount++;
+          else failCount++;
+        } catch {
+          failCount++;
+        }
+      }
+      if (successCount > 0) {
+        toast(`${successCount}건 독촉장 일괄 발송 완료${failCount > 0 ? ` (${failCount}건 실패)` : ""}`, "success");
+      } else {
+        toast("독촉장 발송에 실패했습니다.", "error");
+      }
+    } finally {
+      setBulkReminding(false);
+    }
+  }, [filteredReceivables, toast]);
+
   async function executeMatching() {
     setRunning(true);
     try {
@@ -375,7 +478,8 @@ export default function MatchingPage() {
   const noMatchCount = threeWayResults.filter(r => !r.amountMatch && !r.paymentMatch).length;
 
   return (
-    <div className="max-w-[1000px]">
+    <div className="max-w-[1000px]" id="matching-print-area">
+      <style dangerouslySetInnerHTML={{ __html: PRINT_STYLE }} />
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -383,6 +487,58 @@ export default function MatchingPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">
             거래 자동 매칭 + 세금계산서 3-way 매칭 + 미수금 관리
           </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="no-print px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition"
+          title="인쇄"
+        >
+          🖨️ 인쇄
+        </button>
+      </div>
+
+      {/* ── Matching Statistics Dashboard ── */}
+      <div className="grid grid-cols-5 gap-3 mb-6">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 거래 건수</div>
+          <div className="text-xl font-extrabold mt-1">{transactions.length}</div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">전체 거래</div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-green-500/30 p-4">
+          <div className="text-[10px] text-green-400 uppercase tracking-wide">매칭 완료</div>
+          <div className="text-xl font-extrabold text-green-400 mt-1">
+            {transactions.filter((t) => t.matched).length}
+          </div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+            {transactions.length > 0
+              ? `${Math.round((transactions.filter((t) => t.matched).length / transactions.length) * 100)}%`
+              : "0%"}
+          </div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-red-500/30 p-4">
+          <div className="text-[10px] text-red-400 uppercase tracking-wide">미매칭</div>
+          <div className="text-xl font-extrabold text-red-400 mt-1">
+            {transactions.filter((t) => !t.matched).length}
+          </div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">검토 필요</div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--primary)]/30 p-4">
+          <div className="text-[10px] text-[var(--primary)] uppercase tracking-wide">3-Way 완료율</div>
+          <div className="text-xl font-extrabold text-[var(--primary)] mt-1">
+            {threeWayResults.length > 0
+              ? `${Math.round((fullMatchCount / threeWayResults.length) * 100)}%`
+              : "—"}
+          </div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+            {fullMatchCount}/{threeWayResults.length}건
+          </div>
+        </div>
+        <div className="bg-[var(--bg-card)] rounded-xl border border-yellow-500/30 p-4">
+          <div className="text-[10px] text-yellow-400 uppercase tracking-wide">미수금 총액</div>
+          <div className="text-xl font-extrabold text-yellow-400 mt-1">
+            {totalReceivable > 0 ? `₩${Math.round(totalReceivable / 10000).toLocaleString()}만` : "₩0"}
+          </div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{receivableItems.length}건</div>
         </div>
       </div>
 
@@ -473,6 +629,19 @@ export default function MatchingPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Bulk Approve for Review Tab */}
+              {tab === "review" && reviewCount > 0 && (
+                <div className="flex justify-end mb-4 no-print">
+                  <button
+                    onClick={handleBulkApprove}
+                    disabled={bulkApproving}
+                    className="px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/30 rounded-xl text-sm font-semibold hover:bg-green-500/20 transition disabled:opacity-50"
+                  >
+                    {bulkApproving ? "승인 중..." : `전체 승인 (${reviewCount}건)`}
+                  </button>
+                </div>
+              )}
 
               {/* Results */}
               <div className="space-y-3">
@@ -624,6 +793,56 @@ export default function MatchingPage() {
             </div>
           </div>
 
+          {/* ── Receivables Aging Chart ── */}
+          {receivableItems.length > 0 && (
+            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-6">
+              <div className="text-sm font-semibold mb-4">연체 구간별 미수금 분포</div>
+              <svg width="100%" height={agingBuckets.length * 48 + 8} viewBox={`0 0 600 ${agingBuckets.length * 48 + 8}`} className="overflow-visible">
+                {agingBuckets.map((bucket, idx) => {
+                  const barMaxWidth = 360;
+                  const barWidth = agingMaxAmount > 0 ? (bucket.amount / agingMaxAmount) * barMaxWidth : 0;
+                  const y = idx * 48 + 4;
+                  return (
+                    <g key={bucket.filterKey}>
+                      {/* Label */}
+                      <text x={0} y={y + 18} fontSize={12} fill="var(--text-muted)" fontWeight={500}>
+                        {bucket.label}
+                      </text>
+                      {/* Bar */}
+                      <rect
+                        x={100}
+                        y={y + 4}
+                        width={Math.max(barWidth, 2)}
+                        height={24}
+                        rx={6}
+                        fill={bucket.color}
+                        opacity={0.7}
+                      />
+                      {/* Amount + Count */}
+                      <text
+                        x={100 + Math.max(barWidth, 2) + 10}
+                        y={y + 20}
+                        fontSize={11}
+                        fill="var(--text)"
+                        fontWeight={600}
+                      >
+                        ₩{Math.round(bucket.amount).toLocaleString()}
+                      </text>
+                      <text
+                        x={100 + Math.max(barWidth, 2) + 10}
+                        y={y + 34}
+                        fontSize={10}
+                        fill="var(--text-dim)"
+                      >
+                        {bucket.count}건
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          )}
+
           {/* Filter Tabs */}
           <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6">
             {([
@@ -646,6 +865,21 @@ export default function MatchingPage() {
               </button>
             ))}
           </div>
+
+          {/* Bulk Reminder Button */}
+          {filteredReceivables.filter((i) => i.overdue_days > 0).length > 0 && (
+            <div className="flex justify-end mb-4 no-print">
+              <button
+                onClick={handleBulkReminder}
+                disabled={bulkReminding}
+                className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition disabled:opacity-50"
+              >
+                {bulkReminding
+                  ? "발송 중..."
+                  : `일괄 리마인더 (${filteredReceivables.filter((i) => i.overdue_days > 0).length}건)`}
+              </button>
+            </div>
+          )}
 
           {/* Receivables Table */}
           {filteredReceivables.length === 0 ? (

@@ -241,6 +241,105 @@ export async function saveSignature(
   return data;
 }
 
+// ── Bulk Signature Requests (일괄 서명 요청) ──
+export async function createBulkSignatureRequests(params: {
+  companyId: string;
+  documentId: string;
+  title: string;
+  signers: { name: string; email: string; phone?: string }[];
+  createdBy: string;
+  sendEmails?: boolean;
+}): Promise<{ created: number; sent: number; failed: number; ids: string[] }> {
+  const ids: string[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  for (const signer of params.signers) {
+    if (!signer.name?.trim() || !signer.email?.trim()) continue;
+    try {
+      const created = await createSignatureRequest({
+        companyId: params.companyId,
+        documentId: params.documentId,
+        title: params.title,
+        signerName: signer.name.trim(),
+        signerEmail: signer.email.trim(),
+        signerPhone: signer.phone?.trim() || undefined,
+        createdBy: params.createdBy,
+      });
+      ids.push(created.id);
+
+      if (params.sendEmails !== false) {
+        const r = await sendSignatureEmail(created.id);
+        if (r.success) sent += 1; else failed += 1;
+      }
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { created: ids.length, sent, failed, ids };
+}
+
+// ── Send Signature Reminder (리마인더 발송) ──
+export async function sendSignatureReminder(signatureRequestId: string): Promise<{ success: boolean; error?: string }> {
+  const req = await getSignatureRequest(signatureRequestId);
+  if (!req) return { success: false, error: '서명 요청을 찾을 수 없습니다.' };
+  if (req.status === 'signed') return { success: false, error: '이미 서명이 완료되었습니다.' };
+  if (req.status === 'expired' || req.status === 'cancelled') return { success: false, error: '만료/취소된 요청입니다.' };
+
+  const r = await sendSignatureEmail(signatureRequestId);
+
+  // 리마인더 카운터 증가 + 감사 로그
+  try {
+    await db.from('signature_requests').update({
+      reminder_count: ((req as any).reminder_count || 0) + 1,
+      last_reminded_at: new Date().toISOString(),
+    }).eq('id', signatureRequestId);
+  } catch { /* schema may not have these columns yet — ignore */ }
+
+  await logAudit({
+    company_id: req.company_id,
+    user_id: req.created_by || 'system',
+    action: 'remind',
+    entity_type: 'signature',
+    entity_id: signatureRequestId,
+    entity_name: req.title,
+    metadata: { signer_email: req.signer_email, success: r.success },
+  });
+
+  return r;
+}
+
+export async function bulkSendReminders(signatureRequestIds: string[]): Promise<{ sent: number; failed: number }> {
+  let sent = 0; let failed = 0;
+  for (const id of signatureRequestIds) {
+    const r = await sendSignatureReminder(id);
+    if (r.success) sent += 1; else failed += 1;
+  }
+  return { sent, failed };
+}
+
+// ── Audit Log for a Document's Signatures ──
+export async function getDocumentSignatureAudit(companyId: string, documentId: string) {
+  // 문서에 연결된 모든 signature_requests 조회 후 각각의 audit log 머지
+  const sigs = await getDocumentSignatures(documentId);
+  const sigIds = sigs.map((s: any) => s.id);
+  if (sigIds.length === 0) return [];
+
+  const { data: logs } = await db
+    .from('audit_logs')
+    .select('*, users:user_id(name, email)')
+    .eq('company_id', companyId)
+    .eq('entity_type', 'signature')
+    .in('entity_id', sigIds)
+    .order('created_at', { ascending: false });
+
+  return (logs || []).map((l: any) => {
+    const sig = sigs.find((s: any) => s.id === l.entity_id);
+    return { ...l, signer_name: sig?.signer_name, signer_email: sig?.signer_email };
+  });
+}
+
 // ── Cancel / Expire Signature ──
 export async function cancelSignature(id: string) {
   const { data, error } = await db

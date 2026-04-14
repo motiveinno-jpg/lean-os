@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
@@ -25,6 +25,223 @@ import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+
+// ── Print Styles ──
+const PRINT_STYLE_ID = "tax-invoice-print-style";
+function ensurePrintStyles() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(PRINT_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = PRINT_STYLE_ID;
+  style.textContent = `
+    @media print {
+      body * { visibility: hidden; }
+      [data-print-area], [data-print-area] * { visibility: visible; }
+      [data-print-area] {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #fff !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print { display: none !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ── Duplicate Invoice Detection ──
+interface DuplicateGroup {
+  key: string;
+  counterpartyName: string;
+  amount: number;
+  date: string;
+  count: number;
+  ids: string[];
+}
+
+function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
+  const groups = new Map<string, { invoices: any[]; count: number }>();
+  for (const inv of invoices) {
+    const key = `${inv.counterparty_name}|${Number(inv.total_amount)}|${inv.issue_date}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count++;
+      existing.invoices.push(inv);
+    } else {
+      groups.set(key, { count: 1, invoices: [inv] });
+    }
+  }
+  const duplicates: DuplicateGroup[] = [];
+  Array.from(groups.entries()).forEach(([key, group]) => {
+    if (group.count > 1) {
+      const first = group.invoices[0];
+      duplicates.push({
+        key,
+        counterpartyName: first.counterparty_name,
+        amount: Number(first.total_amount),
+        date: first.issue_date,
+        count: group.count,
+        ids: group.invoices.map((i: any) => i.id),
+      });
+    }
+  });
+  return duplicates;
+}
+
+// ── Monthly Trend Mini Chart (SVG) ──
+function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
+  const CHART_MONTHS = 6;
+  const monthData = useMemo(() => {
+    const now = new Date();
+    const months: { label: string; key: string; sales: number; purchase: number }[] = [];
+    for (let i = CHART_MONTHS - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${d.getMonth() + 1}월`;
+      months.push({ label, key, sales: 0, purchase: 0 });
+    }
+    for (const inv of invoices) {
+      const invMonth = inv.issue_date?.slice(0, 7);
+      const entry = months.find((m) => m.key === invMonth);
+      if (entry) {
+        if (inv.type === "sales") {
+          entry.sales += Number(inv.total_amount || 0);
+        } else {
+          entry.purchase += Number(inv.total_amount || 0);
+        }
+      }
+    }
+    return months;
+  }, [invoices]);
+
+  const maxVal = Math.max(
+    1,
+    ...monthData.map((m) => Math.max(m.sales, m.purchase))
+  );
+
+  const WIDTH = 320;
+  const HEIGHT = 100;
+  const PADDING_X = 36;
+  const PADDING_Y = 12;
+  const chartW = WIDTH - PADDING_X * 2;
+  const chartH = HEIGHT - PADDING_Y * 2;
+
+  function toPath(data: number[]): string {
+    return data
+      .map((val, i) => {
+        const x = PADDING_X + (i / (data.length - 1)) * chartW;
+        const y = PADDING_Y + chartH - (val / maxVal) * chartH;
+        return `${i === 0 ? "M" : "L"}${x},${y}`;
+      })
+      .join(" ");
+  }
+
+  const salesPath = toPath(monthData.map((m) => m.sales));
+  const purchasePath = toPath(monthData.map((m) => m.purchase));
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold text-[var(--text-muted)]">최근 6개월 매출/매입 추이</span>
+        <div className="flex items-center gap-3 text-[10px]">
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-green-400 rounded" />매출</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-orange-400 rounded" />매입</span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: 120 }}>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          const y = PADDING_Y + chartH - ratio * chartH;
+          return (
+            <line
+              key={ratio}
+              x1={PADDING_X}
+              x2={WIDTH - PADDING_X}
+              y1={y}
+              y2={y}
+              stroke="var(--border)"
+              strokeWidth={0.5}
+              strokeDasharray={ratio === 0 ? "0" : "2,2"}
+            />
+          );
+        })}
+        {/* Sales line */}
+        <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Purchase line */}
+        <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
+        {/* Dots + labels */}
+        {monthData.map((m, i) => {
+          const x = PADDING_X + (i / (monthData.length - 1)) * chartW;
+          return (
+            <g key={m.key}>
+              <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={2.5} fill="#4ade80" />
+              <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={2.5} fill="#fb923c" />
+              <text x={x} y={HEIGHT - 1} textAnchor="middle" fill="var(--text-dim)" fontSize={8}>
+                {m.label}
+              </text>
+            </g>
+          );
+        })}
+        {/* Y-axis labels */}
+        <text x={PADDING_X - 4} y={PADDING_Y + 3} textAnchor="end" fill="var(--text-dim)" fontSize={7}>
+          {maxVal >= 100000000 ? `${Math.round(maxVal / 100000000)}억` : maxVal >= 10000 ? `${Math.round(maxVal / 10000)}만` : maxVal.toLocaleString()}
+        </text>
+        <text x={PADDING_X - 4} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={7}>
+          0
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+// ── 3-Way Matching Visualization ──
+function ThreeWayMatchVisual({ result }: { result: any }) {
+  const r = result;
+  const hasPO = r.contractAmount > 0;
+  const hasPayment = r.receivedAmount > 0;
+  const poToInvoice = r.amountMatch;
+  const invoiceToPayment = r.paymentMatch;
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs">
+      {/* PO */}
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
+        hasPO ? "border-[var(--border)] bg-[var(--bg-surface)]" : "border-dashed border-[var(--border)] opacity-50"
+      }`}>
+        <span className="font-medium">PO</span>
+        {hasPO && <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.contractAmount)}</span>}
+      </div>
+      {/* Arrow PO -> Invoice */}
+      <span className={`text-sm font-bold ${
+        !hasPO ? "text-[var(--text-dim)]" : poToInvoice ? "text-green-400" : "text-red-400"
+      }`}>
+        {!hasPO ? "—" : poToInvoice ? "✓" : "✗"}
+      </span>
+      {/* Invoice */}
+      <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5">
+        <span className="font-medium text-[var(--primary)]">계산서</span>
+        <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.invoiceAmount)}</span>
+      </div>
+      {/* Arrow Invoice -> Payment */}
+      <span className={`text-sm font-bold ${
+        !hasPayment ? "text-[var(--text-dim)]" : invoiceToPayment ? "text-green-400" : "text-red-400"
+      }`}>
+        {!hasPayment ? "—" : invoiceToPayment ? "✓" : "✗"}
+      </span>
+      {/* Payment */}
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
+        hasPayment ? "border-[var(--border)] bg-[var(--bg-surface)]" : "border-dashed border-[var(--border)] opacity-50"
+      }`}>
+        <span className="font-medium">결제</span>
+        {hasPayment && <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.receivedAmount)}</span>}
+      </div>
+    </div>
+  );
+}
 
 // ── Excel export ──
 function exportToExcel(invoices: any[], filename: string) {
@@ -116,6 +333,7 @@ export default function TaxInvoicesPage() {
         setUserId(u.id);
       }
     });
+    ensurePrintStyles();
   }, []);
 
   // Fetch all invoices
@@ -278,6 +496,28 @@ export default function TaxInvoicesPage() {
       0
     );
 
+  // Duplicate detection
+  const duplicateInvoices = useMemo(() => detectDuplicateInvoices(invoices), [invoices]);
+
+  // 6-month invoice data for trend chart
+  const { data: sixMonthInvoices = [] } = useQuery({
+    queryKey: ["tax-invoices-6month", companyId],
+    queryFn: async () => {
+      const now = new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, "0")}-01`;
+      const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-31`;
+      const { data } = await supabase
+        .from("tax_invoices")
+        .select("type, total_amount, issue_date")
+        .eq("company_id", companyId!)
+        .gte("issue_date", startDate)
+        .lte("issue_date", endDate);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
   const currentList = tab === "sales" ? salesInvoices : tab === "purchase" ? purchaseInvoices : [];
 
   const canSubmit =
@@ -287,7 +527,7 @@ export default function TaxInvoicesPage() {
     Number(form.supplyAmount) > 0;
 
   return (
-    <div className="max-w-[1200px]">
+    <div className="max-w-[1200px]" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -305,8 +545,18 @@ export default function TaxInvoicesPage() {
             className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-[var(--text-muted)]"
           />
           <button
+            onClick={() => window.print()}
+            className="no-print px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition flex items-center gap-1.5"
+            title="현재 페이지 인쇄"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            인쇄
+          </button>
+          <button
             onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+            className="no-print px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
           >
             + 세금계산서 등록
           </button>
@@ -355,54 +605,105 @@ export default function TaxInvoicesPage() {
         </button>
       </div>
 
+      {/* Duplicate Invoice Warning Banner */}
+      {duplicateInvoices.length > 0 && (
+        <div className="no-print mb-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-4 py-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-[var(--warning)]">중복 의심 세금계산서 감지</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1 space-y-1">
+              {duplicateInvoices.map((dup) => (
+                <div key={dup.key}>
+                  <span className="font-medium text-[var(--text)]">{dup.counterpartyName}</span>
+                  {" / "}
+                  {fmt(dup.amount)}
+                  {" / "}
+                  {dup.date}
+                  {" — "}
+                  <span className="text-[var(--warning)] font-semibold">{dup.count}건 동일</span>
+                </div>
+              ))}
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">
+              동일 거래처 + 동일 금액 + 동일 날짜 조합이 감지되었습니다. 이중 발행 여부를 확인하세요.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4" data-print-area>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            총 매출계산서
+            이번 달 매출
           </div>
           <div className="text-xl font-black text-green-400">{fmt(totalSales)}</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">
             {salesInvoices.length}건
+            {salesInvoices.length > 0 && (
+              <span className="ml-1 text-[var(--text-dim)]">
+                (공급가 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+              </span>
+            )}
           </div>
         </div>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            총 매입계산서
+            이번 달 매입
           </div>
           <div className="text-xl font-black text-orange-400">{fmt(totalPurchase)}</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">
             {purchaseInvoices.length}건
+            {purchaseInvoices.length > 0 && (
+              <span className="ml-1 text-[var(--text-dim)]">
+                (공급가 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+              </span>
+            )}
           </div>
         </div>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            미매칭
+            미매칭 건수
           </div>
           <div
             className={`text-xl font-black ${
-              unmatched > 0 ? "text-red-400" : "text-[var(--text-muted)]"
+              unmatched > 0 ? "text-red-400" : "text-green-400"
             }`}
           >
             {unmatched}건
           </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">매칭 필요</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">
+            {unmatched > 0
+              ? `전체 ${invoices.length}건 중 매칭 필요`
+              : "모든 세금계산서 매칭 완료"}
+          </div>
         </div>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            VAT 예상
+            예상 부가세 납부액
           </div>
           <div
             className={`text-xl font-black ${
               vatEstimate >= 0 ? "text-[var(--primary)]" : "text-red-400"
             }`}
           >
-            {fmt(vatEstimate)}
+            {fmt(Math.abs(vatEstimate))}
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1">
             {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
+            <span className="text-[var(--text-dim)] ml-1">
+              (매출세액 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))}
+              {" - "}매입세액 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))})
+            </span>
           </div>
         </div>
+      </div>
+
+      {/* Monthly Trend Mini Chart */}
+      <div className="mb-8 no-print">
+        <MonthlyTrendChart invoices={sixMonthInvoices} />
       </div>
 
       {/* Registration Form */}
@@ -1001,13 +1302,26 @@ export default function TaxInvoicesPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+              {/* 3-Way Visual Summary */}
+              <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]/50">
+                <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+                  <span className="font-medium text-[var(--text)]">매칭 현황:</span>
+                  <span className="text-green-400 font-semibold">
+                    완전매칭 {matchResults.filter((r: any) => r.fullMatch).length}건
+                  </span>
+                  <span className="text-orange-400 font-semibold">
+                    부분매칭 {matchResults.filter((r: any) => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length}건
+                  </span>
+                  <span className="text-red-400 font-semibold">
+                    미매칭 {matchResults.filter((r: any) => !r.fullMatch && !r.amountMatch && !r.paymentMatch).length}건
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">딜명</th>
-                    <th className="text-right px-5 py-3 font-medium">계약금액</th>
-                    <th className="text-right px-5 py-3 font-medium">세금계산서</th>
-                    <th className="text-right px-5 py-3 font-medium">입금액</th>
+                    <th className="text-left px-5 py-3 font-medium">PO ↔ 계산서 ↔ 결제</th>
                     <th className="text-right px-5 py-3 font-medium">차액</th>
                     <th className="text-center px-5 py-3 font-medium">계약매칭</th>
                     <th className="text-center px-5 py-3 font-medium">입금매칭</th>
@@ -1028,18 +1342,8 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3 text-sm font-medium">
                         {r.dealName || "딜 없음"}
                       </td>
-                      <td className="px-5 py-3 text-sm text-right">
-                        {r.contractAmount > 0
-                          ? fmt(r.contractAmount)
-                          : <span className="text-[var(--text-dim)]">—</span>}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right font-medium">
-                        {fmt(r.invoiceAmount)}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right">
-                        {r.receivedAmount > 0
-                          ? fmt(r.receivedAmount)
-                          : <span className="text-[var(--text-dim)]">—</span>}
+                      <td className="px-5 py-3">
+                        <ThreeWayMatchVisual result={r} />
                       </td>
                       <td
                         className={`px-5 py-3 text-sm text-right font-semibold ${

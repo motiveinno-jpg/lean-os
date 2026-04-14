@@ -40,7 +40,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "관리",
     items: [
       { href: "/documents", label: "문서/계약", icon: "folder" },
-      { href: "/approvals", label: "결재", icon: "clipboard-check", roles: ["owner", "admin", "employee"] },
+      { href: "/signatures", label: "전자서명", icon: "edit-3", roles: ["owner", "admin"] },
+      { href: "/approvals", label: "결재", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
       { href: "/employees", label: "인사/급여/계약", icon: "user-check", roles: ["owner", "admin", "employee"] },
     ],
@@ -101,6 +102,7 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "crown": return <svg {...props}><path d="M2 20h20M4 17l2-12 4 5 2-8 2 8 4-5 2 12"/></svg>;
     case "upload": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
     case "bar-chart": return <svg {...props}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
+    case "edit-3": return <svg {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }
@@ -141,28 +143,31 @@ export function Sidebar() {
   const { theme, toggleTheme } = useTheme();
   const { user, role } = useUser();
   const [chatUnread, setChatUnread] = useState(0);
+  const [approvalsPending, setApprovalsPending] = useState(0);
   const filteredNav = filterNavForRole(role, user?.companies?.name || undefined);
 
   useEffect(() => {
-    getCurrentUser().then(async (u) => {
+    async function loadCounts() {
+      const u = await getCurrentUser();
       if (!u) return;
       try {
         const counts = await getUnreadCounts(u.company_id, u.id);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
         setChatUnread(total);
       } catch {}
-    });
-
-    const interval = setInterval(async () => {
       try {
-        const u = await getCurrentUser();
-        if (!u) return;
-        const counts = await getUnreadCounts(u.company_id, u.id);
-        const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
-        setChatUnread(total);
+        const db = supabase as any;
+        const [{ count: docCount }, { count: payCount }] = await Promise.all([
+          db.from("doc_approvals").select("id", { count: "exact", head: true })
+            .eq("approver_id", u.id).eq("status", "pending"),
+          db.from("payment_queue").select("id", { count: "exact", head: true })
+            .eq("company_id", u.company_id).eq("status", "pending"),
+        ]);
+        setApprovalsPending((docCount ?? 0) + (payCount ?? 0));
       } catch {}
-    }, 30000);
-
+    }
+    loadCounts();
+    const interval = setInterval(loadCounts, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -241,7 +246,8 @@ export function Sidebar() {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                const badge = (item as any).badgeKey === "chat" ? chatUnread : 0;
+                const bk = (item as any).badgeKey;
+                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
                 return (
                   <Tooltip key={item.href} label={item.label} show={collapsed}>
                     <Link
@@ -435,7 +441,8 @@ export function Sidebar() {
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                    const badge = (item as any).badgeKey === "chat" ? chatUnread : 0;
+                    const bk = (item as any).badgeKey;
+                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
                     return (
                       <Link
                         key={item.href}

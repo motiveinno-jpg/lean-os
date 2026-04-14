@@ -125,7 +125,33 @@ export default function PartnersPage() {
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
+  const [classFilter, setClassFilter] = useState<string>("");
+  const [regionFilter, setRegionFilter] = useState<string>("");
+  const [sizeFilter, setSizeFilter] = useState<string>("");
   const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
+
+  function parseRegion(address?: string | null): string {
+    if (!address) return "";
+    const first = address.trim().split(/\s+/)[0] || "";
+    const map: Record<string, string> = {
+      "서울특별시": "서울", "서울시": "서울", "서울": "서울",
+      "부산광역시": "부산", "부산시": "부산", "부산": "부산",
+      "인천광역시": "인천", "인천시": "인천", "인천": "인천",
+      "대구광역시": "대구", "대구시": "대구", "대구": "대구",
+      "대전광역시": "대전", "대전시": "대전", "대전": "대전",
+      "광주광역시": "광주", "광주시": "광주", "광주": "광주",
+      "울산광역시": "울산", "울산시": "울산", "울산": "울산",
+      "세종특별자치시": "세종", "세종": "세종",
+      "경기도": "경기", "경기": "경기",
+      "강원도": "강원", "강원특별자치도": "강원", "강원": "강원",
+      "충청북도": "충북", "충북": "충북", "충청남도": "충남", "충남": "충남",
+      "전라북도": "전북", "전북": "전북", "전북특별자치도": "전북",
+      "전라남도": "전남", "전남": "전남",
+      "경상북도": "경북", "경북": "경북", "경상남도": "경남", "경남": "경남",
+      "제주특별자치도": "제주", "제주도": "제주", "제주": "제주",
+    };
+    return map[first] || first;
+  }
 
   const handleVerifyBiz = useCallback(async (bizNo: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -146,7 +172,7 @@ export default function PartnersPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data: partners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
+  const { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
     queryFn: async () => {
       if (debouncedSearch && debouncedSearch.length >= 2) {
@@ -167,6 +193,44 @@ export default function PartnersPage() {
     enabled: !!companyId,
     staleTime: 30_000,
   });
+
+  // 파트너별 거래 규모 집계 (전체 딜 합계)
+  const { data: partnerTotals = {} } = useQuery<Record<string, number>>({
+    queryKey: ["partner-totals", companyId],
+    queryFn: async () => {
+      if (!companyId) return {};
+      const { data } = await (supabase as any).from("deals")
+        .select("partner_id, contract_total")
+        .eq("company_id", companyId)
+        .not("partner_id", "is", null);
+      const map: Record<string, number> = {};
+      for (const d of (data || [])) {
+        if (!d.partner_id) continue;
+        map[d.partner_id] = (map[d.partner_id] || 0) + Number(d.contract_total || 0);
+      }
+      return map;
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+
+  // 클라이언트측 필터: 산업/지역/거래규모
+  const partners = (rawPartners as any[]).filter((p: any) => {
+    if (classFilter && (p.classification || "").trim() !== classFilter) return false;
+    if (regionFilter && parseRegion(p.address) !== regionFilter) return false;
+    if (sizeFilter) {
+      const total = partnerTotals[p.id] || 0;
+      if (sizeFilter === "none" && total > 0) return false;
+      if (sizeFilter === "lt1000" && !(total > 0 && total < 10_000_000)) return false;
+      if (sizeFilter === "1k_10k" && !(total >= 10_000_000 && total < 100_000_000)) return false;
+      if (sizeFilter === "gte10k" && !(total >= 100_000_000)) return false;
+    }
+    return true;
+  });
+
+  // 산업/지역 드롭다운 옵션 — rawPartners에서 뽑음
+  const classOptions = Array.from(new Set((rawPartners as any[]).map((p: any) => (p.classification || "").trim()).filter(Boolean))).sort();
+  const regionOptions = Array.from(new Set((rawPartners as any[]).map((p: any) => parseRegion(p.address)).filter(Boolean))).sort();
 
   // 360도뷰: 거래처의 딜/문서/결제 데이터
   const { data: partnerDeals = [] } = useQuery({
@@ -452,7 +516,34 @@ export default function PartnersPage() {
         <input type="text" placeholder="이름, 담당자, 사업자번호 검색..." value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-[200px] px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-        <span className="text-xs text-[var(--text-dim)]">{partners.length}건</span>
+        <span className="text-xs text-[var(--text-dim)]">{partners.length}건{partners.length !== (rawPartners as any[]).length && `/${(rawPartners as any[]).length}`}</span>
+      </div>
+
+      {/* 고급 필터 바 — 산업/지역/거래규모 */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-xs text-[var(--text-dim)]">필터:</span>
+        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
+          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
+          <option value="">산업 전체</option>
+          {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}
+          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
+          <option value="">지역 전체</option>
+          {regionOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}
+          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
+          <option value="">거래규모 전체</option>
+          <option value="gte10k">1억 이상 (VIP)</option>
+          <option value="1k_10k">1천만~1억</option>
+          <option value="lt1000">~1천만</option>
+          <option value="none">거래 없음</option>
+        </select>
+        {(classFilter || regionFilter || sizeFilter) && (
+          <button onClick={() => { setClassFilter(""); setRegionFilter(""); setSizeFilter(""); }}
+            className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] transition underline">필터 초기화</button>
+        )}
       </div>
 
       {/* Tag Filter Chips */}
@@ -631,6 +722,20 @@ export default function PartnersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {detailPartner.contact_email && (
+                  <a href={`mailto:${detailPartner.contact_email}`}
+                    className="px-3 py-1.5 text-xs bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition flex items-center gap-1"
+                    title={detailPartner.contact_email}>
+                    ✉️ 이메일
+                  </a>
+                )}
+                {detailPartner.contact_phone && (
+                  <a href={`tel:${detailPartner.contact_phone}`}
+                    className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1"
+                    title={detailPartner.contact_phone}>
+                    📞 전화
+                  </a>
+                )}
                 <button onClick={() => { openEdit(detailPartner); setDetailPartner(null); }}
                   className="px-3 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
                   편집

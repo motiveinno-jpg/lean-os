@@ -11,6 +11,7 @@ import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecu
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { supabase } from "@/lib/supabase";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
 
@@ -137,6 +138,45 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, failed: 0 });
   const { toast: queueToast } = useToast();
+  const [receiptItem, setReceiptItem] = useState<any | null>(null);
+  const [refundItem, setRefundItem] = useState<any | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundStep, setRefundStep] = useState<1 | 2>(1);
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+
+  async function submitRefund() {
+    if (!refundItem || !refundReason.trim() || !userId) return;
+    setRefundSubmitting(true);
+    try {
+      const db: any = supabase;
+      const { error } = await db.from('payment_queue').update({
+        status: 'refunded',
+        refund_reason: refundReason.trim(),
+        refunded_at: new Date().toISOString(),
+        refunded_by: userId,
+      }).eq('id', refundItem.id);
+      if (error) throw error;
+      await db.from('audit_logs').insert({
+        company_id: companyId,
+        user_id: userId,
+        action: 'update',
+        entity_type: 'payment',
+        entity_id: refundItem.id,
+        entity_name: refundItem.description || '결제',
+        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount },
+        created_at: new Date().toISOString(),
+      });
+      queueToast(`₩${Number(refundItem.amount).toLocaleString()} 환불 처리되었습니다`, 'success');
+      setRefundItem(null);
+      setRefundReason("");
+      setRefundStep(1);
+      invalidate();
+    } catch (e: any) {
+      queueToast('환불 처리 실패: ' + (e.message || '알 수 없는 오류'), 'error');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  }
 
   const approveMut = useMutation({ mutationFn: (id: string) => approvePayment(id, userId), onSuccess: invalidate });
   const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: invalidate });
@@ -206,6 +246,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     approved: { label: "승인완료", bg: "bg-blue-500/10", text: "text-blue-400" },
     executed: { label: "실행완료", bg: "bg-green-500/10", text: "text-green-400" },
     rejected: { label: "거부", bg: "bg-red-500/10", text: "text-red-400" },
+    refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
   };
 
   return (
@@ -272,7 +313,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       <div className="flex gap-2 mb-4">
         {[
           { key: "all", label: "전체" }, { key: "pending", label: "승인대기" },
-          { key: "approved", label: "승인완료" }, { key: "executed", label: "실행완료" }, { key: "rejected", label: "거부" },
+          { key: "approved", label: "승인완료" }, { key: "executed", label: "실행완료" }, { key: "refunded", label: "환불" }, { key: "rejected", label: "거부" },
         ].map((f) => (
           <button key={f.key} onClick={() => setFilter(f.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
@@ -381,6 +422,18 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                           <button onClick={() => executeMut.mutate(item.id)} disabled={executeMut.isPending}
                             className="px-2.5 py-1 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 transition">실행</button>
                         )}
+                        {item.status === "executed" && (
+                          <>
+                            <button onClick={() => setReceiptItem(item)}
+                              className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">영수증</button>
+                            <button onClick={() => { setRefundItem(item); setRefundReason(""); setRefundStep(1); }}
+                              className="px-2.5 py-1 bg-orange-500/10 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-500/20 transition">환불</button>
+                          </>
+                        )}
+                        {item.status === "refunded" && (
+                          <button onClick={() => setReceiptItem(item)}
+                            className="px-2.5 py-1 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs font-medium hover:bg-[var(--border)] transition">영수증</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -390,6 +443,92 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           </table></div>
         )}
       </div>
+
+      {/* 영수증 모달 */}
+      {receiptItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setReceiptItem(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div id="receipt-printable" className="p-6">
+              <div className="text-center mb-4">
+                <div className="text-xs text-[var(--text-dim)]">RECEIPT / 영수증</div>
+                <div className="text-lg font-extrabold mt-1">오너뷰 결제 내역</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">#{receiptItem.id?.slice(0, 8).toUpperCase()}</div>
+              </div>
+              <div className="border-t border-b border-[var(--border)] py-4 space-y-2">
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">결제일</span><span>{receiptItem.executed_at ? new Date(receiptItem.executed_at).toLocaleString('ko-KR') : (receiptItem.created_at ? new Date(receiptItem.created_at).toLocaleString('ko-KR') : '—')}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">설명</span><span className="text-right max-w-[60%]">{receiptItem.description || '—'}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">통장</span><span>{receiptItem.bank_accounts?.alias || receiptItem.bank_accounts?.bank_name || '—'}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">상태</span><span className={receiptItem.status === 'refunded' ? 'text-orange-400 font-semibold' : 'text-green-400 font-semibold'}>{receiptItem.status === 'refunded' ? '환불완료' : '실행완료'}</span></div>
+                {receiptItem.status === 'refunded' && receiptItem.refund_reason && (
+                  <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">환불사유</span><span className="text-right max-w-[60%] text-orange-400">{receiptItem.refund_reason}</span></div>
+                )}
+              </div>
+              <div className="flex justify-between items-center mt-4">
+                <span className="text-sm text-[var(--text-dim)]">총 금액</span>
+                <span className={`text-2xl font-extrabold ${receiptItem.status === 'refunded' ? 'line-through text-[var(--text-dim)]' : ''}`}>₩{Number(receiptItem.amount).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 p-4 border-t border-[var(--border)]">
+              <button onClick={() => setReceiptItem(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition">닫기</button>
+              <button onClick={() => {
+                const el = document.getElementById('receipt-printable');
+                if (!el) return;
+                const w = window.open('', '_blank', 'width=600,height=800');
+                if (!w) { queueToast('팝업이 차단되었습니다. 팝업을 허용해주세요.', 'error'); return; }
+                w.document.write(`<html><head><title>영수증</title><style>body{font-family:sans-serif;padding:20px;color:#000}.row{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}.hr{border-top:1px solid #ccc;margin:12px 0}.center{text-align:center;margin-bottom:16px}.big{font-size:22px;font-weight:900}</style></head><body onload="window.print();window.close()">${el.innerHTML.replace(/var\(--[^)]+\)/g, '#333').replace(/text-\w+-\d+/g, '')}</body></html>`);
+                w.document.close();
+              }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition">PDF / 인쇄</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 환불 모달 */}
+      {refundItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !refundSubmitting && setRefundItem(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="text-lg font-extrabold text-orange-400 mb-2">
+                {refundStep === 1 ? '환불 요청' : '⚠️ 환불 최종 확인'}
+              </h3>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                {refundStep === 1
+                  ? '환불 사유를 입력하면 결제 상태가 환불 처리됩니다. (되돌릴 수 없습니다)'
+                  : '한번 더 확인해주세요. 환불 후에는 상태를 되돌릴 수 없습니다.'}
+              </p>
+              <div className="bg-[var(--bg-surface)] rounded-xl p-3 mb-4">
+                <div className="text-xs text-[var(--text-dim)] mb-1">대상</div>
+                <div className="text-sm font-semibold">{refundItem.description || '—'}</div>
+                <div className="text-lg font-extrabold text-orange-400 mt-1">₩{Number(refundItem.amount).toLocaleString()}</div>
+              </div>
+              {refundStep === 1 ? (
+                <textarea value={refundReason} onChange={(e) => setRefundReason(e.target.value)} rows={3} placeholder="환불 사유 (필수) - 예: 서비스 취소, 중복결제, 고객 요청"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4" />
+              ) : (
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-4">
+                  <div className="text-xs text-[var(--text-dim)] mb-1">환불 사유</div>
+                  <div className="text-sm">{refundReason}</div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button disabled={refundSubmitting} onClick={() => { if (refundStep === 2) setRefundStep(1); else setRefundItem(null); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition disabled:opacity-50">
+                  {refundStep === 2 ? '이전' : '취소'}
+                </button>
+                {refundStep === 1 ? (
+                  <button disabled={!refundReason.trim()} onClick={() => setRefundStep(2)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 transition disabled:opacity-50">다음</button>
+                ) : (
+                  <button disabled={refundSubmitting} onClick={submitRefund}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50">
+                    {refundSubmitting ? '처리 중...' : '환불 확정'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

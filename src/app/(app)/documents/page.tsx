@@ -9,7 +9,7 @@ import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/
 import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoice";
 import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
-import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail } from "@/lib/signatures";
+import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
@@ -35,6 +35,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [showSignRequestForm, setShowSignRequestForm] = useState(false);
   const [signForm, setSignForm] = useState({ signerName: "", signerEmail: "", signerPhone: "" });
+  const [bulkSigners, setBulkSigners] = useState<{ name: string; email: string; phone: string }[]>([{ name: "", email: "", phone: "" }]);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
   const [tab, setTab] = useState<"content" | "revisions" | "approvals">("content");
   // 품목/결제조건/직인 상태
   const [editItems, setEditItems] = useState<any[]>([]);
@@ -85,6 +88,61 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       setSignForm({ signerName: "", signerEmail: "", signerPhone: "" });
     },
   });
+
+  const bulkSignMut = useMutation({
+    mutationFn: async () => {
+      if (!companyId || !userId) throw new Error("Not ready");
+      const valid = bulkSigners.filter((s) => s.name.trim() && s.email.trim());
+      if (valid.length === 0) throw new Error("최소 1명의 서명자(이름+이메일) 필요");
+      return createBulkSignatureRequests({
+        companyId,
+        documentId: id,
+        title: doc?.name || "서명 요청",
+        signers: valid,
+        createdBy: userId,
+        sendEmails: true,
+      });
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["doc-signatures", id] });
+      queryClient.invalidateQueries({ queryKey: ["doc-sign-audit", id] });
+      setShowSignRequestForm(false);
+      setBulkSigners([{ name: "", email: "", phone: "" }]);
+      toast(`서명 요청 ${r.created}건 생성 · 메일 발송 ${r.sent}건${r.failed ? ` (실패 ${r.failed})` : ""}`, r.failed > 0 ? "error" : "success");
+    },
+    onError: (err: any) => toast(err.message, "error"),
+  });
+
+  const { data: signAudit = [] } = useQuery({
+    queryKey: ["doc-sign-audit", id, companyId],
+    queryFn: () => getDocumentSignatureAudit(companyId!, id),
+    enabled: !!id && !!companyId && showAuditLog,
+  });
+
+  const sendReminder = async (sigId: string) => {
+    setReminderSendingId(sigId);
+    try {
+      const r = await sendSignatureReminder(sigId);
+      if (r.success) toast("리마인더가 발송되었습니다", "success");
+      else toast(r.error || "리마인더 발송 실패", "error");
+      queryClient.invalidateQueries({ queryKey: ["doc-signatures", id] });
+      queryClient.invalidateQueries({ queryKey: ["doc-sign-audit", id] });
+    } finally {
+      setReminderSendingId(null);
+    }
+  };
+
+  const sendAllReminders = async () => {
+    const pending = (docSignatures as any[]).filter((s) => s.status === "sent" || s.status === "viewed" || s.status === "pending");
+    if (pending.length === 0) {
+      toast("리마인더 보낼 진행 중 서명이 없습니다", "error");
+      return;
+    }
+    const r = await bulkSendReminders(pending.map((s: any) => s.id));
+    toast(`리마인더 발송: 성공 ${r.sent}건${r.failed ? ` / 실패 ${r.failed}건` : ""}`, r.failed > 0 ? "error" : "success");
+    queryClient.invalidateQueries({ queryKey: ["doc-signatures", id] });
+    queryClient.invalidateQueries({ queryKey: ["doc-sign-audit", id] });
+  };
 
   const { data: doc } = useQuery({
     queryKey: ["document", id],
@@ -478,48 +536,71 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         </div>
       )}
 
-      {/* Signature Request Form */}
+      {/* Signature Request Form (multi-signer) */}
       {showSignRequestForm && (
         <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-5 mb-6">
-          <h3 className="text-sm font-bold text-indigo-500 mb-3">전자서명 요청</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">서명자 이름 *</label>
-              <input
-                value={signForm.signerName}
-                onChange={(e) => setSignForm({ ...signForm, signerName: e.target.value })}
-                placeholder="홍길동"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label>
-              <input
-                type="email"
-                value={signForm.signerEmail}
-                onChange={(e) => setSignForm({ ...signForm, signerEmail: e.target.value })}
-                placeholder="signer@example.com"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">전화번호</label>
-              <input
-                type="tel"
-                value={signForm.signerPhone}
-                onChange={(e) => setSignForm({ ...signForm, signerPhone: e.target.value })}
-                placeholder="010-0000-0000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-indigo-500">전자서명 요청 ({bulkSigners.length}명)</h3>
+            <button
+              onClick={() => setBulkSigners([...bulkSigners, { name: "", email: "", phone: "" }])}
+              className="text-xs px-3 py-1.5 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 rounded-lg font-semibold transition"
+            >
+              + 서명자 추가
+            </button>
           </div>
+          <p className="text-[10px] text-[var(--text-muted)] mb-3">여러 명에게 동시에 서명 요청을 보낼 수 있습니다. 각 서명자는 개별 링크를 받습니다.</p>
+
+          <div className="space-y-2 mb-4">
+            {bulkSigners.map((s, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-12 sm:col-span-3">
+                  <input
+                    value={s.name}
+                    onChange={(e) => { const arr = [...bulkSigners]; arr[i].name = e.target.value; setBulkSigners(arr); }}
+                    placeholder={`서명자 ${i + 1} 이름 *`}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="col-span-12 sm:col-span-5">
+                  <input
+                    type="email"
+                    value={s.email}
+                    onChange={(e) => { const arr = [...bulkSigners]; arr[i].email = e.target.value; setBulkSigners(arr); }}
+                    placeholder="이메일 *"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-3">
+                  <input
+                    type="tel"
+                    value={s.phone}
+                    onChange={(e) => { const arr = [...bulkSigners]; arr[i].phone = e.target.value; setBulkSigners(arr); }}
+                    placeholder="전화 (선택)"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-1 flex justify-end">
+                  {bulkSigners.length > 1 && (
+                    <button
+                      onClick={() => setBulkSigners(bulkSigners.filter((_, idx) => idx !== i))}
+                      className="text-xs px-2 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                      title="삭제"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="flex gap-2">
             <button
-              onClick={() => signForm.signerName && signForm.signerEmail && signRequestMut.mutate()}
-              disabled={!signForm.signerName || !signForm.signerEmail || signRequestMut.isPending}
-              className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+              onClick={() => bulkSignMut.mutate()}
+              disabled={bulkSignMut.isPending || bulkSigners.every((s) => !s.name.trim() || !s.email.trim())}
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
             >
-              {signRequestMut.isPending ? "발송 중..." : "서명 요청 발송"}
+              {bulkSignMut.isPending ? "발송 중..." : `${bulkSigners.filter(s => s.name.trim() && s.email.trim()).length}명에게 일괄 발송`}
             </button>
             <button
               onClick={() => setShowSignRequestForm(false)}
@@ -532,31 +613,113 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       )}
 
       {/* Signature history on document detail */}
-      {docSignatures.length > 0 && (
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6">
-          <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3">서명 이력</h4>
-          <div className="space-y-2">
-            {docSignatures.map((sig: any) => {
-              const si = getSignatureStatusInfo(sig.status);
-              return (
-                <div key={sig.id} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${si.dot}`} />
-                    <span className="font-medium">{sig.signer_name}</span>
-                    <span className="text-[var(--text-dim)]">{sig.signer_email}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full ${si.bg} ${si.text}`}>{si.label}</span>
-                    {sig.signed_at && (
-                      <span className="text-[var(--text-dim)]">{new Date(sig.signed_at).toLocaleDateString("ko")}</span>
-                    )}
-                  </div>
+      {docSignatures.length > 0 && (() => {
+        const total = docSignatures.length;
+        const signedCount = (docSignatures as any[]).filter((s) => s.status === "signed").length;
+        const pendingCount = (docSignatures as any[]).filter((s) => s.status === "sent" || s.status === "viewed" || s.status === "pending").length;
+        const pct = Math.round((signedCount / total) * 100);
+        return (
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <h4 className="text-xs font-bold text-[var(--text-muted)]">서명 진행 ({signedCount}/{total})</h4>
+                <div className="w-32 h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
                 </div>
-              );
-            })}
+                <span className="text-[10px] font-semibold text-green-400">{pct}%</span>
+              </div>
+              <div className="flex gap-2">
+                {pendingCount > 0 && (
+                  <button onClick={sendAllReminders} className="text-[10px] px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition border border-amber-500/30">
+                    🔔 전체 리마인더 ({pendingCount})
+                  </button>
+                )}
+                <button onClick={() => setShowAuditLog(!showAuditLog)} className="text-[10px] px-2.5 py-1 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] rounded-md font-semibold transition border border-[var(--border)]">
+                  📜 감사로그 {showAuditLog ? "닫기" : "보기"}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              {docSignatures.map((sig: any) => {
+                const si = getSignatureStatusInfo(sig.status);
+                const isPending = sig.status === "sent" || sig.status === "viewed" || sig.status === "pending";
+                const reminderCount = sig.reminder_count || 0;
+                const lastReminded = sig.last_reminded_at ? new Date(sig.last_reminded_at).toLocaleString("ko") : null;
+                return (
+                  <div key={sig.id} className="flex items-center justify-between text-xs px-2 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className={`w-1.5 h-1.5 rounded-full ${si.dot} flex-shrink-0`} />
+                      <span className="font-medium truncate">{sig.signer_name}</span>
+                      <span className="text-[var(--text-dim)] truncate">{sig.signer_email}</span>
+                      {sig.viewed_at && !sig.signed_at && (
+                        <span className="text-[10px] text-blue-400" title={new Date(sig.viewed_at).toLocaleString("ko")}>👁 열람</span>
+                      )}
+                      {reminderCount > 0 && (
+                        <span className="text-[10px] text-amber-400" title={lastReminded || ""}>🔔 {reminderCount}회</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full ${si.bg} ${si.text}`}>{si.label}</span>
+                      {sig.signed_at && (
+                        <span className="text-[var(--text-dim)]">{new Date(sig.signed_at).toLocaleDateString("ko")}</span>
+                      )}
+                      {isPending && (
+                        <button
+                          onClick={() => sendReminder(sig.id)}
+                          disabled={reminderSendingId === sig.id}
+                          className="text-[10px] px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition disabled:opacity-50"
+                        >
+                          {reminderSendingId === sig.id ? "..." : "리마인더"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 감사 추적 로그 */}
+            {showAuditLog && (
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <div className="text-[10px] font-semibold text-[var(--text-dim)] mb-2 uppercase tracking-wide">감사 추적 (Audit Trail)</div>
+                {signAudit.length === 0 ? (
+                  <div className="text-[11px] text-[var(--text-dim)] py-3">기록된 이벤트가 없습니다</div>
+                ) : (
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {(signAudit as any[]).map((log) => {
+                      const ACTION_META: Record<string, { icon: string; color: string; label: string }> = {
+                        create: { icon: "📝", color: "text-blue-400", label: "생성" },
+                        sign: { icon: "✍️", color: "text-green-400", label: "서명" },
+                        remind: { icon: "🔔", color: "text-amber-400", label: "리마인더" },
+                        update: { icon: "🔄", color: "text-[var(--text-muted)]", label: "변경" },
+                      };
+                      const meta = ACTION_META[log.action] || { icon: "•", color: "text-[var(--text-muted)]", label: log.action };
+                      return (
+                        <div key={log.id} className="flex items-start gap-2 text-[11px] py-1.5 px-2 hover:bg-[var(--bg-surface)] rounded">
+                          <span className="text-sm flex-shrink-0">{meta.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-semibold ${meta.color}`}>{meta.label}</span>
+                              <span className="text-[var(--text)]">{log.signer_name || log.entity_name}</span>
+                              <span className="text-[var(--text-dim)]">{log.signer_email}</span>
+                            </div>
+                            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                              {new Date(log.created_at).toLocaleString("ko")}
+                              {log.users?.name && ` · by ${log.users.name}`}
+                              {log.ip_address && ` · ${log.ip_address}`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Share Status */}
       <ShareStatusPanel documentId={id} />

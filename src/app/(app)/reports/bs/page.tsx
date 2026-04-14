@@ -43,7 +43,8 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
-async function fetchBsData(companyId: string): Promise<BsData> {
+/* Fetch B/S data for a specific cutoff date (or current if not provided) */
+async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
   const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes] = await Promise.all([
     supabase
       .from("bank_accounts")
@@ -247,11 +248,19 @@ export default function BalanceSheetPage() {
     if (!companyId) return;
     setIsLoading(true);
     setError(null);
-    fetchBsData(companyId)
-      .then((d) => {
-        setData(d);
-        /* Use same data as "previous" placeholder — real impl would fetch prior month */
-        setPrevData(d);
+
+    /* Fetch current + previous month data in parallel */
+    const now = new Date();
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevCutoff = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+
+    Promise.all([
+      fetchBsData(companyId),
+      fetchBsData(companyId, prevCutoff),
+    ])
+      .then(([current, prev]) => {
+        setData(current);
+        setPrevData(prev);
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
@@ -729,6 +738,114 @@ export default function BalanceSheetPage() {
             {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
           </tbody>
         </table>
+      </div>
+
+      {/* Asset vs Liability Composition Bar */}
+      <div style={{ marginTop: 28 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
+          자산/부채 구성
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Assets bar */}
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
+              자산 {data.totalAssets > 0 ? `₩${Math.round(data.totalAssets).toLocaleString("ko-KR")}` : ""}
+            </div>
+            <div style={{ display: "flex", height: 24, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+              {data.totalAssets > 0 && (
+                <>
+                  <div
+                    style={{
+                      width: `${Math.round((data.cashAndDeposits / data.totalAssets) * 100)}%`,
+                      background: "var(--primary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      color: "#fff",
+                      fontWeight: 600,
+                      minWidth: data.cashAndDeposits > 0 ? 40 : 0,
+                    }}
+                    title={`현금 및 예금: ₩${Math.round(data.cashAndDeposits).toLocaleString("ko-KR")}`}
+                  >
+                    {Math.round((data.cashAndDeposits / data.totalAssets) * 100) > 10 ? "현금" : ""}
+                  </div>
+                  <div
+                    style={{
+                      width: `${Math.round((data.accountsReceivable / data.totalAssets) * 100)}%`,
+                      background: "#10b981",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      color: "#fff",
+                      fontWeight: 600,
+                      minWidth: data.accountsReceivable > 0 ? 40 : 0,
+                    }}
+                    title={`매출채권: ₩${Math.round(data.accountsReceivable).toLocaleString("ko-KR")}`}
+                  >
+                    {Math.round((data.accountsReceivable / data.totalAssets) * 100) > 10 ? "채권" : ""}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          {/* Liabilities + Equity bar */}
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
+              부채 + 자본
+            </div>
+            <div style={{ display: "flex", height: 24, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+              {(data.totalLiabilities + data.totalEquity) > 0 && (
+                <>
+                  <div
+                    style={{
+                      width: `${Math.round((data.totalLiabilities / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
+                      background: "#ef4444",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      color: "#fff",
+                      fontWeight: 600,
+                      minWidth: data.totalLiabilities > 0 ? 40 : 0,
+                    }}
+                    title={`부채: ₩${Math.round(data.totalLiabilities).toLocaleString("ko-KR")}`}
+                  >
+                    {Math.round((data.totalLiabilities / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100) > 10 ? "부채" : ""}
+                  </div>
+                  <div
+                    style={{
+                      width: `${Math.round((Math.max(data.totalEquity, 0) / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
+                      background: "#10b981",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      color: "#fff",
+                      fontWeight: 600,
+                      minWidth: data.totalEquity > 0 ? 40 : 0,
+                    }}
+                    title={`자본: ₩${Math.round(data.totalEquity).toLocaleString("ko-KR")}`}
+                  >
+                    {Math.round((Math.max(data.totalEquity, 0) / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100) > 10 ? "자본" : ""}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />현금
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />채권/자본
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} />부채
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Balance Check */}
