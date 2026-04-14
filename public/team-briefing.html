@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OwnerView 실서비스 전환 - 팀 브리핑 (2026-04-13)</title>
+<title>OwnerView 실서비스 전환 - 팀 브리핑 (2026-04-14)</title>
 <style>
   :root {
     --bg: #F8FAFC;
@@ -213,8 +213,12 @@
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">GitHub ↔ Vercel 자동배포 연동</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">이메일 인증(PKCE) 수정 완료</span></div>
     <div class="status-item"><div class="dot dot-done"></div><span class="status-done">회원가입 풀플로우 검증 완료</span></div>
-    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">CODEF API 미신청 (본부장)</span></div>
-    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">토스페이먼츠 가맹점 미등록 (본부장)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">Stripe 결제 인프라 완료 (상품6개+웹훅+환경변수)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">자금일보 텔레그램 발송 (매일 오전 7시)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">AI 대화형 브리핑 (대시보드)</span></div>
+    <div class="status-item"><div class="dot dot-done"></div><span class="status-done">부가세 예측 리포트 페이지</span></div>
+    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">CODEF API 미신청 (회계담당자)</span></div>
+    <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">오픈뱅킹 이용기관 등록 미신청 (회계담당자)</span></div>
     <div class="status-item"><div class="dot dot-pending"></div><span class="status-pending">Google/Kakao OAuth 미설정 (본부장)</span></div>
   </div>
 </div>
@@ -257,10 +261,10 @@
 <div class="tab-container">
   <div class="tab-buttons">
     <button class="tab-btn active" onclick="switchTab('junho')">
-      연준호 본부장 <span class="badge">12건</span>
+      연준호 본부장 <span class="badge">9건</span>
     </button>
     <button class="tab-btn" onclick="switchTab('dangjung')">
-      정다정 회계담당자 <span class="badge">8건</span>
+      정다정 회계담당자 <span class="badge">12건</span>
     </button>
     <button class="tab-btn" onclick="switchTab('common')">
       공통 안내
@@ -271,31 +275,8 @@
   <div id="tab-junho" class="tab-content active">
 
     <div class="callout callout-danger">
-      <strong>최우선: 아래 3가지를 이번 주 안에 완료해주세요</strong>
-      이 작업들이 밀리면 전체 일정이 지연됩니다. 특히 CODEF는 발급에 1~2주 걸리므로 즉시 신청해야 합니다.
-    </div>
-
-    <!-- Task 1 -->
-    <div class="card priority-high">
-      <div class="card-header">
-        <div class="card-number" style="background:var(--danger)">1</div>
-        <div class="card-title">CODEF API 사용 신청</div>
-        <span class="tag tag-urgent">긴급</span>
-        <span class="tag tag-phase">Phase 3 차단</span>
-      </div>
-      <div class="card-body">
-        <p>은행/카드 거래내역을 자동으로 불러오는 핵심 API입니다. <strong>발급에 3~7영업일</strong> 걸리므로 가장 먼저 신청해야 합니다.</p>
-        <div class="steps">
-          <div class="step"><a href="https://codef.io" target="_blank">codef.io</a> 접속 → 회원가입</div>
-          <div class="step">사업자등록증 사본 준비 (PDF 또는 이미지)</div>
-          <div class="step">API 사용 신청 → "은행 거래내역 조회" + "카드 거래내역 조회" 선택</div>
-          <div class="step">테스트 키(Client ID / Secret) 발급되면 Claude에게 전달</div>
-          <div class="step">정식 키 발급 후 Supabase 환경변수에 설정 (Claude가 처리)</div>
-        </div>
-        <div class="callout callout-info">
-          <strong>참고</strong> API 키가 나올 때까지 거래내역은 엑셀 업로드로 대체됩니다. 기능 개발은 테스트 키로 먼저 진행합니다.
-        </div>
-      </div>
+      <strong>최우선: 아래 2가지를 이번 주 안에 완료해주세요</strong>
+      Google/Kakao 로그인이 작동해야 사용자가 편하게 가입할 수 있습니다.
     </div>
 
     <!-- Task 2 — 완료 -->
@@ -322,12 +303,12 @@
       </div>
     </div>
 
-    <!-- Task 4 -->
-    <div class="card priority-medium">
+    <!-- Task 1 -->
+    <div class="card priority-high">
       <div class="card-header">
-        <div class="card-number" style="background:var(--warning)">4</div>
+        <div class="card-number" style="background:var(--danger)">1</div>
         <div class="card-title">Google OAuth 설정</div>
-        <span class="tag tag-wait">이번 주</span>
+        <span class="tag tag-urgent">긴급</span>
       </div>
       <div class="card-body">
         <p>사용자가 구글 계정으로 로그인할 수 있게 하는 설정입니다.</p>
@@ -346,12 +327,12 @@
       </div>
     </div>
 
-    <!-- Task 5 -->
-    <div class="card priority-medium">
+    <!-- Task 2 -->
+    <div class="card priority-high">
       <div class="card-header">
-        <div class="card-number" style="background:var(--warning)">5</div>
+        <div class="card-number" style="background:var(--danger)">2</div>
         <div class="card-title">Kakao OAuth 설정</div>
-        <span class="tag tag-wait">이번 주</span>
+        <span class="tag tag-urgent">긴급</span>
       </div>
       <div class="card-body">
         <p>사용자가 카카오 계정으로 로그인할 수 있게 하는 설정입니다.</p>
@@ -371,31 +352,21 @@
     </div>
 
     <!-- Task 6 -->
-    <div class="card priority-medium">
+    <div class="card" style="opacity:0.6">
       <div class="card-header">
-        <div class="card-number" style="background:var(--warning)">6</div>
-        <div class="card-title">토스페이먼츠 가맹점 등록</div>
-        <span class="tag tag-wait">이번 주</span>
-        <span class="tag tag-phase">Phase 3</span>
+        <div class="card-number" style="background:var(--success)">3</div>
+        <div class="card-title" style="text-decoration:line-through">결제 시스템 (Stripe)</div>
+        <span class="tag tag-done">완료 (4/14)</span>
       </div>
       <div class="card-body">
-        <p>유료 구독 결제를 받기 위한 가맹점 등록입니다. 심사에 3~5영업일 소요.</p>
-        <div class="steps">
-          <div class="step"><a href="https://developers.tosspayments.com" target="_blank">developers.tosspayments.com</a> → 회원가입</div>
-          <div class="step">가맹점 등록 신청 (사업자등록증, 통장사본 필요)</div>
-          <div class="step">테스트 키는 즉시 발급됨 → Claude에게 전달</div>
-          <div class="step">심사 완료 후 실운영 키 교체 (Claude가 처리)</div>
-        </div>
-        <div class="callout callout-info">
-          <strong>참고</strong> 기존 테스트 MID <code>gmotivuy0z</code>가 있으나 실키는 미발급 상태. 가맹점 재신청 필요.
-        </div>
+        <p>토스페이먼츠 → Stripe로 전환 완료. 상품 3개(Starter/Business/Enterprise), 가격 6개(월간+연간), 웹훅 4이벤트 설정됨. 실결제 가능 상태.</p>
       </div>
     </div>
 
-    <!-- Task 7 -->
+    <!-- Task 4 -->
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">7</div>
+        <div class="card-number" style="background:var(--primary)">4</div>
         <div class="card-title">공공데이터포털 API 신청</div>
         <span class="tag tag-info">즉시 발급</span>
       </div>
@@ -408,10 +379,10 @@
       </div>
     </div>
 
-    <!-- Task 8 -->
+    <!-- Task 5 -->
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">8</div>
+        <div class="card-number" style="background:var(--primary)">5</div>
         <div class="card-title">Sentry 계정 생성 (에러 모니터링)</div>
         <span class="tag tag-info">즉시 발급</span>
       </div>
@@ -427,7 +398,7 @@
     <!-- Task 9~12: QA -->
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">9</div>
+        <div class="card-number" style="background:var(--primary)">6</div>
         <div class="card-title">페르소나 A(대표) QA 테스트</div>
         <span class="tag tag-phase">Phase 4 (Week 5~7)</span>
       </div>
@@ -446,7 +417,7 @@
 
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">10</div>
+        <div class="card-number" style="background:var(--primary)">7</div>
         <div class="card-title">4,000개사 이메일 리스트 정리</div>
         <span class="tag tag-phase">Phase 5 (Week 7~8)</span>
       </div>
@@ -458,7 +429,7 @@
 
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">11</div>
+        <div class="card-number" style="background:var(--primary)">8</div>
         <div class="card-title">초대 메일 문구 작성</div>
         <span class="tag tag-phase">Phase 5</span>
       </div>
@@ -469,12 +440,12 @@
 
     <div class="card priority-normal">
       <div class="card-header">
-        <div class="card-number" style="background:var(--primary)">12</div>
+        <div class="card-number" style="background:var(--primary)">9</div>
         <div class="card-title">운영 키 전환</div>
         <span class="tag tag-phase">Phase 5</span>
       </div>
       <div class="card-body">
-        <p>런칭 직전 토스/CODEF 테스트 키 → 운영 키 전환. CEO 최종 런칭 승인 요청.</p>
+        <p>런칭 직전 CODEF 테스트 키 → 운영 키 전환. CEO 최종 런칭 승인 요청. (Stripe 결제는 이미 운영 키 적용됨)</p>
       </div>
     </div>
   </div>
@@ -484,7 +455,53 @@
 
     <div class="callout callout-info">
       <strong>회계담당자의 핵심 역할</strong>
-      숫자의 정확성을 검증하는 것입니다. 세금계산서 매칭, 4대보험 계산, 급여 자동계산, VAT 처리가 정확한지 실제 데이터로 대조해주세요. 기술적인 부분은 Claude가 처리하니, 회계/세무 관점의 피드백에 집중하시면 됩니다.
+      (1) 은행 연동 인프라 신청 (CODEF + 오픈뱅킹), (2) 숫자의 정확성 검증. 세금계산서 매칭, 4대보험 계산, 급여 자동계산, VAT 처리가 정확한지 실제 데이터로 대조해주세요. 기술적인 부분은 Claude가 처리하니, 회계/세무 관점의 피드백에 집중하시면 됩니다.
+    </div>
+
+    <!-- NEW: CODEF -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">★</div>
+        <div class="card-title">CODEF API 사용 신청</div>
+        <span class="tag tag-urgent">긴급 — 오늘 신청</span>
+        <span class="tag tag-phase">Phase 3 차단</span>
+      </div>
+      <div class="card-body">
+        <p>은행/카드 거래내역을 자동으로 불러오는 핵심 API입니다. <strong>발급에 3~7영업일</strong> 걸리므로 가장 먼저 신청해야 합니다.</p>
+        <div class="steps">
+          <div class="step"><a href="https://codef.io" target="_blank">codef.io</a> 접속 → 회원가입</div>
+          <div class="step">사업자등록증 사본 준비 (PDF 또는 이미지)</div>
+          <div class="step">API 사용 신청 → "은행 거래내역 조회" + "카드 거래내역 조회" 선택</div>
+          <div class="step">테스트 키(Client ID / Secret) 발급되면 Claude에게 전달</div>
+          <div class="step">정식 키 발급 후 환경변수 설정 (Claude가 처리)</div>
+        </div>
+        <div class="callout callout-info">
+          <strong>참고</strong> API 키가 나올 때까지 거래내역은 엑셀 업로드로 대체됩니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW: 오픈뱅킹 -->
+    <div class="card priority-high">
+      <div class="card-header">
+        <div class="card-number" style="background:var(--danger)">★</div>
+        <div class="card-title">금융결제원 오픈뱅킹 이용기관 등록 신청</div>
+        <span class="tag tag-urgent">이번 주</span>
+      </div>
+      <div class="card-body">
+        <p>카카오/네이버 간편인증으로 은행 연동하려면 <strong>오픈뱅킹 이용기관 등록</strong>이 필요합니다. 심사에 2~4개월 걸리므로 빨리 신청할수록 좋습니다.</p>
+        <div class="steps">
+          <div class="step"><a href="https://www.openbanking.or.kr" target="_blank">openbanking.or.kr</a> 접속</div>
+          <div class="step">이용기관 등록 신청 메뉴 진입</div>
+          <div class="step">필요 서류: 사업자등록증, 서비스 기획서(오너뷰 소개서), 개인정보처리방침, 보안점검 자가진단서</div>
+          <div class="step">서비스 유형: "핀테크 서비스" 선택</div>
+          <div class="step">서류 준비가 어려우면 대표님 또는 Claude에게 요청</div>
+        </div>
+        <div class="callout callout-warning">
+          <strong>왜 이게 중요한가?</strong>
+          오픈뱅킹 승인이 되면 그랜터/클로비와 동일한 수준의 은행 자동 연동이 가능합니다 (카카오 간편인증, 실시간 잔액/거래내역). CODEF는 임시 방편이고, 오픈뱅킹이 최종 목표입니다.
+        </div>
+      </div>
     </div>
 
     <!-- Task 1 -->
