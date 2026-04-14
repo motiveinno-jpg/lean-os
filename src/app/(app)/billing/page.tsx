@@ -20,18 +20,6 @@ const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommen
   enterprise: { icon: "🏗️", features: ["Business 전체 +", "SSO/SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장"] },
 };
 
-// Toss Payments SDK
-async function loadTossPayments(): Promise<any> {
-  if ((window as any).TossPayments) return (window as any).TossPayments;
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://js.tosspayments.com/v2/standard';
-    script.onload = () => resolve((window as any).TossPayments);
-    script.onerror = () => reject(new Error('Toss SDK 로드 실패'));
-    document.head.appendChild(script);
-  });
-}
-
 function fmtW(n: number): string {
   if (n === 0) return "무료";
   return `₩${n.toLocaleString()}`;
@@ -45,6 +33,7 @@ export default function BillingPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const qc = useQueryClient();
 
   const { data: user, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
@@ -148,52 +137,74 @@ export default function BillingPage() {
     },
   });
 
-  // Handle Toss payment callback
+  // Handle Stripe checkout callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment');
     if (paymentStatus === 'success') {
-      const planSlug = params.get('plan');
-      const orderId = params.get('orderId');
-      const paymentKey = params.get('paymentKey');
-      if (planSlug && companyId) {
-        (async () => {
-          try {
-            if (subscription?.id) {
-              await db.from('subscriptions').update({
-                plan_slug: planSlug,
-                status: 'active',
-                toss_order_id: orderId,
-                toss_payment_key: paymentKey,
-                updated_at: new Date().toISOString(),
-              }).eq('id', subscription.id);
-            } else {
-              await db.from('subscriptions').insert({
-                company_id: companyId,
-                plan_slug: planSlug,
-                status: 'active',
-                billing_cycle: params.get('cycle') || 'monthly',
-                seat_count: 1,
-                toss_order_id: orderId,
-                toss_payment_key: paymentKey,
-              });
-            }
-            qc.invalidateQueries({ queryKey: ['subscription'] });
-            toast("결제가 완료되었습니다! 플랜이 업그레이드되었습니다.", "success");
-          } catch {
-            toast("구독 업데이트 중 오류가 발생했습니다.", "error");
-          }
-        })();
-      }
+      qc.invalidateQueries({ queryKey: ['subscription'] });
+      toast("결제가 완료되었습니다! 플랜이 업그레이드되었습니다.", "success");
       window.history.replaceState({}, '', '/billing');
-    } else if (paymentStatus === 'fail') {
-      toast("결제에 실패했습니다. 다시 시도해주세요.", "error");
+    } else if (paymentStatus === 'cancel') {
+      toast("결제가 취소되었습니다.", "info");
       window.history.replaceState({}, '', '/billing');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentPlan = subscription?.subscription_plans as any;
   const currentSlug = currentPlan?.slug || "free";
+  const hasStripeSubscription = !!subscription?.stripe_customer_id;
+
+  /** Stripe Checkout */
+  async function handleStripeCheckout(planSlug: string) {
+    if (!companyId) return;
+    setIsPaymentLoading(true);
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planSlug,
+          companyId,
+          billingCycle: cycle,
+          successUrl: `${window.location.origin}/billing?payment=success`,
+          cancelUrl: `${window.location.origin}/billing?payment=cancel`,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error?.message || '결제 세션 생성 실패');
+      }
+      window.location.href = result.data.url;
+    } catch (err: any) {
+      toast(err.message || "결제 처리 중 오류가 발생했습니다.", "error");
+      setIsPaymentLoading(false);
+    }
+  }
+
+  /** Stripe Billing Portal */
+  async function handleOpenPortal() {
+    if (!companyId) return;
+    setIsPaymentLoading(true);
+    try {
+      const response = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          returnUrl: `${window.location.origin}/billing`,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Billing portal 생성 실패');
+      }
+      window.location.href = result.data.url;
+    } catch (err: any) {
+      toast(err.message || "구독 관리 페이지를 열 수 없습니다.", "error");
+      setIsPaymentLoading(false);
+    }
+  }
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: "plan", label: "요금제", icon: "💳" },
@@ -233,6 +244,15 @@ export default function BillingPage() {
             )}
           </div>
         </div>
+        {hasStripeSubscription && (
+          <button
+            onClick={handleOpenPortal}
+            disabled={isPaymentLoading}
+            className="mt-4 px-5 py-2 rounded-xl text-sm font-semibold bg-white/20 hover:bg-white/30 transition disabled:opacity-50"
+          >
+            {isPaymentLoading ? "로딩 중..." : "구독 관리"}
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -252,10 +272,9 @@ export default function BillingPage() {
         ))}
       </div>
 
-      {/* ── Plan Tab ── */}
+      {/* Plan Tab */}
       {tab === "plan" && (
         <div>
-          {/* Cycle toggle */}
           <div className="flex justify-center gap-2 mb-6">
             <button
               onClick={() => setCycle("monthly")}
@@ -275,7 +294,6 @@ export default function BillingPage() {
             </button>
           </div>
 
-          {/* Plans grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
@@ -360,7 +378,6 @@ export default function BillingPage() {
             })}
           </div>
 
-          {/* Cancel section */}
           {currentSlug !== "free" && (
             <div className="mt-8 p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10">
               <div className="flex items-center justify-between">
@@ -368,43 +385,55 @@ export default function BillingPage() {
                   <div className="font-semibold text-sm text-[var(--text)]">구독 해지</div>
                   <div className="text-xs text-[var(--text-muted)]">현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다.</div>
                 </div>
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
-                >
-                  해지하기
-                </button>
+                {hasStripeSubscription ? (
+                  <button
+                    onClick={handleOpenPortal}
+                    disabled={isPaymentLoading}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition disabled:opacity-50"
+                  >
+                    {isPaymentLoading ? "로딩 중..." : "Stripe에서 해지"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
+                  >
+                    해지하기
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* ── Payment Tab ── */}
+      {/* Payment Tab */}
       {tab === "payment" && (
         <div className="space-y-4">
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h3 className="font-bold text-[var(--text)] mb-4">결제 수단</h3>
-            {subscription?.toss_billing_key ? (
+            {hasStripeSubscription ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg">💳</div>
                   <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">토스페이먼츠 자동결제</div>
-                    <div className="text-xs text-[var(--text-muted)]">등록된 카드로 매월 자동 결제됩니다</div>
+                    <div className="font-semibold text-sm text-[var(--text)]">Stripe 구독 결제</div>
+                    <div className="text-xs text-[var(--text-muted)]">등록된 카드로 자동 결제됩니다</div>
                   </div>
                 </div>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 dark:text-red-400 border border-red-200 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 transition">
-                  변경
+                <button
+                  onClick={handleOpenPortal}
+                  disabled={isPaymentLoading}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition disabled:opacity-50"
+                >
+                  {isPaymentLoading ? "로딩 중..." : "카드 변경"}
                 </button>
               </div>
             ) : (
               <div className="text-center py-8">
                 <div className="text-4xl mb-3">💳</div>
                 <p className="text-sm text-[var(--text-muted)] mb-4">등록된 결제 수단이 없습니다</p>
-                <button className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition">
-                  카드 등록 (토스페이먼츠)
-                </button>
+                <p className="text-xs text-[var(--text-muted)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
               </div>
             )}
           </div>
@@ -412,7 +441,7 @@ export default function BillingPage() {
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h3 className="font-bold text-[var(--text)] mb-3">결제 안내</h3>
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
-              <div className="flex items-start gap-2"><span>•</span> 토스페이먼츠를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
+              <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
               <div className="flex items-start gap-2"><span>•</span> 월간 결제: 매월 동일일에 자동 결제</div>
               <div className="flex items-start gap-2"><span>•</span> 연간 결제: 20% 할인, 연 1회 결제</div>
               <div className="flex items-start gap-2"><span>•</span> 부가세(VAT) 10%는 별도 청구됩니다</div>
@@ -422,7 +451,7 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Invoices Tab ── */}
+      {/* Invoices Tab */}
       {tab === "invoices" && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
           <div className="p-4 border-b border-[var(--border)]">
@@ -459,10 +488,9 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Referral & Feedback Tab ── */}
+      {/* Referral & Feedback Tab */}
       {tab === "referral" && (
         <div className="space-y-6">
-          {/* Referral section */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h3 className="font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">친구가 가입하면 양쪽 모두 ₩10,000 크레딧!</p>
@@ -509,7 +537,6 @@ export default function BillingPage() {
             )}
           </div>
 
-          {/* Feedback section */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h3 className="font-bold text-[var(--text)] mb-1">피드백</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
@@ -572,7 +599,7 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Upgrade Modal ── */}
+      {/* Upgrade Modal */}
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowUpgradeModal(null)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -603,21 +630,15 @@ export default function BillingPage() {
                 취소
               </button>
               <button
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
+                disabled={isPaymentLoading}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
                 onClick={async () => {
-                  const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
-                  if (!TOSS_CLIENT_KEY) {
-                    toast("토스페이먼츠 클라이언트 키가 설정되지 않았습니다. 관리자에게 문의하세요.", "error");
-                    setShowUpgradeModal(null);
-                    return;
-                  }
-
                   if (showUpgradeModal === "free") {
-                    // Downgrade to free
                     if (!subscription?.id) { setShowUpgradeModal(null); return; }
                     await db.from('subscriptions').update({
-                      plan_slug: 'free',
-                      status: 'active',
+                      status: 'canceled',
+                      cancel_reason: '사용자 다운그레이드 (Free)',
+                      canceled_at: new Date().toISOString(),
                       updated_at: new Date().toISOString(),
                     }).eq('id', subscription.id);
                     qc.invalidateQueries({ queryKey: ['subscription'] });
@@ -626,44 +647,18 @@ export default function BillingPage() {
                     return;
                   }
 
-                  try {
-                    const TossPayments = await loadTossPayments();
-                    const toss = TossPayments(TOSS_CLIENT_KEY);
-                    const plan = (plans || []).find((p: any) => p.slug === showUpgradeModal);
-                    if (!plan) return;
-
-                    const basePrice = cycle === "annual" ? Math.round(plan.base_price * 0.8) : plan.base_price;
-                    const seatPrice = cycle === "annual" ? Math.round(plan.per_seat_price * 0.8) : plan.per_seat_price;
-                    const totalAmount = basePrice + seatPrice * (subscription?.seat_count || 1);
-                    const orderId = `OV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-                    const payment = toss.payment({ customerKey: user?.id || 'guest' });
-                    await payment.requestPayment({
-                      method: "CARD",
-                      amount: { currency: "KRW", value: totalAmount },
-                      orderId,
-                      orderName: `OwnerView ${plan.name} (${cycle === "annual" ? "연간" : "월간"})`,
-                      successUrl: `${window.location.origin}/billing?payment=success&plan=${showUpgradeModal}&cycle=${cycle}&orderId=${orderId}`,
-                      failUrl: `${window.location.origin}/billing?payment=fail`,
-                    });
-                  } catch (err: any) {
-                    if (err.code === "USER_CANCEL") {
-                      toast("결제가 취소되었습니다.", "info");
-                    } else {
-                      toast(err.message || "결제 처리 중 오류가 발생했습니다.", "error");
-                    }
-                  }
                   setShowUpgradeModal(null);
+                  await handleStripeCheckout(showUpgradeModal);
                 }}
               >
-                {showUpgradeModal === "free" ? "다운그레이드" : "결제하기"}
+                {isPaymentLoading ? "로딩 중..." : showUpgradeModal === "free" ? "다운그레이드" : "결제하기"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Cancel Modal ── */}
+      {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCancelModal(false)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -691,16 +686,16 @@ export default function BillingPage() {
                   try {
                     if (subscription?.id) {
                       await db.from('subscriptions').update({
-                        status: 'cancelling',
+                        status: 'canceled',
                         cancel_reason: cancelReason || null,
-                        cancel_requested_at: new Date().toISOString(),
+                        canceled_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                       }).eq('id', subscription.id);
 
-                      // Log cancellation
                       await db.from('billing_events').insert({
                         company_id: companyId,
                         event_type: 'subscription_cancel',
-                        metadata: { plan: subscription.plan_slug, reason: cancelReason },
+                        metadata: { plan: currentSlug, reason: cancelReason },
                       });
 
                       qc.invalidateQueries({ queryKey: ['subscription'] });

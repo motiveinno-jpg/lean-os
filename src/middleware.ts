@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
   '/share',
   '/guide',
   '/platform',
+  '/demo',
 ];
 
 function isPublicRoute(pathname: string): boolean {

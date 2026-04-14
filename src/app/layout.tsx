@@ -9,7 +9,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "OwnerView — 회사 운영 현황을 자동으로 정리해 한눈에 보여줍니다",
+  title: {
+    template: "%s | 오너뷰",
+    default: "OwnerView — 회사 운영 현황을 자동으로 정리해 한눈에 보여줍니다",
+  },
   description: "매출·계약·자금·업무 — 대표를 위한 회사 상황판 OS",
 };
 

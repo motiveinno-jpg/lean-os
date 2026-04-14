@@ -846,8 +846,11 @@ export default function LandingPage() {
             <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
               무료로 시작하기
             </Link>
-            <a href="#features" className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
-              기능 둘러보기
+            <Link href="/demo" className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
+              데모 체험
+            </Link>
+            <a href="#features" className="w-full sm:w-auto px-10 py-4 text-slate-300 hover:text-white text-lg font-medium transition">
+              기능 둘러보기 →
             </a>
           </div>
           {/* 신뢰 카운터 */}
@@ -919,6 +922,80 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CUSTOMER LOGOS & TESTIMONIALS ── */}
+      <section className="py-20 px-6 bg-[#0B1120] border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-blue-500/20 bg-blue-500/10 text-blue-300">
+              정부사업 참여 기업 대상 무료 배포
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
+              <span className="text-blue-400">4,000개+</span> 기업이 선택한 경영 OS
+            </h2>
+            <p className="text-slate-400 text-lg">수출지원사업 참여 기업에 우선 배포 중입니다</p>
+          </div>
+
+          {/* Partner logos */}
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mb-16">
+            {[
+              { name: "수출지원기반활용사업", width: "w-44" },
+              { name: "중소벤처기업부", width: "w-36" },
+              { name: "KOTRA", width: "w-28" },
+              { name: "한국무역협회", width: "w-36" },
+              { name: "중소기업중앙회", width: "w-36" },
+            ].map((org) => (
+              <div
+                key={org.name}
+                className={`${org.width} h-14 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] px-4`}
+              >
+                <span className="text-sm md:text-base font-bold text-slate-400 tracking-tight whitespace-nowrap">
+                  {org.name}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Testimonials */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {[
+              {
+                quote: "여러 SaaS를 쓰다가 오너뷰 하나로 정리했습니다. 매일 아침 브리핑이 특히 좋아요.",
+                author: "김○○ 대표",
+                company: "IT 서비스업",
+              },
+              {
+                quote: "견적부터 정산까지 한 화면에서 보이니까 실수가 줄었습니다.",
+                author: "박○○ 대표",
+                company: "제조업",
+              },
+            ].map((t) => (
+              <div
+                key={t.author}
+                className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-2xl p-6 md:p-8"
+              >
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i} className="text-amber-400 text-sm">★</span>
+                  ))}
+                </div>
+                <p className="text-white text-base md:text-lg leading-relaxed mb-6">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <span className="text-blue-400 font-bold text-sm">{t.author.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">{t.author}</div>
+                    <div className="text-xs text-slate-500">{t.company}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

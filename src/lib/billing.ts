@@ -1,17 +1,12 @@
 /**
  * OwnerView Billing Engine
- * 토스페이먼츠 결제 연동 + 구독 관리 + 인보이스
+ * Stripe 결제 연동 + 구독 관리 + 인보이스
  */
 
 import { supabase } from './supabase';
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase as any;
-
-// ── 토스페이먼츠 설정 ──
-// 시크릿키는 서버사이드(Edge Function)에서만 사용 — 클라이언트 노출 금지
-const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
-const TOSS_API_URL = process.env.NEXT_PUBLIC_TOSS_API_URL || 'https://api.tosspayments.com/v1';
 
 // ── 플랜 타입 정의 ──
 export type PlanSlug = 'free' | 'starter' | 'business' | 'enterprise';
@@ -119,7 +114,7 @@ export async function getCurrentSubscription(
     currentPeriodEnd: data.current_period_end,
     cancelledAt: data.canceled_at || null,
     cancelReason: data.cancel_reason || null,
-    billingKey: data.toss_billing_key || null,
+    billingKey: data.stripe_customer_id || null,
     createdAt: data.created_at,
   };
 }
@@ -572,96 +567,47 @@ export async function getUsageLimits(companyId: string): Promise<UsageLimits> {
   return PLAN_LIMITS[planSlug] || PLAN_LIMITS.free;
 }
 
-// ── 15. 토스페이먼츠 결제 초기화 (클라이언트 SDK용 파라미터 생성) ──
-export interface TossPaymentParams {
-  clientKey: string;
-  orderId: string;
-  amount: number;
-  orderName: string;
-  successUrl: string;
-  failUrl: string;
-}
-
-export function initTossPayment(
-  orderId: string,
-  amount: number,
-  orderName: string
-): TossPaymentParams {
-  if (!TOSS_CLIENT_KEY) {
-    throw new Error('토스페이먼츠 클라이언트 키가 설정되지 않았습니다');
-  }
-
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
-  return {
-    clientKey: TOSS_CLIENT_KEY,
-    orderId,
-    amount,
-    orderName,
-    successUrl: `${baseUrl}/billing/success`,
-    failUrl: `${baseUrl}/billing/fail`,
-  };
-}
-
-// ── 16. 토스페이먼츠 결제 승인 (서버 사이드 / Edge Function용) ──
-export interface TossPaymentConfirmation {
-  paymentKey: string;
-  orderId: string;
-  amount: number;
-  status: string;
-  method: string;
-  approvedAt: string;
-  receipt: { url: string } | null;
-}
-
-/**
- * 토스 결제 승인 — 반드시 서버사이드(Edge Function)에서 호출
- * 클라이언트에서 직접 호출 금지 (시크릿키 노출 위험)
- */
-export async function confirmTossPayment(
-  paymentKey: string,
-  orderId: string,
-  amount: number
-): Promise<TossPaymentConfirmation> {
-  // Edge Function을 통해 결제 승인 (시크릿키는 서버에서만 사용)
-  const { data, error } = await db.functions.invoke('confirm-toss-payment', {
-    body: { paymentKey, orderId, amount },
+// ── 15. Stripe Checkout 세션 생성 요청 (클라이언트에서 API route 호출) ──
+export async function createStripeCheckout(
+  planSlug: string,
+  companyId: string,
+  billingCycle: 'monthly' | 'annual',
+): Promise<string> {
+  const response = await fetch('/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      planSlug,
+      companyId,
+      billingCycle,
+      successUrl: `${window.location.origin}/billing?payment=success`,
+      cancelUrl: `${window.location.origin}/billing?payment=cancel`,
+    }),
   });
 
-  if (error) {
-    throw new Error(`토스 결제 승인 실패: ${error.message}`);
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error?.message || '결제 세션 생성 실패');
   }
 
-  return data as TossPaymentConfirmation;
+  return result.data.url;
 }
 
-// ── 17. 토스 빌링키 저장 (자동결제용) ──
-export async function saveBillingKey(
-  subscriptionId: string,
-  customerKey: string,
-  billingKey: string
-): Promise<void> {
-  const { data: sub, error: fetchError } = await db
-    .from('subscriptions')
-    .select('company_id')
-    .eq('id', subscriptionId)
-    .single();
-
-  if (fetchError) throw fetchError;
-
-  const { error } = await db
-    .from('subscriptions')
-    .update({
-      toss_billing_key: billingKey,
-      toss_customer_key: customerKey,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', subscriptionId);
-
-  if (error) throw error;
-
-  await logBillingEvent(sub.company_id, 'billing_key_saved', {
-    subscriptionId,
-    customerKey,
+// ── 16. Stripe Billing Portal 세션 생성 요청 ──
+export async function openStripeBillingPortal(companyId: string): Promise<string> {
+  const response = await fetch('/api/stripe/portal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      companyId,
+      returnUrl: `${window.location.origin}/billing`,
+    }),
   });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error?.message || 'Billing portal 생성 실패');
+  }
+
+  return result.data.url;
 }
