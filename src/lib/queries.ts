@@ -810,11 +810,12 @@ export async function getDocuments(companyId: string) {
   return data || [];
 }
 
-export async function getDocument(documentId: string) {
+export async function getDocument(documentId: string, companyId: string) {
   const { data, error } = await supabase
     .from('documents')
     .select('*, deals(name), doc_templates(name, type), users!documents_created_by_fkey(name, email)')
     .eq('id', documentId)
+    .eq('company_id', companyId)
     .single();
   if (error || !data) return null;
   return data;
@@ -863,21 +864,23 @@ export async function getChannels(companyId: string) {
   return data || [];
 }
 
-export async function getChannel(channelId: string) {
+export async function getChannel(channelId: string, companyId: string) {
   const { data, error } = await supabase
     .from('chat_channels')
     .select('*, deals(name), sub_deals(name)')
     .eq('id', channelId)
+    .eq('company_id', companyId)
     .single();
   if (error || !data) return null;
   return data;
 }
 
-export async function getChannelByDeal(dealId: string) {
+export async function getChannelByDeal(dealId: string, companyId: string) {
   const { data, error } = await supabase
     .from('chat_channels')
     .select('*')
     .eq('deal_id', dealId)
+    .eq('company_id', companyId)
     .eq('is_archived', false)
     .limit(1)
     .single();

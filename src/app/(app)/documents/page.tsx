@@ -88,8 +88,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
   const { data: doc } = useQuery({
     queryKey: ["document", id],
-    queryFn: () => getDocument(id),
-    enabled: !!id,
+    queryFn: () => getDocument(id, companyId!),
+    enabled: !!id && !!companyId,
   });
 
   const { data: revisions = [] } = useQuery({

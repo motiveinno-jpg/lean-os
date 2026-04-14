@@ -63,8 +63,8 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
 
   const { data: channel } = useQuery({
     queryKey: ["chat-channel", channelId],
-    queryFn: () => getChannel(channelId),
-    enabled: !!channelId,
+    queryFn: () => getChannel(channelId, companyId!),
+    enabled: !!channelId && !!companyId,
   });
 
   // Initial load: fetch latest 50 messages

@@ -164,16 +164,16 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   const receivedByDeal = new Map<string, number>();
   (revenues || []).forEach((r: any) => {
     const dealId = r.deal_id;
-    receivedByDeal.set(dealId, (receivedByDeal.get(dealId) || 0) + Number(r.amount || 0));
+    receivedByDeal.set(dealId, (receivedByDeal.get(dealId) ?? 0) + Number(r.amount ?? 0));
   });
 
   return invoices.map((inv: any) => {
     const deal = inv.deals;
-    const contractAmount = Number(deal?.contract_total || 0);
-    const invoiceSupplyAmount = Number(inv.supply_amount || 0);
-    const invoiceTaxAmount = Number(inv.tax_amount || 0);
-    const invoiceAmount = Number(inv.total_amount || 0);
-    const receivedAmount = receivedByDeal.get(inv.deal_id) || 0;
+    const contractAmount = Number(deal?.contract_total ?? 0);
+    const invoiceSupplyAmount = Number(inv.supply_amount ?? 0);
+    const invoiceTaxAmount = Number(inv.tax_amount ?? 0);
+    const invoiceAmount = Number(inv.total_amount ?? 0);
+    const receivedAmount = receivedByDeal.get(inv.deal_id) ?? 0;
 
     // Compare supply-to-supply: contract_total is supply amount, so compare against invoice supply_amount
     const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceSupplyAmount) / contractAmount <= tolerance;
@@ -278,9 +278,9 @@ export async function getTaxInvoiceSummary(
       });
     }
     const b = buckets.get(key)!;
-    const supply = Number(inv.supply_amount || 0);
-    const tax = Number(inv.tax_amount || 0);
-    const total = Number(inv.total_amount || 0);
+    const supply = Number(inv.supply_amount ?? 0);
+    const tax = Number(inv.tax_amount ?? 0);
+    const total = Number(inv.total_amount ?? 0);
 
     if (inv.type === 'sales') {
       b.salesCount++;
@@ -332,7 +332,7 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
     if (d.getFullYear() !== year) return;
     const q = Math.ceil((d.getMonth() + 1) / 3);
     const key = `${year}-Q${q}`;
-    cardByQuarter.set(key, (cardByQuarter.get(key) || 0) + Number(c.estimated_vat_deduction || 0));
+    cardByQuarter.set(key, (cardByQuarter.get(key) ?? 0) + Number(c.estimated_vat_deduction ?? 0));
   });
 
   const dueDates: Record<string, string> = {
@@ -346,9 +346,9 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
 
   return quarters.map(q => {
     const data = quarterly.find(s => s.period === q);
-    const salesTax = data?.salesTax || 0;
-    const purchaseTax = data?.purchaseTax || 0;
-    const cardDeduction = cardByQuarter.get(q) || 0;
+    const salesTax = data?.salesTax ?? 0;
+    const purchaseTax = data?.purchaseTax ?? 0;
+    const cardDeduction = cardByQuarter.get(q) ?? 0;
     return {
       quarter: q,
       salesTax,
@@ -366,9 +366,9 @@ export function parseHomeTaxExcel(rows: any[]) {
     type: (r['구분'] === '매출' || r['유형'] === '발행' ? 'sales' : 'purchase') as 'sales' | 'purchase',
     counterpartyName: String(r['거래처명'] || r['상호'] || ''),
     counterpartyBizno: String(r['사업자번호'] || r['사업자등록번호'] || ''),
-    supplyAmount: Number(r['공급가액'] || r['공급가'] || 0),
-    taxAmount: Number(r['세액'] || r['부가세'] || 0),
-    totalAmount: Number(r['합계금액'] || r['합계'] || 0),
+    supplyAmount: Number(r['공급가액'] ?? r['공급가'] ?? 0),
+    taxAmount: Number(r['세액'] ?? r['부가세'] ?? 0),
+    totalAmount: Number(r['합계금액'] ?? r['합계'] ?? 0),
     issueDate: String(r['발행일'] || r['작성일자'] || ''),
   })).filter(r => r.counterpartyName && r.supplyAmount > 0);
 }
@@ -467,8 +467,8 @@ export async function bulkImportTaxInvoices(companyId: string, items: {
     counterparty_name: item.counterpartyName,
     counterparty_bizno: item.counterpartyBizno || null,
     supply_amount: item.supplyAmount,
-    tax_amount: item.taxAmount || Math.round(item.supplyAmount * DEFAULT_VAT_RATE),
-    total_amount: item.totalAmount || Math.round(item.supplyAmount * (1 + DEFAULT_VAT_RATE)),
+    tax_amount: item.taxAmount ?? Math.round(item.supplyAmount * DEFAULT_VAT_RATE),
+    total_amount: item.totalAmount ?? Math.round(item.supplyAmount * (1 + DEFAULT_VAT_RATE)),
     issue_date: item.issueDate,
     status: item.type === 'sales' ? 'issued' : 'received',
   }));

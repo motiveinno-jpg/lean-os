@@ -136,7 +136,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const addMilestoneMut = useMutation({ mutationFn: () => upsertMilestone({ deal_id: dealId, name: msForm.name, due_date: msForm.due_date }), onSuccess: () => { refetchMs(); setShowMilestoneForm(false); setMsForm({ name: "", due_date: "" }); } });
   const completeMsMut = useMutation({ mutationFn: (id: string) => completeMilestone(id, userId || undefined), onSuccess: () => refetchMs() });
 
-  const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId), enabled: !!dealId });
+  const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId, companyId!), enabled: !!dealId && !!companyId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
   const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }) });
   const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); } });
