@@ -40,8 +40,9 @@ export async function createDocumentFromDeal(params: {
   createdBy: string;
   items?: Array<{ name: string; quantity: number; unitPrice: number; supplyAmount: number; taxAmount: number; totalAmount: number; note?: string }>;
   paymentRatio?: { advance: number; balance: number };
+  paymentSchedule?: Array<{ label: string; ratio: number; condition: string; milestone_id?: string }>;
 }): Promise<string> {
-  const { companyId, dealId, docType, createdBy, items: passedItems, paymentRatio } = params;
+  const { companyId, dealId, docType, createdBy, items: passedItems, paymentRatio, paymentSchedule } = params;
 
   // Fetch deal + partner info
   const { data: deal, error: dealError } = await db
@@ -118,18 +119,34 @@ export async function createDocumentFromDeal(params: {
           note: '',
         }];
 
-    // Use custom payment ratio from quote content or passed params, fallback to 30/70
+    // Use N-stage paymentSchedule if provided, else fallback to 2-stage ratio
+    const existingSchedule = quoteContent?.paymentSchedule || paymentSchedule;
     const advanceRatio = quoteContent?.paymentRatio?.advance ?? paymentRatio?.advance ?? 30;
     const balanceRatio = quoteContent?.paymentRatio?.balance ?? paymentRatio?.balance ?? 70;
+
+    let resolvedSchedule: { label: string; ratio: number; amount: number; condition: string; milestone_id?: string }[];
+    if (existingSchedule && Array.isArray(existingSchedule) && existingSchedule.length > 0) {
+      let allocated = 0;
+      resolvedSchedule = existingSchedule.map((s: any, idx: number) => {
+        const isLast = idx === existingSchedule.length - 1;
+        const amount = isLast ? contractTotal - allocated : Math.round(contractTotal * s.ratio / 100);
+        allocated += amount;
+        return { label: s.label, ratio: s.ratio, amount, condition: s.condition || '', milestone_id: s.milestone_id };
+      });
+    } else {
+      resolvedSchedule = [
+        { label: '선금', ratio: advanceRatio, amount: Math.round(contractTotal * advanceRatio / 100), condition: '계약 후 7일 이내' },
+        { label: '잔금', ratio: balanceRatio, amount: contractTotal - Math.round(contractTotal * advanceRatio / 100), condition: '납품 완료 후 14일 이내' },
+      ];
+    }
+
+    const paymentTermsText = resolvedSchedule.map(s => `${s.label} ${s.ratio}% (${s.condition || '협의'})`).join(', ');
 
     Object.assign(contentJson, {
       contractStartDate: new Date().toISOString().split('T')[0],
       contractEndDate: '',
-      paymentTerms: `계약금 ${advanceRatio}% (계약 후 7일 이내), 잔금 ${balanceRatio}% (납품 완료 후 14일 이내)`,
-      paymentSchedule: [
-        { label: '선금', ratio: advanceRatio, amount: Math.round(contractTotal * advanceRatio / 100), condition: '계약 후 7일 이내' },
-        { label: '잔금', ratio: balanceRatio, amount: contractTotal - Math.round(contractTotal * advanceRatio / 100), condition: '납품 완료 후 14일 이내' },
-      ],
+      paymentTerms: paymentTermsText,
+      paymentSchedule: resolvedSchedule,
       paymentRatio: { advance: advanceRatio, balance: balanceRatio },
       items: inheritedItems,
     });
@@ -154,6 +171,7 @@ export async function createDocumentFromDeal(params: {
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       items,
       ...(paymentRatio ? { paymentRatio } : {}),
+      ...(paymentSchedule && paymentSchedule.length > 0 ? { paymentSchedule } : {}),
     });
   }
 
