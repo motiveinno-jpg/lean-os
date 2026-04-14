@@ -2123,38 +2123,59 @@ export type Database = {
       deal_nodes: {
         Row: {
           actual_cost: number | null
+          assignee_id: string | null
+          completed_at: string | null
           created_at: string | null
           deadline: string | null
           deal_id: string | null
+          description: string | null
           expected_cost: number | null
+          group_name: string | null
           id: string
           name: string
           parent_id: string | null
+          priority: string | null
           revenue_amount: number | null
+          sort_order: number | null
+          start_date: string | null
           status: string | null
         }
         Insert: {
           actual_cost?: number | null
+          assignee_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           deadline?: string | null
           deal_id?: string | null
+          description?: string | null
           expected_cost?: number | null
+          group_name?: string | null
           id?: string
           name: string
           parent_id?: string | null
+          priority?: string | null
           revenue_amount?: number | null
+          sort_order?: number | null
+          start_date?: string | null
           status?: string | null
         }
         Update: {
           actual_cost?: number | null
+          assignee_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           deadline?: string | null
           deal_id?: string | null
+          description?: string | null
           expected_cost?: number | null
+          group_name?: string | null
           id?: string
           name?: string
           parent_id?: string | null
+          priority?: string | null
           revenue_amount?: number | null
+          sort_order?: number | null
+          start_date?: string | null
           status?: string | null
         }
         Relationships: [

@@ -428,7 +428,7 @@ export async function getDeals(companyId: string) {
 export async function getDealWithNodes(dealId: string) {
   const [deal, nodes, revenue, costs] = await Promise.all([
     supabase.from('deals').select('*').eq('id', dealId).single(),
-    supabase.from('deal_nodes').select('*').eq('deal_id', dealId).order('created_at'),
+    supabase.from('deal_nodes').select('*, users:users!deal_nodes_assignee_id_fkey(id, name, email)').eq('deal_id', dealId).order('sort_order').order('created_at'),
     supabase.from('deal_revenue_schedule').select('*').eq('deal_id', dealId).order('due_date'),
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date'),
   ]);

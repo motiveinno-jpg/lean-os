@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, buildTree, type TreeNode, getMilestones, getSubDeals, getAssignments, upsertMilestone, completeMilestone, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
+import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, getMilestones, getSubDeals, getAssignments, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -17,6 +17,7 @@ import { generateQuotePDF, generateContractPDF } from "@/lib/document-generator"
 import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
+import ProjectBoard from "@/components/project-board";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
 
@@ -71,55 +72,8 @@ function RiskBadge({ risk }: { risk?: string | null }) {
 
 // ── Deal Detail ──
 
-function NodeRow({ node, depth, dealId, onRefresh }: { node: TreeNode; depth: number; dealId: string; onRefresh: () => void }) {
-  const [expanded, setExpanded] = useState(depth < 2);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newName, setNewName] = useState("");
-  const revAmt = Number(node.revenue_amount) || 0;
-  const actCost = Number(node.actual_cost) || 0;
-  const margin = revAmt > 0 ? ((revAmt - actCost) / revAmt * 100) : 0;
-  const marginColor = margin < 20 ? "text-red-400" : margin < 35 ? "text-yellow-400" : "text-green-400";
-
-  async function addChild() {
-    if (!newName.trim()) return;
-    await supabase.from("deal_nodes").insert({ deal_id: dealId, parent_id: node.id, name: newName.trim(), status: "pending" });
-    setNewName(""); setShowAdd(false); onRefresh();
-  }
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 py-2 px-3 hover:bg-[var(--bg-surface)] rounded-lg transition group" style={{ paddingLeft: `${depth * 24 + 12}px` }}>
-        <button onClick={() => setExpanded(!expanded)} className="w-5 h-5 flex items-center justify-center text-xs text-[var(--text-dim)] hover:text-[var(--text)]">
-          {node.children.length > 0 ? (expanded ? "▼" : "▶") : "·"}
-        </button>
-        <span className="text-sm font-medium flex-1">{node.name}</span>
-        <span className="text-xs text-green-400 w-24 text-right">{revAmt > 0 ? `₩${revAmt.toLocaleString()}` : "—"}</span>
-        <span className="text-xs text-[var(--text-muted)] w-24 text-right">{Number(node.expected_cost) > 0 ? `₩${Number(node.expected_cost).toLocaleString()}` : "—"}</span>
-        <span className="text-xs text-red-400 w-24 text-right">{actCost > 0 ? `₩${actCost.toLocaleString()}` : "—"}</span>
-        <span className={`text-xs font-bold w-16 text-right ${marginColor}`}>{revAmt > 0 ? `${margin.toFixed(1)}%` : "—"}</span>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full w-14 text-center ${node.status === "done" ? "bg-green-500/10 text-green-400" : node.status === "active" ? "bg-blue-500/10 text-blue-400" : "bg-gray-500/10 text-gray-400"}`}>
-          {node.status === "done" ? "완료" : node.status === "active" ? "진행" : "대기"}
-        </span>
-        <button onClick={() => setShowAdd(!showAdd)} className="opacity-0 group-hover:opacity-100 text-xs text-[var(--primary)] hover:text-[var(--text)] transition px-1">+</button>
-      </div>
-      {showAdd && (
-        <div className="flex items-center gap-2 py-2" style={{ paddingLeft: `${(depth + 1) * 24 + 32}px` }}>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addChild()} placeholder="하위 항목명" className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] w-48" autoFocus />
-          <button onClick={addChild} className="text-xs text-[var(--primary)] font-semibold">추가</button>
-          <button onClick={() => setShowAdd(false)} className="text-xs text-[var(--text-dim)]">취소</button>
-        </div>
-      )}
-      {expanded && node.children.map((child: TreeNode) => (<NodeRow key={child.id} node={child} depth={depth + 1} dealId={dealId} onRefresh={onRefresh} />))}
-    </div>
-  );
-}
-
 function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void }) {
   const queryClient = useQueryClient();
-  const [showAddRoot, setShowAddRoot] = useState(false);
-  const [rootName, setRootName] = useState("");
-  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
-  const [msForm, setMsForm] = useState({ name: "", due_date: "" });
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
@@ -133,25 +87,15 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const { data: subDeals = [] } = useQuery({ queryKey: ["sub-deals", dealId], queryFn: () => getSubDeals(dealId), enabled: !!dealId });
   const { data: assignments = [] } = useQuery({ queryKey: ["assignments", dealId], queryFn: () => getAssignments(dealId), enabled: !!dealId });
 
-  const addMilestoneMut = useMutation({ mutationFn: () => upsertMilestone({ deal_id: dealId, name: msForm.name, due_date: msForm.due_date }), onSuccess: () => { refetchMs(); setShowMilestoneForm(false); setMsForm({ name: "", due_date: "" }); } });
-  const completeMsMut = useMutation({ mutationFn: (id: string) => completeMilestone(id, userId || undefined), onSuccess: () => refetchMs() });
-
   const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId, companyId!), enabled: !!dealId && !!companyId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
   const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }) });
   const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); } });
 
-  const tree = data?.nodes ? buildTree(data.nodes) : [];
   const deal = data?.deal;
   const totalRevenue = (data?.revenue || []).reduce((s, r) => s + Number(r.amount), 0);
   const totalCost = (data?.costs || []).reduce((s, c) => s + Number(c.amount), 0);
   const dealMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100) : 0;
-
-  async function addRootNode() {
-    if (!rootName.trim()) return;
-    await supabase.from("deal_nodes").insert({ deal_id: dealId, parent_id: null, name: rootName.trim(), status: "pending" });
-    setRootName(""); setShowAddRoot(false); refetch();
-  }
 
   if (isLoading) return <div className="text-center py-20 text-[var(--text-muted)]">로딩 중...</div>;
   if (!deal) return <div className="text-center py-20 text-[var(--text-muted)]">딜을 찾을 수 없습니다.</div>;
@@ -191,29 +135,11 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         {quoteItems.length > 0 && (<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs"><thead><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-3 py-2 font-medium">품명</th><th className="text-right px-3 py-2 font-medium w-20">수량</th><th className="text-right px-3 py-2 font-medium w-24">단가</th><th className="text-right px-3 py-2 font-medium w-24">공급가액</th><th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th><th className="text-right px-3 py-2 font-medium w-28">합계</th><th className="w-10" /></tr></thead><tbody>{quoteItems.map((item: any, idx: number) => (<tr key={idx} className="border-b border-[var(--border)]/50"><td className="px-3 py-2"><input value={item.name || ''} onChange={(e) => { const arr = [...quoteItems]; arr[idx] = { ...arr[idx], name: e.target.value }; setQuoteItems(arr); }} placeholder="품목명" className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.quantity || 0} onChange={(e) => { const arr = [...quoteItems]; const q = Number(e.target.value) || 0; const u = arr[idx].unitPrice || 0; const supply = q * u; arr[idx] = { ...arr[idx], quantity: q, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.unitPrice || 0} onChange={(e) => { const arr = [...quoteItems]; const u = Number(e.target.value) || 0; const q = arr[idx].quantity || 0; const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right text-[var(--text-muted)] font-medium">{Number(item.supplyAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-[var(--text-muted)]">{Number(item.taxAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right font-bold">{Number(item.totalAmount || 0).toLocaleString()}</td><td className="px-2 py-2 text-center">{quoteItems.length > 1 && (<button onClick={() => setQuoteItems(quoteItems.filter((_: any, i: number) => i !== idx))} className="text-red-400 hover:text-red-300 text-xs">X</button>)}</td></tr>))}</tbody><tfoot><tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]"><td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-black">{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td><td /></tr><tr className="bg-[var(--bg-surface)]"><td colSpan={7} className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">공급가액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 세액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 총액(VAT포함): ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td></tr></tfoot></table><div className="px-5 py-2 border-t border-[var(--border)]/50"><button onClick={() => setQuoteItems([...quoteItems, { name: '', quantity: 1, unitPrice: 0, supplyAmount: 0, taxAmount: 0, totalAmount: 0, note: '' }])} className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button></div></div>)}
         {quoteItems.length === 0 && (<div className="px-5 py-4 text-center text-xs text-[var(--text-dim)]">품목을 추가하면 견적서 생성 시 자동으로 반영됩니다</div>)}
       </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">작업 트리 (무한 구조)</h2><button onClick={() => setShowAddRoot(!showAddRoot)} className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">+ 작업 추가</button></div>
-        <div className="flex items-center gap-2 py-2 px-5 text-[10px] text-[var(--text-dim)] font-medium border-b border-[var(--border)]/50"><span className="flex-1" style={{ paddingLeft: "32px" }}>항목명</span><span className="w-24 text-right">매출</span><span className="w-24 text-right">예상비용</span><span className="w-24 text-right">실비용</span><span className="w-16 text-right">마진</span><span className="w-14 text-center">상태</span><span className="w-5" /></div>
-        {showAddRoot && (<div className="flex items-center gap-2 py-2 px-5"><input value={rootName} onChange={(e) => setRootName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRootNode()} placeholder="작업 단계명 (예: 1차 수행)" className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] w-64" autoFocus /><button onClick={addRootNode} className="text-xs text-[var(--primary)] font-semibold">추가</button><button onClick={() => setShowAddRoot(false)} className="text-xs text-[var(--text-dim)]">취소</button></div>)}
-        {tree.length === 0 ? (<div className="p-10 text-center text-sm text-[var(--text-muted)]">작업 단계가 없습니다. 새 작업을 추가해주세요.</div>) : (<div className="py-1">{tree.map((node) => (<NodeRow key={node.id} node={node} depth={0} dealId={dealId} onRefresh={refetch} />))}</div>)}
-      </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
-        <div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">매출 스케줄</h2></div>
-        {(data?.revenue || []).length === 0 ? (<div className="p-6 text-center text-sm text-[var(--text-muted)]">등록된 매출 스케줄이 없습니다.</div>) : (<table className="w-full"><thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-5 py-2 font-medium">예정일</th><th className="text-right px-5 py-2 font-medium">금액</th><th className="text-left px-5 py-2 font-medium">유형</th><th className="text-left px-5 py-2 font-medium">발신처</th><th className="text-center px-5 py-2 font-medium">상태</th></tr></thead><tbody>{(data?.revenue || []).map((r) => (<tr key={r.id} className="border-b border-[var(--border)]/50"><td className="px-5 py-2.5 text-sm">{r.due_date || "—"}</td><td className="px-5 py-2.5 text-sm text-right font-medium text-green-400">₩{Number(r.amount).toLocaleString()}</td><td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{r.type || "—"}</td><td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{r.expected_sender || "—"}</td><td className="px-5 py-2.5 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${r.status === 'received' ? 'bg-green-500/10 text-green-400' : r.status === 'overdue' ? 'bg-red-500/10 text-red-400' : 'bg-gray-500/10 text-gray-400'}`}>{r.status === 'received' ? '수금' : r.status === 'overdue' ? '연체' : '예정'}</span></td></tr>))}</tbody></table>)}
-      </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">마일스톤 / D-day</h2><button onClick={() => setShowMilestoneForm(!showMilestoneForm)} className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">+ 마일스톤</button></div>
-        {showMilestoneForm && (<div className="flex items-center gap-2 px-5 py-3 border-b border-[var(--border)]/50"><input value={msForm.name} onChange={(e) => setMsForm({ ...msForm, name: e.target.value })} placeholder="마일스톤명" className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] w-48" /><input type="date" value={msForm.due_date} onChange={(e) => setMsForm({ ...msForm, due_date: e.target.value })} className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /><button onClick={() => msForm.name && msForm.due_date && addMilestoneMut.mutate()} disabled={!msForm.name || !msForm.due_date} className="text-xs text-[var(--primary)] font-semibold disabled:opacity-50">추가</button><button onClick={() => setShowMilestoneForm(false)} className="text-xs text-[var(--text-dim)]">취소</button></div>)}
-        {milestones.length === 0 ? (<div className="p-6 text-center text-sm text-[var(--text-muted)]">마일스톤이 없습니다.</div>) : (<div className="divide-y divide-[var(--border)]/50">{milestones.map((ms: DealMilestone) => { const daysLeft = Math.ceil((new Date(ms.due_date).getTime() - Date.now()) / 86400000); const isOverdue = daysLeft < 0 && ms.status !== 'completed'; return (<div key={ms.id} className="flex items-center gap-3 px-5 py-3"><button onClick={() => ms.status !== 'completed' && completeMsMut.mutate(ms.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${ms.status === 'completed' ? 'border-green-400 bg-green-400/20 text-green-400 text-[10px]' : 'border-[var(--border)] hover:border-[var(--primary)]'}`}>{ms.status === 'completed' && '✓'}</button><div className="flex-1 min-w-0"><span className={`text-sm ${ms.status === 'completed' ? 'line-through text-[var(--text-dim)]' : ''}`}>{ms.name}</span></div><span className="text-xs text-[var(--text-dim)]">{ms.due_date}</span>{ms.status !== 'completed' && (<span className={`text-xs font-bold ${isOverdue ? 'text-red-400' : daysLeft <= 3 ? 'text-yellow-400' : 'text-[var(--text-muted)]'}`}>{isOverdue ? `D+${Math.abs(daysLeft)}` : `D-${daysLeft}`}</span>)}</div>); })}</div>)}
-      </div>
+      <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
       {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">서브딜 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
       {assignments.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">담당자</h2></div><div className="divide-y divide-[var(--border)]/50">{assignments.map((a: any) => (<div key={a.id} className="flex items-center justify-between px-5 py-3"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">{(a.users?.name || a.users?.email || '?')[0]}</div><span className="text-sm">{a.users?.name || a.users?.email}</span></div><span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.role === 'manager' ? '담당자' : a.role === 'reviewer' ? '검토자' : '참여자'}</span></div>))}</div></div>)}
-      <ProjectFilesSection dealId={dealId} companyId={companyId} userId={userId} />
       <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">💬 딜 채팅</h2>{dealChannel && (<Link href={`/chat?channel=${dealChannel.id}`} className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">전체 채팅 보기 &rarr;</Link>)}</div>
-        {!dealChannel ? (<div className="p-6 text-center"><div className="text-sm text-[var(--text-muted)] mb-3">이 딜에 연결된 채팅이 없습니다</div><button onClick={() => userId && companyId && createChannelMut.mutate()} disabled={createChannelMut.isPending || !userId} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{createChannelMut.isPending ? '생성 중...' : '딜 채팅 생성'}</button></div>) : (<div><div className="px-5 py-3 max-h-48 overflow-y-auto">{recentMessages.length === 0 ? (<div className="text-center text-xs text-[var(--text-dim)] py-4">메시지가 없습니다</div>) : (recentMessages.map((msg: any) => (<div key={msg.id} className="flex items-start gap-2 py-1.5"><div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[9px] font-bold text-[var(--primary)] flex-shrink-0 mt-0.5">{(msg.users?.name || msg.users?.email || '?')[0].toUpperCase()}</div><div className="min-w-0"><span className="text-[10px] font-semibold text-[var(--text-muted)]">{msg.users?.name || msg.users?.email}</span><div className="text-xs text-[var(--text)]">{msg.content}</div></div></div>)))}</div><div className="px-5 py-3 border-t border-[var(--border)]/50 flex gap-2"><input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && chatMsg.trim() && sendChatMut.mutate()} placeholder="빠른 메시지..." className="flex-1 px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /><button onClick={() => chatMsg.trim() && sendChatMut.mutate()} disabled={!chatMsg.trim() || sendChatMut.isPending} className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-30">전송</button></div></div>)}
-      </div>
+      <DealChatWithFiles dealId={dealId} companyId={companyId} userId={userId} dealChannel={dealChannel} createChannelMut={createChannelMut} recentMessages={recentMessages} chatMsg={chatMsg} setChatMsg={setChatMsg} sendChatMut={sendChatMut} />
     </div>
   );
 }
@@ -433,6 +359,129 @@ function ProjectFilesSection({ dealId, companyId, userId }: { dealId: string; co
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Deal Chat + File Gallery ──
+
+function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChannelMut, recentMessages, chatMsg, setChatMsg, sendChatMut }: {
+  dealId: string; companyId: string | null; userId: string | null;
+  dealChannel: any; createChannelMut: any; recentMessages: any[]; chatMsg: string; setChatMsg: (v: string) => void; sendChatMut: any;
+}) {
+  const [chatTab, setChatTab] = useState<'chat' | 'files'>('chat');
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const db2 = supabase as any;
+
+  const { data: dealFiles = [] } = useQuery({
+    queryKey: ['deal-files', dealId],
+    queryFn: async () => {
+      const { data } = await db2.from('deal_files').select('*').eq('deal_id', dealId).order('created_at', { ascending: false });
+      return data || [];
+    },
+    enabled: !!dealId,
+  });
+
+  const queryClient = useQueryClient();
+
+  async function handleFileUpload(files: FileList | File[]) {
+    if (!companyId || !userId) return;
+    for (const file of Array.from(files)) {
+      try {
+        const path = `deals/${dealId}/${Date.now()}_${file.name}`;
+        const { data: uploaded } = await supabase.storage.from('deal-files').upload(path, file);
+        if (uploaded) {
+          const { data: { publicUrl } } = supabase.storage.from('deal-files').getPublicUrl(path);
+          await db2.from('deal_files').insert({ deal_id: dealId, company_id: companyId, file_name: file.name, file_url: publicUrl, file_size: file.size, file_type: file.type, uploaded_by: userId });
+        }
+      } catch { /* skip failed uploads */ }
+    }
+    queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] });
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files);
+  }
+
+  const fileCount = dealFiles.length;
+
+  return (
+    <div className={`bg-[var(--bg-card)] rounded-2xl border overflow-hidden mt-6 transition ${dragOver ? 'border-[var(--primary)] bg-[var(--primary)]/[0.02]' : 'border-[var(--border)]'}`} onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
+      <div className="px-5 py-3 flex items-center justify-between">
+        <h2 className="text-sm font-bold">💬 딜 채팅</h2>
+        {dealChannel && <Link href={`/chat?channel=${dealChannel.id}`} className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">전체 채팅 보기 &rarr;</Link>}
+      </div>
+      {/* Tabs */}
+      <div className="flex border-b border-[var(--border)]">
+        <button onClick={() => setChatTab('chat')} className={`px-5 py-2 text-xs font-semibold border-b-2 transition ${chatTab === 'chat' ? 'text-[var(--primary)] border-[var(--primary)]' : 'text-[var(--text-dim)] border-transparent'}`}>💬 대화</button>
+        <button onClick={() => setChatTab('files')} className={`px-5 py-2 text-xs font-semibold border-b-2 transition ${chatTab === 'files' ? 'text-[var(--primary)] border-[var(--primary)]' : 'text-[var(--text-dim)] border-transparent'}`}>📁 파일{fileCount > 0 && <span className="ml-1.5 text-[10px] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded-full">{fileCount}</span>}</button>
+      </div>
+
+      {chatTab === 'chat' && (
+        <>
+          {!dealChannel ? (
+            <div className="p-6 text-center">
+              <div className="text-sm text-[var(--text-muted)] mb-3">이 딜에 연결된 채팅이 없습니다</div>
+              <button onClick={() => userId && companyId && createChannelMut.mutate()} disabled={createChannelMut.isPending || !userId} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{createChannelMut.isPending ? '생성 중...' : '딜 채팅 생성'}</button>
+            </div>
+          ) : (
+            <div>
+              <div className="px-5 py-3 max-h-60 overflow-y-auto">
+                {recentMessages.length === 0 ? (
+                  <div className="text-center text-xs text-[var(--text-dim)] py-4">메시지가 없습니다</div>
+                ) : (
+                  recentMessages.map((msg: any) => (
+                    <div key={msg.id} className="flex items-start gap-2 py-1.5">
+                      <div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[9px] font-bold text-[var(--primary)] flex-shrink-0 mt-0.5">{(msg.users?.name || msg.users?.email || '?')[0].toUpperCase()}</div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-semibold text-[var(--text-muted)]">{msg.users?.name || msg.users?.email}</span>
+                        <div className="text-xs text-[var(--text)]">{msg.content}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-[var(--border)]/50 flex gap-2">
+                <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] hover:bg-[var(--bg)] transition" aria-label="파일 첨부" title="파일 첨부">📎</button>
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => e.target.files && handleFileUpload(e.target.files)} />
+                <input value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && chatMsg.trim() && sendChatMut.mutate()} placeholder="메시지 입력... (파일 드래그앤드롭 가능)" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                <button onClick={() => chatMsg.trim() && sendChatMut.mutate()} disabled={!chatMsg.trim() || sendChatMut.isPending} className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-30">전송</button>
+              </div>
+            </div>
+          )}
+          {dragOver && <div className="px-5 py-2 text-center text-[10px] text-[var(--primary)] border-t border-dashed border-[var(--primary)]/30">여기에 파일을 놓으면 자동으로 첨부됩니다</div>}
+        </>
+      )}
+
+      {chatTab === 'files' && (
+        <div className="p-4">
+          {dealFiles.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-sm text-[var(--text-muted)] mb-2">첨부된 파일이 없습니다</div>
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs text-[var(--primary)] font-semibold hover:underline">+ 파일 첨부하기</button>
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => e.target.files && handleFileUpload(e.target.files)} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {dealFiles.map((f: any) => {
+                const isImage = f.file_type?.startsWith('image/');
+                const isPdf = f.file_type === 'application/pdf';
+                const icon = isImage ? '🖼️' : isPdf ? '📄' : '📎';
+                return (
+                  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3 text-center hover:border-[var(--primary)]/50 transition">
+                    <div className="text-2xl mb-2">{icon}</div>
+                    <div className="text-[11px] font-semibold truncate">{f.file_name}</div>
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{f.file_size ? `${(f.file_size / 1024).toFixed(0)} KB` : ''}</div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
