@@ -11,8 +11,9 @@ import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitatio
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
+import BulkInvite from "@/components/bulk-invite";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -114,6 +115,7 @@ export default function SettingsPage() {
     { key: "bank", label: "은행연동" },
     { key: "tax", label: "세무자동화" },
     { key: "certificate", label: "인증서" },
+    { key: "invite", label: "대량 초대" },
   ];
 
   if (pageLoading) {
@@ -439,6 +441,9 @@ export default function SettingsPage() {
 
       {/* ═══ Certificate Management Tab ═══ */}
       {mainTab === "certificate" && <CertificateManagementTab companyId={companyId} />}
+
+      {/* ═══ Bulk Invite Tab ═══ */}
+      {mainTab === "invite" && companyId && <BulkInvite companyId={companyId} />}
     </div>
   );
 }

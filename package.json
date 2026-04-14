@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/nextjs": "10.48.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/postcss": "^4.2.1",
