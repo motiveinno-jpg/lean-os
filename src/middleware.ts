@@ -20,6 +20,8 @@ const PUBLIC_ROUTES = [
 ];
 
 function isPublicRoute(pathname: string): boolean {
+  // API 라우트는 자체 인증 처리
+  if (pathname.startsWith('/api/')) return true;
   return PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname === `${route}/`,
   );

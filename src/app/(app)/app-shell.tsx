@@ -135,6 +135,18 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { collapsed, setMobileOpen } = useSidebar();
   const { role } = useUser();
   const isLimitedRole = role === "partner" || role === "employee";
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // 글로벌 mutation 에러 토스트 (providers.tsx MutationCache에서 발생)
+  useEffect(() => {
+    function handler(e: Event) {
+      const msg = (e as CustomEvent).detail as string;
+      setMutationError(msg);
+      setTimeout(() => setMutationError(null), 4000);
+    }
+    window.addEventListener("ownerview:mutation-error", handler);
+    return () => window.removeEventListener("ownerview:mutation-error", handler);
+  }, []);
 
   return (
     <div className="flex min-h-screen">
@@ -181,6 +193,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
       </main>
       <MobileBottomNav />
       <GlobalSearch />
+      {/* 글로벌 Mutation 에러 토스트 */}
+      {mutationError && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">
+          저장 중 오류가 발생했습니다. 다시 시도해주세요.
+        </div>
+      )}
     </div>
   );
 }

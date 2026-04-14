@@ -14,6 +14,7 @@
 
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
+import type { YesterdayTxSummary } from "@/lib/queries";
 
 interface MorningBriefProps {
   userName: string;
@@ -21,6 +22,7 @@ interface MorningBriefProps {
   cashPulse: CashPulseResult | null;
   dashboard: FounderDashboardData | null;
   hasData: boolean;
+  yesterdayTx?: YesterdayTxSummary | null;
 }
 
 // ── 문구 헬퍼 ─────────────────────────────────────────
@@ -63,6 +65,7 @@ export function MorningBrief({
   cashPulse,
   dashboard,
   hasData,
+  yesterdayTx,
 }: MorningBriefProps) {
   const now = new Date();
   const greeting = greetingForHour(now.getHours());
@@ -155,6 +158,12 @@ export function MorningBrief({
     }
   }
 
+  // 어제 거래 요약 섹션 (그랜터 AI 브리핑 스타일)
+  const hasTx = yesterdayTx && (yesterdayTx.incomeCount > 0 || yesterdayTx.expenseCount > 0);
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayLabel = formatTodayKorean(yesterdayDate);
+
   return (
     <section
       className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-6 md:p-8"
@@ -174,6 +183,73 @@ export function MorningBrief({
         {progressLine && (
           <p className="text-[var(--text-muted)]">{progressLine}</p>
         )}
+
+        {/* 어제 거래 요약 — AI 브리핑 */}
+        {hasTx && (
+          <div
+            className="mt-4 pt-4 border-t"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <p className="text-sm font-semibold text-[var(--text-muted)] mb-3">
+              {yesterdayLabel} 거래 요약
+            </p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+                <div className="text-xs text-[var(--text-muted)] mb-1">입금</div>
+                <div className="text-sm font-bold" style={{ color: "var(--success)" }}>
+                  {yesterdayTx!.incomeCount}건
+                </div>
+                <div className="text-xs font-medium" style={{ color: "var(--success)" }}>
+                  +{formatKrwWords(yesterdayTx!.incomeTotal)}
+                </div>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+                <div className="text-xs text-[var(--text-muted)] mb-1">출금</div>
+                <div className="text-sm font-bold" style={{ color: "var(--danger)" }}>
+                  {yesterdayTx!.expenseCount}건
+                </div>
+                <div className="text-xs font-medium" style={{ color: "var(--danger)" }}>
+                  -{formatKrwWords(yesterdayTx!.expenseTotal)}
+                </div>
+              </div>
+              <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+                <div className="text-xs text-[var(--text-muted)] mb-1">순유입</div>
+                <div className={`text-sm font-bold`} style={{ color: yesterdayTx!.netFlow >= 0 ? "var(--success)" : "var(--danger)" }}>
+                  {yesterdayTx!.netFlow >= 0 ? "+" : ""}{formatKrwWords(yesterdayTx!.netFlow)}
+                </div>
+              </div>
+            </div>
+
+            {/* 주요 거래 목록 */}
+            {yesterdayTx!.topItems.length > 0 && (
+              <div className="space-y-1.5">
+                {yesterdayTx!.topItems.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg"
+                    style={{ background: "var(--bg-surface)" }}
+                  >
+                    <span className="text-[var(--text-muted)] truncate max-w-[60%]">
+                      {item.counterparty || item.description || "미분류"}
+                      {item.category && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: "var(--primary-light)", color: "var(--primary)" }}>
+                          {item.category}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className="font-semibold tabular-nums"
+                      style={{ color: item.type === 'income' ? "var(--success)" : "var(--danger)" }}
+                    >
+                      {item.type === 'income' ? '+' : '-'}{formatKrwWords(item.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <p
           className="pt-3 mt-1 border-t"
           style={{

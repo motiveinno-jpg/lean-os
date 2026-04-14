@@ -1452,6 +1452,56 @@ export async function getBankTransactionStats(companyId: string) {
   };
 }
 
+/** 어제 거래 요약 — Morning Brief AI 브리핑용 */
+export interface YesterdayTxSummary {
+  incomeCount: number;
+  incomeTotal: number;
+  expenseCount: number;
+  expenseTotal: number;
+  netFlow: number;
+  topItems: { description: string; counterparty: string; amount: number; type: string; category: string | null }[];
+}
+
+export async function getYesterdayTransactions(companyId: string): Promise<YesterdayTxSummary> {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateStr = yesterday.toISOString().split('T')[0];
+
+  const { data } = await supabase
+    .from('bank_transactions')
+    .select('amount, type, description, counterparty, category, transaction_date')
+    .eq('company_id', companyId)
+    .eq('transaction_date', dateStr)
+    .order('amount', { ascending: false });
+
+  const items = data || [];
+  const income = items.filter(i => i.type === 'income');
+  const expense = items.filter(i => i.type === 'expense');
+  const incomeTotal = income.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const expenseTotal = expense.reduce((s, i) => s + Number(i.amount || 0), 0);
+
+  // 상위 5건 (금액 큰 순)
+  const topItems = items
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, 5)
+    .map(i => ({
+      description: i.description || '',
+      counterparty: i.counterparty || '',
+      amount: Number(i.amount || 0),
+      type: i.type || 'expense',
+      category: i.category || null,
+    }));
+
+  return {
+    incomeCount: income.length,
+    incomeTotal,
+    expenseCount: expense.length,
+    expenseTotal,
+    netFlow: incomeTotal - expenseTotal,
+    topItems,
+  };
+}
+
 export async function mapBankTransaction(id: string, params: {
   dealId?: string | null;
   classification?: string | null;

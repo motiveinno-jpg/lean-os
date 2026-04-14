@@ -842,7 +842,7 @@ export default function LandingPage() {
           <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
             중소기업 대표를 위한 올인원 운영 플랫폼
           </p>
-          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
+          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
             <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
               무료로 시작하기
             </Link>
@@ -850,12 +850,34 @@ export default function LandingPage() {
               기능 둘러보기
             </a>
           </div>
+          {/* 신뢰 카운터 */}
+          <div className={`flex items-center justify-center gap-8 mb-10 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.45s" }}>
+            <div className="text-center">
+              <div className="text-2xl md:text-3xl font-black text-white">9<span className="text-blue-400">+</span></div>
+              <div className="text-[11px] text-slate-500 mt-0.5">통합 기능</div>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <div className="text-2xl md:text-3xl font-black text-white">4</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">자동화 엔진</div>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <div className="text-2xl md:text-3xl font-black text-white">89<span className="text-emerald-400">%</span></div>
+              <div className="text-[11px] text-slate-500 mt-0.5">비용 절감</div>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <div className="text-2xl md:text-3xl font-black text-white">0<span className="text-slate-500">원</span></div>
+              <div className="text-[11px] text-slate-500 mt-0.5">도입비용</div>
+            </div>
+          </div>
           {/* Trust badges */}
           <div className={`flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.5s" }}>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 3분 만에 세팅 완료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 실수 0건</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> SOC2 보안 인프라</span>
           </div>
 
           {/* Hero mini dashboard mockup */}
