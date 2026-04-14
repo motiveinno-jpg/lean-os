@@ -24,6 +24,7 @@ import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
+import { AiBriefing } from "@/components/ai-briefing";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -441,6 +442,15 @@ export default function DashboardPage() {
         cashPulse={cashPulse}
         dashboard={dashboard}
         hasData={hasData}
+      />
+
+      {/* ═══ AI 경영 브리핑 — 대화형 분석 ═══ */}
+      <AiBriefing
+        cashPulse={cashPulse}
+        dashboard={dashboard}
+        hasData={hasData}
+        companyName={companyName}
+        dealCount={dealCount}
       />
 
       {/* ═══ 액션 바 (동기화 / 업로드) ═══ */}
