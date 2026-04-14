@@ -6,6 +6,7 @@ import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib
 import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
+import { QueryErrorBanner } from "@/components/query-status";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
@@ -67,7 +68,7 @@ export default function PartnersPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data: partners = [], isLoading } = useQuery({
+  const { data: partners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
     queryFn: async () => {
       if (debouncedSearch && debouncedSearch.length >= 2) {
@@ -207,6 +208,7 @@ export default function PartnersPage() {
 
   return (
     <div className="max-w-[1100px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>

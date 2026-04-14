@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { QueryErrorBanner } from "@/components/query-status";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase as any;
@@ -46,7 +47,7 @@ export default function BillingPage() {
   const [referralCopied, setReferralCopied] = useState(false);
   const qc = useQueryClient();
 
-  const { data: user } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
+  const { data: user, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id;
 
   // 요금제 목록
@@ -203,6 +204,7 @@ export default function BillingPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">구독 & 결제</h1>

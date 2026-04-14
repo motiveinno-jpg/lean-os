@@ -8,6 +8,7 @@ import { runMatching, type MatchCandidate } from "@/lib/matching";
 import { threeWayMatch, markInvoiceMatched, type ThreeWayMatchResult } from "@/lib/tax-invoice";
 import { onRevenueReceived } from "@/lib/deal-pipeline";
 import { useToast } from "@/components/toast";
+import { QueryErrorBanner } from "@/components/query-status";
 
 type MainTab = "transaction" | "threeway" | "receivables";
 type Tab = "auto" | "review" | "unmatched";
@@ -42,7 +43,7 @@ export default function MatchingPage() {
     getCurrentUser().then((u) => u && setCompanyId(u.company_id));
   }, []);
 
-  const { data: transactions = [] } = useQuery({
+  const { data: transactions = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["match-transactions", companyId],
     queryFn: async () => {
       const { data } = await supabase
@@ -375,6 +376,7 @@ export default function MatchingPage() {
 
   return (
     <div className="max-w-[1000px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">매칭 엔진</h1>

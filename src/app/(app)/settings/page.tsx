@@ -10,6 +10,7 @@ import type { BankAccount } from "@/types/models";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { QueryErrorBanner } from "@/components/query-status";
 
 type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate";
 
@@ -44,7 +45,7 @@ export default function SettingsPage() {
     }).catch(() => setPageLoading(false));
   }, []);
 
-  const { data: bankAccounts = [] } = useQuery({
+  const { data: bankAccounts = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["bank-accounts", companyId],
     queryFn: () => getBankAccounts(companyId!),
     enabled: !!companyId,
@@ -128,6 +129,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-[700px] space-y-6">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <h1 className="text-2xl font-extrabold mb-2">설정</h1>
 
       {/* Main Tab Bar — scrollable on mobile */}

@@ -12,6 +12,7 @@ import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
 import { setupRecurringFromExcel } from "@/lib/smart-setup";
 import { runAllAutomation } from "@/lib/automation";
 import { useQuery } from "@tanstack/react-query";
+import { QueryErrorBanner } from "@/components/query-status";
 import * as XLSX from "xlsx";
 
 const db = supabase as any;
@@ -48,7 +49,7 @@ export default function ImportHubPage() {
   const [isDragging, setIsDragging] = useState(false);
 
   // ── 최근 import 이력 (automation_runs) ──
-  const { data: recentRuns = [] } = useQuery({
+  const { data: recentRuns = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["import-hub-runs"],
     queryFn: async () => {
       const u = await getCurrentUser();
@@ -411,6 +412,7 @@ export default function ImportHubPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 헤더 */}
       <div>
         <h1 className="text-xl font-bold text-[var(--text)]">데이터 통합 가져오기</h1>

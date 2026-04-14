@@ -19,6 +19,7 @@ import { decryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
 import { uploadFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
+import { QueryErrorBanner } from "@/components/query-status";
 
 type Tab = "accounts" | "assets" | "docs" | "discovery";
 
@@ -76,7 +77,7 @@ export default function VaultPage() {
     getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
   }, []);
 
-  const { data: vault } = useQuery({
+  const { data: vault, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["vault-summary", companyId],
     queryFn: () => getVaultSummary(companyId!),
     enabled: !!companyId,
@@ -276,6 +277,7 @@ export default function VaultPage() {
 
   return (
     <div className="max-w-[900px]">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
