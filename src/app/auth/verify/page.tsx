@@ -107,6 +107,13 @@ export default function VerifyEmailPage() {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
+        // OAuth 에러 처리 (카카오/구글 로그인 실패 시)
+        const oauthError = params.get("error_description") || params.get("error");
+        if (oauthError) {
+          markError(oauthError);
+          return;
+        }
+
         if (!code) {
           // code 없이 접근 — 기존 세션 확인
           const {
