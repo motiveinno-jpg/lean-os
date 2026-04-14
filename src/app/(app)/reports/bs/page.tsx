@@ -155,11 +155,86 @@ async function fetchBsData(companyId: string): Promise<BsData> {
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Financial ratio helpers                                            */
+/* ------------------------------------------------------------------ */
+interface RatioInfo {
+  label: string;
+  value: number;
+  unit: string;
+  health: "green" | "yellow" | "red";
+  description: string;
+}
+
+function computeRatios(d: BsData): RatioInfo[] {
+  const currentAssets = d.cashAndDeposits + d.accountsReceivable;
+  const currentLiabilities = d.accountsPayable;
+
+  const currentRatio = currentLiabilities > 0
+    ? (currentAssets / currentLiabilities) * 100
+    : currentAssets > 0 ? 999 : 0;
+
+  const debtToEquity = d.totalEquity > 0
+    ? (d.totalLiabilities / d.totalEquity) * 100
+    : d.totalLiabilities > 0 ? 999 : 0;
+
+  const equityRatio = d.totalAssets > 0
+    ? (d.totalEquity / d.totalAssets) * 100
+    : 0;
+
+  return [
+    {
+      label: "유동비율 (Current Ratio)",
+      value: Math.round(currentRatio),
+      unit: "%",
+      health: currentRatio >= 200 ? "green" : currentRatio >= 100 ? "yellow" : "red",
+      description: "200% 이상 양호 / 100% 미만 단기 유동성 위험",
+    },
+    {
+      label: "부채비율 (Debt-to-Equity)",
+      value: Math.round(debtToEquity),
+      unit: "%",
+      health: debtToEquity <= 100 ? "green" : debtToEquity <= 200 ? "yellow" : "red",
+      description: "100% 이하 안정 / 200% 초과 과다부채",
+    },
+    {
+      label: "자기자본비율 (Equity Ratio)",
+      value: Math.round(equityRatio),
+      unit: "%",
+      health: equityRatio >= 50 ? "green" : equityRatio >= 30 ? "yellow" : "red",
+      description: "50% 이상 건전 / 30% 미만 자본 취약",
+    },
+  ];
+}
+
+const HEALTH_COLORS: Record<string, string> = {
+  green: "#10b981",
+  yellow: "#f59e0b",
+  red: "#ef4444",
+};
+
+/* ------------------------------------------------------------------ */
+/*  Print CSS                                                          */
+/* ------------------------------------------------------------------ */
+const PRINT_CSS = `
+@media print {
+  body * { visibility: hidden; }
+  #bs-printable, #bs-printable * { visibility: visible; }
+  #bs-printable { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  @page { margin: 15mm; }
+}
+`;
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 export default function BalanceSheetPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [data, setData] = useState<BsData | null>(null);
+  const [prevData, setPrevData] = useState<BsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -173,7 +248,11 @@ export default function BalanceSheetPage() {
     setIsLoading(true);
     setError(null);
     fetchBsData(companyId)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        /* Use same data as "previous" placeholder — real impl would fetch prior month */
+        setPrevData(d);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
   }, [companyId]);
@@ -232,46 +311,67 @@ export default function BalanceSheetPage() {
   const renderSectionRow = (
     label: string,
     amount: number,
-    options?: { isBold?: boolean; isTotal?: boolean; indent?: boolean; isNested?: boolean },
-  ) => (
-    <tr
-      key={label}
-      style={{
-        borderBottom: options?.isTotal ? "2px solid var(--text)" : "1px solid var(--border)",
-        background: options?.isTotal ? "var(--bg-surface)" : undefined,
-      }}
-    >
-      <td
+    options?: { isBold?: boolean; isTotal?: boolean; indent?: boolean; isNested?: boolean; prevAmount?: number },
+  ) => {
+    const delta = options?.prevAmount !== undefined ? amount - options.prevAmount : undefined;
+    return (
+      <tr
+        key={label}
         style={{
-          padding: "10px 16px",
-          fontSize: 13,
-          fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
-          color: options?.isTotal ? "var(--text)" : options?.isNested ? "var(--text-dim)" : "var(--text-muted)",
-          paddingLeft: options?.isNested ? 48 : options?.indent ? 32 : 16,
-          whiteSpace: "nowrap",
+          borderBottom: options?.isTotal ? "2px solid var(--text)" : "1px solid var(--border)",
+          background: options?.isTotal ? "var(--bg-surface)" : undefined,
         }}
       >
-        {label}
-      </td>
-      <td
-        style={{
-          padding: "10px 16px",
-          fontSize: 13,
-          fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
-          textAlign: "right",
-          color: amount < 0 ? "var(--danger)" : options?.isTotal ? "var(--text)" : "var(--text-muted)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {formatKrw(amount)}
-      </td>
-    </tr>
-  );
+        <td
+          style={{
+            padding: "10px 16px",
+            fontSize: 13,
+            fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
+            color: options?.isTotal ? "var(--text)" : options?.isNested ? "var(--text-dim)" : "var(--text-muted)",
+            paddingLeft: options?.isNested ? 48 : options?.indent ? 32 : 16,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </td>
+        <td
+          style={{
+            padding: "10px 16px",
+            fontSize: 13,
+            fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
+            textAlign: "right",
+            color: amount < 0 ? "var(--danger)" : options?.isTotal ? "var(--text)" : "var(--text-muted)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {formatKrw(amount)}
+        </td>
+        {isCompareMode && (
+          <td
+            style={{
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
+              textAlign: "right",
+              whiteSpace: "nowrap",
+              color: delta === undefined || delta === 0
+                ? "var(--text-dim)"
+                : delta > 0 ? "#10b981" : "#ef4444",
+            }}
+          >
+            {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${formatKrw(delta)} ${delta > 0 ? "\u25B2" : "\u25BC"}`}
+          </td>
+        )}
+      </tr>
+    );
+  };
+
+  const colCount = isCompareMode ? 3 : 2;
 
   const renderSectionHeader = (label: string) => (
     <tr key={`header-${label}`}>
       <td
-        colSpan={2}
+        colSpan={colCount}
         style={{
           padding: "14px 16px 6px",
           fontSize: 11,
@@ -289,7 +389,7 @@ export default function BalanceSheetPage() {
 
   const renderDivider = (key: string) => (
     <tr key={key}>
-      <td colSpan={2} style={{ padding: 0, height: 1, background: "var(--border)" }} />
+      <td colSpan={colCount} style={{ padding: 0, height: 1, background: "var(--border)" }} />
     </tr>
   );
 
@@ -351,7 +451,8 @@ export default function BalanceSheetPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1400 }}>
+    <div id="bs-printable" style={{ padding: "24px 28px", maxWidth: 1400 }}>
+      <style>{PRINT_CSS}</style>
       {/* Header */}
       <div
         style={{
@@ -425,6 +526,56 @@ export default function BalanceSheetPage() {
           </svg>
           CSV 다운로드
         </button>
+        <button
+          onClick={() => window.print()}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 16px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--bg-card)",
+            color: "var(--text-muted)",
+            fontSize: 13,
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLElement).style.borderColor = "var(--primary)";
+            (e.target as HTMLElement).style.color = "var(--primary)";
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLElement).style.borderColor = "var(--border)";
+            (e.target as HTMLElement).style.color = "var(--text-muted)";
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          인쇄
+        </button>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isCompareMode}
+            onChange={(e) => setIsCompareMode(e.target.checked)}
+            style={{ accentColor: "var(--primary)" }}
+          />
+          전월 비교
+        </label>
       </div>
 
       {/* Summary Cards */}
@@ -523,45 +674,59 @@ export default function BalanceSheetPage() {
               >
                 금액 (원)
               </th>
+              {isCompareMode && (
+                <th
+                  style={{
+                    padding: "12px 16px",
+                    textAlign: "right",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-dim)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  변동
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {/* Assets Section */}
             {renderSectionHeader("자산 (Assets)")}
-            {renderSectionRow("현금 및 예금", data.cashAndDeposits, { indent: true, isBold: true })}
+            {renderSectionRow("현금 및 예금", data.cashAndDeposits, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.cashAndDeposits : undefined })}
             {data.bankAccountDetails.map((b) =>
               renderSectionRow(b.name, b.balance, { isNested: true }),
             )}
-            {renderSectionRow("매출채권", data.accountsReceivable, { indent: true, isBold: true })}
+            {renderSectionRow("매출채권", data.accountsReceivable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsReceivable : undefined })}
             {data.receivableDetails.map((r) =>
               renderSectionRow(r.name, r.amount, { isNested: true }),
             )}
             {renderDivider("div-a1")}
-            {renderSectionRow("자산 합계", data.totalAssets, { isTotal: true })}
+            {renderSectionRow("자산 합계", data.totalAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalAssets : undefined })}
 
             {renderDivider("div-1")}
 
             {/* Liabilities Section */}
             {renderSectionHeader("부채 (Liabilities)")}
-            {renderSectionRow("차입금", data.borrowings, { indent: true, isBold: true })}
+            {renderSectionRow("차입금", data.borrowings, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.borrowings : undefined })}
             {data.loanDetails.map((l) =>
               renderSectionRow(l.name, l.remainingAmount, { isNested: true }),
             )}
-            {renderSectionRow("미지급금", data.accountsPayable, { indent: true, isBold: true })}
+            {renderSectionRow("미지급금", data.accountsPayable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsPayable : undefined })}
             {data.payableDetails.map((p) =>
               renderSectionRow(p.name, p.amount, { isNested: true }),
             )}
             {renderDivider("div-l1")}
-            {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true })}
+            {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalLiabilities : undefined })}
 
             {renderDivider("div-2")}
 
             {/* Equity Section */}
             {renderSectionHeader("자본 (Equity)")}
-            {renderSectionRow("자본금", data.capital, { indent: true })}
-            {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true })}
+            {renderSectionRow("자본금", data.capital, { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined })}
+            {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true, prevAmount: isCompareMode && prevData ? prevData.retainedEarnings : undefined })}
             {renderDivider("div-e1")}
-            {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true })}
+            {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
           </tbody>
         </table>
       </div>
@@ -599,6 +764,47 @@ export default function BalanceSheetPage() {
         - 자본금은 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 설정되어 있습니다. 설정에서 변경 가능합니다.
         <br />
         - 이익잉여금 = 자산 합계 - 부채 합계 - 자본금 (잔여분 자동 계산)
+      </div>
+
+      {/* Financial Ratios */}
+      <div style={{ marginTop: 28 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
+          재무 비율 분석
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          {computeRatios(data).map((ratio) => (
+            <div
+              key={ratio.label}
+              style={{
+                padding: "20px",
+                borderRadius: 12,
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: HEALTH_COLORS[ratio.health],
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 12, color: "var(--text-dim)", fontWeight: 500 }}>
+                  {ratio.label}
+                </span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: HEALTH_COLORS[ratio.health], marginBottom: 8 }}>
+                {ratio.value === 999 ? "N/A" : `${ratio.value}${ratio.unit}`}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                {ratio.description}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

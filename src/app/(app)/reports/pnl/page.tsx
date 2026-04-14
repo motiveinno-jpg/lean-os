@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
+import PnlChart from "./pnl-chart";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -648,6 +649,20 @@ export default function PnlPage() {
           </div>
         ))}
       </div>
+
+      {/* Chart */}
+      <PnlChart
+        months={months}
+        totalRevenue={computed.totalRevenue}
+        totalExpenses={(() => {
+          const row: Record<string, number> = {};
+          for (const m of months) {
+            row[m] = computed.cogs[m] + computed.totalOpex[m];
+          }
+          return row;
+        })()}
+        netIncome={computed.netIncome}
+      />
 
       {/* Table */}
       <div

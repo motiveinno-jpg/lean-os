@@ -718,33 +718,151 @@ function ViewToggle({ viewMode, onChange }: { viewMode: ViewMode; onChange: (v: 
 }
 
 // ── Calendar View (E-3) ──
-function CalendarView({ deals, clsColorMap, onSelectDeal }: { deals: any[]; clsColorMap: Record<string, string>; onSelectDeal: (id: string) => void }) {
+function CalendarView({ deals, clsColorMap, onSelectDeal }: {
+  deals: any[];
+  clsColorMap: Record<string, string>;
+  onSelectDeal: (id: string) => void;
+}) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const startDow = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
-  const isToday = (d: number) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
+  // Monday-first: JS getDay() returns 0=Sun, convert to 0=Mon
+  const toMonStart = (d: number) => (d + 6) % 7;
+  const firstDayOffset = toMonStart(new Date(year, month, 1).getDay());
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const isToday = (d: number) =>
+    today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+
+  // Map deals to day numbers
   const dayMap: Record<number, any[]> = {};
-  deals.forEach((deal: any) => { const dateStr = deal.start_date || deal.created_at; if (!dateStr) return; const d = new Date(dateStr); if (d.getFullYear() === year && d.getMonth() === month) { const day = d.getDate(); if (!dayMap[day]) dayMap[day] = []; dayMap[day].push(deal); } });
+  deals.forEach((deal: any) => {
+    const dateStr = deal.start_date || deal.created_at;
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      if (!dayMap[day]) dayMap[day] = [];
+      dayMap[day].push(deal);
+    }
+  });
 
+  // Build grid cells (6 rows x 7 cols)
+  const MAX_CELLS = 42;
   const cells: (number | null)[] = [];
-  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let i = 0; i < firstDayOffset; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length < 42) cells.push(null);
-  const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+  while (cells.length < MAX_CELLS) cells.push(null);
+
+  const DOW_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
+  const MAX_VISIBLE_DEALS = 3;
+
+  const formatAmount = (amt: number | string | null | undefined): string => {
+    const n = Number(amt);
+    if (!n) return '';
+    return n >= 10000
+      ? `${(n / 10000).toFixed(0)}만원`
+      : `${n.toLocaleString()}원`;
+  };
+
+  const getDealTooltip = (deal: any): string => {
+    const amount = formatAmount(deal.contract_total);
+    return amount ? `${deal.name} (${amount})` : deal.name;
+  };
+
+  const goPrev = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goNext = () => setCurrentDate(new Date(year, month + 1, 1));
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-        <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button
+          onClick={goPrev}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <h2 className="text-sm font-bold">{year}년 {month + 1}월</h2>
-        <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <button
+          onClick={goNext}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
-      <div className="grid grid-cols-7 border-b border-[var(--border)]">{DOW_LABELS.map((label, i) => (<div key={label} className={`text-center py-2 text-[10px] font-semibold ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[var(--text-dim)]'}`}>{label}</div>))}</div>
-      <div className="grid grid-cols-7">{cells.map((day, idx) => { const dealsOnDay = day ? (dayMap[day] || []) : []; const dow = idx % 7; return (<div key={idx} className={`min-h-[100px] border-b border-r border-[var(--border)]/50 p-1.5 ${day === null ? 'bg-[var(--bg-surface)]/30' : ''} ${dow === 6 ? 'border-r-0' : ''}`}>{day !== null && (<><div className={`text-[11px] font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday(day) ? 'bg-[var(--primary)] text-white' : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>{day}</div><div className="space-y-0.5">{dealsOnDay.slice(0, 3).map((deal: any) => (<button key={deal.id} onClick={() => onSelectDeal(deal.id)} className="w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition font-medium block" style={{ backgroundColor: `${clsColorMap[deal.classification || 'B2B'] || '#3b82f6'}18`, color: clsColorMap[deal.classification || 'B2B'] || '#3b82f6' }} title={deal.name}>{deal.name}</button>))}{dealsOnDay.length > 3 && (<div className="text-[8px] text-[var(--text-dim)] text-center">+{dealsOnDay.length - 3}건</div>)}</div></>)}</div>); })}</div>
+
+      {/* Day-of-week headers (Mon-Sun) */}
+      <div className="grid grid-cols-7 border-b border-[var(--border)]">
+        {DOW_LABELS.map((label, i) => (
+          <div
+            key={label}
+            className={`text-center py-2 text-[10px] font-semibold ${
+              i === 5 ? 'text-blue-400' : i === 6 ? 'text-red-400' : 'text-[var(--text-dim)]'
+            }`}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7">
+        {cells.map((day, idx) => {
+          const dealsOnDay = day ? (dayMap[day] || []) : [];
+          const col = idx % 7;
+          const isSat = col === 5;
+          const isSun = col === 6;
+
+          return (
+            <div
+              key={idx}
+              className={`min-h-[100px] border-b border-r border-[var(--border)]/50 p-1.5 ${
+                day === null ? 'bg-[var(--bg-surface)]/30' : ''
+              } ${col === 6 ? 'border-r-0' : ''}`}
+            >
+              {day !== null && (
+                <>
+                  <div
+                    className={`text-[11px] font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full ${
+                      isToday(day)
+                        ? 'bg-[var(--primary)] text-white'
+                        : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {day}
+                  </div>
+                  <div className="space-y-0.5">
+                    {dealsOnDay.slice(0, MAX_VISIBLE_DEALS).map((deal: any) => {
+                      const pillColor = clsColorMap[deal.classification || 'B2B'] || '#3b82f6';
+                      return (
+                        <button
+                          key={deal.id}
+                          onClick={() => onSelectDeal(deal.id)}
+                          className="w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate hover:opacity-80 transition font-medium block"
+                          style={{
+                            backgroundColor: `${pillColor}18`,
+                            color: pillColor,
+                          }}
+                          title={getDealTooltip(deal)}
+                        >
+                          {deal.name}
+                        </button>
+                      );
+                    })}
+                    {dealsOnDay.length > MAX_VISIBLE_DEALS && (
+                      <div className="text-[8px] text-[var(--text-dim)] text-center">
+                        +{dealsOnDay.length - MAX_VISIBLE_DEALS}건
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

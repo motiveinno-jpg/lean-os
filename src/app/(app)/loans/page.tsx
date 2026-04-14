@@ -196,7 +196,7 @@ export default function LoansPage() {
       </div>
 
       {/* List Tab */}
-      {tab === "list" && (
+      {tab === "list" && (<>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
           {loans.length === 0 ? (
             <div className="p-16 text-center">
@@ -265,7 +265,92 @@ export default function LoansPage() {
             </div>
           )}
         </div>
-      )}
+
+        {/* 상환 현황 Visualization */}
+        {loans.length > 0 && (
+          <div className="mt-4 space-y-4">
+            {/* Portfolio Summary */}
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+              <h3 className="text-sm font-bold mb-3">상환 현황</h3>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                  <div className="text-[10px] text-[var(--text-dim)]">총 대출잔액</div>
+                  <div className="text-base font-bold mt-0.5">{fmtW(summary?.totalRemaining || 0)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--text-dim)]">월 예상상환액</div>
+                  <div className="text-base font-bold mt-0.5">{fmtW(summary?.monthlyPayment || 0)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--text-dim)]">잔여기간</div>
+                  <div className="text-base font-bold mt-0.5">
+                    {(() => {
+                      const nearestMaturity = loans
+                        .filter((l) => l.status === "active" && l.maturity_date)
+                        .map((l) => new Date(l.maturity_date!).getTime())
+                        .sort((a, b) => a - b)[0];
+                      if (!nearestMaturity) return "-";
+                      const months = Math.max(0, Math.ceil((nearestMaturity - Date.now()) / (30.44 * 24 * 60 * 60 * 1000)));
+                      return months >= 12 ? `${Math.floor(months / 12)}년 ${months % 12}개월` : `${months}개월`;
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-loan bars */}
+              <div className="space-y-3">
+                {loans.filter((l) => l.status === "active").map((loan) => {
+                  const original = Number(loan.original_amount) || 1;
+                  const remaining = Number(loan.remaining_balance) || 0;
+                  const repaid = Math.max(0, original - remaining);
+                  const repaidPct = Math.min(100, Math.round((repaid / original) * 100));
+                  const maturityDate = loan.maturity_date;
+                  const isOverdue = maturityDate ? new Date(maturityDate).getTime() < Date.now() : false;
+
+                  return (
+                    <div key={loan.id}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold">{loan.name}</span>
+                          <span className="text-[10px] text-[var(--text-dim)]">{loan.lender}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold">{repaidPct}% 상환</span>
+                          {maturityDate && (
+                            <span className={`text-[10px] ${isOverdue ? "text-red-400" : "text-[var(--text-dim)]"}`}>
+                              만기 {maturityDate}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-5 rounded-full bg-[var(--border)] overflow-hidden relative">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${repaidPct}%`,
+                            background: repaidPct >= 100
+                              ? "var(--success, #22c55e)"
+                              : `linear-gradient(90deg, var(--success, #22c55e), var(--primary, #3b82f6))`,
+                            minWidth: repaidPct > 0 ? "8px" : "0",
+                          }}
+                        />
+                        {repaidPct > 10 && (
+                          <span className="absolute inset-0 flex items-center pl-2 text-[10px] font-bold text-white drop-shadow-sm">
+                            {fmtW(repaid)}
+                          </span>
+                        )}
+                        <span className="absolute inset-0 flex items-center justify-end pr-2 text-[10px] font-medium text-[var(--text-muted)]">
+                          {remaining > 0 ? fmtW(remaining) : ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </>)}
 
       {/* Payments Tab */}
       {tab === "payments" && (

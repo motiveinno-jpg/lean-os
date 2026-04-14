@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getBankTransactions, getBankTransactionStats, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
+import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
+import type { MonthlyIncomeExpense } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard } from "@/lib/card-transactions";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -61,6 +62,12 @@ export default function TransactionsPage() {
   const { data: stats } = useQuery({
     queryKey: ['bank-tx-stats', companyId],
     queryFn: () => getBankTransactionStats(companyId!),
+    enabled: !!companyId,
+  });
+
+  const { data: monthlyData = [] } = useQuery({
+    queryKey: ['bank-tx-monthly', companyId],
+    queryFn: () => getMonthlyIncomeExpense(companyId!),
     enabled: !!companyId,
   });
 
@@ -454,6 +461,9 @@ export default function TransactionsPage() {
         <StatCard label="총 입금" value={`₩${fmtW(s.totalIncome)}`} color="var(--success)" />
         <StatCard label="총 출금" value={`₩${fmtW(s.totalExpense)}`} color="var(--danger)" />
       </div>
+
+      {/* Monthly Income/Expense Chart */}
+      {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)]">
@@ -1078,4 +1088,89 @@ function fmtW(n: number): string {
   if (abs >= 1e8) return `${(abs / 1e8).toFixed(1)}억`;
   if (abs >= 1e4) return `${Math.round(abs / 1e4).toLocaleString()}만`;
   return abs.toLocaleString();
+}
+
+const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const CHART_H = 180;
+const CHART_PAD = { top: 20, right: 16, bottom: 32, left: 16 };
+
+function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
+  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expense]), 1);
+  const barAreaH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
+  const totalW = 600;
+  const barAreaW = totalW - CHART_PAD.left - CHART_PAD.right;
+  const groupW = barAreaW / data.length;
+  const barW = groupW * 0.3;
+
+  const netPoints = data.map((d, i) => {
+    const net = d.income - d.expense;
+    const netMax = Math.max(...data.map(dd => Math.abs(dd.income - dd.expense)), 1);
+    const y = CHART_PAD.top + barAreaH / 2 - (net / netMax) * (barAreaH / 2);
+    const x = CHART_PAD.left + groupW * i + groupW / 2;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="mb-5 p-4 rounded-2xl bg-[var(--card)] border border-[var(--border)]">
+      <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">월별 입금 / 출금 추이 (최근 6개월)</p>
+      <svg viewBox={`0 0 ${totalW} ${CHART_H}`} className="w-full" style={{ maxHeight: CHART_H }}>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map(r => {
+          const y = CHART_PAD.top + barAreaH * (1 - r);
+          return <line key={r} x1={CHART_PAD.left} x2={totalW - CHART_PAD.right} y1={y} y2={y}
+            stroke="var(--border)" strokeWidth={0.5} strokeDasharray={r === 0 ? 'none' : '4 2'} />;
+        })}
+        {/* Bars */}
+        {data.map((d, i) => {
+          const x = CHART_PAD.left + groupW * i;
+          const incomeH = (d.income / maxVal) * barAreaH;
+          const expenseH = (d.expense / maxVal) * barAreaH;
+          const mIdx = parseInt(d.month.split('-')[1], 10) - 1;
+          return (
+            <g key={d.month}>
+              {/* Income bar */}
+              <rect x={x + groupW / 2 - barW - 1} y={CHART_PAD.top + barAreaH - incomeH}
+                width={barW} height={incomeH} rx={3} fill="var(--success)" opacity={0.85} />
+              {/* Expense bar */}
+              <rect x={x + groupW / 2 + 1} y={CHART_PAD.top + barAreaH - expenseH}
+                width={barW} height={expenseH} rx={3} fill="var(--danger)" opacity={0.85} />
+              {/* Month label */}
+              <text x={x + groupW / 2} y={CHART_H - 6} textAnchor="middle"
+                fontSize={11} fill="var(--text-muted)" fontWeight={500}>
+                {MONTH_LABELS[mIdx]}
+              </text>
+              {/* Value labels */}
+              {incomeH > 14 && (
+                <text x={x + groupW / 2 - barW / 2 - 1} y={CHART_PAD.top + barAreaH - incomeH + 12}
+                  textAnchor="middle" fontSize={8} fill="var(--success)" fontWeight={600}>
+                  {fmtW(d.income)}
+                </text>
+              )}
+              {expenseH > 14 && (
+                <text x={x + groupW / 2 + barW / 2 + 1} y={CHART_PAD.top + barAreaH - expenseH + 12}
+                  textAnchor="middle" fontSize={8} fill="var(--danger)" fontWeight={600}>
+                  {fmtW(d.expense)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+        {/* Net line overlay */}
+        <polyline points={netPoints} fill="none" stroke="var(--primary)" strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((d, i) => {
+          const net = d.income - d.expense;
+          const netMax = Math.max(...data.map(dd => Math.abs(dd.income - dd.expense)), 1);
+          const y = CHART_PAD.top + barAreaH / 2 - (net / netMax) * (barAreaH / 2);
+          const x = CHART_PAD.left + groupW * i + groupW / 2;
+          return <circle key={i} cx={x} cy={y} r={3} fill="var(--primary)" />;
+        })}
+      </svg>
+      <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--text-muted)]">
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--success)' }} />입금</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--danger)' }} />출금</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: 'var(--primary)' }} />순이익</span>
+      </div>
+    </div>
+  );
 }
