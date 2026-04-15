@@ -18,6 +18,7 @@ import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
+import { syncCodefData } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
@@ -221,43 +222,48 @@ export default function DashboardPage() {
     setGenerating(false);
   }, [companyId, queryClient]);
 
-  // ── 데이터 동기화 핸들러 (수집 + 분류 통합) ──
+  // ── 데이터 동기화 핸들러 (CODEF 수집 + 자동 분류 통합) ──
   const handleDataSync = useCallback(async () => {
     if (!companyId || syncing) return;
     setSyncing(true);
     setSyncResult(null);
+    const now = () => new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     try {
-      // 1) DB에 동기화 요청 등록 → local-agent가 감지하여 데이터 수집 실행
-      await (supabase as any).from('sync_jobs').insert({
-        company_id: companyId,
-        status: 'pending',
-        targets: ['bank', 'hometax', 'card', 'classify'],
-        requested_by: userId,
-      });
+      // 1) CODEF Edge Function 호출 — 은행+카드 거래내역 실제 수집
+      const codefResult = await syncCodefData(companyId, 'all');
 
-      // 2) 자동 분류 엔진 즉시 실행 (이미 DB에 있는 데이터 분류)
-      const result = await runAllAutomation(companyId);
+      // 2) 자동 분류 엔진 실행 (수집된 데이터 분류)
+      const autoResult = await runAllAutomation(companyId);
 
       // 3) 쿼리 캐시 갱신
       queryClient.invalidateQueries({ queryKey: ["founder-data"] });
       queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
 
-      const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      setSyncResult({
-        success: true,
-        message: `분류 완료 — 은행 ${result.bankClassification.matched}건 · 카드 ${result.cardMapping.matched}건 · 3-Way ${result.threeWayMatch.autoMatched}건 | 데이터 수집 요청됨 (에이전트 대기 중)`,
-        time: now,
-      });
+      if (codefResult.success) {
+        setSyncResult({
+          success: true,
+          message: `${codefResult.message} · 분류: 은행 ${autoResult.bankClassification.matched}건, 카드 ${autoResult.cardMapping.matched}건, 매칭 ${autoResult.threeWayMatch.autoMatched}건`,
+          time: now(),
+        });
+      } else {
+        // CODEF 실패해도 분류는 성공한 경우
+        setSyncResult({
+          success: false,
+          message: `CODEF: ${codefResult.error} · 분류만 실행됨 (은행 ${autoResult.bankClassification.matched}건)`,
+          time: now(),
+        });
+      }
     } catch (err: any) {
       setSyncResult({
         success: false,
         message: `동기화 실패: ${err.message || '알 수 없는 오류'}`,
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        time: now(),
       });
     } finally {
       setSyncing(false);
     }
-  }, [companyId, userId, syncing, queryClient]);
+  }, [companyId, syncing, queryClient]);
 
   const sp = dashboard.sixPack;
 
@@ -404,7 +410,25 @@ export default function DashboardPage() {
     if (dx > 0 && idx > 0) setActiveView(ids[idx - 1]);
   }, [editing, activeViewId, setActiveView]);
 
-  // ── Owner Dashboard (전체 CEO 뷰) ──
+  // ── Owner Dashboard (KAIROS 재구성 — 1페이지 컴팩트 뷰) ──
+  const pulse = cashPulse;
+  const pLevel = pulse ? getPulseLevel(pulse.pulseScore) : 'stable';
+  const PULSE_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+    critical: { color: '#ff2d55', bg: 'rgba(255,45,85,0.08)', border: 'rgba(255,45,85,0.3)' },
+    danger:   { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)' },
+    warning:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+    stable:   { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
+    safe:     { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
+  };
+  const pc = PULSE_COLORS[pLevel];
+  const balance = pulse?.currentBalance ?? sp.cashBalance;
+  const f30 = pulse?.forecast30d ?? 0;
+  const f90 = pulse?.forecast90d ?? 0;
+  const score = pulse?.pulseScore ?? 0;
+  const riskTotal = pulse?.riskCount ?? dashboard.risks.length;
+  const pendingTotal = pulse?.pendingApprovalCount ?? 0;
+  const hasActiveRisks = Object.values(dashboard.riskCounts).some(c => c > 0);
+
   return (
     <div
       className="max-w-[1100px] pb-20 md:pb-0"
@@ -412,7 +436,8 @@ export default function DashboardPage() {
       onTouchEnd={onTouchEnd}
     >
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* ═══ 온보딩 위저드 ═══ */}
+
+      {/* ═══ 온보딩 위저드 (신규 가입 시) ═══ */}
       {showOnboarding && companyId && (
         <OnboardingWizard
           companyId={companyId}
@@ -420,7 +445,6 @@ export default function DashboardPage() {
           onComplete={() => {
             setShowOnboarding(false);
             queryClient.invalidateQueries({ queryKey: ["founder-data"] });
-            // Refresh deal count
             const db = supabase as any;
             db.from("deals")
               .select("id", { count: "exact", head: true })
@@ -430,21 +454,120 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* ═══ GETTING STARTED CHECKLIST (실데이터 진행률) ═══ */}
+      {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
       {!showOnboarding && companyId && (
         <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
       )}
 
-      {/* ═══ 아침 브리핑 — 자연어 요약 ═══ */}
-      <MorningBrief
-        userName={userName}
-        companyName={companyName}
-        cashPulse={cashPulse}
-        dashboard={dashboard}
-        hasData={hasData}
-      />
+      {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
+      <div className="mb-4">
+        {/* 상단: 브리핑 2줄 + 액션 버튼 */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <MorningBrief
+              userName={userName}
+              companyName={companyName}
+              cashPulse={cashPulse}
+              dashboard={dashboard}
+              hasData={hasData}
+            />
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0 mt-1">
+            {role === "owner" && (
+              <button onClick={handleDataSync} disabled={syncing}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 flex items-center gap-1 ${
+                  syncing
+                    ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
+                    : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 border border-[var(--success)]/20'
+                }`}>
+                <svg className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {syncing ? '...' : '동기화'}
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="px-2.5 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
+              {uploading ? '...' : '업로드'}
+            </button>
+            {!hasData && (
+              <button onClick={handleSampleData} disabled={generating}
+                className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[10px] font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
+                {generating ? '...' : '샘플'}
+              </button>
+            )}
+          </div>
+        </div>
 
-      {/* ═══ AI 경영 브리핑 — 대화형 분석 ═══ */}
+        {/* Toast 영역 (파싱/동기화 결과) */}
+        {parseResult && (
+          <div className={`mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line ${
+            parseResult.success ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+          }`}>
+            {parseResult.message}
+            <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
+          </div>
+        )}
+        {syncResult && (
+          <div className={`mb-3 p-2.5 rounded-lg text-xs flex items-center justify-between ${
+            syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
+              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+          }`}>
+            <span>{syncResult.message}</span>
+            <span className="flex items-center gap-2">
+              <span className="opacity-60">{syncResult.time}</span>
+              <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100">✕</button>
+            </span>
+          </div>
+        )}
+
+        {/* KPI 4-Pack 코어 바 */}
+        <div className="rounded-2xl p-1 survival-bar bg-[var(--bg-card)]"
+          style={{ border: `1px solid ${pc.border}` }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
+            <div className="px-4 py-3">
+              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">통장 잔고</div>
+              <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
+                ₩{fmtW(balance)}
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">현금 예측</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
+                  D+30 ₩{fmtW(f30)}
+                </span>
+              </div>
+              <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                D+90 ₩{fmtW(f90)}
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">펄스 점수</div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
+                <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">위험 · 대기</div>
+              <div className="flex items-baseline gap-3">
+                <span className={`text-sm font-black mono-number ${riskTotal > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                  위험 {riskTotal}
+                </span>
+                <span className={`text-sm font-black mono-number ${pendingTotal > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
+                  대기 {pendingTotal}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ AI 브리핑 (접을 수 있음) ═══ */}
       <AiBriefing
         cashPulse={cashPulse}
         dashboard={dashboard}
@@ -453,65 +576,8 @@ export default function DashboardPage() {
         dealCount={dealCount}
       />
 
-      {/* ═══ 액션 바 (동기화 / 업로드) ═══ */}
-      <div className="flex items-center justify-end mb-4">
-        {/* Sync / Upload buttons */}
-        <div className="flex items-center gap-2">
-          {role === "owner" && (
-            <button onClick={handleDataSync} disabled={syncing}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 flex items-center gap-1.5 ${
-                syncing
-                  ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
-                  : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 border border-[var(--success)]/20'
-              }`}>
-              <svg className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {syncing ? '동기화 중...' : '데이터 동기화'}
-            </button>
-          )}
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="px-3 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
-            {uploading ? '파싱 중...' : '엑셀 업로드'}
-          </button>
-          {!hasData && (
-          <button onClick={handleSampleData} disabled={generating}
-            className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[11px] font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
-            {generating ? '생성 중...' : '샘플 데이터'}
-          </button>
-          )}
-        </div>
-      </div>
-
-      {/* Parse result toast */}
-      {parseResult && (
-        <div className={`mb-4 p-3 rounded-lg text-xs whitespace-pre-line ${
-          parseResult.success ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-            : 'bg-red-500/10 border border-red-500/20 text-red-400'
-        }`}>
-          {parseResult.message}
-          <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
-        </div>
-      )}
-
-      {/* Sync result toast */}
-      {syncResult && (
-        <div className={`mb-4 p-3 rounded-lg text-xs flex items-center justify-between ${
-          syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
-            : 'bg-red-500/10 border border-red-500/20 text-red-400'
-        }`}>
-          <span>{syncResult.message}</span>
-          <span className="flex items-center gap-2">
-            <span className="opacity-60">{syncResult.time}</span>
-            <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100">✕</button>
-          </span>
-        </div>
-      )}
-
       {/* ═══ 프리셋 뷰 탭 + 편집 버튼 ═══ */}
-      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto scrollbar-hide">
         {PRESET_VIEWS.map((view) => (
           <button
             key={view.id}
@@ -586,112 +652,69 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 코어 바 (현금 펄스) ═══ */}
-      {(() => {
-        const pulse = cashPulse;
-        const pLevel = pulse ? getPulseLevel(pulse.pulseScore) : 'stable';
-        const PULSE_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-          critical: { color: '#ff2d55', bg: 'rgba(255,45,85,0.08)', border: 'rgba(255,45,85,0.3)' },
-          danger:   { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)' },
-          warning:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
-          stable:   { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
-          safe:     { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.15)' },
-        };
-        const pc = PULSE_COLORS[pLevel];
-        const balance = pulse?.currentBalance ?? sp.cashBalance;
-        const f30 = pulse?.forecast30d ?? 0;
-        const f90 = pulse?.forecast90d ?? 0;
-        const score = pulse?.pulseScore ?? 0;
-        const risks = pulse?.riskCount ?? dashboard.risks.length;
-        const pending = pulse?.pendingApprovalCount ?? 0;
+      {/* ═══ [Grid 2열] 좌: 승인+액션 | 우: 펄스+위험 ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* ── 좌측 칼럼: 즉시 행동 영역 ── */}
+        <div className="space-y-4">
+          {/* 승인센터 */}
+          {isWidgetVisible('approval_center') && companyId && userId && (
+            <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
+          )}
 
-        return (
-          <div className="rounded-2xl p-1 mb-4 survival-bar bg-[var(--bg-card)]"
-            style={{ border: `1px solid ${pc.border}` }}>
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
-              {/* 통장 잔고 */}
-              <div className="px-4 py-3">
-                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">통장 잔고</div>
-                <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
-                  ₩{fmtW(balance)}
-                </div>
+          {/* 오늘의 액션 */}
+          {isWidgetVisible('today_actions') && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
               </div>
-              {/* D+30 / D+90 예측 */}
-              <div className="px-4 py-3">
-                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">현금 예측</div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
-                    D+30 ₩{fmtW(f30)}
-                  </span>
-                </div>
-                <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
-                  D+90 ₩{fmtW(f90)}
-                </div>
-              </div>
-              {/* 펄스 점수 */}
-              <div className="px-4 py-3">
-                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">펄스 점수</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
-                  <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
-                </div>
-              </div>
-              {/* 위험 / 대기 */}
-              <div className="px-4 py-3">
-                <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">위험 · 대기</div>
-                <div className="flex items-baseline gap-3">
-                  <span className={`text-sm font-black mono-number ${risks > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
-                    위험 {risks}
-                  </span>
-                  <span className={`text-sm font-black mono-number ${pending > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
-                    대기 {pending}
-                  </span>
-                </div>
-              </div>
+              <TodayActions dashboard={dashboard} />
             </div>
-          </div>
-        );
-      })()}
-
-      {/* ═══ 현금 펄스 위젯 ═══ */}
-      {isWidgetVisible('cash_pulse') && cashPulse && (
-        <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
-      )}
-
-      {/* ═══ 시나리오 시뮬레이터 (위기모드) ═══ */}
-      {isWidgetVisible('scenario_simulator') && cashPulse && (
-        <div id="widget-scenario_simulator"><ScenarioSimulator pulse={cashPulse} /></div>
-      )}
-
-      {/* ═══ 미수금 현황 (위기모드) ═══ */}
-      {isWidgetVisible('overdue_receivables') && companyId && (
-        <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
-      )}
-
-      {/* ═══ 번레이트 추이 (위기모드) ═══ */}
-      {isWidgetVisible('burn_rate_trend') && companyId && (
-        <div id="widget-burn_rate_trend"><BurnRateTrendWidget companyId={companyId} /></div>
-      )}
-
-      {/* ═══ 승인센터 ═══ */}
-      {isWidgetVisible('approval_center') && companyId && userId && (
-        <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
-      )}
-
-      {/* ═══ 오늘의 액션 (승인센터 바로 아래) ═══ */}
-      {isWidgetVisible('today_actions') && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
-          </div>
-          <TodayActions dashboard={dashboard} />
+          )}
         </div>
-      )}
 
-      {/* 데이터 없음 — 시작 CTA */}
+        {/* ── 우측 칼럼: 현금 + 위험 ── */}
+        <div className="space-y-4">
+          {/* 현금 펄스 */}
+          {isWidgetVisible('cash_pulse') && cashPulse && (
+            <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
+          )}
+
+          {/* 위험 구역 — 실제 위험 있는 항목만 표시 */}
+          {isWidgetVisible('risk_zone') && (
+            <div id="widget-risk_zone">
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`w-2 h-2 rounded-full ${hasActiveRisks ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'}`} />
+                <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">위험 구역</h2>
+                <span className="text-[10px] text-[var(--text-dim)]">{dashboard.risks.length}건</span>
+              </div>
+              {hasActiveRisks ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {(Object.keys(RISK_LABELS) as RiskLabel[])
+                    .filter(label => dashboard.riskCounts[label] > 0)
+                    .map(label => (
+                      <RiskCard
+                        key={label}
+                        label={label}
+                        items={dashboard.risks.filter(r => r.label === label)}
+                        count={dashboard.riskCounts[label]}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[var(--success)]/20 bg-[var(--success)]/[.03] p-4 text-center">
+                  <div className="text-xs font-semibold text-[var(--success)]">현재 감지된 위험 없음</div>
+                  <div className="text-[10px] text-[var(--text-muted)] mt-1">마진, 마감, 미수금, 외주비 모두 정상</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ═══ 데이터 없음 — 시작 CTA ═══ */}
       {!hasData && (
-        <div className="mb-5 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+        <div className="mb-4 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
           <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
           <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -717,34 +740,20 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 위험 구역 ═══ */}
-      {isWidgetVisible('risk_zone') && (
-        <div id="widget-risk_zone" className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className={`w-2 h-2 rounded-full ${
-              Object.values(dashboard.riskCounts).some(c => c > 0) ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'
-            }`} />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">위험 구역</h2>
-            <span className="text-[10px] text-[var(--text-dim)]">
-              {dashboard.risks.length}건
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {(Object.keys(RISK_LABELS) as RiskLabel[]).map(label => (
-              <RiskCard
-                key={label}
-                label={label}
-                items={dashboard.risks.filter(r => r.label === label)}
-                count={dashboard.riskCounts[label]}
-              />
-            ))}
-          </div>
-        </div>
+      {/* ═══ 위기모드 전용 위젯 (시나리오/미수금/번레이트) ═══ */}
+      {isWidgetVisible('scenario_simulator') && cashPulse && (
+        <div id="widget-scenario_simulator"><ScenarioSimulator pulse={cashPulse} /></div>
+      )}
+      {isWidgetVisible('overdue_receivables') && companyId && (
+        <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
+      )}
+      {isWidgetVisible('burn_rate_trend') && companyId && (
+        <div id="widget-burn_rate_trend"><BurnRateTrendWidget companyId={companyId} /></div>
       )}
 
-      {/* ═══ GROWTH ZONE: 성장 영역 ═══ */}
+      {/* ═══ [하단] 성장 + 재무 + 마감 + 자동화 ═══ */}
       {isWidgetVisible('growth_tracking') && (
-        <div id="widget-growth_tracking" className="mb-5">
+        <div id="widget-growth_tracking" className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">성장 영역</h2>
@@ -753,13 +762,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ FINANCIAL OVERVIEW: 재무 개요 ═══ */}
       {isWidgetVisible('financial_overview') && <div id="widget-financial_overview"><FinancialOverview companyId={companyId} /></div>}
 
-      {/* ═══ MONTHLY CLOSING CHECKLIST ═══ */}
       {isWidgetVisible('closing_checklist') && <ClosingChecklistWidget companyId={companyId} userId={userId} />}
 
-      {/* ═══ 자동화 엔진 ═══ */}
       {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
 
     </div>
@@ -1914,6 +1920,7 @@ interface ChecklistStatus {
 
 function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
   const [dismissed, setDismissed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     try {
@@ -1959,24 +1966,30 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
   const totalCount = items.length;
   const progressPct = (completedCount / totalCount) * 100;
   const allDone = completedCount === totalCount;
+  // 50% 이상 완료면 기본 접힘, 미만이면 펼침
+  const shouldAutoExpand = completedCount < totalCount * 0.5;
+
+  useEffect(() => {
+    if (status) setExpanded(shouldAutoExpand);
+  }, [status, shouldAutoExpand]);
 
   if (dismissed) return null;
-  // 완료 후 자동 숨김 (3일간 표시 후 사라지지만, 여기선 사용자 dismiss만)
+
   if (allDone) {
     return (
-      <div className="mb-5 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/[.05] p-4 flex items-center justify-between">
+      <div className="mb-4 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/[.05] p-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--success)] text-white">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--success)] text-white">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div>
-            <div className="text-sm font-bold text-[var(--text)]">초기 설정이 모두 완료되었습니다 🎉</div>
-            <div className="text-[11px] text-[var(--text-muted)]">이제 OwnerView의 모든 기능을 사용할 수 있습니다.</div>
+            <span className="text-xs font-bold text-[var(--text)]">초기 설정 완료</span>
+            <span className="text-[10px] text-[var(--text-muted)] ml-2">모든 기능을 사용할 수 있습니다</span>
           </div>
         </div>
         <button
           onClick={() => { try { localStorage.setItem(CHECKLIST_DISMISS_KEY, "1"); } catch {} setDismissed(true); }}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+          className="px-2 py-1 rounded-lg text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
         >
           숨기기
         </button>
@@ -1984,61 +1997,83 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     );
   }
 
+  // 접힌 배너 상태 (클릭하면 펼침)
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="w-full mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-3 flex items-center gap-3 hover:bg-[var(--primary)]/[.06] transition text-left"
+      >
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: 'var(--primary)' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-bold text-[var(--text)]">시작 체크리스트</span>
+          <span className="text-[10px] text-[var(--text-muted)] ml-2">{completedCount}/{totalCount} 완료</span>
+        </div>
+        <div className="flex-1 max-w-[120px] h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+          <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${progressPct}%` }} />
+        </div>
+        <svg className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+    );
+  }
+
+  // 펼친 상태
   return (
-    <div className="mb-5 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-5">
+    <div className="mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: 'var(--primary)' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </div>
         <h3 className="text-sm font-bold text-[var(--text)]">시작 체크리스트</h3>
-        <span className="ml-auto text-[11px] font-semibold mono-number text-[var(--primary)]">
+        <span className="text-[11px] font-semibold mono-number text-[var(--primary)]">
           {completedCount}/{totalCount} 완료
         </span>
+        <button onClick={() => setExpanded(false)} className="ml-auto p-1 rounded hover:bg-[var(--bg-surface)] transition">
+          <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M18 15l-6-6-6 6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-4">
-        <div
-          className="h-full bg-[var(--primary)] transition-all duration-500"
-          style={{ width: `${progressPct}%` }}
-        />
+      <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-3">
+        <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${progressPct}%` }} />
       </div>
 
-      <p className="text-xs mb-4 text-[var(--text-muted)]">
-        실제 데이터를 입력해야 OwnerView가 가치를 발휘합니다. 항목을 클릭하면 해당 페이지로 이동합니다.
-      </p>
-
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {items.map((item) => {
           const done = status?.[item.key] ?? false;
           return (
             <Link
               key={item.key}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition hover:shadow-sm ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition hover:shadow-sm ${
                 done
                   ? "bg-[var(--success)]/[.04] border-[var(--success)]/20"
                   : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]"
               }`}
             >
               <div
-                className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-xs ${
+                className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-xs ${
                   done ? "bg-[var(--success)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]"
                 }`}
               >
                 {done ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
-                  <span className="text-[10px]">{item.icon}</span>
+                  <span className="text-[9px]">{item.icon}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className={`text-xs font-semibold ${done ? "text-[var(--text-muted)] line-through" : "text-[var(--text)]"}`}>
+                <span className={`text-xs font-semibold ${done ? "text-[var(--text-muted)] line-through" : "text-[var(--text)]"}`}>
                   {item.label}
-                </div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{item.desc}</div>
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)] ml-2">{item.desc}</span>
               </div>
               {!done && (
                 <span className="text-[10px] font-semibold text-[var(--primary)] shrink-0">
@@ -2050,7 +2085,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
         })}
       </div>
 
-      <div className="flex justify-end mt-3">
+      <div className="flex justify-end mt-2">
         <button
           onClick={() => { try { localStorage.setItem(CHECKLIST_DISMISS_KEY, "1"); } catch {} setDismissed(true); }}
           className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text)] transition"
@@ -2223,6 +2258,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 
   const handleBulkApprove = async () => {
     if (!actions.length || bulkApproving) return;
+    if (!confirm(`${actions.length}건을 모두 승인하시겠습니까?`)) return;
     setBulkApproving(true);
     try {
       await bulkApproveActions(
