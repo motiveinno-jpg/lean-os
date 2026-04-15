@@ -170,38 +170,49 @@ async function rsaEncrypt(plainText: string, publicKeyPem: string): Promise<stri
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
 }
 
-// Register account and get connectedId
+// Register account and get connectedId (ID/PW or certificate)
 async function registerAccount(
   token: string, accountType: "bank" | "card",
-  organization: string, loginId: string, loginPw: string,
+  organization: string,
+  loginOpts: {
+    loginType: "0" | "1"; // 0=인증서, 1=ID/PW
+    loginId?: string; loginPw?: string;
+    derFile?: string; keyFile?: string; certPassword?: string;
+  },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
-  // RSA encrypt the password
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
-  const encryptedPw = publicKey ? await rsaEncrypt(loginPw, publicKey) : loginPw;
 
   const path = accountType === "bank"
     ? "/v1/kr/bank/p/account/create"
     : "/v1/kr/card/p/account/create";
 
-  const body: Record<string, any> = {
-    accountList: [{
-      countryCode: "KR",
-      businessType: "BK",
-      clientType: "P",
-      organization,
-      loginType: "1",
-      id: loginId,
-      password: encryptedPw,
-    }],
+  const accountEntry: Record<string, any> = {
+    countryCode: "KR",
+    businessType: accountType === "card" ? "CD" : "BK",
+    clientType: "P",
+    organization,
+    loginType: loginOpts.loginType,
   };
+
+  if (loginOpts.loginType === "1") {
+    // ID/PW 로그인
+    const encryptedPw = publicKey ? await rsaEncrypt(loginOpts.loginPw || "", publicKey) : (loginOpts.loginPw || "");
+    accountEntry.id = loginOpts.loginId || "";
+    accountEntry.password = encryptedPw;
+  } else {
+    // 공동인증서 로그인
+    const encryptedCertPw = publicKey ? await rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
+    accountEntry.certType = "1";
+    accountEntry.derFile = loginOpts.derFile || "";
+    accountEntry.keyFile = loginOpts.keyFile || "";
+    accountEntry.password = encryptedCertPw;
+  }
+
+  const body: Record<string, any> = { accountList: [accountEntry] };
 
   if (existingConnectedId) {
     body.connectedId = existingConnectedId;
-  }
-
-  if (accountType === "card") {
-    body.accountList[0].businessType = "CD";
   }
 
   const result = await codefRequest(token, path, body);
@@ -273,12 +284,21 @@ serve(async (req) => {
 
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
-      const { accountType = "bank", organization, loginId, loginPw } = body;
-      if (!organization || !loginId || !loginPw) {
-        return new Response(JSON.stringify({ error: "organization, loginId, loginPw 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword } = body;
+
+      if (loginType === "0") {
+        // 공동인증서 로그인
+        if (!organization || !derFile || !keyFile || !certPassword) {
+          return new Response(JSON.stringify({ error: "organization, derFile, keyFile, certPassword 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      } else {
+        // ID/PW 로그인
+        if (!organization || !loginId || !loginPw) {
+          return new Response(JSON.stringify({ error: "organization, loginId, loginPw 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
-      const result = await registerAccount(token, accountType, organization, loginId, loginPw, cid);
+      const result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword }, cid);
 
       // Save connectedId to company_settings
       if (result.connectedId) {

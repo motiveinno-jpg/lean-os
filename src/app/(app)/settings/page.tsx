@@ -2297,34 +2297,108 @@ const CODEF_CARDS: Record<string, string> = {
 function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card">("bank");
+  const [authMethod, setAuthMethod] = useState<"cert" | "idpw">("cert");
   const [organization, setOrganization] = useState("");
+  // ID/PW states
   const [loginId, setLoginId] = useState("");
   const [loginPw, setLoginPw] = useState("");
   const [showPw, setShowPw] = useState(false);
+  // Certificate states
+  const [certPassword, setCertPassword] = useState("");
+  const [showCertPw, setShowCertPw] = useState(false);
+  const [derFileB64, setDerFileB64] = useState("");
+  const [keyFileB64, setKeyFileB64] = useState("");
+  const [certFileName, setCertFileName] = useState("");
+  // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const orgList = accountType === "bank" ? CODEF_BANKS : CODEF_CARDS;
 
-  async function handleRegister() {
-    if (!companyId || registering) return;
-    if (!organization || !loginId || !loginPw) {
-      setResult({ ok: false, msg: "금융기관, 아이디, 비밀번호를 모두 입력하세요" });
-      return;
+  function readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(",")[1] || "";
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleCertFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    let derDone = false;
+    let keyDone = false;
+    const names: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const b64 = await readFileAsBase64(file);
+      const lower = file.name.toLowerCase();
+      if (lower.includes("signcert") || lower.endsWith(".der")) {
+        setDerFileB64(b64);
+        derDone = true;
+        names.push(file.name);
+      } else if (lower.includes("signpri") || lower.endsWith(".key")) {
+        setKeyFileB64(b64);
+        keyDone = true;
+        names.push(file.name);
+      } else if (lower.endsWith(".pfx") || lower.endsWith(".p12")) {
+        // PFX contains both cert and key
+        setDerFileB64(b64);
+        setKeyFileB64(b64);
+        derDone = true;
+        keyDone = true;
+        names.push(file.name);
+      }
     }
+    setCertFileName(names.join(", ") || "");
+    if (!derDone || !keyDone) {
+      setResult({ ok: false, msg: "signCert.der + signPri.key 두 파일을 함께 선택하거나, .pfx 파일 하나를 선택하세요." });
+    } else {
+      setResult(null);
+    }
+  }
+
+  async function handleRegister() {
+    if (!companyId || registering || !organization) return;
     setRegistering(true);
     setResult(null);
     try {
-      const { registerCodefAccount } = await import("@/lib/data-sync");
-      const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw);
-      if (res.success) {
-        setResult({ ok: true, msg: "금융기관 연결 성공!" });
-        toast("금융기관 연결 완료", "success");
-        setLoginId("");
-        setLoginPw("");
-        onRegistered();
+      if (authMethod === "cert") {
+        if (!derFileB64 || !keyFileB64 || !certPassword) {
+          setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
+          setRegistering(false);
+          return;
+        }
+        const { registerCodefCertificate } = await import("@/lib/data-sync");
+        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword);
+        if (res.success) {
+          setResult({ ok: true, msg: "금융기관 연결 성공!" });
+          toast("금융기관 연결 완료", "success");
+          setCertPassword("");
+          onRegistered();
+        } else {
+          setResult({ ok: false, msg: res.error || "연결 실패" });
+        }
       } else {
-        setResult({ ok: false, msg: res.error || "연결 실패" });
+        if (!loginId || !loginPw) {
+          setResult({ ok: false, msg: "아이디와 비밀번호를 모두 입력하세요" });
+          setRegistering(false);
+          return;
+        }
+        const { registerCodefAccount } = await import("@/lib/data-sync");
+        const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw);
+        if (res.success) {
+          setResult({ ok: true, msg: "금융기관 연결 성공!" });
+          toast("금융기관 연결 완료", "success");
+          setLoginId("");
+          setLoginPw("");
+          onRegistered();
+        } else {
+          setResult({ ok: false, msg: res.error || "연결 실패" });
+        }
       }
     } catch (err: any) {
       setResult({ ok: false, msg: err.message || "오류 발생" });
@@ -2332,12 +2406,16 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(false);
   }
 
+  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization;
+  const isIdPwReady = !!loginId && !!loginPw && !!organization;
+  const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
+
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
       <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
-      <p className="text-xs text-[var(--text-dim)] mb-4">인터넷뱅킹/카드 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
+      <p className="text-xs text-[var(--text-dim)] mb-4">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
 
-      {/* Sandbox quick connect */}
+      {/* 데모 체험 */}
       <button
         onClick={async () => {
           if (!companyId || registering) return;
@@ -2371,55 +2449,80 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         {registering ? "연결 중..." : "데모 데이터로 바로 체험하기"}
       </button>
 
-      <p className="text-[10px] text-[var(--text-dim)] mb-3">또는 실제 금융기관 계정으로 연결:</p>
+      <div className="border-t border-[var(--border)] pt-4 mb-4">
+        <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => { setAccountType("bank"); setOrganization(""); }}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}
-        >은행</button>
-        <button
-          onClick={() => { setAccountType("card"); setOrganization(""); }}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}
-        >카드</button>
-      </div>
+        {/* 은행/카드 선택 */}
+        <div className="flex gap-2 mb-3">
+          <button onClick={() => { setAccountType("bank"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
+          <button onClick={() => { setAccountType("card"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
+        </div>
 
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : "카드사"} 선택</label>
-          <select
-            value={organization}
-            onChange={(e) => setOrganization(e.target.value)}
-            className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-          >
-            <option value="">선택하세요</option>
-            {Object.entries(orgList).map(([code, name]) => (
-              <option key={code} value={code}>{name}</option>
-            ))}
-          </select>
+        {/* 인증 방식 선택 */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setAuthMethod("cert")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+            공동인증서
+          </button>
+          <button onClick={() => setAuthMethod("idpw")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+            아이디/비밀번호
+          </button>
         </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 아이디</label>
-          <input
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-            placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"}
-            className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">비밀번호</label>
-          <div className="relative">
-            <input
-              type={showPw ? "text" : "password"}
-              value={loginPw}
-              onChange={(e) => setLoginPw(e.target.value)}
-              placeholder="비밀번호"
-              className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-            />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
+
+        {/* 금융기관 선택 */}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : "카드사"} 선택</label>
+            <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+              <option value="">선택하세요</option>
+              {Object.entries(orgList).map(([code, name]) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
+            </select>
           </div>
-          <p className="text-[10px] text-[var(--text-dim)] mt-1">보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
+
+          {authMethod === "cert" ? (
+            <>
+              {/* 공동인증서 입력 */}
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">공동인증서 파일</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".der,.key,.pfx,.p12"
+                    onChange={(e) => handleCertFiles(e.target.files)}
+                    className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary)]/10 file:text-[var(--primary)]"
+                  />
+                </div>
+                {certFileName && <p className="text-[10px] text-green-600 mt-1">선택됨: {certFileName}</p>}
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">signCert.der + signPri.key 또는 .pfx 파일을 선택하세요</p>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">인증서 비밀번호</label>
+                <div className="relative">
+                  <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <button type="button" onClick={() => setShowCertPw(!showCertPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCertPw ? "숨기기" : "보기"}</button>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 보안 서버에서 암호화 처리됩니다. 오너뷰는 저장하지 않습니다.</p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* ID/PW 입력 */}
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 아이디</label>
+                <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">비밀번호</label>
+                <div className="relative">
+                  <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -2431,7 +2534,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
       <button
         onClick={handleRegister}
-        disabled={registering || !organization || !loginId || !loginPw}
+        disabled={registering || !isReady}
         className="mt-4 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
       >
         {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}

@@ -614,6 +614,28 @@ export async function registerCodefAccount(
   loginId: string,
   loginPw: string,
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+  return callCodefRegister(companyId, {
+    accountType, organization, loginType: '1', loginId, loginPw,
+  });
+}
+
+export async function registerCodefCertificate(
+  companyId: string,
+  accountType: 'bank' | 'card',
+  organization: string,
+  derFile: string,
+  keyFile: string,
+  certPassword: string,
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+  return callCodefRegister(companyId, {
+    accountType, organization, loginType: '0', derFile, keyFile, certPassword,
+  });
+}
+
+async function callCodefRegister(
+  companyId: string,
+  params: Record<string, string>,
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: '로그인이 필요합니다' };
@@ -627,14 +649,7 @@ export async function registerCodefAccount(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        companyId,
-        action: 'register',
-        accountType,
-        organization,
-        loginId,
-        loginPw,
-      }),
+      body: JSON.stringify({ companyId, action: 'register', ...params }),
     });
 
     if (!res.ok) {
