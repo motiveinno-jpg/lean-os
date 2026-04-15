@@ -319,13 +319,14 @@
 
 ### J. 온보딩 (처음 시작하기)
 
-**6단계 셋업 마법사:**
-1. 회사 정보 입력 (회사명, 사업자번호)
-2. 은행 계좌 등록
-3. 법인카드 등록
-4. 홈택스 연동 (엑셀 임포트)
+**7단계 셋업 마법사:**
+1. 회사 정보 입력 (회사명, 사업자번호, 대표자, 주소)
+2. 법인통장 등록 (은행, 계좌번호, 잔고)
+3. 홈택스 연동 (간편인증/공동인증서 또는 나중에)
+4. 금융 데이터 연동 (CODEF — 은행/카드 자동 수집)
 5. 직원 등록/초대
-6. 완료 (대시보드로 이동)
+6. 첫 프로젝트 생성
+7. 완료 (대시보드로 이동)
 
 또는 **엑셀 한 장으로 전체 세팅**:
 - 인수인계/현황판 엑셀 업로드 → 프로젝트, 거래처, 고정비, 직원 일괄 등록
@@ -351,12 +352,13 @@
 
 | 항목 | 상세 |
 |------|------|
-| **프론트엔드** | Next.js + React 19 + TypeScript + Tailwind CSS 4 |
-| **백엔드** | Supabase (PostgreSQL + Auth + Realtime + Storage) |
-| **호스팅** | GitHub Pages (정적) + Supabase (API/DB) |
-| **보안** | Row-Level Security (RLS) + JWT 인증 + 역할 기반 접근 |
+| **프론트엔드** | Next.js 16 + React 19 + TypeScript 5.9 + Tailwind CSS 4 |
+| **백엔드** | Supabase (PostgreSQL + Auth + Realtime + Edge Functions + Storage) |
+| **호스팅** | Vercel (SSR + CDN) + Supabase (API/DB) |
+| **보안** | RLS 49테이블 + JWT + HSTS + CSP + Rate Limiting |
+| **외부연동** | CODEF (은행/카드), HomeTax, Stripe, Resend, Sentry |
 | **모바일** | 반응형 웹 (모바일 브라우저 최적화) |
-| **데이터** | 48개 테이블, 회사별 완전 격리 |
+| **데이터** | 49개 테이블, 회사별 완전 격리 |
 
 ---
 

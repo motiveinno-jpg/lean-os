@@ -26,14 +26,18 @@ export function resetOnboardingDismiss(): void {
 const STEPS = [
   { num: 1, label: "회사정보", icon: "building", desc: "사업자 정보를 등록하세요" },
   { num: 2, label: "통장 등록", icon: "bank", desc: "법인통장을 연결하세요" },
-  { num: 3, label: "직원 등록", icon: "people", desc: "팀원을 추가하세요" },
-  { num: 4, label: "첫 프로젝트", icon: "sparkles", desc: "첫 거래를 만드세요" },
-  { num: 5, label: "완료", icon: "check", desc: "준비 완료!" },
+  { num: 3, label: "홈택스 연동", icon: "tax", desc: "세금계산서를 자동으로 가져오세요" },
+  { num: 4, label: "금융 연동", icon: "card", desc: "은행/카드 거래를 자동 수집하세요" },
+  { num: 5, label: "직원 등록", icon: "people", desc: "팀원을 추가하세요" },
+  { num: 6, label: "첫 프로젝트", icon: "sparkles", desc: "첫 거래를 만드세요" },
+  { num: 7, label: "완료", icon: "check", desc: "준비 완료!" },
 ];
 
 interface CompletionStatus {
   companyInfo: boolean;
   bankAccount: boolean;
+  hometax: boolean;
+  codef: boolean;
   employee: boolean;
   deal: boolean;
 }
@@ -57,6 +61,8 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const [status, setStatus] = useState<CompletionStatus>({
     companyInfo: false,
     bankAccount: false,
+    hometax: false,
+    codef: false,
     employee: false,
     deal: false,
   });
@@ -79,7 +85,21 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     bank_name: "", account_number: "", alias: "", balance: "", role: "OPERATING",
   });
 
-  // Step 3: Employees
+  // Step 3: HomeTax connection
+  const [hometax, setHometax] = useState({
+    userId: "",
+    password: "",
+    certType: "simpleCert" as "simpleCert" | "npki" | "skip",
+  });
+
+  // Step 4: CODEF financial data
+  const [codef, setCodef] = useState({
+    banks: [] as string[],
+    cards: [] as string[],
+    agreed: false,
+  });
+
+  // Step 5: Employees
   const [employees, setEmployees] = useState<Array<{
     name: string; position: string; department: string; email: string;
   }>>([]);
@@ -113,6 +133,15 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           .eq("company_id", companyId);
         const hasBank = (bankCount ?? 0) > 0;
 
+        // Check HomeTax / CODEF settings
+        const { data: settings } = await db
+          .from("company_settings")
+          .select("codef_connected_id, codef_connected_at")
+          .eq("company_id", companyId)
+          .maybeSingle();
+        const hasHometax = !!(comp?.cert_settings); // cert_settings stores hometax credentials
+        const hasCodef = !!(settings?.codef_connected_id);
+
         // Check employees
         const { count: empCount } = await db
           .from("employees")
@@ -130,6 +159,8 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         const newStatus = {
           companyInfo: hasCompany,
           bankAccount: hasBank,
+          hometax: hasHometax,
+          codef: hasCodef,
           employee: hasEmployee,
           deal: hasDeal,
         };
@@ -145,17 +176,12 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         }
 
         // Auto-advance to first incomplete step
-        if (hasCompany && hasBank && hasEmployee && hasDeal) {
-          // All done — go to completion
-          setStep(5);
-        } else if (hasCompany && hasBank && hasEmployee) {
-          setStep(4);
-        } else if (hasCompany && hasBank) {
-          setStep(3);
-        } else if (hasCompany) {
-          setStep(2);
+        const checks = [hasCompany, hasBank, hasHometax, hasCodef, hasEmployee, hasDeal];
+        const firstIncomplete = checks.indexOf(false);
+        if (firstIncomplete === -1) {
+          setStep(7); // All done
         } else {
-          setStep(1);
+          setStep(firstIncomplete + 1);
         }
       } catch (err) {
         console.error("Status check error:", err);
@@ -197,6 +223,29 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         }
         if (banks.length > 0) setStatus(prev => ({ ...prev, bankAccount: true }));
       } else if (currentStep === 3) {
+        // Save HomeTax connection settings
+        if (hometax.certType !== "skip" && hometax.userId) {
+          await db.from("companies").update({
+            cert_settings: {
+              hometax_user_id: hometax.userId,
+              hometax_cert_type: hometax.certType,
+              connected_at: new Date().toISOString(),
+            },
+          }).eq("id", companyId);
+          setStatus(prev => ({ ...prev, hometax: true }));
+        }
+      } else if (currentStep === 4) {
+        // Save CODEF bank/card selection preference
+        if (codef.agreed && (codef.banks.length > 0 || codef.cards.length > 0)) {
+          await db.from("company_settings").upsert({
+            company_id: companyId,
+            codef_bank_list: codef.banks,
+            codef_card_list: codef.cards,
+            codef_onboarding_at: new Date().toISOString(),
+          }, { onConflict: "company_id" });
+          setStatus(prev => ({ ...prev, codef: true }));
+        }
+      } else if (currentStep === 5) {
         // Save employees
         for (const emp of employees) {
           await db.from("employees").insert({
@@ -210,7 +259,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           });
         }
         if (employees.length > 0) setStatus(prev => ({ ...prev, employee: true }));
-      } else if (currentStep === 4) {
+      } else if (currentStep === 6) {
         // Create first deal
         if (dealName) {
           await db.from("deals").insert({
@@ -233,16 +282,17 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     }
     setSaving(false);
     return true;
-  }, [company, banks, employees, dealName, dealType, dealAmount, dealPartner, companyId, companyName]);
+  }, [company, banks, hometax, codef, employees, dealName, dealType, dealAmount, dealPartner, companyId, companyName]);
 
   const handleNext = useCallback(async () => {
-    if (step < 5) {
-      // Save current step data before advancing
+    if (step < 7) {
       const stepHasData = (
         (step === 1 && company.companyName && company.businessNumber) ||
         (step === 2 && banks.length > 0) ||
-        (step === 3 && employees.length > 0) ||
-        (step === 4 && dealName)
+        (step === 3 && hometax.certType !== "skip" && hometax.userId) ||
+        (step === 4 && codef.agreed && (codef.banks.length > 0 || codef.cards.length > 0)) ||
+        (step === 5 && employees.length > 0) ||
+        (step === 6 && dealName)
       );
       if (stepHasData) {
         const ok = await saveStep(step);
@@ -250,12 +300,12 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       }
       setStep(step + 1);
     }
-  }, [step, company, banks, employees, dealName, saveStep]);
+  }, [step, company, banks, hometax, codef, employees, dealName, saveStep]);
 
   const handleBack = () => { if (step > 1) setStep(step - 1); };
 
   const handleSkip = () => {
-    if (step < 5) setStep(step + 1);
+    if (step < 7) setStep(step + 1);
   };
 
   const handleFinish = useCallback(() => {
@@ -293,7 +343,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const removeEmployee = (i: number) => setEmployees(employees.filter((_, idx) => idx !== i));
 
   // Completed step count for progress
-  const completedSteps = [status.companyInfo, status.bankAccount, status.employee, status.deal].filter(Boolean).length;
+  const completedSteps = [status.companyInfo, status.bankAccount, status.hometax, status.codef, status.employee, status.deal].filter(Boolean).length;
 
   if (loading) {
     return (
@@ -330,30 +380,38 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             <span className="text-xs text-[var(--text-dim)]">{step} / {STEPS.length} 단계</span>
           </div>
           <div className="flex items-center gap-1">
-            {STEPS.map((s, i) => (
+            {STEPS.map((s, i) => {
+              const stepStatusMap: Record<number, boolean> = {
+                1: status.companyInfo, 2: status.bankAccount, 3: status.hometax,
+                4: status.codef, 5: status.employee, 6: status.deal,
+              };
+              const isStepDone = stepStatusMap[s.num] ?? false;
+              const isActive = s.num === step || s.num < step || isStepDone;
+              return (
               <div key={s.num} className="flex items-center flex-1">
                 <button
                   onClick={() => setStep(s.num)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0 cursor-pointer"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold transition-all shrink-0 cursor-pointer"
                   style={{
-                    background: s.num === step ? "var(--primary)" : s.num < step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "var(--primary)" : "var(--bg-surface)",
-                    color: s.num <= step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "#fff" : "var(--text-dim)",
-                    border: s.num <= step || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal) ? "2px solid var(--primary)" : "2px solid var(--border)",
+                    background: isActive ? "var(--primary)" : "var(--bg-surface)",
+                    color: isActive ? "#fff" : "var(--text-dim)",
+                    border: isActive ? "2px solid var(--primary)" : "2px solid var(--border)",
                     opacity: s.num === step ? 1 : 0.7,
                   }}
                   title={s.label}
                 >
-                  {(s.num < step || (s.num === 1 && status.companyInfo && step !== 1) || (s.num === 2 && status.bankAccount && step !== 2) || (s.num === 3 && status.employee && step !== 3) || (s.num === 4 && status.deal && step !== 4)) ? (
+                  {(s.num < step || (isStepDone && step !== s.num)) ? (
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   ) : s.num}
                 </button>
                 {i < STEPS.length - 1 && (
-                  <div className="flex-1 h-[2px] mx-1 rounded-full transition-all" style={{ background: s.num < step ? "var(--primary)" : "var(--border)" }} />
+                  <div className="flex-1 h-[2px] mx-0.5 rounded-full transition-all" style={{ background: s.num < step ? "var(--primary)" : "var(--border)" }} />
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex justify-between text-[9px] text-[var(--text-dim)] font-medium mt-1.5 px-0.5">
             {STEPS.map(s => (
@@ -384,6 +442,20 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             />
           )}
           {step === 3 && (
+            <StepHomeTax
+              data={hometax}
+              set={setHometax}
+              isCompleted={status.hometax}
+            />
+          )}
+          {step === 4 && (
+            <StepCodefConnect
+              data={codef}
+              set={setCodef}
+              isCompleted={status.codef}
+            />
+          )}
+          {step === 5 && (
             <StepEmployeeSetup
               employees={employees}
               form={empForm}
@@ -393,7 +465,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
               isCompleted={status.employee}
             />
           )}
-          {step === 4 && (
+          {step === 6 && (
             <StepFirstDeal
               dealName={dealName}
               setDealName={setDealName}
@@ -406,7 +478,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
               isCompleted={status.deal}
             />
           )}
-          {step === 5 && (
+          {step === 7 && (
             <StepComplete status={status} />
           )}
           {saveError && (
@@ -419,7 +491,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         {/* ── Footer ── */}
         <div className="px-6 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
           <div>
-            {step > 1 && step < 5 && (
+            {step > 1 && step < 7 && (
               <button onClick={handleBack} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] transition">
                 이전
               </button>
@@ -431,12 +503,12 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
                 나중에 하기
               </button>
             )}
-            {step >= 1 && step <= 4 && (
+            {step >= 1 && step <= 6 && (
               <button onClick={handleSkip} className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition">
                 건너뛰기
               </button>
             )}
-            {step < 5 && (
+            {step < 7 && (
               <button
                 onClick={handleNext}
                 disabled={saving}
@@ -446,7 +518,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
                 {saving ? "저장 중..." : "다음"}
               </button>
             )}
-            {step === 5 && (
+            {step === 7 && (
               <button
                 onClick={handleFinish}
                 className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition"
@@ -692,16 +764,235 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
 }
 
 // ═══════════════════════════════════════════
-// Step 5: Complete (완료)
+// Step 3: HomeTax Connection (홈택스 연동)
+// ═══════════════════════════════════════════
+function StepHomeTax({ data, set, isCompleted }: {
+  data: { userId: string; password: string; certType: "simpleCert" | "npki" | "skip" };
+  set: (d: any) => void;
+  isCompleted: boolean;
+}) {
+  const CERT_OPTIONS = [
+    { value: "simpleCert" as const, label: "간편인증 (카카오/PASS)", desc: "가장 쉬운 방법. 카카오/통신사 앱 인증" },
+    { value: "npki" as const, label: "공동인증서 (구 공인인증서)", desc: "기존 공인인증서로 로그인" },
+    { value: "skip" as const, label: "나중에 설정", desc: "엑셀 수동 업로드로 시작합니다" },
+  ];
+
+  return (
+    <div className="flex-1">
+      <StepHeader
+        title="홈택스 연동"
+        desc="홈택스를 연동하면 세금계산서와 현금영수증을 자동으로 가져옵니다."
+        icon="tax"
+        whyItMatters="홈택스 연동으로 매출/매입 세금계산서, 현금영수증이 자동 수집되어 부가세 신고 준비가 간편해집니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="홈택스가 이미 연동되어 있습니다. 설정을 변경하거나 다음으로 넘어가세요." />
+      )}
+
+      <div className="space-y-4">
+        {/* Cert type selection */}
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">인증 방식</label>
+          <div className="space-y-2">
+            {CERT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => set({ ...data, certType: opt.value })}
+                className="w-full text-left p-3 rounded-xl transition border"
+                style={{
+                  background: data.certType === opt.value ? "var(--primary-light)" : "var(--bg-surface)",
+                  borderColor: data.certType === opt.value ? "var(--primary)" : "var(--border)",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                    style={{ borderColor: data.certType === opt.value ? "var(--primary)" : "var(--border)" }}
+                  >
+                    {data.certType === opt.value && (
+                      <div className="w-2 h-2 rounded-full" style={{ background: "var(--primary)" }} />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text)]">{opt.label}</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">{opt.desc}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ID/PW fields — only show if not "skip" */}
+        {data.certType !== "skip" && (
+          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+            <Field label="홈택스 아이디 *" value={data.userId} onChange={(v) => set({ ...data, userId: v })} placeholder="홈택스 로그인 아이디" />
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">홈택스 비밀번호 *</label>
+              <input
+                type="password"
+                value={data.password}
+                onChange={(e) => set({ ...data, password: e.target.value })}
+                placeholder="홈택스 로그인 비밀번호"
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+              />
+            </div>
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-yellow-50 border border-yellow-200">
+              <svg className="w-3.5 h-3.5 text-yellow-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-[11px] text-yellow-700 leading-relaxed">
+                입력하신 정보는 암호화되어 안전하게 저장됩니다. 세금계산서 자동 수집에만 사용됩니다.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {data.certType === "skip" && (
+          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <p className="text-sm text-[var(--text-muted)]">
+              홈택스 연동 없이도 <strong>엑셀 파일 업로드</strong>로 세금계산서를 관리할 수 있습니다.
+              나중에 설정 페이지에서 언제든 연동할 수 있습니다.
+            </p>
+          </div>
+        )}
+      </div>
+      <LinkHint href="/settings" label="설정 > 외부 연동 탭에서 상세 설정 가능" />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 4: CODEF Financial Data (금융 데이터 연동)
+// ═══════════════════════════════════════════
+function StepCodefConnect({ data, set, isCompleted }: {
+  data: { banks: string[]; cards: string[]; agreed: boolean };
+  set: (d: any) => void;
+  isCompleted: boolean;
+}) {
+  const BANK_LIST = [
+    "국민은행", "신한은행", "우리은행", "하나은행", "기업은행",
+    "농협은행", "SC제일은행", "카카오뱅크", "토스뱅크", "대구은행", "부산은행",
+  ];
+  const CARD_LIST = [
+    "삼성카드", "현대카드", "신한카드", "KB국민카드", "롯데카드",
+    "BC카드", "하나카드", "우리카드", "NH농협카드",
+  ];
+
+  const toggleBank = (bank: string) => {
+    const next = data.banks.includes(bank)
+      ? data.banks.filter(b => b !== bank)
+      : [...data.banks, bank];
+    set({ ...data, banks: next });
+  };
+
+  const toggleCard = (card: string) => {
+    const next = data.cards.includes(card)
+      ? data.cards.filter(c => c !== card)
+      : [...data.cards, card];
+    set({ ...data, cards: next });
+  };
+
+  return (
+    <div className="flex-1">
+      <StepHeader
+        title="금융 데이터 자동 연동"
+        desc="은행 거래내역과 카드 승인내역을 자동으로 가져옵니다."
+        icon="card"
+        whyItMatters="CODEF 오픈뱅킹 연동으로 거래 수기 입력이 불필요해지고, 실시간 자금현황을 파악할 수 있습니다."
+      />
+      {isCompleted && (
+        <CompletedBadge message="금융 데이터 연동이 설정되어 있습니다. 변경하거나 다음으로 넘어가세요." />
+      )}
+
+      <div className="space-y-4">
+        {/* Bank selection */}
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">
+            연동할 은행 선택 <span className="text-[var(--text-dim)] font-normal">(복수 선택 가능)</span>
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {BANK_LIST.map((bank) => (
+              <button
+                key={bank}
+                onClick={() => toggleBank(bank)}
+                className="px-2 py-2 rounded-lg text-[11px] font-medium transition border text-center"
+                style={{
+                  background: data.banks.includes(bank) ? "var(--primary)" : "var(--bg-surface)",
+                  color: data.banks.includes(bank) ? "#fff" : "var(--text)",
+                  borderColor: data.banks.includes(bank) ? "var(--primary)" : "var(--border)",
+                }}
+              >
+                {bank}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Card selection */}
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">
+            연동할 카드사 선택 <span className="text-[var(--text-dim)] font-normal">(복수 선택 가능)</span>
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {CARD_LIST.map((card) => (
+              <button
+                key={card}
+                onClick={() => toggleCard(card)}
+                className="px-2 py-2 rounded-lg text-[11px] font-medium transition border text-center"
+                style={{
+                  background: data.cards.includes(card) ? "var(--primary)" : "var(--bg-surface)",
+                  color: data.cards.includes(card) ? "#fff" : "var(--text)",
+                  borderColor: data.cards.includes(card) ? "var(--primary)" : "var(--border)",
+                }}
+              >
+                {card}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Agreement */}
+        <label className="flex items-start gap-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.agreed}
+            onChange={(e) => set({ ...data, agreed: e.target.checked })}
+            className="mt-0.5 accent-[var(--primary)]"
+          />
+          <span className="text-xs text-[var(--text-muted)] leading-relaxed">
+            금융 거래 데이터 수집에 동의합니다. 수집된 데이터는 오너뷰 서비스 내 거래내역 조회, 자동 분류, 대시보드 지표 계산에만 사용됩니다.
+          </span>
+        </label>
+
+        {(data.banks.length === 0 && data.cards.length === 0) && (
+          <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <p className="text-xs text-[var(--text-dim)]">
+              금융 연동 없이도 <strong>엑셀/CSV 업로드</strong>로 거래내역을 관리할 수 있습니다.
+              나중에 설정 페이지에서 연동할 수 있습니다.
+            </p>
+          </div>
+        )}
+      </div>
+      <LinkHint href="/settings" label="설정 > 외부 연동 탭에서 CODEF 연동 상세 관리" />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 7: Complete (완료)
 // ═══════════════════════════════════════════
 function StepComplete({ status }: { status: CompletionStatus }) {
   const items = [
     { label: "회사 정보", done: status.companyInfo, icon: "building" },
     { label: "통장 등록", done: status.bankAccount, icon: "bank" },
+    { label: "홈택스 연동", done: status.hometax, icon: "tax" },
+    { label: "금융 데이터 연동", done: status.codef, icon: "card" },
     { label: "직원 등록", done: status.employee, icon: "people" },
     { label: "첫 프로젝트", done: status.deal, icon: "sparkles" },
   ];
   const doneCount = items.filter(i => i.done).length;
+  const totalCount = items.length;
 
   return (
     <div className="flex-1 flex flex-col items-center">
@@ -711,12 +1002,12 @@ function StepComplete({ status }: { status: CompletionStatus }) {
         </svg>
       </div>
       <h2 className="text-xl font-bold text-[var(--text)] mb-1">
-        {doneCount === 4 ? "모든 설정 완료!" : "초기 설정 진행 중"}
+        {doneCount === totalCount ? "모든 설정 완료!" : "초기 설정 진행 중"}
       </h2>
       <p className="text-sm text-[var(--text-muted)] mb-6 text-center">
-        {doneCount === 4
+        {doneCount === totalCount
           ? "OwnerView가 준비되었습니다. 대시보드에서 바로 시작하세요!"
-          : `${doneCount}/4 단계를 완료했습니다. 나머지는 나중에 설정할 수 있습니다.`
+          : `${doneCount}/${totalCount} 단계를 완료했습니다. 나머지는 나중에 설정할 수 있습니다.`
         }
       </p>
 
@@ -734,7 +1025,7 @@ function StepComplete({ status }: { status: CompletionStatus }) {
         ))}
       </div>
 
-      {doneCount < 4 && (
+      {doneCount < totalCount && (
         <p className="mt-4 text-xs text-[var(--text-dim)] text-center">
           건너뛴 항목은 설정 페이지에서 언제든 완료할 수 있습니다.
         </p>
