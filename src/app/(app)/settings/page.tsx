@@ -2337,6 +2337,42 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
       <p className="text-xs text-[var(--text-dim)] mb-4">인터넷뱅킹/카드 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
 
+      {/* Sandbox quick connect */}
+      <button
+        onClick={async () => {
+          if (!companyId || registering) return;
+          setRegistering(true);
+          setResult(null);
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+            if (!session || !supabaseUrl) throw new Error("로그인 필요");
+            const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ companyId, action: "sandbox-connect" }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              setResult({ ok: true, msg: `샌드박스 연결 완료! 은행 ${data.bankAccounts || 0}개 + 카드 ${data.cardAccounts || 0}개 확인됨. Connected ID: ${data.connectedId?.slice(0, 8)}...` });
+              toast("샌드박스 데모 연결 완료", "success");
+              onRegistered();
+            } else {
+              setResult({ ok: false, msg: data.error || "연결 실패" });
+            }
+          } catch (err: any) {
+            setResult({ ok: false, msg: err.message || "오류" });
+          }
+          setRegistering(false);
+        }}
+        disabled={registering}
+        className="mb-4 w-full py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl text-xs font-semibold hover:bg-blue-500/20 transition disabled:opacity-50"
+      >
+        {registering ? "연결 중..." : "샌드박스 데모 데이터로 바로 연결 (테스트용)"}
+      </button>
+
+      <p className="text-[10px] text-[var(--text-dim)] mb-3">또는 실제 금융기관 계정으로 연결:</p>
+
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => { setAccountType("bank"); setOrganization(""); }}
@@ -2472,17 +2508,22 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     setCodefTesting(true);
     setCodefTestResult(null);
     try {
-      // Test OAuth token request
+      // Test OAuth token request (Basic Auth)
+      const basicAuth = btoa(`${codefForm.client_id}:${codefForm.client_secret}`);
       const tokenRes = await fetch("https://oauth.codef.io/oauth/token", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `grant_type=client_credentials&client_id=${encodeURIComponent(codefForm.client_id)}&client_secret=${encodeURIComponent(codefForm.client_secret)}`,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: "grant_type=client_credentials",
       });
       if (tokenRes.ok) {
-        setCodefTestResult({ ok: true, msg: "CODEF 연결 성공! 인증 토큰 발급 확인됨" });
+        const tokenData = await tokenRes.json();
+        const scopes = tokenData.scope || "";
+        setCodefTestResult({ ok: true, msg: `CODEF 연결 성공! 토큰 발급됨 (권한: ${scopes}, 만료: ${Math.round(tokenData.expires_in / 3600)}시간)` });
       } else {
-        const errData = await tokenRes.text();
-        setCodefTestResult({ ok: false, msg: `인증 실패 (${tokenRes.status}): 자격증명을 확인하세요` });
+        setCodefTestResult({ ok: false, msg: `인증 실패 (${tokenRes.status}): Client ID와 Secret을 확인하세요` });
       }
     } catch (err: any) {
       setCodefTestResult({ ok: false, msg: `연결 실패: ${err.message}` });
@@ -2521,6 +2562,12 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
           </div>
         </div>
         <p className="text-xs text-[var(--text-dim)] mb-4">CODEF API를 통해 은행 거래내역과 카드 이용내역을 자동으로 동기화합니다. <a href="https://codef.io" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">codef.io</a>에서 API 키를 발급받으세요.</p>
+
+        {!isCodefConfigured && (
+          <button onClick={() => { setCodefForm({ client_id: "da370749-17ca-4dc4-8078-18689e9f8a2c", client_secret: "92120ccd-6b6b-45a4-9542-c83777248c95", connected_id: "" }); }} className="mb-4 px-3 py-1.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-lg text-[11px] font-semibold hover:bg-blue-500/20 transition">
+            데모 키 자동입력 (개발용)
+          </button>
+        )}
 
         <div className="space-y-3">
           <div>

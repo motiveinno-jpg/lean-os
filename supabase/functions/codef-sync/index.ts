@@ -6,8 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// CODEF API endpoints
-const CODEF_BASE = "https://development.codef.io";
+// CODEF API endpoints — sandbox for testing, development for demo, api for production
+const CODEF_ENV = Deno.env.get("CODEF_ENV") || "sandbox";
+const CODEF_BASE = CODEF_ENV === "production"
+  ? "https://api.codef.io"
+  : CODEF_ENV === "development"
+    ? "https://development.codef.io"
+    : "https://sandbox.codef.io";
 const CODEF_TOKEN_URL = "https://oauth.codef.io/oauth/token";
 
 // Korean bank codes
@@ -36,10 +41,14 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
     return tokenCache.token;
   }
 
+  const basicAuth = btoa(`${clientId}:${clientSecret}`);
   const res = await fetch(CODEF_TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basicAuth}`,
+    },
+    body: "grant_type=client_credentials",
   });
 
   if (!res.ok) throw new Error(`CODEF token error: ${res.status}`);
@@ -71,34 +80,44 @@ async function syncBankTransactions(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
 ) {
-  const result = await codefRequest(token, "/v1/kr/bank/p/account/transaction-list", {
-    connectedId, organization: "0004", startDate, endDate, orderBy: "0", inquiryType: "1",
-  });
+  // First get all registered bank accounts
+  const accounts = await getAccountList(token, connectedId, "bank");
+  let totalSynced = 0;
 
-  if (result.result?.code !== "CF-00000" || !result.data) return { synced: 0 };
+  for (const acct of accounts) {
+    const org = acct.organization || acct.countryCode === "KR" ? (acct.organization || "0004") : "0004";
+    const accountNo = acct.resAccount || acct.resAccountDisplay || "";
+    if (!accountNo) continue;
 
-  const transactions = Array.isArray(result.data) ? result.data : [result.data];
-  let synced = 0;
+    const result = await codefRequest(token, "/v1/kr/bank/p/account/transaction-list", {
+      connectedId, organization: org, account: accountNo,
+      startDate, endDate, orderBy: "0", inquiryType: "1",
+    });
 
-  for (const tx of transactions) {
-    if (!tx.resTrDate) continue;
-    const externalId = `codef_bank_${tx.resAccountTrDate || tx.resTrDate}_${tx.resAccountTrTime || ""}_${tx.resAccountOut || tx.resAccountIn || "0"}`;
+    if (result.result?.code !== "CF-00000" || !result.data) continue;
 
-    const { error } = await supabase.from("transactions").upsert({
-      company_id: companyId,
-      external_id: externalId,
-      amount: Number(tx.resAccountIn || 0) - Number(tx.resAccountOut || 0),
-      type: Number(tx.resAccountIn || 0) > 0 ? "income" : "expense",
-      description: tx.resAccountDesc || tx.resAccountMemo || "",
-      transaction_date: `${tx.resTrDate.slice(0,4)}-${tx.resTrDate.slice(4,6)}-${tx.resTrDate.slice(6,8)}`,
-      source: "codef_bank",
-      balance_after: Number(tx.resAfterTranBalance || 0),
-    }, { onConflict: "external_id" });
+    const transactions = Array.isArray(result.data) ? result.data : [result.data];
 
-    if (!error) synced++;
+    for (const tx of transactions) {
+      if (!tx.resTrDate) continue;
+      const externalId = `codef_bank_${accountNo}_${tx.resAccountTrDate || tx.resTrDate}_${tx.resAccountTrTime || ""}_${tx.resAccountOut || tx.resAccountIn || "0"}`;
+
+      const { error } = await supabase.from("transactions").upsert({
+        company_id: companyId,
+        external_id: externalId,
+        amount: Number(tx.resAccountIn || 0) - Number(tx.resAccountOut || 0),
+        type: Number(tx.resAccountIn || 0) > 0 ? "income" : "expense",
+        description: tx.resAccountDesc || tx.resAccountMemo || "",
+        transaction_date: `${tx.resTrDate.slice(0,4)}-${tx.resTrDate.slice(4,6)}-${tx.resTrDate.slice(6,8)}`,
+        source: "codef_bank",
+        balance_after: Number(tx.resAfterTranBalance || 0),
+      }, { onConflict: "external_id" });
+
+      if (!error) totalSynced++;
+    }
   }
 
-  return { synced };
+  return { synced: totalSynced };
 }
 
 async function syncCardBilling(
@@ -134,12 +153,33 @@ async function syncCardBilling(
   return { synced };
 }
 
+// RSA encrypt password with CODEF public key
+async function rsaEncrypt(plainText: string, publicKeyPem: string): Promise<string> {
+  const pemBody = publicKeyPem
+    .replace(/-----BEGIN PUBLIC KEY-----/, "")
+    .replace(/-----END PUBLIC KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "spki", binaryDer.buffer, { name: "RSA-OAEP", hash: "SHA-1" }, false, ["encrypt"],
+  );
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" }, cryptoKey, new TextEncoder().encode(plainText),
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+}
+
 // Register account and get connectedId
 async function registerAccount(
   token: string, accountType: "bank" | "card",
   organization: string, loginId: string, loginPw: string,
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
+  // RSA encrypt the password
+  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+  const encryptedPw = publicKey ? await rsaEncrypt(loginPw, publicKey) : loginPw;
+
   const path = accountType === "bank"
     ? "/v1/kr/bank/p/account/create"
     : "/v1/kr/card/p/account/create";
@@ -152,7 +192,7 @@ async function registerAccount(
       organization,
       loginType: "1",
       id: loginId,
-      password: loginPw,
+      password: encryptedPw,
     }],
   };
 
@@ -250,6 +290,30 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Action: sandbox-connect (샌드박스 데모 데이터 즉시 연결) ---
+    if (action === "sandbox-connect") {
+      const sandboxConnectedId = "sandbox_connectedId_01";
+
+      // Verify sandbox connection by fetching account list
+      const bankAccounts = await getAccountList(token, sandboxConnectedId, "bank");
+      const cardAccounts = await getAccountList(token, sandboxConnectedId, "card");
+
+      // Save connectedId to company_settings
+      await supabase.from("company_settings").upsert({
+        company_id: companyId,
+        codef_connected_id: sandboxConnectedId,
+        codef_connected_at: new Date().toISOString(),
+      }, { onConflict: "company_id" });
+
+      return new Response(JSON.stringify({
+        success: true,
+        connectedId: sandboxConnectedId,
+        bankAccounts: bankAccounts.length,
+        cardAccounts: cardAccounts.length,
+        accounts: { bank: bankAccounts, card: cardAccounts },
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: list-accounts (등록된 계좌/카드 목록) ---
