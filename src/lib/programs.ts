@@ -210,6 +210,18 @@ export async function bulkCreateDeals(params: {
   if (!companyId) throw new Error("Company ID is required");
   if (!programId) throw new Error("Program ID is required");
 
+  // Verify program belongs to company
+  const { data: program, error: programError } = await supabase
+    .from("programs")
+    .select("id, company_id")
+    .eq("id", programId)
+    .eq("company_id", companyId)
+    .single();
+
+  if (programError || !program) {
+    throw new Error("프로그램 접근 권한이 없습니다");
+  }
+
   let success = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -251,10 +263,23 @@ export async function bulkCreateDeals(params: {
 
 // ─── Bulk Status Update ──────────────────────────────────
 
+const VALID_DEAL_STATUSES = [
+  "pending", "negotiation", "proposal", "active", "in_progress",
+  "contract_signed", "completed", "closed_won", "closed_lost",
+  "archived", "dormant",
+];
+
 export async function bulkUpdateDealStatus(
   dealIds: string[],
   status: string,
 ): Promise<{ success: number; failed: number }> {
+  if (!VALID_DEAL_STATUSES.includes(status)) {
+    return { success: 0, failed: dealIds.length };
+  }
+  if (dealIds.length === 0 || dealIds.length > 500) {
+    return { success: 0, failed: dealIds.length };
+  }
+
   const { error } = await supabase
     .from("deals")
     .update({ status })
@@ -266,12 +291,20 @@ export async function bulkUpdateDealStatus(
 
 // ─── CSV Parser ──────────────────────────────────────────
 
+const MAX_CSV_ROWS = 10000;
+const MAX_FIELD_LENGTH = 200;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function parseProgramCsv(text: string): {
   rows: BulkDealRow[];
   errors: string[];
 } {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length === 0) return { rows: [], errors: [] };
+
+  if (lines.length > MAX_CSV_ROWS + 1) {
+    return { rows: [], errors: [`최대 ${MAX_CSV_ROWS}행까지 업로드 가능합니다 (현재 ${lines.length}행)`] };
+  }
 
   const startIndex = lines[0].toLowerCase().includes("업체") ||
     lines[0].toLowerCase().includes("company") ||
@@ -294,6 +327,21 @@ export function parseProgramCsv(text: string): {
 
     if (!counterparty) {
       errors.push(`${i + 1}행: 업체명 누락`);
+      continue;
+    }
+
+    if (counterparty.length > MAX_FIELD_LENGTH) {
+      errors.push(`${i + 1}행: 업체명이 너무 깁니다 (최대 ${MAX_FIELD_LENGTH}자)`);
+      continue;
+    }
+
+    if (contactEmail && !EMAIL_REGEX.test(contactEmail)) {
+      errors.push(`${i + 1}행: 이메일 형식 오류 (${contactEmail})`);
+      continue;
+    }
+
+    if (contactName && contactName.length > MAX_FIELD_LENGTH) {
+      errors.push(`${i + 1}행: 담당자명이 너무 깁니다`);
       continue;
     }
 
