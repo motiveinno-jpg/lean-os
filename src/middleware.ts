@@ -5,10 +5,19 @@ import type { NextRequest } from 'next/server';
 // ── Simple Rate Limiter (Edge-compatible) ──
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_AUTH = 20; // /auth endpoints: 20 req/min
+const RATE_LIMIT_CLEANUP_THRESHOLD = 500;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function isRateLimited(key: string, maxRequests: number): boolean {
   const now = Date.now();
+
+  // C2 Fix: 인라인 정리 — Map 크기가 임계값 초과 시 만료 항목 제거
+  if (rateLimitMap.size > RATE_LIMIT_CLEANUP_THRESHOLD) {
+    for (const [k, v] of rateLimitMap) {
+      if (now > v.resetAt) rateLimitMap.delete(k);
+    }
+  }
+
   const entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
@@ -16,16 +25,6 @@ function isRateLimited(key: string, maxRequests: number): boolean {
   }
   entry.count++;
   return entry.count > maxRequests;
-}
-
-// Cleanup stale entries periodically (avoid memory leak)
-if (typeof globalThis !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitMap) {
-      if (now > entry.resetAt) rateLimitMap.delete(key);
-    }
-  }, 60_000);
 }
 
 const PUBLIC_ROUTES = [

@@ -44,6 +44,17 @@ export default function AuthPage() {
   const [showPw, setShowPw] = useState(false);
   const router = useRouter();
 
+  // C1 Fix: redirectTo 파라미터 존중
+  function getRedirectPath(): string {
+    if (typeof window === "undefined") return "/dashboard";
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get("redirectTo");
+    if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+      return redirectTo;
+    }
+    return "/dashboard";
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -51,7 +62,7 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return setError(translateAuthError(error.message));
-    router.push("/dashboard");
+    router.push(getRedirectPath());
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -90,7 +101,7 @@ export default function AuthPage() {
 
     // 이메일 인증 없이 바로 세션이 생긴 경우 (Supabase 설정에 따라)
     const created = await createCompanyAndUser(authData.user.id, email, companyName.trim());
-    if (created) router.push("/dashboard");
+    if (created) router.push(getRedirectPath());
   }
 
   async function createCompanyAndUser(authId: string, userEmail: string, name: string): Promise<boolean> {
@@ -100,7 +111,6 @@ export default function AuthPage() {
       .select()
       .single();
     if (compErr) {
-      console.error("회사 생성 실패:", compErr.message);
       setError("회사 정보 생성에 실패했습니다. 다시 시도해주세요.");
       return false;
     }
@@ -114,7 +124,8 @@ export default function AuthPage() {
       role: "owner",
     });
     if (userErr) {
-      console.error("사용자 생성 실패:", userErr.message);
+      // C3 Fix: 사용자 생성 실패 시 고아 회사 정리
+      await supabase.from("companies").delete().eq("id", company.id);
       setError("계정 설정에 실패했습니다. 다시 시도해주세요.");
       return false;
     }

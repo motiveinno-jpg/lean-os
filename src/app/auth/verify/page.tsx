@@ -87,7 +87,8 @@ export default function VerifyEmailPage() {
           role: "owner",
         });
         if (userErr) {
-          console.error("유저 생성 실패:", userErr.message);
+          // C3 Fix: 유저 생성 실패 시 고아 회사 정리
+          await supabase.from("companies").delete().eq("id", companyId);
           return;
         }
 
