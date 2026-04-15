@@ -185,6 +185,11 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
 
       setProgress(i + 1);
       setResults([...batchResults]);
+
+      // Rate limit: 200ms delay between sends to avoid Resend API throttling
+      if (i < validRows.length - 1) {
+        await new Promise(r => setTimeout(r, 200));
+      }
     }
 
     setIsSending(false);
