@@ -2516,7 +2516,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: `Basic ${basicAuth}`,
         },
-        body: "grant_type=client_credentials",
+        body: "grant_type=client_credentials&scope=read",
       });
       if (tokenRes.ok) {
         const tokenData = await tokenRes.json();
