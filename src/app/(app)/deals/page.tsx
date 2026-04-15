@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, getMilestones, getSubDeals, getAssignments, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
+import { getCurrentUser, getDeals, getPartnerDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, getMilestones, getSubDeals, getAssignments, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
+import { useUser } from "@/components/user-context";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -75,6 +76,8 @@ function RiskBadge({ risk }: { risk?: string | null }) {
 
 function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void }) {
   const queryClient = useQueryClient();
+  const { role } = useUser();
+  const isPartnerView = role === "partner";
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
@@ -117,7 +120,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         </div>
         <div className="flex items-center gap-2">
           <Link href={dealChannel ? `/chat?channel=${dealChannel.id}` : `/chat`} className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">💬 채팅</Link>
-          {deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 딜을 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
+          {!isPartnerView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 딜을 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
@@ -1141,7 +1144,10 @@ function CalendarView({ deals, clsColorMap, onSelectDeal }: {
 // ── Deals List ──
 function DealsPageInner() {
   const searchParams = useSearchParams(); const router = useRouter(); const selectedId = searchParams.get("id"); const programParam = searchParams.get("program");
+  const { role } = useUser();
+  const isPartner = role === "partner";
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium" });
   const [formError, setFormError] = useState("");
@@ -1156,7 +1162,7 @@ function DealsPageInner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  useEffect(() => { getCurrentUser().then((u) => u && setCompanyId(u.company_id)); }, []);
+  useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserEmail(u.email); } }); }, []);
   useEffect(() => { if (programParam && !selectedId) setSelectedProgramId(programParam); }, [programParam, selectedId]);
 
   async function searchDealPartners(q: string) {
@@ -1167,7 +1173,11 @@ function DealsPageInner() {
     setDealPartnerResults(data || []);
   }
 
-  const { data: deals = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["deals", companyId], queryFn: () => getDeals(companyId!), enabled: !!companyId });
+  const { data: deals = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
+    queryKey: ["deals", companyId, isPartner ? userEmail : "all"],
+    queryFn: () => isPartner && userEmail ? getPartnerDeals(companyId!, userEmail) : getDeals(companyId!),
+    enabled: !!companyId && (!isPartner || !!userEmail),
+  });
   const { data: classifications = [] } = useQuery({ queryKey: ["deal-classifications", companyId], queryFn: () => getDealClassifications(companyId!), enabled: !!companyId });
   const { data: matchingStatuses = [] } = useQuery({ queryKey: ['deal-matching', companyId], queryFn: () => getDealMatchingStatuses(companyId!), enabled: !!companyId });
   const { data: dormantDeals = [] } = useQuery({ queryKey: ['dormant-deals', companyId], queryFn: () => getDormantDeals(companyId!), enabled: !!companyId && showDormant });
@@ -1200,8 +1210,77 @@ function DealsPageInner() {
   if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => { if (programParam) { router.push(`/deals?program=${programParam}`); } else { router.push("/deals"); } }} />;
 
   // Program detail view
-  if (selectedProgramId && companyId) {
+  if (!isPartner && selectedProgramId && companyId) {
     return <ProgramDashboard programId={selectedProgramId} companyId={companyId} onBack={() => setSelectedProgramId(null)} onSelectDeal={(dealId) => router.push(`/deals?id=${dealId}&program=${selectedProgramId}`)} />;
+  }
+
+  // ── Partner Portal View ──
+  if (isPartner) {
+    return (
+      <div className="max-w-[1000px]">
+        <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center"><svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
+            <div>
+              <h1 className="text-2xl font-extrabold">파트너 포털</h1>
+              <p className="text-sm text-[var(--text-muted)]">배정된 딜의 진행상황을 확인하세요</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Partner Stats Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: '전체 딜', value: deals.length, color: 'var(--primary)' },
+            { label: '진행중', value: deals.filter((d: any) => ['active', 'in_progress', 'contract_signed'].includes(d.status)).length, color: '#3B82F6' },
+            { label: '완료', value: deals.filter((d: any) => ['completed', 'closed_won'].includes(d.status)).length, color: '#22C55E' },
+            { label: '총 계약금액', value: `${(deals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0) / 10000).toLocaleString()}만원`, color: '#F59E0B' },
+          ].map((stat, i) => (
+            <div key={i} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <p className="text-xs text-[var(--text-muted)]">{stat.label}</p>
+              <p className="text-lg font-bold mt-1" style={{ color: stat.color }}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Partner Deal List */}
+        {isLoading ? (
+          <div className="text-center py-12 text-[var(--text-muted)]">불러오는 중...</div>
+        ) : deals.length === 0 ? (
+          <div className="text-center py-16 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+            <p className="text-lg font-semibold mb-2">배정된 딜이 없습니다</p>
+            <p className="text-sm text-[var(--text-muted)]">관리자가 딜을 배정하면 여기에 표시됩니다</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {deals.map((d: any) => {
+              const statusLabel = DEAL_STATUS_LABEL[d.status] || d.status;
+              const isComplete = ['completed', 'closed_won'].includes(d.status);
+              const isActive = ['active', 'in_progress', 'contract_signed'].includes(d.status);
+              return (
+                <button key={d.id} onClick={() => router.push(`/deals?id=${d.id}`)} className="w-full text-left bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/40 transition group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm truncate">{d.name}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isComplete ? 'bg-green-500/10 text-green-600' : isActive ? 'bg-blue-500/10 text-blue-600' : 'bg-gray-500/10 text-gray-500'}`}>{statusLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                        {d.counterparty && <span>{d.counterparty}</span>}
+                        {d.classification && <ClassificationBadge classification={d.classification} color={clsColorMap[d.classification]} />}
+                        <span>{Number(d.contract_total || 0).toLocaleString()}원</span>
+                      </div>
+                    </div>
+                    <svg className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

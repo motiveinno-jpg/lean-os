@@ -425,6 +425,55 @@ export async function getDeals(companyId: string) {
   return data || [];
 }
 
+export async function getPartnerDeals(companyId: string, userEmail: string) {
+  // 1. Deals linked via partner_invitations (accepted, specific deal_id)
+  const { data: invites } = await supabase
+    .from('partner_invitations')
+    .select('deal_id')
+    .eq('company_id', companyId)
+    .eq('email', userEmail)
+    .eq('status', 'accepted')
+    .not('deal_id', 'is', null);
+
+  const inviteDealIds = (invites || []).map((i: any) => i.deal_id).filter(Boolean);
+
+  // 2. Deals where custom_scope contactEmail matches
+  const { data: scopeDeals } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('company_id', companyId)
+    .filter('custom_scope->>contactEmail', 'eq', userEmail)
+    .order('created_at', { ascending: false });
+
+  // 3. Deals from invitation deal_ids
+  let inviteDeals: any[] = [];
+  if (inviteDealIds.length > 0) {
+    const { data } = await supabase
+      .from('deals')
+      .select('*')
+      .in('id', inviteDealIds)
+      .order('created_at', { ascending: false });
+    inviteDeals = data || [];
+  }
+
+  // 4. Deals assigned via deal_assignments
+  const { data: assignments } = await supabase
+    .from('deal_assignments')
+    .select('deal_id')
+    .eq('is_active', true);
+  // Filter by user — need user_id, but we only have email here
+  // For now, combine invitation + scope matches
+
+  // Merge and deduplicate
+  const allDeals = [...(scopeDeals || []), ...inviteDeals];
+  const seen = new Set<string>();
+  return allDeals.filter((d: any) => {
+    if (seen.has(d.id)) return false;
+    seen.add(d.id);
+    return true;
+  });
+}
+
 export async function getDealWithNodes(dealId: string) {
   const [deal, nodes, revenue, costs] = await Promise.all([
     supabase.from('deals').select('*').eq('id', dealId).single(),
