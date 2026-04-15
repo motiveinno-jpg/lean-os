@@ -159,8 +159,8 @@ serve(async (req) => {
 
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Get CODEF credentials from company settings
-    const { data: settings } = await supabase.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id").eq("company_id", companyId).single();
+    // Get CODEF credentials from company settings (maybeSingle: table may not have row yet)
+    const { data: settings } = await supabase.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id").eq("company_id", companyId).maybeSingle();
 
     const clientId = settings?.codef_client_id || Deno.env.get("CODEF_CLIENT_ID");
     const clientSecret = settings?.codef_client_secret || Deno.env.get("CODEF_CLIENT_SECRET");

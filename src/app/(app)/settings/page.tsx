@@ -2285,6 +2285,81 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     auto_transfer_enabled: false, auto_transfer_limit: 5000000, transfer_schedule: "immediate",
     retry_count: 3, retry_interval_hours: 1, openbanking_api_key: "",
   });
+  // CODEF credentials
+  const [codefForm, setCodefForm] = useState({ client_id: "", client_secret: "", connected_id: "" });
+  const [codefSaving, setCodefSaving] = useState(false);
+  const [codefTesting, setCodefTesting] = useState(false);
+  const [codefTestResult, setCodefTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [showCodefSecret, setShowCodefSecret] = useState(false);
+
+  const { data: codefSettings, refetch: refetchCodef } = useQuery({
+    queryKey: ["codef-settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await db2.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle();
+      return data;
+    },
+    enabled: !!companyId,
+  });
+  useEffect(() => {
+    if (codefSettings) {
+      setCodefForm({
+        client_id: codefSettings.codef_client_id || "",
+        client_secret: codefSettings.codef_client_secret || "",
+        connected_id: codefSettings.codef_connected_id || "",
+      });
+    }
+  }, [codefSettings]);
+
+  async function saveCodefSettings() {
+    if (!companyId || codefSaving) return;
+    setCodefSaving(true);
+    try {
+      const payload = {
+        company_id: companyId,
+        codef_client_id: codefForm.client_id.trim() || null,
+        codef_client_secret: codefForm.client_secret.trim() || null,
+        codef_connected_id: codefForm.connected_id.trim() || null,
+        codef_connected_at: codefForm.connected_id.trim() ? new Date().toISOString() : null,
+      };
+      const { error } = await db2.from("company_settings").upsert(payload, { onConflict: "company_id" });
+      if (error) throw error;
+      refetchCodef();
+      setCodefTestResult({ ok: true, msg: "CODEF 설정이 저장되었습니다" });
+    } catch (err: any) {
+      setCodefTestResult({ ok: false, msg: `저장 실패: ${err.message}` });
+    }
+    setCodefSaving(false);
+    setTimeout(() => setCodefTestResult(null), 3000);
+  }
+
+  async function testCodefConnection() {
+    if (!companyId || codefTesting) return;
+    if (!codefForm.client_id || !codefForm.client_secret) {
+      setCodefTestResult({ ok: false, msg: "Client ID와 Secret을 먼저 입력하세요" });
+      return;
+    }
+    setCodefTesting(true);
+    setCodefTestResult(null);
+    try {
+      // Test OAuth token request
+      const tokenRes = await fetch("https://oauth.codef.io/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `grant_type=client_credentials&client_id=${encodeURIComponent(codefForm.client_id)}&client_secret=${encodeURIComponent(codefForm.client_secret)}`,
+      });
+      if (tokenRes.ok) {
+        setCodefTestResult({ ok: true, msg: "CODEF 연결 성공! 인증 토큰 발급 확인됨" });
+      } else {
+        const errData = await tokenRes.text();
+        setCodefTestResult({ ok: false, msg: `인증 실패 (${tokenRes.status}): 자격증명을 확인하세요` });
+      }
+    } catch (err: any) {
+      setCodefTestResult({ ok: false, msg: `연결 실패: ${err.message}` });
+    }
+    setCodefTesting(false);
+  }
+
   const { data: companySettings } = useQuery({
     queryKey: ["automation-settings", companyId],
     queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("automation_settings").eq("id", companyId).single(); return data?.automation_settings || {}; },
@@ -2299,8 +2374,59 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   }
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
+  const isCodefConfigured = !!(codefSettings?.codef_client_id && codefSettings?.codef_client_secret);
+
   return (
     <div className="space-y-6">
+      {/* CODEF API 연동 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold">CODEF 금융 데이터 연동</h2>
+            {isCodefConfigured ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-500">연결됨</span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미설정</span>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-[var(--text-dim)] mb-4">CODEF API를 통해 은행 거래내역과 카드 이용내역을 자동으로 동기화합니다. <a href="https://codef.io" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">codef.io</a>에서 API 키를 발급받으세요.</p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Client ID</label>
+            <input value={codefForm.client_id} onChange={(e) => setCodefForm({ ...codefForm, client_id: e.target.value })} placeholder="CODEF Client ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Client Secret</label>
+            <div className="relative">
+              <input type={showCodefSecret ? "text" : "password"} value={codefForm.client_secret} onChange={(e) => setCodefForm({ ...codefForm, client_secret: e.target.value })} placeholder="CODEF Client Secret" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
+              <button type="button" onClick={() => setShowCodefSecret(!showCodefSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCodefSecret ? "숨기기" : "보기"}</button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Connected ID <span className="text-[var(--text-dim)]">(계좌 연결 후 발급)</span></label>
+            <input value={codefForm.connected_id} onChange={(e) => setCodefForm({ ...codefForm, connected_id: e.target.value })} placeholder="계좌 연결 시 자동 생성됩니다" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
+            {codefSettings?.codef_connected_at && <p className="text-[10px] text-[var(--text-dim)] mt-1">연결일: {new Date(codefSettings.codef_connected_at).toLocaleDateString('ko-KR')}</p>}
+          </div>
+        </div>
+
+        {codefTestResult && (
+          <div className={`mt-3 p-3 rounded-xl text-xs font-medium ${codefTestResult.ok ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+            {codefTestResult.msg}
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-4">
+          <button onClick={testCodefConnection} disabled={codefTesting} className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
+            {codefTesting ? "테스트 중..." : "연결 테스트"}
+          </button>
+          <button onClick={saveCodefSettings} disabled={codefSaving} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+            {codefSaving ? "저장 중..." : "CODEF 설정 저장"}
+          </button>
+        </div>
+      </div>
+
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">등록된 계좌</h2>
         {bankAccounts.length === 0 ? (
@@ -2341,10 +2467,13 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
         </div>
       </div>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-1">API 연동</h2>
-        <p className="text-xs text-[var(--text-dim)] mb-4">오픈뱅킹 또는 n8n 웹훅으로 실제 이체를 실행합니다</p>
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">현재 n8n 웹훅 방식으로 동작합니다. 오픈뱅킹 API 키 등록 시 직접 은행 API 이체가 가능합니다.</p></div>
-        <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">오픈뱅킹 API 키</label><div className="flex gap-2"><input type="password" value={settings.openbanking_api_key} onChange={(e) => setSettings({ ...settings, openbanking_api_key: e.target.value })} placeholder="API 키를 입력하세요" className="flex-1 px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /><button className="px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button></div></div>
+        <h2 className="text-sm font-bold mb-1">이체 실행 방식</h2>
+        <p className="text-xs text-[var(--text-dim)] mb-4">CODEF 연동 완료 시 자동이체가 가능합니다. n8n 웹훅으로도 실행 가능합니다.</p>
+        {isCodefConfigured ? (
+          <div className="p-4 rounded-xl bg-green-50 border border-green-200 mb-4"><p className="text-xs text-green-700 font-semibold">CODEF API가 연결되었습니다. 거래내역 페이지에서 '동기화' 버튼으로 은행/카드 데이터를 가져올 수 있습니다.</p></div>
+        ) : (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">위 CODEF 설정을 먼저 완료하세요. 연결 전에는 엑셀 업로드로 거래내역을 관리합니다.</p></div>
+        )}
       </div>
       <button onClick={saveSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "은행연동 설정 저장"}</button>
     </div>
