@@ -11,7 +11,7 @@ import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 
-type Tab = 'inbox' | 'all' | 'rules' | 'cards';
+type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 type CardFilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 
@@ -45,6 +45,19 @@ export default function TransactionsPage() {
   const receiptFileRef = useRef<HTMLInputElement>(null);
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
   const [codefSyncing, setCodefSyncing] = useState(false);
+  // Manual entry state
+  const [manualForm, setManualForm] = useState({
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    counterparty: '',
+    description: '',
+    transaction_date: new Date().toISOString().split('T')[0],
+    category: '',
+    bank_name: '',
+    memo: '',
+  });
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualEntries, setManualEntries] = useState<any[]>([]);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -637,7 +650,7 @@ export default function TransactionsPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)]">
-        {([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][]).map(([t, label]) => (
+        {([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
             className={`px-4 py-2.5 text-sm font-semibold transition border-b-2 -mb-px ${
               tab === t ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -646,6 +659,150 @@ export default function TransactionsPage() {
           </button>
         ))}
       </div>
+
+      {/* Manual Entry Tab */}
+      {tab === 'manual' && (
+        <div className="space-y-4">
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+            <h3 className="text-sm font-bold mb-4">거래내역 직접 등록</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">입출금 구분 *</label>
+                <div className="flex gap-2">
+                  {(['income', 'expense'] as const).map(t => (
+                    <button key={t} onClick={() => setManualForm(f => ({ ...f, type: t }))}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${manualForm.type === t ? (t === 'income' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white') : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'}`}>
+                      {t === 'income' ? '입금' : '출금'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래일 *</label>
+                <input type="date" value={manualForm.transaction_date} onChange={e => setManualForm(f => ({ ...f, transaction_date: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">금액 (원) *</label>
+                <input type="number" min="1" value={manualForm.amount} onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="1,500,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래처</label>
+                <input value={manualForm.counterparty} onChange={e => setManualForm(f => ({ ...f, counterparty: e.target.value }))}
+                  placeholder="(주)모티브" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">적요/설명</label>
+                <input value={manualForm.description} onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="서비스 용역대금" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">카테고리</label>
+                <select value={manualForm.category} onChange={e => setManualForm(f => ({ ...f, category: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  <option value="">선택 안함</option>
+                  <option value="매출">매출</option><option value="급여">급여</option><option value="임대료">임대료</option>
+                  <option value="복리후생비">복리후생비</option><option value="소모품비">소모품비</option><option value="통신비">통신비</option>
+                  <option value="교통비">교통비</option><option value="광고선전비">광고선전비</option><option value="접대비">접대비</option>
+                  <option value="보험료">보험료</option><option value="세금공과">세금공과</option><option value="수수료">수수료</option>
+                  <option value="이자수익">이자수익</option><option value="기타수입">기타수입</option><option value="기타비용">기타비용</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">은행/결제수단</label>
+                <input value={manualForm.bank_name} onChange={e => setManualForm(f => ({ ...f, bank_name: e.target.value }))}
+                  placeholder="국민은행, 신한카드 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">메모</label>
+                <input value={manualForm.memo} onChange={e => setManualForm(f => ({ ...f, memo: e.target.value }))}
+                  placeholder="비고" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!companyId || manualSaving) return;
+                const amount = Number(manualForm.amount);
+                if (!amount || amount <= 0) { toast('금액을 입력하세요', 'error'); return; }
+                if (!manualForm.transaction_date) { toast('거래일을 선택하세요', 'error'); return; }
+                setManualSaving(true);
+                try {
+                  const db = supabase as any;
+                  const externalId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                  const { error } = await db.from('transactions').insert({
+                    company_id: companyId,
+                    external_id: externalId,
+                    amount: manualForm.type === 'income' ? amount : -amount,
+                    type: manualForm.type,
+                    description: manualForm.description || manualForm.counterparty || '수기 입력',
+                    transaction_date: manualForm.transaction_date,
+                    source: 'manual',
+                    counterparty: manualForm.counterparty || null,
+                    category: manualForm.category || null,
+                    memo: manualForm.memo || null,
+                    bank_name: manualForm.bank_name || null,
+                    mapping_status: manualForm.category ? 'manual_mapped' : 'unmapped',
+                  });
+                  if (error) throw error;
+                  toast('거래내역이 등록되었습니다', 'success');
+                  setManualForm(f => ({ ...f, amount: '', counterparty: '', description: '', category: '', memo: '' }));
+                  queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-stats'] });
+                  // Refresh manual entries list
+                  const { data: entries } = await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50);
+                  setManualEntries(entries || []);
+                } catch (err: any) {
+                  toast(`등록 실패: ${err.message}`, 'error');
+                }
+                setManualSaving(false);
+              }}
+              disabled={manualSaving || !companyId}
+              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+            >
+              {manualSaving ? '저장 중...' : '거래내역 등록'}
+            </button>
+          </div>
+
+          {/* Recently added manual entries */}
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold">수기 입력 내역</h3>
+              <button onClick={async () => {
+                if (!companyId) return;
+                const db = supabase as any;
+                const { data } = await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50);
+                setManualEntries(data || []);
+              }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>
+            </div>
+            {manualEntries.length === 0 ? (
+              <p className="text-center py-6 text-sm text-[var(--text-muted)]">수기 입력된 거래가 없습니다. 위에서 거래를 등록하세요.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
+                    <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
+                    <th className="text-left px-2 py-2">적요</th><th className="text-left px-2 py-2">카테고리</th>
+                  </tr></thead>
+                  <tbody>
+                    {manualEntries.map((tx: any) => (
+                      <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
+                        <td className="px-2 py-2 text-xs">{tx.transaction_date}</td>
+                        <td className="px-2 py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'income' ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>{tx.type === 'income' ? '입금' : '출금'}</span></td>
+                        <td className="px-2 py-2 text-right font-mono text-xs">{Math.abs(Number(tx.amount)).toLocaleString()}원</td>
+                        <td className="px-2 py-2 text-xs">{tx.counterparty || '-'}</td>
+                        <td className="px-2 py-2 text-xs text-[var(--text-muted)]">{tx.description || '-'}</td>
+                        <td className="px-2 py-2 text-xs">{tx.category || <span className="text-[var(--text-dim)]">미분류</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Rules Tab */}
       {tab === 'rules' && (
