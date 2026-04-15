@@ -19,12 +19,15 @@ import {
   getHomeTaxSyncLogs,
   INVOICE_TYPES,
   INVOICE_STATUS,
+  issueTaxInvoice,
 } from "@/lib/tax-invoice";
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { generateTaxInvoicePdf } from "@/lib/document-generator";
+import type { TaxInvoicePdfParams } from "@/lib/document-generator";
 
 // ── Print Styles ──
 const PRINT_STYLE_ID = "tax-invoice-print-style";
@@ -1607,11 +1610,111 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
 function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onClose: () => void; onModify: (inv: any) => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const inv = invoice;
   const supplyAmt = Number(inv.supply_amount || 0);
   const taxAmt = Number(inv.tax_amount || 0);
   const totalAmt = Number(inv.total_amount || 0);
   const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [showEmailForm, setShowEmailForm] = useState(false);
+
+  const buildPdfParams = (): TaxInvoicePdfParams => ({
+    invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
+    issueDate: inv.issue_date || new Date().toISOString().split('T')[0],
+    type: inv.type,
+    supplier: {
+      name: inv.type === 'sales' ? '(주)우리회사' : inv.counterparty_name,
+      businessNumber: inv.type === 'sales' ? '' : (inv.counterparty_bizno || ''),
+    },
+    buyer: {
+      name: inv.type === 'purchase' ? '(주)우리회사' : inv.counterparty_name,
+      businessNumber: inv.type === 'purchase' ? '' : (inv.counterparty_bizno || ''),
+    },
+    supplyAmount: supplyAmt,
+    taxAmount: taxAmt,
+    totalAmount: totalAmt,
+    items: [{
+      date: inv.issue_date || '',
+      name: inv.label || '용역',
+      qty: 1,
+      unitPrice: supplyAmt,
+      amount: supplyAmt,
+      taxAmount: taxAmt,
+    }],
+  });
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const blob = await generateTaxInvoicePdf(buildPdfParams());
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `세금계산서_${inv.counterparty_name}_${inv.issue_date}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('PDF 다운로드 완료', 'success');
+    } catch (err: any) {
+      toast(`PDF 생성 실패: ${err.message}`, 'error');
+    }
+    setPdfLoading(false);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailTo) { toast('이메일 주소를 입력하세요', 'error'); return; }
+    setEmailLoading(true);
+    try {
+      // Generate PDF blob → base64
+      const blob = await generateTaxInvoicePdf(buildPdfParams());
+      const buffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const pdfBase64 = btoa(binary);
+
+      const invoiceNumber = `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`;
+      const res = await supabase.functions.invoke('send-tax-invoice-email', {
+        body: {
+          recipientEmail: emailTo,
+          counterpartyName: inv.counterparty_name,
+          senderCompany: '(주)우리회사',
+          invoiceNumber,
+          issueDate: inv.issue_date,
+          supplyAmount: supplyAmt,
+          taxAmount: taxAmt,
+          totalAmount: totalAmt,
+          type: inv.type,
+          pdfBase64,
+        },
+      });
+      if (res.error) throw res.error;
+      toast(`${emailTo}로 세금계산서 발송 완료`, 'success');
+      setShowEmailForm(false);
+      setEmailTo('');
+    } catch (err: any) {
+      toast(`이메일 발송 실패: ${err.message}`, 'error');
+    }
+    setEmailLoading(false);
+  };
+
+  const handleIssue = async () => {
+    if (inv.status !== 'draft') return;
+    setIssueLoading(true);
+    try {
+      await issueTaxInvoice(inv.id);
+      toast('세금계산서가 발행되었습니다', 'success');
+      queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
+      onClose();
+    } catch (err: any) {
+      toast(`발행 실패: ${err.message}`, 'error');
+    }
+    setIssueLoading(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -1728,28 +1831,69 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 mt-4">
-            <button
-              onClick={() => onModify(inv)}
-              className="px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
-            >
-              수정세금계산서 발행
-            </button>
-            <button
-              onClick={() => {
-                const printContent = document.querySelector('[data-invoice-print]');
-                if (printContent) window.print();
-              }}
-              className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"
-            >
-              인쇄
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition ml-auto"
-            >
-              닫기
-            </button>
+          <div className="space-y-3 mt-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              {inv.status === 'draft' && (
+                <button
+                  onClick={handleIssue}
+                  disabled={issueLoading}
+                  className="px-4 py-2 bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                >
+                  {issueLoading ? '발행 중...' : '발행 처리'}
+                </button>
+              )}
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                className="px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+              >
+                {pdfLoading ? 'PDF 생성 중...' : 'PDF 다운로드'}
+              </button>
+              <button
+                onClick={() => setShowEmailForm(!showEmailForm)}
+                className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-sm font-semibold transition"
+              >
+                이메일 발송
+              </button>
+              <button
+                onClick={() => onModify(inv)}
+                className="px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
+              >
+                수정세금계산서
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"
+              >
+                인쇄
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition ml-auto"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* Email form */}
+            {showEmailForm && (
+              <div className="flex items-center gap-2 bg-[var(--bg-surface)] rounded-xl p-3 border border-[var(--border)]">
+                <input
+                  type="email"
+                  value={emailTo}
+                  onChange={e => setEmailTo(e.target.value)}
+                  placeholder="수신자 이메일 주소"
+                  className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                />
+                <button
+                  onClick={handleSendEmail}
+                  disabled={emailLoading || !emailTo}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition disabled:opacity-50 whitespace-nowrap"
+                >
+                  {emailLoading ? '발송 중...' : 'PDF 첨부 발송'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

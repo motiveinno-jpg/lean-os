@@ -399,6 +399,218 @@ export async function generateQuotePDF(params: {
 }
 
 // ────────────────────────────────────────────
+// 4-B. 세금계산서 PDF 생성 (한국 표준 양식)
+// ────────────────────────────────────────────
+
+export interface TaxInvoicePdfParams {
+  invoiceNumber: string;
+  issueDate: string;
+  type: 'sales' | 'purchase';
+  // 공급자
+  supplier: {
+    name: string;
+    representative?: string;
+    businessNumber?: string;
+    address?: string;
+    businessType?: string;
+    businessCategory?: string;
+  };
+  // 공급받는자
+  buyer: {
+    name: string;
+    representative?: string;
+    businessNumber?: string;
+    address?: string;
+    businessType?: string;
+    businessCategory?: string;
+  };
+  // 금액
+  supplyAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  // 품목 (선택)
+  items?: {
+    date: string;
+    name: string;
+    spec?: string;
+    qty: number;
+    unitPrice: number;
+    amount: number;
+    taxAmount: number;
+  }[];
+  // 비고
+  notes?: string;
+  sealUrl?: string;
+}
+
+export async function generateTaxInvoicePdf(params: TaxInvoicePdfParams): Promise<Blob> {
+  const doc = new jsPDF('l', 'mm', 'a4'); // 가로 방향 (한국 세금계산서 표준)
+  await loadKoreanFont(doc);
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  let y = 12;
+
+  // ── 제목 ──
+  doc.setFontSize(18);
+  setKoreanFont(doc, 'bold');
+  doc.setTextColor(30, 30, 30);
+  const title = params.type === 'sales' ? '세 금 계 산 서 (공급자 보관용)' : '세 금 계 산 서 (공급받는자 보관용)';
+  doc.text(title, pageW / 2, y, { align: 'center' });
+  y += 10;
+
+  // ── 등록번호 + 발행일 ──
+  doc.setFontSize(9);
+  setKoreanFont(doc, 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`No. ${params.invoiceNumber}`, 14, y);
+  doc.text(`발행일: ${params.issueDate}`, pageW - 14, y, { align: 'right' });
+  y += 6;
+
+  // ── 공급자 / 공급받는자 정보 (좌우 분할) ──
+  const halfW = (pageW - 28) / 2 - 2;
+
+  // 공급자 (좌)
+  const supplierRows: string[][] = [
+    ['사업자번호', params.supplier.businessNumber || '-'],
+    ['상 호', params.supplier.name],
+    ['대 표 자', params.supplier.representative || '-'],
+    ['주 소', params.supplier.address || '-'],
+    ['업 태', params.supplier.businessType || '-'],
+    ['종 목', params.supplier.businessCategory || '-'],
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    head: [['공 급 자', '']],
+    body: supplierRows,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, font: 'NanumGothic' },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', font: 'NanumGothic', halign: 'center' },
+    columnStyles: {
+      0: { cellWidth: 28, fontStyle: 'bold', fillColor: [245, 247, 250] },
+      1: { cellWidth: halfW - 28 },
+    },
+    margin: { left: 14, right: pageW - 14 - halfW },
+    tableWidth: halfW,
+  });
+
+  // 공급받는자 (우)
+  const buyerRows: string[][] = [
+    ['사업자번호', params.buyer.businessNumber || '-'],
+    ['상 호', params.buyer.name],
+    ['대 표 자', params.buyer.representative || '-'],
+    ['주 소', params.buyer.address || '-'],
+    ['업 태', params.buyer.businessType || '-'],
+    ['종 목', params.buyer.businessCategory || '-'],
+  ];
+
+  autoTable(doc, {
+    startY: y,
+    head: [['공급받는자', '']],
+    body: buyerRows,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, font: 'NanumGothic' },
+    headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold', font: 'NanumGothic', halign: 'center' },
+    columnStyles: {
+      0: { cellWidth: 28, fontStyle: 'bold', fillColor: [245, 247, 250] },
+      1: { cellWidth: halfW - 28 },
+    },
+    margin: { left: 14 + halfW + 4, right: 14 },
+    tableWidth: halfW,
+  });
+
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  // ── 합계 금액 ──
+  autoTable(doc, {
+    startY: y,
+    body: [
+      ['공급가액', `${fmtKRW(params.supplyAmount)} 원`, '세 액', `${fmtKRW(params.taxAmount)} 원`, '합계금액', `${fmtKRW(params.totalAmount)} 원`],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3, halign: 'center', font: 'NanumGothic' },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 25 },
+      1: { halign: 'right', cellWidth: (pageW - 28 - 75) / 3 },
+      2: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 25 },
+      3: { halign: 'right', cellWidth: (pageW - 28 - 75) / 3 },
+      4: { fontStyle: 'bold', fillColor: [59, 130, 246], textColor: [255, 255, 255], cellWidth: 25 },
+      5: { halign: 'right', fontStyle: 'bold', cellWidth: (pageW - 28 - 75) / 3 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  // ── 품목 테이블 ──
+  const items = params.items && params.items.length > 0
+    ? params.items
+    : [{ date: params.issueDate, name: '용역', spec: '-', qty: 1, unitPrice: params.supplyAmount, amount: params.supplyAmount, taxAmount: params.taxAmount }];
+
+  const itemHead = [['월/일', '품 목', '규 격', '수 량', '단 가', '공급가액', '세 액', '비 고']];
+  const itemBody = items.map(item => [
+    item.date.length > 7 ? item.date.slice(5) : item.date,
+    item.name,
+    item.spec || '-',
+    fmtNumber(item.qty),
+    fmtKRW(item.unitPrice),
+    fmtKRW(item.amount),
+    fmtKRW(item.taxAmount),
+    '',
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    head: itemHead,
+    body: itemBody,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2.5, halign: 'center', font: 'NanumGothic' },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', font: 'NanumGothic' },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 55, halign: 'left' },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 18 },
+      4: { cellWidth: 30, halign: 'right' },
+      5: { cellWidth: 35, halign: 'right' },
+      6: { cellWidth: 30, halign: 'right' },
+      7: { halign: 'left' },
+    },
+    margin: { left: 14, right: 14 },
+    alternateRowStyles: { fillColor: [248, 249, 250] },
+  });
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  // ── 비고 ──
+  if (params.notes) {
+    doc.setFontSize(8);
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`비고: ${params.notes}`, 14, y);
+    y += 6;
+  }
+
+  // ── 직인 ──
+  if (params.sealUrl) {
+    try {
+      const img = await loadImage(params.sealUrl);
+      const sealSize = 25;
+      doc.addImage(img, 'PNG', pageW / 4 - sealSize / 2, y, sealSize, sealSize);
+    } catch {
+      // skip
+    }
+  }
+
+  // ── 하단 안내 ──
+  doc.setFontSize(7);
+  setKoreanFont(doc, 'normal');
+  doc.setTextColor(150, 150, 150);
+  doc.text('이 세금계산서는 OwnerView에서 발행되었습니다. 법적 효력이 있는 전자세금계산서는 국세청 홈택스를 통해 발행하세요.', pageW / 2, pageH - 8, { align: 'center' });
+
+  addPageNumbers(doc, params.supplier.name);
+  return doc.output('blob');
+}
+
+// ────────────────────────────────────────────
 // 5. 문서 발행 (issued 상태 + 잠금)
 // ────────────────────────────────────────────
 
