@@ -120,7 +120,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 매출</div><div className="text-lg font-bold text-green-400 mt-1">₩{totalRevenue.toLocaleString()}</div></div>
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 비용</div><div className="text-lg font-bold text-red-400 mt-1">₩{totalCost.toLocaleString()}</div></div>
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">마진</div><div className={`text-lg font-bold mt-1 ${dealMargin < 20 ? 'text-red-400' : dealMargin < 35 ? 'text-yellow-400' : 'text-green-400'}`}>{dealMargin.toFixed(1)}%</div></div>
@@ -139,10 +139,10 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           </div>
           <div className="space-y-1.5">
             {paymentStages.map((stage, idx) => (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <input value={stage.label} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], label: e.target.value }; setPaymentStages(arr); }} className="w-20 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" placeholder="단계명" />
                 <input type="number" min={0} max={100} value={stage.ratio} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], ratio: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }; setPaymentStages(arr); }} className="w-16 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-right focus:outline-none focus:border-[var(--primary)]" /><span className="text-[10px] text-[var(--text-dim)]">%</span>
-                <input value={stage.condition} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], condition: e.target.value }; setPaymentStages(arr); }} className="flex-1 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" placeholder="지급 조건 (예: 계약 후 7일)" />
+                <input value={stage.condition} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], condition: e.target.value }; setPaymentStages(arr); }} className="flex-1 min-w-[120px] px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" placeholder="지급 조건 (예: 계약 후 7일)" />
                 {milestones.length > 0 && (
                   <select value={stage.milestone_id || ''} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], milestone_id: e.target.value || undefined }; setPaymentStages(arr); }} className="w-28 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
                     <option value="">마일스톤 연결</option>

@@ -271,7 +271,7 @@ function ListView({ nodes, groups, assignments, cycleStatus, updateNode, deleteN
   return (
     <div>
       {/* Column headers */}
-      <div className="grid grid-cols-[32px_1fr_72px_80px_80px_56px_64px_28px] items-center px-5 py-2 text-[10px] text-[var(--text-dim)] font-semibold uppercase tracking-wider border-b border-[var(--border)]/50">
+      <div className="hidden sm:grid grid-cols-[32px_1fr_72px_80px_80px_56px_64px_28px] items-center px-5 py-2 text-[10px] text-[var(--text-dim)] font-semibold uppercase tracking-wider border-b border-[var(--border)]/50">
         <span />
         <span>작업명</span>
         <span className="text-center">담당자</span>
@@ -300,7 +300,24 @@ function ListView({ nodes, groups, assignments, cycleStatus, updateNode, deleteN
             const isDone = node.status === "completed";
 
             return (
-              <div key={node.id} className={`grid grid-cols-[32px_1fr_72px_80px_80px_56px_64px_28px] items-center px-5 py-2.5 border-b border-[var(--border)]/20 transition hover:bg-[var(--bg-surface)]/30 ${isActive ? "bg-[var(--primary)]/[0.02]" : ""}`}>
+              <div key={node.id}>
+                {/* Mobile card */}
+                <div className={`sm:hidden flex items-start gap-3 px-4 py-3 border-b border-[var(--border)]/20 ${isActive ? "bg-[var(--primary)]/[0.02]" : ""}`}>
+                  <button onClick={() => cycleStatus(node)} className={`mt-0.5 w-[22px] h-[22px] rounded flex-shrink-0 flex items-center justify-center border-2 transition text-[10px] ${isDone ? "border-green-400 bg-green-400/20 text-green-400" : isActive ? "border-blue-400 bg-blue-400/10" : "border-[var(--border)]"}`} aria-label={`상태 변경: ${node.name}`}>
+                    {isDone && "✓"}{isActive && <span className="w-2 h-2 rounded-full bg-blue-400" />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium ${isDone ? "line-through text-[var(--text-dim)]" : isActive ? "text-[var(--primary)]" : ""}`}>{node.name}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${st.bgColor} ${st.color} font-semibold`}>{st.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${pr.bgColor} ${pr.color} font-semibold`}>{pr.label}</span>
+                      {dl && <span className={`text-[10px] ${dl.className}`}>{dl.text}</span>}
+                      {avatar && <div className="w-5 h-5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-[9px] font-bold">{avatar}</div>}
+                    </div>
+                  </div>
+                </div>
+                {/* Desktop row */}
+                <div className={`hidden sm:grid grid-cols-[32px_1fr_72px_80px_80px_56px_64px_28px] items-center px-5 py-2.5 border-b border-[var(--border)]/20 transition hover:bg-[var(--bg-surface)]/30 ${isActive ? "bg-[var(--primary)]/[0.02]" : ""}`}>
                 {/* Checkbox */}
                 <button onClick={() => cycleStatus(node)} className={`w-[18px] h-[18px] rounded flex items-center justify-center border-2 transition text-[10px] ${isDone ? "border-green-400 bg-green-400/20 text-green-400" : isActive ? "border-blue-400 bg-blue-400/10" : "border-[var(--border)] hover:border-[var(--primary)]"}`} aria-label={`상태 변경: ${node.name}`}>
                   {isDone && "✓"}
@@ -345,6 +362,7 @@ function ListView({ nodes, groups, assignments, cycleStatus, updateNode, deleteN
                 {/* Delete */}
                 <button onClick={() => { if (confirm(`"${node.name}" 삭제?`)) deleteNode(node.id); }} className="text-[var(--text-dim)] hover:text-red-400 text-[10px] transition" aria-label="삭제">✕</button>
               </div>
+              </div>
             );
           })}
         </div>
@@ -368,7 +386,7 @@ function KanbanView({ nodes, cycleStatus, updateNode }: {
   }));
 
   return (
-    <div className="grid grid-cols-3 gap-4 p-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4">
       {columns.map(col => (
         <div key={col.key} className={`bg-[var(--bg)] rounded-xl p-3 border-l-2 ${col.color}`}>
           {/* Column header */}

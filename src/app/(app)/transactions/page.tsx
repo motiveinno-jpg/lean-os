@@ -657,7 +657,7 @@ export default function TransactionsPage() {
 
           {showRuleForm && (
             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">규칙명 *</label>
                   <input value={ruleForm.rule_name} onChange={e => setRuleForm({ ...ruleForm, rule_name: e.target.value })}
@@ -886,9 +886,9 @@ export default function TransactionsPage() {
           </div>
 
           {/* Card Selector + Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)}
-              className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm min-w-[200px]">
+              className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm w-full sm:w-auto sm:min-w-[200px]">
               <option value="">전체 카드</option>
               {corpCards.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.card_name} ({c.card_company})</option>

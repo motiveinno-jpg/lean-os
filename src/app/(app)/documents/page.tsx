@@ -1363,7 +1363,7 @@ function DocumentsPageInner() {
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">문서/계약</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">계약서, 견적서, 세금계산서 관리</p>
@@ -1381,7 +1381,7 @@ function DocumentsPageInner() {
       </div>
 
       {/* Search bar + Type filter */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="flex-1 relative">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1404,7 +1404,7 @@ function DocumentsPageInner() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] min-w-[160px]"
+          className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] w-full sm:w-auto sm:min-w-[160px]"
         >
           <option value="all">전체 유형</option>
           {DOC_INTEL_TYPES.map(t => (
