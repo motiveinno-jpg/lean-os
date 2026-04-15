@@ -2318,7 +2318,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       const { registerCodefAccount } = await import("@/lib/data-sync");
       const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw);
       if (res.success) {
-        setResult({ ok: true, msg: `연결 성공! Connected ID: ${res.connectedId?.slice(0, 8)}...` });
+        setResult({ ok: true, msg: "금융기관 연결 성공!" });
         toast("금융기관 연결 완료", "success");
         setLoginId("");
         setLoginPw("");
@@ -2354,8 +2354,8 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             });
             const data = await res.json();
             if (data.success) {
-              setResult({ ok: true, msg: `샌드박스 연결 완료! 은행 ${data.bankAccounts || 0}개 + 카드 ${data.cardAccounts || 0}개 확인됨. Connected ID: ${data.connectedId?.slice(0, 8)}...` });
-              toast("샌드박스 데모 연결 완료", "success");
+              setResult({ ok: true, msg: `데모 연결 완료! 은행 ${data.bankAccounts || 0}개 + 카드 ${data.cardAccounts || 0}개 확인됨` });
+              toast("데모 금융 데이터 연결 완료", "success");
               onRegistered();
             } else {
               setResult({ ok: false, msg: data.error || "연결 실패" });
@@ -2368,7 +2368,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         disabled={registering}
         className="mb-4 w-full py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl text-xs font-semibold hover:bg-blue-500/20 transition disabled:opacity-50"
       >
-        {registering ? "연결 중..." : "샌드박스 데모 데이터로 바로 연결 (테스트용)"}
+        {registering ? "연결 중..." : "데모 데이터로 바로 체험하기"}
       </button>
 
       <p className="text-[10px] text-[var(--text-dim)] mb-3">또는 실제 금융기관 계정으로 연결:</p>
@@ -2419,7 +2419,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             />
             <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
           </div>
-          <p className="text-[10px] text-[var(--text-dim)] mt-1">CODEF 보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-1">보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
         </div>
       </div>
 
@@ -2441,94 +2441,72 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 }
 
 // ═══════════════════════════════════════════
-// Bank Integration Tab
+// Bank Integration Tab — 사용자 친화적 금융 연결
+// CODEF API 키는 서버 환경변수로만 관리 (사용자 노출 X)
 // ═══════════════════════════════════════════
 function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [saved, setSaved] = useState(false);
   const [settings, setSettings] = useState({
     auto_transfer_enabled: false, auto_transfer_limit: 5000000, transfer_schedule: "immediate",
-    retry_count: 3, retry_interval_hours: 1, openbanking_api_key: "",
+    retry_count: 3, retry_interval_hours: 1,
   });
-  // CODEF credentials
-  const [codefForm, setCodefForm] = useState({ client_id: "", client_secret: "", connected_id: "" });
-  const [codefSaving, setCodefSaving] = useState(false);
-  const [codefTesting, setCodefTesting] = useState(false);
-  const [codefTestResult, setCodefTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [showCodefSecret, setShowCodefSecret] = useState(false);
 
-  const { data: codefSettings, refetch: refetchCodef } = useQuery({
-    queryKey: ["codef-settings", companyId],
+  // 연결 상태 확인 (connected_id만 체크)
+  const { data: connectionStatus, refetch: refetchConnection } = useQuery({
+    queryKey: ["codef-connection", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await db2.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle();
+      const { data } = await db2.from("company_settings").select("codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle();
       return data;
     },
     enabled: !!companyId,
   });
+
+  // 연결된 CODEF 계좌 목록
+  const [codefAccounts, setCodefAccounts] = useState<{ bank: any[]; card: any[] }>({ bank: [], card: [] });
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const isConnected = !!connectionStatus?.codef_connected_id;
+
+  // CODEF 계좌 목록 조회
   useEffect(() => {
-    if (codefSettings) {
-      setCodefForm({
-        client_id: codefSettings.codef_client_id || "",
-        client_secret: codefSettings.codef_client_secret || "",
-        connected_id: codefSettings.codef_connected_id || "",
+    if (!companyId || !isConnected) return;
+    setLoadingAccounts(true);
+    Promise.all([
+      import("@/lib/data-sync").then(m => m.listCodefAccounts(companyId, "bank")),
+      import("@/lib/data-sync").then(m => m.listCodefAccounts(companyId, "card")),
+    ]).then(([bankRes, cardRes]) => {
+      setCodefAccounts({
+        bank: bankRes.success ? (bankRes.accounts || []) : [],
+        card: cardRes.success ? (cardRes.accounts || []) : [],
       });
-    }
-  }, [codefSettings]);
+    }).finally(() => setLoadingAccounts(false));
+  }, [companyId, isConnected]);
 
-  async function saveCodefSettings() {
-    if (!companyId || codefSaving) return;
-    setCodefSaving(true);
+  // 거래내역 동기화
+  async function handleSync() {
+    if (!companyId || syncing) return;
+    setSyncing(true);
+    setSyncResult(null);
     try {
-      const payload = {
-        company_id: companyId,
-        codef_client_id: codefForm.client_id.trim() || null,
-        codef_client_secret: codefForm.client_secret.trim() || null,
-        codef_connected_id: codefForm.connected_id.trim() || null,
-        codef_connected_at: codefForm.connected_id.trim() ? new Date().toISOString() : null,
-      };
-      const { error } = await db2.from("company_settings").upsert(payload, { onConflict: "company_id" });
-      if (error) throw error;
-      refetchCodef();
-      setCodefTestResult({ ok: true, msg: "CODEF 설정이 저장되었습니다" });
-    } catch (err: any) {
-      setCodefTestResult({ ok: false, msg: `저장 실패: ${err.message}` });
-    }
-    setCodefSaving(false);
-    setTimeout(() => setCodefTestResult(null), 3000);
-  }
-
-  async function testCodefConnection() {
-    if (!companyId || codefTesting) return;
-    if (!codefForm.client_id || !codefForm.client_secret) {
-      setCodefTestResult({ ok: false, msg: "Client ID와 Secret을 먼저 입력하세요" });
-      return;
-    }
-    setCodefTesting(true);
-    setCodefTestResult(null);
-    try {
-      // Test OAuth token request (Basic Auth)
-      const basicAuth = btoa(`${codefForm.client_id}:${codefForm.client_secret}`);
-      const tokenRes = await fetch("https://oauth.codef.io/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${basicAuth}`,
-        },
-        body: "grant_type=client_credentials&scope=read",
-      });
-      if (tokenRes.ok) {
-        const tokenData = await tokenRes.json();
-        const scopes = tokenData.scope || "";
-        setCodefTestResult({ ok: true, msg: `CODEF 연결 성공! 토큰 발급됨 (권한: ${scopes}, 만료: ${Math.round(tokenData.expires_in / 3600)}시간)` });
+      const { syncCodefData } = await import("@/lib/data-sync");
+      const res = await syncCodefData(companyId, "all");
+      if (res.success) {
+        setSyncResult({ ok: true, msg: res.message || "거래내역 동기화 완료" });
+        toast("거래내역 동기화 완료", "success");
       } else {
-        setCodefTestResult({ ok: false, msg: `인증 실패 (${tokenRes.status}): Client ID와 Secret을 확인하세요` });
+        setSyncResult({ ok: false, msg: res.error || "동기화 실패" });
       }
     } catch (err: any) {
-      setCodefTestResult({ ok: false, msg: `연결 실패: ${err.message}` });
+      setSyncResult({ ok: false, msg: err.message || "오류 발생" });
     }
-    setCodefTesting(false);
+    setSyncing(false);
+    setTimeout(() => setSyncResult(null), 5000);
   }
 
   const { data: companySettings } = useQuery({
@@ -2545,72 +2523,102 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   }
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
-  const isCodefConfigured = !!(codefSettings?.codef_client_id && codefSettings?.codef_client_secret);
-
   return (
     <div className="space-y-6">
-      {/* CODEF API 연동 */}
+      {/* 금융 연결 상태 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold">CODEF 금융 데이터 연동</h2>
-            {isCodefConfigured ? (
+            <h2 className="text-sm font-bold">금융 데이터 연동</h2>
+            {isConnected ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-500">연결됨</span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미설정</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미연결</span>
             )}
           </div>
+          {isConnected && (
+            <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+              {syncing ? "동기화 중..." : "거래내역 동기화"}
+            </button>
+          )}
         </div>
-        <p className="text-xs text-[var(--text-dim)] mb-4">CODEF API를 통해 은행 거래내역과 카드 이용내역을 자동으로 동기화합니다. <a href="https://codef.io" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">codef.io</a>에서 API 키를 발급받으세요.</p>
 
-        {!isCodefConfigured && (
-          <button onClick={() => { setCodefForm({ client_id: "da370749-17ca-4dc4-8078-18689e9f8a2c", client_secret: "92120ccd-6b6b-45a4-9542-c83777248c95", connected_id: "" }); }} className="mb-4 px-3 py-1.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-lg text-[11px] font-semibold hover:bg-blue-500/20 transition">
-            데모 키 자동입력 (개발용)
-          </button>
-        )}
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Client ID</label>
-            <input value={codefForm.client_id} onChange={(e) => setCodefForm({ ...codefForm, client_id: e.target.value })} placeholder="CODEF Client ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Client Secret</label>
-            <div className="relative">
-              <input type={showCodefSecret ? "text" : "password"} value={codefForm.client_secret} onChange={(e) => setCodefForm({ ...codefForm, client_secret: e.target.value })} placeholder="CODEF Client Secret" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
-              <button type="button" onClick={() => setShowCodefSecret(!showCodefSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCodefSecret ? "숨기기" : "보기"}</button>
+        {isConnected ? (
+          <div className="space-y-3">
+            <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20">
+              <p className="text-xs text-green-600 font-semibold">은행/카드가 연결되었습니다. 거래내역이 자동으로 수집됩니다.</p>
+              {connectionStatus?.codef_connected_at && (
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">연결일: {new Date(connectionStatus.codef_connected_at).toLocaleDateString("ko-KR")}</p>
+              )}
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Connected ID <span className="text-[var(--text-dim)]">(계좌 연결 시 자동 발급)</span></label>
-            <input value={codefForm.connected_id} readOnly placeholder="아래 '금융기관 연결'로 자동 생성됩니다" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none text-[var(--text-dim)]" />
-            {codefSettings?.codef_connected_at && <p className="text-[10px] text-[var(--text-dim)] mt-1">연결일: {new Date(codefSettings.codef_connected_at).toLocaleDateString('ko-KR')}</p>}
-          </div>
-        </div>
 
-        {codefTestResult && (
-          <div className={`mt-3 p-3 rounded-xl text-xs font-medium ${codefTestResult.ok ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-            {codefTestResult.msg}
+            {/* 연결된 계좌 목록 */}
+            {loadingAccounts ? (
+              <div className="text-center py-4 text-xs text-[var(--text-muted)]">계좌 정보 불러오는 중...</div>
+            ) : (
+              <>
+                {codefAccounts.bank.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 은행 계좌</h3>
+                    <div className="space-y-1.5">
+                      {codefAccounts.bank.map((acc: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 text-xs font-bold">B</div>
+                            <div>
+                              <div className="text-sm font-medium">{acc.resAccountName || acc.organization || "계좌"}</div>
+                              <div className="text-xs text-[var(--text-dim)]">{acc.resAccount || acc.resAccountDisplay || ""}</div>
+                            </div>
+                          </div>
+                          {acc.resAccountBalance && (
+                            <div className="text-sm font-bold">{Number(acc.resAccountBalance).toLocaleString()}원</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {codefAccounts.card.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 카드</h3>
+                    <div className="space-y-1.5">
+                      {codefAccounts.card.map((card: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 text-xs font-bold">C</div>
+                            <div>
+                              <div className="text-sm font-medium">{card.resCardName || card.organization || "카드"}</div>
+                              <div className="text-xs text-[var(--text-dim)]">{card.resCardNo || ""}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {codefAccounts.bank.length === 0 && codefAccounts.card.length === 0 && (
+                  <p className="text-xs text-[var(--text-dim)] text-center py-2">연결된 계좌/카드 정보를 불러올 수 없습니다. 아래에서 추가로 연결하세요.</p>
+                )}
+              </>
+            )}
+
+            {syncResult && (
+              <div className={`p-3 rounded-xl text-xs font-medium ${syncResult.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+                {syncResult.msg}
+              </div>
+            )}
           </div>
+        ) : (
+          <p className="text-xs text-[var(--text-dim)]">아래에서 은행 또는 카드를 연결하면 거래내역이 자동으로 수집됩니다.</p>
         )}
-
-        <div className="flex gap-2 mt-4">
-          <button onClick={testCodefConnection} disabled={codefTesting} className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
-            {codefTesting ? "테스트 중..." : "연결 테스트"}
-          </button>
-          <button onClick={saveCodefSettings} disabled={codefSaving} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
-            {codefSaving ? "저장 중..." : "CODEF 설정 저장"}
-          </button>
-        </div>
       </div>
 
-      {/* 금융기관 연결 (계정 등록) */}
-      {isCodefConfigured && (
-        <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchCodef(); }} />
-      )}
+      {/* 금융기관 연결 (계정 등록) — 항상 표시 */}
+      <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchConnection(); }} />
 
+      {/* 수동 등록 계좌 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-4">등록된 계좌</h2>
+        <h2 className="text-sm font-bold mb-4">수동 등록 계좌</h2>
         {bankAccounts.length === 0 ? (
           <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>
         ) : (
@@ -2633,6 +2641,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
           </div>
         )}
       </div>
+
+      {/* 이체 자동화 설정 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">이체 자동화 설정</h2>
         <div className="space-y-4">
@@ -2647,15 +2657,6 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
             <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">재시도 간격 (시간)</label><input type="number" value={settings.retry_interval_hours} onChange={(e) => setSettings({ ...settings, retry_interval_hours: Number(e.target.value) || 1 })} min={1} max={24} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
         </div>
-      </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-1">이체 실행 방식</h2>
-        <p className="text-xs text-[var(--text-dim)] mb-4">CODEF 연동 완료 시 자동이체가 가능합니다. n8n 웹훅으로도 실행 가능합니다.</p>
-        {isCodefConfigured ? (
-          <div className="p-4 rounded-xl bg-green-50 border border-green-200 mb-4"><p className="text-xs text-green-700 font-semibold">CODEF API가 연결되었습니다. 거래내역 페이지에서 '동기화' 버튼으로 은행/카드 데이터를 가져올 수 있습니다.</p></div>
-        ) : (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-4"><p className="text-xs text-amber-700 font-semibold">위 CODEF 설정을 먼저 완료하세요. 연결 전에는 엑셀 업로드로 거래내역을 관리합니다.</p></div>
-        )}
       </div>
       <button onClick={saveSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "은행연동 설정 저장"}</button>
     </div>
