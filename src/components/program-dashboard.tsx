@@ -345,12 +345,14 @@ interface ProgramDashboardProps {
   programId: string;
   companyId: string;
   onBack: () => void;
+  onSelectDeal?: (dealId: string) => void;
 }
 
 export function ProgramDashboard({
   programId,
   companyId,
   onBack,
+  onSelectDeal,
 }: ProgramDashboardProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -852,9 +854,10 @@ export function ProgramDashboard({
                     return (
                       <tr
                         key={d.id}
-                        className="border-t border-[var(--border)] hover:bg-[var(--bg-surface)]/50 transition"
+                        onClick={() => onSelectDeal?.(d.id)}
+                        className="border-t border-[var(--border)] hover:bg-[var(--bg-surface)]/50 transition cursor-pointer"
                       >
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedDeals.has(d.id)}
@@ -906,13 +909,15 @@ export function ProgramDashboard({
               return (
                 <div
                   key={d.id}
-                  className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"
+                  onClick={() => onSelectDeal?.(d.id)}
+                  className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 cursor-pointer hover:border-[var(--primary)]/40 transition"
                 >
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={selectedDeals.has(d.id)}
                       onChange={() => toggleDeal(d.id)}
+                      onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] mt-0.5"
                     />
                     <div className="flex-1 min-w-0">

@@ -1140,7 +1140,7 @@ function CalendarView({ deals, clsColorMap, onSelectDeal }: {
 
 // ── Deals List ──
 function DealsPageInner() {
-  const searchParams = useSearchParams(); const router = useRouter(); const selectedId = searchParams.get("id");
+  const searchParams = useSearchParams(); const router = useRouter(); const selectedId = searchParams.get("id"); const programParam = searchParams.get("program");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium" });
@@ -1157,6 +1157,7 @@ function DealsPageInner() {
   const { toast } = useToast();
 
   useEffect(() => { getCurrentUser().then((u) => u && setCompanyId(u.company_id)); }, []);
+  useEffect(() => { if (programParam && !selectedId) setSelectedProgramId(programParam); }, [programParam, selectedId]);
 
   async function searchDealPartners(q: string) {
     setForm((prev: any) => ({ ...prev, counterparty: q }));
@@ -1190,16 +1191,17 @@ function DealsPageInner() {
     onError: (err: Error) => { setFormError(err.message); toast("딜 생성 실패: " + err.message, "error"); },
   });
 
-  // E-6: Filter by classification and priority
-  let filteredDeals = filterCls ? deals.filter((d: any) => d.classification === filterCls) : deals;
+  // E-6: Filter by classification and priority — exclude program-owned deals from standalone list
+  const standaloneDeals = deals.filter((d: any) => !d.program_id);
+  let filteredDeals = filterCls ? standaloneDeals.filter((d: any) => d.classification === filterCls) : standaloneDeals;
   if (filterPriority) filteredDeals = filteredDeals.filter((d: any) => d.priority === filterPriority);
-  const activeCls = Array.from(new Set(deals.map((d: any) => d.classification || 'B2B')));
+  const activeCls = Array.from(new Set(standaloneDeals.map((d: any) => d.classification || 'B2B')));
 
-  if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => router.push("/deals")} />;
+  if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => { if (programParam) { router.push("/deals"); setSelectedProgramId(programParam); } else { router.push("/deals"); } }} />;
 
   // Program detail view
   if (selectedProgramId && companyId) {
-    return <ProgramDashboard programId={selectedProgramId} companyId={companyId} onBack={() => setSelectedProgramId(null)} />;
+    return <ProgramDashboard programId={selectedProgramId} companyId={companyId} onBack={() => setSelectedProgramId(null)} onSelectDeal={(dealId) => router.push(`/deals?id=${dealId}&program=${selectedProgramId}`)} />;
   }
 
   return (
@@ -1246,8 +1248,8 @@ function DealsPageInner() {
       {/* Classification + Priority Filter (E-6) */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         {activeCls.length > 1 && (<>
-          <button onClick={() => setFilterCls(null)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${!filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>전체 ({deals.length})</button>
-          {activeCls.map(cls => { const count = deals.filter((d: any) => (d.classification || 'B2B') === cls).length; return (<button key={cls} onClick={() => setFilterCls(filterCls === cls ? null : cls)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>{cls} ({count})</button>); })}
+          <button onClick={() => setFilterCls(null)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${!filterCls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>전체 ({standaloneDeals.length})</button>
+          {activeCls.map(cls => { const count = standaloneDeals.filter((d: any) => (d.classification || 'B2B') === cls).length; return (<button key={cls} onClick={() => setFilterCls(filterCls === cls ? null : cls)} className={`px-3 py-2 rounded-lg text-xs font-semibold min-h-[44px] transition ${filterCls === cls ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>{cls} ({count})</button>); })}
         </>)}
         <span className="text-[var(--border)] mx-1">|</span>
         <button onClick={() => setFilterPriority(null)} className={`px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] transition ${!filterPriority ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>우선순위 전체</button>
@@ -1263,7 +1265,7 @@ function DealsPageInner() {
 
       {isLoading ? (
         <div className="text-center py-20 text-[var(--text-muted)] text-sm">로딩 중...</div>
-      ) : deals.length === 0 ? (
+      ) : standaloneDeals.length === 0 ? (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center"><div className="text-4xl mb-4">💼</div><div className="text-lg font-bold mb-2">첫 딜을 등록하세요</div><div className="text-sm text-[var(--text-muted)] mb-6">딜 = 프로젝트 = 계약. 모든 돈은 딜에 연결됩니다.</div><button onClick={() => setShowForm(true)} className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 새 딜 등록</button></div>
       ) : viewMode === 'kanban' ? (
         <KanbanBoard deals={filteredDeals} clsColorMap={clsColorMap} onSelectDeal={(id) => router.push(`/deals?id=${id}`)} assignmentMap={assignmentMap} />
