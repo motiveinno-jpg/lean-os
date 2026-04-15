@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { encryptCredential, decryptJsonCredentials } from "@/lib/crypto";
@@ -1456,6 +1456,11 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
       min_amount: p.min_amount || 0,
       max_amount: p.max_amount || 0,
     });
+    if (p.stages && Array.isArray(p.stages) && p.stages.length > 0) {
+      setStages(p.stages);
+    } else {
+      setStages([{ step: 1, title: "1차 승인", approver_role: "manager", min_approvers: 1 }]);
+    }
     setShowForm(true);
   }
 
@@ -2620,7 +2625,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   useEffect(() => { if (companySettings) setSettings((prev) => ({ ...prev, ...companySettings })); }, [companySettings]);
   async function saveSettings() {
     if (!companyId) return;
-    await db2.from("companies").update({ automation_settings: settings }).eq("id", companyId);
+    const { error } = await db2.from("companies").update({ automation_settings: settings }).eq("id", companyId);
+    if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
     queryClient.invalidateQueries({ queryKey: ["automation-settings"] });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
   }

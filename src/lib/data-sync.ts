@@ -721,7 +721,7 @@ export async function syncCodefData(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ companyId, syncType, startDate, endDate }),
+      body: JSON.stringify({ companyId, action: 'sync', syncType, startDate, endDate }),
     });
 
     if (!res.ok) {
@@ -732,7 +732,7 @@ export async function syncCodefData(
     const result = await res.json();
     return {
       success: true,
-      message: `CODEF 동기화 완료: ${JSON.stringify(result.results || {})}`,
+      message: `거래내역 동기화 완료 (은행 ${result.results?.bank?.synced ?? 0}건, 카드 ${result.results?.card?.synced ?? 0}건)`,
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'CODEF 동기화 실패' };
