@@ -560,7 +560,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
     return () => document.removeEventListener("keydown", handleEscape);
   }, [emailModal, previewUrl]);
 
-  async function handleCreateQuote() { if (!companyId || !userId || creating) return; setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio, paymentSchedule }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
+  async function handleCreateQuote() { if (!companyId || !userId || creating) return; if (paymentSchedule && paymentSchedule.length > 0) { const ratioSum = paymentSchedule.reduce((s, p) => s + (p.ratio || 0), 0); if (ratioSum !== 100) { setPipelineError(`결제 비율 합계가 ${ratioSum}%입니다. 100%로 맞춰주세요.`); return; } } setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio, paymentSchedule }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
 
   const hasQuote = stages.some(s => s.stage === 'quote' && s.status !== 'pending');
   const paymentStage = stages.find(s => s.stage === 'payment_received');

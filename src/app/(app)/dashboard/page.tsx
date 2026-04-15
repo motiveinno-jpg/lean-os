@@ -1723,14 +1723,17 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   const { data: pendingRevenue = [] } = useQuery({
     queryKey: ['pipeline-pending-revenue', companyId],
     queryFn: async () => {
+      const dealIds = deals.map((d: any) => d.id);
+      if (dealIds.length === 0) return [];
       const { data } = await db2.from('deal_revenue_schedule')
         .select('id, deal_id, amount, label, status, due_date')
+        .in('deal_id', dealIds)
         .eq('status', 'expected')
         .order('due_date')
         .limit(10);
       return data || [];
     },
-    enabled: !!companyId,
+    enabled: !!companyId && deals.length > 0,
   });
 
   if (deals.length === 0) return null;

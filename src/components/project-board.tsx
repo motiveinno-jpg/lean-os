@@ -51,6 +51,7 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string; bgColor: s
 const KANBAN_COLUMNS = [
   { key: "pending", label: "대기", icon: "⏳", color: "border-gray-500/30" },
   { key: "in_progress", label: "진행중", icon: "🔄", color: "border-blue-500" },
+  { key: "blocked", label: "블록", icon: "🚫", color: "border-red-500" },
   { key: "completed", label: "완료", icon: "✅", color: "border-green-500" },
 ];
 
@@ -442,10 +443,10 @@ function TimelineView({ nodes, revenue = [], milestones = [] }: {
     ...nodes.filter(n => n.start_date).map(n => new Date(n.start_date!)),
     ...nodes.filter(n => n.deadline).map(n => new Date(n.deadline!)),
     ...nodes.filter(n => n.created_at).map(n => new Date(n.created_at!)),
-    ...revenue.map(r => new Date(r.due_date)),
-    ...milestones.map((m: any) => new Date(m.due_date)),
+    ...revenue.filter(r => r.due_date).map(r => new Date(r.due_date)),
+    ...milestones.filter((m: any) => m.due_date).map((m: any) => new Date(m.due_date)),
     new Date(),
-  ];
+  ].filter(d => !isNaN(d.getTime()));
 
   const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
   const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));

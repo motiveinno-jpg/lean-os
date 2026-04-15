@@ -202,11 +202,13 @@ export async function saveVATClassification(
     .from('card_transactions')
     .update({
       is_deductible: result.deductible,
-      vat_category: result.categoryCode,
-      vat_category_label: result.categoryLabel,
-      vat_confidence: result.confidence,
-      vat_reason: result.reason,
-      updated_at: new Date().toISOString(),
+      category: result.categoryCode,
+      classification: JSON.stringify({
+        label: result.categoryLabel,
+        confidence: result.confidence,
+        reason: result.reason,
+      }),
+      mapping_status: result.confidence === 'high' ? 'auto_mapped' : 'unmapped',
     })
     .eq('id', transactionId);
 
@@ -274,7 +276,7 @@ export async function getVATDeductionSummary(
 ): Promise<VATDeductionSummary> {
   const { data, error } = await db
     .from('card_transactions')
-    .select('id, amount, is_deductible, vat_category, vat_category_label, merchant_name, category, description')
+    .select('id, amount, is_deductible, merchant_name, category, classification, mapping_status, merchant_category')
     .eq('company_id', companyId)
     .gte('transaction_date', period.from)
     .lte('transaction_date', period.to);
@@ -285,28 +287,28 @@ export async function getVATDeductionSummary(
     id: string;
     amount: number;
     is_deductible: boolean | null;
-    vat_category: string | null;
-    vat_category_label: string | null;
     merchant_name: string | null;
     category: string | null;
-    description: string | null;
+    classification: string | null;
+    mapping_status: string | null;
+    merchant_category: string | null;
   }>;
 
   // Auto-classify any unclassified transactions in-memory
   const classified = transactions.map(tx => {
-    if (tx.vat_category) {
+    const parsed = tx.classification ? (() => { try { return JSON.parse(tx.classification); } catch { return null; } })() : null;
+    if (tx.category && parsed?.label) {
       return {
         ...tx,
         _deductible: tx.is_deductible ?? true,
-        _category: tx.vat_category,
-        _label: tx.vat_category_label || tx.vat_category,
+        _category: tx.category,
+        _label: parsed.label as string,
       };
     }
     const result = classifyCardTransaction({
       merchant_name: tx.merchant_name || undefined,
-      category: tx.category || undefined,
+      category: tx.merchant_category || undefined,
       amount: tx.amount,
-      description: tx.description || undefined,
     });
     return {
       ...tx,
@@ -332,8 +334,8 @@ export async function getVATDeductionSummary(
 
   const nonDeductibleByCategory = groupByCategory(nonDeductibleTx, false);
 
-  // Unclassified (those without saved vat_category in DB)
-  const unclassifiedTx = transactions.filter(t => !t.vat_category);
+  // Unclassified (those without saved classification in DB)
+  const unclassifiedTx = transactions.filter(t => !t.classification || t.mapping_status === 'unmapped');
   const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + Number(t.amount || 0), 0);
 
   return {

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard } from "@/lib/card-transactions";
+import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card-vat-classification";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
@@ -277,13 +278,32 @@ export default function TransactionsPage() {
 
       const cardDuplicateCount = records.length - uniqueCardRecords.length;
 
+      let classifiedCount = 0;
       if (uniqueCardRecords.length > 0) {
-        const { error } = await supabase.from("card_transactions").insert(uniqueCardRecords);
+        const { data: inserted, error } = await supabase
+          .from("card_transactions")
+          .insert(uniqueCardRecords)
+          .select("id, merchant_name, merchant_category, amount");
         if (error) throw error;
+
+        // Auto-classify VAT deductibility for inserted records
+        if (inserted && inserted.length > 0) {
+          const classifications = inserted.map(tx => {
+            const result = classifyCardTransaction({
+              merchant_name: tx.merchant_name || undefined,
+              category: tx.merchant_category || undefined,
+              amount: tx.amount,
+            });
+            return { transactionId: tx.id, result };
+          });
+          const { success } = await batchSaveVATClassifications(classifications);
+          classifiedCount = success;
+        }
       }
 
       const cardParts: string[] = [];
       if (uniqueCardRecords.length > 0) cardParts.push(`${uniqueCardRecords.length}건 카드 거래 업로드 완료`);
+      if (classifiedCount > 0) cardParts.push(`${classifiedCount}건 VAT 자동분류 완료`);
       if (cardDuplicateCount > 0) cardParts.push(`${cardDuplicateCount}건 중복 건너뜀`);
       setCardUploadResult(cardParts.join(', ') || '업로드할 데이터가 없습니다');
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
@@ -317,6 +337,41 @@ export default function TransactionsPage() {
     } finally {
       setReceiptUploadingId(null);
       if (receiptFileRef.current) receiptFileRef.current.value = "";
+    }
+  }, [companyId, queryClient]);
+
+  // Bulk VAT auto-classification for unmapped card transactions
+  const [vatClassifying, setVatClassifying] = useState(false);
+  const handleBulkVATClassify = useCallback(async () => {
+    if (!companyId) return;
+    setVatClassifying(true);
+    try {
+      const { data: unmapped, error } = await supabase
+        .from("card_transactions")
+        .select("id, merchant_name, merchant_category, amount")
+        .eq("company_id", companyId)
+        .or("mapping_status.eq.unmapped,mapping_status.is.null");
+      if (error) throw error;
+      if (!unmapped || unmapped.length === 0) {
+        toast("분류할 미매핑 거래가 없습니다", "info");
+        return;
+      }
+      const classifications = unmapped.map(tx => ({
+        transactionId: tx.id,
+        result: classifyCardTransaction({
+          merchant_name: tx.merchant_name || undefined,
+          category: tx.merchant_category || undefined,
+          amount: tx.amount,
+        }),
+      }));
+      const { success, failed } = await batchSaveVATClassifications(classifications);
+      toast(`VAT 자동분류 완료: ${success}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}`, success > 0 ? "success" : "error");
+      queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
+    } catch (err: any) {
+      toast(`VAT 분류 실패: ${err.message}`, "error");
+    } finally {
+      setVatClassifying(false);
     }
   }, [companyId, queryClient]);
 
@@ -851,6 +906,10 @@ export default function TransactionsPage() {
                 className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] text-sm rounded-xl font-semibold transition disabled:opacity-50">
                 {cardUploading ? "업로드 중..." : "카드 CSV"}
               </button>
+              <button onClick={handleBulkVATClassify} disabled={vatClassifying}
+                className="px-3 py-2 bg-emerald-600/10 border border-emerald-600/30 hover:border-emerald-500 text-emerald-400 text-sm rounded-xl font-semibold transition disabled:opacity-50">
+                {vatClassifying ? "분류 중..." : "VAT 자동분류"}
+              </button>
               <button onClick={() => { setEditingCard(null); setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '' }); setShowCardForm(true); }}
                 className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm rounded-xl font-semibold transition">
                 + 카드 등록
@@ -926,8 +985,13 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {tx.merchant_category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{tx.merchant_category}</span>}
-                        {tx.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] ml-1">{tx.category}</span>}
-                        {tx.is_deductible && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 ml-1">공제</span>}
+                        {tx.category && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ml-1 ${tx.is_deductible ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {(() => { try { const c = JSON.parse(tx.classification || '{}'); return c.label || tx.category; } catch { return tx.category; } })()}
+                          </span>
+                        )}
+                        {tx.is_deductible === true && !tx.category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 ml-1">공제</span>}
+                        {tx.is_deductible === false && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 ml-1">불공제</span>}
                         {tx.receipt_url && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 ml-1">영수증</span>}
                       </td>
                       <td className="px-4 py-2.5 text-center">

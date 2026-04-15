@@ -182,6 +182,19 @@ export async function saveSignature(
   },
   ipAddress?: string
 ) {
+  // Check if signature request exists and is not expired
+  const { data: existing } = await db
+    .from('signature_requests')
+    .select('id, status, expires_at')
+    .eq('id', id)
+    .single();
+
+  if (!existing) throw new Error('서명 요청을 찾을 수 없습니다');
+  if (existing.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
+  if (existing.expires_at && new Date(existing.expires_at) < new Date()) {
+    throw new Error('서명 요청이 만료되었습니다');
+  }
+
   const { data, error } = await db
     .from('signature_requests')
     .update({
@@ -191,10 +204,12 @@ export async function saveSignature(
       ip_address: ipAddress || null,
     })
     .eq('id', id)
+    .eq('status', 'sent') // Prevent race condition: only update if still 'sent'
     .select()
     .single();
 
   if (error) throw error;
+  if (!data) throw new Error('서명 처리에 실패했습니다. 이미 처리된 요청일 수 있습니다.');
 
   await logAudit({
     company_id: data?.company_id || '',

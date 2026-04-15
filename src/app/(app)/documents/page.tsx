@@ -1193,14 +1193,40 @@ function DocumentsPageInner() {
   const filteredDocuments = useMemo(() => {
     let filtered = documents;
 
-    // Search filter
+    // Full-text search across name, content, content_json fields
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter((doc: any) =>
-        doc.name?.toLowerCase().includes(term) ||
-        (doc as any).full_text?.toLowerCase().includes(term) ||
-        (doc as any).auto_classified_type?.toLowerCase().includes(term)
-      );
+      filtered = filtered.filter((doc: any) => {
+        if (doc.name?.toLowerCase().includes(term)) return true;
+        if ((doc as any).full_text?.toLowerCase().includes(term)) return true;
+        if ((doc as any).auto_classified_type?.toLowerCase().includes(term)) return true;
+        if (doc.content?.toLowerCase().includes(term)) return true;
+        if (doc.document_number?.toLowerCase().includes(term)) return true;
+        // Deep search in content_json
+        let cj = doc.content_json;
+        if (typeof cj === 'string') { try { cj = JSON.parse(cj); } catch { cj = null; } }
+        if (cj && typeof cj === 'object') {
+          if (cj.content?.toLowerCase().includes(term)) return true;
+          if (cj.notes?.toLowerCase().includes(term)) return true;
+          if (cj.clientName?.toLowerCase().includes(term)) return true;
+          if (cj.projectName?.toLowerCase().includes(term)) return true;
+          // Search in items (quote/invoice line items)
+          if (Array.isArray(cj.items)) {
+            for (const item of cj.items) {
+              if (item.name?.toLowerCase().includes(term)) return true;
+              if (item.description?.toLowerCase().includes(term)) return true;
+            }
+          }
+          // Search in payment schedule labels/conditions
+          if (Array.isArray(cj.paymentSchedule)) {
+            for (const ps of cj.paymentSchedule) {
+              if (ps.label?.toLowerCase().includes(term)) return true;
+              if (ps.condition?.toLowerCase().includes(term)) return true;
+            }
+          }
+        }
+        return false;
+      });
     }
 
     // Type filter

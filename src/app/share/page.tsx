@@ -179,8 +179,8 @@ function ShareContent() {
               <tbody>
                 {paymentSchedule.map((t: any, i: number) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td className="px-3 py-2 font-semibold">{t.label}</td>
-                    <td className="px-3 py-2 text-right">{t.ratio}%</td>
+                    <td className="px-3 py-2 font-semibold">{t.label || '-'}</td>
+                    <td className="px-3 py-2 text-right">{t.ratio ?? 0}%</td>
                     <td className="px-3 py-2 text-right">₩{Number(t.amount || 0).toLocaleString()}</td>
                     <td className="px-3 py-2">{t.condition}</td>
                   </tr>
