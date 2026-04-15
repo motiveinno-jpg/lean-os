@@ -605,6 +605,86 @@ function inferCategory(payee: string): string {
   return '기타 고정비';
 }
 
+// ── CODEF Account Registration ──
+
+export async function registerCodefAccount(
+  companyId: string,
+  accountType: 'bank' | 'card',
+  organization: string,
+  loginId: string,
+  loginPw: string,
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '로그인이 필요합니다' };
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return { success: false, error: 'Supabase URL이 설정되지 않았습니다' };
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        companyId,
+        action: 'register',
+        accountType,
+        organization,
+        loginId,
+        loginPw,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '계정 등록 오류' }));
+      return { success: false, error: err.error || `HTTP ${res.status}` };
+    }
+
+    const result = await res.json();
+    return {
+      success: true,
+      connectedId: result.connectedId,
+      accountList: result.accountList,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || '계정 등록 실패' };
+  }
+}
+
+export async function listCodefAccounts(
+  companyId: string,
+  accountType: 'bank' | 'card' = 'bank',
+): Promise<{ success: boolean; accounts?: any[]; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '로그인이 필요합니다' };
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return { success: false, error: 'Supabase URL이 설정되지 않았습니다' };
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ companyId, action: 'list-accounts', accountType }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '계좌 목록 조회 오류' }));
+      return { success: false, error: err.error || `HTTP ${res.status}` };
+    }
+
+    const result = await res.json();
+    return { success: true, accounts: result.accounts };
+  } catch (err: any) {
+    return { success: false, error: err.message || '계좌 목록 조회 실패' };
+  }
+}
+
 // ── CODEF API Sync ──
 
 export async function syncCodefData(

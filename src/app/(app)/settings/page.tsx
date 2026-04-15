@@ -2275,6 +2275,136 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
 }
 
 // ═══════════════════════════════════════════
+// CODEF Account Register Component
+// ═══════════════════════════════════════════
+
+const CODEF_BANKS: Record<string, string> = {
+  "0003": "기업은행", "0004": "국민은행", "0011": "농협은행",
+  "0020": "우리은행", "0023": "SC제일은행", "0031": "대구은행",
+  "0032": "부산은행", "0034": "광주은행", "0035": "제주은행",
+  "0037": "전북은행", "0039": "경남은행", "0045": "새마을금고",
+  "0048": "신협", "0071": "우체국", "0081": "하나은행",
+  "0088": "신한은행", "0089": "케이뱅크", "0090": "카카오뱅크",
+  "0092": "토스뱅크",
+};
+
+const CODEF_CARDS: Record<string, string> = {
+  "0301": "KB국민카드", "0302": "현대카드", "0303": "삼성카드",
+  "0304": "NH농협카드", "0305": "BC카드", "0306": "신한카드",
+  "0309": "하나카드", "0311": "롯데카드", "0313": "우리카드",
+};
+
+function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
+  const { toast } = useToast();
+  const [accountType, setAccountType] = useState<"bank" | "card">("bank");
+  const [organization, setOrganization] = useState("");
+  const [loginId, setLoginId] = useState("");
+  const [loginPw, setLoginPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const orgList = accountType === "bank" ? CODEF_BANKS : CODEF_CARDS;
+
+  async function handleRegister() {
+    if (!companyId || registering) return;
+    if (!organization || !loginId || !loginPw) {
+      setResult({ ok: false, msg: "금융기관, 아이디, 비밀번호를 모두 입력하세요" });
+      return;
+    }
+    setRegistering(true);
+    setResult(null);
+    try {
+      const { registerCodefAccount } = await import("@/lib/data-sync");
+      const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw);
+      if (res.success) {
+        setResult({ ok: true, msg: `연결 성공! Connected ID: ${res.connectedId?.slice(0, 8)}...` });
+        toast("금융기관 연결 완료", "success");
+        setLoginId("");
+        setLoginPw("");
+        onRegistered();
+      } else {
+        setResult({ ok: false, msg: res.error || "연결 실패" });
+      }
+    } catch (err: any) {
+      setResult({ ok: false, msg: err.message || "오류 발생" });
+    }
+    setRegistering(false);
+  }
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
+      <p className="text-xs text-[var(--text-dim)] mb-4">인터넷뱅킹/카드 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
+
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => { setAccountType("bank"); setOrganization(""); }}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}
+        >은행</button>
+        <button
+          onClick={() => { setAccountType("card"); setOrganization(""); }}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}
+        >카드</button>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : "카드사"} 선택</label>
+          <select
+            value={organization}
+            onChange={(e) => setOrganization(e.target.value)}
+            className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+          >
+            <option value="">선택하세요</option>
+            {Object.entries(orgList).map(([code, name]) => (
+              <option key={code} value={code}>{name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 아이디</label>
+          <input
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"}
+            className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-muted)] mb-1.5">비밀번호</label>
+          <div className="relative">
+            <input
+              type={showPw ? "text" : "password"}
+              value={loginPw}
+              onChange={(e) => setLoginPw(e.target.value)}
+              placeholder="비밀번호"
+              className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
+          </div>
+          <p className="text-[10px] text-[var(--text-dim)] mt-1">CODEF 보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
+        </div>
+      </div>
+
+      {result && (
+        <div className={`mt-3 p-3 rounded-xl text-xs font-medium ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+          {result.msg}
+        </div>
+      )}
+
+      <button
+        onClick={handleRegister}
+        disabled={registering || !organization || !loginId || !loginPw}
+        className="mt-4 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+      >
+        {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
+      </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // Bank Integration Tab
 // ═══════════════════════════════════════════
 function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
@@ -2405,8 +2535,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
             </div>
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Connected ID <span className="text-[var(--text-dim)]">(계좌 연결 후 발급)</span></label>
-            <input value={codefForm.connected_id} onChange={(e) => setCodefForm({ ...codefForm, connected_id: e.target.value })} placeholder="계좌 연결 시 자동 생성됩니다" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none focus:border-[var(--primary)]" />
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Connected ID <span className="text-[var(--text-dim)]">(계좌 연결 시 자동 발급)</span></label>
+            <input value={codefForm.connected_id} readOnly placeholder="아래 '금융기관 연결'로 자동 생성됩니다" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm font-mono focus:outline-none text-[var(--text-dim)]" />
             {codefSettings?.codef_connected_at && <p className="text-[10px] text-[var(--text-dim)] mt-1">연결일: {new Date(codefSettings.codef_connected_at).toLocaleDateString('ko-KR')}</p>}
           </div>
         </div>
@@ -2426,6 +2556,11 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
           </button>
         </div>
       </div>
+
+      {/* 금융기관 연결 (계정 등록) */}
+      {isCodefConfigured && (
+        <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchCodef(); }} />
+      )}
 
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">등록된 계좌</h2>

@@ -134,6 +134,65 @@ async function syncCardBilling(
   return { synced };
 }
 
+// Register account and get connectedId
+async function registerAccount(
+  token: string, accountType: "bank" | "card",
+  organization: string, loginId: string, loginPw: string,
+  existingConnectedId?: string,
+): Promise<{ connectedId: string; accountList?: any[] }> {
+  const path = accountType === "bank"
+    ? "/v1/kr/bank/p/account/create"
+    : "/v1/kr/card/p/account/create";
+
+  const body: Record<string, any> = {
+    accountList: [{
+      countryCode: "KR",
+      businessType: "BK",
+      clientType: "P",
+      organization,
+      loginType: "1",
+      id: loginId,
+      password: loginPw,
+    }],
+  };
+
+  if (existingConnectedId) {
+    body.connectedId = existingConnectedId;
+  }
+
+  if (accountType === "card") {
+    body.accountList[0].businessType = "CD";
+  }
+
+  const result = await codefRequest(token, path, body);
+
+  if (result.result?.code !== "CF-00000") {
+    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})`);
+  }
+
+  return {
+    connectedId: result.data?.connectedId || existingConnectedId || "",
+    accountList: result.data?.accountList,
+  };
+}
+
+// Get account list (registered accounts under connectedId)
+async function getAccountList(
+  token: string, connectedId: string, accountType: "bank" | "card",
+): Promise<any[]> {
+  const path = accountType === "bank"
+    ? "/v1/kr/bank/p/account/account-list"
+    : "/v1/kr/card/p/account/card-list";
+
+  const result = await codefRequest(token, path, {
+    connectedId,
+    organization: "0000",
+  });
+
+  if (result.result?.code !== "CF-00000") return [];
+  return Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -155,11 +214,11 @@ serve(async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.json();
-    const { companyId, syncType = "all", startDate, endDate, connectedId } = body;
+    const { companyId, action = "sync", syncType = "all", startDate, endDate, connectedId } = body;
 
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Get CODEF credentials from company settings (maybeSingle: table may not have row yet)
+    // Get CODEF credentials from company settings
     const { data: settings } = await supabase.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id").eq("company_id", companyId).maybeSingle();
 
     const clientId = settings?.codef_client_id || Deno.env.get("CODEF_CLIENT_ID");
@@ -172,16 +231,52 @@ serve(async (req) => {
 
     const token = await getCodefToken(clientId, clientSecret);
 
+    // --- Action: register (계정 등록 → connectedId 발급) ---
+    if (action === "register") {
+      const { accountType = "bank", organization, loginId, loginPw } = body;
+      if (!organization || !loginId || !loginPw) {
+        return new Response(JSON.stringify({ error: "organization, loginId, loginPw 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const result = await registerAccount(token, accountType, organization, loginId, loginPw, cid);
+
+      // Save connectedId to company_settings
+      if (result.connectedId) {
+        await supabase.from("company_settings").upsert({
+          company_id: companyId,
+          codef_connected_id: result.connectedId,
+          codef_connected_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+      }
+
+      return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Action: list-accounts (등록된 계좌/카드 목록) ---
+    if (action === "list-accounts") {
+      if (!cid) {
+        return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 먼저 계정을 등록하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { accountType = "bank" } = body;
+      const accounts = await getAccountList(token, cid, accountType);
+      return new Response(JSON.stringify({ success: true, accounts }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Action: sync (기존 동기화) ---
+    if (!cid) {
+      return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 설정에서 은행/카드를 먼저 연결하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const end = endDate || new Date().toISOString().split("T")[0].replace(/-/g, "");
     const start = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
 
     const results: Record<string, any> = {};
 
-    if (cid && (syncType === "bank" || syncType === "all")) {
+    if (syncType === "bank" || syncType === "all") {
       results.bank = await syncBankTransactions(supabase, token, companyId, cid, start, end);
     }
 
-    if (cid && (syncType === "card" || syncType === "all")) {
+    if (syncType === "card" || syncType === "all") {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 
