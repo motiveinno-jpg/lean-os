@@ -18,6 +18,7 @@ import type { DealMilestone } from "@/types/models";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
 import ProjectBoard from "@/components/project-board";
+import { ProgramCards, ProgramDashboard, CreateProgramModal } from "@/components/program-dashboard";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
 
@@ -1150,6 +1151,8 @@ function DealsPageInner() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [dealPartnerResults, setDealPartnerResults] = useState<any[]>([]);
   const [dealPartnerFocused, setDealPartnerFocused] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [showCreateProgram, setShowCreateProgram] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -1194,6 +1197,11 @@ function DealsPageInner() {
 
   if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => router.push("/deals")} />;
 
+  // Program detail view
+  if (selectedProgramId && companyId) {
+    return <ProgramDashboard programId={selectedProgramId} companyId={companyId} onBack={() => setSelectedProgramId(null)} />;
+  }
+
   return (
     <div className={viewMode === 'kanban' || viewMode === 'calendar' || viewMode === 'gantt' ? 'max-w-full' : 'max-w-[1000px]'}>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
@@ -1201,9 +1209,20 @@ function DealsPageInner() {
         <div><h1 className="text-2xl font-extrabold">딜 관리</h1><p className="text-sm text-[var(--text-muted)] mt-1">모든 프로젝트/계약을 딜 단위로 관리합니다</p></div>
         <div className="flex items-center gap-3">
           <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+          <button onClick={() => setShowCreateProgram(true)} className="px-4 py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold transition">+ 프로그램</button>
           <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 새 딜</button>
         </div>
       </div>
+
+      {/* Program Cards */}
+      {companyId && (
+        <ProgramCards companyId={companyId} onSelectProgram={setSelectedProgramId} onCreateProgram={() => setShowCreateProgram(true)} />
+      )}
+
+      {/* Create Program Modal */}
+      {showCreateProgram && companyId && (
+        <CreateProgramModal companyId={companyId} onClose={() => setShowCreateProgram(false)} />
+      )}
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">

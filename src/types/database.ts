@@ -2275,6 +2275,10 @@ export type Database = {
           risk_level: string | null
           start_date: string | null
           status: string | null
+          program_id: string | null
+          partner_company_id: string | null
+          custom_scope: Json | null
+          counterparty: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -2296,6 +2300,10 @@ export type Database = {
           risk_level?: string | null
           start_date?: string | null
           status?: string | null
+          program_id?: string | null
+          partner_company_id?: string | null
+          custom_scope?: Json | null
+          counterparty?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -2317,6 +2325,10 @@ export type Database = {
           risk_level?: string | null
           start_date?: string | null
           status?: string | null
+          program_id?: string | null
+          partner_company_id?: string | null
+          custom_scope?: Json | null
+          counterparty?: string | null
         }
         Relationships: [
           {
@@ -2345,6 +2357,20 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_partner_company_id_fkey"
+            columns: ["partner_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4206,6 +4232,50 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          description: string | null
+          total_budget: number
+          deal_template: Json
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          description?: string | null
+          total_budget?: number
+          deal_template?: Json
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          description?: string | null
+          total_budget?: number
+          deal_template?: Json
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
