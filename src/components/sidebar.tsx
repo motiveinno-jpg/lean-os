@@ -29,6 +29,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/payments", label: "결제 관리", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
       { href: "/transactions", label: "거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
       { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
