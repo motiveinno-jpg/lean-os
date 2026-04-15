@@ -472,7 +472,7 @@ export function ProgramDashboard({
   };
 
   const toggleAll = () => {
-    if (selectedDeals.size === deals.length) {
+    if (selectedDeals.size === deals.length && deals.length > 0) {
       setSelectedDeals(new Set());
     } else {
       setSelectedDeals(new Set(deals.map((d: any) => d.id)));

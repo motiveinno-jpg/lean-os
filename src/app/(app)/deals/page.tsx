@@ -1197,7 +1197,7 @@ function DealsPageInner() {
   if (filterPriority) filteredDeals = filteredDeals.filter((d: any) => d.priority === filterPriority);
   const activeCls = Array.from(new Set(standaloneDeals.map((d: any) => d.classification || 'B2B')));
 
-  if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => { if (programParam) { router.push("/deals"); setSelectedProgramId(programParam); } else { router.push("/deals"); } }} />;
+  if (selectedId) return <DealDetailView dealId={selectedId} onBack={() => { if (programParam) { router.push(`/deals?program=${programParam}`); } else { router.push("/deals"); } }} />;
 
   // Program detail view
   if (selectedProgramId && companyId) {

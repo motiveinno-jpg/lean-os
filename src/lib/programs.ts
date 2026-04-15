@@ -137,6 +137,8 @@ export async function getProgramStats(
   if (error) throw error;
   const rows = deals || [];
 
+  const excludedStatuses = ["archived", "dormant", "closed_lost"];
+  const activeRows = rows.filter((d: any) => !excludedStatuses.includes(d.status));
   const completedStatuses = ["completed", "closed_won"];
   const inProgressStatuses = ["active", "in_progress", "contract_signed"];
   const pendingStatuses = ["pending", "negotiation", "proposal"];
@@ -186,7 +188,7 @@ export async function getProgramStats(
   }
 
   return {
-    totalDeals: rows.length,
+    totalDeals: activeRows.length,
     completedDeals: completed.length,
     inProgressDeals: inProgress.length,
     pendingDeals: pending.length,
@@ -205,6 +207,9 @@ export async function bulkCreateDeals(params: {
   rows: BulkDealRow[];
 }): Promise<{ success: number; failed: number; errors: string[] }> {
   const { programId, companyId, template, rows } = params;
+  if (!companyId) throw new Error("Company ID is required");
+  if (!programId) throw new Error("Program ID is required");
+
   let success = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -292,8 +297,8 @@ export function parseProgramCsv(text: string): {
       continue;
     }
 
-    const amount = amountRaw ? Number(amountRaw.replace(/[^0-9.-]/g, "")) : undefined;
-    if (amountRaw && isNaN(amount!)) {
+    const amount = amountRaw ? Number(amountRaw.replace(/[^0-9]/g, "")) : undefined;
+    if (amountRaw && (isNaN(amount!) || amount! <= 0)) {
       errors.push(`${i + 1}행: 금액 형식 오류 (${amountRaw})`);
       continue;
     }

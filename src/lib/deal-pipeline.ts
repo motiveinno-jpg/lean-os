@@ -54,8 +54,17 @@ export async function createDocumentFromDeal(params: {
 
   if (dealError || !deal) throw new Error(`딜을 찾을 수 없습니다 (id: ${dealId}, error: ${dealError?.message || 'no data'})`);
 
-  const partnerName = deal.partners?.name || deal.counterparty || '';
-  const partnerBizNo = deal.partners?.business_number || '';
+  // Resolve partner info: deals_partner_id_fkey → partner_company_id → counterparty fallback
+  let partnerName = deal.partners?.name || '';
+  let partnerBizNo = deal.partners?.business_number || '';
+  if (!partnerName && deal.partner_company_id) {
+    const { data: partnerCompany } = await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).single();
+    if (partnerCompany) {
+      partnerName = partnerCompany.name || '';
+      partnerBizNo = partnerCompany.business_number || '';
+    }
+  }
+  if (!partnerName) partnerName = deal.counterparty || '';
   const contractTotal = Number(deal.contract_total || 0);
 
   // Fetch company info for documents

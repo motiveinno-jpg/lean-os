@@ -26,9 +26,10 @@ serve(async (req) => {
       viewer: "열람자",
       partner: "파트너",
     };
-    const displayRole = roleLabel[role] || role || "팀원";
-    const displayName = name || email.split("@")[0];
-    const displayCompany = companyName || "OwnerView";
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const displayRole = esc(roleLabel[role] || role || "팀원");
+    const displayName = esc(name || email.split("@")[0]);
+    const displayCompany = esc(companyName || "OwnerView");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
       <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
