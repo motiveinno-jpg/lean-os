@@ -654,7 +654,7 @@ export async function autoCreateExpenseFromContract(companyId: string) {
   // Find approved cost schedules without expense requests
   const { data: schedules } = await db
     .from('deal_cost_schedule')
-    .select('id, deal_id, amount, label, due_date, status, deals(name)')
+    .select('id, deal_node_id, amount, condition_text, due_date, status, deal_nodes(deal_id, deals(name))')
     .eq('company_id', companyId)
     .eq('approved', true)
     .neq('status', 'paid');
@@ -677,8 +677,8 @@ export async function autoCreateExpenseFromContract(companyId: string) {
     const amount = Number(sched.amount || 0);
     if (amount <= 0) continue;
 
-    const dealName = sched.deals?.name || '딜';
-    const label = sched.label || '계약금';
+    const dealName = (sched as any).deal_nodes?.deals?.name || '딜';
+    const label = sched.condition_text || '계약금';
 
     const request = await createApprovalRequest({
       companyId,

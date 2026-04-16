@@ -585,10 +585,10 @@ export async function getDailyCashProjection(
 
     // Payment queue items due this month
     db.from('payment_queue')
-      .select('amount, label, category, due_date, status')
+      .select('amount, description, category, created_at, status')
       .eq('company_id', companyId)
-      .gte('due_date', startDate)
-      .lte('due_date', endDate)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .neq('status', 'cancelled'),
 
     // Active loans with payment days
@@ -682,13 +682,13 @@ export async function getDailyCashProjection(
 
   // Payment queue items (outgoing)
   for (const pq of (paymentsRes.data || [])) {
-    const dueDate = pq.due_date || startDate;
-    const day = parseInt(dueDate.slice(8, 10)) || 1;
+    const createdDate = typeof pq.created_at === 'string' ? pq.created_at.slice(0, 10) : startDate;
+    const day = parseInt(createdDate.slice(8, 10)) || 1;
 
     events.push({
       day,
-      date: dueDate,
-      description: pq.label || '지출',
+      date: createdDate,
+      description: pq.description || '지출',
       amount: -Number(pq.amount),
       category: CATEGORY_LABELS[pq.category] || pq.category || '지출',
     });
