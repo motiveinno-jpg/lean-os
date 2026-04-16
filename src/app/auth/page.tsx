@@ -340,7 +340,7 @@ export default function AuthPage() {
                 setError("");
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "kakao",
-                  options: { redirectTo: "https://www.owner-view.com/auth/verify" },
+                  options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
@@ -357,7 +357,7 @@ export default function AuthPage() {
                 setError("");
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: "https://www.owner-view.com/auth/verify" },
+                  options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
