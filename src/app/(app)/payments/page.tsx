@@ -193,7 +193,21 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     }
   }
 
-  const approveMut = useMutation({ mutationFn: (id: string) => approvePayment(id, userId), onSuccess: () => { invalidate(); queueToast("승인되었습니다", "success"); }, onError: (err: Error) => { queueToast("승인 실패: " + (err?.message || ""), "error"); } });
+  const approveMut = useMutation({
+    mutationFn: (id: string) => approvePayment(id, userId),
+    onSuccess: (result) => {
+      invalidate();
+      if (result && typeof result === 'object') {
+        if (result.autoExecuted) queueToast("승인 + 자동이체 완료", "success");
+        else if (result.notified) queueToast("승인됨 — 한도 초과로 대표 텔레그램 승인 요청 전송", "info");
+        else if (result.error) queueToast("승인됨 (자동이체 실패: " + result.error + ")", "info");
+        else queueToast("승인되었습니다", "success");
+      } else {
+        queueToast("승인되었습니다", "success");
+      }
+    },
+    onError: (err: Error) => { queueToast("승인 실패: " + (err?.message || ""), "error"); },
+  });
   const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: () => { invalidate(); queueToast("거부되었습니다", "success"); }, onError: (err: Error) => { queueToast("거부 실패: " + (err?.message || ""), "error"); } });
   const executeMut = useMutation({ mutationFn: (id: string) => executePayment(id), onSuccess: () => { invalidate(); queueToast("실행 완료", "success"); }, onError: (err: Error) => { queueToast("실행 실패: " + (err?.message || ""), "error"); } });
   const createMut = useMutation({

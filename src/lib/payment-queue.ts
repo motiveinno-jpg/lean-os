@@ -6,6 +6,7 @@
 import { supabase } from './supabase';
 import { resolveBank } from './routing';
 import { logAudit } from './audit';
+import { notifyCeoPaymentApproval } from './telegram';
 import type { PaymentQueue } from '@/types/models';
 
 // ── Create a payment queue entry from a cost schedule ──
@@ -104,10 +105,13 @@ export async function createQueueEntry(params: {
 }
 
 // ── Approve a payment ──
+// When auto_execute_on_approve is enabled in company_settings:
+//   - amount <= auto_execute_limit → immediately execute via CODEF (1-Click)
+//   - amount >  auto_execute_limit → stay "approved" + notify CEO on Telegram
 export async function approvePayment(
   paymentId: string,
   userId: string
-): Promise<void> {
+): Promise<{ autoExecuted: boolean; notified: boolean; error?: string } | void> {
   const { error } = await supabase
     .from('payment_queue')
     .update({
@@ -119,6 +123,78 @@ export async function approvePayment(
     .eq('status', 'pending');
 
   if (error) throw error;
+
+  // Fetch payment + company settings to decide auto-execution
+  const { data: payment } = await supabase
+    .from('payment_queue')
+    .select('*')
+    .eq('id', paymentId)
+    .single();
+  if (!payment) return { autoExecuted: false, notified: false };
+
+  // Automation settings live in companies.automation_settings (JSONB).
+  // Relevant keys (saved from Settings → 은행연동 탭):
+  //   auto_transfer_enabled, auto_transfer_limit, ceo_telegram_chat_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: cmp } = await (supabase as any)
+    .from('companies')
+    .select('automation_settings')
+    .eq('id', payment.company_id)
+    .maybeSingle();
+  const settings = cmp?.automation_settings || {};
+  const autoExecute = !!settings.auto_transfer_enabled;
+  const autoLimit = Number(settings.auto_transfer_limit || 0);
+  const amount = Number(payment.amount);
+
+  if (!autoExecute) {
+    return { autoExecuted: false, notified: false };
+  }
+
+  // Over the limit → notify CEO, keep "approved" until they confirm
+  if (autoLimit > 0 && amount > autoLimit) {
+    const n = await notifyCeoPaymentApproval({
+      companyId: payment.company_id,
+      paymentId,
+      amount,
+      description: payment.description || '',
+      recipientName: payment.recipient_name,
+      approveUrl: typeof window !== 'undefined'
+        ? `${window.location.origin}/payments`
+        : undefined,
+    });
+    return { autoExecuted: false, notified: n.success };
+  }
+
+  // Within limit → auto-execute via CODEF Edge Function
+  try {
+    const { data: result, error: invokeErr } = await supabase.functions.invoke(
+      'codef-transfer',
+      { body: { paymentId } }
+    );
+    if (invokeErr) {
+      // Fallback to local executePayment to avoid payment stuck in "approved"
+      try { await executePayment(paymentId); } catch { /* leave as approved */ }
+      return {
+        autoExecuted: false,
+        notified: false,
+        error: invokeErr.message,
+      };
+    }
+    if (result?.success) {
+      return { autoExecuted: true, notified: false };
+    }
+    return {
+      autoExecuted: false,
+      notified: false,
+      error: result?.error || '자동이체 실패',
+    };
+  } catch (err) {
+    return {
+      autoExecuted: false,
+      notified: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 // ── Reject a payment ──
