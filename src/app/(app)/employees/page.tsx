@@ -2782,7 +2782,8 @@ function AttendanceTab({ employees, companyId, userId, queryClient, role }: any)
 
   // Get month start/end for queries
   const monthStart = `${selectedMonth}-01`;
-  const monthEnd = `${selectedMonth}-31`;
+  const [ey, em] = selectedMonth.split('-').map(Number);
+  const monthEnd = `${selectedMonth}-${String(new Date(ey, em, 0).getDate()).padStart(2, '0')}`;
 
   // Attendance records for the month
   const { data: records = [] } = useQuery({

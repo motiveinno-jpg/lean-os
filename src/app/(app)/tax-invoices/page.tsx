@@ -515,7 +515,8 @@ export default function TaxInvoicesPage() {
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
       const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, "0")}-01`;
-      const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-31`;
+      const endLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(endLastDay).padStart(2, "0")}`;
       const { data } = await supabase
         .from("tax_invoices")
         .select("type, total_amount, issue_date")

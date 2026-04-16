@@ -475,7 +475,9 @@ export async function getMonthlyBudgetOverview(
     );
     const fixedCostTotal = fixedCosts
       .filter((fc: any) => {
-        if (fc.start_date && fc.start_date > `${monthPrefix}-31`) return false;
+        const [fy, fm] = monthPrefix.split('-').map(Number);
+        const fLastDay = new Date(fy, fm, 0).getDate();
+        if (fc.start_date && fc.start_date > `${monthPrefix}-${String(fLastDay).padStart(2, '0')}`) return false;
         if (fc.end_date && fc.end_date < `${monthPrefix}-01`) return false;
         return true;
       })

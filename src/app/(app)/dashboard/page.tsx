@@ -2426,7 +2426,9 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
     queryKey: ["emp-month-summary", employeeId, yearMonth],
     queryFn: async () => {
       const startDate = `${yearMonth}-01`;
-      const endDate = `${yearMonth}-31`;
+      const [y, m] = yearMonth.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
       const { data } = await db
         .from("attendance_records")
         .select("work_hours, overtime_hours, status")

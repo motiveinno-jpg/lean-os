@@ -335,7 +335,9 @@ export async function calculateWeeklyHours(employeeId: string, weekStart: string
 export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: string) {
   // yearMonth = 'YYYY-MM'
   const startDate = `${yearMonth}-01`;
-  const endDate = `${yearMonth}-31`;
+  const [y, m] = yearMonth.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
 
   const { data: records } = await db
     .from('attendance_records')
