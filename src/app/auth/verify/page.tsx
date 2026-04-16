@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { createTrialingSubscription } from "@/lib/billing";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -98,6 +99,9 @@ export default function VerifyEmailPage() {
           current_balance: 0,
           monthly_fixed_cost: 0,
         });
+
+        // 런칭 블로커: 신규 가입자 자동 starter 플랜 30일 trialing 구독
+        await createTrialingSubscription(companyId, "starter", 30);
       } catch (err) {
         console.error("setupCompany error:", err);
       }

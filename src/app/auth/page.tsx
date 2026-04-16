@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
+import { createTrialingSubscription } from "@/lib/billing";
 import Link from "next/link";
 
 // Supabase 영어 에러 → 한글 변환
@@ -136,6 +137,10 @@ export default function AuthPage() {
       monthly_fixed_cost: 0,
     });
     if (snapErr) console.error("cash_snapshot 생성 실패:", snapErr.message);
+
+    // 런칭 블로커: 신규 가입자 자동 starter 플랜 30일 trialing 구독
+    await createTrialingSubscription(company.id, "starter", 30);
+
     return true;
   }
 

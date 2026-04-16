@@ -186,6 +186,53 @@ export async function createSubscription(
   };
 }
 
+// ── 3-B. 신규 가입용 Trialing 구독 생성 (30일 무료) ──
+// 런칭 블로커: 4,000개사 정부사업 배포 시 모든 신규 가입자는 starter 플랜으로 30일 체험 시작.
+// 실패해도 가입 플로우는 계속 진행 (best-effort).
+export async function createTrialingSubscription(
+  companyId: string,
+  planSlug: PlanSlug = 'starter',
+  trialDays: number = 30,
+): Promise<void> {
+  const { data: plan, error: planErr } = await db
+    .from('subscription_plans')
+    .select('id, slug')
+    .eq('slug', planSlug)
+    .maybeSingle();
+
+  if (planErr || !plan) {
+    console.warn('Trialing 플랜 조회 실패:', planErr?.message);
+    return;
+  }
+
+  const now = new Date();
+  const trialEnd = new Date(now);
+  trialEnd.setDate(trialEnd.getDate() + trialDays);
+
+  const { error } = await db.from('subscriptions').insert({
+    company_id: companyId,
+    plan_id: plan.id,
+    plan_slug: plan.slug,
+    status: 'trialing',
+    seat_count: 1,
+    billing_cycle: 'monthly',
+    current_period_start: now.toISOString(),
+    current_period_end: trialEnd.toISOString(),
+    trial_ends_at: trialEnd.toISOString(),
+  });
+
+  if (error) {
+    console.warn('Trialing 구독 생성 실패:', error.message);
+    return;
+  }
+
+  await logBillingEvent(companyId, 'trial_started', {
+    planSlug: plan.slug,
+    trialDays,
+    trialEndsAt: trialEnd.toISOString(),
+  });
+}
+
 // ── IDOR 방어: 현재 사용자의 company_id 검증 ──
 async function verifySubscriptionOwnership(subscriptionId: string): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
