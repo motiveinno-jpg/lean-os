@@ -63,7 +63,10 @@ Deno.serve(async (req: Request) => {
     text: body.message,
     disable_notification: body.disableNotification ?? false,
   };
-  if (body.markdown) telegramBody.parse_mode = "MarkdownV2";
+  // Legacy Markdown is forgiving with most punctuation (#, ., -, etc.)
+  // MarkdownV2 requires escaping 15+ special characters which is brittle for
+  // dynamic business messages. Use legacy Markdown for simple *bold* / _italic_.
+  if (body.markdown) telegramBody.parse_mode = "Markdown";
   if (body.keyboard && body.keyboard.length > 0) {
     telegramBody.reply_markup = { inline_keyboard: body.keyboard };
   }
