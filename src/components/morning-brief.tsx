@@ -12,6 +12,7 @@
 //
 // Pure display component — 데이터는 부모가 넘겨준다.
 
+import { useState } from "react";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
@@ -70,6 +71,9 @@ export function MorningBrief({
   const now = new Date();
   const greeting = greetingForHour(now.getHours());
   const today = formatTodayKorean(now);
+  // KAIROS H2 fix: 모바일에서 카드가 80%+ 차지하던 문제 해결
+  // 기본은 축약(line1, line2, line4만), 펼치면 전체
+  const [expanded, setExpanded] = useState(false);
 
   // 데이터 없음 — 온보딩 톤
   if (!hasData || !cashPulse) {
@@ -163,6 +167,8 @@ export function MorningBrief({
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayLabel = formatTodayKorean(yesterdayDate);
 
+  const hasExtra = Boolean(line3 || progressLine || hasTx);
+
   return (
     <section
       className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-4 sm:p-6 md:p-8"
@@ -171,19 +177,23 @@ export function MorningBrief({
       <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">
         {today} · {companyName}
       </p>
-      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-3 sm:mb-5 break-keep">
+      <h2 className="text-base sm:text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-2 sm:mb-5 break-keep">
         {greeting}, {userName || "대표"}님.
       </h2>
 
-      <div className="space-y-2 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.75] sm:leading-[1.85] tracking-[-0.01em] break-keep">
+      <div className="space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
         <p>{line1}</p>
         <p>{line2}</p>
-        {line3 && <p>{line3}</p>}
-        {progressLine && (
-          <p className="text-[var(--text-muted)]">{progressLine}</p>
-        )}
+        {/* 모바일: 데스크톱처럼 항상 펼치지 않고, 펼치기 버튼으로 열기 (카드 과점유 방지) */}
+        <div className={expanded ? "block" : "hidden sm:block"}>
+          {line3 && <p className="mb-1.5 sm:mb-0">{line3}</p>}
+          {progressLine && (
+            <p className="text-[var(--text-muted)]">{progressLine}</p>
+          )}
+        </div>
 
         {/* 어제 거래 요약 — AI 브리핑 */}
+        <div className={expanded ? "block" : "hidden sm:block"}>
         {hasTx && (
           <div
             className="mt-4 pt-4 border-t"
@@ -248,6 +258,7 @@ export function MorningBrief({
             )}
           </div>
         )}
+        </div>
 
         <p
           className="pt-3 mt-1 border-t"
@@ -258,6 +269,17 @@ export function MorningBrief({
         >
           {line4}
         </p>
+
+        {/* KAIROS H2: 모바일 전용 펼치기/접기 버튼 — 카드 과점유 방지 */}
+        {hasExtra && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="sm:hidden text-xs text-[var(--primary)] font-semibold mt-1 hover:underline"
+          >
+            {expanded ? "간단히 보기 ↑" : "자세히 보기 ↓"}
+          </button>
+        )}
       </div>
     </section>
   );

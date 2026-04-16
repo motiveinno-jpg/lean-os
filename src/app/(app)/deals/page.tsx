@@ -1366,7 +1366,16 @@ function DealsPageInner() {
                     <RiskBadge risk={d.risk_level} />
                     <span className="text-sm font-bold group-hover:text-[var(--primary)] transition">{d.name}</span>
                   </div>
-                  <div className="text-xs text-[var(--text-dim)] mt-1">{d.start_date && `${d.start_date} ~ ${d.end_date || "진행중"}`}</div>
+                  {/* KAIROS M2: 딜 카드에 거래처명 표시 (B2B 핵심 정보) */}
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-dim)] mt-1 flex-wrap">
+                    {d.counterparty && (
+                      <span className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)]">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                        {d.counterparty}
+                      </span>
+                    )}
+                    {d.start_date && <span>{d.start_date} ~ {d.end_date || "진행중"}</span>}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold">₩{Number(d.contract_total || 0).toLocaleString()}</div>

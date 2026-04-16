@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -1201,6 +1202,40 @@ export default function TaxInvoicesPage() {
       {/* Sync Tab (홈택스 동기화) */}
       {tab === "sync" && (
         <div className="space-y-4">
+          {/* KAIROS M3: 첫 사용자 가이드 — 동기화 이력이 없을 때만 노출 */}
+          {syncLogs.length === 0 && (
+            <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-5">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">💡</div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-[var(--text)] mb-2">처음 사용하시나요? 홈택스 동기화 3단계 안내</div>
+                  <ol className="space-y-2 text-xs text-[var(--text-muted)] leading-relaxed">
+                    <li className="flex gap-2">
+                      <span className="font-bold text-blue-500 flex-shrink-0">1.</span>
+                      <span>
+                        <Link href="/settings?tab=tax-auto" className="text-blue-500 font-semibold hover:underline">설정 &gt; 세무자동화</Link>
+                        에서 <strong>홈택스 사업자 인증정보</strong>를 먼저 등록하세요
+                        (ID/PW 방식 또는 공동인증서)
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="font-bold text-blue-500 flex-shrink-0">2.</span>
+                      <span>이 페이지에서 <strong>{month} 동기화 실행</strong> 버튼을 누르면 매월 매출/매입 세금계산서가 자동 조회됩니다</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="font-bold text-blue-500 flex-shrink-0">3.</span>
+                      <span>수집된 계산서는 <strong>계약 ↔ 세금계산서 ↔ 입금</strong> 3-Way 매칭으로 자동 검증됩니다 (매칭 탭에서 확인)</span>
+                    </li>
+                  </ol>
+                  <div className="mt-3 text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+                    ⚠️ 공동인증서 로그인은 데스크톱 환경에서만 지원되며, 인증서 파일(.pfx)이 등록되어 있어야 합니다.
+                    문제가 발생하면 <Link href="/guide" className="text-blue-500 hover:underline">가이드 페이지</Link>를 참고하세요.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
             <div className="flex items-center justify-between mb-4">
               <div>

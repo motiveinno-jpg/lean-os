@@ -801,10 +801,14 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
       </div>
 
       {/* 5-point forecast bars */}
-      <div className="grid grid-cols-5 gap-2 mb-3">
-        {pulse.forecastPoints.map((pt) => {
+      <div className="grid grid-cols-5 gap-2 mb-2">
+        {pulse.forecastPoints.map((pt, idx) => {
           const pct = maxBalance > 0 ? Math.abs(pt.balance) / maxBalance * 100 : 0;
           const isNegative = pt.balance < 0;
+          // KAIROS M1: 전 시점 대비 delta 계산 (입금=양수=녹색, 출금=음수=빨강)
+          const prev = idx > 0 ? pulse.forecastPoints[idx - 1].balance : pt.balance;
+          const delta = pt.balance - prev;
+          const hasDelta = idx > 0 && Math.abs(delta) > 1;
           return (
             <div key={pt.label} className="text-center">
               <div className="text-[9px] font-semibold text-[var(--text-dim)] mb-1">{pt.label}</div>
@@ -813,17 +817,39 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
                   className="w-full max-w-[32px] rounded-t transition-all duration-500"
                   style={{
                     height: `${Math.max(pct, 8)}%`,
-                    background: isNegative ? 'var(--danger)' : pt.balance < pulse.currentBalance * 0.3 ? 'var(--warning)' : 'var(--primary)',
-                    opacity: isNegative ? 0.7 : 0.8,
+                    // KAIROS M1: 잔고 감소 구간은 danger, 증가는 success, 평행/초기는 primary
+                    background: isNegative
+                      ? 'var(--danger)'
+                      : hasDelta && delta > 0
+                        ? 'var(--success)'
+                        : hasDelta && delta < 0
+                          ? 'var(--warning)'
+                          : 'var(--primary)',
+                    opacity: isNegative ? 0.75 : 0.85,
                   }}
                 />
               </div>
               <div className={`text-[10px] font-bold mono-number ${isNegative ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>
                 ₩{fmtW(pt.balance)}
               </div>
+              {/* KAIROS M1: 입금/출금 delta 표시 */}
+              {hasDelta && (
+                <div className="text-[9px] font-semibold mt-0.5" style={{
+                  color: delta > 0 ? 'var(--success)' : 'var(--danger)',
+                }}>
+                  {delta > 0 ? '↑ +' : '↓ '}{fmtW(Math.abs(delta))}
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* KAIROS M1: 색상 범례 */}
+      <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)] mb-2 flex-wrap">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--success)]" />입금 우세</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--warning)]" />출금 우세</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--danger)]" />잔고 음수</span>
       </div>
 
       {/* Briefing */}
