@@ -520,11 +520,14 @@ export async function getFounderData(companyId: string) {
   const quarter = `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
   const year = String(now.getFullYear());
 
-  const [mfRes, itemsRes, targetsRes, dealsRes] = await Promise.all([
+  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes] = await Promise.all([
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month', { ascending: false }),
     supabase.from('financial_items').select('*').eq('company_id', companyId).eq('month', thisMonth),
     supabase.from('growth_targets').select('*').eq('company_id', companyId),
     supabase.from('deals').select('*').eq('company_id', companyId),
+    // deal_nodes has no company_id column; RLS scopes it to the current company.
+    supabase.from('deal_nodes').select('id, deal_id'),
+    supabase.from('deal_cost_schedule').select('amount, deal_node_id').eq('company_id', companyId),
   ]);
 
   const allMonths = mfRes.data || [];
@@ -532,6 +535,18 @@ export async function getFounderData(companyId: string) {
   const items = itemsRes.data || [];
   const targets = targetsRes.data || [];
   const deals = dealsRes.data || [];
+  const nodes = nodesRes.data || [];
+  const costSchedules = costRes.data || [];
+
+  // Build cost-per-deal map via deal_nodes → deal_cost_schedule
+  const nodeToDeal = new Map<string, string>();
+  nodes.forEach((n: any) => nodeToDeal.set(n.id, n.deal_id));
+  const dealCostMap = new Map<string, number>();
+  costSchedules.forEach((c: any) => {
+    const dealId = nodeToDeal.get(c.deal_node_id);
+    if (!dealId) return;
+    dealCostMap.set(dealId, (dealCostMap.get(dealId) || 0) + Number(c.amount || 0));
+  });
 
   // Get target values
   const monthTarget = Number(targets.find((t: any) => t.period === thisMonth)?.target_revenue || 0);
@@ -570,15 +585,22 @@ export async function getFounderData(companyId: string) {
       project_name: i.project_name,
       account_type: i.account_type,
     })),
-    deals: deals.map((d: any) => ({
-      id: d.id,
-      name: d.name,
-      revenue: Number(d.contract_total || 0),
-      cost: 0,
-      margin: 0,
-      endDate: d.end_date,
-      status: d.status || 'active',
-    })),
+    deals: deals.map((d: any) => {
+      const rev = Number(d.contract_total || 0);
+      const cost = dealCostMap.get(d.id) || 0;
+      // 비용 미입력 딜은 마진 100%로 간주 (LOW_MARGIN 오경보 방지)
+      // 실제 비용이 입력되면 정확히 계산됨
+      const margin = rev > 0 ? ((rev - cost) / rev) * 100 : 0;
+      return {
+        id: d.id,
+        name: d.name,
+        revenue: rev,
+        cost,
+        margin,
+        endDate: d.end_date,
+        status: d.status || 'active',
+      };
+    }),
     targets: { monthTarget, quarterTarget, yearTarget },
     quarterRevenue,
     yearRevenue,

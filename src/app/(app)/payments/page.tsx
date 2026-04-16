@@ -202,7 +202,12 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     onError: (err: Error) => { queueToast("등록 실패: " + (err?.message || ""), "error"); },
   });
 
-  const filtered = filter === "all" ? queue : queue.filter((q: any) => q.status === filter);
+  // 'executed' and legacy 'completed' are treated as the same bucket in filter and stats.
+  const filtered = filter === "all"
+    ? queue
+    : filter === "executed"
+      ? queue.filter((q: any) => q.status === 'executed' || q.status === 'completed')
+      : queue.filter((q: any) => q.status === filter);
 
   function toggleOne(id: string) {
     setSelectedIds(prev => {
@@ -261,6 +266,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     pending: { label: "승인대기", bg: "bg-yellow-500/10", text: "text-yellow-400" },
     approved: { label: "승인완료", bg: "bg-blue-500/10", text: "text-blue-400" },
     executed: { label: "실행완료", bg: "bg-green-500/10", text: "text-green-400" },
+    completed: { label: "실행완료", bg: "bg-green-500/10", text: "text-green-400" },
     rejected: { label: "거부", bg: "bg-red-500/10", text: "text-red-400" },
     refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
   };

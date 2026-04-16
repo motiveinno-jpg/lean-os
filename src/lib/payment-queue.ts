@@ -309,6 +309,10 @@ export async function executePayment(paymentId: string): Promise<void> {
 }
 
 // ── Payment queue summary stats ──
+// Note: 'executed' is the canonical "done" status; 'completed' exists in legacy rows
+// so we treat it as an alias to keep stats/filter/table in sync.
+const EXECUTED_STATUSES = ['executed', 'completed'];
+
 export async function getPaymentQueueStats(companyId: string) {
   const { data } = await supabase
     .from('payment_queue')
@@ -321,8 +325,8 @@ export async function getPaymentQueueStats(companyId: string) {
     pendingAmount: items.filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount), 0),
     approvedCount: items.filter(i => i.status === 'approved').length,
     approvedAmount: items.filter(i => i.status === 'approved').reduce((s, i) => s + Number(i.amount), 0),
-    executedCount: items.filter(i => i.status === 'executed').length,
-    executedAmount: items.filter(i => i.status === 'executed').reduce((s, i) => s + Number(i.amount), 0),
+    executedCount: items.filter(i => (i.status ? EXECUTED_STATUSES.includes(i.status) : false)).length,
+    executedAmount: items.filter(i => (i.status ? EXECUTED_STATUSES.includes(i.status) : false)).reduce((s, i) => s + Number(i.amount), 0),
     rejectedCount: items.filter(i => i.status === 'rejected').length,
   };
 }
