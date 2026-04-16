@@ -39,7 +39,7 @@ export interface UpsertPartnerParams {
 export async function getPartners(companyId: string, filters?: PartnerFilters) {
   let query = supabase
     .from('partners')
-    .select('*, deals(name)')
+    .select('*, deals!deals_partner_id_fkey(name)')
     .eq('company_id', companyId);
 
   if (filters?.search) {
@@ -69,7 +69,7 @@ export async function getPartners(companyId: string, filters?: PartnerFilters) {
 export async function getPartner(id: string) {
   const { data, error } = await supabase
     .from('partners')
-    .select('*, deals(name)')
+    .select('*, deals!deals_partner_id_fkey(name)')
     .eq('id', id)
     .single();
 
