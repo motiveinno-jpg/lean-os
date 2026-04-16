@@ -76,6 +76,28 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   }
 }
 
+// Known CODEF error codes → actionable hints (한글).
+// Keep in sync with https://developer.codef.io/products/errorCodes
+function codefErrorHint(code?: string): string {
+  if (!code) return "응답을 받지 못했습니다. 네트워크 상태를 확인하세요.";
+  if (code === "CF-00000") return "";
+  if (code.startsWith("CF-09")) {
+    return "CODEF 서버 일시장애. 잠시 후 다시 시도하세요. 지속 발생 시 CODEF 대시보드의 '오류 로그'를 확인해주세요.";
+  }
+  if (code === "CF-04015" || code.startsWith("CF-0401")) {
+    return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
+  }
+  if (code.startsWith("CF-03") || code.startsWith("CF-04")) {
+    return "인증 실패. 아이디/비밀번호 또는 공동인증서 상태를 확인하세요.";
+  }
+  if (code.startsWith("CF-12")) {
+    return "기관 응답 지연/오류. 해당 은행 또는 카드사 점검 시간을 피해 재시도하세요.";
+  }
+  return "CODEF 오류가 발생했습니다. 코드와 메시지를 CODEF 대시보드에서 검색해 대응하세요.";
+}
+
+type SyncError = { accountNo: string; organization: string; code: string; message: string; hint: string };
+
 async function syncBankTransactions(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
@@ -83,6 +105,8 @@ async function syncBankTransactions(
   // First get all registered bank accounts
   const accounts = await getAccountList(token, connectedId, "bank");
   let totalSynced = 0;
+
+  const errors: SyncError[] = [];
 
   for (const acct of accounts) {
     const org = acct.organization || acct.countryCode === "KR" ? (acct.organization || "0004") : "0004";
@@ -94,7 +118,17 @@ async function syncBankTransactions(
       startDate, endDate, orderBy: "0", inquiryType: "1",
     });
 
-    if (result.result?.code !== "CF-00000" || !result.data) continue;
+    if (result.result?.code !== "CF-00000") {
+      errors.push({
+        accountNo,
+        organization: org,
+        code: result.result?.code || "UNKNOWN",
+        message: result.result?.message || "응답 없음",
+        hint: codefErrorHint(result.result?.code),
+      });
+      continue;
+    }
+    if (!result.data) continue;
 
     const transactions = Array.isArray(result.data) ? result.data : [result.data];
 
@@ -117,18 +151,30 @@ async function syncBankTransactions(
     }
   }
 
-  return { synced: totalSynced };
+  return { synced: totalSynced, errors };
 }
 
 async function syncCardBilling(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
 ) {
+  const errors: SyncError[] = [];
+
   const result = await codefRequest(token, "/v1/kr/card/p/account/billing-list", {
     connectedId, organization: "0301", startDate, endDate, orderBy: "0", inquiryType: "1",
   });
 
-  if (result.result?.code !== "CF-00000" || !result.data) return { synced: 0 };
+  if (result.result?.code !== "CF-00000") {
+    errors.push({
+      accountNo: "",
+      organization: "0301",
+      code: result.result?.code || "UNKNOWN",
+      message: result.result?.message || "응답 없음",
+      hint: codefErrorHint(result.result?.code),
+    });
+    return { synced: 0, errors };
+  }
+  if (!result.data) return { synced: 0, errors };
 
   const billings = Array.isArray(result.data) ? result.data : [result.data];
   let synced = 0;
@@ -150,7 +196,7 @@ async function syncCardBilling(
     if (!error) synced++;
   }
 
-  return { synced };
+  return { synced, errors };
 }
 
 // RSA encrypt password with CODEF public key
@@ -364,16 +410,34 @@ serve(async (req) => {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 
-    // Log sync
+    // Derive status from collected per-request errors so the UI can surface
+    // CF-09002 / CF-04015 and similar failures instead of silently succeeding.
+    const allErrors: SyncError[] = [
+      ...(results.bank?.errors ?? []),
+      ...(results.card?.errors ?? []),
+    ];
+    const totalSynced =
+      (results.bank?.synced ?? 0) + (results.card?.synced ?? 0);
+    const logStatus =
+      allErrors.length === 0 ? "success" : totalSynced > 0 ? "partial" : "error";
+
     await supabase.from("sync_logs").insert({
       company_id: companyId,
       sync_type: `codef_${syncType}`,
-      status: "success",
-      details: results,
+      status: logStatus,
+      details: { ...results, errorCount: allErrors.length, errors: allErrors },
       synced_by: user.id,
     });
 
-    return new Response(JSON.stringify({ success: true, results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        success: logStatus !== "error",
+        status: logStatus,
+        results,
+        errors: allErrors,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
 
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

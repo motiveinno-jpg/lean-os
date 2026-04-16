@@ -2577,7 +2577,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   const [codefAccounts, setCodefAccounts] = useState<{ bank: any[]; card: any[] }>({ bank: [], card: [] });
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string; errors?: any[] } | null>(null);
+  const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
 
   const isConnected = !!connectionStatus?.codef_connected_id;
 
@@ -2596,6 +2597,15 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     }).finally(() => setLoadingAccounts(false));
   }, [companyId, isConnected]);
 
+  // 최근 CODEF 동기화 이력 로드 (오류 모니터링)
+  async function loadRecentSyncLogs() {
+    if (!companyId) return;
+    const { getRecentCodefSyncLogs } = await import("@/lib/data-sync");
+    const logs = await getRecentCodefSyncLogs(companyId, 5);
+    setRecentSyncLogs(logs);
+  }
+  useEffect(() => { if (isConnected) loadRecentSyncLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [companyId, isConnected]);
+
   // 거래내역 동기화
   async function handleSync() {
     if (!companyId || syncing) return;
@@ -2604,17 +2614,24 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
       const res = await syncCodefData(companyId, "all");
-      if (res.success) {
+      const hasErrors = (res.errors?.length ?? 0) > 0;
+      if (res.success && !hasErrors) {
         setSyncResult({ ok: true, msg: res.message || "거래내역 동기화 완료" });
         toast("거래내역 동기화 완료", "success");
+      } else if (res.status === "partial") {
+        setSyncResult({ ok: false, msg: res.message || "부분 동기화", errors: res.errors });
+        toast("일부 계좌 동기화 실패", "info");
       } else {
-        setSyncResult({ ok: false, msg: res.error || "동기화 실패" });
+        setSyncResult({ ok: false, msg: res.error || res.message || "동기화 실패", errors: res.errors });
+        toast("동기화 실패", "error");
       }
+      await loadRecentSyncLogs();
     } catch (err: any) {
       setSyncResult({ ok: false, msg: err.message || "오류 발생" });
     }
     setSyncing(false);
-    setTimeout(() => setSyncResult(null), 5000);
+    // 오류가 있으면 메시지를 남겨 두어 대표님이 읽을 수 있게 함
+    if (!syncResult?.errors?.length) setTimeout(() => setSyncResult((prev) => (prev?.errors?.length ? prev : null)), 5000);
   }
 
   const { data: companySettings } = useQuery({
@@ -2713,7 +2730,48 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
 
             {syncResult && (
               <div className={`p-3 rounded-xl text-xs font-medium ${syncResult.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
-                {syncResult.msg}
+                <div>{syncResult.msg}</div>
+                {syncResult.errors && syncResult.errors.length > 0 && (
+                  <ul className="mt-2 space-y-1.5 text-[11px] font-normal text-red-600">
+                    {syncResult.errors.map((e: any, idx: number) => (
+                      <li key={idx} className="p-2 rounded-lg bg-red-500/5">
+                        <div className="font-semibold">{e.code} · {e.accountNo || e.organization}</div>
+                        <div className="text-red-500/80">{e.message}</div>
+                        {e.hint && <div className="mt-1 text-[var(--text-muted)]">→ {e.hint}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {recentSyncLogs.length > 0 && (
+              <div className="mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold">최근 CODEF 동기화 이력</div>
+                  <button onClick={loadRecentSyncLogs} className="text-[10px] text-[var(--primary)] hover:underline">새로고침</button>
+                </div>
+                <ul className="space-y-1.5">
+                  {recentSyncLogs.map((log) => {
+                    const errorCount = Number(log.details?.errorCount ?? 0);
+                    const dot =
+                      log.status === "success" ? "bg-green-500" : log.status === "partial" ? "bg-yellow-500" : "bg-red-500";
+                    return (
+                      <li key={log.id} className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />
+                          <span className="text-[var(--text-muted)] truncate">
+                            {new Date(log.created_at).toLocaleString("ko-KR")}
+                          </span>
+                          <span className="text-[var(--text-dim)]">· {log.sync_type}</span>
+                        </div>
+                        <div className="text-[var(--text-muted)] whitespace-nowrap">
+                          {log.status === "success" ? "정상" : log.status === "partial" ? `부분 (오류 ${errorCount})` : `실패 (오류 ${errorCount})`}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
           </div>

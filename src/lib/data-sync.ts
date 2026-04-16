@@ -702,12 +702,28 @@ export async function listCodefAccounts(
 
 // ── CODEF API Sync ──
 
+export type CodefSyncError = {
+  accountNo: string;
+  organization: string;
+  code: string;
+  message: string;
+  hint: string;
+};
+
 export async function syncCodefData(
   companyId: string,
   syncType: 'bank' | 'card' | 'all' = 'all',
   startDate?: string,
   endDate?: string,
-): Promise<{ success: boolean; error?: string; message?: string }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  status?: 'success' | 'partial' | 'error';
+  errors?: CodefSyncError[];
+  bankSynced?: number;
+  cardSynced?: number;
+}> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: '로그인이 필요합니다' };
@@ -730,11 +746,43 @@ export async function syncCodefData(
     }
 
     const result = await res.json();
+    const bankSynced = result.results?.bank?.synced ?? 0;
+    const cardSynced = result.results?.card?.synced ?? 0;
+    const errors: CodefSyncError[] = result.errors ?? [];
+    const status: 'success' | 'partial' | 'error' =
+      result.status ?? (errors.length === 0 ? 'success' : bankSynced + cardSynced > 0 ? 'partial' : 'error');
+
     return {
-      success: true,
-      message: `거래내역 동기화 완료 (은행 ${result.results?.bank?.synced ?? 0}건, 카드 ${result.results?.card?.synced ?? 0}건)`,
+      success: result.success ?? status !== 'error',
+      status,
+      errors,
+      bankSynced,
+      cardSynced,
+      message:
+        status === 'success'
+          ? `거래내역 동기화 완료 (은행 ${bankSynced}건, 카드 ${cardSynced}건)`
+          : status === 'partial'
+            ? `부분 동기화: 은행 ${bankSynced}건, 카드 ${cardSynced}건 · 오류 ${errors.length}건`
+            : `동기화 실패 · 오류 ${errors.length}건`,
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'CODEF 동기화 실패' };
   }
+}
+
+export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {
+  const { data } = await (supabase as any)
+    .from('sync_logs')
+    .select('id, sync_type, status, details, created_at')
+    .eq('company_id', companyId)
+    .like('sync_type', 'codef_%')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return (data || []) as Array<{
+    id: string;
+    sync_type: string;
+    status: 'success' | 'partial' | 'error' | string;
+    details: any;
+    created_at: string;
+  }>;
 }
