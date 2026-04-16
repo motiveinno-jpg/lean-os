@@ -1716,7 +1716,7 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
     queryKey: ['pipeline-docs', companyId],
     queryFn: async () => {
       const { data } = await db2.from('documents')
-        .select('id, deal_id, type, status, name')
+        .select('id, deal_id, content_type, status, name')
         .eq('company_id', companyId)
         .in('status', ['draft', 'review', 'issued'])
         .order('created_at', { ascending: false })
