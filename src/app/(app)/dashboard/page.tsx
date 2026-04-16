@@ -461,18 +461,16 @@ export default function DashboardPage() {
 
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
       <div className="mb-4">
-        {/* 상단: 브리핑 2줄 + 액션 버튼 */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <MorningBrief
-              userName={userName}
-              companyName={companyName}
-              cashPulse={cashPulse}
-              dashboard={dashboard}
-              hasData={hasData}
-            />
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0 mt-1">
+        {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
+        <div className="mb-3">
+          <MorningBrief
+            userName={userName}
+            companyName={companyName}
+            cashPulse={cashPulse}
+            dashboard={dashboard}
+            hasData={hasData}
+          />
+          <div className="flex items-center gap-1.5 justify-end -mt-2 mb-2">
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 flex items-center gap-1 ${

@@ -66,8 +66,8 @@ export default function PaymentsPage() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">결제 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">결제 큐 + 급여/고정비 배치 + 반복결제</p>
+          <h1 className="text-xl sm:text-2xl font-extrabold break-keep">결제 관리</h1>
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">결제 큐 + 급여/고정비 배치 + 반복결제</p>
         </div>
       </div>
 
@@ -77,12 +77,12 @@ export default function PaymentsPage() {
       )}
 
       {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1">
+      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold transition ${
+            className={`flex-1 px-3 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
               tab === t.key
                 ? 'bg-[var(--bg-card)] text-[var(--text)] shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -1192,19 +1192,19 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
           <span className="text-xs font-bold text-[var(--text)]">자동화 파이프라인</span>
           <span className="text-[10px] text-[var(--text-dim)]">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {[
             { label: '반복설정', count: activeRecurring, color: 'bg-purple-500' },
             { label: '승인대기', count: pendingCount, color: 'bg-yellow-500' },
             { label: '결제대기', count: approvedCount, color: 'bg-blue-500' },
             { label: '완료', count: executedCount, color: 'bg-green-500' },
           ].map((step, i) => (
-            <div key={i} className="flex items-center gap-1 flex-1">
+            <div key={i} className="flex items-center gap-1 flex-1 min-w-[70px]">
               <div className="flex-1 bg-[var(--bg-surface)] rounded-lg p-2 text-center">
                 <div className={`text-lg font-bold ${step.color.replace('bg-', 'text-')}`}>{step.count}</div>
-                <div className="text-[10px] text-[var(--text-dim)]">{step.label}</div>
+                <div className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{step.label}</div>
               </div>
-              {i < 3 && <span className="text-[var(--text-dim)] text-xs">&rarr;</span>}
+              {i < 3 && <span className="text-[var(--text-dim)] text-xs flex-shrink-0">&rarr;</span>}
             </div>
           ))}
         </div>

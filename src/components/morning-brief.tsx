@@ -75,16 +75,15 @@ export function MorningBrief({
   if (!hasData || !cashPulse) {
     return (
       <section
-        className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-6 md:p-8"
+        className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-4 sm:p-6 md:p-8"
         style={{ borderColor: "var(--border)" }}
       >
-        <p className="text-sm text-[var(--text-dim)] mb-2">{today}</p>
-        <h2 className="text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-3">
+        <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">{today}</p>
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-2 sm:mb-3 break-keep">
           {greeting}, {userName || "대표"}님.
         </h2>
-        <p className="text-base md:text-lg text-[var(--text-muted)] leading-relaxed">
+        <p className="text-sm sm:text-base md:text-lg text-[var(--text-muted)] leading-relaxed break-keep">
           아직 {companyName || "회사"} 데이터가 충분하지 않습니다.
-          <br />
           거래내역을 동기화하거나 엑셀 파일을 올리시면, 내일 아침부터
           매일의 경영 상황을 이 자리에서 정리해 드리겠습니다.
         </p>
@@ -166,17 +165,17 @@ export function MorningBrief({
 
   return (
     <section
-      className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-6 md:p-8"
+      className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-4 sm:p-6 md:p-8"
       style={{ borderColor: "var(--border)" }}
     >
-      <p className="text-sm text-[var(--text-dim)] mb-2">
+      <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">
         {today} · {companyName}
       </p>
-      <h2 className="text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-5">
+      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--text)] leading-snug mb-3 sm:mb-5 break-keep">
         {greeting}, {userName || "대표"}님.
       </h2>
 
-      <div className="space-y-3 text-base md:text-[17px] text-[var(--text)] leading-[1.85] tracking-[-0.01em]">
+      <div className="space-y-2 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.75] sm:leading-[1.85] tracking-[-0.01em] break-keep">
         <p>{line1}</p>
         <p>{line2}</p>
         {line3 && <p>{line3}</p>}

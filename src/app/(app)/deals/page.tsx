@@ -1286,12 +1286,12 @@ function DealsPageInner() {
   return (
     <div className={viewMode === 'kanban' || viewMode === 'calendar' || viewMode === 'gantt' ? 'max-w-full' : 'max-w-[1000px]'}>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-extrabold">딜 관리</h1><p className="text-sm text-[var(--text-muted)] mt-1">모든 프로젝트/계약을 딜 단위로 관리합니다</p></div>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+        <div className="min-w-0"><h1 className="text-xl sm:text-2xl font-extrabold break-keep">딜 관리</h1><p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">모든 프로젝트/계약을 딜 단위로 관리합니다</p></div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto">
           <ViewToggle viewMode={viewMode} onChange={setViewMode} />
-          <button onClick={() => setShowCreateProgram(true)} className="px-4 py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold transition">+ 프로그램</button>
-          <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 새 딜</button>
+          <button onClick={() => setShowCreateProgram(true)} className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">+ 프로그램</button>
+          <button onClick={() => setShowForm(!showForm)} className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">+ 새 딜</button>
         </div>
       </div>
 
