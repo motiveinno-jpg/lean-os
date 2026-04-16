@@ -1710,7 +1710,7 @@ export async function getDrillDownLevel2(companyId: string, month: string): Prom
     .select('category, amount, transaction_date')
     .eq('company_id', companyId)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-31`);
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`);
 
   const groups = new Map<string, { count: number; totalAmount: number }>();
 
@@ -1742,7 +1742,7 @@ export async function getDrillDownLevel3(companyId: string, month: string, categ
     .eq('company_id', companyId)
     .eq('category', category)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-31`);
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`);
 
   const { data: fiItems } = await supabase
     .from('financial_items')
@@ -1783,7 +1783,7 @@ export async function getDrillDownLevel4(companyId: string, month: string, categ
     .eq('category', category)
     .eq('counterparty', counterparty)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-31`)
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`)
     .order('transaction_date', { ascending: true });
 
   return bankTx || [];

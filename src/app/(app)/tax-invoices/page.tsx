@@ -348,7 +348,9 @@ export default function TaxInvoicesPage() {
     queryKey: ["tax-invoices-full", companyId, month],
     queryFn: async () => {
       const startDate = `${month}-01`;
-      const endDate = `${month}-31`;
+      const [y, m] = month.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
       const { data } = await supabase
         .from("tax_invoices")
         .select("*, deals(name), label, revenue_schedule_id")
@@ -600,7 +602,8 @@ export default function TaxInvoicesPage() {
             setSyncing(true);
             try {
               const startDate = `${month}-01`;
-              const endDate = `${month}-31`;
+              const [sy, sm] = month.split('-').map(Number);
+              const endDate = `${month}-${String(new Date(sy, sm, 0).getDate()).padStart(2, '0')}`;
               await syncHomeTaxInvoices({ startDate, endDate });
               invalidate();
               queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
@@ -1211,7 +1214,8 @@ export default function TaxInvoicesPage() {
                   setSyncing(true);
                   try {
                     const startDate = `${month}-01`;
-                    const endDate = `${month}-31`;
+                    const [sy2, sm2] = month.split('-').map(Number);
+                    const endDate = `${month}-${String(new Date(sy2, sm2, 0).getDate()).padStart(2, '0')}`;
                     const result = await syncHomeTaxInvoices({ startDate, endDate });
                     toast(`동기화 완료: ${JSON.stringify(result.results?.map((r: any) => `${r.type}: ${r.created}건 생성`) || [])}`, "success");
                     invalidate();

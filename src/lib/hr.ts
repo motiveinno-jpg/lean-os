@@ -301,7 +301,7 @@ export async function getAttendanceRecords(companyId: string, startDate: string,
 export async function getEmployeeAttendance(employeeId: string, month: string) {
   // month = 'YYYY-MM'
   const startDate = `${month}-01`;
-  const endDate = `${month}-31`;
+  const endDate = `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`;
   const { data } = await db
     .from('attendance_records')
     .select('*')
