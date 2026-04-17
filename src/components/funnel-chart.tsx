@@ -26,7 +26,7 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
   }
 
   const maxCount = Math.max(...stages.map((s) => s.count), 1);
-  const firstCount = stages[0].count || 1;
+  const firstCount = stages[0].count; // keep 0 as 0 — conversion from 0 is 0%
 
   return (
     <>
@@ -37,9 +37,10 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
             const segH = 100 / stages.length;
             const yTop = i * segH;
             const yBot = (i + 1) * segH;
-            const wTop = (s.count / maxCount) * 90;
-            const nextCount = stages[i + 1]?.count ?? Math.max(s.count * 0.4, 0);
-            const wBot = (nextCount / maxCount) * 90;
+            const wTop = s.count > 0 ? (s.count / maxCount) * 90 : 4; // min 4% for visibility
+            const nextStage = stages[i + 1];
+            const rawNextCount = nextStage ? nextStage.count : 0;
+            const wBot = rawNextCount > 0 ? (rawNextCount / maxCount) * 90 : (nextStage ? 4 : Math.max(wTop * 0.3, 2));
             const xTopL = 50 - wTop / 2;
             const xTopR = 50 + wTop / 2;
             const xBotL = 50 - wBot / 2;
@@ -62,7 +63,7 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
         {/* Labels overlay */}
         <div className="absolute inset-0 flex flex-col">
           {stages.map((s, i) => {
-            const conv = i === 0 ? 100 : firstCount > 0 ? (s.count / firstCount) * 100 : 0;
+            const conv = i === 0 ? 100 : (firstCount > 0 ? (s.count / firstCount) * 100 : 0);
             return (
               <div
                 key={i}
@@ -87,8 +88,8 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
       {/* Mobile: horizontal stacked bars */}
       <div className="md:hidden space-y-2">
         {stages.map((s, i) => {
-          const widthPct = maxCount > 0 ? (s.count / maxCount) * 100 : 0;
-          const conv = i === 0 ? 100 : firstCount > 0 ? (s.count / firstCount) * 100 : 0;
+          const widthPct = (maxCount > 0 && s.count > 0) ? (s.count / maxCount) * 100 : 0;
+          const conv = i === 0 ? 100 : (firstCount > 0 ? (s.count / firstCount) * 100 : 0);
           return (
             <div key={i}>
               <div className="flex items-center justify-between text-[11px] mb-1">
@@ -101,7 +102,7 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
               <div className="h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                 <div
                   className="h-full transition-all duration-500"
-                  style={{ width: `${Math.max(widthPct, 2)}%`, background: s.color }}
+                  style={{ width: `${widthPct > 0 ? Math.max(widthPct, 2) : 0}%`, background: s.color }}
                 />
               </div>
             </div>

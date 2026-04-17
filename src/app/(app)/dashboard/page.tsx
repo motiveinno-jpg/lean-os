@@ -1917,7 +1917,7 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
 // ═══════════════════════════════════════════
 const FUNNEL_STAGES: { key: string; label: string; color: string; matches: (d: any) => boolean }[] = [
   { key: "lead",       label: "리드/문의",   color: "var(--text-muted)", matches: (d) => d.status === "pending" && !d.is_dormant },
-  { key: "active",     label: "진행 중",     color: "var(--primary)",    matches: (d) => d.status === "active" && !d.is_dormant },
+  { key: "active",     label: "진행 중",     color: "var(--primary)",    matches: (d) => d.status === "active" && Number(d.contract_total || 0) === 0 && !d.is_dormant },
   { key: "quoted",     label: "견적/제안",   color: "var(--warning)",    matches: (d) => d.status === "active" && Number(d.contract_total || 0) > 0 && !d.is_dormant },
   { key: "won",        label: "수주 성공",   color: "var(--success)",    matches: (d) => d.status === "completed" || d.status === "closed_won" },
   { key: "lost",       label: "실패/보류",   color: "var(--danger)",     matches: (d) => d.status === "archived" || d.status === "closed_lost" || d.is_dormant },
