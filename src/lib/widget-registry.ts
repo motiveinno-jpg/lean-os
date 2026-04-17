@@ -1,6 +1,6 @@
 /**
- * Widget Registry — 위젯 정의 + 프리셋 뷰
- * 대시보드 위젯 ID, 기본 설정, 프리셋 뷰 4개
+ * Widget Registry — 위젯 정의 + 역할 프리셋 + 상황별 뷰
+ * 대시보드 위젯 ID, 기본 설정, 프리셋 뷰 4개, 역할 프리셋 4개
  */
 
 export type WidgetId =
@@ -47,7 +47,7 @@ export interface WidgetConfig {
   order: number;
 }
 
-// ── Preset views ──
+// ── Preset views (상황별) ──
 export interface PresetView {
   id: string;
   name: string;
@@ -95,6 +95,65 @@ export const PRESET_VIEWS: PresetView[] = [
     ]),
   },
 ];
+
+// ── 역할 프리셋 (Role-based defaults) ──
+export type RolePreset = 'ceo' | 'accounting' | 'hr' | 'sales';
+
+export interface RolePresetDef {
+  id: RolePreset;
+  label: string;
+  description: string;
+  icon: string;
+  defaultWidgets: WidgetId[];
+}
+
+export const ROLE_PRESETS: RolePresetDef[] = [
+  {
+    id: 'ceo',
+    label: '경영/의사결정',
+    description: '대표이사, 경영자 — 핵심 KPI와 현금흐름 중심',
+    icon: '👔',
+    defaultWidgets: [
+      'cash_pulse', 'approval_center', 'today_actions',
+      'risk_zone', 'growth_tracking',
+    ],
+  },
+  {
+    id: 'accounting',
+    label: '회계/재무',
+    description: '회계담당자, CFO — 거래내역과 마감 중심',
+    icon: '🧮',
+    defaultWidgets: [
+      'cash_pulse', 'financial_overview', 'closing_checklist',
+      'overdue_receivables', 'burn_rate_trend', 'automation_status',
+    ],
+  },
+  {
+    id: 'hr',
+    label: '인사/총무',
+    description: '인사담당자, 총무 — 승인과 일정 중심',
+    icon: '📋',
+    defaultWidgets: [
+      'approval_center', 'today_actions',
+    ],
+  },
+  {
+    id: 'sales',
+    label: '영업/프로젝트',
+    description: '영업담당자, PM — 딜과 성장 중심',
+    icon: '🎯',
+    defaultWidgets: [
+      'growth_tracking', 'risk_zone', 'today_actions', 'approval_center',
+    ],
+  },
+];
+
+/** 역할 프리셋으로부터 위젯 설정 생성 */
+export function makeRolePresetConfigs(roleId: RolePreset): WidgetConfig[] {
+  const preset = ROLE_PRESETS.find(r => r.id === roleId);
+  const visibleIds = preset?.defaultWidgets || ROLE_PRESETS[0].defaultWidgets;
+  return makeConfigs(visibleIds);
+}
 
 // ── Default config ──
 export function getDefaultWidgets(): WidgetConfig[] {

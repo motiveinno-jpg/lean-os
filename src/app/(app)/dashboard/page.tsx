@@ -24,7 +24,7 @@ import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
-import { PRESET_VIEWS, WIDGET_REGISTRY } from "@/lib/widget-registry";
+import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
@@ -62,7 +62,7 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
   const { role } = useUser();
-  const { activeViewId, setActiveView, isWidgetVisible, editing, toggleEditing, toggleWidget, widgets } = useBoard();
+  const { activeViewId, setActiveView, isWidgetVisible, editing, toggleEditing, toggleWidget, widgets, rolePreset, setRolePreset } = useBoard();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
@@ -614,38 +614,64 @@ export default function DashboardPage() {
       {/* ═══ 위젯 show/hide 패널 (편집 모드) ═══ */}
       {editing && (
         <div className="mb-4 p-3 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03]">
+          {/* 역할 프리셋 선택 */}
           <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
-            위젯 표시 설정
+            역할별 추천 구성
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {WIDGET_REGISTRY.map((def) => {
-              const visible = isWidgetVisible(def.id);
-              return (
-                <button
-                  key={def.id}
-                  onClick={() => toggleWidget(def.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
-                    visible
-                      ? 'bg-[var(--primary)]/10 border border-[var(--primary)]/30'
-                      : 'bg-[var(--bg-surface)] border border-[var(--border)] opacity-60'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-                    visible ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'
-                  }`}>
-                    {visible && (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-[var(--text)] truncate">{def.name}</div>
-                    <div className="text-[9px] text-[var(--text-muted)] truncate">{def.description}</div>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            {ROLE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => setRolePreset(preset.id)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition ${
+                  rolePreset === preset.id
+                    ? 'bg-[var(--primary)]/15 border-2 border-[var(--primary)]/40 shadow-sm'
+                    : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]'
+                }`}
+              >
+                <span className="text-lg flex-shrink-0">{preset.icon}</span>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-[var(--text)] truncate">{preset.label}</div>
+                  <div className="text-[9px] text-[var(--text-muted)] truncate">{preset.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="border-t border-[var(--border)] pt-3">
+            <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
+              위젯 표시 설정
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {WIDGET_REGISTRY.map((def) => {
+                const visible = isWidgetVisible(def.id);
+                return (
+                  <button
+                    key={def.id}
+                    onClick={() => toggleWidget(def.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
+                      visible
+                        ? 'bg-[var(--primary)]/10 border border-[var(--primary)]/30'
+                        : 'bg-[var(--bg-surface)] border border-[var(--border)] opacity-60'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
+                      visible ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'
+                    }`}>
+                      {visible && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-[var(--text)] truncate">{def.name}</div>
+                      <div className="text-[9px] text-[var(--text-muted)] truncate">{def.description}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

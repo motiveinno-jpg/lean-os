@@ -140,12 +140,18 @@ function Tooltip({ label, show, children }: { label: string; show: boolean; chil
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { collapsed, toggleSidebar, mobileOpen, setMobileOpen } = useSidebar();
+  const { collapsed, toggleSidebar, mobileOpen, setMobileOpen, pinnedPages, togglePin, isPinned } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const { user, role } = useUser();
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const filteredNav = filterNavForRole(role, user?.companies?.name || undefined);
+
+  // Build flat lookup for pinned pages
+  const allNavItems = filteredNav.flatMap(g => g.items);
+  const pinnedItems = pinnedPages
+    .map(href => allNavItems.find(item => item.href === href))
+    .filter(Boolean) as NavItem[];
 
   useEffect(() => {
     async function loadCounts() {
@@ -236,6 +242,41 @@ export function Sidebar() {
 
       {/* Nav Groups */}
       <nav className={`flex-1 py-2 overflow-y-auto space-y-4 ${collapsed ? "px-2" : "px-3"}`}>
+        {/* Pinned Pages */}
+        {pinnedItems.length > 0 && (
+          <div>
+            {!collapsed && (
+              <div className="px-2 mb-1 text-[10px] font-semibold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                즐겨찾기
+              </div>
+            )}
+            {collapsed && <div className="my-1 border-t border-amber-500/30" />}
+            <div className="space-y-0.5">
+              {pinnedItems.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Tooltip key={`pin-${item.href}`} label={item.label} show={collapsed}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center rounded-lg text-[13px] transition-all ${
+                        collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
+                      } ${
+                        active
+                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                      }`}
+                    >
+                      <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                      {!collapsed && <span className="flex-1">{item.label}</span>}
+                    </Link>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {filteredNav.map((group) => (
           <div key={group.label}>
             {!collapsed && (
@@ -249,39 +290,58 @@ export function Sidebar() {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 const bk = (item as any).badgeKey;
                 const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
+                const pinned = isPinned(item.href);
                 return (
                   <Tooltip key={item.href} label={item.label} show={collapsed}>
-                    <Link
-                      href={item.href}
-                      className={`flex items-center rounded-lg text-[13px] transition-all ${
-                        collapsed
-                          ? "justify-center px-0 py-2.5"
-                          : "gap-2.5 px-2.5 py-2"
-                      } ${
-                        active
-                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                      }`}
-                    >
-                      <span className="relative">
-                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
-                        {collapsed && badge > 0 && (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">
-                            {badge > 99 ? "!" : badge}
-                          </span>
-                        )}
-                      </span>
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1">{item.label}</span>
-                          {badge > 0 && (
-                            <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-                              {badge > 99 ? "99+" : badge}
+                    <div className="group relative">
+                      <Link
+                        href={item.href}
+                        className={`flex items-center rounded-lg text-[13px] transition-all ${
+                          collapsed
+                            ? "justify-center px-0 py-2.5"
+                            : "gap-2.5 px-2.5 py-2"
+                        } ${
+                          active
+                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                            : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                        }`}
+                      >
+                        <span className="relative">
+                          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                          {collapsed && badge > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">
+                              {badge > 99 ? "!" : badge}
                             </span>
                           )}
-                        </>
+                        </span>
+                        {!collapsed && (
+                          <>
+                            <span className="flex-1">{item.label}</span>
+                            {badge > 0 && (
+                              <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                                {badge > 99 ? "99+" : badge}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Link>
+                      {/* Pin button — visible on hover (desktop expanded only) */}
+                      {!collapsed && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.href); }}
+                          className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded transition-all ${
+                            pinned
+                              ? "text-amber-500 opacity-100"
+                              : "text-[var(--text-dim)] opacity-0 group-hover:opacity-60 hover:!opacity-100"
+                          }`}
+                          title={pinned ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                        >
+                          <svg className="w-3 h-3" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" />
+                          </svg>
+                        </button>
                       )}
-                    </Link>
+                    </div>
                   </Tooltip>
                 );
               })}
@@ -434,6 +494,32 @@ export function Sidebar() {
 
           {/* Mobile Nav Groups */}
           <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
+            {/* Mobile Pinned Pages */}
+            {pinnedItems.length > 0 && (
+              <div>
+                <div className="px-2 mb-1 text-[10px] font-semibold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  즐겨찾기
+                </div>
+                <div className="space-y-0.5">
+                  {pinnedItems.map((item) => {
+                    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                    return (
+                      <Link key={`mpin-${item.href}`} href={item.href}
+                        className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
+                          active
+                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                            : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                        }`}>
+                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                        <span className="flex-1">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {filteredNav.map((group) => (
               <div key={group.label}>
                 <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
@@ -443,25 +529,37 @@ export function Sidebar() {
                   {group.items.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(item.href + "/");
                     const bk = (item as any).badgeKey;
-                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
+                    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
+                    const pinned = isPinned(item.href);
                     return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
-                          active
-                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                            : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                        }`}
-                      >
-                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
-                        <span className="flex-1">{item.label}</span>
-                        {badge > 0 && (
-                          <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-                            {badge > 99 ? "99+" : badge}
-                          </span>
-                        )}
-                      </Link>
+                      <div key={item.href} className="relative flex items-center">
+                        <Link
+                          href={item.href}
+                          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
+                            active
+                              ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                              : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                          }`}
+                        >
+                          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                          <span className="flex-1">{item.label}</span>
+                          {badge > 0 && (
+                            <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+                              {badge > 99 ? "99+" : badge}
+                            </span>
+                          )}
+                        </Link>
+                        <button
+                          onClick={() => togglePin(item.href)}
+                          className={`p-2 rounded transition-all ${
+                            pinned ? "text-amber-500" : "text-[var(--text-dim)] opacity-40"
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
