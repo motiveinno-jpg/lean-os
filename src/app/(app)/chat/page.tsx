@@ -302,7 +302,7 @@ function FilePreviewModal({
           ) : isVideo(file) ? (
             <video src={file.file_url} controls autoPlay className="max-h-[82vh] max-w-full rounded shadow-2xl bg-black" />
           ) : isAudio(file) ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl p-8 min-w-[420px] text-center">
+            <div className="bg-[var(--bg-card)] rounded-2xl p-8 min-w-[280px] sm:min-w-[420px] text-center">
               <div className="text-5xl mb-4">🎵</div>
               <div className="text-sm font-semibold mb-4 text-[var(--text)]">{file.file_name}</div>
               <audio src={file.file_url} controls autoPlay className="w-full" />

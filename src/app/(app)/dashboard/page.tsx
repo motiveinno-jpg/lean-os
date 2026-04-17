@@ -593,7 +593,7 @@ export default function DashboardPage() {
           </button>
         ))}
         {activeViewId === 'custom' && (
-          <span className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+          <span className="px-2 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap bg-amber-500/10 text-amber-600 border border-amber-500/20">
             커스텀
           </span>
         )}

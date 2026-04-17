@@ -415,7 +415,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
             <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
           </div>
-          <div className="grid grid-cols-4 gap-2 mb-3 text-[10px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-[10px]">
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">국민연금</span></div>
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">건강보험</span></div>
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">고용보험</span></div>

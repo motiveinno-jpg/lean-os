@@ -2460,9 +2460,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   ];
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6">
       {/* Left: Folder Tree */}
-      <div className="w-[240px] shrink-0">
+      <div className="w-full md:w-[240px] shrink-0">
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[var(--text)]">폴더</span>

@@ -1758,7 +1758,7 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
@@ -1948,7 +1948,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
   const [submitting, setSubmitting] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-black">수정세금계산서 발행</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">

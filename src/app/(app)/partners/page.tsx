@@ -491,24 +491,24 @@ export default function PartnersPage() {
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-extrabold">거래처 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold">거래처 관리</h1>
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
           <button onClick={downloadCSVTemplate}
             className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-xl text-xs font-semibold transition"
             title="CSV 템플릿 다운로드">
             템플릿
           </button>
-          <label className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-sm font-semibold transition cursor-pointer">
+          <label className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer whitespace-nowrap">
             CSV 임포트
             <input type="file" accept=".csv,text/csv" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
           </label>
           <button onClick={handleExport}
-            className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-sm font-semibold transition">
+            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">
             Excel 내보내기
           </button>
           <button onClick={openCreate}
@@ -603,9 +603,9 @@ export default function PartnersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead>
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
                   <th className="text-left px-5 py-3 font-medium">이름</th>
                   <th className="text-center px-4 py-3 font-medium">구분</th>
                   <th className="text-left px-4 py-3 font-medium">사업자번호</th>
@@ -701,7 +701,7 @@ export default function PartnersPage() {
 
         return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
@@ -790,7 +790,7 @@ export default function PartnersPage() {
             <div className="flex-1 overflow-y-auto p-6">
               {/* 기본정보 */}
               {detailTab === "info" && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     ["대표자", detailPartner.representative],
                     ["담당자", detailPartner.contact_name],
@@ -1088,7 +1088,7 @@ export default function PartnersPage() {
       {/* CSV Import Preview Modal */}
       {(importPreview || importError) && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <div>
@@ -1151,7 +1151,7 @@ export default function PartnersPage() {
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[640px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold">{editingId ? "거래처 수정" : "새 거래처 등록"}</h2>

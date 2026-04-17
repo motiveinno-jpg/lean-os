@@ -508,10 +508,10 @@ export default function TransactionsPage() {
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">거래내역</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 딜/분류 매핑</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-extrabold">거래내역</h1>
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 딜/분류 매핑</p>
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
@@ -535,12 +535,12 @@ export default function TransactionsPage() {
               }
             }}
             disabled={codefSyncing || !companyId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
           >
             {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+            className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap">
             {uploading ? "업로드 중..." : "CSV 업로드"}
           </button>
         </div>
@@ -649,10 +649,10 @@ export default function TransactionsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)]">
+      <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
         {([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
-            className={`px-4 py-2.5 text-sm font-semibold transition border-b-2 -mb-px ${
+            className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold transition border-b-2 -mb-px whitespace-nowrap ${
               tab === t ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}>
             {label}
