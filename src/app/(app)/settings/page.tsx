@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 import BulkInvite from "@/components/bulk-invite";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -124,7 +124,8 @@ export default function SettingsPage() {
     { key: "tax", label: "세무자동화" },
     { key: "certificate", label: "인증서" },
     { key: "notifications", label: "알림" },
-    { key: "invite", label: "대량 초대" },
+    { key: "invite", label: "구성원 초대" },
+    { key: "permissions", label: "권한 설정" },
   ];
 
   if (pageLoading) {
@@ -455,8 +456,11 @@ export default function SettingsPage() {
       {/* ═══ Notifications Tab ═══ */}
       {mainTab === "notifications" && <NotificationsTab companyId={companyId} />}
 
-      {/* ═══ Bulk Invite Tab ═══ */}
-      {mainTab === "invite" && companyId && <BulkInvite companyId={companyId} />}
+      {/* ═══ Member Invite Tab ═══ */}
+      {mainTab === "invite" && companyId && <MemberInviteTab companyId={companyId} />}
+
+      {/* ═══ Permissions Tab ═══ */}
+      {mainTab === "permissions" && companyId && <PermissionsTab companyId={companyId} />}
     </div>
   );
 }
@@ -3876,6 +3880,697 @@ function AccountTab() {
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Member Invite Tab — 개별 초대 + 초대현황
+// ═══════════════════════════════════════════
+
+function MemberInviteTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const { user } = useUser();
+  const queryClient = useQueryClient();
+  const [subTab, setSubTab] = useState<"individual" | "bulk" | "status">("individual");
+  const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin" | "partner" });
+  const [sending, setSending] = useState(false);
+
+  const { data: empInvites = [], refetch: refetchEmp } = useQuery({
+    queryKey: ["emp-invitations", companyId],
+    queryFn: () => getEmployeeInvitations(companyId),
+    enabled: !!companyId,
+  });
+
+  const { data: partnerInvites = [], refetch: refetchPartner } = useQuery({
+    queryKey: ["partner-invitations", companyId],
+    queryFn: () => getPartnerInvitations(companyId),
+    enabled: !!companyId,
+  });
+
+  const allInvites = [
+    ...empInvites.map((i: Record<string, unknown>) => ({ ...i, type: "employee" })),
+    ...partnerInvites.map((i: Record<string, unknown>) => ({ ...i, type: "partner" })),
+  ].sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+    new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime(),
+  );
+
+  const handleSendInvite = async () => {
+    if (!inviteForm.email.trim()) return;
+    setSending(true);
+    try {
+      let invite: { id?: string; invite_token?: string } | null = null;
+      if (inviteForm.role === "partner") {
+        invite = await createPartnerInvitation({
+          companyId,
+          email: inviteForm.email.trim(),
+          name: inviteForm.name.trim() || undefined,
+        } as Parameters<typeof createPartnerInvitation>[0]);
+      } else {
+        invite = await createEmployeeInvitation({
+          companyId,
+          email: inviteForm.email.trim(),
+          name: inviteForm.name.trim() || undefined,
+          role: inviteForm.role as "employee" | "admin",
+          invitedBy: user?.id || "",
+        } as Parameters<typeof createEmployeeInvitation>[0]);
+      }
+
+      if (invite?.id && invite?.invite_token) {
+        await sendInviteEmail({
+          email: inviteForm.email.trim(),
+          name: inviteForm.name.trim() || undefined,
+          role: inviteForm.role,
+          inviteToken: invite.invite_token as string,
+          companyName: "(주)모티브이노베이션",
+        });
+      }
+
+      toast("초대 메일을 발송했습니다", "success");
+      setInviteForm({ email: "", name: "", role: "employee" });
+      refetchEmp();
+      refetchPartner();
+    } catch (err) {
+      toast(`초대 실패: ${(err as Error).message}`, "error");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCancelInvite = async (id: string, type: string) => {
+    try {
+      if (type === "partner") {
+        await cancelPartnerInvitation(id);
+      } else {
+        await cancelEmployeeInvitation(id);
+      }
+      toast("초대가 취소되었습니다", "success");
+      refetchEmp();
+      refetchPartner();
+    } catch (err) {
+      toast(`취소 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const handleResend = async (invite: Record<string, unknown>) => {
+    try {
+      await sendInviteEmail({
+        email: invite.email as string,
+        name: (invite.name as string) || undefined,
+        role: (invite.role as string) || "employee",
+        inviteToken: invite.invite_token as string,
+        companyName: "(주)모티브이노베이션",
+      });
+      toast("초대 메일을 재발송했습니다", "success");
+    } catch (err) {
+      toast(`재발송 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case "pending": return { text: "대기 중", cls: "bg-yellow-500/10 text-yellow-400" };
+      case "accepted": return { text: "수락됨", cls: "bg-green-500/10 text-green-400" };
+      case "cancelled": return { text: "취소됨", cls: "bg-red-500/10 text-red-400" };
+      case "expired": return { text: "만료됨", cls: "bg-gray-500/10 text-gray-400" };
+      default: return { text: s, cls: "bg-gray-500/10 text-gray-400" };
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold">구성원 초대</h2>
+
+      {/* Sub tabs */}
+      <div className="flex gap-2">
+        {[
+          { key: "individual" as const, label: "개별 초대" },
+          { key: "bulk" as const, label: "대량 초대 (CSV)" },
+          { key: "status" as const, label: `초대 현황 (${allInvites.length})` },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition min-h-[44px] ${
+              subTab === t.key
+                ? "bg-[var(--primary)] text-white"
+                : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Individual invite */}
+      {subTab === "individual" && (
+        <div className="bg-[var(--bg-card)] rounded-xl p-6 border border-[var(--border)] space-y-4">
+          <p className="text-sm text-[var(--text-muted)]">이메일 주소로 구성원을 초대합니다. 초대 링크가 포함된 이메일이 발송됩니다.</p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">이메일 *</label>
+              <input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                placeholder="name@company.com"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">이름 (선택)</label>
+              <input
+                type="text"
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                placeholder="홍길동"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">역할</label>
+              <select
+                value={inviteForm.role}
+                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "employee" | "admin" | "partner" })}
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent outline-none"
+              >
+                <option value="employee">구성원</option>
+                <option value="admin">관리자</option>
+                <option value="partner">거래처 (파트너)</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSendInvite}
+            disabled={sending || !inviteForm.email.trim()}
+            className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 min-h-[44px]"
+          >
+            {sending ? "발송 중..." : "초대 메일 보내기"}
+          </button>
+        </div>
+      )}
+
+      {/* Bulk invite (CSV) */}
+      {subTab === "bulk" && <BulkInvite companyId={companyId} />}
+
+      {/* Invitation status */}
+      {subTab === "status" && (
+        <div className="space-y-3">
+          {allInvites.length === 0 ? (
+            <div className="bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]">
+              <p className="text-[var(--text-muted)] text-sm">발송된 초대가 없습니다</p>
+            </div>
+          ) : (
+            allInvites.map((invite: Record<string, unknown>) => {
+              const st = statusLabel(invite.status as string);
+              return (
+                <div
+                  key={invite.id as string}
+                  className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex items-center justify-between gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm truncate">{(invite.name as string) || (invite.email as string)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.cls}`}>{st.text}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400">
+                        {invite.type === "partner" ? "파트너" : (invite.role as string) === "admin" ? "관리자" : "구성원"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] truncate">{invite.email as string}</p>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      {new Date(invite.created_at as string).toLocaleDateString("ko-KR")} 발송
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {invite.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => handleResend(invite)}
+                          className="px-3 py-1.5 text-xs font-semibold text-[var(--primary)] bg-[var(--primary)]/10 rounded-lg hover:bg-[var(--primary)]/20 transition min-h-[44px]"
+                        >
+                          재발송
+                        </button>
+                        <button
+                          onClick={() => handleCancelInvite(invite.id as string, invite.type as string)}
+                          className="px-3 py-1.5 text-xs font-semibold text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition min-h-[44px]"
+                        >
+                          취소
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Permissions Tab — 플렉스 스타일 권한 관리
+// ═══════════════════════════════════════════
+
+import {
+  getPermissionGroups,
+  getPermissionGroupDetail,
+  getAllPermissionDefinitions,
+  getCompanyMembersWithPermissions,
+  createPermissionGroup,
+  updatePermissionGroup,
+  deletePermissionGroup,
+  setGroupPermissions,
+  addGroupMember,
+  removeGroupMember,
+  initializeCompanyPermissions,
+  MODULE_LABELS,
+  SYSTEM_GROUPS,
+  type PermissionGroup,
+  type PermissionDefinition,
+} from "@/lib/permissions";
+
+function PermissionsTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const { user } = useUser();
+  const [subTab, setSubTab] = useState<"groups" | "members">("groups");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [showNewGroupForm, setShowNewGroupForm] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDesc, setNewGroupDesc] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  // 초기 셋업
+  useEffect(() => {
+    if (companyId && user?.id && !initialized) {
+      initializeCompanyPermissions(companyId, user.id).then(() => {
+        setInitialized(true);
+      });
+    }
+  }, [companyId, user?.id, initialized]);
+
+  // 권한 그룹 목록
+  const { data: groups = [], refetch: refetchGroups } = useQuery({
+    queryKey: ["permission-groups", companyId, initialized],
+    queryFn: () => getPermissionGroups(companyId),
+    enabled: !!companyId && initialized,
+  });
+
+  // 선택된 그룹 상세
+  const { data: groupDetail, refetch: refetchDetail } = useQuery({
+    queryKey: ["permission-group-detail", selectedGroupId],
+    queryFn: () => getPermissionGroupDetail(selectedGroupId!),
+    enabled: !!selectedGroupId,
+  });
+
+  // 전체 권한 정의
+  const { data: permDefs = {} } = useQuery({
+    queryKey: ["permission-definitions"],
+    queryFn: () => getAllPermissionDefinitions(),
+  });
+
+  // 구성원별 권한
+  const { data: membersWithPerms = [], refetch: refetchMembers } = useQuery({
+    queryKey: ["members-permissions", companyId, initialized],
+    queryFn: () => getCompanyMembersWithPermissions(companyId),
+    enabled: !!companyId && initialized,
+  });
+
+  // 회사 유저 (멤버 추가용)
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["company-users", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as ReturnType<typeof import("@supabase/supabase-js").createClient>)
+        .from("users")
+        .select("id, name, email, role, avatar_url")
+        .eq("company_id", companyId)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return;
+    try {
+      await createPermissionGroup({
+        companyId,
+        name: newGroupName.trim(),
+        description: newGroupDesc.trim(),
+      });
+      toast("권한 그룹이 생성되었습니다", "success");
+      setNewGroupName("");
+      setNewGroupDesc("");
+      setShowNewGroupForm(false);
+      refetchGroups();
+    } catch (err) {
+      toast(`생성 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm("이 권한 그룹을 삭제하시겠습니까?")) return;
+    try {
+      await deletePermissionGroup(groupId);
+      toast("권한 그룹이 삭제되었습니다", "success");
+      if (selectedGroupId === groupId) setSelectedGroupId(null);
+      refetchGroups();
+    } catch (err) {
+      toast(`삭제 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const handleTogglePermission = async (permId: string) => {
+    if (!groupDetail) return;
+    const currentIds = (groupDetail.permissions || []).map((p) => p.id);
+    const newIds = currentIds.includes(permId)
+      ? currentIds.filter((id) => id !== permId)
+      : [...currentIds, permId];
+    try {
+      await setGroupPermissions(groupDetail.id, newIds);
+      refetchDetail();
+    } catch (err) {
+      toast(`권한 변경 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const handleAddMember = async (userId: string) => {
+    if (!selectedGroupId) return;
+    try {
+      await addGroupMember(selectedGroupId, userId, companyId);
+      refetchDetail();
+      refetchMembers();
+      toast("구성원이 추가되었습니다", "success");
+    } catch (err) {
+      toast(`추가 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!selectedGroupId) return;
+    try {
+      await removeGroupMember(selectedGroupId, userId);
+      refetchDetail();
+      refetchMembers();
+      toast("구성원이 제거되었습니다", "success");
+    } catch (err) {
+      toast(`제거 실패: ${(err as Error).message}`, "error");
+    }
+  };
+
+  const groupIcon = (icon: string, name: string) => {
+    if (name === SYSTEM_GROUPS.SUPER_ADMIN) return <span className="text-lg">👑</span>;
+    if (name === SYSTEM_GROUPS.TEAM_LEAD) return <span className="text-lg">🚩</span>;
+    if (name === SYSTEM_GROUPS.DEFAULT) return <span className="text-lg">👥</span>;
+    return <span className="text-lg">🛡️</span>;
+  };
+
+  const getInitials = (name: string) => {
+    return name ? name.slice(0, 2) : "?";
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold">권한 설정</h2>
+
+      {/* Sub tabs */}
+      <div className="flex rounded-xl border border-[var(--border)] overflow-hidden">
+        <button
+          onClick={() => setSubTab("groups")}
+          className={`flex-1 py-3 text-sm font-semibold transition min-h-[44px] ${
+            subTab === "groups" ? "bg-[var(--bg-card)] text-[var(--text)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+          }`}
+        >
+          권한 그룹
+        </button>
+        <button
+          onClick={() => setSubTab("members")}
+          className={`flex-1 py-3 text-sm font-semibold transition min-h-[44px] border-l border-[var(--border)] ${
+            subTab === "members" ? "bg-[var(--bg-card)] text-[var(--text)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+          }`}
+        >
+          구성원 권한
+        </button>
+      </div>
+
+      {/* ── 권한 그룹 탭 ── */}
+      {subTab === "groups" && !selectedGroupId && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold">권한 그룹</h3>
+              <p className="text-xs text-[var(--text-muted)]">그룹별 권한을 설정하고 구성원을 추가해 보세요.</p>
+            </div>
+            <button
+              onClick={() => setShowNewGroupForm(true)}
+              className="px-4 py-2 text-sm font-semibold border border-[var(--border)] rounded-lg hover:bg-[var(--bg-surface)] transition min-h-[44px]"
+            >
+              + 권한 그룹 추가
+            </button>
+          </div>
+
+          {/* New group form */}
+          {showNewGroupForm && (
+            <div className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--primary)] space-y-3">
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="그룹 이름"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={newGroupDesc}
+                onChange={(e) => setNewGroupDesc(e.target.value)}
+                placeholder="설명 (선택)"
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setShowNewGroupForm(false); setNewGroupName(""); setNewGroupDesc(""); }}
+                  className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition min-h-[44px]"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleCreateGroup}
+                  disabled={!newGroupName.trim()}
+                  className="px-4 py-2 text-sm font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] transition disabled:opacity-50 min-h-[44px]"
+                >
+                  생성
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Group list */}
+          <div className="space-y-2">
+            {groups.map((g: PermissionGroup & { member_count?: number }) => (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGroupId(g.id)}
+                className="w-full bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] hover:border-[var(--primary)]/50 transition text-left flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  {groupIcon(g.icon, g.name)}
+                  <div>
+                    <div className="font-semibold text-sm">{g.name}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{g.description}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {(g.member_count || 0) > 0 && (
+                    <span className="text-xs text-[var(--text-muted)]">{g.member_count}명</span>
+                  )}
+                  {!g.is_system && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteGroup(g.id); }}
+                      className="opacity-0 group-hover:opacity-100 text-xs text-red-400 hover:text-red-300 transition px-2 min-h-[44px]"
+                    >
+                      ···
+                    </button>
+                  )}
+                  <span className="text-[var(--text-muted)]">›</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 그룹 상세 (권한 편집 + 멤버 관리) ── */}
+      {subTab === "groups" && selectedGroupId && groupDetail && (
+        <div className="space-y-6">
+          <button
+            onClick={() => setSelectedGroupId(null)}
+            className="text-sm text-[var(--primary)] hover:underline min-h-[44px]"
+          >
+            ← 목록으로
+          </button>
+
+          <div className="flex items-center gap-3">
+            {groupIcon(groupDetail.icon, groupDetail.name)}
+            <div>
+              <h3 className="text-lg font-bold">{groupDetail.name}</h3>
+              <p className="text-xs text-[var(--text-muted)]">{groupDetail.description}</p>
+            </div>
+          </div>
+
+          {/* 멤버 섹션 */}
+          <div className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] space-y-3">
+            <h4 className="font-semibold text-sm">구성원 ({groupDetail.members?.length || 0}명)</h4>
+            <div className="space-y-2">
+              {(groupDetail.members || []).map((m) => (
+                <div key={m.user_id} className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-xs font-bold text-[var(--primary)]">
+                      {getInitials(m.user?.name || "")}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{m.user?.name || m.user?.email}</div>
+                      <div className="text-[10px] text-[var(--text-muted)]">{m.user?.email}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveMember(m.user_id)}
+                    className="text-xs text-red-400 hover:text-red-300 transition px-2 min-h-[44px]"
+                  >
+                    제거
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* 멤버 추가 */}
+            <div className="pt-2 border-t border-[var(--border)]">
+              <select
+                onChange={(e) => { if (e.target.value) handleAddMember(e.target.value); e.target.value = ""; }}
+                className="w-full px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm outline-none"
+                defaultValue=""
+              >
+                <option value="" disabled>+ 구성원 추가...</option>
+                {companyUsers
+                  .filter((u: { id: string }) => !(groupDetail.members || []).some((m) => m.user_id === u.id))
+                  .map((u: { id: string; name: string; email: string }) => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 권한 편집 섹션 */}
+          <div className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] space-y-4">
+            <h4 className="font-semibold text-sm">모듈별 권한</h4>
+            {Object.entries(permDefs).map(([module, perms]) => {
+              const activePermIds = new Set((groupDetail.permissions || []).map((p) => p.id));
+              const allChecked = (perms as PermissionDefinition[]).every((p) => activePermIds.has(p.id));
+              return (
+                <div key={module} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{MODULE_LABELS[module] || module}</span>
+                    <button
+                      onClick={async () => {
+                        const currentIds = (groupDetail.permissions || []).map((p) => p.id);
+                        const modulePermIds = (perms as PermissionDefinition[]).map((p) => p.id);
+                        let newIds: string[];
+                        if (allChecked) {
+                          newIds = currentIds.filter((id) => !modulePermIds.includes(id));
+                        } else {
+                          newIds = [...new Set([...currentIds, ...modulePermIds])];
+                        }
+                        await setGroupPermissions(groupDetail.id, newIds);
+                        refetchDetail();
+                      }}
+                      className="text-[10px] text-[var(--primary)] hover:underline"
+                    >
+                      {allChecked ? "전체 해제" : "전체 선택"}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(perms as PermissionDefinition[]).map((p) => {
+                      const isActive = activePermIds.has(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => handleTogglePermission(p.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition min-h-[44px] ${
+                            isActive
+                              ? "bg-[var(--primary)] text-white"
+                              : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 구성원 권한 탭 ── */}
+      {subTab === "members" && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-bold">구성원 권한</h3>
+            <p className="text-xs text-[var(--text-muted)]">각 구성원이 속한 권한 그룹을 확인하세요.</p>
+          </div>
+
+          <div className="space-y-2">
+            {membersWithPerms.map((m) => (
+              <div
+                key={m.user.id}
+                className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center text-sm font-bold text-[var(--primary)]">
+                    {getInitials(m.user.name || "")}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{m.user.name || m.user.email}</span>
+                      {m.isSuperAdmin && <span className="text-xs">👑</span>}
+                    </div>
+                    {m.user.department && (
+                      <span className="text-xs text-[var(--text-muted)]">{m.user.department}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  {m.groups.map((g) => (
+                    <span
+                      key={g.id}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        g.name === SYSTEM_GROUPS.SUPER_ADMIN
+                          ? "bg-yellow-500/10 text-yellow-400"
+                          : g.name === SYSTEM_GROUPS.TEAM_LEAD
+                            ? "bg-purple-500/10 text-purple-400"
+                            : g.name === SYSTEM_GROUPS.DEFAULT
+                              ? "bg-gray-500/10 text-gray-400"
+                              : "bg-blue-500/10 text-blue-400"
+                      }`}
+                    >
+                      {g.name === SYSTEM_GROUPS.SUPER_ADMIN ? "👑 " : g.name === SYSTEM_GROUPS.TEAM_LEAD ? "🚩 " : "👥 "}
+                      {g.name}
+                    </span>
+                  ))}
+                  {m.groups.length === 0 && (
+                    <span className="text-xs text-[var(--text-muted)]">그룹 없음</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
