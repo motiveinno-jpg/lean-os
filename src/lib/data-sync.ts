@@ -626,10 +626,18 @@ export async function registerCodefCertificate(
   derFile: string,
   keyFile: string,
   certPassword: string,
+  pfxFile?: string,
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
-  return callCodefRegister(companyId, {
-    accountType, organization, loginType: '0', derFile, keyFile, certPassword,
-  });
+  const params: Record<string, string> = {
+    accountType, organization, loginType: '0', certPassword,
+  };
+  if (pfxFile) {
+    params.pfxFile = pfxFile;
+  } else {
+    params.derFile = derFile;
+    params.keyFile = keyFile;
+  }
+  return callCodefRegister(companyId, params);
 }
 
 async function callCodefRegister(
