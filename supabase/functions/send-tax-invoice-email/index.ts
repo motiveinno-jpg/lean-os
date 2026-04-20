@@ -117,7 +117,7 @@ serve(async (req) => {
 
     // Build email payload
     const emailPayload: Record<string, unknown> = {
-      from: Deno.env.get("RESEND_FROM_EMAIL") || "noreply@ownerview.app",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
       to: [recipientEmail],
       subject,
       html,

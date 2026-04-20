@@ -52,7 +52,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "noreply@ownerview.app",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
         to: [email],
         subject: `[${companyName || "OwnerView"}] ${sharedBy || "동료"}님이 "${documentName}" 문서를 공유했습니다`,
         html,

@@ -69,7 +69,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "noreply@ownerview.app",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
         to: [email],
         subject: `[${displayCompany}] ${displayName}님, 팀에 초대합니다`,
         html,

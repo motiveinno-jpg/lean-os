@@ -53,7 +53,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "noreply@ownerview.app",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
         to: [to],
         subject: `[${companyName || "OwnerView"}] "${title}" 전자서명 요청`,
         html,
