@@ -325,6 +325,7 @@ export default function TaxInvoicesPage() {
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -1362,19 +1363,14 @@ export default function TaxInvoicesPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              {/* 3-Way Visual Summary */}
+              {/* 3-Way Visual Summary — 클릭 가능한 필터 */}
               <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]/50">
-                <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text)]">매칭 현황:</span>
-                  <span className="text-green-400 font-semibold">
-                    완전매칭 {matchResults.filter((r: any) => r.fullMatch).length}건
-                  </span>
-                  <span className="text-orange-400 font-semibold">
-                    부분매칭 {matchResults.filter((r: any) => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length}건
-                  </span>
-                  <span className="text-red-400 font-semibold">
-                    미매칭 {matchResults.filter((r: any) => !r.fullMatch && !r.amountMatch && !r.paymentMatch).length}건
-                  </span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-medium text-[var(--text)] mr-1">매칭 현황:</span>
+                  <button onClick={() => setMatchFilter("all")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "all" ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>전체 {matchResults.length}건</button>
+                  <button onClick={() => setMatchFilter("full")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "full" ? "bg-green-500/15 text-green-400" : "text-green-400/60 hover:bg-[var(--bg-surface)]"}`}>완전매칭 {matchResults.filter((r: any) => r.fullMatch).length}건</button>
+                  <button onClick={() => setMatchFilter("partial")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "partial" ? "bg-orange-500/15 text-orange-400" : "text-orange-400/60 hover:bg-[var(--bg-surface)]"}`}>부분매칭 {matchResults.filter((r: any) => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length}건</button>
+                  <button onClick={() => setMatchFilter("none")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "none" ? "bg-red-500/15 text-red-400" : "text-red-400/60 hover:bg-[var(--bg-surface)]"}`}>미매칭 {matchResults.filter((r: any) => !r.fullMatch && !r.amountMatch && !r.paymentMatch).length}건</button>
                 </div>
               </div>
               <div className="overflow-x-auto"><table className="w-full min-w-[900px]">
@@ -1390,7 +1386,12 @@ export default function TaxInvoicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {matchResults.map((r) => (
+                  {matchResults.filter((r: any) => {
+                    if (matchFilter === "all") return true;
+                    if (matchFilter === "full") return r.fullMatch;
+                    if (matchFilter === "partial") return !r.fullMatch && (r.amountMatch || r.paymentMatch);
+                    return !r.fullMatch && !r.amountMatch && !r.paymentMatch;
+                  }).map((r) => (
                     <tr
                       key={r.invoiceId}
                       className={`border-b border-[var(--border)]/50 transition ${
