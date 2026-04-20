@@ -972,16 +972,21 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   <button
                     onClick={async () => {
                       if (!selfSignName.trim() || !companyId || !userId) return;
-                      // 먼저 서명 요청 생성 → 바로 서명 완료
-                      const req = await createSignatureRequest({
-                        companyId, documentId: id, title: '자체 서명',
-                        signerName: selfSignName, signerEmail: userEmail || 'self-sign@company.internal',
-                        createdBy: userId,
-                      });
-                      await saveSignature(req.id, { type: 'type', data: selfSignName });
-                      invalidate();
-                      setShowSelfSign(false);
-                      setSelfSignName('');
+                      try {
+                        // 먼저 서명 요청 생성 → 바로 서명 완료
+                        const req = await createSignatureRequest({
+                          companyId, documentId: id, title: '자체 서명',
+                          signerName: selfSignName, signerEmail: userEmail || 'self-sign@company.internal',
+                          createdBy: userId,
+                        });
+                        await saveSignature(req.id, { type: 'type', data: selfSignName });
+                        toast('서명이 완료되었습니다', 'success');
+                        invalidate();
+                        setShowSelfSign(false);
+                        setSelfSignName('');
+                      } catch (err: any) {
+                        toast(err.message || '서명 처리 중 오류가 발생했습니다', 'error');
+                      }
                     }}
                     disabled={!selfSignName.trim()}
                     className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
@@ -1008,9 +1013,16 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   placeholder="문서 내용을 작성하세요..."
                 />
               ) : (
-                <pre className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-[var(--text-muted)]">
-                  {editContent || "(내용 없음)"}
-                </pre>
+                editContent && (editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html') || editContent.trim().startsWith('<div') || editContent.trim().startsWith('<h')) ? (
+                  <div
+                    className="text-sm leading-relaxed text-[var(--text-muted)] document-html-content"
+                    dangerouslySetInnerHTML={{ __html: editContent }}
+                  />
+                ) : (
+                  <pre className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-[var(--text-muted)]">
+                    {editContent || "(내용 없음)"}
+                  </pre>
+                )
               )}
             </div>
           </div>

@@ -480,8 +480,18 @@ export default function MatchingPage() {
   const costMap = new Map(costs.map((c) => [c.id, c]));
 
   const fullMatchCount = threeWayResults.filter(r => r.fullMatch).length;
+  const recommendedCount = threeWayResults.filter(r => r.amountMatch && !r.fullMatch).length;
   const partialCount = threeWayResults.filter(r => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length;
   const noMatchCount = threeWayResults.filter(r => !r.amountMatch && !r.paymentMatch).length;
+
+  // Sort: recommended (amountMatch but not fullMatch) first, then fullMatch, then rest
+  const sortedThreeWayResults = [...threeWayResults].sort((a, b) => {
+    if (a.fullMatch && !b.fullMatch) return -1;
+    if (!a.fullMatch && b.fullMatch) return 1;
+    if (a.amountMatch && !b.amountMatch) return -1;
+    if (!a.amountMatch && b.amountMatch) return 1;
+    return 0;
+  });
 
   if (txLoading) {
     return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -969,11 +979,16 @@ export default function MatchingPage() {
           </div>
 
           {/* 3-Way Summary */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
               <div className="text-xs text-[var(--text-dim)]">완전 매칭</div>
               <div className="text-lg font-bold text-green-400 mt-1">{fullMatchCount}건</div>
               <div className="text-[10px] text-[var(--text-dim)] mt-0.5">계약=계산서=입금</div>
+            </div>
+            <div className="bg-[var(--bg-card)] rounded-xl border border-blue-500/30 p-4">
+              <div className="text-xs text-blue-400">추천 매칭</div>
+              <div className="text-lg font-bold text-blue-400 mt-1">{recommendedCount}건</div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">계약금액=공급가액</div>
             </div>
             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
               <div className="text-xs text-[var(--text-dim)]">부분 매칭</div>
@@ -1012,9 +1027,23 @@ export default function MatchingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {threeWayResults.map((r) => (
-                    <tr key={r.invoiceId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                      <td className="px-5 py-3 text-sm font-medium">{r.dealName || "—"}</td>
+                  {sortedThreeWayResults.map((r) => (
+                    <tr key={r.invoiceId} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] ${r.amountMatch && !r.fullMatch ? "bg-blue-500/5" : ""}`}>
+                      <td className="px-5 py-3 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          {r.dealName || "—"}
+                          {r.amountMatch && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30 font-semibold whitespace-nowrap">
+                              추천
+                            </span>
+                          )}
+                        </div>
+                        {r.amountMatch && r.contractAmount > 0 && (
+                          <div className="text-[10px] text-blue-400 mt-0.5">
+                            계약금액 = 공급가액 ₩{r.contractAmount.toLocaleString()}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-sm text-right">₩{r.contractAmount.toLocaleString()}</td>
                       <td className="px-5 py-3 text-sm text-right">₩{r.invoiceAmount.toLocaleString()}</td>
                       <td className="px-5 py-3 text-sm text-right">₩{r.receivedAmount.toLocaleString()}</td>

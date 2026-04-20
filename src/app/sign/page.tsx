@@ -455,6 +455,9 @@ function SignContent() {
           .eq("id", (item as any).document_id);
       }
 
+      // Show success feedback immediately
+      toast("서명이 완료되었습니다", "success");
+
       // Check if all items signed
       const updatedItems = pkg.items.map((it, i) =>
         i === activeItem ? { ...it, status: "signed" as const, signed_at: new Date().toISOString() } : it
@@ -462,7 +465,11 @@ function SignContent() {
       const allSigned = updatedItems.every((it) => it.status === "signed");
       const someSigned = updatedItems.some((it) => it.status === "signed");
 
-      if (allSigned && !isGeneralDoc) {
+      if (allSigned && isGeneralDoc) {
+        // General document: show completed screen
+        setPkg({ ...pkg, items: updatedItems });
+        setCompleted(true);
+      } else if (allSigned && !isGeneralDoc) {
         await db
           .from("hr_contract_packages")
           .update({ status: "completed", completed_at: new Date().toISOString() })
