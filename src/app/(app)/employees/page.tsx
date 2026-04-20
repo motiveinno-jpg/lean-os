@@ -3439,6 +3439,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th className="text-right px-4 py-3 font-medium">기본급</th>
                 <th className="text-right px-4 py-3 font-medium">국민연금</th>
                 <th className="text-right px-4 py-3 font-medium">건강보험</th>
+                <th className="text-right px-4 py-3 font-medium">장기요양</th>
                 <th className="text-right px-4 py-3 font-medium">고용보험</th>
                 <th className="text-right px-4 py-3 font-medium">소득세</th>
                 <th className="text-right px-4 py-3 font-medium">지방소득세</th>
@@ -3453,6 +3454,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm text-right">{fmtKRW(item.baseSalary)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.nationalPension)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.healthInsurance)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.longTermCareInsurance || 0)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.employmentInsurance)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.incomeTax)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.localIncomeTax)}</td>
