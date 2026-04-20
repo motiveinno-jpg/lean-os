@@ -1411,66 +1411,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Beta 보상 프로그램 */}
-          <div className={`bg-white rounded-3xl border border-gray-200 p-8 shadow-sm ${priceRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.3s" }}>
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-extrabold mb-2">베타 사용자 보상 프로그램</h3>
-              <p className="text-gray-500 text-sm">할인 가격으로 사용하면서, 피드백으로 더 큰 보상을 받으세요</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* 피드백 랭킹 보상 */}
-              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-3">&#x1F3C6;</div>
-                <h4 className="font-bold text-purple-900 mb-2">피드백 챔피언</h4>
-                <p className="text-xs text-purple-600 mb-4">기능개선/추가 요청을 가장 많이 한 기업 TOP 3</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
-                    <span className="font-bold text-amber-500">1등</span>
-                    <span className="font-semibold text-gray-700">3년 무료 사용</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
-                    <span className="font-bold text-gray-400">2등</span>
-                    <span className="font-semibold text-gray-700">2년 무료 사용</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
-                    <span className="font-bold text-amber-700">3등</span>
-                    <span className="font-semibold text-gray-700">1년 무료 사용</span>
-                  </div>
-                </div>
-                <p className="text-[10px] text-purple-400 mt-3">실시간 랭킹 집계 — 어드민에서 확인 가능</p>
-              </div>
-              {/* 추천인 보상 */}
-              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-3">&#x1F91D;</div>
-                <h4 className="font-bold text-blue-900 mb-2">추천 보상</h4>
-                <p className="text-xs text-blue-600 mb-4">친구 회사를 추천하면 건당 서비스 크레딧 지급</p>
-                <div className="bg-white rounded-xl p-4 mb-3">
-                  <div className="text-2xl font-extrabold text-blue-600 mb-1">1건당 1만원</div>
-                  <div className="text-xs text-gray-500">서비스 이용료 크레딧으로 지급</div>
-                </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-bold">10건</span> = 10만원 크레딧<br/>
-                  <span className="font-bold">100건</span> = 100만원 크레딧
-                </div>
-                <p className="text-[10px] text-blue-400 mt-3">추천 랭킹 TOP도 별도 보상</p>
-              </div>
-              {/* 피드백 시스템 */}
-              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-center">
-                <div className="text-3xl mb-3">&#x1F4AC;</div>
-                <h4 className="font-bold text-emerald-900 mb-2">피드백 시스템</h4>
-                <p className="text-xs text-emerald-600 mb-4">사용 중 불편한 점을 바로 전달, 다른 사용자에게는 블라인드</p>
-                <div className="space-y-2 text-left">
-                  {["기능 개선 요청", "새 기능 추가 제안", "버그 리포트", "UX 개선 의견"].map((item) => (
-                    <div key={item} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 text-sm">
-                      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      <span className="text-gray-700">{item}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] text-emerald-400 mt-3">제출 건수가 랭킹에 반영됩니다</p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

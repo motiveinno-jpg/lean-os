@@ -232,8 +232,11 @@ function ThreeWayMatchVisual({ result }: { result: any }) {
       {/* Invoice */}
       <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5">
         <span className="font-medium text-[var(--primary)]">계산서</span>
-        <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.invoiceAmount)}</span>
+        <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.invoiceSupplyAmount)}(공급가)</span>
       </div>
+      {hasPO && poToInvoice && (
+        <span className="px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500 text-[9px] font-bold whitespace-nowrap">추천</span>
+      )}
       {/* Arrow Invoice -> Payment */}
       <span className={`text-sm font-bold ${
         !hasPayment ? "text-[var(--text-dim)]" : invoiceToPayment ? "text-green-400" : "text-red-400"
@@ -1397,7 +1400,17 @@ export default function TaxInvoicesPage() {
                       }`}
                     >
                       <td className="px-5 py-3 text-sm font-medium">
-                        {r.dealName || "딜 없음"}
+                        <div className="flex items-center gap-2">
+                          {r.dealName || "딜 없음"}
+                          {r.amountMatch && r.contractAmount > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[9px] font-bold whitespace-nowrap">공급가액 일치</span>
+                          )}
+                        </div>
+                        {r.contractAmount > 0 && (
+                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                            계약 {r.contractAmount.toLocaleString('ko-KR')}원 = 공급가액 {r.invoiceSupplyAmount.toLocaleString('ko-KR')}원
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-3">
                         <ThreeWayMatchVisual result={r} />
