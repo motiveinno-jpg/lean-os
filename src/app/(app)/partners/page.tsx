@@ -131,6 +131,8 @@ export default function PartnersPage() {
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("");
   const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
+  const [formBizStatus, setFormBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
 
   function parseRegion(address?: string | null): string {
     if (!address) return "";
@@ -1178,7 +1180,14 @@ export default function PartnersPage() {
               </div>
               <div>
                 <label className={labelCls}>사업자번호</label>
-                <input value={form.businessNumber} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 10); const formatted = raw.length <= 3 ? raw : raw.length <= 5 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,5)}-${raw.slice(5)}`; setField("businessNumber", formatted); }} placeholder="000-00-00000" className={inputCls} />
+                <div className="relative">
+                  <input value={form.businessNumber} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 10); const formatted = raw.length <= 3 ? raw : raw.length <= 5 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,5)}-${raw.slice(5)}`; setField("businessNumber", formatted); setFormBizStatus(null); if (raw.length === 10) { setFormBizStatus({ status: '조회중...', loading: true }); verifyBusinessNumber(raw).then(r => setFormBizStatus({ status: r.status, loading: false })); } }} placeholder="000-00-00000" className={`${inputCls} ${formBizStatus && !formBizStatus.loading ? (formBizStatus.status === '계속사업자' ? 'border-green-500' : formBizStatus.status === '확인불가' ? 'border-yellow-500' : 'border-red-500') : ''}`} />
+                  {formBizStatus && (
+                    <p className={`text-[11px] mt-1 ${formBizStatus.loading ? 'text-[var(--text-muted)]' : formBizStatus.status === '계속사업자' ? 'text-green-500' : formBizStatus.status === '확인불가' ? 'text-yellow-500' : 'text-red-500'}`}>
+                      {formBizStatus.loading ? '국세청 조회중...' : formBizStatus.status === '계속사업자' ? '✓ 정상 사업자' : formBizStatus.status === '휴업자' ? '⚠ 휴업 상태' : formBizStatus.status === '폐업자' ? '✗ 폐업 사업자' : '확인불가 (체크섬 오류 또는 미등록)'}
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className={labelCls}>대표자</label>
@@ -1194,11 +1203,14 @@ export default function PartnersPage() {
               </div>
               <div>
                 <label className={labelCls}>연락처</label>
-                <input value={form.contactPhone} onChange={(e) => setField("contactPhone", e.target.value)} placeholder="010-0000-0000" className={inputCls} />
+                <input value={form.contactPhone} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 11); let formatted = raw; if (raw.startsWith('02')) { formatted = raw.length <= 2 ? raw : raw.length <= 5 ? `${raw.slice(0,2)}-${raw.slice(2)}` : raw.length <= 9 ? `${raw.slice(0,2)}-${raw.slice(2,5)}-${raw.slice(5)}` : `${raw.slice(0,2)}-${raw.slice(2,6)}-${raw.slice(6)}`; } else { formatted = raw.length <= 3 ? raw : raw.length <= 7 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,7)}-${raw.slice(7)}`; } setField("contactPhone", formatted); }} placeholder="010-0000-0000" className={inputCls} />
               </div>
               <div className="col-span-2">
                 <label className={labelCls}>주소</label>
-                <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="사업장 주소" className={inputCls} />
+                <div className="flex gap-2">
+                  <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="주소 검색 버튼을 클릭하세요" className={inputCls + " flex-1"} readOnly={false} />
+                  <button type="button" onClick={() => { if (typeof window === 'undefined') return; const script = document.getElementById('daum-postcode-script'); if (!script) { const s = document.createElement('script'); s.id = 'daum-postcode-script'; s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => openPostcode(); document.head.appendChild(s); } else { openPostcode(); } function openPostcode() { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } }} className="px-3 py-2.5 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold whitespace-nowrap hover:opacity-90 transition">주소 검색</button>
+                </div>
               </div>
               <div>
                 <label className={labelCls}>은행명</label>
