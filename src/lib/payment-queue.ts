@@ -21,6 +21,7 @@ export async function createQueueEntry(params: {
   dealBankAccountId?: string | null;
   sourceType?: string;
   sourceId?: string;
+  status?: string;
 }): Promise<PaymentQueue | null> {
   // ── Dedup Strategy 1: approval_request_id ──
   if (params.approvalRequestId) {
@@ -85,7 +86,7 @@ export async function createQueueEntry(params: {
     bank_account_id: bank?.id || null,
     amount: params.amount,
     description: params.description || null,
-    status: 'pending',
+    status: params.status || 'pending',
   };
   // approval_request_id column may not exist yet in schema
   // if (params.approvalRequestId) row.approval_request_id = params.approvalRequestId;
@@ -359,6 +360,29 @@ export async function executePayment(paymentId: string): Promise<void> {
         cost_schedule_id: payment.cost_schedule_id,
       },
     });
+
+    // ── Auto-trigger settlement for revenue payments (동적 import로 순환 참조 방지) ──
+    if (payment.deal_id) {
+      const { data: schedule } = await supabase
+        .from('deal_revenue_schedule')
+        .select('id')
+        .eq('deal_id', payment.deal_id)
+        .eq('amount', Number(payment.amount))
+        .in('status', ['pending', 'issued'])
+        .limit(1)
+        .single();
+
+      if (schedule) {
+        const { onRevenueReceived } = await import('./deal-pipeline');
+        await onRevenueReceived({
+          dealId: payment.deal_id,
+          companyId: payment.company_id,
+          amount: Number(payment.amount),
+          userId: payment.approved_by || 'system',
+          revenueScheduleId: schedule.id,
+        });
+      }
+    }
   } catch (postExecError) {
     // Rollback: revert queue entry on post-execution failure
     await supabase

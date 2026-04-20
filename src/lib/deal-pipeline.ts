@@ -659,15 +659,17 @@ async function createPaymentScheduleFromContract(params: {
     if (row?.id) createdIds.push(row.id);
   }
 
-  // Create payment queue entry for first payment
-  const firstTerm = schedule[0];
-  if (firstTerm) {
+  // Create payment queue entries for ALL payment terms
+  for (let i = 0; i < schedule.length; i++) {
+    const term = schedule[i];
+    const daysOffset = i === 0 ? 7 : (i === 1 ? 60 : 90);
     await createQueueEntry({
       companyId,
       dealId,
-      amount: firstTerm.amount,
-      description: `${firstTerm.label} ${firstTerm.ratio}% 입금 예정 (D+7)`,
+      amount: term.amount,
+      description: `${term.label} ${term.ratio}% 입금 예정 (D+${daysOffset})`,
       costType: 'revenue',
+      ...(i > 0 ? { status: 'scheduled' } : {}),
     });
   }
 
