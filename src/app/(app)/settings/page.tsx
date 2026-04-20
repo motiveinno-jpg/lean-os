@@ -103,13 +103,18 @@ export default function SettingsPage() {
 
   async function save() {
     if (!companyId) return;
-    await supabase.from("cash_snapshot").upsert({
+    const { error } = await supabase.from("cash_snapshot").upsert({
       company_id: companyId,
       current_balance: Number(balance) || 0,
       monthly_fixed_cost: Number(fixedCost) || 0,
       updated_at: new Date().toISOString(),
     });
+    if (error) {
+      toast(`저장 실패: ${error.message}`, "error");
+      return;
+    }
     setSaved(true);
+    toast("현금 현황이 저장되었습니다.", "success");
     setTimeout(() => setSaved(false), 2000);
   }
 
@@ -949,6 +954,7 @@ function Toggle({
 function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase as any;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -1019,7 +1025,11 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-info"] });
       setSaved(true);
+      toast("회사 정보가 저장되었습니다.", "success");
       setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (err: any) => {
+      toast(`저장 실패: ${err.message || "알 수 없는 오류"}`, "error");
     },
   });
 
@@ -1108,13 +1118,39 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   if (isLoading) {
     return (
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <div className="text-center py-8 text-sm text-[var(--text-muted)]">회사 정보 로딩 중...</div>
+        <div className="text-center py-8">
+          <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="text-sm text-[var(--text-muted)]">회사 정보 로딩 중...</div>
+        </div>
       </div>
     );
   }
 
+  const isNewCompany = !company || (!company.business_number && !company.representative && !company.address);
+
   return (
     <div className="space-y-6">
+      {/* Onboarding prompt for new companies */}
+      {isNewCompany && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--text)] mb-1">회사 정보를 설정해주세요</p>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                견적서, 세금계산서, 계약서 등 비즈니스 문서에 사용됩니다. 사업자번호와 대표자명을 먼저 입력하시면 자동 서류 생성이 가능합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Company Basic Info */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">기본 정보</h2>
@@ -3727,6 +3763,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
 // Account Tab — 비밀번호 변경, 이메일 확인
 // ═══════════════════════════════════════════════════════════════
 function AccountTab() {
+  const { toast } = useToast();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -3789,6 +3826,7 @@ function AccountTab() {
     }
 
     setMsg({ type: "ok", text: "비밀번호가 변경되었습니다." });
+    toast("비밀번호가 변경되었습니다.", "success");
     setCurrentPw("");
     setNewPw("");
     setConfirmPw("");

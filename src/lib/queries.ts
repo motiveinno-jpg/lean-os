@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { encryptCredential } from './crypto';
+import { createTrialingSubscription } from './billing';
 import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
 
 // ── Auth helpers ──
@@ -67,6 +68,13 @@ async function autoSetupUser(authUser: { id: string; email?: string; user_metada
     current_balance: 0,
     monthly_fixed_cost: 0,
   });
+
+  // 폴백 경로에서도 30일 트라이얼 구독 생성
+  try {
+    await createTrialingSubscription(company.id, 'starter', 30);
+  } catch (e) {
+    console.warn('autoSetupUser subscription error:', e);
+  }
 
   // 생성 후 다시 조회
   const { data: created } = await supabase
