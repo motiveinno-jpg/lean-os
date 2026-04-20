@@ -1178,7 +1178,7 @@ export default function PartnersPage() {
               </div>
               <div>
                 <label className={labelCls}>사업자번호</label>
-                <input value={form.businessNumber} onChange={(e) => setField("businessNumber", e.target.value)} placeholder="000-00-00000" className={inputCls} />
+                <input value={form.businessNumber} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 10); const formatted = raw.length <= 3 ? raw : raw.length <= 5 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,5)}-${raw.slice(5)}`; setField("businessNumber", formatted); }} placeholder="000-00-00000" className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>대표자</label>
