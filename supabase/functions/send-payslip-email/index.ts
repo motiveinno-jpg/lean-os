@@ -24,6 +24,7 @@ function buildPayslipHTML(data: any): string {
         <tr><td colspan="2" style="padding:12px 8px 4px;font-weight:bold;color:#dc2626;font-size:13px">공제내역</td></tr>
         <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">국민연금</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.nationalPension)}</td></tr>
         <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">건강보험</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.healthInsurance)}</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">장기요양보험</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.longTermCareInsurance || 0)}</td></tr>
         <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">고용보험</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.employmentInsurance)}</td></tr>
         <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">소득세</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.incomeTax)}</td></tr>
         <tr style="background:#fef2f2"><td style="padding:6px 8px;font-size:13px">지방소득세</td><td style="text-align:right;padding:6px 8px;font-size:13px">-${formatKRW(data.localIncomeTax)}</td></tr>

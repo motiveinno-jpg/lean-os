@@ -16,6 +16,17 @@ import BulkInvite from "@/components/bulk-invite";
 type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions";
 
 export default function SettingsPage() {
+  const { role } = useUser();
+  if (role === "employee" || role === "partner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">관리자에게 문의하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const [mainTab, setMainTab] = useState<MainTab>("general");
   const [companyId, setCompanyId] = useState<string | null>(null);
