@@ -58,7 +58,11 @@ function InviteContent() {
 
   async function handleAccept(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) return setError("비밀번호는 6자 이상이어야 합니다.");
+    // 비밀번호 정책: auth/page.tsx와 동일 (8자 이상 + 영문/숫자/특수기호 조합)
+    if (password.length < 8) return setError("비밀번호는 8자 이상이어야 합니다.");
+    if (!/[a-zA-Z]/.test(password)) return setError("비밀번호에 영문자를 포함해주세요.");
+    if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");
+    if (!/[^A-Za-z0-9]/.test(password)) return setError("비밀번호에 특수기호를 포함해주세요.");
     if (!invite) return;
 
     setError("");
@@ -207,7 +211,7 @@ function InviteContent() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div role="alert" className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
@@ -238,7 +242,7 @@ function InviteContent() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="6자 이상"
+                placeholder="영문+숫자+특수기호 8자 이상"
                 className="w-full px-4 py-3.5 md:py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-base md:text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                 required
               />

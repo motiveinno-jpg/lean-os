@@ -92,6 +92,7 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
     body: [
       ['국민연금 (4.5%)', fmt(item.nationalPension)],
       ['건강보험 (3.545%)', fmt(item.healthInsurance)],
+      ['장기요양보험 (12.95%)', fmt(item.longTermCareInsurance || 0)],
       ['고용보험 (0.9%)', fmt(item.employmentInsurance)],
       ['소득세', fmt(item.incomeTax)],
       ['지방소득세', fmt(item.localIncomeTax)],
@@ -124,7 +125,7 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
   doc.text(
-    `※ 사업주 부담 4대보험: 국민연금 ${fmt(item.employerCosts.nationalPension)} · 건강 ${fmt(item.employerCosts.healthInsurance)} · 고용 ${fmt(item.employerCosts.employmentInsurance)} · 산재 ${fmt(item.employerCosts.industrialAccident)} (합계 ${fmt(item.employerCosts.total)})`,
+    `※ 사업주 부담 4대보험: 국민연금 ${fmt(item.employerCosts.nationalPension)} · 건강 ${fmt(item.employerCosts.healthInsurance)} · 장기요양 ${fmt(item.employerCosts.longTermCareInsurance || 0)} · 고용 ${fmt(item.employerCosts.employmentInsurance)} · 산재 ${fmt(item.employerCosts.industrialAccident)} (합계 ${fmt(item.employerCosts.total)})`,
     14, y, { maxWidth: pageW - 28 }
   );
   y += 8;

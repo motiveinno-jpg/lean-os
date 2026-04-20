@@ -327,7 +327,7 @@ export default function AuthPage() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div role="alert" className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
@@ -383,37 +383,43 @@ export default function AuthPage() {
           <form onSubmit={mode === "login" ? handleLogin : handleSignup}>
             {mode === "signup" && (
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">회사명</label>
+                <label htmlFor="company-name" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">회사명</label>
                 <input
+                  id="company-name"
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="(주)모티브이노베이션"
                   maxLength={50}
+                  autoComplete="organization"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                   required
                 />
               </div>
             )}
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이메일</label>
+              <label htmlFor="auth-email" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이메일</label>
               <input
+                id="auth-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
+                autoComplete="email"
                 className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                 required
               />
             </div>
             <div className="mb-6">
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호</label>
+              <label htmlFor="auth-password" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호</label>
               <div className="relative">
                 <input
+                  id="auth-password"
                   type={showPw ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="영문+숫자+특수기호 8자 이상"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                   className="w-full px-4 py-3 pr-12 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                   required
                 />

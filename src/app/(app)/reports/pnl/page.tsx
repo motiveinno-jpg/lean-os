@@ -150,7 +150,7 @@ const CATEGORY_TOOLTIPS: Record<CategoryKey, string> = {
   software: "거래처/적요에 '소프트웨어, SaaS, 구독, 라이선스' 키워드가 포함된 지출",
   professional: "거래처/적요에 '세무, 법무, 회계, 컨설팅, 자문' 키워드가 포함된 지출",
   welfare: "거래처/적요에 '복리후생, 식대, 경조사, 체육, 건강검진' 키워드가 포함된 지출",
-  insurance: "거래처/적요에 '4대보험, 국민연금, 건강보험, 고용보험, 산재보험' 키워드가 포함된 지출 또는 등록 직원 급여의 약 9.5%",
+  insurance: "거래처/적요에 '4대보험, 국민연금, 건강보험, 고용보험, 산재보험' 키워드가 포함된 지출 또는 등록 직원 급여의 약 10.55% (사업주 부담분)",
   otherOpex: "위 분류에 해당하지 않는 나머지 지출",
 };
 
@@ -256,8 +256,10 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
   }
 
   const monthlySalaryTotal = employees.reduce((sum, e) => sum + (e.salary || 0), 0);
+  /* 사업주 부담 4대보험 요율 합계: 국민연금 4.5% + 건강보험 3.545% + 장기요양 0.459% + 고용보험 1.35% + 산재보험 0.7% = 10.554% */
+  const EMPLOYER_INSURANCE_RATE = 0.1055;
   const monthlyInsurance = employees.reduce(
-    (sum, e) => sum + (e.is_4_insurance && e.salary ? e.salary * 0.095 : 0),
+    (sum, e) => sum + (e.is_4_insurance && e.salary ? e.salary * EMPLOYER_INSURANCE_RATE : 0),
     0,
   );
 
@@ -1027,7 +1029,7 @@ export default function PnlPage() {
         <br />
         - 매출/비용은 은행 거래내역(bank_transactions)과 세금계산서(tax_invoices) 데이터를 기반으로 자동 분류됩니다.
         <br />
-        - 급여는 등록된 직원 정보의 월급여 데이터가 반영됩니다. 4대보험은 급여의 약 9.5%로 추정 계산됩니다.
+        - 급여는 등록된 직원 정보의 월급여 데이터가 반영됩니다. 4대보험은 사업주 부담분 기준 급여의 약 10.55%로 추정 계산됩니다.
         <br />
         - 정확한 분류를 위해 거래내역의 거래처/적요를 상세히 기입해주세요.
       </div>

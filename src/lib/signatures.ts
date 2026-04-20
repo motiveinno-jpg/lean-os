@@ -204,7 +204,7 @@ export async function saveSignature(
       ip_address: ipAddress || null,
     })
     .eq('id', id)
-    .eq('status', 'sent') // Prevent race condition: only update if still 'sent'
+    .in('status', ['sent', 'viewed']) // viewed 상태에서도 서명 가능
     .select()
     .single();
 
@@ -302,6 +302,10 @@ export async function sendSignatureReminder(signatureRequestId: string): Promise
   if (req.status === 'signed') return { success: false, error: '이미 서명이 완료되었습니다.' };
   if (req.status === 'expired' || req.status === 'cancelled') return { success: false, error: '만료/취소된 요청입니다.' };
 
+  // 리마인더 최대 5회 제한
+  const currentCount = (req as any).reminder_count || 0;
+  if (currentCount >= 5) return { success: false, error: '리마인더 발송 횟수가 최대(5회)에 도달했습니다.' };
+
   const r = await sendSignatureEmail(signatureRequestId);
 
   // 리마인더 카운터 증가 + 감사 로그
@@ -367,6 +371,15 @@ export async function cancelSignature(id: string) {
     .single();
 
   if (error) throw error;
+
+  // 서명 취소 후 연결된 문서를 draft 상태로 롤백
+  if (data?.document_id) {
+    await db
+      .from('documents')
+      .update({ status: 'draft' })
+      .eq('id', data.document_id);
+  }
+
   return data;
 }
 

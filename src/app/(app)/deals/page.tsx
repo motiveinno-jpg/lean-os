@@ -1185,7 +1185,7 @@ function DealsPageInner() {
   // E-2: Fetch all assignments for kanban card avatars
   const { data: allAssignments = [] } = useQuery({
     queryKey: ['all-deal-assignments', companyId],
-    queryFn: async () => { const db2 = supabase as any; const { data } = await db2.from('deal_assignments').select('deal_id, users(name, email)').eq('is_active', true); return data || []; },
+    queryFn: async () => { const db2 = supabase as any; const { data } = await db2.from('deal_assignments').select('deal_id, users(name, email)').eq('is_active', true).eq('company_id', companyId!); return data || []; },
     enabled: !!companyId,
   });
   const assignmentMap: Record<string, { name: string; email: string }[]> = {};

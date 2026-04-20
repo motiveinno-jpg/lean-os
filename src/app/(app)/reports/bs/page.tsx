@@ -18,6 +18,7 @@ interface BsData {
   totalLiabilities: number;
   /* Equity */
   capital: number;
+  isCapitalDefault: boolean; /* DB에서 자본금을 못 찾아 기본값 사용 여부 */
   retainedEarnings: number;
   totalEquity: number;
   /* Detail rows */
@@ -45,7 +46,7 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes] = await Promise.all([
+  const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes, companyRes, settingsRes] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -74,7 +75,20 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("counterparty_name, total_amount, type, status")
       .eq("company_id", companyId)
       .eq("type", "purchase")
-      .in("status", ["issued", "pending", "unpaid"]),
+      /* 실제 INVOICE_STATUS 기준: received(수취), issued(발행), modified(수정발행) — 미결제 상태만 필터 */
+      .in("status", ["received", "issued", "modified"]),
+    /* 자본금 조회: companies 테이블 */
+    supabase
+      .from("companies")
+      .select("capital, registered_capital")
+      .eq("id", companyId)
+      .maybeSingle(),
+    /* 자본금 조회 fallback: company_settings 테이블 (타입 미정의 테이블) */
+    (supabase as any)
+      .from("company_settings")
+      .select("capital")
+      .eq("company_id", companyId)
+      .maybeSingle(),
   ]);
 
   const bankAccounts = bankRes.data || [];
@@ -127,7 +141,16 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const totalLiabilities = borrowings + accountsPayable;
 
   /* --- Equity --- */
-  const capital = DEFAULT_CAPITAL;
+  /* 자본금: companies → company_settings → DEFAULT_CAPITAL 순으로 조회 */
+  const companyData = companyRes.data as Record<string, unknown> | null;
+  const settingsData = settingsRes.data as Record<string, unknown> | null;
+  const dbCapital =
+    (companyData?.capital as number) ||
+    (companyData?.registered_capital as number) ||
+    (settingsData?.capital as number) ||
+    0;
+  const isCapitalDefault = dbCapital <= 0;
+  const capital = isCapitalDefault ? DEFAULT_CAPITAL : dbCapital;
   const retainedEarnings = totalAssets - totalLiabilities - capital;
   const totalEquity = capital + retainedEarnings;
 
@@ -144,6 +167,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     accountsPayable,
     totalLiabilities,
     capital,
+    isCapitalDefault,
     retainedEarnings,
     totalEquity,
     bankAccountDetails,
@@ -743,7 +767,11 @@ export default function BalanceSheetPage() {
 
             {/* Equity Section */}
             {renderSectionHeader("자본 (Equity)")}
-            {renderSectionRow("자본금", data.capital, { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined })}
+            {renderSectionRow(
+              data.isCapitalDefault ? "자본금 (기본값)" : "자본금",
+              data.capital,
+              { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined },
+            )}
             {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true, prevAmount: isCompareMode && prevData ? prevData.retainedEarnings : undefined })}
             {renderDivider("div-e1")}
             {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
@@ -889,7 +917,9 @@ export default function BalanceSheetPage() {
         <br />
         - 미지급금은 미결제 상태의 매입 세금계산서를 기반으로 산출됩니다.
         <br />
-        - 자본금은 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 설정되어 있습니다. 설정에서 변경 가능합니다.
+        - 자본금은 {data.isCapitalDefault
+          ? `DB에 등록된 값이 없어 기본값 ${DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시됩니다. 설정에서 변경해주세요.`
+          : `${data.capital.toLocaleString("ko-KR")}원 (DB 등록값)`}
         <br />
         - 이익잉여금 = 자산 합계 - 부채 합계 - 자본금 (잔여분 자동 계산)
       </div>

@@ -468,7 +468,8 @@ export async function bulkImportTaxInvoices(companyId: string, items: {
     counterparty_bizno: item.counterpartyBizno || null,
     supply_amount: item.supplyAmount,
     tax_amount: item.taxAmount ?? Math.round(item.supplyAmount * DEFAULT_VAT_RATE),
-    total_amount: item.totalAmount ?? Math.round(item.supplyAmount * (1 + DEFAULT_VAT_RATE)),
+    /* 부동소수점 오류 방지: supplyAmount + taxAmount 합산 방식 사용 */
+    total_amount: item.totalAmount ?? (item.supplyAmount + (item.taxAmount ?? Math.round(item.supplyAmount * DEFAULT_VAT_RATE))),
     issue_date: item.issueDate,
     status: item.type === 'sales' ? 'issued' : 'received',
   }));

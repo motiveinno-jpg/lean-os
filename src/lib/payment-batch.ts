@@ -32,6 +32,7 @@ export interface PayrollItem {
   taxableIncome: number;
   nationalPension: number;
   healthInsurance: number;
+  longTermCareInsurance?: number; // 장기요양보험 (건강보험과 별도 표시)
   employmentInsurance: number;
   incomeTax: number;
   localIncomeTax: number;
@@ -40,6 +41,7 @@ export interface PayrollItem {
   employerCosts: {
     nationalPension: number;
     healthInsurance: number;
+    longTermCareInsurance?: number; // 장기요양보험 사업주 부담분
     employmentInsurance: number;
     industrialAccident: number;
     total: number;
@@ -56,7 +58,7 @@ const RATES = {
   industrialAccident: 0.007,    // 산재보험 0.7% (사업주 부담)
 };
 
-// 국민연금 상한/하한 (2026 기준)
+// 국민연금 상한/하한 (2025년 7월~2026년 6월 기준, 매년 7월 조정됨)
 const NATIONAL_PENSION_CEILING = 5_900_000;
 const NATIONAL_PENSION_FLOOR = 390_000;
 
@@ -191,7 +193,8 @@ export function calculatePayroll(
     nonTaxableAmount,
     taxableIncome,
     nationalPension: np,
-    healthInsurance: hi + ltc,
+    healthInsurance: hi,
+    longTermCareInsurance: ltc,
     employmentInsurance: ei,
     incomeTax: it,
     localIncomeTax: lit,
@@ -199,7 +202,8 @@ export function calculatePayroll(
     netPay: baseSalary - deductions,
     employerCosts: {
       nationalPension: employerNp,
-      healthInsurance: employerHi,
+      healthInsurance: employerHi - ltc, // 건강보험 사업주 부담 (장기요양 제외)
+      longTermCareInsurance: ltc, // 장기요양보험 사업주 부담
       employmentInsurance: employerEi,
       industrialAccident: employerIa,
       total: employerTotal,
@@ -235,20 +239,23 @@ export function calculateRetirementPay(params: {
 export async function createPayrollBatch(companyId: string, monthLabel?: string): Promise<{ batchId: string; items: PayrollItem[] }> {
   const label = monthLabel || `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
-  // Get active employees with salary
+  // Get active employees with salary, 비과세금액/부양가족 수 포함
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, salary, bank_account, bank_name, is_4_insurance, status')
+    .select('id, name, salary, bank_account, bank_name, is_4_insurance, status, non_taxable_amount, dependents')
     .eq('company_id', companyId)
     .eq('status', 'active');
 
   if (!employees?.length) throw new Error('활성 직원이 없습니다');
 
-  // Calculate payroll for each
+  // Calculate payroll for each (비과세/부양가족 반영)
   const items: PayrollItem[] = employees.map((emp: any) => {
     const salary = Number(emp.salary || 0);
     if (salary <= 0) return null;
-    return calculatePayroll(salary, emp.name, emp.id);
+    return calculatePayroll(salary, emp.name, emp.id, {
+      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000), // 기본 식대 20만원
+      dependents: Number(emp.dependents ?? 1), // 기본 본인 1인
+    });
   }).filter(Boolean) as PayrollItem[];
 
   if (items.length === 0) throw new Error('급여가 설정된 직원이 없습니다');
@@ -412,10 +419,10 @@ export async function sendPayslipEmails(
 
   if (!payments?.length) return { sent: 0, failed: 0 };
 
-  // Get employees with emails
+  // Get employees with emails (비과세/부양가족 포함)
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, email, salary, is_4_insurance')
+    .select('id, name, email, salary, is_4_insurance, non_taxable_amount, dependents')
     .eq('company_id', companyId)
     .eq('status', 'active');
 
@@ -438,7 +445,10 @@ export async function sendPayslipEmails(
     const salary = Number(emp.salary || 0);
     if (salary <= 0) { failed++; continue; }
 
-    const payroll = calculatePayroll(salary, emp.name, emp.id);
+    const payroll = calculatePayroll(salary, emp.name, emp.id, {
+      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000),
+      dependents: Number(emp.dependents ?? 1),
+    });
 
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/send-payslip-email`, {
@@ -455,6 +465,7 @@ export async function sendPayslipEmails(
           baseSalary: payroll.baseSalary,
           nationalPension: payroll.nationalPension,
           healthInsurance: payroll.healthInsurance,
+          longTermCareInsurance: payroll.longTermCareInsurance || 0,
           employmentInsurance: payroll.employmentInsurance,
           incomeTax: payroll.incomeTax,
           localIncomeTax: payroll.localIncomeTax,

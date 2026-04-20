@@ -24,6 +24,7 @@ export async function getPayrollItems(batchId: string): Promise<PayrollItem[]> {
     baseSalary: Number(item.base_salary || 0),
     nationalPension: Number(item.national_pension || 0),
     healthInsurance: Number(item.health_insurance || 0),
+    longTermCareInsurance: Number(item.long_term_care_insurance || 0),
     employmentInsurance: Number(item.employment_insurance || 0),
     incomeTax: Number(item.income_tax || 0),
     localIncomeTax: Number(item.local_income_tax || 0),
@@ -41,6 +42,7 @@ export async function savePayrollItems(batchId: string, items: PayrollItem[]): P
     base_salary: item.baseSalary,
     national_pension: item.nationalPension,
     health_insurance: item.healthInsurance,
+    long_term_care_insurance: item.longTermCareInsurance || 0,
     employment_insurance: item.employmentInsurance,
     income_tax: item.incomeTax,
     local_income_tax: item.localIncomeTax,
@@ -62,7 +64,7 @@ export async function previewPayroll(companyId: string): Promise<{
 }> {
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, salary, status')
+    .select('id, name, salary, status, non_taxable_amount, dependents')
     .eq('company_id', companyId)
     .eq('status', 'active');
 
@@ -77,7 +79,10 @@ export async function previewPayroll(companyId: string): Promise<{
     const salary = Number(emp.salary || 0);
     if (salary <= 0) continue;
 
-    const item = calculatePayroll(salary, emp.name, emp.id);
+    const item = calculatePayroll(salary, emp.name, emp.id, {
+      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000),
+      dependents: Number(emp.dependents ?? 1),
+    });
     items.push(item);
     totalGross += item.baseSalary;
     totalDeductions += item.deductionsTotal;

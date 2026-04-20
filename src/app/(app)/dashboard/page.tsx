@@ -303,7 +303,7 @@ export default function DashboardPage() {
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
             <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-              ₩{fmtW(sp.pendingApprovals)}
+              {sp.pendingApprovals}건
             </div>
           </div>
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
@@ -528,38 +528,56 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
             <div className="px-4 py-3">
               <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">통장 잔고</div>
-              <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
-                ₩{fmtW(balance)}
-              </div>
+              {!hasData && (dealCount ?? 0) === 0 ? (
+                <div className="text-sm font-semibold text-[var(--text-dim)]">데이터를 설정해주세요</div>
+              ) : (
+                <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
+                  ₩{fmtW(balance)}
+                </div>
+              )}
             </div>
             <div className="px-4 py-3">
               <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">현금 예측</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
-                  D+30 ₩{fmtW(f30)}
-                </span>
-              </div>
-              <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
-                D+90 ₩{fmtW(f90)}
-              </div>
+              {!hasData && (dealCount ?? 0) === 0 ? (
+                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
+                      D+30 ₩{fmtW(f30)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                    D+90 ₩{fmtW(f90)}
+                  </div>
+                </>
+              )}
             </div>
             <div className="px-4 py-3">
               <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">펄스 점수</div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
-                <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
-              </div>
+              {!hasData && (dealCount ?? 0) === 0 ? (
+                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
+              ) : (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
+                  <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
+                </div>
+              )}
             </div>
             <div className="px-4 py-3">
               <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">위험 · 대기</div>
-              <div className="flex items-baseline gap-3">
-                <span className={`text-sm font-black mono-number ${riskTotal > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
-                  위험 {riskTotal}
-                </span>
-                <span className={`text-sm font-black mono-number ${pendingTotal > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
-                  대기 {pendingTotal}
-                </span>
-              </div>
+              {!hasData && (dealCount ?? 0) === 0 ? (
+                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
+              ) : (
+                <div className="flex items-baseline gap-3">
+                  <span className={`text-sm font-black mono-number ${riskTotal > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                    위험 {riskTotal}
+                  </span>
+                  <span className={`text-sm font-black mono-number ${pendingTotal > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
+                    대기 {pendingTotal}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1868,7 +1886,7 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
     actions.push({ priority: 'critical', text: `미수금 30일+ ₩${fmtW(sp.arOver30)} — 독촉 필요` });
   }
   if (sp.pendingApprovals > 0) {
-    actions.push({ priority: 'high', text: `승인대기 ₩${fmtW(sp.pendingApprovals)} — 검토/승인 필요` });
+    actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovals}건 — 검토/승인 필요` });
   }
   if (dashboard.riskCounts.LOW_MARGIN > 0) {
     actions.push({ priority: 'high', text: `마진위험 딜 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/deals' });

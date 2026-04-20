@@ -742,6 +742,7 @@ export default function LandingPage() {
   const [partnerForm, setPartnerForm] = useState({ company: "", name: "", email: "", phone: "", message: "" });
   const [partnerSent, setPartnerSent] = useState(false);
   const [partnerSending, setPartnerSending] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   async function handlePartnerSubmit() {
     if (!partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message) return;
@@ -810,10 +811,40 @@ export default function LandingPage() {
             <a href="#faq" className="hover:text-white transition">FAQ</a>
           </div>
           <div className="flex items-center gap-3">
+            {/* 모바일 햄버거 메뉴 버튼 */}
+            <button
+              className="md:hidden p-2 text-slate-400 hover:text-white transition"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="메뉴 열기"
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
             <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition hidden sm:block">로그인</Link>
-            <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20">무료로 시작하기</Link>
+            <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20 hidden sm:block">무료로 시작하기</Link>
           </div>
         </div>
+        {/* 모바일 드롭다운 메뉴 */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-[#0A0E1A]/95 backdrop-blur-xl border-t border-white/5 px-6 py-4 space-y-3">
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">주요기능</a>
+            <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">도입효과</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">요금제</a>
+            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">FAQ</a>
+            <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+              <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition py-1">로그인</Link>
+              <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20 text-center">무료로 시작하기</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── HERO ── */}
@@ -934,7 +965,7 @@ export default function LandingPage() {
               정부사업 참여 기업 대상 무료 배포
             </div>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              <span className="text-blue-400">4,000개+</span> 기업이 선택한 경영 OS
+              <span className="text-blue-400">4,000개사</span> 대상 무료 배포 진행중
             </h2>
             <p className="text-slate-400 text-lg">수출지원사업 참여 기업에 우선 배포 중입니다</p>
           </div>
