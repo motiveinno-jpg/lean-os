@@ -185,20 +185,22 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">현재 계좌 잔고 (원)</label>
                 <input
-                  type="number"
-                  value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                  placeholder="50000000"
+                  type="text"
+                  inputMode="numeric"
+                  value={balance ? Number(balance).toLocaleString() : ""}
+                  onChange={(e) => setBalance(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="50,000,000"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">월 고정비 (원)</label>
                 <input
-                  type="number"
-                  value={fixedCost}
-                  onChange={(e) => setFixedCost(e.target.value)}
-                  placeholder="8000000"
+                  type="text"
+                  inputMode="numeric"
+                  value={fixedCost ? Number(fixedCost).toLocaleString() : ""}
+                  onChange={(e) => setFixedCost(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="8,000,000"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
                 <p className="text-xs text-[var(--text-dim)] mt-1">임대료 + 급여 + 보험 + 기타 고정 지출</p>
@@ -284,9 +286,10 @@ export default function SettingsPage() {
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">잔고 (원)</label>
                     <input
-                      type="number"
-                      value={bankForm.balance}
-                      onChange={(e) => setBankForm({ ...bankForm, balance: e.target.value })}
+                      type="text"
+                      inputMode="numeric"
+                      value={bankForm.balance ? Number(bankForm.balance).toLocaleString() : ""}
+                      onChange={(e) => setBankForm({ ...bankForm, balance: e.target.value.replace(/[^0-9]/g, "") })}
                       placeholder="0"
                       className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
                     />
