@@ -328,6 +328,8 @@ export default function TaxInvoicesPage() {
   const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [partnerSearch, setPartnerSearch] = useState("");
+  const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
@@ -336,6 +338,7 @@ export default function TaxInvoicesPage() {
     issueDate: "",
     preferredDate: "",
     expenseCategory: "",
+    dealId: "" as string,
   });
 
   useEffect(() => {
@@ -367,6 +370,41 @@ export default function TaxInvoicesPage() {
     },
     enabled: !!companyId,
   });
+
+  // Partners for counterparty selection
+  const { data: partners = [] } = useQuery({
+    queryKey: ["partners-for-invoice", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("partners")
+        .select("id, name, business_number, contact_email, business_type, business_item")
+        .eq("company_id", companyId!)
+        .eq("is_active", true)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  // Deals for linking
+  const { data: dealsForLink = [] } = useQuery({
+    queryKey: ["deals-for-invoice", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("deals")
+        .select("id, name, contract_total")
+        .eq("company_id", companyId!)
+        .neq("status", "archived")
+        .order("name");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const filteredPartners = partners.filter((p: any) =>
+    !partnerSearch || p.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
+    (p.business_number || "").includes(partnerSearch)
+  );
 
   // 3-way match data
   const { data: matchResults = [], isLoading: matchLoading } = useQuery({
@@ -464,6 +502,7 @@ export default function TaxInvoicesPage() {
         issueDate: form.issueDate,
         preferredDate: form.preferredDate || undefined,
         expenseCategory: form.expenseCategory || undefined,
+        dealId: form.dealId || undefined,
       }),
     onSuccess: () => {
       invalidate();
@@ -476,7 +515,9 @@ export default function TaxInvoicesPage() {
         issueDate: "",
         preferredDate: "",
         expenseCategory: "",
+        dealId: "",
       });
+      setPartnerSearch("");
     },
   });
 
@@ -755,18 +796,48 @@ export default function TaxInvoicesPage() {
                 ))}
               </select>
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs text-[var(--text-muted)] mb-1">
-                거래처명 *
+                거래처명 * <span className="text-[var(--text-dim)]">(등록 거래처 검색 또는 직접 입력)</span>
               </label>
               <input
                 value={form.counterpartyName}
-                onChange={(e) =>
-                  setForm({ ...form, counterpartyName: e.target.value })
-                }
-                placeholder="(주)A기업"
+                onChange={(e) => {
+                  setForm({ ...form, counterpartyName: e.target.value });
+                  setPartnerSearch(e.target.value);
+                  setShowPartnerDropdown(true);
+                }}
+                onFocus={() => { if (form.counterpartyName) setShowPartnerDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                placeholder="거래처명 입력 또는 검색..."
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+              {showPartnerDropdown && filteredPartners.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                  {filteredPartners.slice(0, 10).map((p: any) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setForm({
+                          ...form,
+                          counterpartyName: p.name,
+                          counterpartyBizno: p.business_number || "",
+                        });
+                        setShowPartnerDropdown(false);
+                        setPartnerSearch("");
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm flex items-center justify-between"
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      {p.business_number && (
+                        <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -780,6 +851,24 @@ export default function TaxInvoicesPage() {
                 placeholder="123-45-67890"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                연결 딜 (프로젝트)
+              </label>
+              <select
+                value={form.dealId}
+                onChange={(e) => setForm({ ...form, dealId: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              >
+                <option value="">딜 선택 (선택사항)</option>
+                {dealsForLink.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} {d.contract_total ? `(₩${Number(d.contract_total).toLocaleString()})` : ""}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">딜을 연결하면 3-way 매칭에 자동 반영됩니다</span>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">

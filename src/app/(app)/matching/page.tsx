@@ -1037,10 +1037,20 @@ export default function MatchingPage() {
                               추천
                             </span>
                           )}
+                          {r.suggestedDeal && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 font-semibold whitespace-nowrap">
+                              금액 자동매칭
+                            </span>
+                          )}
                         </div>
                         {r.amountMatch && r.contractAmount > 0 && (
                           <div className="text-[10px] text-blue-400 mt-0.5">
                             계약금액 = 공급가액 ₩{r.contractAmount.toLocaleString()}
+                          </div>
+                        )}
+                        {r.suggestedDeal && (
+                          <div className="text-[10px] text-purple-400 mt-0.5">
+                            딜 미연결 → 금액 기반 추천 매칭
                           </div>
                         )}
                       </td>

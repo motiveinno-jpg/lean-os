@@ -512,7 +512,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} placeholder="36000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
               <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
                 {inviteMut.isPending ? "전송중..." : "초대 전송"}
@@ -784,6 +784,7 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
 function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
   const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const currentYear = new Date().getFullYear();
 
   const [showTermModal, setShowTermModal] = useState(false);
@@ -1341,13 +1342,17 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         async function confirmTermination() {
           setTerminating(true);
           try {
-            await (supabase as any).from("employees").update({
+            const { error } = await (supabase as any).from("employees").update({
               status: "resigned",
               resignation_date: termDate,
             }).eq("id", employeeId);
+            if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
             queryClient.invalidateQueries({ queryKey: ["employees"] });
             setShowTermModal(false);
+            toast("퇴사 처리가 완료되었습니다", "success");
+          } catch (err: any) {
+            toast("퇴사 처리 실패: " + (err?.message || "알 수 없는 오류"), "error");
           } finally {
             setTerminating(false);
           }
@@ -1935,7 +1940,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 *</label><input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
           <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addSalary.isPending ? "등록 중..." : "등록"}</button>
@@ -2334,9 +2339,10 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">연봉</label>
               <input
                 type="text"
-                value={templatePreview.salary || (selectedEmployee ? String(Number(selectedEmployee.salary || 0) * 12) : "")}
-                onChange={(e) => setTemplatePreview({ ...templatePreview, salary: e.target.value })}
-                placeholder="36000000"
+                inputMode="numeric"
+                value={(() => { const v = templatePreview.salary || (selectedEmployee ? String(Number(selectedEmployee.salary || 0) * 12) : ""); return v ? Number(v).toLocaleString('ko-KR') : ''; })()}
+                onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setTemplatePreview({ ...templatePreview, salary: raw }); }}
+                placeholder="36,000,000"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
               />
             </div>

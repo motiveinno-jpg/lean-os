@@ -124,6 +124,7 @@ export interface ThreeWayMatchResult {
   paymentMatch: boolean;     // 세금계산서 합계 = 입금액
   fullMatch: boolean;        // 3-way 모두 일치
   gap: number;               // 차이
+  suggestedDeal: boolean;    // deal_id 없이 금액 기반 추천된 딜
 }
 
 // ── 3-Way Matching: 계약 ↔ 세금계산서 ↔ 입금 ──
@@ -144,7 +145,7 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
     }
   } catch { /* use default */ }
 
-  // Fetch all sales invoices
+  // Fetch all sales invoices (with linked deal if any)
   const { data: invoices } = await supabase
     .from('tax_invoices')
     .select('*, deals(*)')
@@ -153,6 +154,12 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
     .neq('status', 'void');
 
   if (!invoices) return [];
+
+  // Fetch ALL deals for smart matching (unlinked invoices)
+  const { data: allDeals } = await supabase
+    .from('deals')
+    .select('id, name, contract_total')
+    .eq('company_id', companyId);
 
   // Fetch received revenue
   const { data: revenues } = await supabase
@@ -168,22 +175,40 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   });
 
   return invoices.map((inv: any) => {
-    const deal = inv.deals;
-    const contractAmount = Number(deal?.contract_total ?? 0);
+    const linkedDeal = inv.deals;
     const invoiceSupplyAmount = Number(inv.supply_amount ?? 0);
     const invoiceTaxAmount = Number(inv.tax_amount ?? 0);
     const invoiceAmount = Number(inv.total_amount ?? 0);
-    const receivedAmount = receivedByDeal.get(inv.deal_id) ?? 0;
 
-    // Compare supply-to-supply: contract_total is supply amount, so compare against invoice supply_amount
+    let matchedDealId: string | null = inv.deal_id;
+    let matchedDealName: string | null = linkedDeal?.name || null;
+    let contractAmount = Number(linkedDeal?.contract_total ?? 0);
+    let suggestedDeal = false;
+
+    // If no linked deal or linked deal has no contract amount, try smart matching
+    if (contractAmount <= 0 && invoiceSupplyAmount > 0 && allDeals) {
+      const candidate = allDeals.find((d: any) => {
+        const ct = Number(d.contract_total ?? 0);
+        return ct > 0 && Math.abs(ct - invoiceSupplyAmount) / ct <= tolerance;
+      });
+      if (candidate) {
+        matchedDealId = candidate.id;
+        matchedDealName = candidate.name;
+        contractAmount = Number(candidate.contract_total);
+        suggestedDeal = true;
+      }
+    }
+
+    const receivedAmount = matchedDealId ? (receivedByDeal.get(matchedDealId) ?? 0) : 0;
+
     const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceSupplyAmount) / contractAmount <= tolerance;
     const paymentMatch = invoiceAmount > 0 && Math.abs(invoiceAmount - receivedAmount) / invoiceAmount <= tolerance;
     const fullMatch = amountMatch && paymentMatch;
 
     return {
       invoiceId: inv.id,
-      dealId: inv.deal_id,
-      dealName: deal?.name || null,
+      dealId: matchedDealId,
+      dealName: matchedDealName,
       invoiceAmount,
       invoiceSupplyAmount,
       invoiceTaxAmount,
@@ -193,6 +218,7 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
       paymentMatch,
       fullMatch,
       gap: invoiceAmount - receivedAmount,
+      suggestedDeal,
     };
   });
 }

@@ -32,6 +32,8 @@ export interface UpsertPartnerParams {
   notes?: string;
   isActive?: boolean;
   sourceDealId?: string;
+  businessType?: string;
+  businessItem?: string;
 }
 
 // ── List partners ──
@@ -100,6 +102,8 @@ export async function upsertPartner(params: UpsertPartnerParams) {
   if (params.notes !== undefined) row.notes = params.notes;
   if (params.isActive !== undefined) row.is_active = params.isActive;
   if (params.sourceDealId !== undefined) row.source_deal_id = params.sourceDealId;
+  if (params.businessType !== undefined) row.business_type = params.businessType;
+  if (params.businessItem !== undefined) row.business_item = params.businessItem;
 
   const { data, error } = await supabase
     .from('partners')

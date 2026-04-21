@@ -867,8 +867,7 @@ function KanbanBoard({ deals, clsColorMap, onSelectDeal, assignmentMap }: { deal
   const [dragOverCol, setDragOverCol] = useState<KanbanStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const nonArchivedDeals = deals.filter((d: any) => d.status !== "archived");
-  const grouped = KANBAN_COLUMNS.map((col) => ({ ...col, deals: nonArchivedDeals.filter((d) => mapDealToKanbanStatus(d) === col.key) }));
+  const grouped = KANBAN_COLUMNS.map((col) => ({ ...col, deals: deals.filter((d) => mapDealToKanbanStatus(d) === col.key) }));
 
   function handleDragStart(e: React.DragEvent, dealId: string, currentStatus: KanbanStatus) { e.dataTransfer.setData('text/plain', JSON.stringify({ dealId, fromStatus: currentStatus })); e.dataTransfer.effectAllowed = 'move'; setDraggingId(dealId); }
   function handleDragOver(e: React.DragEvent, colKey: KanbanStatus) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(colKey); }

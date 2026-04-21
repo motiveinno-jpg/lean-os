@@ -30,6 +30,7 @@ const EMPTY_FORM = {
   name: "", type: "client", classification: "", businessNumber: "",
   representative: "", contactName: "", contactEmail: "", contactPhone: "",
   address: "", bankName: "", accountNumber: "", tags: "", notes: "",
+  businessType: "", businessItem: "",
 };
 
 const inputCls = "w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]";
@@ -362,6 +363,8 @@ export default function PartnersPage() {
       accountNumber: form.accountNumber || undefined,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       notes: form.notes || undefined,
+      businessType: form.businessType || undefined,
+      businessItem: form.businessItem || undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast(editingId ? "거래처가 수정되었습니다" : "거래처가 등록되었습니다", "success"); },
     onError: (err: Error) => { toast("저장 실패: " + (err?.message || "알 수 없는 오류"), "error"); },
@@ -391,6 +394,7 @@ export default function PartnersPage() {
       contactPhone: p.contact_phone || "", address: p.address || "",
       bankName: p.bank_name || "", accountNumber: p.account_number || "",
       tags: (p.tags || []).join(", "), notes: p.notes || "",
+      businessType: p.business_type || "", businessItem: p.business_item || "",
     });
     setShowModal(true);
   }, []);
@@ -800,6 +804,8 @@ export default function PartnersPage() {
                     ["연락처", detailPartner.contact_phone],
                     ["주소", detailPartner.address],
                     ["분류", detailPartner.classification],
+                    ["업태", detailPartner.business_type],
+                    ["종목", detailPartner.business_item],
                     ["은행", detailPartner.bank_name],
                     ["계좌번호", detailPartner.account_number],
                   ].map(([label, value]) => (
@@ -1194,6 +1200,14 @@ export default function PartnersPage() {
                 <input value={form.representative} onChange={(e) => setField("representative", e.target.value)} placeholder="대표자명" className={inputCls} />
               </div>
               <div>
+                <label className={labelCls}>업태</label>
+                <input value={form.businessType} onChange={(e) => setField("businessType", e.target.value)} placeholder="예: 제조업, 서비스업" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>종목</label>
+                <input value={form.businessItem} onChange={(e) => setField("businessItem", e.target.value)} placeholder="예: 전자부품, 소프트웨어" className={inputCls} />
+              </div>
+              <div>
                 <label className={labelCls}>담당자</label>
                 <input value={form.contactName} onChange={(e) => setField("contactName", e.target.value)} placeholder="담당자명" className={inputCls} />
               </div>
@@ -1209,7 +1223,7 @@ export default function PartnersPage() {
                 <label className={labelCls}>주소</label>
                 <div className="flex gap-2">
                   <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="주소 검색 버튼을 클릭하세요" className={inputCls + " flex-1"} readOnly={false} />
-                  <button type="button" onClick={() => { if (typeof window === 'undefined') return; const script = document.getElementById('daum-postcode-script'); if (!script) { const s = document.createElement('script'); s.id = 'daum-postcode-script'; s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => openPostcode(); document.head.appendChild(s); } else { openPostcode(); } function openPostcode() { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } }} className="px-3 py-2.5 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold whitespace-nowrap hover:opacity-90 transition">주소 검색</button>
+                  <button type="button" onClick={async () => { if (typeof window === 'undefined') return; function doOpen() { try { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } catch { toast("주소 검색을 로드하지 못했습니다. 새로고침 후 다시 시도해주세요.", "error"); } } if ((window as any).daum?.Postcode) { doOpen(); return; } const s = document.createElement('script'); s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => doOpen(); s.onerror = () => toast("주소 검색 스크립트를 불러올 수 없습니다.", "error"); document.head.appendChild(s); }} className="px-3 py-2.5 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold whitespace-nowrap hover:opacity-90 transition">주소 검색</button>
                 </div>
               </div>
               <div>
