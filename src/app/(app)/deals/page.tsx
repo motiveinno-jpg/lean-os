@@ -81,6 +81,10 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const { toast } = useToast();
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
   const [paymentStages, setPaymentStages] = useState<{ label: string; ratio: number; condition: string; milestone_id?: string }[]>([
     { label: '선금', ratio: 30, condition: '계약 후 7일 이내' },
@@ -104,12 +108,54 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const totalCost = (data?.costs || []).reduce((s, c) => s + Number(c.amount), 0);
   const dealMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100) : 0;
 
+  function startEdit() {
+    if (!deal) return;
+    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium' });
+    setEditMode(true);
+  }
+
+  async function saveEdit() {
+    if (!deal) return;
+    setEditSaving(true);
+    try {
+      const updates: { name?: string; contract_total?: number; start_date?: string | null; end_date?: string | null; status?: string; priority?: string } = {};
+      if (editForm.name.trim() && editForm.name !== deal.name) updates.name = editForm.name.trim();
+      const newTotal = Number(editForm.contract_total);
+      if (newTotal > 0 && newTotal !== Number(deal.contract_total)) updates.contract_total = newTotal;
+      if (editForm.start_date !== (deal.start_date || '')) updates.start_date = editForm.start_date || null;
+      if (editForm.end_date !== (deal.end_date || '')) updates.end_date = editForm.end_date || null;
+      if (editForm.status !== deal.status) updates.status = editForm.status;
+      if (editForm.priority !== (deal.priority || 'medium')) updates.priority = editForm.priority;
+      if (Object.keys(updates).length === 0) { setEditMode(false); setEditSaving(false); return; }
+      const { error } = await (supabase as any).from('deals').update(updates).eq('id', dealId);
+      if (error) throw error;
+      toast('딜 정보가 수정되었습니다', 'success');
+      setEditMode(false);
+      refetch();
+    } catch (err: any) { toast(`수정 실패: ${err?.message || '알 수 없는 오류'}`, 'error'); }
+    setEditSaving(false);
+  }
+
   if (isLoading) return <div className="text-center py-20 text-[var(--text-muted)]">로딩 중...</div>;
   if (!deal) return <div className="text-center py-20 text-[var(--text-muted)]">딜을 찾을 수 없습니다.</div>;
 
   return (
     <div className="max-w-[1100px]">
       <div className="text-xs text-[var(--text-dim)] mb-4"><button onClick={onBack} className="hover:text-[var(--primary)]">딜 관리</button><span className="mx-2">›</span><span className="text-[var(--text-muted)]">{deal.name}</span></div>
+      {editMode ? (
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/30 p-5 mb-6">
+          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">딜 정보 수정</h3><button onClick={() => setEditMode(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">취소</button></div>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">딜명</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액</label><input type="text" inputMode="numeric" value={editForm.contract_total ? Number(editForm.contract_total).toLocaleString('ko-KR') : ''} onChange={(e) => setEditForm({ ...editForm, contract_total: e.target.value.replace(/[^0-9]/g, '') })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">상태</label><select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{Object.entries(DEAL_STATUS_LABEL).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</select></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={editForm.priority} onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
+          </div>
+          <button onClick={saveEdit} disabled={editSaving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editSaving ? '저장 중...' : '저장'}</button>
+        </div>
+      ) : (
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2">
@@ -119,11 +165,13 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {!isPartnerView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}
           <Link href={dealChannel ? `/chat?channel=${dealChannel.id}` : `/chat`} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">💬 채팅</Link>
           {!isPartnerView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 딜을 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 매출</div><div className="text-lg font-bold text-green-400 mt-1">₩{totalRevenue.toLocaleString()}</div></div>
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 비용</div><div className="text-lg font-bold text-red-400 mt-1">₩{totalCost.toLocaleString()}</div></div>
@@ -165,7 +213,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             </div>
           )}
         </div>
-        {quoteItems.length > 0 && (<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs"><thead><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-3 py-2 font-medium">품명</th><th className="text-right px-3 py-2 font-medium w-20">수량</th><th className="text-right px-3 py-2 font-medium w-24">단가</th><th className="text-right px-3 py-2 font-medium w-24">공급가액</th><th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th><th className="text-right px-3 py-2 font-medium w-28">합계</th><th className="w-10" /></tr></thead><tbody>{quoteItems.map((item: any, idx: number) => (<tr key={idx} className="border-b border-[var(--border)]/50"><td className="px-3 py-2"><input value={item.name || ''} onChange={(e) => { const arr = [...quoteItems]; arr[idx] = { ...arr[idx], name: e.target.value }; setQuoteItems(arr); }} placeholder="품목명" className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.quantity || 0} onChange={(e) => { const arr = [...quoteItems]; const q = Number(e.target.value) || 0; const u = arr[idx].unitPrice || 0; const supply = q * u; arr[idx] = { ...arr[idx], quantity: q, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.unitPrice || 0} onChange={(e) => { const arr = [...quoteItems]; const u = Number(e.target.value) || 0; const q = arr[idx].quantity || 0; const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right text-[var(--text-muted)] font-medium">{Number(item.supplyAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-[var(--text-muted)]">{Number(item.taxAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right font-bold">{Number(item.totalAmount || 0).toLocaleString()}</td><td className="px-2 py-2 text-center">{quoteItems.length > 1 && (<button onClick={() => setQuoteItems(quoteItems.filter((_: any, i: number) => i !== idx))} className="text-red-400 hover:text-red-300 text-xs">X</button>)}</td></tr>))}</tbody><tfoot><tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]"><td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-black">{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td><td /></tr><tr className="bg-[var(--bg-surface)]"><td colSpan={7} className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">공급가액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 세액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 총액(VAT포함): ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td></tr></tfoot></table><div className="px-5 py-2 border-t border-[var(--border)]/50"><button onClick={() => setQuoteItems([...quoteItems, { name: '', quantity: 1, unitPrice: 0, supplyAmount: 0, taxAmount: 0, totalAmount: 0, note: '' }])} className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button></div></div>)}
+        {quoteItems.length > 0 && (<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs"><thead><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-3 py-2 font-medium">품명</th><th className="text-right px-3 py-2 font-medium w-20">수량</th><th className="text-right px-3 py-2 font-medium w-24">단가</th><th className="text-right px-3 py-2 font-medium w-24">공급가액</th><th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th><th className="text-right px-3 py-2 font-medium w-28">합계</th><th className="w-10" /></tr></thead><tbody>{quoteItems.map((item: any, idx: number) => (<tr key={idx} className="border-b border-[var(--border)]/50"><td className="px-3 py-2"><input value={item.name || ''} onChange={(e) => { const arr = [...quoteItems]; arr[idx] = { ...arr[idx], name: e.target.value }; setQuoteItems(arr); }} placeholder="품목명" className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.quantity || 0} onChange={(e) => { const arr = [...quoteItems]; const q = Number(e.target.value) || 0; const u = arr[idx].unitPrice || 0; const supply = q * u; arr[idx] = { ...arr[idx], quantity: q, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="text" inputMode="numeric" value={item.unitPrice ? Number(item.unitPrice).toLocaleString('ko-KR') : '0'} onChange={(e) => { const arr = [...quoteItems]; const u = Number(e.target.value.replace(/[^0-9]/g, '')) || 0; const q = arr[idx].quantity || 0; const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right text-[var(--text-muted)] font-medium">{Number(item.supplyAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-[var(--text-muted)]">{Number(item.taxAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right font-bold">{Number(item.totalAmount || 0).toLocaleString()}</td><td className="px-2 py-2 text-center">{quoteItems.length > 1 && (<button onClick={() => setQuoteItems(quoteItems.filter((_: any, i: number) => i !== idx))} className="text-red-400 hover:text-red-300 text-xs">X</button>)}</td></tr>))}</tbody><tfoot><tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]"><td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-black">{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td><td /></tr><tr className="bg-[var(--bg-surface)]"><td colSpan={7} className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">공급가액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 세액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 총액(VAT포함): ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td></tr></tfoot></table><div className="px-5 py-2 border-t border-[var(--border)]/50"><button onClick={() => setQuoteItems([...quoteItems, { name: '', quantity: 1, unitPrice: 0, supplyAmount: 0, taxAmount: 0, totalAmount: 0, note: '' }])} className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button></div></div>)}
         {quoteItems.length === 0 && (<div className="px-5 py-4 text-center text-xs text-[var(--text-dim)]">품목을 추가하면 견적서 생성 시 자동으로 반영됩니다</div>)}
       </div>
       <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
@@ -406,8 +454,10 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
 }) {
   const [chatTab, setChatTab] = useState<'chat' | 'files'>('chat');
   const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const db2 = supabase as any;
+  const { toast } = useToast();
 
   const { data: dealFiles = [] } = useQuery({
     queryKey: ['deal-files', dealId],
@@ -422,17 +472,24 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
 
   async function handleFileUpload(files: FileList | File[]) {
     if (!companyId || !userId) return;
+    setUploading(true);
+    let successCount = 0;
     for (const file of Array.from(files)) {
       try {
         const path = `deals/${dealId}/${Date.now()}_${file.name}`;
-        const { data: uploaded } = await supabase.storage.from('deal-files').upload(path, file);
+        const { data: uploaded, error: uploadErr } = await supabase.storage.from('deal-files').upload(path, file);
+        if (uploadErr) { toast(`파일 업로드 실패: ${uploadErr.message}`, 'error'); continue; }
         if (uploaded) {
           const { data: { publicUrl } } = supabase.storage.from('deal-files').getPublicUrl(path);
-          await db2.from('deal_files').insert({ deal_id: dealId, company_id: companyId, file_name: file.name, file_url: publicUrl, file_size: file.size, file_type: file.type, uploaded_by: userId });
+          const { error: insertErr } = await db2.from('deal_files').insert({ deal_id: dealId, company_id: companyId, file_name: file.name, file_url: publicUrl, file_size: file.size, file_type: file.type, uploaded_by: userId });
+          if (insertErr) { toast(`파일 기록 실패: ${insertErr.message}`, 'error'); continue; }
+          successCount++;
         }
-      } catch { /* skip failed uploads */ }
+      } catch (err: any) { toast(`파일 업로드 오류: ${err?.message || '알 수 없는 오류'}`, 'error'); }
     }
+    if (successCount > 0) toast(`${successCount}개 파일 업로드 완료`, 'success');
     queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] });
+    setUploading(false);
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -624,7 +681,9 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
         const blob = new Blob([html], { type: 'text/html' });
         url = URL.createObjectURL(blob);
       } else {
-        const blob = await generateQuotePDF({ documentNumber: docData.name, companyInfo, counterparty: cj.partnerName || '', items: cj.items || [{ name: cj.dealName || '', quantity: 1, unitPrice: cj.contractTotal || 0, supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, note: '' }], supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, validUntil: cj.validUntil, sealUrl: comp?.seal_url || undefined });
+        const rawItems = cj.items || [{ name: cj.dealName || '', quantity: 1, unitPrice: cj.contractTotal || 0, supplyAmount: cj.supplyAmount || 0 }];
+        const quoteItems = rawItems.map((it: any) => ({ name: it.name || '', spec: it.spec || '', qty: it.quantity || it.qty || 1, unitPrice: it.unitPrice || 0, amount: it.supplyAmount || it.amount || 0 }));
+        const blob = await generateQuotePDF({ documentNumber: docData.name, companyInfo, counterparty: cj.partnerName || '', items: quoteItems, supplyAmount: cj.supplyAmount || 0, taxAmount: cj.taxAmount || 0, totalAmount: cj.totalWithTax || 0, validUntil: cj.validUntil, sealUrl: comp?.seal_url || undefined });
         url = URL.createObjectURL(blob);
       }
       setPreviewUrl(url);
@@ -1308,11 +1367,11 @@ function DealsPageInner() {
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">새 딜 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류 *</label><select value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{classifications.length > 0 ? classifications.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)) : ['B2B', 'B2C', 'B2G'].map(v => (<option key={v} value={v}>{v}</option>))}</select></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류 * <Link href="/settings#classifications" className="text-[var(--primary)] text-[10px] font-normal hover:underline ml-1">관리</Link></label><select value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{classifications.length > 0 ? classifications.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)) : ['B2B', 'B2C', 'B2G'].map(v => (<option key={v} value={v}>{v}</option>))}</select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">딜명 *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 수출바우처 - A기업" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 (공급가액, VAT별도) *</label><input type="text" inputMode="numeric" value={form.contract_total ? Number(form.contract_total).toLocaleString('ko-KR') : ''} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, contract_total: raw }); setFormError(""); }} placeholder="15,000,000" className={`w-full px-3 py-2.5 bg-[var(--bg)] border rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] ${formError && (!form.contract_total || Number(form.contract_total) <= 0) ? "border-red-400" : "border-[var(--border)]"}`} />{Number(form.contract_total) > 0 && (<p className="text-[11px] text-[var(--text-muted)] mt-1">VAT(10%): {Math.round(Number(form.contract_total) * 0.1).toLocaleString('ko-KR')}원 | 합계: {Math.round(Number(form.contract_total) * 1.1).toLocaleString('ko-KR')}원</p>)}{formError && (!form.contract_total || Number(form.contract_total) <= 0) && (<p className="text-xs text-red-500 mt-1">{formError}</p>)}</div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => { setForm({ ...form, start_date: e.target.value }); if (e.target.value) { const endInput = document.getElementById('deal-end-date'); endInput?.focus(); } }} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input id="deal-end-date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} min={form.start_date || undefined} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
             <div className="relative"><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => { setForm({ ...form, counterparty: e.target.value }); searchDealPartners(e.target.value); }} onFocus={() => setDealPartnerFocused(true)} onBlur={() => setTimeout(() => setDealPartnerFocused(false), 200)} placeholder="예: (주)ABC컴퍼니 (기존 거래처 검색)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{dealPartnerFocused && dealPartnerResults.length > 0 && (<div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">{dealPartnerResults.map((p: any) => (<button key={p.id} type="button" onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, counterparty: p.name }); setDealPartnerResults([]); setDealPartnerFocused(false); }} className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"><span className="font-medium">{p.name}</span>{p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}</button>))}</div>)}</div>
           </div>

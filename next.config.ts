@@ -6,11 +6,12 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app",
+      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://t1.daumcdn.net",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io",
+      "frame-src 'self' https://t1.daumcdn.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
