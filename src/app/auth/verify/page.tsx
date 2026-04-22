@@ -139,10 +139,7 @@ export default function VerifyEmailPage() {
           return;
         }
 
-        // 기존 stale 세션 정리 (삭제된 유저의 JWT가 남아있는 경우)
-        await supabase.auth.signOut({ scope: "local" });
-
-        // PKCE 코드 교환
+        // PKCE 코드 교환 (signOut 금지 — code-verifier 쿠키가 삭제되어 PKCE 실패함)
         const { data, error: codeError } =
           await supabase.auth.exchangeCodeForSession(code);
 
