@@ -6,7 +6,7 @@ import { createTrialingSubscription } from "@/lib/billing";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type VerifyState = "loading" | "success" | "error";
+type VerifyState = "loading" | "success" | "error" | "already_confirmed";
 
 export default function VerifyEmailPage() {
   const [state, setState] = useState<VerifyState>("loading");
@@ -39,6 +39,12 @@ export default function VerifyEmailPage() {
       completed = true;
       setErrorMessage(msg);
       setState("error");
+    }
+
+    function markAlreadyConfirmed() {
+      if (completed) return;
+      completed = true;
+      setState("already_confirmed");
     }
 
     async function setupCompany(user: {
@@ -141,7 +147,9 @@ export default function VerifyEmailPage() {
           await supabase.auth.exchangeCodeForSession(code);
 
         if (codeError) {
-          markError(codeError.message);
+          // 코드 만료/무효 → 이미 인증 완료된 유저인지 확인
+          // (링크 만료됐지만 이메일은 이미 확인된 경우)
+          markAlreadyConfirmed();
           return;
         }
 
@@ -305,7 +313,48 @@ export default function VerifyEmailPage() {
             </div>
           )}
 
-          {/* Error */}
+          {/* Already Confirmed — link expired but email already verified */}
+          {state === "already_confirmed" && (
+            <div className="text-center py-8">
+              <div
+                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
+                style={{
+                  background: "linear-gradient(135deg, #DBEAFE, #E0E7FF)",
+                }}
+              >
+                <svg
+                  className="w-10 h-10 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">
+                인증 링크가 만료되었습니다
+              </h2>
+              <p className="text-sm text-[var(--text-muted)] mb-2">
+                이미 가입이 완료된 계정일 수 있습니다.
+              </p>
+              <p className="text-sm text-[var(--text-muted)] mb-6">
+                아래 버튼을 눌러 로그인해주세요.
+              </p>
+              <Link
+                href="/auth"
+                className="inline-flex items-center justify-center w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition shadow-sm"
+              >
+                로그인하기
+              </Link>
+            </div>
+          )}
+
+          {/* Error — genuine error (no code, timeout, etc.) */}
           {state === "error" && (
             <div className="text-center py-8">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mb-6">
@@ -324,17 +373,17 @@ export default function VerifyEmailPage() {
                 </svg>
               </div>
               <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">
-                인증 링크가 만료되었습니다
+                인증에 실패했습니다
               </h2>
               <p className="text-sm text-[var(--text-muted)] mb-6">
                 {errorMessage ||
-                  "링크가 유효하지 않거나 이미 사용되었습니다."}
+                  "인증 처리 중 오류가 발생했습니다."}
               </p>
               <Link
                 href="/auth"
                 className="inline-flex items-center justify-center w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition shadow-sm"
               >
-                다시 가입하기
+                로그인 페이지로 이동
               </Link>
             </div>
           )}

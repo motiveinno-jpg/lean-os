@@ -60,10 +60,52 @@ export default function AuthPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+    if (loginErr) {
+      setLoading(false);
+      return setError(translateAuthError(loginErr.message));
+    }
+
+    // Safety net: 로그인 성공했지만 public.users가 없는 경우 자동 생성
+    if (loginData.user) {
+      await ensureUserRecord(loginData.user);
+    }
+
     setLoading(false);
-    if (error) return setError(translateAuthError(error.message));
     router.push(getRedirectPath());
+  }
+
+  async function ensureUserRecord(user: { id: string; email?: string; user_metadata?: Record<string, string> }) {
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", user.id)
+      .maybeSingle();
+
+    if (existingUser) return; // 이미 존재
+
+    const companyName = user.user_metadata?.company_name || user.email?.split("@")[0] || "내 회사";
+    const displayName = user.user_metadata?.display_name || user.email?.split("@")[0] || "사용자";
+    const companyId = crypto.randomUUID();
+
+    const { error: compErr } = await supabase.from("companies").insert({ id: companyId, name: companyName });
+    if (compErr) return;
+
+    const { error: userErr } = await supabase.from("users").insert({
+      id: user.id,
+      auth_id: user.id,
+      company_id: companyId,
+      email: user.email || "",
+      name: displayName,
+      role: "owner",
+    });
+    if (userErr) {
+      await supabase.from("companies").delete().eq("id", companyId);
+      return;
+    }
+
+    await supabase.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
+    await createTrialingSubscription(companyId, "starter", 30);
   }
 
   async function handleSignup(e: React.FormEvent) {
