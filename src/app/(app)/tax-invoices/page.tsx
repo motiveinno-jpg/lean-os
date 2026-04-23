@@ -41,21 +41,25 @@ function ensurePrintStyles() {
     @media print {
       body { background: white !important; color: black !important; }
       body * { visibility: hidden; }
-      [data-print-area], [data-print-area] * { visibility: visible; color: black !important; }
+      [data-print-area], [data-print-area] * { visibility: visible !important; color: black !important; }
       [data-print-area] {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        z-index: 99999 !important;
         background: #fff !important;
         color: #000 !important;
+        padding: 10mm !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
       nav, .sidebar, .no-print, button { display: none !important; }
+      .fixed, [class*="backdrop"] { display: none !important; }
       table { border-collapse: collapse; width: 100%; }
       th, td { border: 1px solid #ddd; padding: 4px 8px; }
-      @page { margin: 15mm; }
+      .print\\:border-black { border-color: #000 !important; }
+      @page { margin: 10mm; }
     }
   `;
   document.head.appendChild(style);
@@ -989,9 +993,11 @@ export default function TaxInvoicesPage() {
 
         <div className="ml-auto flex gap-2">
           {/* Excel import */}
-          <label className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-2 cursor-pointer">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m4-8l-4-4m0 0L13 8m4-4v12" />
+          <label className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2 cursor-pointer">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 13l2 3-2 3M12 13l2 3-2 3" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/>
             </svg>
             Excel 가져오기
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
@@ -1006,10 +1012,12 @@ export default function TaxInvoicesPage() {
                   `세금계산서_${tab === "sales" ? "매출" : "매입"}_${month}.xlsx`
                 )
               }
-              className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-2"
+              className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Excel 내보내기
             </button>
@@ -1872,8 +1880,8 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
         </div>
 
         {/* Tax Invoice Form (국세청 양식 스타일) */}
-        <div className="p-6">
-          <div className="border-2 border-[var(--primary)] rounded-lg overflow-hidden">
+        <div className="p-6" data-print-area>
+          <div className="border-2 border-[var(--primary)] rounded-lg overflow-hidden print:border-black">
             {/* Title bar */}
             <div className="bg-[var(--primary)]/10 px-4 py-2 text-center">
               <span className="text-sm font-black text-[var(--primary)] tracking-widest">
@@ -2005,7 +2013,7 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
                 수정세금계산서
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => { ensurePrintStyles(); window.print(); }}
                 className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"
               >
                 인쇄
