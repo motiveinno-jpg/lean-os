@@ -439,6 +439,16 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId && (tab === "vat" || tab === "summary"),
   });
 
+  // Company info for PDF/display
+  const { data: companyInfo } = useQuery({
+    queryKey: ["company-info", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).single();
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
   // Invoice queue (자동발행 대기)
   const { data: queueItems = [], isLoading: queueLoading } = useQuery({
     queryKey: ["invoice-queue", companyId],
@@ -832,11 +842,20 @@ export default function TaxInvoicesPage() {
                         setShowPartnerDropdown(false);
                         setPartnerSearch("");
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm flex items-center justify-between"
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm"
                     >
-                      <span className="font-medium">{p.name}</span>
-                      {p.business_number && (
-                        <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{p.name}</span>
+                        {p.business_number && (
+                          <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                        )}
+                      </div>
+                      {(p.business_type || p.business_item || p.contact_email) && (
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5 flex gap-2">
+                          {p.business_type && <span>{p.business_type}</span>}
+                          {p.business_item && <span>/ {p.business_item}</span>}
+                          {p.contact_email && <span className="ml-auto">{p.contact_email}</span>}
+                        </div>
                       )}
                     </button>
                   ))}
@@ -1178,6 +1197,7 @@ export default function TaxInvoicesPage() {
       {selectedInvoice && (
         <InvoiceDetailModal
           invoice={selectedInvoice}
+          companyInfo={companyInfo}
           onClose={() => setSelectedInvoice(null)}
           onModify={(inv: any) => {
             setSelectedInvoice(null);
@@ -1500,6 +1520,9 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3 text-sm font-medium">
                         <div className="flex items-center gap-2">
                           {r.dealName || "딜 없음"}
+                          {r.suggestedDeal && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[9px] font-bold whitespace-nowrap">AI 추천</span>
+                          )}
                           {r.amountMatch && r.contractAmount > 0 && (
                             <span className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[9px] font-bold whitespace-nowrap">공급가액 일치</span>
                           )}
@@ -1760,7 +1783,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 }
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
-function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onClose: () => void; onModify: (inv: any) => void }) {
+function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoice: any; companyInfo?: any; onClose: () => void; onModify: (inv: any) => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const inv = invoice;
@@ -1773,18 +1796,29 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
   const [issueLoading, setIssueLoading] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const myCompany = companyInfo?.name || '(주)우리회사';
+  const myBizNo = companyInfo?.business_number || '';
+  const myRep = companyInfo?.representative || '';
+  const myBizType = companyInfo?.business_type || '';
+  const myBizCat = companyInfo?.business_category || '';
 
   const buildPdfParams = (): TaxInvoicePdfParams => ({
     invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
     issueDate: inv.issue_date || new Date().toISOString().split('T')[0],
     type: inv.type,
     supplier: {
-      name: inv.type === 'sales' ? '(주)우리회사' : inv.counterparty_name,
-      businessNumber: inv.type === 'sales' ? '' : (inv.counterparty_bizno || ''),
+      name: inv.type === 'sales' ? myCompany : inv.counterparty_name,
+      businessNumber: inv.type === 'sales' ? myBizNo : (inv.counterparty_bizno || ''),
+      representative: inv.type === 'sales' ? myRep : '',
+      businessType: inv.type === 'sales' ? myBizType : '',
+      businessCategory: inv.type === 'sales' ? myBizCat : '',
     },
     buyer: {
-      name: inv.type === 'purchase' ? '(주)우리회사' : inv.counterparty_name,
-      businessNumber: inv.type === 'purchase' ? '' : (inv.counterparty_bizno || ''),
+      name: inv.type === 'purchase' ? myCompany : inv.counterparty_name,
+      businessNumber: inv.type === 'purchase' ? myBizNo : (inv.counterparty_bizno || ''),
+      representative: inv.type === 'purchase' ? myRep : '',
+      businessType: inv.type === 'purchase' ? myBizType : '',
+      businessCategory: inv.type === 'purchase' ? myBizCat : '',
     },
     supplyAmount: supplyAmt,
     taxAmount: taxAmt,
@@ -1833,7 +1867,7 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
         body: {
           recipientEmail: emailTo,
           counterpartyName: inv.counterparty_name,
-          senderCompany: '(주)우리회사',
+          senderCompany: myCompany,
           invoiceNumber,
           issueDate: inv.issue_date,
           supplyAmount: supplyAmt,
@@ -1898,20 +1932,20 @@ function InvoiceDetailModal({ invoice, onClose, onModify }: { invoice: any; onCl
               <div className="p-3">
                 <div className="text-[10px] font-bold text-[var(--primary)] mb-2 tracking-wider">공급자</div>
                 <div className="space-y-1.5 text-xs">
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "sales" ? "123-45-67890" : (inv.counterparty_bizno || "—")}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "sales" ? "(주)우리회사" : inv.counterparty_name}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">—</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">—</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "sales" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "sales" ? myCompany : inv.counterparty_name}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? (myRep || "—") : "—"}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : "—"}</span></div>
                 </div>
               </div>
               {/* 공급받는자 */}
               <div className="p-3">
                 <div className="text-[10px] font-bold text-orange-400 mb-2 tracking-wider">공급받는자</div>
                 <div className="space-y-1.5 text-xs">
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "purchase" ? "123-45-67890" : (inv.counterparty_bizno || "—")}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "purchase" ? "(주)우리회사" : inv.counterparty_name}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">—</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">—</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "purchase" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "purchase" ? myCompany : inv.counterparty_name}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? (myRep || "—") : "—"}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : "—"}</span></div>
                 </div>
               </div>
             </div>
