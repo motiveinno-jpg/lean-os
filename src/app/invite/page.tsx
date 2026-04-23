@@ -88,13 +88,15 @@ function InviteContent() {
 
       // 2. Create user record linked to the company
       const { error: userErr } = await supabase.from("users").insert({
+        id: authData.user.id,
         auth_id: authData.user.id,
         company_id: invite.data.company_id,
         email,
         name: name || email.split("@")[0],
         role,
       });
-      if (userErr) throw userErr;
+      // 이미 존재하는 유저면 무시 (중복 가입 방어)
+      if (userErr && !userErr.message?.includes("duplicate")) throw userErr;
 
       // 3. Accept the invitation
       if (invite.type === "partner") {
