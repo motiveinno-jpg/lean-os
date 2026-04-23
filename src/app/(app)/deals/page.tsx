@@ -82,7 +82,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '' });
+  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '', classification: '' });
   const [editSaving, setEditSaving] = useState(false);
   const { toast } = useToast();
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
@@ -97,6 +97,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const { data: milestones = [], refetch: refetchMs } = useQuery({ queryKey: ["milestones", dealId], queryFn: () => getMilestones(dealId), enabled: !!dealId });
   const { data: subDeals = [] } = useQuery({ queryKey: ["sub-deals", dealId], queryFn: () => getSubDeals(dealId), enabled: !!dealId });
   const { data: assignments = [] } = useQuery({ queryKey: ["assignments", dealId], queryFn: () => getAssignments(dealId), enabled: !!dealId });
+  const { data: editClassifications = [] } = useQuery({ queryKey: ["deal-classifications", companyId], queryFn: () => getDealClassifications(companyId!), enabled: !!companyId });
 
   const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId, companyId!), enabled: !!dealId && !!companyId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
@@ -131,7 +132,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   function startEdit() {
     if (!deal) return;
-    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium' });
+    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium', classification: deal.classification || 'B2B' });
     setEditMode(true);
   }
 
@@ -139,7 +140,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
     if (!deal) return;
     setEditSaving(true);
     try {
-      const updates: { name?: string; contract_total?: number; start_date?: string | null; end_date?: string | null; status?: string; priority?: string } = {};
+      const updates: { name?: string; contract_total?: number; start_date?: string | null; end_date?: string | null; status?: string; priority?: string; classification?: string } = {};
       if (editForm.name.trim() && editForm.name !== deal.name) updates.name = editForm.name.trim();
       const newTotal = Number(editForm.contract_total);
       if (newTotal > 0 && newTotal !== Number(deal.contract_total)) updates.contract_total = newTotal;
@@ -147,6 +148,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       if (editForm.end_date !== (deal.end_date || '')) updates.end_date = editForm.end_date || null;
       if (editForm.status !== deal.status) updates.status = editForm.status;
       if (editForm.priority !== (deal.priority || 'medium')) updates.priority = editForm.priority;
+      if (editForm.classification !== (deal.classification || 'B2B')) updates.classification = editForm.classification;
       if (Object.keys(updates).length === 0) { setEditMode(false); setEditSaving(false); return; }
       const { error } = await (supabase as any).from('deals').update(updates).eq('id', dealId);
       if (error) throw error;
@@ -173,6 +175,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">상태</label><select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{Object.entries(DEAL_STATUS_LABEL).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={editForm.priority} onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label><select value={editForm.classification} onChange={(e) => setEditForm({ ...editForm, classification: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{(() => { const defaults = ['B2B', 'B2C', 'B2G']; const customNames = editClassifications.map((c: any) => c.name); const merged = [...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: d, name: d })), ...editClassifications]; return merged.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)); })()}</select></div>
           </div>
           <button onClick={saveEdit} disabled={editSaving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editSaving ? '저장 중...' : '저장'}</button>
         </div>
@@ -478,6 +481,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
   const db2 = supabase as any;
   const { toast } = useToast();
 
@@ -523,7 +527,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
   const fileCount = dealFiles.length;
 
   return (
-    <div className={`bg-[var(--bg-card)] rounded-2xl border overflow-hidden mt-6 transition ${dragOver ? 'border-[var(--primary)] bg-[var(--primary)]/[0.02]' : 'border-[var(--border)]'}`} onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
+    <div className={`bg-[var(--bg-card)] rounded-2xl border overflow-hidden mt-6 transition ${dragOver ? 'border-[var(--primary)] bg-[var(--primary)]/[0.02]' : 'border-[var(--border)]'}`} onDragOver={e => { e.preventDefault(); e.stopPropagation(); }} onDragEnter={e => { e.preventDefault(); dragCounterRef.current++; setDragOver(true); }} onDragLeave={e => { e.preventDefault(); dragCounterRef.current--; if (dragCounterRef.current === 0) setDragOver(false); }} onDrop={e => { dragCounterRef.current = 0; handleDrop(e); }}>
       <div className="px-5 py-3 flex items-center justify-between">
         <h2 className="text-sm font-bold">💬 딜 채팅</h2>
         {dealChannel && <Link href={`/chat?channel=${dealChannel.id}`} className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">전체 채팅 보기 &rarr;</Link>}
@@ -566,7 +570,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
               </div>
             </div>
           )}
-          {dragOver && <div className="px-5 py-2 text-center text-[10px] text-[var(--primary)] border-t border-dashed border-[var(--primary)]/30">여기에 파일을 놓으면 자동으로 첨부됩니다</div>}
+          {dragOver && <div className="px-5 py-4 text-center text-xs text-[var(--primary)] font-semibold border-t border-dashed border-[var(--primary)]/50 bg-[var(--primary)]/[0.05]">📂 여기에 파일을 놓으면 자동으로 첨부됩니다</div>}
         </>
       )}
 
@@ -1389,7 +1393,7 @@ function DealsPageInner() {
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">새 딜 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류 * <Link href="/settings#classifications" className="text-[var(--primary)] text-[10px] font-normal hover:underline ml-1">관리</Link></label><select value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{classifications.length > 0 ? classifications.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)) : ['B2B', 'B2C', 'B2G'].map(v => (<option key={v} value={v}>{v}</option>))}</select></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류 * <Link href="/settings#classifications" className="text-[var(--primary)] text-[10px] font-normal hover:underline ml-1">관리</Link></label><select value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{(() => { const defaults = ['B2B', 'B2C', 'B2G']; const customNames = classifications.map((c: any) => c.name); const merged = [...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: d, name: d, color: DEFAULT_COLORS[d] })), ...classifications]; return merged.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)); })()}</select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">딜명 *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 수출바우처 - A기업" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 *</label><div className="flex gap-2 mb-1.5"><select value={form.vatType} onChange={(e) => setForm({ ...form, vatType: e.target.value as "exclude" | "include" })} className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="exclude">VAT 별도</option><option value="include">VAT 포함</option></select></div><input type="text" inputMode="numeric" value={form.contract_total ? Number(form.contract_total).toLocaleString('ko-KR') : ''} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, contract_total: raw }); setFormError(""); }} placeholder="15,000,000" className={`w-full px-3 py-2.5 bg-[var(--bg)] border rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] ${formError && (!form.contract_total || Number(form.contract_total) <= 0) ? "border-red-400" : "border-[var(--border)]"}`} />{Number(form.contract_total) > 0 && (<p className="text-[11px] text-[var(--text-muted)] mt-1">{form.vatType === 'exclude' ? (<>공급가액: {Number(form.contract_total).toLocaleString('ko-KR')}원 | VAT(10%): {Math.round(Number(form.contract_total) * 0.1).toLocaleString('ko-KR')}원 | 합계: {Math.round(Number(form.contract_total) * 1.1).toLocaleString('ko-KR')}원</>) : (<>합계(VAT포함): {Number(form.contract_total).toLocaleString('ko-KR')}원 | 공급가액: {Math.round(Number(form.contract_total) / 1.1).toLocaleString('ko-KR')}원 | VAT: {Math.round(Number(form.contract_total) - Number(form.contract_total) / 1.1).toLocaleString('ko-KR')}원</>)}</p>)}{formError && (!form.contract_total || Number(form.contract_total) <= 0) && (<p className="text-xs text-red-500 mt-1">{formError}</p>)}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => { setForm({ ...form, start_date: e.target.value }); if (e.target.value) { const endInput = document.getElementById('deal-end-date'); endInput?.focus(); } }} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>

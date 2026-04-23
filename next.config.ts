@@ -11,7 +11,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com",
-      "frame-src 'self' https://t1.daumcdn.net",
+      "frame-src 'self' blob: https://t1.daumcdn.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
