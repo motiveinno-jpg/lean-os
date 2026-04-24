@@ -921,7 +921,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {emp.status !== "resigned" && (
+          {emp.status !== "inactive" && emp.status !== "resigned" && (
             <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
               퇴사 처리
             </button>
@@ -1342,11 +1342,12 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         async function confirmTermination() {
           setTerminating(true);
           try {
-            const { error } = await (supabase as any).from("employees").update({
-              status: "resigned",
+            const { data: updated, error } = await (supabase as any).from("employees").update({
+              status: "inactive",
               resignation_date: termDate,
-            }).eq("id", employeeId);
+            }).eq("id", employeeId).select("id, status").single();
             if (error) throw error;
+            if (!updated || updated.status !== "inactive") throw new Error("상태 업데이트 실패");
             queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
             queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
             setShowTermModal(false);

@@ -2294,13 +2294,21 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
         </div>
       )}
 
-      {classifications.length === 0 ? (
+      {(() => {
+        const defaults = ['B2B', 'B2C', 'B2G'];
+        const defaultColors: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
+        const customNames = classifications.map((c: any) => c.name);
+        const allCls = [
+          ...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: `default-${d}`, name: d, color: defaultColors[d], is_system: true })),
+          ...classifications,
+        ];
+        return allCls.length === 0 ? (
         <div className="text-center py-6 text-sm text-[var(--text-muted)]">
           딜 분류가 없습니다.
         </div>
       ) : (
         <div className="space-y-2">
-          {classifications.map((cls: any) => (
+          {allCls.map((cls: any) => (
             <div
               key={cls.id}
               className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]"
@@ -2314,7 +2322,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setEditId(cls.id); setForm({ name: cls.name, color: cls.color || '#3b82f6' }); setShowForm(true); }}
+                  onClick={() => { setEditId(String(cls.id).startsWith('default-') ? null : cls.id); setForm({ name: cls.name, color: cls.color || '#3b82f6' }); setShowForm(true); }}
                   className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition"
                 >
                   수정
@@ -2331,7 +2339,8 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
             </div>
           ))}
         </div>
-      )}
+      )
+      })()}
     </div>
   );
 }

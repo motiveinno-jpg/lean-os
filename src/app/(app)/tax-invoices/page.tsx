@@ -55,7 +55,9 @@ function ensurePrintStyles() {
         print-color-adjust: exact;
       }
       nav, .sidebar, .no-print, button { display: none !important; }
-      .fixed, [class*="backdrop"] { display: none !important; }
+      .fixed:not(:has([data-print-area])), [class*="backdrop"]:not(:has([data-print-area])) { display: none !important; }
+      .fixed:has([data-print-area]) { position: fixed !important; inset: 0 !important; background: #fff !important; overflow: visible !important; z-index: 99999 !important; }
+      .fixed:has([data-print-area]) > div { max-height: none !important; overflow: visible !important; }
       table { border-collapse: collapse; width: 100%; }
       th, td { border: 1px solid #ddd; padding: 4px 8px; }
       .print\\:border-black { border-color: #000 !important; }
@@ -338,6 +340,9 @@ export default function TaxInvoicesPage() {
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
     counterpartyBizno: "",
+    counterpartyBusinessType: "",
+    counterpartyBusinessItem: "",
+    partnerId: "" as string,
     supplyAmount: "",
     issueDate: "",
     preferredDate: "",
@@ -370,7 +375,7 @@ export default function TaxInvoicesPage() {
       const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
       const { data } = await supabase
         .from("tax_invoices")
-        .select("*, deals(name), label, revenue_schedule_id")
+        .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item)")
         .eq("company_id", companyId!)
         .gte("issue_date", startDate)
         .lte("issue_date", endDate)
@@ -522,6 +527,7 @@ export default function TaxInvoicesPage() {
         preferredDate: form.preferredDate || undefined,
         expenseCategory: form.expenseCategory || undefined,
         dealId: form.dealId || undefined,
+        partnerId: form.partnerId || undefined,
         label: [form.purpose, form.itemName].filter(Boolean).join(' | ') || undefined,
       }),
     onSuccess: () => {
@@ -531,6 +537,9 @@ export default function TaxInvoicesPage() {
         type: "sales",
         counterpartyName: "",
         counterpartyBizno: "",
+        counterpartyBusinessType: "",
+        counterpartyBusinessItem: "",
+        partnerId: "",
         supplyAmount: "",
         issueDate: "",
         preferredDate: "",
@@ -849,6 +858,9 @@ export default function TaxInvoicesPage() {
                           ...form,
                           counterpartyName: p.name,
                           counterpartyBizno: p.business_number || "",
+                          counterpartyBusinessType: p.business_type || "",
+                          counterpartyBusinessItem: p.business_item || "",
+                          partnerId: p.id,
                         });
                         setShowPartnerDropdown(false);
                         setPartnerSearch("");
@@ -886,6 +898,12 @@ export default function TaxInvoicesPage() {
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
             </div>
+            {(form.counterpartyBusinessType || form.counterpartyBusinessItem) && (
+              <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--text-muted)]">
+                <span className="text-[var(--text-dim)]">업태/종목: </span>
+                {[form.counterpartyBusinessType, form.counterpartyBusinessItem].filter(Boolean).join(" / ")}
+              </div>
+            )}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 연결 딜 (프로젝트)
@@ -1059,7 +1077,8 @@ export default function TaxInvoicesPage() {
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
               <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M8 13l2 3-2 3M12 13l2 3-2 3" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/>
+              <line x1="12" y1="18" x2="12" y2="12" strokeLinecap="round"/>
+              <polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Excel 가져오기
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
@@ -1579,18 +1598,17 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3">
                         <ThreeWayMatchVisual result={r} />
                       </td>
-                      <td
-                        className={`px-5 py-3 text-sm text-right font-semibold ${
-                          Math.abs(r.gap) < 1
-                            ? "text-green-400"
-                            : r.gap > 0
-                            ? "text-red-400"
-                            : "text-orange-400"
-                        }`}
-                      >
-                        {r.gap !== 0
-                          ? (r.gap > 0 ? "+" : "") + fmt(r.gap)
-                          : "0"}
+                      <td className="px-5 py-3 text-sm text-right">
+                        {r.amountMatch && r.contractAmount > 0 ? (
+                          <div>
+                            <div className="text-green-400 font-semibold">공급가액 일치</div>
+                            <div className="text-[10px] text-[var(--text-dim)]">VAT 차이: {fmt(r.invoiceTaxAmount)}</div>
+                          </div>
+                        ) : (
+                          <span className={`font-semibold ${Math.abs(r.gap) < 1 ? "text-green-400" : r.gap > 0 ? "text-red-400" : "text-orange-400"}`}>
+                            {r.gap !== 0 ? (r.gap > 0 ? "+" : "") + fmt(r.gap) : "0"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-center">
                         <MatchBadge ok={r.amountMatch} na={r.contractAmount === 0} />
@@ -1853,24 +1871,27 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
       name: inv.type === 'sales' ? myCompany : inv.counterparty_name,
       businessNumber: inv.type === 'sales' ? myBizNo : (inv.counterparty_bizno || ''),
       representative: inv.type === 'sales' ? myRep : '',
-      businessType: inv.type === 'sales' ? myBizType : '',
-      businessCategory: inv.type === 'sales' ? myBizCat : '',
+      address: inv.type === 'sales' ? (companyInfo?.address || '') : '',
+      businessType: inv.type === 'sales' ? myBizType : (inv.partners?.business_type || ''),
+      businessCategory: inv.type === 'sales' ? myBizCat : (inv.partners?.business_item || ''),
     },
     buyer: {
       name: inv.type === 'purchase' ? myCompany : inv.counterparty_name,
       businessNumber: inv.type === 'purchase' ? myBizNo : (inv.counterparty_bizno || ''),
       representative: inv.type === 'purchase' ? myRep : '',
-      businessType: inv.type === 'purchase' ? myBizType : '',
-      businessCategory: inv.type === 'purchase' ? myBizCat : '',
+      address: inv.type === 'purchase' ? (companyInfo?.address || '') : '',
+      businessType: inv.type === 'purchase' ? myBizType : (inv.partners?.business_type || ''),
+      businessCategory: inv.type === 'purchase' ? myBizCat : (inv.partners?.business_item || ''),
     },
     supplyAmount: supplyAmt,
     taxAmount: taxAmt,
     totalAmount: totalAmt,
     items: [{
-      date: inv.issue_date || '',
-      name: inv.label || '용역',
-      qty: 1,
-      unitPrice: supplyAmt,
+      date: inv.issue_date || new Date().toISOString().split('T')[0],
+      name: inv.item_name || inv.label || '용역',
+      spec: inv.item_spec || '-',
+      qty: inv.item_quantity || 1,
+      unitPrice: inv.item_unit_price || supplyAmt,
       amount: supplyAmt,
       taxAmount: taxAmt,
     }],
@@ -1978,7 +1999,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "sales" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "sales" ? myCompany : inv.counterparty_name}</span></div>
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? (myRep || "—") : "—"}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : "—"}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : ([inv.partners?.business_type, inv.partners?.business_item].filter(Boolean).join(" / ") || "—")}</span></div>
                 </div>
               </div>
               {/* 공급받는자 */}
@@ -1988,7 +2009,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "purchase" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "purchase" ? myCompany : inv.counterparty_name}</span></div>
                   <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? (myRep || "—") : "—"}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : "—"}</span></div>
+                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : ([inv.partners?.business_type, inv.partners?.business_item].filter(Boolean).join(" / ") || "—")}</span></div>
                 </div>
               </div>
             </div>

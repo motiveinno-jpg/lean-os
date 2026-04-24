@@ -37,6 +37,7 @@ export async function createTaxInvoice(params: {
   status?: string;
   preferredDate?: string;
   expenseCategory?: string;
+  partnerId?: string;
 }): Promise<TaxInvoice | null> {
   const taxAmount = Math.round(params.supplyAmount * DEFAULT_VAT_RATE);
   const totalAmount = params.supplyAmount + taxAmount;
@@ -61,6 +62,7 @@ export async function createTaxInvoice(params: {
       revenue_schedule_id: params.revenueScheduleId || null,
       preferred_date: params.preferredDate || null,
       expense_category: params.expenseCategory || null,
+      partner_id: params.partnerId || null,
       source: 'manual',
     })
     .select()
