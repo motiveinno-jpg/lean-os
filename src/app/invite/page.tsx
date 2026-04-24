@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
-import { validateInviteToken, acceptPartnerInvitation, acceptEmployeeInvitation } from "@/lib/invitations";
+import { validateInviteToken } from "@/lib/invitations";
 import { RollingBrandText } from "@/components/brand-logo";
 
 type InviteInfo = {
@@ -69,63 +69,24 @@ function InviteContent() {
     setLoading(true);
 
     try {
-      // 1. Create auth account
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { email_confirmed: true } },
+      const res = await fetch("/api/invite-accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name, token }),
       });
-      if (authErr) throw authErr;
-      if (!authData.user) throw new Error("계정 생성 실패");
 
-      // Auto-login if needed
-      if (!authData.session) {
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "가입 처리 실패");
+
+      if (result.existingUser) {
+        const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (loginErr) throw loginErr;
+      } else {
         const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
         if (loginErr) throw loginErr;
       }
 
-      const role = invite.type === "partner" ? "partner" : (invite.data.role || "employee");
-
-      // 2. Create user record linked to the company
-      const { error: userErr } = await supabase.from("users").insert({
-        id: authData.user.id,
-        auth_id: authData.user.id,
-        company_id: invite.data.company_id,
-        email,
-        name: name || email.split("@")[0],
-        role,
-      });
-      // 이미 존재하는 유저면 무시 (중복 가입 방어)
-      if (userErr && !userErr.message?.includes("duplicate")) throw userErr;
-
-      // 3. Accept the invitation
-      if (invite.type === "partner") {
-        await acceptPartnerInvitation(token);
-      } else {
-        await acceptEmployeeInvitation(token);
-      }
-
-      // 4. If employee, link to employees table + update status
-      if (invite.type === "employee") {
-        const db = supabase as any;
-        // Try to find existing employee by email
-        const { data: emp } = await db
-          .from("employees")
-          .select("id")
-          .eq("company_id", invite.data.company_id)
-          .eq("email", email)
-          .single();
-        if (emp) {
-          await db.from("employees").update({
-            user_id: authData.user.id,
-            status: "joined",
-            name: name || undefined,
-          }).eq("id", emp.id);
-        }
-      }
-
       setLoading(false);
-      // 직원 초대 → 온보딩으로 이동, 파트너 → 대시보드
       router.push(invite.type === "employee" ? "/onboarding" : "/dashboard");
     } catch (err: any) {
       setLoading(false);
