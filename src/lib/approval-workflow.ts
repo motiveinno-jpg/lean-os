@@ -109,7 +109,17 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as ApprovalPolicy[];
+  return (data || []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    company_id: row.company_id as string,
+    name: (row.name as string) || '',
+    document_type: (row.entity_type as string) || '',
+    stages: (row.stages as ApprovalStageConfig[]) || [],
+    auto_approve_below: (row.auto_approve_threshold as number) || 0,
+    is_active: row.is_active !== false,
+    created_at: row.created_at as string | undefined,
+    updated_at: row.updated_at as string | undefined,
+  })) as ApprovalPolicy[];
 }
 
 /**
@@ -126,9 +136,10 @@ export async function upsertApprovalPolicy(
   const row: Record<string, unknown> = {
     company_id: policy.company_id,
     name: policy.name,
-    document_type: policy.document_type,
+    entity_type: policy.document_type,
     stages: policy.stages,
-    auto_approve_below: policy.auto_approve_below ?? 0,
+    auto_approve_threshold: policy.auto_approve_below ?? 0,
+    auto_approve: (policy.auto_approve_below ?? 0) > 0,
     is_active: policy.is_active ?? true,
     updated_at: new Date().toISOString(),
   };
@@ -143,7 +154,18 @@ export async function upsertApprovalPolicy(
     .select()
     .single();
   if (error) throw error;
-  return data as ApprovalPolicy;
+  const d = data as Record<string, unknown>;
+  return {
+    id: d.id as string,
+    company_id: d.company_id as string,
+    name: (d.name as string) || '',
+    document_type: (d.entity_type as string) || '',
+    stages: (d.stages as ApprovalStageConfig[]) || [],
+    auto_approve_below: (d.auto_approve_threshold as number) || 0,
+    is_active: d.is_active !== false,
+    created_at: d.created_at as string | undefined,
+    updated_at: d.updated_at as string | undefined,
+  } as ApprovalPolicy;
 }
 
 /**
@@ -183,7 +205,7 @@ export async function createApprovalRequest(params: {
     .from('approval_policies')
     .select('*')
     .eq('company_id', params.companyId)
-    .eq('document_type', params.requestType)
+    .eq('entity_type', params.requestType)
     .eq('is_active', true)
     .limit(1);
 
@@ -196,7 +218,7 @@ export async function createApprovalRequest(params: {
       .from('approval_policies')
       .select('*')
       .eq('company_id', params.companyId)
-      .eq('document_type', 'default')
+      .eq('entity_type', 'default')
       .eq('is_active', true)
       .limit(1);
     matchedPolicy = defaultPolicies?.[0] as ApprovalPolicy | undefined;

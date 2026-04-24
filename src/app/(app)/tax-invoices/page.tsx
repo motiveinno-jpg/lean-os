@@ -343,6 +343,11 @@ export default function TaxInvoicesPage() {
     preferredDate: "",
     expenseCategory: "",
     dealId: "" as string,
+    purpose: "청구" as "영수" | "청구",
+    itemName: "",
+    itemSpec: "",
+    itemQty: "1",
+    itemUnitPrice: "",
   });
 
   useEffect(() => {
@@ -517,6 +522,7 @@ export default function TaxInvoicesPage() {
         preferredDate: form.preferredDate || undefined,
         expenseCategory: form.expenseCategory || undefined,
         dealId: form.dealId || undefined,
+        label: [form.purpose, form.itemName].filter(Boolean).join(' | ') || undefined,
       }),
     onSuccess: () => {
       invalidate();
@@ -530,6 +536,11 @@ export default function TaxInvoicesPage() {
         preferredDate: "",
         expenseCategory: "",
         dealId: "",
+        purpose: "청구",
+        itemName: "",
+        itemSpec: "",
+        itemQty: "1",
+        itemUnitPrice: "",
       });
       setPartnerSearch("");
     },
@@ -909,7 +920,7 @@ export default function TaxInvoicesPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
-                발행일 *
+                작성일자 *
               </label>
               <input
                 type="date"
@@ -919,6 +930,17 @@ export default function TaxInvoicesPage() {
                 }
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">영수/청구 구분</label>
+              <div className="flex gap-2">
+                {(["영수", "청구"] as const).map((p) => (
+                  <button key={p} type="button" onClick={() => setForm({ ...form, purpose: p })}
+                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition ${form.purpose === p ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -950,10 +972,31 @@ export default function TaxInvoicesPage() {
                 ))}
               </select>
             </div>
+            <div className="col-span-2 border-t border-[var(--border)] pt-3 mt-1">
+              <label className="block text-xs text-[var(--text-muted)] mb-2 font-semibold">품목 상세 (선택)</label>
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">품목명</label>
+                  <input value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} placeholder="예: 소프트웨어 개발" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">규격</label>
+                  <input value={form.itemSpec} onChange={(e) => setForm({ ...form, itemSpec: e.target.value })} placeholder="예: 건" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">수량</label>
+                  <input type="number" value={form.itemQty} onChange={(e) => { const q = e.target.value; setForm({ ...form, itemQty: q, supplyAmount: form.itemUnitPrice ? String(Number(q) * Number(form.itemUnitPrice)) : form.supplyAmount }); }} placeholder="1" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">단가</label>
+                  <input type="text" inputMode="numeric" value={form.itemUnitPrice ? Number(form.itemUnitPrice).toLocaleString('ko-KR') : ''} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+              </div>
+            </div>
             {Number(form.supplyAmount) > 0 && (
-              <div className="flex items-end pb-1">
+              <div className="col-span-2 flex items-end pb-1">
                 <div className="text-xs text-[var(--text-dim)]">
-                  부가세: ₩
+                  공급가액: ₩{Number(form.supplyAmount).toLocaleString("ko")} / 부가세: ₩
                   {Math.round(
                     Number(form.supplyAmount) * 0.1
                   ).toLocaleString("ko")}{" "}

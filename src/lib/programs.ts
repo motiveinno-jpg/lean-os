@@ -59,6 +59,7 @@ export async function createProgram(params: {
       description: params.description || null,
       total_budget: params.totalBudget || 0,
       deal_template: (params.dealTemplate || {}) as any,
+      status: "active",
     })
     .select()
     .single();

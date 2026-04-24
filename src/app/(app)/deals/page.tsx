@@ -516,6 +516,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
     if (successCount > 0) toast(`${successCount}개 파일 업로드 완료`, 'success');
     queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] });
     setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   function handleDrop(e: React.DragEvent) {

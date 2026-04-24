@@ -316,7 +316,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       return invitation;
     },
     onSuccess: async (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
       queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
       // 이메일 발송
       if (data?.invite_token) {
@@ -1348,9 +1348,10 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
             }).eq("id", employeeId);
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
-            queryClient.invalidateQueries({ queryKey: ["employees"] });
+            queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
             setShowTermModal(false);
             toast("퇴사 처리가 완료되었습니다", "success");
+            setTimeout(() => onClose(), 300);
           } catch (err: any) {
             toast("퇴사 처리 실패: " + (err?.message || "알 수 없는 오류"), "error");
           } finally {
