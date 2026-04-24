@@ -11,7 +11,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net",
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net",
-      "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net",
+      "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
