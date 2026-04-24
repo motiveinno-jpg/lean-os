@@ -92,7 +92,7 @@ async function autoCreateExpenseReport(companyId: string, invoice: TaxInvoice) {
       .eq('company_id', companyId)
       .eq('role', 'owner')
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!owner) return;
 

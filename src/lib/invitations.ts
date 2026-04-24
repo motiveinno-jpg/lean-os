@@ -129,7 +129,7 @@ export async function validateInviteToken(token: string): Promise<{
     .select('*')
     .eq('invite_token', token)
     .eq('status', 'pending')
-    .single();
+    .maybeSingle();
   if (pi) {
     if (pi.expires_at && new Date(pi.expires_at) < new Date()) return null;
     return { type: 'partner', data: pi };
@@ -141,7 +141,7 @@ export async function validateInviteToken(token: string): Promise<{
     .select('*')
     .eq('invite_token', token)
     .eq('status', 'pending')
-    .single();
+    .maybeSingle();
   if (ei) {
     if (ei.expires_at && new Date(ei.expires_at) < new Date()) return null;
     return { type: 'employee', data: ei };
