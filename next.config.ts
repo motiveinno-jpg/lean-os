@@ -7,9 +7,9 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net",
-      "style-src 'self' 'unsafe-inline' https://*.daumcdn.net",
+      "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net",
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net",
       "frame-ancestors 'none'",
