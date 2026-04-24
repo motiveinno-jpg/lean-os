@@ -137,7 +137,7 @@ export function generateInsuranceEDI(params: {
     results.push({
       insuranceType: type,
       reportType,
-      filename: `${reportCode}_${typeCode}_${company.businessNumber}_${reportDate}.edi`,
+      filename: `${reportCode}_${typeCode}_${company.businessNumber}_${reportDate}.txt`,
       content: lines.join('\n'),
       employeeCount: employees.length,
     });

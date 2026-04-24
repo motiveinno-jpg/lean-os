@@ -49,11 +49,47 @@ export async function POST(req: NextRequest) {
         const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
         if (existingUser) {
           await admin.auth.admin.updateUserById(existingUser.id, {
+            password,
             email_confirm: true,
+            user_metadata: { name: name || existingUser.user_metadata?.name },
           });
+
+          const inviteType = ei ? 'employee' : 'partner';
+          const role = inviteType === 'partner' ? 'partner' : (invite.role || 'employee');
+
+          await admin.from('users').upsert({
+            id: existingUser.id,
+            auth_id: existingUser.id,
+            company_id: invite.company_id,
+            email,
+            name: name || email.split('@')[0],
+            role,
+          }, { onConflict: 'id' });
+
+          const table = inviteType === 'employee' ? 'employee_invitations' : 'partner_invitations';
+          await admin.from(table).update({ status: 'accepted' }).eq('invite_token', token);
+
+          if (inviteType === 'employee') {
+            const { data: emp } = await admin
+              .from('employees')
+              .select('id')
+              .eq('company_id', invite.company_id)
+              .eq('email', email)
+              .maybeSingle();
+
+            if (emp) {
+              await admin.from('employees').update({
+                user_id: existingUser.id,
+                status: 'joined',
+                name: name || undefined,
+              }).eq('id', emp.id);
+            }
+          }
+
           return NextResponse.json({
             userId: existingUser.id,
-            message: '기존 계정이 확인되었습니다. 로그인해주세요.',
+            inviteType,
+            message: '가입이 완료되었습니다.',
             existingUser: true,
           });
         }

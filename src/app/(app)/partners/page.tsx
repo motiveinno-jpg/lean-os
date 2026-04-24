@@ -29,7 +29,7 @@ const TYPE_BADGE: Record<string, { bg: string; text: string; label: string }> = 
 const EMPTY_FORM = {
   name: "", type: "client", classification: "", businessNumber: "",
   representative: "", contactName: "", contactEmail: "", contactPhone: "",
-  address: "", bankName: "", accountNumber: "", tags: "", notes: "",
+  address: "", addressDetail: "", bankName: "", accountNumber: "", tags: "", notes: "",
   businessType: "", businessItem: "",
 };
 
@@ -358,7 +358,7 @@ export default function PartnersPage() {
       contactName: form.contactName || undefined,
       contactEmail: form.contactEmail || undefined,
       contactPhone: form.contactPhone || undefined,
-      address: form.address || undefined,
+      address: [form.address, form.addressDetail].filter(Boolean).join(' ') || undefined,
       bankName: form.bankName || undefined,
       accountNumber: form.accountNumber || undefined,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -391,7 +391,7 @@ export default function PartnersPage() {
       name: p.name || "", type: p.type || "client", classification: p.classification || "",
       businessNumber: p.business_number || "", representative: p.representative || "",
       contactName: p.contact_name || "", contactEmail: p.contact_email || "",
-      contactPhone: p.contact_phone || "", address: p.address || "",
+      contactPhone: p.contact_phone || "", address: p.address || "", addressDetail: "",
       bankName: p.bank_name || "", accountNumber: p.account_number || "",
       tags: (p.tags || []).join(", "), notes: p.notes || "",
       businessType: p.business_type || "", businessItem: p.business_item || "",
@@ -1225,6 +1225,7 @@ export default function PartnersPage() {
                   <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="주소 검색 버튼을 클릭하세요" className={inputCls + " flex-1"} readOnly={false} />
                   <button type="button" onClick={async () => { if (typeof window === 'undefined') return; function doOpen() { try { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } catch { toast("주소 검색을 로드하지 못했습니다. 새로고침 후 다시 시도해주세요.", "error"); } } if ((window as any).daum?.Postcode) { doOpen(); return; } const existing = document.getElementById('daum-postcode-script'); if (existing) { existing.remove(); } const s = document.createElement('script'); s.id = 'daum-postcode-script'; s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => { setTimeout(() => doOpen(), 100); }; s.onerror = () => toast("주소 검색 스크립트를 불러올 수 없습니다. 네트워크를 확인해주세요.", "error"); document.head.appendChild(s); }} className="px-3 py-2.5 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold whitespace-nowrap hover:opacity-90 transition">주소 검색</button>
                 </div>
+                <input value={form.addressDetail} onChange={(e) => setField("addressDetail", e.target.value)} placeholder="상세주소 (동/호수 등)" className={inputCls + " mt-2"} />
               </div>
               <div>
                 <label className={labelCls}>은행명</label>

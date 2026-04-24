@@ -34,7 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
       { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
       { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
-      { href: "/reports/bs", label: "대차대조표", icon: "bar-chart", roles: ["owner", "admin"] },
+      { href: "/reports/bs", label: "재무상태표", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
   {

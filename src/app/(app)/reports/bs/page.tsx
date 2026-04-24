@@ -340,7 +340,7 @@ export default function BalanceSheetPage() {
     const a = document.createElement("a");
     a.href = url;
     const today = new Date().toISOString().slice(0, 10);
-    a.download = `대차대조표_${today}.csv`;
+    a.download = `재무상태표_${today}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }, [data]);
@@ -451,7 +451,7 @@ export default function BalanceSheetPage() {
             }}
           />
           <span style={{ color: "var(--text-muted)", fontSize: 14 }}>
-            대차대조표 데이터를 불러오는 중...
+            재무상태표 데이터를 불러오는 중...
           </span>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -481,7 +481,7 @@ export default function BalanceSheetPage() {
     return (
       <div className="p-16 text-center">
         <div className="text-4xl mb-3">📋</div>
-        <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 대차대조표가 자동 생성됩니다</div>
+        <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 재무상태표가 자동 생성됩니다</div>
         <div className="text-xs text-[var(--text-muted)] mt-1">거래내역과 계좌 정보를 먼저 등록해주세요</div>
       </div>
     );
@@ -516,7 +516,7 @@ export default function BalanceSheetPage() {
               lineHeight: 1.3,
             }}
           >
-            대차대조표 (Balance Sheet)
+            재무상태표 (Balance Sheet)
           </h1>
           <p
             style={{
@@ -906,7 +906,7 @@ export default function BalanceSheetPage() {
       >
         <strong style={{ color: "var(--text-muted)" }}>참고</strong>
         <br />
-        - 자산 = 부채 + 자본 (대차대조표 등식){" "}
+        - 자산 = 부채 + 자본 (재무상태표 등식){" "}
         {Math.abs(data.totalAssets - data.totalLiabilities - data.totalEquity) < 1 ? "-- 균형" : "-- 불균형 감지"}
         <br />
         - 현금 및 예금은 등록된 은행계좌 잔액과 현금 스냅샷의 합계입니다.
