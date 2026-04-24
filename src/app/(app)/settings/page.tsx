@@ -160,19 +160,22 @@ export default function SettingsPage() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <h1 className="text-2xl font-extrabold mb-2">설정</h1>
 
-      {/* Main Tab Bar — scrollable on mobile */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 mb-6 overflow-x-auto scrollbar-hide">
-        {mainTabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setMainTab(t.key)}
-            className={`whitespace-nowrap shrink-0 px-4 py-2.5 rounded-md text-sm font-semibold min-h-[44px] transition ${
-              mainTab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Main Tab Bar — scrollable on mobile with fade hint */}
+      <div className="relative mb-6">
+        <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto scrollbar-hide">
+          {mainTabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setMainTab(t.key)}
+              className={`whitespace-nowrap shrink-0 px-4 py-2.5 rounded-md text-sm font-semibold min-h-[44px] transition ${
+                mainTab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--bg-surface)] to-transparent rounded-r-lg pointer-events-none sm:hidden" />
       </div>
 
       {/* ═══ General Tab ═══ */}
