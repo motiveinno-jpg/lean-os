@@ -302,25 +302,25 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     <>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
-          <div className="text-lg font-bold text-yellow-400 mt-1">{stats?.pendingCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
+          <div className="text-lg font-bold text-yellow-400 mt-1 truncate">{stats?.pendingCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">승인 완료</div>
-          <div className="text-lg font-bold text-blue-400 mt-1">{stats?.approvedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
+          <div className="text-lg font-bold text-blue-400 mt-1 truncate">{stats?.approvedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">실행 완료</div>
-          <div className="text-lg font-bold text-green-400 mt-1">{stats?.executedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
+          <div className="text-lg font-bold text-green-400 mt-1 truncate">{stats?.executedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">통장 총 잔고</div>
-          <div className="text-lg font-bold mt-1">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5">{bankAccounts.length}개 통장</div>
+          <div className="text-lg font-bold mt-1 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
+          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">{bankAccounts.length}개 통장</div>
         </div>
       </div>
 

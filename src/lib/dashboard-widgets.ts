@@ -142,7 +142,7 @@ export async function loadUserPreferences(
     .select('*')
     .eq('user_id', userId)
     .eq('company_id', companyId)
-    .single();
+    .maybeSingle();
 
   if (data) return data as UserPreferences;
 
@@ -169,7 +169,7 @@ export async function loadUserPreferences(
       .select('*')
       .eq('user_id', userId)
       .eq('company_id', companyId)
-      .single();
+      .maybeSingle();
     if (retry) return retry as UserPreferences;
     throw createError;
   }
