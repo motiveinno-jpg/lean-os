@@ -86,7 +86,7 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
     // 6. 비용 미승인
     supabase
       .from('deal_cost_schedule')
-      .select('id, item_name, amount, created_at, deals(name)')
+      .select('id, condition_text, amount, created_at, deal_nodes(deals(name))')
       .eq('company_id', companyId)
       .eq('approved', false)
       .order('created_at', { ascending: false }),
@@ -171,11 +171,11 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
     actions.push({
       id: c.id,
       type: 'cost',
-      title: c.item_name || '비용 승인',
+      title: c.condition_text || '비용 승인',
       amount: Number(c.amount || 0),
       createdAt: c.created_at,
       urgency: Number(c.amount || 0) >= 3000000 ? 'high' : 'medium',
-      dealName: c.deals?.name,
+      dealName: c.deal_nodes?.deals?.name,
     });
   });
 
