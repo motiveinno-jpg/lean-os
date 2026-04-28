@@ -8,7 +8,7 @@ import {
   getSalaryHistory, addSalaryRecord, getActiveContracts, createContract,
   CONTRACT_TYPES, updateEmployee,
   // Attendance & Leave
-  checkIn, checkOut, getAttendanceRecords, getMonthlyAttendanceSummary,
+  checkIn, checkOut, cancelCheckOut, getAttendanceRecords, getMonthlyAttendanceSummary,
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
@@ -2964,8 +2964,19 @@ function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, r
 
   // Check-out mutation
   const doCheckOut = useMutation({
-    mutationFn: (employeeId: string) => checkOut(employeeId),
+    mutationFn: (employeeId: string) => checkOut(employeeId, companyId!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
+    onError: (err: any) => toast(err.message, "error"),
+  });
+
+  // Cancel check-out mutation
+  const doCancelCheckOut = useMutation({
+    mutationFn: (employeeId: string) => cancelCheckOut(employeeId, companyId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+      toast("퇴근 취소 완료", "success");
+    },
     onError: (err: any) => toast(err.message, "error"),
   });
 
@@ -3200,6 +3211,18 @@ function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, r
                   >
                     {hasOut ? "퇴근 완료" : "퇴근"}
                   </button>
+                  {hasOut && (
+                    <button
+                      onClick={() => {
+                        if (confirm("퇴근 기록을 취소하시겠습니까?")) {
+                          doCancelCheckOut.mutate(myEmployeeRecord.id);
+                        }
+                      }}
+                      className="px-3 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition"
+                    >
+                      퇴근 취소
+                    </button>
+                  )}
                 </>
               );
             })()

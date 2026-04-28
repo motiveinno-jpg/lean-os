@@ -171,76 +171,44 @@ export const LEAVE_REQUEST_STATUS = {
   rejected: { label: '반려', bg: 'bg-red-500/10', text: 'text-red-400' },
 } as const;
 
+// ── Attendance Edge Function helper (bypasses RLS) ──
+async function invokeAttendance(action: string, params: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("로그인이 필요합니다");
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const res = await fetch(`${supabaseUrl}/functions/v1/attendance-checkin`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    },
+    body: JSON.stringify({ action, ...params }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "근태 처리 실패");
+  return json.data;
+}
+
 // ── Attendance: Check In ──
 export async function checkIn(companyId: string, employeeId: string, status: string = "auto") {
-  const today = new Date().toISOString().slice(0, 10);
-  const now = new Date().toISOString();
-
   if (status === "auto") {
     const hour = new Date().getHours();
     const minute = new Date().getMinutes();
     status = (hour > 9 || (hour === 9 && minute > 30)) ? "late" : "present";
   }
-
-  await db.from('attendance_records')
-    .delete()
-    .eq('employee_id', employeeId)
-    .eq('date', today);
-
-  const { data, error } = await db
-    .from('attendance_records')
-    .insert({
-      company_id: companyId,
-      employee_id: employeeId,
-      date: today,
-      check_in: now,
-      status,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  return invokeAttendance("checkin", { companyId, employeeId, status });
 }
 
 // ── Attendance: Check Out ──
-export async function checkOut(employeeId: string, date?: string) {
-  const targetDate = date || new Date().toISOString().slice(0, 10);
-  const now = new Date().toISOString();
+export async function checkOut(employeeId: string, companyId: string, date?: string) {
+  return invokeAttendance("checkout", { companyId, employeeId, ...(date ? { date } : {}) });
+}
 
-  // Find today's attendance record
-  const { data: record } = await db
-    .from('attendance_records')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .eq('date', targetDate)
-    .maybeSingle();
-
-  if (!record) {
-    throw new Error('출근 기록이 없습니다. 먼저 출근 처리해주세요.');
-  }
-  if (record.check_out) {
-    throw new Error('이미 퇴근 처리되었습니다');
-  }
-
-  // Calculate work hours
-  const checkInTime = new Date(record.check_in).getTime();
-  const checkOutTime = new Date(now).getTime();
-  const diffHours = (checkOutTime - checkInTime) / (1000 * 60 * 60);
-  const workHours = Math.round(Math.max(0, diffHours - 1) * 100) / 100; // subtract 1hr lunch
-  const overtimeHours = Math.round(Math.max(0, workHours - 8) * 100) / 100;
-
-  const { data, error } = await db
-    .from('attendance_records')
-    .update({
-      check_out: now,
-      work_hours: workHours,
-      overtime_hours: overtimeHours,
-    })
-    .eq('id', record.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+// ── Attendance: Cancel Check Out ──
+export async function cancelCheckOut(employeeId: string, companyId: string, date?: string) {
+  return invokeAttendance("cancel_checkout", { companyId, employeeId, ...(date ? { date } : {}) });
 }
 
 // ── Attendance: Admin correction ──

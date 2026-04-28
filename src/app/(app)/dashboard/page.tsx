@@ -17,7 +17,7 @@ import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
-import { checkIn as hrCheckIn } from "@/lib/hr";
+import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
@@ -2614,20 +2614,10 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
   };
 
   const handleCheckOut = async () => {
-    if (!employeeId || !todayAttendance?.check_in) return;
+    if (!employeeId || !companyId || !todayAttendance?.check_in) return;
     setCheckingOut(true);
     try {
-      const now = new Date();
-      const checkInTime = new Date(todayAttendance.check_in);
-      const hours = Math.max(0, (now.getTime() - checkInTime.getTime()) / 3600000);
-      const workHours = Math.round(Math.max(0, hours - 1) * 100) / 100;
-      const overtime = Math.round(Math.max(0, workHours - 8) * 100) / 100;
-      const { error } = await db.from("attendance_records").update({
-        check_out: now.toISOString(),
-        work_hours: workHours,
-        overtime_hours: overtime,
-      }).eq("employee_id", employeeId).eq("date", today);
-      if (error) throw error;
+      await hrCheckOut(employeeId, companyId);
       toast("퇴근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
@@ -2638,15 +2628,10 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
   };
 
   const handleCancelCheckOut = async () => {
-    if (!employeeId || !todayAttendance?.check_out) return;
+    if (!employeeId || !companyId || !todayAttendance?.check_out) return;
     if (!confirm("퇴근 기록을 취소하시겠습니까?")) return;
     try {
-      const { error } = await db.from("attendance_records").update({
-        check_out: null,
-        work_hours: 0,
-        overtime_hours: 0,
-      }).eq("employee_id", employeeId).eq("date", today);
-      if (error) throw error;
+      await hrCancelCheckOut(employeeId, companyId);
       toast("퇴근 취소 완료 — 다시 근무 중입니다", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
