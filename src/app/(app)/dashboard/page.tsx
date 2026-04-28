@@ -2605,7 +2605,11 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
   const [attendanceStatus, setAttendanceStatus] = useState<string>("present");
 
   const handleCheckIn = async () => {
-    if (!employeeId || !companyId) return;
+    if (!companyId) return;
+    if (!employeeId) {
+      toast("직원 정보를 찾을 수 없습니다. 관리자에게 직원 등록을 요청하세요.", "error");
+      return;
+    }
     setCheckingIn(true);
     try {
       await hrCheckIn(companyId, employeeId, attendanceStatus);
