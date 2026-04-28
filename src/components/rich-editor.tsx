@@ -5,6 +5,11 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
+import { forwardRef, useImperativeHandle } from "react";
+
+export interface RichEditorRef {
+  insertText: (text: string) => void;
+}
 
 interface RichEditorProps {
   content?: string;
@@ -13,7 +18,10 @@ interface RichEditorProps {
   editable?: boolean;
 }
 
-export function RichEditor({ content = "", onChange, placeholder = "내용을 입력하세요...", editable = true }: RichEditorProps) {
+export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function RichEditor(
+  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true },
+  ref
+) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -27,6 +35,13 @@ export function RichEditor({ content = "", onChange, placeholder = "내용을 �
       onChange?.(editor.getHTML());
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    insertText(text: string) {
+      if (!editor) return;
+      editor.chain().focus().insertContent(text).run();
+    },
+  }), [editor]);
 
   if (!editor) return null;
 
@@ -92,4 +107,4 @@ export function RichEditor({ content = "", onChange, placeholder = "내용을 �
       />
     </div>
   );
-}
+});

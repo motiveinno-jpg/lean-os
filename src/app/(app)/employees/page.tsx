@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -34,6 +34,7 @@ import { generateEmploymentCertificate, generateCareerCertificate, getCertificat
 import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation } from "@/lib/invitations";
 import dynamic from "next/dynamic";
+import type { RichEditorRef } from "@/components/rich-editor";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
@@ -2079,6 +2080,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateBody, setNewTemplateBody] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const editorRef = useRef<RichEditorRef>(null);
 
   // 계약 내역
   const { data: contractList = [] } = useQuery({
@@ -2248,7 +2250,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           <div className="flex gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
-              <RichEditor content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
             </div>
             <div className="w-40 shrink-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">변수 삽입</label>
@@ -2263,7 +2265,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                   { v: "{{회사명}}", desc: "회사 이름" },
                   { v: "{{대표자}}", desc: "대표자명" },
                 ].map(({ v, desc }) => (
-                  <button key={v} type="button" onClick={() => setNewTemplateBody(prev => prev + v)}
+                  <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
                     className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group">
                     <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
                     <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
@@ -2836,7 +2838,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="text" inputMode="numeric" value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setForm({...form, amount: v}); }} placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
               <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
                 {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}

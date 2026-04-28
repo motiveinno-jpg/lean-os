@@ -2601,15 +2601,30 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
     setCheckingIn(true);
     try {
       const now = new Date().toISOString();
-      await db.from("attendance_records").upsert({
-        company_id: companyId,
-        employee_id: employeeId,
-        date: today,
-        check_in: now,
-        status: "present",
-        work_hours: 0,
-        overtime_hours: 0,
-      }, { onConflict: "employee_id,date" });
+      const { data: existing } = await db
+        .from("attendance_records")
+        .select("id")
+        .eq("employee_id", employeeId)
+        .eq("date", today)
+        .maybeSingle();
+      if (existing) {
+        await db.from("attendance_records").update({
+          check_in: now,
+          status: "present",
+          work_hours: 0,
+          overtime_hours: 0,
+        }).eq("id", existing.id);
+      } else {
+        await db.from("attendance_records").insert({
+          company_id: companyId,
+          employee_id: employeeId,
+          date: today,
+          check_in: now,
+          status: "present",
+          work_hours: 0,
+          overtime_hours: 0,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
     } catch {}
     setCheckingIn(false);

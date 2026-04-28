@@ -337,6 +337,8 @@ export default function TaxInvoicesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [partnerSearch, setPartnerSearch] = useState("");
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
+  const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null);
+  const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
@@ -708,30 +710,81 @@ export default function TaxInvoicesPage() {
       </div>
 
       {/* Duplicate Invoice Warning Banner */}
-      {duplicateInvoices.length > 0 && (
-        <div className="no-print mb-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-4 py-3 flex items-start gap-3">
-          <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <div className="flex-1">
-            <div className="text-sm font-bold text-[var(--warning)]">중복 의심 세금계산서 감지</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1 space-y-1">
-              {duplicateInvoices.map((dup) => (
-                <div key={dup.key}>
-                  <span className="font-medium text-[var(--text)]">{dup.counterpartyName}</span>
-                  {" / "}
-                  {fmt(dup.amount)}
-                  {" / "}
-                  {dup.date}
-                  {" — "}
-                  <span className="text-[var(--warning)] font-semibold">{dup.count}건 동일</span>
-                </div>
-              ))}
-            </div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">
-              동일 거래처 + 동일 금액 + 동일 날짜 조합이 감지되었습니다. 이중 발행 여부를 확인하세요.
+      {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
+        <div className="no-print mb-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-4 py-3">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-sm font-bold text-[var(--warning)]">중복 의심 세금계산서 감지</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1 space-y-1">
+                {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).map((dup) => (
+                  <div key={dup.key}>
+                    <button type="button" onClick={() => setExpandedDupKey(expandedDupKey === dup.key ? null : dup.key)}
+                      className="text-left hover:underline">
+                      <span className="font-medium text-[var(--text)]">{dup.counterpartyName}</span>
+                      {" / "}
+                      {fmt(dup.amount)}
+                      {" / "}
+                      {dup.date}
+                      {" — "}
+                      <span className="text-[var(--warning)] font-semibold">{dup.count}건 동일</span>
+                      <span className="text-[var(--primary)] ml-1 text-[10px]">(클릭하여 확인)</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1.5">
+                클릭하면 해당 세금계산서를 확인할 수 있습니다. 중복이 아닌 경우 &quot;확인&quot;을 눌러주세요.
+              </div>
             </div>
           </div>
+          {expandedDupKey && (() => {
+            const dup = duplicateInvoices.find(d => d.key === expandedDupKey);
+            if (!dup) return null;
+            const dupInvs = invoices.filter((inv: any) => dup.ids.includes(inv.id));
+            return (
+              <div className="mt-3 border-t border-[var(--warning)]/20 pt-3">
+                <div className="text-xs font-semibold text-[var(--text)] mb-2">
+                  {dup.counterpartyName} — {fmt(dup.amount)} — {dup.date} ({dup.count}건)
+                </div>
+                <div className="space-y-2">
+                  {dupInvs.map((inv: any) => (
+                    <div key={inv.id} className="flex items-center gap-3 bg-[var(--bg-card)] rounded-lg px-3 py-2 border border-[var(--border)]">
+                      <div className="flex-1 text-xs">
+                        <span className="font-medium">{inv.counterparty_name}</span>
+                        <span className="text-[var(--text-muted)] mx-2">|</span>
+                        <span className="font-mono">₩{Number(inv.supply_amount).toLocaleString("ko-KR")}</span>
+                        <span className="text-[var(--text-dim)] ml-2">{inv.issue_date}</span>
+                        <span className="text-[var(--text-dim)] ml-2">({(INVOICE_STATUS as any)[inv.status]?.label || inv.status})</span>
+                      </div>
+                      <button type="button" onClick={() => setSelectedInvoice(inv)}
+                        className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">
+                        상세
+                      </button>
+                      <button type="button" onClick={async () => {
+                        if (!confirm(`이 세금계산서를 삭제하시겠습니까?\n${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`)) return;
+                        await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                        invalidate();
+                        toast("세금계산서가 삭제되었습니다", "success");
+                      }}
+                        className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => {
+                  setDismissedDups(prev => new Set([...prev, expandedDupKey!]));
+                  setExpandedDupKey(null);
+                }}
+                  className="mt-2 text-[10px] px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition font-semibold">
+                  ✓ 확인 완료 (중복 아님 — 이 경고 숨기기)
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -2143,8 +2196,8 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
                 <span className="font-medium">{EXPENSE_CATEGORIES.find(c => c.value === inv.expense_category)?.label || inv.label || "—"}</span>
               </div>
               <div>
-                <span className="text-[var(--text-dim)]">거래처 희망일: </span>
-                <span className="font-medium">{inv.preferred_date || "—"}</span>
+                <span className="text-[var(--text-dim)]">영수/청구: </span>
+                <span className="font-medium">{inv.label?.includes("영수") ? "영수" : "청구"}</span>
               </div>
             </div>
           </div>

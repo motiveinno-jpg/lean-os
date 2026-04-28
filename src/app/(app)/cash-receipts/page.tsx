@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import {
   getCashReceipts,
@@ -41,6 +42,8 @@ export default function CashReceiptsPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [partnerSearch, setPartnerSearch] = useState("");
+  const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
 
   // Date range for filter
   const now = new Date();
@@ -73,6 +76,26 @@ export default function CashReceiptsPage() {
     queryFn: () => getCashReceiptSummary(companyId!, startDate, endDate),
     enabled: !!companyId,
   });
+
+  const { data: partners = [] } = useQuery({
+    queryKey: ["partners-for-cash", companyId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("partners")
+        .select("id, name, business_number")
+        .eq("company_id", companyId!)
+        .order("name");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const filteredPartners = useMemo(() =>
+    partners.filter((p: any) =>
+      !partnerSearch || p.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
+      (p.business_number || "").includes(partnerSearch)
+    ),
+  [partners, partnerSearch]);
 
   const handleSave = async () => {
     if (!companyId || saving) return;
@@ -294,14 +317,15 @@ export default function CashReceiptsPage() {
                 합계금액 (VAT포함) *
               </label>
               <input
-                type="number"
-                min="1"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, amount: e.target.value }))
-                }
+                type="text"
+                inputMode="numeric"
+                value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setForm((f) => ({ ...f, amount: v }));
+                }}
                 placeholder="110,000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
               />
               {form.amount && Number(form.amount) > 0 && (
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">
@@ -317,18 +341,37 @@ export default function CashReceiptsPage() {
                 </div>
               )}
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 거래처명
               </label>
               <input
                 value={form.counterpartyName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, counterpartyName: e.target.value }))
-                }
-                placeholder="거래처명"
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, counterpartyName: e.target.value }));
+                  setPartnerSearch(e.target.value);
+                  setShowPartnerDropdown(e.target.value.length > 0);
+                }}
+                onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
+                onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                placeholder="거래처명 검색"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+              {showPartnerDropdown && filteredPartners.length > 0 && (
+                <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                  {filteredPartners.slice(0, 8).map((p: any) => (
+                    <button key={p.id} type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
+                        setShowPartnerDropdown(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
+                      <span className="font-medium">{p.name}</span>
+                      {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -361,50 +404,45 @@ export default function CashReceiptsPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
-                식별번호 (전화번호/사업자번호)
-              </label>
-              <div className="flex gap-2">
-                <select
-                  value={form.identityType}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      identityType: e.target.value as any,
-                    }))
-                  }
-                  className="px-2 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs"
-                >
-                  <option value="phone">전화번호</option>
-                  <option value="bizno">사업자번호</option>
-                  <option value="card">카드번호</option>
-                </select>
-                <input
-                  value={form.identityNumber}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      identityNumber: e.target.value,
-                    }))
-                  }
-                  placeholder="010-0000-0000"
-                  className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                용도
+                용도 *
               </label>
               <select
                 value={form.purpose}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, purpose: e.target.value as any }))
-                }
+                onChange={(e) => {
+                  const purpose = e.target.value as any;
+                  setForm((f) => ({
+                    ...f,
+                    purpose,
+                    identityType: purpose === "income_deduction" ? "phone" : "bizno",
+                    identityNumber: "",
+                  }));
+                }}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
               >
                 <option value="expenditure_proof">지출증빙</option>
                 <option value="income_deduction">소득공제</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                {form.purpose === "income_deduction" ? "전화번호" : "사업자등록번호"}
+              </label>
+              <input
+                value={form.identityNumber}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    identityNumber: e.target.value,
+                  }))
+                }
+                placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                {form.purpose === "income_deduction"
+                  ? "소득공제용: 소비자 전화번호 입력"
+                  : "지출증빙용: 거래처 사업자등록번호 입력"}
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
