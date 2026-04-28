@@ -1,0 +1,141 @@
+name: Auto QA Fix (OwnerView)
+
+on:
+  repository_dispatch:
+    types: [qa-comment]
+
+jobs:
+  qa-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check business hours (KST)
+        id: check-hours
+        run: |
+          HOUR=$(TZ=Asia/Seoul date +%H)
+          DOW=$(TZ=Asia/Seoul date +%u)
+          if [ "$DOW" -gt 5 ] || [ "$HOUR" -lt 9 ] || [ "$HOUR" -ge 19 ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Outside business hours (KST $HOUR, DOW $DOW) — skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout lean-os
+        if: steps.check-hours.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: steps.check-hours.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.check-hours.outputs.skip == 'false'
+        run: npm ci
+
+      - name: Install Claude Code
+        if: steps.check-hours.outputs.skip == 'false'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run Claude Code QA Fix
+        if: steps.check-hours.outputs.skip == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          COMMENT_BODY="${{ github.event.client_payload.comment_body }}"
+          COMMENT_AUTHOR="${{ github.event.client_payload.comment_author }}"
+
+          claude -p "
+          당신은 OwnerView(오너뷰) QA 자동 수정 에이전트입니다.
+          프로젝트 디렉토리: $(pwd)
+          라이브 URL: www.owner-view.com
+          빌드: npm run build → git push origin main → Vercel 자동 배포
+
+          ## GitHub QA 코멘트 (by @${COMMENT_AUTHOR})
+          ${COMMENT_BODY}
+
+          ## 작업 순서
+          1. 위 QA 코멘트에서 수정할 이슈를 파악
+          2. 각 이슈에 해당하는 소스 파일을 읽고 수정
+          3. npm run build 로 빌드 검증 (실패 시 수정)
+          4. git add + commit + push (빌드 성공 시만)
+
+          ## 주요 파일 맵
+          - 대시보드: src/app/(app)/dashboard/page.tsx
+          - 딜/프로젝트: src/app/(app)/deals/page.tsx
+          - 거래처: src/app/(app)/partners/page.tsx
+          - 세금계산서: src/app/(app)/tax-invoices/page.tsx
+          - 결재: src/app/(app)/approvals/page.tsx
+          - 인사/급여: src/app/(app)/employees/page.tsx
+          - 설정: src/app/(app)/settings/page.tsx
+          - 마이페이지: src/app/(app)/mypage/page.tsx
+          - 사이드바: src/components/sidebar.tsx
+          - 쿼리: src/lib/queries.ts
+          - 전체 lib: src/lib/*.ts
+
+          ## 커밋 규칙
+          fix(qa): [한줄요약] — GitHub QA 자동수정
+          Relates to motiveinno-jpg/motive-team#3
+          Co-Authored-By: Claude Code <noreply@anthropic.com>
+
+          ## 금지
+          - console.log 남기기
+          - 기존 기능 삭제
+          - 빌드 실패 상태 커밋
+          - 새 npm 패키지 추가
+          " --dangerously-skip-permissions --max-turns 30 2>&1 | tail -50
+
+      - name: Push if changes exist
+        if: steps.check-hours.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain -- src/)" ]; then
+            git add src/
+            git diff --cached --quiet && exit 0
+            git commit -m "fix(qa): Auto QA fix — @${{ github.event.client_payload.comment_author }}
+
+          Relates to motiveinno-jpg/motive-team#3
+
+          Co-Authored-By: Claude Code <noreply@anthropic.com>"
+            git push origin main
+            echo "PUSHED=true" >> $GITHUB_ENV
+          else
+            echo "PUSHED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Post result to motive-team issue
+        if: steps.check-hours.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.MOTIVE_TEAM_TOKEN }}
+        run: |
+          if [ "$PUSHED" = "true" ]; then
+            HASH=$(git rev-parse --short HEAD)
+            FILES=$(git diff --name-only HEAD~1 HEAD -- src/ | sed 's/^/- `/' | sed 's/$/`/')
+            gh issue comment 3 --repo motiveinno-jpg/motive-team --body "## QA 자동수정 완료
+
+          커밋: \`${HASH}\` — Vercel 자동 배포
+
+          @${{ github.event.client_payload.comment_author }} 님의 QA 기반 자동 수정:
+
+          ### 변경 파일
+          ${FILES}
+
+          www.owner-view.com 에서 확인 가능합니다."
+          else
+            gh issue comment 3 --repo motiveinno-jpg/motive-team --body "## QA 자동수정 결과
+
+          @${{ github.event.client_payload.comment_author }} 님의 코멘트를 확인했으나 코드 변경이 필요하지 않거나 자동 처리가 어려운 항목입니다.
+
+          수동 확인이 필요합니다."
+          fi
