@@ -947,14 +947,20 @@ export async function getTaxInvoices(companyId: string) {
 // ═══════════════════════════════════════════════
 
 // ── Chat Channels ──
-export async function getChannels(companyId: string) {
+export async function getChannels(companyId: string, userId?: string) {
   const { data } = await supabase
     .from('chat_channels')
     .select('*, deals(name), sub_deals(name)')
     .eq('company_id', companyId)
     .eq('is_archived', false)
     .order('created_at', { ascending: false });
-  return data || [];
+  if (!data || !userId) return data || [];
+  const { data: myParticipations } = await supabase
+    .from('chat_participants')
+    .select('channel_id')
+    .eq('user_id', userId);
+  const myChannelIds = new Set((myParticipations || []).map((p: any) => p.channel_id));
+  return data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
 }
 
 export async function getChannel(channelId: string, companyId: string) {

@@ -621,7 +621,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     reason: "",
   });
   const [files, setFiles] = useState<File[]>([]);
-  const [descriptionInited, setDescriptionInited] = useState<string>(""); // track which type was last inited
+  const [descriptionInited, setDescriptionInited] = useState<string>("");
+  const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
 
   const isLeave = form.requestType === "leave";
 
@@ -718,6 +719,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     setDescriptionInited(form.requestType);
   }, [form.requestType, isLeave, descriptionInited]);
 
+  // Fetch company users for approver selection
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["company-users-approvers", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name");
+      return (data || []).filter((u: any) => u.id !== userId);
+    },
+    enabled: !!companyId,
+  });
+
   // Load policies for preview
   const { data: policies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
@@ -763,6 +774,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
         amount: effectiveAmount,
         description: effectiveDescription || undefined,
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+        customApprovers: selectedApprovers.length > 0 ? selectedApprovers : undefined,
       });
     },
     onSuccess: () => {
@@ -770,6 +782,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
       setForm({ requestType: "expense", title: "", amount: "", description: "" });
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
+      setSelectedApprovers([]);
       setDescriptionInited("");
       onComplete();
     },
@@ -978,6 +991,40 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
                 </div>
               </>
             )}
+
+            {/* Approver Selection */}
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">승인자 지정 (선택)</label>
+              <div className="space-y-2">
+                {selectedApprovers.map((a, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl">
+                    <span className="text-xs font-bold text-[var(--primary)] w-16">{idx + 1}차 승인</span>
+                    <span className="text-sm flex-1">{a.name}</span>
+                    <button onClick={() => setSelectedApprovers(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-red-400 hover:text-red-300">삭제</button>
+                  </div>
+                ))}
+                {selectedApprovers.length < 3 && companyUsers.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const u = companyUsers.find((u: any) => u.id === e.target.value);
+                      if (u && !selectedApprovers.some(a => a.userId === u.id)) {
+                        setSelectedApprovers(prev => [...prev, { userId: u.id, name: u.name || u.email }]);
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                  >
+                    <option value="">+ {selectedApprovers.length === 0 ? "1차" : selectedApprovers.length === 1 ? "2차" : "최종"} 승인자 추가</option>
+                    {companyUsers.filter((u: any) => !selectedApprovers.some(a => a.userId === u.id)).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                    ))}
+                  </select>
+                )}
+                {selectedApprovers.length === 0 && (
+                  <p className="text-[11px] text-[var(--text-dim)]">미지정 시 결재 정책에 따라 자동 배정됩니다</p>
+                )}
+              </div>
+            </div>
 
             {/* File upload (shared) */}
             <div>

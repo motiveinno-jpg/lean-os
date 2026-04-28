@@ -197,6 +197,7 @@ export async function createApprovalRequest(params: {
   amount?: number;
   description?: string;
   attachments?: string[];
+  customApprovers?: { userId: string; name: string }[];
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
@@ -268,56 +269,68 @@ export async function createApprovalRequest(params: {
     return request as ApprovalRequest;
   }
 
-  // Create approval steps for each stage
-  for (const stageConfig of stages) {
-    // Find potential approvers for this role in the company
-    const approverRole = stageConfig.approver_role;
-    const requiredCount = stageConfig.required_count ?? 1;
+  // Create approval steps — use custom approvers if provided
+  if (params.customApprovers && params.customApprovers.length > 0) {
+    for (let i = 0; i < params.customApprovers.length; i++) {
+      const approver = params.customApprovers[i];
+      const stageNum = i + 1;
+      const stageName = params.customApprovers.length === 1
+        ? "최종 승인"
+        : stageNum === params.customApprovers.length ? "최종 승인" : `${stageNum}차 승인`;
+      await db.from('approval_steps').insert({
+        request_id: request.id,
+        stage: stageNum,
+        stage_name: stageName,
+        approver_id: approver.userId,
+        status: 'pending',
+      });
+    }
+    if (params.customApprovers.length !== totalStages) {
+      await db.from('approval_requests').update({ total_stages: params.customApprovers.length }).eq('id', request.id);
+    }
+  } else {
+    for (const stageConfig of stages) {
+      const approverRole = stageConfig.approver_role;
+      const requiredCount = stageConfig.required_count ?? 1;
 
-    const { data: approvers } = await db
-      .from('users')
-      .select('id, name')
-      .eq('company_id', params.companyId)
-      .eq('role', approverRole)
-      .limit(requiredCount);
-
-    const approverList = approvers || [];
-
-    // If no approvers found for this role, try 'ceo' or 'admin' as fallback
-    if (approverList.length === 0) {
-      const { data: fallbackApprovers } = await db
+      const { data: approvers } = await db
         .from('users')
         .select('id, name')
         .eq('company_id', params.companyId)
-        .in('role', ['ceo', 'admin', 'owner'])
+        .eq('role', approverRole)
         .limit(requiredCount);
-      approverList.push(...(fallbackApprovers || []));
-    }
 
-    // Create a step for each approver (or a placeholder if no approvers)
-    if (approverList.length > 0) {
-      for (const approver of approverList) {
-        await db
-          .from('approval_steps')
-          .insert({
+      const approverList = approvers || [];
+
+      if (approverList.length === 0) {
+        const { data: fallbackApprovers } = await db
+          .from('users')
+          .select('id, name')
+          .eq('company_id', params.companyId)
+          .in('role', ['ceo', 'admin', 'owner'])
+          .limit(requiredCount);
+        approverList.push(...(fallbackApprovers || []));
+      }
+
+      if (approverList.length > 0) {
+        for (const approver of approverList) {
+          await db.from('approval_steps').insert({
             request_id: request.id,
             stage: stageConfig.stage,
             stage_name: stageConfig.name,
             approver_id: approver.id,
-            status: stageConfig.stage === 1 ? 'pending' : 'pending',
+            status: 'pending',
           });
-      }
-    } else {
-      // No approvers found - create a placeholder step
-      await db
-        .from('approval_steps')
-        .insert({
+        }
+      } else {
+        await db.from('approval_steps').insert({
           request_id: request.id,
           stage: stageConfig.stage,
           stage_name: stageConfig.name,
-          approver_id: params.requesterId, // requester becomes approver as fallback
+          approver_id: params.requesterId,
           status: 'pending',
         });
+      }
     }
   }
 

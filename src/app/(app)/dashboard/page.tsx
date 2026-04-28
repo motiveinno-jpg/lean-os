@@ -68,6 +68,7 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -88,6 +89,7 @@ export default function DashboardPage() {
         setCompanyId(u.company_id);
         setUserId(u.id);
         setUserName(u.name || u.email);
+        setUserEmail(u.email || "");
         setCompanyName(u.companies?.name || "");
 
         // Check deal count for onboarding
@@ -271,7 +273,7 @@ export default function DashboardPage() {
   // ── Employee Dashboard ──
   if (role === "employee") {
     return (
-      <EmployeeDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} />
+      <EmployeeDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} userEmail={userEmail} />
     );
   }
 
@@ -2451,8 +2453,8 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 // Employee Dashboard — 출퇴근/프로젝트/휴가/급여/공지
 // ═══════════════════════════════════════════
 
-function EmployeeDashboard({ userName, companyId, companyName, userId }: {
-  userName: string; companyId: string | null; companyName: string; userId: string | null;
+function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail }: {
+  userName: string; companyId: string | null; companyName: string; userId: string | null; userEmail: string;
 }) {
   const { toast } = useToast();
   const db = supabase as any;
@@ -2463,18 +2465,20 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
   const [checkingOut, setCheckingOut] = useState(false);
   const queryClient = useQueryClient();
 
-  // 직원 ID 가져오기 (users.id → employees.id 매핑)
+  // 직원 ID 가져오기 (auth user → employees 매핑: user_id 또는 email)
   const { data: employeeId } = useQuery({
-    queryKey: ["emp-id", userId],
+    queryKey: ["emp-id", userId, userEmail],
     queryFn: async () => {
+      const filters = [`user_id.eq.${userId}`];
+      if (userEmail) filters.push(`email.eq.${userEmail}`);
       const { data } = await db
         .from("employees")
         .select("id")
         .eq("company_id", companyId!)
-        .or(`email.eq.${userId},id.eq.${userId}`)
+        .or(filters.join(","))
         .limit(1)
         .maybeSingle();
-      return data?.id || userId;
+      return data?.id || null;
     },
     enabled: !!companyId && !!userId,
   });

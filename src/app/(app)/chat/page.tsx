@@ -1454,7 +1454,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
-    queryFn: () => getChannels(companyId!),
+    queryFn: () => getChannels(companyId!, userId || undefined),
     enabled: !!companyId,
   });
 

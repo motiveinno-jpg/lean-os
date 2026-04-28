@@ -45,6 +45,13 @@ serve(async (req) => {
     const today = date || new Date().toISOString().slice(0, 10);
     const now = new Date().toISOString();
 
+    const { data: empCheck } = await admin.from("employees").select("id").eq("id", employeeId).maybeSingle();
+    if (!empCheck) {
+      return new Response(JSON.stringify({ error: "직원 정보를 찾을 수 없습니다. 관리자에게 문의하세요." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "checkin") {
       await admin.from("attendance_records")
         .delete()
