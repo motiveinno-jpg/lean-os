@@ -46,6 +46,7 @@ export default function EmployeesPage() {
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("employees");
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) { setCompanyId(u.company_id); setUserId(u.id); }
+      if (u) { setCompanyId(u.company_id); setUserId(u.id); setUserEmail(u.email); }
     });
   }, []);
 
@@ -202,7 +203,7 @@ export default function EmployeesPage() {
       {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
       {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
-      {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} role={role} />}
+      {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} userEmail={userEmail} queryClient={queryClient} role={role} />}
       {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
       {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
@@ -1128,6 +1129,33 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         {/* Files Tab */}
         {detailTab === "files" && (
           <div className="space-y-2">
+            {/* 파일 업로드 버튼 */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-[var(--text-dim)]">총 {files.length}건</span>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold cursor-pointer transition">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                서류 업로드
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.hwp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      await uploadEmployeeFile({ companyId, employeeId, category: "other", file });
+                      queryClient.invalidateQueries({ queryKey: ["employee-files", employeeId] });
+                      toast("파일이 업로드되었습니다", "success");
+                    } catch (err: any) {
+                      toast(err.message || "업로드 실패", "error");
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
             {files.length === 0 ? (
               <div className="text-center py-8 text-sm text-[var(--text-dim)]">제출된 서류가 없습니다</div>
             ) : (
@@ -2732,15 +2760,48 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
 // ── Expense Tab ──
 function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: any) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", amount: "", category: "general", description: "" });
+  const [receiptFiles, setReceiptFiles] = useState<{ file: File; name: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadReceipts(): Promise<string[]> {
+    if (receiptFiles.length === 0) return [];
+    const urls: string[] = [];
+    for (const { file } of receiptFiles) {
+      const ext = file.name.split(".").pop();
+      const path = `expense-receipts/${companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("document-files").upload(path, file);
+      if (error) throw new Error(`영수증 업로드 실패: ${error.message}`);
+      const { data: urlData } = supabase.storage.from("document-files").getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  }
 
   const addExpense = useMutation({
-    mutationFn: () => createExpenseRequest({
-      companyId: companyId!, requesterId: userId!, title: form.title.trim(),
-      amount: Number(form.amount), category: form.category, description: form.description.trim(),
-    }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["approval"] }); setShowForm(false); setForm({ title: "", amount: "", category: "general", description: "" }); },
+    mutationFn: async () => {
+      setUploading(true);
+      try {
+        const receiptUrls = await uploadReceipts();
+        return createExpenseRequest({
+          companyId: companyId!, requesterId: userId!, title: form.title.trim(),
+          amount: Number(form.amount), category: form.category, description: form.description.trim(),
+          receiptUrls,
+        });
+      } finally {
+        setUploading(false);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["approval"] });
+      setShowForm(false);
+      setForm({ title: "", amount: "", category: "general", description: "" });
+      setReceiptFiles([]);
+    },
+    onError: (err: any) => toast(err.message || "청구 실패", "error"),
   });
 
   const approve = useMutation({
@@ -2771,7 +2832,36 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
             </div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
           </div>
-          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addExpense.isPending ? "청구 중..." : "청구"}</button>
+          {/* 영수증 첨부 */}
+          <div className="mb-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">영수증 첨부 (선택)</label>
+            <div className="flex flex-wrap gap-2 items-center">
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--primary)] cursor-pointer transition">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                파일 첨부
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.gif"
+                  onChange={e => {
+                    const added = Array.from(e.target.files || []).map(f => ({ file: f, name: f.name }));
+                    setReceiptFiles(prev => [...prev, ...added]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {receiptFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-1 px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-[10px]">
+                  <span className="max-w-[120px] truncate">{f.name}</span>
+                  <button onClick={() => setReceiptFiles(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending || uploading} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addExpense.isPending || uploading ? "처리 중..." : "청구"}</button>
         </div>
       )}
 
@@ -2797,7 +2887,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
                     <td className="px-5 py-3 text-sm font-medium">{e.title}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.users?.name || e.users?.email || "—"}</td>
                     <td className="px-5 py-3 text-xs">{cat?.label || e.category}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(e.amount).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(e.amount).toLocaleString("ko-KR")}</td>
                     <td className="px-5 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span></td>
                     <td className="px-5 py-3 text-center">
                       {e.status === "pending" && !isEmployee && (
@@ -2810,6 +2900,11 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
                   </tr>
                 );
               })}
+              <tr className="bg-[var(--bg-surface)]/60">
+                <td colSpan={3} className="px-5 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td>
+                <td className="px-5 py-2 text-sm text-right font-bold">₩{expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString("ko-KR")}</td>
+                <td colSpan={2} />
+              </tr>
             </tbody>
           </table></div>
         )}
@@ -2819,7 +2914,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 }
 
 // ── Attendance Tab ──
-function AttendanceTab({ employees, companyId, userId, queryClient, role }: any) {
+function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
   const { toast } = useToast();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -2978,7 +3073,13 @@ function AttendanceTab({ employees, companyId, userId, queryClient, role }: any)
     return ATTENDANCE_STATUS.find((s) => s.value === status)?.label || status;
   };
 
-  const activeEmployees = employees.filter((e: any) => e.status === "active");
+  // active + joined 모두 포함 (초대 수락 후 아직 active 아닌 직원도 체크인 가능)
+  const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
+  // employee 역할: 본인 직원 레코드 자동 선택 (user_id 매칭 → 이메일 폴백)
+  const isEmployeeRole = role === "employee";
+  const myEmployeeRecord = isEmployeeRole
+    ? employees.find((e: any) => e.user_id === userId) || employees.find((e: any) => e.email === userEmail)
+    : null;
 
   return (
     <div>
@@ -3062,14 +3163,42 @@ function AttendanceTab({ employees, companyId, userId, queryClient, role }: any)
           </div>
         </div>
         <div className="flex gap-2">
-          {activeEmployees.length > 0 && (
+          {isEmployeeRole && myEmployeeRecord ? (
+            /* 직원 역할: 본인 전용 출퇴근 버튼 */
+            (() => {
+              const todayStr = new Date().toISOString().slice(0, 10);
+              const todayRecord = records.find((r: any) => r.employee_id === myEmployeeRecord.id && r.date === todayStr);
+              const hasIn = !!todayRecord;
+              const hasOut = !!todayRecord?.check_out;
+              return (
+                <>
+                  <button
+                    disabled={hasIn}
+                    onClick={() => doCheckIn.mutate(myEmployeeRecord.id)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+                  >
+                    {hasIn ? "출근 완료" : "출근"}
+                  </button>
+                  <button
+                    disabled={!hasIn || hasOut}
+                    onClick={() => doCheckOut.mutate(myEmployeeRecord.id)}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+                  >
+                    {hasOut ? "퇴근 완료" : "퇴근"}
+                  </button>
+                </>
+              );
+            })()
+          ) : !isEmployeeRole && activeEmployees.length > 0 ? (
             <QuickAttendanceButtons
               employees={activeEmployees}
               records={records}
               onCheckIn={(empId: string) => doCheckIn.mutate(empId)}
               onCheckOut={(empId: string) => doCheckOut.mutate(empId)}
             />
-          )}
+          ) : isEmployeeRole ? (
+            <div className="text-xs text-[var(--text-muted)] py-2">직원 정보가 연결되지 않았습니다</div>
+          ) : null}
         </div>
       </div>
 
@@ -3681,7 +3810,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
   const calDaysInMonth = new Date(calYear, calMon, 0).getDate();
   const calFirstDow = new Date(calYear, calMon - 1, 1).getDay();
 
-  const activeEmployees = employees.filter((e: any) => e.status === "active");
+  const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
 
   // Track which employees have no balance yet
   const employeesWithBalance = new Set(balances.map((b: any) => b.employee_id));

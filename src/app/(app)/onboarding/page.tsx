@@ -194,6 +194,12 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (userLoading || !companyId) return;
 
+    // 직원/파트너 역할은 온보딩 불필요 → 대시보드로
+    if (user?.role === "employee" || user?.role === "partner") {
+      router.replace("/dashboard");
+      return;
+    }
+
     async function checkStatus() {
       try {
         const { data: comp } = await db

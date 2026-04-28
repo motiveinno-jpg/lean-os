@@ -625,15 +625,19 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
 
   const isLeave = form.requestType === "leave";
 
-  // Fetch current user's employee record (match by email)
+  // Fetch current user's employee record (이메일 매칭 → user_id 폴백)
   const { data: currentEmployee } = useQuery({
     queryKey: ["my-employee", companyId, userId],
     queryFn: async () => {
-      // Get user email
       const { data: user } = await db.from("users").select("email, name").eq("id", userId).single();
       if (!user?.email) return null;
-      // Find matching employee
-      const { data: emp } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("email", user.email).maybeSingle();
+      // 이메일로 매칭
+      let { data: emp } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("email", user.email).maybeSingle();
+      // 이메일 실패 시 user_id로 폴백
+      if (!emp) {
+        const { data: empById } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
+        emp = empById;
+      }
       return emp ? { ...emp, userName: user.name } : { id: null, name: user.name, userName: user.name };
     },
     enabled: !!companyId && !!userId,
