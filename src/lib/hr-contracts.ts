@@ -664,7 +664,7 @@ export async function sendContractPackage(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-signature-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -672,10 +672,9 @@ export async function sendContractPackage(
       },
       body: JSON.stringify({
         to: pkg.employees.email,
-        employeeName: pkg.employees.name,
+        signerName: pkg.employees.name,
         companyName: company?.name || '',
-        packageTitle: pkg.title,
-        documentCount: count || 0,
+        title: pkg.title,
         signUrl,
         expiresAt: expiresAt.toISOString(),
       }),

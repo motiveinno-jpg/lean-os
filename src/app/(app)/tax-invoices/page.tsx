@@ -332,6 +332,7 @@ export default function TaxInvoicesPage() {
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
+  const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [partnerSearch, setPartnerSearch] = useState("");
@@ -926,15 +927,36 @@ export default function TaxInvoicesPage() {
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 공급가액 (원) *
               </label>
-              <input
-                type="number"
-                value={form.supplyAmount}
-                onChange={(e) =>
-                  setForm({ ...form, supplyAmount: e.target.value })
-                }
-                placeholder="10000000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.supplyAmount ? Number(form.supplyAmount).toLocaleString("ko-KR") : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, "");
+                    setForm({ ...form, supplyAmount: raw });
+                  }}
+                  placeholder="10,000,000"
+                  className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = prompt("공급대가(합계금액)를 입력하세요.\n부가세 포함 총액에서 공급가액과 부가세를 자동 분리합니다.");
+                    if (input) {
+                      const total = Number(input.replace(/[^0-9]/g, ""));
+                      if (total > 0) {
+                        const supply = Math.floor(total / 1.1);
+                        setForm({ ...form, supplyAmount: String(supply) });
+                      }
+                    }
+                  }}
+                  className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition whitespace-nowrap"
+                  title="홈택스 방식: 합계금액 입력 → 공급가액/부가세 자동 분리"
+                >
+                  합계→분리
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -1582,7 +1604,7 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3 text-sm font-medium">
                         <div className="flex items-center gap-2">
                           {r.dealId ? (
-                            <a href="/deals" className="hover:text-[var(--primary)] hover:underline transition">{r.dealName || "딜 없음"}</a>
+                            <button onClick={() => setMatchDealPopup(r)} className="hover:text-[var(--primary)] hover:underline transition text-left">{r.dealName || "딜 없음"}</button>
                           ) : (r.dealName || "딜 없음")}
                           {r.suggestedDeal && (
                             <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[9px] font-bold whitespace-nowrap">AI 추천</span>
@@ -1593,7 +1615,7 @@ export default function TaxInvoicesPage() {
                         </div>
                         {r.contractAmount > 0 && (
                           <div className="text-[10px] mt-0.5 flex items-center gap-1">
-                            <a href="/deals" className="text-[var(--primary)] hover:underline cursor-pointer">계약 {r.contractAmount.toLocaleString('ko-KR')}원</a>
+                            <button onClick={() => setMatchDealPopup(r)} className="text-[var(--primary)] hover:underline cursor-pointer">계약 {r.contractAmount.toLocaleString('ko-KR')}원</button>
                             <span className="text-[var(--text-dim)]">=</span>
                             <button onClick={() => { const inv = invoices.find((i: any) => i.id === r.invoiceId); if (inv) { setTab("sales"); setSelectedInvoice(inv); } }} className="text-[var(--primary)] hover:underline cursor-pointer">공급가액 {r.invoiceSupplyAmount.toLocaleString('ko-KR')}원</button>
                           </div>
@@ -1644,6 +1666,63 @@ export default function TaxInvoicesPage() {
               </table></div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 계약 상세 팝업 모달 */}
+      {matchDealPopup && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMatchDealPopup(null)}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold">계약 ↔ 세금계산서 매칭 상세</h3>
+              <button onClick={() => setMatchDealPopup(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">&times;</button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <div className="text-[10px] text-[var(--text-dim)] uppercase mb-1">딜 (프로젝트)</div>
+                <div className="text-sm font-semibold">{matchDealPopup.dealName || "—"}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--bg-surface)] rounded-xl p-3">
+                  <div className="text-[10px] text-[var(--text-dim)] mb-1">계약금액</div>
+                  <div className="text-base font-bold">₩{(matchDealPopup.contractAmount || 0).toLocaleString("ko-KR")}</div>
+                </div>
+                <div className="bg-[var(--bg-surface)] rounded-xl p-3">
+                  <div className="text-[10px] text-[var(--text-dim)] mb-1">세금계산서 공급가액</div>
+                  <div className="text-base font-bold">₩{(matchDealPopup.invoiceSupplyAmount || 0).toLocaleString("ko-KR")}</div>
+                </div>
+                <div className="bg-[var(--bg-surface)] rounded-xl p-3">
+                  <div className="text-[10px] text-[var(--text-dim)] mb-1">부가세</div>
+                  <div className="text-sm font-semibold">₩{(matchDealPopup.invoiceTaxAmount || 0).toLocaleString("ko-KR")}</div>
+                </div>
+                <div className="bg-[var(--bg-surface)] rounded-xl p-3">
+                  <div className="text-[10px] text-[var(--text-dim)] mb-1">차액</div>
+                  <div className={`text-sm font-semibold ${Math.abs(matchDealPopup.gap) < 1 ? "text-green-400" : "text-red-400"}`}>
+                    {matchDealPopup.gap === 0 ? "0원 (일치)" : `₩${matchDealPopup.gap.toLocaleString("ko-KR")}`}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${matchDealPopup.amountMatch ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                  계약매칭 {matchDealPopup.amountMatch ? "✓" : "✗"}
+                </span>
+                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${matchDealPopup.paymentMatch ? "bg-green-500/15 text-green-400" : "bg-orange-500/15 text-orange-400"}`}>
+                  입금매칭 {matchDealPopup.paymentMatch ? "✓" : "✗"}
+                </span>
+                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${matchDealPopup.fullMatch ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                  전체매칭 {matchDealPopup.fullMatch ? "✓" : "✗"}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-2 px-5 py-3 border-t border-[var(--border)]">
+              <Link href="/deals" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
+                딜 페이지로 이동
+              </Link>
+              <button onClick={() => setMatchDealPopup(null)} className="flex-1 px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold">
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

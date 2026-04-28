@@ -919,7 +919,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const { data: empLeaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", employeeId, currentYear],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).single();
+      const { data } = await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).maybeSingle();
       return data;
     },
     enabled: !!employeeId && detailTab === "leave",
@@ -2251,9 +2251,32 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
             <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
           </div>
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
-            <RichEditor content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+          <div className="flex gap-4 mb-4">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
+              <RichEditor content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+            </div>
+            <div className="w-40 shrink-0">
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">변수 삽입</label>
+              <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 space-y-1.5">
+                <p className="text-[9px] text-[var(--text-dim)] mb-2">클릭하면 커서 위치에 삽입됩니다</p>
+                {[
+                  { v: "{{직원명}}", desc: "직원 이름" },
+                  { v: "{{부서}}", desc: "소속 부서" },
+                  { v: "{{직위}}", desc: "직급/직위" },
+                  { v: "{{연봉}}", desc: "연봉 금액" },
+                  { v: "{{입사일}}", desc: "입사 일자" },
+                  { v: "{{회사명}}", desc: "회사 이름" },
+                  { v: "{{대표자}}", desc: "대표자명" },
+                ].map(({ v, desc }) => (
+                  <button key={v} type="button" onClick={() => setNewTemplateBody(prev => prev + v)}
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group">
+                    <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
+                    <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -2280,11 +2303,6 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
             >
               {savingTemplate ? "저장 중..." : "서식 저장"}
             </button>
-            <div className="flex flex-wrap gap-1.5">
-              {["{{직원명}}", "{{부서}}", "{{직위}}", "{{연봉}}", "{{입사일}}", "{{회사명}}", "{{대표자}}"].map(v => (
-                <button key={v} type="button" onClick={() => setNewTemplateBody(prev => prev + v)} className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition">{v}</button>
-              ))}
-            </div>
           </div>
         </div>
       )}

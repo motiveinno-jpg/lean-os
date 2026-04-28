@@ -318,7 +318,11 @@ export default function DashboardPage() {
           </Link>
           <Link href="/settings" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
-            <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
+            {sp.monthlyBurn > 0 ? (
+              <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
+            ) : (
+              <div className="text-xs text-[var(--text-dim)] mt-1">설정 &gt; 고정비 또는 엑셀 업로드</div>
+            )}
           </Link>
         </div>
 
