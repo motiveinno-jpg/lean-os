@@ -1581,7 +1581,9 @@ export default function TaxInvoicesPage() {
                     >
                       <td className="px-5 py-3 text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          {r.dealName || "딜 없음"}
+                          {r.dealId ? (
+                            <a href="/deals" className="hover:text-[var(--primary)] hover:underline transition">{r.dealName || "딜 없음"}</a>
+                          ) : (r.dealName || "딜 없음")}
                           {r.suggestedDeal && (
                             <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[9px] font-bold whitespace-nowrap">AI 추천</span>
                           )}
@@ -1590,8 +1592,10 @@ export default function TaxInvoicesPage() {
                           )}
                         </div>
                         {r.contractAmount > 0 && (
-                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                            계약 {r.contractAmount.toLocaleString('ko-KR')}원 = 공급가액 {r.invoiceSupplyAmount.toLocaleString('ko-KR')}원
+                          <div className="text-[10px] mt-0.5 flex items-center gap-1">
+                            <a href="/deals" className="text-[var(--primary)] hover:underline cursor-pointer">계약 {r.contractAmount.toLocaleString('ko-KR')}원</a>
+                            <span className="text-[var(--text-dim)]">=</span>
+                            <button onClick={() => { const inv = invoices.find((i: any) => i.id === r.invoiceId); if (inv) { setTab("sales"); setSelectedInvoice(inv); } }} className="text-[var(--primary)] hover:underline cursor-pointer">공급가액 {r.invoiceSupplyAmount.toLocaleString('ko-KR')}원</button>
                           </div>
                         )}
                       </td>

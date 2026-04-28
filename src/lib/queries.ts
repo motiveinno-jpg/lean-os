@@ -528,18 +528,23 @@ export async function getFounderData(companyId: string) {
   const quarter = `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
   const year = String(now.getFullYear());
 
-  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes] = await Promise.all([
+  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes, bankRes, recurRes] = await Promise.all([
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month', { ascending: false }),
     supabase.from('financial_items').select('*').eq('company_id', companyId).eq('month', thisMonth),
     supabase.from('growth_targets').select('*').eq('company_id', companyId),
     supabase.from('deals').select('*').eq('company_id', companyId),
-    // deal_nodes has no company_id column; RLS scopes it to the current company.
     supabase.from('deal_nodes').select('id, deal_id'),
     supabase.from('deal_cost_schedule').select('amount, deal_node_id').eq('company_id', companyId),
+    supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
+    supabase.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
   ]);
 
   const allMonths = mfRes.data || [];
   const currentMonth = allMonths.find((m: any) => m.month === thisMonth) || allMonths[0] || null;
+  const bankAccounts = bankRes.data || [];
+  const recurringPayments = recurRes.data || [];
+  const bankAccountsTotal = bankAccounts.reduce((s: number, b: any) => s + Number(b.balance || 0), 0);
+  const recurringTotal = recurringPayments.filter((r: any) => r.is_active).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
   const items = itemsRes.data || [];
   const targets = targetsRes.data || [];
   const deals = dealsRes.data || [];
@@ -575,13 +580,22 @@ export async function getFounderData(companyId: string) {
   return {
     currentMonth: currentMonth ? {
       month: currentMonth.month,
-      bank_balance: Number(currentMonth.bank_balance || 0),
+      bank_balance: Number(currentMonth.bank_balance || 0) || bankAccountsTotal,
       total_income: Number(currentMonth.total_income || 0),
       total_expense: Number(currentMonth.total_expense || 0),
-      fixed_cost: Number(currentMonth.fixed_cost || 0),
+      fixed_cost: Number(currentMonth.fixed_cost || 0) || recurringTotal,
       variable_cost: Number(currentMonth.variable_cost || 0),
       net_cashflow: Number(currentMonth.net_cashflow || 0),
       revenue: Number(currentMonth.revenue || 0),
+    } : (bankAccountsTotal > 0 || recurringTotal > 0) ? {
+      month: thisMonth,
+      bank_balance: bankAccountsTotal,
+      total_income: 0,
+      total_expense: 0,
+      fixed_cost: recurringTotal,
+      variable_cost: 0,
+      net_cashflow: 0,
+      revenue: 0,
     } : null,
     items: items.map((i: any) => ({
       category: i.category,

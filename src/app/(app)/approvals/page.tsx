@@ -647,7 +647,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
       const { data } = await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id).eq("year", currentYear).maybeSingle();
       return data;
     },
-    enabled: !!currentEmployee?.id && isLeave,
+    enabled: !!currentEmployee?.id,
   });
 
   const remainingLeave = leaveBalance ? Number(leaveBalance.total_days) - Number(leaveBalance.used_days) : null;
@@ -952,11 +952,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
                   <input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    value={form.amount ? Number(form.amount).toLocaleString() : ""}
+                    onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, amount: raw }); }}
                     placeholder="0"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
                   />
                 </div>
 
@@ -1226,11 +1227,12 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원)</label>
               <input
-                type="number"
-                value={form.autoApproveBelow}
-                onChange={(e) => setForm({ ...form, autoApproveBelow: e.target.value })}
+                type="text"
+                inputMode="numeric"
+                value={form.autoApproveBelow ? Number(form.autoApproveBelow).toLocaleString() : ""}
+                onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, autoApproveBelow: raw }); }}
                 placeholder="0 (비활성)"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
               />
             </div>
           </div>

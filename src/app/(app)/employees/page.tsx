@@ -354,6 +354,30 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
   });
 
+  // 직원 삭제 (중복/초대 정리용)
+  const deleteMut = useMutation({
+    mutationFn: async (empId: string) => {
+      const emp = employees.find((e: any) => e.id === empId);
+      if (!emp) throw new Error("직원을 찾을 수 없습니다");
+      if (emp.status === "active") throw new Error("재직 중인 직원은 삭제할 수 없습니다");
+      if (emp.email) {
+        await supabase.from("employee_invitations").delete().eq("email", emp.email).eq("company_id", companyId);
+      }
+      const { error } = await supabase.from("employees").delete().eq("id", empId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
+      setInviteMsg({ ok: true, msg: "삭제 완료" });
+      setTimeout(() => setInviteMsg(null), 3000);
+    },
+    onError: (err: any) => {
+      setInviteMsg({ ok: false, msg: err.message || "삭제 실패" });
+      setTimeout(() => setInviteMsg(null), 4000);
+    },
+  });
+
   // 초대 링크 복사
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   function copyLink(token: string) {
@@ -579,6 +603,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
               <th className="text-center px-5 py-3 font-medium">잔여연차</th>
               <th className="text-right px-5 py-3 font-medium">퇴직충당금</th>
               <th className="text-center px-5 py-3 font-medium">상태</th>
+              <th className="px-3 py-3 font-medium w-10"></th>
             </tr></thead>
             <tbody>
               {employees.map((e: any) => {
@@ -613,6 +638,20 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                     <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {e.status !== "active" && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            if (confirm(`${e.name} 직원을 삭제하시겠습니까?`)) deleteMut.mutate(e.id);
+                          }}
+                          className="text-[var(--text-dim)] hover:text-red-500 transition"
+                          title="삭제"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

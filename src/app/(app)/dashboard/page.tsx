@@ -298,28 +298,28 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 핵심 지표 4개 (admin용 경량) */}
+        {/* 핵심 지표 4개 (admin용 경량) — 클릭 시 해당 페이지 이동 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+          <Link href="/approvals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
             <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
               {sp.pendingApprovals}건
             </div>
-          </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+          </Link>
+          <Link href="/settings" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">통장 잔고</div>
             <div className="text-lg font-black">₩{fmtW(sp.cashBalance)}</div>
-          </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+          </Link>
+          <Link href="/tax-invoices" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미수금</div>
             <div className="text-lg font-black" style={{ color: sp.arTotal > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
               ₩{fmtW(sp.arTotal)}
             </div>
-          </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+          </Link>
+          <Link href="/settings" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
             <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
-          </div>
+          </Link>
         </div>
 
         {/* 승인센터 */}
