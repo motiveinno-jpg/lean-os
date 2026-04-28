@@ -2596,34 +2596,29 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
   });
 
   // 출근/퇴근 처리
+  const [attendanceStatus, setAttendanceStatus] = useState<string>("present");
+
   const handleCheckIn = async () => {
     if (!employeeId || !companyId) return;
     setCheckingIn(true);
     try {
       const now = new Date().toISOString();
-      const { data: existing } = await db
-        .from("attendance_records")
-        .select("id")
-        .eq("employee_id", employeeId)
-        .eq("date", today)
-        .maybeSingle();
-      if (existing) {
+      const { error } = await db.from("attendance_records").insert({
+        company_id: companyId,
+        employee_id: employeeId,
+        date: today,
+        check_in: now,
+        status: attendanceStatus,
+        work_hours: 0,
+        overtime_hours: 0,
+      });
+      if (error) {
         await db.from("attendance_records").update({
           check_in: now,
-          status: "present",
+          status: attendanceStatus,
           work_hours: 0,
           overtime_hours: 0,
-        }).eq("id", existing.id);
-      } else {
-        await db.from("attendance_records").insert({
-          company_id: companyId,
-          employee_id: employeeId,
-          date: today,
-          check_in: now,
-          status: "present",
-          work_hours: 0,
-          overtime_hours: 0,
-        });
+        }).eq("employee_id", employeeId).eq("date", today);
       }
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
     } catch {}
@@ -2729,7 +2724,31 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
           )}
         </div>
 
-        {/* 출근/퇴근 버튼 */}
+        {/* 근무 형태 선택 + 출근/퇴근 버튼 */}
+        {!isCheckedIn && (
+          <div className="flex gap-2 mb-3">
+            {[
+              { value: "present", label: "출근", color: "green" },
+              { value: "remote", label: "재택", color: "blue" },
+              { value: "half_day", label: "반차", color: "yellow" },
+              { value: "absent", label: "결근", color: "red" },
+            ].map(({ value, label, color }) => (
+              <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  attendanceStatus === value
+                    ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/40`
+                    : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
+                }`}
+                style={attendanceStatus === value ? {
+                  backgroundColor: color === "green" ? "rgba(34,197,94,0.2)" : color === "blue" ? "rgba(59,130,246,0.2)" : color === "yellow" ? "rgba(234,179,8,0.2)" : "rgba(239,68,68,0.2)",
+                  color: color === "green" ? "#4ade80" : color === "blue" ? "#60a5fa" : color === "yellow" ? "#facc15" : "#f87171",
+                  borderColor: color === "green" ? "rgba(34,197,94,0.4)" : color === "blue" ? "rgba(59,130,246,0.4)" : color === "yellow" ? "rgba(234,179,8,0.4)" : "rgba(239,68,68,0.4)",
+                } : {}}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3">
           {!isCheckedIn ? (
             <button
@@ -2737,7 +2756,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
               disabled={checkingIn}
               className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
             >
-              {checkingIn ? "처리 중..." : "출근하기"}
+              {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
             </button>
           ) : !isCheckedOut ? (
             <button

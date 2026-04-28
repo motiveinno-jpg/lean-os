@@ -999,8 +999,10 @@ export default function TaxInvoicesPage() {
                     if (input) {
                       const total = Number(input.replace(/[^0-9]/g, ""));
                       if (total > 0) {
-                        const supply = Math.floor(total / 1.1);
+                        const supply = Math.round(total / 1.1);
+                        const tax = total - supply;
                         setForm({ ...form, supplyAmount: String(supply) });
+                        toast(`공급가액 ₩${supply.toLocaleString()} + 세액 ₩${tax.toLocaleString()} = 합계 ₩${total.toLocaleString()}`, "success");
                       }
                     }
                   }}
@@ -1073,20 +1075,19 @@ export default function TaxInvoicesPage() {
                 </div>
               </div>
             </div>
-            {Number(form.supplyAmount) > 0 && (
-              <div className="col-span-2 flex items-end pb-1">
-                <div className="text-xs text-[var(--text-dim)]">
-                  공급가액: ₩{Number(form.supplyAmount).toLocaleString("ko")} / 부가세: ₩
-                  {Math.round(
-                    Number(form.supplyAmount) * 0.1
-                  ).toLocaleString("ko")}{" "}
-                  / 합계: ₩
-                  {Math.round(
-                    Number(form.supplyAmount) * 1.1
-                  ).toLocaleString("ko")}
+            {Number(form.supplyAmount) > 0 && (() => {
+              const sa = Number(form.supplyAmount);
+              const ta = Math.round(sa * 0.1);
+              return (
+                <div className="col-span-2 flex items-end pb-1">
+                  <div className="text-xs text-[var(--text-dim)]">
+                    공급가액: <span className="font-mono font-medium text-[var(--text)]">₩{sa.toLocaleString("ko-KR")}</span>
+                    {" / "}부가세: <span className="font-mono font-medium text-[var(--text)]">₩{ta.toLocaleString("ko-KR")}</span>
+                    {" / "}합계: <span className="font-mono font-semibold text-[var(--primary)]">₩{(sa + ta).toLocaleString("ko-KR")}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
           <div className="flex gap-2">
             <button

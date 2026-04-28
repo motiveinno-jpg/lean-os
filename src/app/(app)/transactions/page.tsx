@@ -684,8 +684,8 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">금액 (원) *</label>
-                <input type="number" min="1" value={manualForm.amount} onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="1,500,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <input type="text" inputMode="numeric" value={manualForm.amount ? Number(manualForm.amount).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setManualForm(f => ({ ...f, amount: v })); }}
+                  placeholder="1,500,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래처</label>
@@ -1244,8 +1244,8 @@ export default function TransactionsPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">월 한도 (선택)</label>
-                  <input type="number" value={cardForm.monthly_limit} onChange={e => setCardForm({ ...cardForm, monthly_limit: e.target.value })}
-                    placeholder="5000000" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm" />
+                  <input type="text" inputMode="numeric" value={cardForm.monthly_limit ? Number(cardForm.monthly_limit).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setCardForm({ ...cardForm, monthly_limit: v }); }}
+                    placeholder="5,000,000" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right font-mono" />
                 </div>
               </div>
             </div>
