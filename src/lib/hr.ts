@@ -172,27 +172,20 @@ export const LEAVE_REQUEST_STATUS = {
 } as const;
 
 // ── Attendance: Check In ──
-export async function checkIn(companyId: string, employeeId: string, workStartTime: string = "09:30") {
+export async function checkIn(companyId: string, employeeId: string, status: string = "auto") {
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
 
-  // Check if already checked in today
-  const { data: existing } = await db
-    .from('attendance_records')
-    .select('id')
-    .eq('employee_id', employeeId)
-    .eq('date', today)
-    .maybeSingle();
-
-  if (existing) {
-    throw new Error('이미 오늘 출근 기록이 있습니다');
+  if (status === "auto") {
+    const hour = new Date().getHours();
+    const minute = new Date().getMinutes();
+    status = (hour > 9 || (hour === 9 && minute > 30)) ? "late" : "present";
   }
 
-  // Determine status based on workStartTime (default: 09:30)
-  const [thresholdHour, thresholdMinute] = workStartTime.split(':').map(Number);
-  const hour = new Date().getHours();
-  const minute = new Date().getMinutes();
-  const status = (hour > thresholdHour || (hour === thresholdHour && minute > thresholdMinute)) ? 'late' : 'present';
+  await db.from('attendance_records')
+    .delete()
+    .eq('employee_id', employeeId)
+    .eq('date', today);
 
   const { data, error } = await db
     .from('attendance_records')
@@ -395,8 +388,33 @@ export async function getLeaveRequests(companyId: string, status?: string) {
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
-  const { data } = await query;
-  return data || [];
+  const { data: leaveData } = await query;
+
+  let approvalQuery = db
+    .from('approval_requests')
+    .select('*, users(name, email)')
+    .eq('company_id', companyId)
+    .eq('request_type', 'leave')
+    .order('created_at', { ascending: false });
+  if (status) approvalQuery = approvalQuery.eq('status', status);
+  const { data: approvalLeaves } = await approvalQuery;
+
+  const mapped = (approvalLeaves || []).map((a: any) => ({
+    id: `approval-${a.id}`,
+    company_id: a.company_id,
+    employee_id: a.requester_id,
+    leave_type: a.description?.match(/종류:\s*(\S+)/)?.[1] || 'annual',
+    start_date: a.description?.match(/기간:\s*(\S+)/)?.[1] || a.created_at?.slice(0, 10),
+    end_date: a.description?.match(/~\s*(\S+)/)?.[1] || a.created_at?.slice(0, 10),
+    days: Number(a.description?.match(/(\d+(?:\.\d+)?)일/)?.[1]) || 1,
+    reason: a.title,
+    status: a.status,
+    created_at: a.created_at,
+    employees: a.users ? { name: a.users.name || a.users.email, department: '' } : null,
+    _source: 'approval',
+  }));
+
+  return [...(leaveData || []), ...mapped];
 }
 
 // ── Leave: Create request (2시간/반차/종일 지원) ──

@@ -17,6 +17,7 @@ import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
+import { checkIn as hrCheckIn } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
@@ -2453,6 +2454,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 function EmployeeDashboard({ userName, companyId, companyName, userId }: {
   userName: string; companyId: string | null; companyName: string; userId: string | null;
 }) {
+  const { toast } = useToast();
   const db = supabase as any;
   const today = new Date().toISOString().split("T")[0];
   const yearMonth = today.substring(0, 7);
@@ -2602,26 +2604,12 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
     if (!employeeId || !companyId) return;
     setCheckingIn(true);
     try {
-      const now = new Date().toISOString();
-      const { error } = await db.from("attendance_records").insert({
-        company_id: companyId,
-        employee_id: employeeId,
-        date: today,
-        check_in: now,
-        status: attendanceStatus,
-        work_hours: 0,
-        overtime_hours: 0,
-      });
-      if (error) {
-        await db.from("attendance_records").update({
-          check_in: now,
-          status: attendanceStatus,
-          work_hours: 0,
-          overtime_hours: 0,
-        }).eq("employee_id", employeeId).eq("date", today);
-      }
+      await hrCheckIn(companyId, employeeId, attendanceStatus);
+      toast("출근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
-    } catch {}
+    } catch (err: any) {
+      toast(`출근 처리 실패: ${err.message || "알 수 없는 오류"}`, "error");
+    }
     setCheckingIn(false);
   };
 
@@ -2632,17 +2620,39 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
       const now = new Date();
       const checkInTime = new Date(todayAttendance.check_in);
       const hours = Math.max(0, (now.getTime() - checkInTime.getTime()) / 3600000);
-      const workHours = Math.round(Math.min(hours, 9) * 10) / 10;
-      const overtime = Math.round(Math.max(0, hours - 9) * 10) / 10;
-      await db.from("attendance_records").update({
+      const workHours = Math.round(Math.max(0, hours - 1) * 100) / 100;
+      const overtime = Math.round(Math.max(0, workHours - 8) * 100) / 100;
+      const { error } = await db.from("attendance_records").update({
         check_out: now.toISOString(),
         work_hours: workHours,
         overtime_hours: overtime,
       }).eq("employee_id", employeeId).eq("date", today);
+      if (error) throw error;
+      toast("퇴근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
-    } catch {}
+    } catch (err: any) {
+      toast(`퇴근 처리 실패: ${err.message || "알 수 없는 오류"}`, "error");
+    }
     setCheckingOut(false);
+  };
+
+  const handleCancelCheckOut = async () => {
+    if (!employeeId || !todayAttendance?.check_out) return;
+    if (!confirm("퇴근 기록을 취소하시겠습니까?")) return;
+    try {
+      const { error } = await db.from("attendance_records").update({
+        check_out: null,
+        work_hours: 0,
+        overtime_hours: 0,
+      }).eq("employee_id", employeeId).eq("date", today);
+      if (error) throw error;
+      toast("퇴근 취소 완료 — 다시 근무 중입니다", "success");
+      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
+    } catch (err: any) {
+      toast(`퇴근 취소 실패: ${err.message || ""}`, "error");
+    }
   };
 
   const pendingCount = (myRequests || []).filter((r: any) => r.status === "pending").length;
@@ -2767,8 +2777,16 @@ function EmployeeDashboard({ userName, companyId, companyName, userId }: {
               {checkingOut ? "처리 중..." : "퇴근하기"}
             </button>
           ) : (
-            <div className="flex-1 py-3 rounded-xl bg-[var(--bg-surface)] text-center text-sm font-semibold text-[var(--text-muted)]">
-              오늘 근무 완료
+            <div className="flex gap-2 flex-1">
+              <div className="flex-1 py-3 rounded-xl bg-[var(--bg-surface)] text-center text-sm font-semibold text-[var(--text-muted)]">
+                오늘 근무 완료
+              </div>
+              <button
+                onClick={handleCancelCheckOut}
+                className="px-4 py-3 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold transition"
+              >
+                퇴근 취소
+              </button>
             </div>
           )}
         </div>
