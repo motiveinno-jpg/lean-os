@@ -960,7 +960,7 @@ export default function TaxInvoicesPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
-                작성일자 *
+                작성일자 (발행일) *
               </label>
               <input
                 type="date"
@@ -970,6 +970,7 @@ export default function TaxInvoicesPage() {
                 }
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">이 날짜로 세금계산서가 발행됩니다</span>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">영수/청구 구분</label>
@@ -981,20 +982,6 @@ export default function TaxInvoicesPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                거래처 희망일자
-              </label>
-              <input
-                type="date"
-                value={form.preferredDate}
-                onChange={(e) =>
-                  setForm({ ...form, preferredDate: e.target.value })
-                }
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">거래처가 희망하는 발행일</span>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
