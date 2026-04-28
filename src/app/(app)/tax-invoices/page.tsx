@@ -954,7 +954,7 @@ export default function TaxInvoicesPage() {
                   className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition whitespace-nowrap"
                   title="홈택스 방식: 합계금액 입력 → 공급가액/부가세 자동 분리"
                 >
-                  합계→분리
+                  계산
                 </button>
               </div>
             </div>

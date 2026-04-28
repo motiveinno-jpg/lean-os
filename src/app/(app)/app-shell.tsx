@@ -87,19 +87,21 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // 온보딩 미완료 직원 → /onboarding 리다이렉트
+  // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
     if (loading || !user || role !== "employee") return;
-    if (pathname === "/onboarding") return; // 이미 온보딩 중
-    // Check if onboarding is needed
     (async () => {
       const { data: emp } = await (supabase as any)
         .from("employees")
         .select("onboarding_completed_at, status")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (emp && !emp.onboarding_completed_at && (emp.status === "joined" || emp.status === "contract_pending")) {
-        router.replace("/onboarding");
+        // 직원은 회사 온보딩(사업자/계좌/딜 등록)을 할 필요 없으므로 자동 완료 처리
+        await (supabase as any)
+          .from("employees")
+          .update({ onboarding_completed_at: new Date().toISOString() })
+          .eq("user_id", user.id);
       }
     })();
   }, [loading, user, role, pathname, router]);

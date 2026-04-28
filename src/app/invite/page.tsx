@@ -87,7 +87,7 @@ function InviteContent() {
       }
 
       setLoading(false);
-      router.push(invite.type === "employee" ? "/onboarding" : "/dashboard");
+      router.push("/dashboard");
     } catch (err: any) {
       setLoading(false);
       setError(err.message || "오류가 발생했습니다.");

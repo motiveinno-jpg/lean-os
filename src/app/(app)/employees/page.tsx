@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts, createContract,
@@ -44,21 +43,15 @@ const EMPLOYEE_ROLE_TABS: Tab[] = ["attendance", "leave", "expenses", "certifica
 
 export default function EmployeesPage() {
   const { toast } = useToast();
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { user, role, loading: userLoading } = useUser();
+  const companyId = user?.company_id ?? null;
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
   const [tab, setTab] = useState<Tab>("employees");
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { role } = useUser();
   const isEmployee = role === "employee";
-
-  useEffect(() => {
-    getCurrentUser().then((u) => {
-      if (u) { setCompanyId(u.company_id); setUserId(u.id); setUserEmail(u.email); }
-    });
-  }, []);
 
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
@@ -125,7 +118,8 @@ export default function EmployeesPage() {
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
 
-  if (!companyId || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  if (userLoading || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
+  if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">회사 정보를 불러올 수 없습니다. 새로고침 해주세요.</div>;
 
   return (
     <div className="max-w-[1000px]" id="employees-print-area">
