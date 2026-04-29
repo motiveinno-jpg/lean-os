@@ -2356,8 +2356,8 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
     setBulkApproving(false);
   };
 
-  const total = summary?.total || 0;
-  if (total === 0 && actions.length === 0) return null;
+  const total = actions.length;
+  if (total === 0) return null;
 
   return (
     <div className="mb-5 rounded-xl border bg-[var(--bg-card)] p-4"

@@ -118,17 +118,23 @@ export async function cancelEmployeeInvitation(invitationId: string) {
 }
 
 export async function resendEmployeeInvitationByEmail(email: string, companyId: string) {
+  const { data: existing } = await db
+    .from('employee_invitations')
+    .select('*')
+    .eq('email', email)
+    .eq('company_id', companyId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!existing) return null;
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
   const { data, error } = await db
     .from('employee_invitations')
     .update({ expires_at: expiresAt.toISOString() })
-    .eq('email', email)
-    .eq('company_id', companyId)
-    .eq('status', 'pending')
+    .eq('id', existing.id)
     .select()
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single();
   if (error) throw error;
   return data;

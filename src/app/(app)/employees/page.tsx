@@ -643,16 +643,18 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                               ev.stopPropagation();
                               try {
                                 const inv = await resendEmployeeInvitationByEmail(e.email, companyId);
-                                if (inv?.invite_token) {
+                                if (!inv?.invite_token) {
+                                  setInviteMsg({ ok: false, msg: `${e.email} 초대 기록을 찾을 수 없습니다. 새로 초대해주세요.` });
+                                } else {
                                   const result = await sendInviteEmail({
                                     email: e.email, name: e.name || undefined,
                                     role: inv.role || "employee", inviteToken: inv.invite_token,
                                     companyName: companyData?.name || undefined,
                                   });
-                                  setInviteMsg(result.success ? { ok: true, msg: "초대 메일 재발송 완료" } : { ok: false, msg: result.error || "발송 실패" });
+                                  setInviteMsg(result.success ? { ok: true, msg: `${e.email}로 초대 메일 재발송 완료` } : { ok: false, msg: result.error || "이메일 발송 실패" });
                                 }
-                              } catch {
-                                setInviteMsg({ ok: false, msg: "초대 정보를 찾을 수 없습니다" });
+                              } catch (err: any) {
+                                setInviteMsg({ ok: false, msg: err?.message || "초대 재발송 중 오류 발생" });
                               }
                               setTimeout(() => setInviteMsg(null), 4000);
                             }}
