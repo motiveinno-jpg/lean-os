@@ -105,7 +105,7 @@ export default function EmployeesPage() {
 
   const totalSalary = employees.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
-  const activeCount = employees.filter((e: any) => e.status === "active").length;
+  const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
@@ -355,7 +355,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     mutationFn: async (empId: string) => {
       const emp = employees.find((e: any) => e.id === empId);
       if (!emp) throw new Error("직원을 찾을 수 없습니다");
-      if (emp.status === "active") throw new Error("재직 중인 직원은 삭제할 수 없습니다");
+      if (["active", "joined"].includes(emp.status)) throw new Error("재직 중인 직원은 삭제할 수 없습니다");
       if (emp.email) {
         await supabase.from("employee_invitations").delete().eq("email", emp.email).eq("company_id", companyId);
       }
