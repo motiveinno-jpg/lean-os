@@ -85,28 +85,8 @@ const SECTIONS = [
   {
     id: "4",
     title: "제4조 (개인정보 처리의 위탁)",
-    content: `회사는 서비스 제공을 위하여 다음과 같이 개인정보 처리 업무를 외부에 위탁하고 있습니다.
-
-[위탁 현황]
-┌──────────────┬──────────────────────────────────────────────────┐
-│ 수탁업체      │ (주)헥토데이터                                       │
-├──────────────┼──────────────────────────────────────────────────┤
-│ 위탁업무 내용  │ 1. 신용정보주체의 인증 정보를 이용하여 개인(신용)정보를    │
-│              │    중계하는 업무                                     │
-│              │ 2. API 서비스 품질향상 및 업무 대응을 위해 신용정보주체    │
-│              │    인증 정보를 통한 요청/응답 데이터 저장 업무            │
-│              │    (위탁 계약 종료 시 일괄 삭제)                        │
-│              │ 3. 정보주체의 개인정보 열람, 정정·삭제, 처리정지 요청 등을  │
-│              │    처리하는 업무                                      │
-├──────────────┼──────────────────────────────────────────────────┤
-│ 위탁 정보     │ 개인(신용)정보, 요청/응답 데이터 일체, 기업정보          │
-├──────────────┼──────────────────────────────────────────────────┤
-│ 위탁 기간     │ 위탁 계약 종료 시까지                                  │
-└──────────────┴──────────────────────────────────────────────────┘
-
-회사는 위탁 계약 시 개인정보 보호법 제26조에 따라 위탁업무 수행 목적 외 개인정보 처리 금지, 기술적·관리적 보호조치, 재위탁 제한, 수탁자에 대한 관리·감독, 손해배상 등 책임에 관한 사항을 계약서 등 문서에 명시하고, 수탁자가 개인정보를 안전하게 처리하는지를 감독하고 있습니다.
-
-위탁업무의 내용이나 수탁자가 변경될 경우에는 지체 없이 본 개인정보처리방침을 통하여 공개하겠습니다.`,
+    content: "",
+    renderCustom: true,
   },
   {
     id: "5",
@@ -259,6 +239,40 @@ const SECTIONS = [
   },
 ];
 
+function DelegationSection() {
+  return (
+    <div className="text-slate-300 text-sm leading-7 space-y-4">
+      <p>회사는 서비스 제공을 위하여 다음과 같이 개인정보 처리 업무를 외부에 위탁하고 있습니다.</p>
+      <table className="w-full border-collapse border border-white/10 text-left">
+        <thead>
+          <tr className="bg-white/5">
+            <th className="border border-white/10 px-4 py-2.5 font-medium text-white w-[120px]">수탁업체</th>
+            <th className="border border-white/10 px-4 py-2.5 font-medium text-white">위탁업무의 내용</th>
+            <th className="border border-white/10 px-4 py-2.5 font-medium text-white w-[160px]">위탁 정보</th>
+            <th className="border border-white/10 px-4 py-2.5 font-medium text-white w-[110px]">위탁 기간</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-white/10 px-4 py-3 align-top">(주)헥토데이터</td>
+            <td className="border border-white/10 px-4 py-3 align-top">
+              <ul className="list-disc pl-4 space-y-1">
+                <li>신용정보주체의 인증 정보를 이용하여 개인(신용)정보를 중계하는 업무</li>
+                <li>API 서비스 품질향상 및 업무 대응을 위해 신용정보주체 인증 정보를 통한 요청/응답 데이터 저장 업무 (위탁 계약 종료 시 일괄 삭제)</li>
+                <li>정보주체의 개인정보 열람, 정정·삭제, 처리정지 요청 등을 처리하는 업무</li>
+              </ul>
+            </td>
+            <td className="border border-white/10 px-4 py-3 align-top">개인(신용)정보, 요청/응답 데이터 일체, 기업정보</td>
+            <td className="border border-white/10 px-4 py-3 align-top">위탁 계약 종료 시까지</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>회사는 위탁 계약 시 개인정보 보호법 제26조에 따라 위탁업무 수행 목적 외 개인정보 처리 금지, 기술적·관리적 보호조치, 재위탁 제한, 수탁자에 대한 관리·감독, 손해배상 등 책임에 관한 사항을 계약서 등 문서에 명시하고, 수탁자가 개인정보를 안전하게 처리하는지를 감독하고 있습니다.</p>
+      <p>위탁업무의 내용이나 수탁자가 변경될 경우에는 지체 없이 본 개인정보처리방침을 통하여 공개하겠습니다.</p>
+    </div>
+  );
+}
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[#0A0E1A] text-white">
@@ -290,7 +304,11 @@ export default function PrivacyPage() {
           {SECTIONS.map((s) => (
             <section key={s.id} className="scroll-mt-20">
               <h2 className="text-lg font-semibold text-white mb-3">{s.title}</h2>
-              <div className="text-slate-300 text-sm leading-7 whitespace-pre-line">{s.content}</div>
+              {s.renderCustom ? (
+                <DelegationSection />
+              ) : (
+                <div className="text-slate-300 text-sm leading-7 whitespace-pre-line">{s.content}</div>
+              )}
             </section>
           ))}
         </div>
