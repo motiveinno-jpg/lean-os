@@ -66,7 +66,7 @@ export async function previewPayroll(companyId: string): Promise<{
     .from('employees')
     .select('id, name, salary, status, non_taxable_amount, dependents')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0 };
 
@@ -112,7 +112,7 @@ export async function getMonthlyTotalSalary(companyId: string): Promise<number> 
     .from('employees')
     .select('salary')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   return (employees || []).reduce((sum: number, e: any) => sum + Number(e.salary || 0), 0);
 }

@@ -244,7 +244,7 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
     .from('employees')
     .select('id, name, salary, bank_account, bank_name, is_4_insurance, status, non_taxable_amount, dependents')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   if (!employees?.length) throw new Error('활성 직원이 없습니다');
 
@@ -424,7 +424,7 @@ export async function sendPayslipEmails(
     .from('employees')
     .select('id, name, email, salary, is_4_insurance, non_taxable_amount, dependents')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   if (!employees?.length) return { sent: 0, failed: 0 };
 

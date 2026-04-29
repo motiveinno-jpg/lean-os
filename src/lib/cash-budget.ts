@@ -787,7 +787,7 @@ export async function getRetirementPayProvisions(
     .from('employees')
     .select('id, name, salary, hire_date, status')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   if (error) throw error;
   if (!employees?.length) return [];

@@ -199,7 +199,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
     supabase.from('transactions').select('*').eq('company_id', companyId),
     supabase.from('deal_nodes').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
-    supabase.from('employees').select('*').eq('company_id', companyId).eq('status', 'active'),
+    supabase.from('employees').select('*').eq('company_id', companyId).in('status', ['active', 'joined']),
   ]);
 
   const cashData = cash.data as CashSnapshot | null;
@@ -1976,7 +1976,7 @@ export async function getCashPulseData(companyId: string) {
     // 4. Recurring payments
     db.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
     // 5. Employee salary total
-    supabase.from('employees').select('salary').eq('company_id', companyId).eq('status', 'active'),
+    supabase.from('employees').select('salary').eq('company_id', companyId).in('status', ['active', 'joined']),
     // 6. Payment queue
     supabase.from('payment_queue').select('amount, status').eq('company_id', companyId),
     // 7. Risk count (financial_items with risk_label)

@@ -188,7 +188,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             {deal.deal_number && <span className="text-xs px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">{deal.deal_number}</span>}
             <h1 className="text-2xl font-extrabold">{deal.name}</h1>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}{deal.vat_type === 'exclusive' ? ' (VAT별도)' : deal.vat_type === 'zero' ? ' (영세율)' : ' (VAT포함)'}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}{Number(deal.contract_total || 0) >= 10000 ? ` (${(Number(deal.contract_total) / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만원)` : ""}{deal.vat_type === 'exclusive' ? ' VAT별도' : deal.vat_type === 'zero' ? ' 영세율' : ' VAT포함'}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {!isPartnerView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}

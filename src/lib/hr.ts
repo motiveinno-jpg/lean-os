@@ -60,7 +60,7 @@ export async function getActiveContracts(companyId: string) {
     .from('employee_contracts')
     .select('*, employees(name)')
     .eq('company_id', companyId)
-    .eq('status', 'active')
+    .in('status', ['active', 'joined'])
     .order('start_date', { ascending: false });
   return data || [];
 }
@@ -609,7 +609,7 @@ export async function bulkAutoInitLeaveBalances(companyId: string, year: number)
     .from('employees')
     .select('id, hire_date')
     .eq('company_id', companyId)
-    .eq('status', 'active');
+    .in('status', ['active', 'joined']);
 
   if (!employees || employees.length === 0) return { updated: 0 };
 

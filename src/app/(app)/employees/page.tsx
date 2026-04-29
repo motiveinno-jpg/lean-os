@@ -2026,7 +2026,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       <div className="flex gap-4 mb-6">
         <select value={selectedEmpId || ""} onChange={e => setSelectedEmpId(e.target.value || null)} className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
           <option value="">직원 선택...</option>
-          {employees.filter((e: any) => e.status === 'active').map((e: any) => (
+          {employees.filter((e: any) => ['active', 'joined'].includes(e.status)).map((e: any) => (
             <option key={e.id} value={e.id}>{e.name} ({e.department || '미배정'})</option>
           ))}
         </select>
@@ -2265,49 +2265,84 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
       {/* 서식 에디터 (WYSIWYG) */}
       {showTemplateEditor && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                계약서식 에디터
-              </h4>
-              <p className="text-[10px] text-[var(--text-dim)] mt-0.5">서식을 작성하고 저장하면 계약 요청 시 사용할 수 있습니다. {"{{직원명}}, {{부서}}, {{직위}}, {{연봉}}"} 등의 변수를 사용하세요.</p>
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 mb-6 flex flex-col" style={{ maxHeight: "80vh" }}>
+          <div className="p-6 pb-3 shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  계약서식 에디터
+                </h4>
+                <p className="text-[10px] text-[var(--text-dim)] mt-0.5">서식을 작성하고 저장하면 계약 요청 시 사용할 수 있습니다. {"{{직원명}}, {{부서}}, {{직위}}, {{연봉}}"} 등의 변수를 사용하세요.</p>
+              </div>
+              <button onClick={() => setShowTemplateEditor(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
             </div>
-            <button onClick={() => setShowTemplateEditor(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
-          </div>
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
-            <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
-          </div>
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
-              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
+              <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
             </div>
-            <div className="w-40 shrink-0">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">변수 삽입</label>
-              <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 space-y-1.5">
-                <p className="text-[9px] text-[var(--text-dim)] mb-2">클릭하면 커서 위치에 삽입됩니다</p>
-                {[
-                  { v: "{{직원명}}", desc: "직원 이름" },
-                  { v: "{{부서}}", desc: "소속 부서" },
-                  { v: "{{직위}}", desc: "직급/직위" },
-                  { v: "{{연봉}}", desc: "연봉 금액" },
-                  { v: "{{입사일}}", desc: "입사 일자" },
-                  { v: "{{회사명}}", desc: "회사 이름" },
-                  { v: "{{대표자}}", desc: "대표자명" },
-                ].map(({ v, desc }) => (
-                  <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
-                    className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group">
-                    <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
-                    <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
-                  </button>
-                ))}
+          </div>
+          <div className="flex-1 overflow-y-auto px-6">
+            <div className="flex gap-4 mb-4">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
+                <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
+              </div>
+              <div className="w-40 shrink-0">
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">변수 삽입</label>
+                <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 space-y-1.5 sticky top-0">
+                  <p className="text-[9px] text-[var(--text-dim)] mb-2">클릭하면 커서 위치에 삽입됩니다</p>
+                  {[
+                    { v: "{{직원명}}", desc: "직원 이름" },
+                    { v: "{{부서}}", desc: "소속 부서" },
+                    { v: "{{직위}}", desc: "직급/직위" },
+                    { v: "{{연봉}}", desc: "연봉 금액" },
+                    { v: "{{입사일}}", desc: "입사 일자" },
+                    { v: "{{회사명}}", desc: "회사 이름" },
+                    { v: "{{대표자}}", desc: "대표자명" },
+                    { v: "{{계약시작일}}", desc: "계약 시작일" },
+                    { v: "{{계약종료일}}", desc: "계약 종료일" },
+                    { v: "{{근무시간}}", desc: "근무 시간" },
+                  ].map(({ v, desc }) => (
+                    <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
+                      className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group">
+                      <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
+                      <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
+            <button
+              onClick={() => { setShowTemplateEditor(false); setNewTemplateName(""); setNewTemplateBody(""); }}
+              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-semibold transition"
+            >
+              취소
+            </button>
+            <button
+              onClick={async () => {
+                if (!newTemplateName.trim() || !companyId) return;
+                setSavingTemplate(true);
+                try {
+                  await (supabase as any).from("doc_templates").insert({
+                    company_id: companyId,
+                    name: `[임시] ${newTemplateName.trim()}`,
+                    body: newTemplateBody || "",
+                    variables: (newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, "")),
+                    status: "draft",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+                  toast("임시 저장되었습니다.", "success");
+                } catch (err: any) { toast("임시 저장 실패: " + (err.message || ""), "error"); }
+                setSavingTemplate(false);
+              }}
+              disabled={!newTemplateName.trim() || savingTemplate}
+              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+            >
+              임시저장
+            </button>
             <button
               onClick={async () => {
                 if (!newTemplateName.trim() || !newTemplateBody.trim() || !companyId) return;
@@ -4408,7 +4443,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
     enabled: !!companyId,
   });
 
-  const activeEmployees = employees.filter((e: any) => e.status === "active");
+  const activeEmployees = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const allEmployees = employees;
 
   const CERT_TYPES = [
