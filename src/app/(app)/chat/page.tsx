@@ -543,6 +543,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     if (channelId && userId) {
       markAsRead(channelId, userId).then(() => {
         queryClient.invalidateQueries({ queryKey: ["chat-unread"] });
+        window.dispatchEvent(new Event("sidebar-refresh-badges"));
       });
     }
   }, [channelId, userId, allMessages.length]);

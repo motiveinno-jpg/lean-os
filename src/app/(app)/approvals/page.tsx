@@ -221,6 +221,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       invalidate();
       setActionModal(null);
       setComment("");
+      window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
   });
 
@@ -231,6 +232,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       invalidate();
       setActionModal(null);
       setComment("");
+      window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
   });
 

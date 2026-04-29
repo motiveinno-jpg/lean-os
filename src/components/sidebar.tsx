@@ -186,8 +186,22 @@ export function Sidebar() {
     }
     loadCounts();
     const interval = setInterval(loadCounts, 30000);
-    return () => clearInterval(interval);
+    window.addEventListener("sidebar-refresh-badges", loadCounts);
+    return () => { clearInterval(interval); window.removeEventListener("sidebar-refresh-badges", loadCounts); };
   }, []);
+
+  useEffect(() => {
+    async function refreshOnNav() {
+      const u = await getCurrentUser();
+      if (!u) return;
+      try {
+        const counts = await getUnreadCounts(u.company_id, u.id);
+        const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
+        setChatUnread(total);
+      } catch {}
+    }
+    refreshOnNav();
+  }, [pathname]);
 
   // Close mobile drawer on route change
   useEffect(() => {
