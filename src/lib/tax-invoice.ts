@@ -30,6 +30,8 @@ export async function createTaxInvoice(params: {
   type: 'sales' | 'purchase';
   counterpartyName: string;
   counterpartyBizno?: string;
+  counterpartyBusinessType?: string;
+  counterpartyBusinessItem?: string;
   supplyAmount: number;
   issueDate: string;
   label?: string;
@@ -63,6 +65,8 @@ export async function createTaxInvoice(params: {
       preferred_date: params.preferredDate || null,
       expense_category: params.expenseCategory || null,
       partner_id: params.partnerId || null,
+      counterparty_business_type: params.counterpartyBusinessType || null,
+      counterparty_business_item: params.counterpartyBusinessItem || null,
       source: 'manual',
     })
     .select()

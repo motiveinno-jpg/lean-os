@@ -82,7 +82,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '', classification: '' });
+  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '', classification: '', vat_type: 'inclusive' });
   const [editSaving, setEditSaving] = useState(false);
   const { toast } = useToast();
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
@@ -132,7 +132,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   function startEdit() {
     if (!deal) return;
-    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium', classification: deal.classification || 'B2B' });
+    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium', classification: deal.classification || 'B2B', vat_type: deal.vat_type || 'inclusive' });
     setEditMode(true);
   }
 
@@ -140,7 +140,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
     if (!deal) return;
     setEditSaving(true);
     try {
-      const updates: { name?: string; contract_total?: number; start_date?: string | null; end_date?: string | null; status?: string; priority?: string; classification?: string } = {};
+      const updates: { name?: string; contract_total?: number; start_date?: string | null; end_date?: string | null; status?: string; priority?: string; classification?: string; vat_type?: string } = {};
       if (editForm.name.trim() && editForm.name !== deal.name) updates.name = editForm.name.trim();
       const newTotal = Number(editForm.contract_total);
       if (newTotal > 0 && newTotal !== Number(deal.contract_total)) updates.contract_total = newTotal;
@@ -149,6 +149,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       if (editForm.status !== deal.status) updates.status = editForm.status;
       if (editForm.priority !== (deal.priority || 'medium')) updates.priority = editForm.priority;
       if (editForm.classification !== (deal.classification || 'B2B')) updates.classification = editForm.classification;
+      if (editForm.vat_type !== (deal.vat_type || 'inclusive')) updates.vat_type = editForm.vat_type;
       if (Object.keys(updates).length === 0) { setEditMode(false); setEditSaving(false); return; }
       const { error } = await (supabase as any).from('deals').update(updates).eq('id', dealId);
       if (error) throw error;
@@ -176,6 +177,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">상태</label><select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{Object.entries(DEAL_STATUS_LABEL).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}</select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={editForm.priority} onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label><select value={editForm.classification} onChange={(e) => setEditForm({ ...editForm, classification: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{(() => { const defaults = ['B2B', 'B2C', 'B2G']; const customNames = editClassifications.map((c: any) => c.name); const merged = [...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: d, name: d })), ...editClassifications]; return merged.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)); })()}</select></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">VAT 구분</label><select value={editForm.vat_type} onChange={(e) => setEditForm({ ...editForm, vat_type: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="inclusive">VAT 포함</option><option value="exclusive">VAT 별도</option><option value="zero">영세율</option></select></div>
           </div>
           <button onClick={saveEdit} disabled={editSaving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editSaving ? '저장 중...' : '저장'}</button>
         </div>
@@ -186,7 +188,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             {deal.deal_number && <span className="text-xs px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">{deal.deal_number}</span>}
             <h1 className="text-2xl font-extrabold">{deal.name}</h1>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}{deal.vat_type === 'exclusive' ? ' (VAT별도)' : deal.vat_type === 'zero' ? ' (영세율)' : ' (VAT포함)'}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {!isPartnerView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}

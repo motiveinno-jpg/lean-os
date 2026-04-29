@@ -2279,6 +2279,7 @@ export type Database = {
           partner_company_id: string | null
           custom_scope: Json | null
           counterparty: string | null
+          vat_type: string
         }
         Insert: {
           archived_at?: string | null
@@ -2304,6 +2305,7 @@ export type Database = {
           partner_company_id?: string | null
           custom_scope?: Json | null
           counterparty?: string | null
+          vat_type?: string
         }
         Update: {
           archived_at?: string | null
@@ -2329,6 +2331,7 @@ export type Database = {
           partner_company_id?: string | null
           custom_scope?: Json | null
           counterparty?: string | null
+          vat_type?: string
         }
         Relationships: [
           {
@@ -5487,12 +5490,16 @@ export type Database = {
           total_amount: number
           type: string
           updated_at: string | null
+          counterparty_business_type: string | null
+          counterparty_business_item: string | null
         }
         Insert: {
           auto_issued?: boolean | null
           company_id: string
           counterparty_bizno?: string | null
           counterparty_name: string
+          counterparty_business_type?: string | null
+          counterparty_business_item?: string | null
           created_at?: string | null
           deal_id?: string | null
           expense_category?: string | null
@@ -5520,6 +5527,8 @@ export type Database = {
           company_id?: string
           counterparty_bizno?: string | null
           counterparty_name?: string
+          counterparty_business_type?: string | null
+          counterparty_business_item?: string | null
           created_at?: string | null
           deal_id?: string | null
           expense_category?: string | null

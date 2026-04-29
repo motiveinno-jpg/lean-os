@@ -1404,12 +1404,13 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         async function confirmTermination() {
           setTerminating(true);
           try {
-            const { data: updated, error } = await (supabase as any).from("employees").update({
+            const { error } = await (supabase as any).from("employees").update({
               status: "inactive",
               resignation_date: termDate,
-            }).eq("id", employeeId).select("id, status").single();
+            }).eq("id", employeeId);
             if (error) throw error;
-            if (!updated || updated.status !== "inactive") throw new Error("상태 업데이트 실패");
+            const { data: verify } = await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle();
+            if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
             queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
             queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
             setShowTermModal(false);

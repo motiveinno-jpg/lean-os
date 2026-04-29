@@ -2327,7 +2327,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
                 >
                   수정
                 </button>
-                {!cls.is_system && (
+                {!String(cls.id).startsWith('default-') && (
                   <button
                     onClick={() => deleteMut.mutate(cls.id)}
                     className="text-xs text-red-400/60 hover:text-red-400 transition"

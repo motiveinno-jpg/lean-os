@@ -240,7 +240,10 @@ function ThreeWayMatchVisual({ result }: { result: any }) {
         <span className="font-medium text-[var(--primary)]">계산서</span>
         <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.invoiceSupplyAmount)}(공급가)</span>
       </div>
-      {hasPO && poToInvoice && (
+      {hasPO && !poToInvoice && (
+        <span className="px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[9px] font-bold whitespace-nowrap">차액 {fmt(Math.abs(r.contractAmount - r.invoiceSupplyAmount))}</span>
+      )}
+      {r.suggestedDeal && poToInvoice && (
         <span className="px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500 text-[9px] font-bold whitespace-nowrap">추천</span>
       )}
       {/* Arrow Invoice -> Payment */}
@@ -256,6 +259,9 @@ function ThreeWayMatchVisual({ result }: { result: any }) {
         <span className="font-medium">결제</span>
         {hasPayment && <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.receivedAmount)}</span>}
       </div>
+      {hasPayment && !invoiceToPayment && (
+        <span className="px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[9px] font-bold whitespace-nowrap">차액 {fmt(Math.abs(r.gap))}</span>
+      )}
     </div>
   );
 }
@@ -525,6 +531,8 @@ export default function TaxInvoicesPage() {
         type: form.type,
         counterpartyName: form.counterpartyName,
         counterpartyBizno: form.counterpartyBizno || undefined,
+        counterpartyBusinessType: form.counterpartyBusinessType || undefined,
+        counterpartyBusinessItem: form.counterpartyBusinessItem || undefined,
         supplyAmount: Number(form.supplyAmount),
         issueDate: form.issueDate,
         preferredDate: form.preferredDate || undefined,
