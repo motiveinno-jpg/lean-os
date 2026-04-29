@@ -166,13 +166,22 @@ export function Sidebar() {
       } catch {}
       try {
         const db = supabase as any;
-        const [{ count: docCount }, { count: payCount }] = await Promise.all([
+        const [{ count: docCount }, { count: payCount }, { data: pendingSteps }] = await Promise.all([
           db.from("doc_approvals").select("id", { count: "exact", head: true })
             .eq("approver_id", u.id).eq("status", "pending"),
           db.from("payment_queue").select("id", { count: "exact", head: true })
             .eq("company_id", u.company_id).eq("status", "pending"),
+          db.from("approval_steps")
+            .select("id, stage, approval_requests!inner(current_stage, status, company_id)")
+            .eq("approver_id", u.id)
+            .eq("status", "pending")
+            .eq("approval_requests.status", "pending")
+            .eq("approval_requests.company_id", u.company_id),
         ]);
-        setApprovalsPending((docCount ?? 0) + (payCount ?? 0));
+        const myStepCount = (pendingSteps || []).filter(
+          (s: any) => s.stage === s.approval_requests?.current_stage
+        ).length;
+        setApprovalsPending((docCount ?? 0) + (payCount ?? 0) + myStepCount);
       } catch {}
     }
     loadCounts();

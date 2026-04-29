@@ -2289,8 +2289,10 @@ const TYPE_CONFIG: Record<PendingActionType, { label: string; icon: string; colo
 
 function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId: string }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [approving, setApproving] = useState<string | null>(null);
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data: actions = [] } = useQuery({
     queryKey: ['ceo-pending-actions', companyId],
@@ -2327,7 +2329,10 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
           }).catch(() => {});
         }
       }
-    } catch { /* ignore */ }
+      toast("승인 처리 완료", "success");
+    } catch (err: any) {
+      toast(err?.message || "승인 처리에 실패했습니다", "error");
+    }
     setApproving(null);
   };
 
@@ -2344,7 +2349,10 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       queryClient.invalidateQueries({ queryKey: ['ceo-pending-actions'] });
       queryClient.invalidateQueries({ queryKey: ['ceo-approval-summary'] });
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
-    } catch { /* ignore */ }
+      toast(`${actions.length}건 전체 승인 완료`, "success");
+    } catch (err: any) {
+      toast(err?.message || "전체 승인 처리에 실패했습니다", "error");
+    }
     setBulkApproving(false);
   };
 
@@ -2403,39 +2411,72 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
         {actions.slice(0, 8).map(action => {
           const tc = TYPE_CONFIG[action.type];
           return (
-            <div key={`${action.type}-${action.id}`}
-              className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs flex-shrink-0">{tc.icon}</span>
-                <span className="text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded"
-                  style={{ background: `${tc.color}15`, color: tc.color }}>
-                  {tc.label}
-                </span>
-                <span className="text-xs text-[var(--text)] truncate">{action.title}</span>
-                {action.amount && action.amount > 0 && (
-                  <span className="text-[10px] font-semibold text-[var(--text-muted)] flex-shrink-0">
-                    ₩{action.amount.toLocaleString()}
+            <div key={`${action.type}-${action.id}`}>
+              <div
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition cursor-pointer"
+                onClick={() => setDetailId(detailId === action.id ? null : action.id)}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs flex-shrink-0">{tc.icon}</span>
+                  <span className="text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded"
+                    style={{ background: `${tc.color}15`, color: tc.color }}>
+                    {tc.label}
                   </span>
-                )}
-                {action.dealName && (
-                  <span className="text-[9px] text-[var(--text-dim)] flex-shrink-0">
-                    ({action.dealName})
-                  </span>
-                )}
+                  <span className="text-xs text-[var(--text)] truncate">{action.title}</span>
+                  {action.amount && action.amount > 0 && (
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] flex-shrink-0">
+                      ₩{action.amount.toLocaleString()}
+                    </span>
+                  )}
+                  {action.dealName && (
+                    <span className="text-[9px] text-[var(--text-dim)] flex-shrink-0">
+                      ({action.dealName})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {action.urgency === 'high' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleApprove(action.type, action.id); }}
+                    disabled={approving === action.id}
+                    className="px-2 py-1 rounded-md text-[10px] font-bold text-white transition disabled:opacity-50 hover:brightness-110"
+                    style={{ background: 'var(--success)' }}
+                  >
+                    {approving === action.id ? '...' : '승인'}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {action.urgency === 'high' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
-                )}
-                <button
-                  onClick={() => handleApprove(action.type, action.id)}
-                  disabled={approving === action.id}
-                  className="px-2 py-1 rounded-md text-[10px] font-bold text-white transition disabled:opacity-50 hover:brightness-110"
-                  style={{ background: 'var(--success)' }}
-                >
-                  {approving === action.id ? '...' : '승인'}
-                </button>
-              </div>
+              {detailId === action.id && (
+                <div className="mx-3 mt-1 mb-2 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-dim)]">요청자</span>
+                    <span className="font-medium">{action.requester || '-'}</span>
+                  </div>
+                  {action.amount && action.amount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-dim)]">금액</span>
+                      <span className="font-medium">₩{action.amount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {action.dealName && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-dim)]">거래</span>
+                      <span className="font-medium">{action.dealName}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-dim)]">요청일</span>
+                    <span className="font-medium">{new Date(action.createdAt).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                  <div className="pt-1.5 border-t border-[var(--border)]">
+                    <Link href={tc.href} className="text-[10px] font-semibold hover:underline" style={{ color: tc.color }}>
+                      상세 페이지로 이동 →
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

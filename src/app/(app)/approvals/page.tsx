@@ -95,6 +95,7 @@ export default function ApprovalsPage() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["my-pending-count"] });
     queryClient.invalidateQueries({ queryKey: ["my-requests"] });
     queryClient.invalidateQueries({ queryKey: ["all-requests"] });
     queryClient.invalidateQueries({ queryKey: ["approval-stats"] });
@@ -108,10 +109,19 @@ export default function ApprovalsPage() {
     enabled: !!companyId,
   });
 
+  const { data: myPendingCount } = useQuery({
+    queryKey: ["my-pending-count", userId, companyId],
+    queryFn: async () => {
+      const items = await getMyPendingApprovals(userId!, companyId!);
+      return items.length;
+    },
+    enabled: !!userId && !!companyId,
+  });
+
   const isAdmin = userRole === "admin" || userRole === "owner";
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: "my-approvals", label: "내 결재함", count: stats?.pending },
+    { key: "my-approvals", label: "내 결재함", count: myPendingCount },
     { key: "my-requests", label: "내 요청" },
     ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황" }] : []),
     { key: "new-request", label: "새 요청" },
