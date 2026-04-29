@@ -1145,34 +1145,25 @@ export async function getCompanyUsers(companyId: string) {
 
 // ── Unread count per channel ──
 export async function getUnreadCounts(companyId: string, userId: string) {
-  const { data: channels } = await supabase
-    .from('chat_channels')
-    .select('id')
-    .eq('company_id', companyId)
-    .eq('is_archived', false);
-
-  if (!channels || channels.length === 0) return new Map<string, number>();
-
   const { data: participants } = await supabase
     .from('chat_participants')
     .select('channel_id, last_read_at')
     .eq('user_id', userId);
 
-  const readMap = new Map<string, string | null>();
-  (participants || []).forEach((p: any) => readMap.set(p.channel_id, p.last_read_at));
+  if (!participants || participants.length === 0) return new Map<string, number>();
 
   const counts = new Map<string, number>();
-  for (const ch of channels) {
-    const lastRead = readMap.get(ch.id);
+  for (const p of participants) {
     let query = supabase
       .from('chat_messages')
       .select('id', { count: 'exact', head: true })
-      .eq('channel_id', ch.id);
-    if (lastRead) {
-      query = query.gt('created_at', lastRead);
+      .eq('channel_id', p.channel_id)
+      .neq('sender_id', userId);
+    if (p.last_read_at) {
+      query = query.gt('created_at', p.last_read_at);
     }
     const { count } = await query;
-    if (count && count > 0) counts.set(ch.id, count);
+    if (count && count > 0) counts.set(p.channel_id, count);
   }
   return counts;
 }

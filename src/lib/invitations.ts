@@ -117,6 +117,23 @@ export async function cancelEmployeeInvitation(invitationId: string) {
   if (error) throw error;
 }
 
+export async function resendEmployeeInvitationByEmail(email: string, companyId: string) {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+  const { data, error } = await db
+    .from('employee_invitations')
+    .update({ expires_at: expiresAt.toISOString() })
+    .eq('email', email)
+    .eq('company_id', companyId)
+    .eq('status', 'pending')
+    .select()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ── Validate Invitation Token ──
 
 export async function validateInviteToken(token: string): Promise<{

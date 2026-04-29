@@ -39,7 +39,7 @@ export interface ApprovalSummary {
 
 // ── Get all pending actions for CEO ──
 
-export async function getCEOPendingActions(companyId: string): Promise<PendingAction[]> {
+export async function getCEOPendingActions(companyId: string, userId?: string): Promise<PendingAction[]> {
   const actions: PendingAction[] = [];
 
   const [payments, expenses, documents, leaves, signatures, costs, approvals] = await Promise.all([
@@ -179,13 +179,27 @@ export async function getCEOPendingActions(companyId: string): Promise<PendingAc
     });
   });
 
-  // Map approval requests (결재 승인 대기)
+  // Map approval requests — only show ones where the current user has a pending step
   const REQUEST_TYPE_LABELS: Record<string, string> = {
     expense: '경비', payment: '결제', leave: '휴가', overtime: '초과근무',
     purchase: '구매', contract: '계약', travel: '출장', card_expense: '법인카드',
     equipment: '장비', custom: '기타',
   };
+  let myApprovalIds = new Set<string>();
+  if (userId && (approvals.data || []).length > 0) {
+    const { data: mySteps } = await db
+      .from('approval_steps')
+      .select('request_id, stage, approval_requests!inner(current_stage)')
+      .eq('approver_id', userId)
+      .eq('status', 'pending');
+    myApprovalIds = new Set(
+      (mySteps || [])
+        .filter((s: any) => s.stage === s.approval_requests?.current_stage)
+        .map((s: any) => s.request_id)
+    );
+  }
   (approvals.data || []).forEach((a: any) => {
+    if (userId && !myApprovalIds.has(a.id)) return;
     actions.push({
       id: a.id,
       type: 'approval',

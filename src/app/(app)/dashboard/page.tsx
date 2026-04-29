@@ -2295,8 +2295,8 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data: actions = [] } = useQuery({
-    queryKey: ['ceo-pending-actions', companyId],
-    queryFn: () => getCEOPendingActions(companyId),
+    queryKey: ['ceo-pending-actions', companyId, userId],
+    queryFn: () => getCEOPendingActions(companyId, userId),
     enabled: !!companyId,
     refetchInterval: 15_000,
   });

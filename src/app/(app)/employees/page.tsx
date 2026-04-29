@@ -32,7 +32,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
-import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation } from "@/lib/invitations";
+import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail } from "@/lib/invitations";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
@@ -636,18 +636,45 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      {e.status !== "active" && (
-                        <button
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            if (confirm(`${e.name} 직원을 삭제하시겠습니까?`)) deleteMut.mutate(e.id);
-                          }}
-                          className="text-[var(--text-dim)] hover:text-red-500 transition"
-                          title="삭제"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        </button>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        {e.status === "invited" && e.email && (
+                          <button
+                            onClick={async (ev) => {
+                              ev.stopPropagation();
+                              try {
+                                const inv = await resendEmployeeInvitationByEmail(e.email, companyId);
+                                if (inv?.invite_token) {
+                                  const result = await sendInviteEmail({
+                                    email: e.email, name: e.name || undefined,
+                                    role: inv.role || "employee", inviteToken: inv.invite_token,
+                                    companyName: companyData?.name || undefined,
+                                  });
+                                  setInviteMsg(result.success ? { ok: true, msg: "초대 메일 재발송 완료" } : { ok: false, msg: result.error || "발송 실패" });
+                                }
+                              } catch {
+                                setInviteMsg({ ok: false, msg: "초대 정보를 찾을 수 없습니다" });
+                              }
+                              setTimeout(() => setInviteMsg(null), 4000);
+                            }}
+                            className="text-[10px] text-[var(--primary)] hover:underline"
+                            title="초대 메일 재발송"
+                          >
+                            재발송
+                          </button>
+                        )}
+                        {e.status !== "active" && (
+                          <button
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              if (confirm(`${e.name} 직원을 삭제하시겠습니까?`)) deleteMut.mutate(e.id);
+                            }}
+                            className="text-[var(--text-dim)] hover:text-red-500 transition"
+                            title="삭제"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
