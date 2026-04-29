@@ -540,7 +540,11 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   }, [channelId, queryClient]);
 
   useEffect(() => {
-    if (channelId && userId) markAsRead(channelId, userId);
+    if (channelId && userId) {
+      markAsRead(channelId, userId).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["chat-unread"] });
+      });
+    }
   }, [channelId, userId, allMessages.length]);
 
   // Auto-scroll on new messages (skip during initial load — handled separately)
@@ -601,9 +605,13 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
             threadId: params.replyToId,
           });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setSendError(null);
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
+      const currentUser = companyUsers.find((u: any) => u.id === userId);
+      setAllMessages(prev => {
+        if (prev.some((m: any) => m.id === data.id)) return prev;
+        return [...prev, { ...data, users: { name: currentUser?.name || currentUser?.email, email: currentUser?.email } }];
+      });
     },
     onError: (err: any) => {
       setSendError(err?.message || '메시지 전송에 실패했습니다. 다시 시도해주세요.');
