@@ -26,8 +26,8 @@ export function resetOnboardingDismiss(): void {
 const STEPS = [
   { num: 1, label: "회사정보", icon: "building", desc: "사업자 정보를 등록하세요" },
   { num: 2, label: "통장 등록", icon: "bank", desc: "법인통장을 연결하세요" },
-  { num: 3, label: "홈택스 연동", icon: "tax", desc: "세금계산서를 자동으로 가져오세요" },
-  { num: 4, label: "금융 연동", icon: "card", desc: "은행/카드 거래를 자동 수집하세요" },
+  { num: 3, label: "인증서 등록", icon: "tax", desc: "공동인증서를 등록하면 금융·홈택스가 자동 연동됩니다" },
+  { num: 4, label: "금융 연동", icon: "card", desc: "은행/카드/홈택스를 자동 수집하세요" },
   { num: 5, label: "직원 등록", icon: "people", desc: "팀원을 추가하세요" },
   { num: 6, label: "첫 프로젝트", icon: "sparkles", desc: "첫 거래를 만드세요" },
   { num: 7, label: "완료", icon: "check", desc: "준비 완료!" },
@@ -85,11 +85,16 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     bank_name: "", account_number: "", alias: "", balance: "", role: "OPERATING",
   });
 
-  // Step 3: HomeTax connection
-  const [hometax, setHometax] = useState({
-    userId: "",
-    password: "",
-    certType: "simpleCert" as "simpleCert" | "npki" | "skip",
+  // Step 3: Certificate registration
+  const [cert, setCert] = useState({
+    pfxBase64: "",
+    fileName: "",
+    certPassword: "",
+    organization: "0004",
+    registering: false,
+    registered: false,
+    connectedId: "",
+    error: "",
   });
 
   // Step 4: CODEF financial data
@@ -139,8 +144,8 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           .select("codef_connected_id, codef_connected_at")
           .eq("company_id", companyId)
           .maybeSingle();
-        const hasHometax = !!(comp?.cert_settings); // cert_settings stores hometax credentials
-        const hasCodef = !!(settings?.codef_connected_id);
+        const hasCert = !!(settings?.codef_connected_id);
+        const hasCodef = !!(settings?.codef_connected_id && settings?.codef_onboarding_at);
 
         // Check employees
         const { count: empCount } = await db
@@ -159,11 +164,14 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         const newStatus = {
           companyInfo: hasCompany,
           bankAccount: hasBank,
-          hometax: hasHometax,
+          hometax: hasCert,
           codef: hasCodef,
           employee: hasEmployee,
           deal: hasDeal,
         };
+        if (hasCert && settings?.codef_connected_id) {
+          setCert(prev => ({ ...prev, registered: true, connectedId: settings.codef_connected_id }));
+        }
         setStatus(newStatus);
 
         // Pre-fill company info if it exists
@@ -176,7 +184,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         }
 
         // Auto-advance to first incomplete step
-        const checks = [hasCompany, hasBank, hasHometax, hasCodef, hasEmployee, hasDeal];
+        const checks = [hasCompany, hasBank, hasCert, hasCodef, hasEmployee, hasDeal];
         const firstIncomplete = checks.indexOf(false);
         if (firstIncomplete === -1) {
           setStep(7); // All done
@@ -223,15 +231,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         }
         if (banks.length > 0) setStatus(prev => ({ ...prev, bankAccount: true }));
       } else if (currentStep === 3) {
-        // Save HomeTax connection settings
-        if (hometax.certType !== "skip" && hometax.userId) {
-          await db.from("companies").update({
-            cert_settings: {
-              hometax_user_id: hometax.userId,
-              hometax_cert_type: hometax.certType,
-              connected_at: new Date().toISOString(),
-            },
-          }).eq("id", companyId);
+        if (cert.registered && cert.connectedId) {
           setStatus(prev => ({ ...prev, hometax: true }));
         }
       } else if (currentStep === 4) {
@@ -282,14 +282,14 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
     }
     setSaving(false);
     return true;
-  }, [company, banks, hometax, codef, employees, dealName, dealType, dealAmount, dealPartner, companyId, companyName]);
+  }, [company, banks, cert, codef, employees, dealName, dealType, dealAmount, dealPartner, companyId, companyName]);
 
   const handleNext = useCallback(async () => {
     if (step < 7) {
       const stepHasData = (
         (step === 1 && company.companyName && company.businessNumber) ||
         (step === 2 && banks.length > 0) ||
-        (step === 3 && hometax.certType !== "skip" && hometax.userId) ||
+        (step === 3 && cert.registered) ||
         (step === 4 && codef.agreed && (codef.banks.length > 0 || codef.cards.length > 0)) ||
         (step === 5 && employees.length > 0) ||
         (step === 6 && dealName)
@@ -300,7 +300,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       }
       setStep(step + 1);
     }
-  }, [step, company, banks, hometax, codef, employees, dealName, saveStep]);
+  }, [step, company, banks, cert, codef, employees, dealName, saveStep]);
 
   const handleBack = () => { if (step > 1) setStep(step - 1); };
 
@@ -442,9 +442,10 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             />
           )}
           {step === 3 && (
-            <StepHomeTax
-              data={hometax}
-              set={setHometax}
+            <StepCertRegistration
+              data={cert}
+              set={setCert}
+              companyId={companyId}
               isCompleted={status.hometax}
             />
           )}
@@ -764,100 +765,152 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
 }
 
 // ═══════════════════════════════════════════
-// Step 3: HomeTax Connection (홈택스 연동)
+// Step 3: Certificate Registration (공동인증서 등록)
 // ═══════════════════════════════════════════
-function StepHomeTax({ data, set, isCompleted }: {
-  data: { userId: string; password: string; certType: "simpleCert" | "npki" | "skip" };
+function StepCertRegistration({ data, set, companyId, isCompleted }: {
+  data: { pfxBase64: string; fileName: string; certPassword: string; organization: string; registering: boolean; registered: boolean; connectedId: string; error: string };
   set: (d: any) => void;
+  companyId: string;
   isCompleted: boolean;
 }) {
-  const CERT_OPTIONS = [
-    { value: "simpleCert" as const, label: "간편인증 (카카오/PASS)", desc: "가장 쉬운 방법. 카카오/통신사 앱 인증" },
-    { value: "npki" as const, label: "공동인증서 (구 공인인증서)", desc: "기존 공인인증서로 로그인" },
-    { value: "skip" as const, label: "나중에 설정", desc: "엑셀 수동 업로드로 시작합니다" },
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ORGS = [
+    { code: "0004", label: "국민은행" }, { code: "0088", label: "신한은행" },
+    { code: "0020", label: "우리은행" }, { code: "0081", label: "하나은행" },
+    { code: "0003", label: "기업은행" }, { code: "0011", label: "농협은행" },
+    { code: "0023", label: "SC제일은행" }, { code: "0090", label: "카카오뱅크" },
+    { code: "0092", label: "토스뱅크" }, { code: "0031", label: "대구은행" },
+    { code: "0032", label: "부산은행" },
   ];
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const buffer = await file.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    set({ ...data, pfxBase64: base64, fileName: file.name, error: "" });
+  };
+
+  const handleRegister = async () => {
+    if (!data.pfxBase64 || !data.certPassword) {
+      set({ ...data, error: "인증서 파일과 비밀번호를 입력해주세요." });
+      return;
+    }
+    set({ ...data, registering: true, error: "" });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { set({ ...data, registering: false, error: "로그인이 필요합니다." }); return; }
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const res = await fetch(`${url}/functions/v1/codef-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          companyId, action: "register", accountType: "bank",
+          organization: data.organization, loginType: "0",
+          pfxFile: data.pfxBase64, certPassword: data.certPassword,
+        }),
+      });
+      const result = await res.json();
+      if (result.success && result.connectedId) {
+        set({ ...data, registering: false, registered: true, connectedId: result.connectedId, error: "" });
+      } else {
+        set({ ...data, registering: false, error: result.error || "등록에 실패했습니다. 인증서와 비밀번호를 확인해주세요." });
+      }
+    } catch (err: any) {
+      set({ ...data, registering: false, error: err.message || "네트워크 오류" });
+    }
+  };
 
   return (
     <div className="flex-1">
       <StepHeader
-        title="홈택스 연동"
-        desc="홈택스를 연동하면 세금계산서와 현금영수증을 자동으로 가져옵니다."
+        title="공동인증서 등록"
+        desc="공동인증서(구 공인인증서)를 등록하면 은행, 카드, 홈택스가 자동 연동됩니다."
         icon="tax"
-        whyItMatters="홈택스 연동으로 매출/매입 세금계산서, 현금영수증이 자동 수집되어 부가세 신고 준비가 간편해집니다."
+        whyItMatters="인증서 한 번 등록으로 은행 거래내역, 카드 승인내역, 세금계산서를 모두 자동 수집할 수 있습니다."
       />
-      {isCompleted && (
-        <CompletedBadge message="홈택스가 이미 연동되어 있습니다. 설정을 변경하거나 다음으로 넘어가세요." />
+      {(isCompleted || data.registered) && (
+        <CompletedBadge message={`공동인증서가 등록되어 있습니다.${data.connectedId ? ` (연결 ID: ${data.connectedId.slice(0, 8)}...)` : ""}`} />
       )}
 
-      <div className="space-y-4">
-        {/* Cert type selection */}
-        <div>
-          <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">인증 방식</label>
-          <div className="space-y-2">
-            {CERT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => set({ ...data, certType: opt.value })}
-                className="w-full text-left p-3 rounded-xl transition border"
-                style={{
-                  background: data.certType === opt.value ? "var(--primary-light)" : "var(--bg-surface)",
-                  borderColor: data.certType === opt.value ? "var(--primary)" : "var(--border)",
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
-                    style={{ borderColor: data.certType === opt.value ? "var(--primary)" : "var(--border)" }}
-                  >
-                    {data.certType === opt.value && (
-                      <div className="w-2 h-2 rounded-full" style={{ background: "var(--primary)" }} />
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--text)]">{opt.label}</div>
-                    <div className="text-[11px] text-[var(--text-dim)]">{opt.desc}</div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ID/PW fields — only show if not "skip" */}
-        {data.certType !== "skip" && (
+      {!data.registered && (
+        <div className="space-y-4">
+          {/* File upload */}
           <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
-            <Field label="홈택스 아이디 *" value={data.userId} onChange={(v) => set({ ...data, userId: v })} placeholder="홈택스 로그인 아이디" />
+            <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 파일 (PFX/P12) *</label>
+            <input ref={fileInputRef} type="file" accept=".pfx,.p12,.PFX,.P12" onChange={handleFileSelect} className="hidden" />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-3 rounded-xl text-sm font-semibold transition border-2 border-dashed"
+              style={{ borderColor: data.pfxBase64 ? "var(--primary)" : "var(--border)", background: data.pfxBase64 ? "var(--primary-light)" : "var(--bg-card)", color: data.pfxBase64 ? "var(--primary)" : "var(--text-muted)" }}
+            >
+              {data.pfxBase64 ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                  {data.fileName}
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                  인증서 파일 선택 (.pfx / .p12)
+                </span>
+              )}
+            </button>
+
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">홈택스 비밀번호 *</label>
+              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 비밀번호 *</label>
               <input
                 type="password"
-                value={data.password}
-                onChange={(e) => set({ ...data, password: e.target.value })}
-                placeholder="홈택스 로그인 비밀번호"
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+                value={data.certPassword}
+                onChange={(e) => set({ ...data, certPassword: e.target.value })}
+                placeholder="공동인증서 비밀번호"
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
               />
             </div>
-            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-yellow-50 border border-yellow-200">
-              <svg className="w-3.5 h-3.5 text-yellow-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <p className="text-[11px] text-yellow-700 leading-relaxed">
-                입력하신 정보는 암호화되어 안전하게 저장됩니다. 세금계산서 자동 수집에만 사용됩니다.
-              </p>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">주거래 은행 *</label>
+              <select
+                value={data.organization}
+                onChange={(e) => set({ ...data, organization: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+              >
+                {ORGS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
+              </select>
             </div>
           </div>
-        )}
 
-        {data.certType === "skip" && (
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-            <p className="text-sm text-[var(--text-muted)]">
-              홈택스 연동 없이도 <strong>엑셀 파일 업로드</strong>로 세금계산서를 관리할 수 있습니다.
-              나중에 설정 페이지에서 언제든 연동할 수 있습니다.
+          {data.error && (
+            <div className="px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">{data.error}</div>
+          )}
+
+          <button
+            onClick={handleRegister}
+            disabled={!data.pfxBase64 || !data.certPassword || data.registering}
+            className="w-full py-3 rounded-xl text-sm font-bold text-white transition disabled:opacity-40"
+            style={{ background: "var(--primary)" }}
+          >
+            {data.registering ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                인증서 등록 중...
+              </span>
+            ) : "인증서 등록하기"}
+          </button>
+
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+            <svg className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <p className="text-[11px] text-blue-700 leading-relaxed">
+              PFX 파일은 은행 인터넷뱅킹에서 &quot;인증서 내보내기&quot;로 발급받을 수 있습니다.
+              인증서는 암호화되어 안전하게 전송되며, 금융 데이터 조회에만 사용됩니다.
             </p>
           </div>
-        )}
-      </div>
-      <LinkHint href="/settings" label="설정 > 외부 연동 탭에서 상세 설정 가능" />
+        </div>
+      )}
+      <LinkHint href="/settings" label="설정 > API 연동 탭에서 인증서를 관리할 수 있습니다" />
     </div>
   );
 }
@@ -897,9 +950,9 @@ function StepCodefConnect({ data, set, isCompleted }: {
     <div className="flex-1">
       <StepHeader
         title="금융 데이터 자동 연동"
-        desc="은행 거래내역과 카드 승인내역을 자동으로 가져옵니다."
+        desc="은행 거래내역, 카드 승인내역, 홈택스 세금계산서를 자동 수집합니다."
         icon="card"
-        whyItMatters="CODEF 오픈뱅킹 연동으로 거래 수기 입력이 불필요해지고, 실시간 자금현황을 파악할 수 있습니다."
+        whyItMatters="인증서 등록 후 연동할 은행/카드를 선택하면 거래 수기 입력이 불필요해지고, 홈택스 세금계산서도 자동 수집됩니다."
       />
       {isCompleted && (
         <CompletedBadge message="금융 데이터 연동이 설정되어 있습니다. 변경하거나 다음으로 넘어가세요." />
@@ -986,8 +1039,8 @@ function StepComplete({ status }: { status: CompletionStatus }) {
   const items = [
     { label: "회사 정보", done: status.companyInfo, icon: "building" },
     { label: "통장 등록", done: status.bankAccount, icon: "bank" },
-    { label: "홈택스 연동", done: status.hometax, icon: "tax" },
-    { label: "금융 데이터 연동", done: status.codef, icon: "card" },
+    { label: "공동인증서 등록", done: status.hometax, icon: "tax" },
+    { label: "금융/홈택스 연동", done: status.codef, icon: "card" },
     { label: "직원 등록", done: status.employee, icon: "people" },
     { label: "첫 프로젝트", done: status.deal, icon: "sparkles" },
   ];

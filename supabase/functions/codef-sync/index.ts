@@ -299,6 +299,68 @@ async function getAccountList(
   return Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
 }
 
+// HomeTax tax invoice sync via CODEF API
+async function syncHometaxInvoices(
+  supabase: any, token: string, companyId: string, connectedId: string,
+  startDate: string, endDate: string
+) {
+  const errors: SyncError[] = [];
+  let totalSynced = 0;
+
+  for (const direction of ["매출", "매입"] as const) {
+    const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
+      connectedId,
+      organization: "0004",
+      inquiryType: direction === "매출" ? "0" : "1",
+      startDate,
+      endDate,
+    });
+
+    if (result.result?.code !== "CF-00000") {
+      errors.push({
+        accountNo: "",
+        organization: "0004",
+        code: result.result?.code || "UNKNOWN",
+        message: result.result?.message || "응답 없음",
+        hint: codefErrorHint(result.result?.code),
+      });
+      continue;
+    }
+
+    const invoices = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+
+    for (const inv of invoices) {
+      const invoiceNumber = inv.resApprovalNo || inv.resInvoiceNumber || "";
+      if (!invoiceNumber) continue;
+
+      const issueDate = inv.resIssueDate || inv.resWriteDate || "";
+      const formattedDate = issueDate.length === 8
+        ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
+        : issueDate;
+
+      const { error } = await supabase.from("tax_invoices").upsert({
+        company_id: companyId,
+        invoice_number: invoiceNumber,
+        issue_date: formattedDate || null,
+        supplier_name: inv.resSupplierName || inv.resCompanyNm || "",
+        supplier_brn: inv.resSupplierRegNumber || inv.resCompanyBizNo || "",
+        buyer_name: inv.resBuyerName || inv.resReceiverNm || "",
+        buyer_brn: inv.resBuyerRegNumber || inv.resReceiverBizNo || "",
+        supply_amount: Number(inv.resSupplyValue || inv.resSupplyAmt || 0),
+        tax_amount: Number(inv.resTaxAmount || inv.resTaxAmt || 0),
+        total_amount: Number(inv.resTotalAmount || inv.resTotalAmt || 0),
+        item_name: inv.resItemName || inv.resItemNm || null,
+        direction: direction === "매출" ? "issued" : "received",
+        source: "codef_hometax",
+      }, { onConflict: "invoice_number" });
+
+      if (!error) totalSynced++;
+    }
+  }
+
+  return { synced: totalSynced, errors };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -422,14 +484,17 @@ serve(async (req) => {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 
-    // Derive status from collected per-request errors so the UI can surface
-    // CF-09002 / CF-04015 and similar failures instead of silently succeeding.
+    if (syncType === "hometax" || syncType === "all") {
+      results.hometax = await syncHometaxInvoices(supabase, token, companyId, cid, start, end);
+    }
+
     const allErrors: SyncError[] = [
       ...(results.bank?.errors ?? []),
       ...(results.card?.errors ?? []),
+      ...(results.hometax?.errors ?? []),
     ];
     const totalSynced =
-      (results.bank?.synced ?? 0) + (results.card?.synced ?? 0);
+      (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
       allErrors.length === 0 ? "success" : totalSynced > 0 ? "partial" : "error";
 
