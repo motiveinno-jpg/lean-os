@@ -258,7 +258,7 @@ async function registerAccount(
   const accountEntry: Record<string, any> = {
     countryCode: "KR",
     businessType: accountType === "card" ? "CD" : "BK",
-    clientType: loginOpts.clientType || "P",
+    clientType: loginOpts.clientType || "B",
     organization,
     loginType: loginOpts.loginType,
   };
@@ -435,7 +435,7 @@ serve(async (req) => {
 
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
-      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "P" } = body;
+      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B" } = body;
 
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수

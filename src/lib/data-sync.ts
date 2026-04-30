@@ -613,7 +613,7 @@ export async function registerCodefAccount(
   organization: string,
   loginId: string,
   loginPw: string,
-  clientType: 'P' | 'B' = 'P',
+  clientType: 'P' | 'B' = 'B',
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   return callCodefRegister(companyId, {
     accountType, organization, loginType: '1', loginId, loginPw, clientType,
@@ -628,7 +628,7 @@ export async function registerCodefCertificate(
   keyFile: string,
   certPassword: string,
   pfxFile?: string,
-  clientType: 'P' | 'B' = 'P',
+  clientType: 'P' | 'B' = 'B',
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   const params: Record<string, string> = {
     accountType, organization, loginType: '0', certPassword, clientType,

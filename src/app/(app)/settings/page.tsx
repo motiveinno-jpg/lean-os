@@ -2383,7 +2383,7 @@ const CODEF_CARDS: Record<string, string> = {
 function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card">("bank");
-  const [clientType, setClientType] = useState<"P" | "B">("P");
+  const [clientType, setClientType] = useState<"P" | "B">("B");
   const [authMethod, setAuthMethod] = useState<"cert" | "idpw">("cert");
   const [organization, setOrganization] = useState("");
   // ID/PW states
