@@ -613,9 +613,10 @@ export async function registerCodefAccount(
   organization: string,
   loginId: string,
   loginPw: string,
+  clientType: 'P' | 'B' = 'P',
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   return callCodefRegister(companyId, {
-    accountType, organization, loginType: '1', loginId, loginPw,
+    accountType, organization, loginType: '1', loginId, loginPw, clientType,
   });
 }
 
@@ -627,9 +628,10 @@ export async function registerCodefCertificate(
   keyFile: string,
   certPassword: string,
   pfxFile?: string,
+  clientType: 'P' | 'B' = 'P',
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   const params: Record<string, string> = {
-    accountType, organization, loginType: '0', certPassword,
+    accountType, organization, loginType: '0', certPassword, clientType,
   };
   if (pfxFile) {
     params.pfxFile = pfxFile;
@@ -665,7 +667,7 @@ async function callCodefRegister(
       const diagParts: string[] = [];
       if (err.diagnostics) {
         const d = err.diagnostics;
-        diagParts.push(`[env=${d.env}, keyLen=${d.publicKeyLen}, keyPrefix=${d.publicKeyPrefix}, org=${d.organization}, loginType=${d.loginType}, der=${d.derFileLen}, key=${d.keyFileLen}, certPw=${d.certPasswordLen}ch, path=${d.usedPath}]`);
+        diagParts.push(`[env=${d.env}, key=${d.publicKeyHash}, org=${d.organization}, loginType=${d.loginType}, der=${d.derFileLen}, key=${d.keyFileLen}, certPw=${d.certPasswordLen}ch, path=${d.usedPath}]`);
       }
       if (err.codefResponse?.result) {
         const r = err.codefResponse.result;

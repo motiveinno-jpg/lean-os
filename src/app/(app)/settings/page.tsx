@@ -2383,6 +2383,7 @@ const CODEF_CARDS: Record<string, string> = {
 function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card">("bank");
+  const [clientType, setClientType] = useState<"P" | "B">("P");
   const [authMethod, setAuthMethod] = useState<"cert" | "idpw">("cert");
   const [organization, setOrganization] = useState("");
   // ID/PW states
@@ -2459,7 +2460,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           return;
         }
         const { registerCodefCertificate } = await import("@/lib/data-sync");
-        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword);
+        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
         if (res.success) {
           setResult({ ok: true, msg: "금융기관 연결 성공!" });
           toast("금융기관 연결 완료", "success");
@@ -2475,7 +2476,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           return;
         }
         const { registerCodefAccount } = await import("@/lib/data-sync");
-        const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw);
+        const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw, clientType);
         if (res.success) {
           setResult({ ok: true, msg: "금융기관 연결 성공!" });
           toast("금융기관 연결 완료", "success");
@@ -2542,6 +2543,16 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         <div className="flex gap-2 mb-3">
           <button onClick={() => { setAccountType("bank"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
           <button onClick={() => { setAccountType("card"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
+        </div>
+
+        {/* 개인/법인 선택 */}
+        <div className="flex gap-2 mb-3">
+          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+            개인
+          </button>
+          <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+            법인/기업
+          </button>
         </div>
 
         {/* 인증 방식 선택 */}

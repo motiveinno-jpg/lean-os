@@ -242,10 +242,11 @@ async function registerAccount(
   token: string, accountType: "bank" | "card",
   organization: string,
   loginOpts: {
-    loginType: "0" | "1"; // 0=인증서, 1=ID/PW
+    loginType: "0" | "1";
     loginId?: string; loginPw?: string;
     derFile?: string; keyFile?: string; certPassword?: string;
-    pfxFile?: string; // PFX 스트링 (cert.codef.io에서 추출한 Base64)
+    pfxFile?: string;
+    clientType?: "P" | "B";
   },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
@@ -257,7 +258,7 @@ async function registerAccount(
   const accountEntry: Record<string, any> = {
     countryCode: "KR",
     businessType: accountType === "card" ? "CD" : "BK",
-    clientType: "B",
+    clientType: loginOpts.clientType || "P",
     organization,
     loginType: loginOpts.loginType,
   };
@@ -434,7 +435,7 @@ serve(async (req) => {
 
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
-      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile } = body;
+      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "P" } = body;
 
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수
@@ -453,12 +454,12 @@ serve(async (req) => {
 
       let result;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
       } catch (regErr: any) {
         // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
         if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
           } catch (retryErr: any) {
             return new Response(JSON.stringify({
               error: retryErr.message || "계정 등록 실패",
