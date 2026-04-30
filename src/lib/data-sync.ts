@@ -677,6 +677,13 @@ async function callCodefRegister(
         const r = err.codefResponse.result;
         diagParts.push(`[CODEF: ${r.code} ${r.message} ${r.extraMessage || ''}]`);
       }
+      if (err.codefResponse?.data) {
+        const d = err.codefResponse.data;
+        const dataStr = typeof d === 'string' ? d : JSON.stringify(d);
+        if (dataStr && dataStr !== '{}' && dataStr !== 'null') {
+          diagParts.push(`[DATA: ${dataStr.slice(0, 500)}]`);
+        }
+      }
       const diagStr = diagParts.length > 0 ? '\n' + diagParts.join('\n') : '';
       return { success: false, error: (err.error || `HTTP ${res.status}`) + diagStr };
     }

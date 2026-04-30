@@ -297,6 +297,7 @@ async function registerAccount(
   if (result.result?.code !== "CF-00000") {
     const hint = codefErrorHint(result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
+    console.error(`[CODEF] Registration failed — full response:`, JSON.stringify(result));
     const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
     err.codefResponse = result;
     err.diagnostics = {

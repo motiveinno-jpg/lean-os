@@ -2493,7 +2493,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(false);
   }
 
-  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization && (accountType !== "bank" || !!loginId);
+  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization;
   const isIdPwReady = !!loginId && !!loginPw && !!organization;
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
@@ -2579,12 +2579,11 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {authMethod === "cert" ? (
             <>
-              {/* 은행 인증서 로그인 시 사용자 ID 필요 */}
+              {/* 은행 인증서 로그인 시 사용자 ID (선택) */}
               {accountType === "bank" && (
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 사용자 ID</label>
-                  <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="기업 인터넷뱅킹 사용자 ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-                  <p className="text-[10px] text-[var(--text-dim)] mt-1">은행 기업 인터넷뱅킹 로그인 시 사용하는 아이디를 입력하세요</p>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 사용자 ID <span className="text-[var(--text-dim)]">(선택)</span></label>
+                  <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="인증서만으로 로그인하면 비워두세요" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               )}
               {/* 공동인증서 입력 */}
