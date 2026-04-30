@@ -2575,7 +2575,6 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                   <input
                     type="file"
                     multiple
-                    accept=".der,.key,.pfx,.p12"
                     onChange={(e) => handleCertFiles(e.target.files)}
                     className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary)]/10 file:text-[var(--primary)]"
                   />
