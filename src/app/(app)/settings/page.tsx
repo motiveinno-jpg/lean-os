@@ -3236,7 +3236,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
             <div className="flex-1">
               <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">인증서 파일 (.der)</div>
               <div className="flex items-center gap-2">
-                <input ref={certDerRef} type="file" accept=".der" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                <input ref={certDerRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
                 {certFileStatus.der && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
               </div>
             </div>
@@ -3245,7 +3245,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
             <div className="flex-1">
               <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">개인키 파일 (.key)</div>
               <div className="flex items-center gap-2">
-                <input ref={certKeyRef} type="file" accept=".key" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                <input ref={certKeyRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
                 {certFileStatus.key && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
               </div>
             </div>
@@ -4906,6 +4906,12 @@ function DataResetTab({ companyId }: { companyId: string }) {
         cert_settings: null,
       })
       .eq("id", companyId);
+
+    // CODEF connectedId도 초기화 (stale CF-04019 방지)
+    await db
+      .from("company_settings")
+      .update({ codef_connected_id: null, codef_connected_at: null })
+      .eq("company_id", companyId);
 
     // localStorage 온보딩 상태 초기화
     if (typeof window !== "undefined") {

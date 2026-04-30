@@ -419,11 +419,24 @@ serve(async (req) => {
       try {
         result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile }, cid);
       } catch (regErr: any) {
-        return new Response(JSON.stringify({
-          error: regErr.message || "계정 등록 실패",
-          env: CODEF_ENV,
-          baseUrl: CODEF_BASE,
-        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // CF-04019: stale connectedId — retry with fresh /v1/account/create
+        if (cid && regErr.message?.includes("CF-04019")) {
+          try {
+            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile });
+          } catch (retryErr: any) {
+            return new Response(JSON.stringify({
+              error: retryErr.message || "계정 등록 실패",
+              env: CODEF_ENV,
+              baseUrl: CODEF_BASE,
+            }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+        } else {
+          return new Response(JSON.stringify({
+            error: regErr.message || "계정 등록 실패",
+            env: CODEF_ENV,
+            baseUrl: CODEF_BASE,
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
       // Save connectedId to company_settings
