@@ -4658,103 +4658,131 @@ function PermissionsTab({ companyId }: { companyId: string }) {
 // Data Reset Tab — 전체 데이터 초기화
 // ═══════════════════════════════════════════
 
-const RESET_TABLES_ORDERED = [
-  "approval_steps",
-  "deal_files",
-  "deal_milestones",
-  "deal_assignments",
-  "deal_cost_schedule",
-  "deal_revenue_schedule",
-  "deal_nodes",
-  "sub_deals",
-  "deal_classifications",
-  "payroll_items",
-  "salary_history",
-  "leave_requests",
-  "leave_balances",
-  "employee_contracts",
-  "employee_files",
-  "attendance_records",
-  "transaction_matches",
-  "tax_invoice_monthly_summary",
-  "tax_invoice_queue",
-  "routing_rules",
-  "closing_checklist_items",
-  "closing_checklists",
-  "doc_revisions",
-  "doc_approvals",
-  "document_share_feedback",
-  "document_share_views",
-  "document_shares",
-  "document_notifications",
-  "chat_reactions",
-  "chat_mentions",
-  "chat_files",
-  "chat_action_cards",
-  "chat_messages",
-  "chat_events",
-  "chat_members",
-  "chat_participants",
+// company_id로 직접 삭제 가능한 테이블 (삭제 순서: 자식 → 부모)
+const DIRECT_DELETE_TABLES = [
+  // 딜 자식 (company_id 있는 것)
+  "deal_files", "deal_cost_schedule", "deal_classifications",
+  // 인사/급여
+  "salary_history", "leave_requests", "leave_balances",
+  "employee_contracts", "employee_files", "attendance_records",
+  // 세무
+  "tax_invoice_monthly_summary", "tax_invoice_queue",
+  // 라우팅/결산
+  "routing_rules", "closing_checklists",
+  // 문서
+  "document_shares", "document_notifications",
+  // 채팅
   "chat_channels",
-  "expense_approvals",
-  "expense_requests",
-  "payment_queue",
-  "payment_batches",
-  "recurring_payments",
-  "loan_payments",
-  "loans",
-  "signature_requests",
-  "contract_archives",
-  "quote_tracking",
-  "approval_requests",
-  "approval_policies",
-  "deals",
-  "partners",
-  "partner_invitations",
-  "employee_invitations",
-  "employees",
-  "tax_invoices",
-  "bank_transactions",
-  "card_transactions",
-  "bank_classification_rules",
-  "bank_accounts",
-  "corporate_cards",
-  "automation_credentials",
-  "automation_logs",
-  "automation_runs",
-  "sync_jobs",
-  "hometax_sync_log",
-  "company_integrations",
-  "certificate_logs",
-  "monthly_financials",
-  "treasury_transactions",
-  "treasury_positions",
-  "vault_docs",
-  "vault_assets",
-  "vault_accounts",
-  "invoices",
-  "financial_items",
-  "transactions",
-  "documents",
-  "doc_templates",
-  "programs",
-  "growth_targets",
-  "ai_pending_actions",
-  "ai_interactions",
-  "auto_discovery_results",
-  "audit_logs",
-  "notifications",
-  "notification_prefs",
-  "onboarding_checklist_items",
-  "feedback",
-  "finance_access_logs",
-  "hr_contract_package_items",
-  "hr_contract_packages",
-  "leave_promotion_notices",
-  "billing_events",
-  "vendors",
-  "cash_snapshot",
+  // 지출/결제
+  "expense_approvals", "expense_requests",
+  "payment_queue", "payment_batches", "recurring_payments",
+  // 대출/서명/계약
+  "loans", "signature_requests", "contract_archives", "quote_tracking",
+  // 결재
+  "approval_requests", "approval_policies",
+  // 핵심 엔티티
+  "deals", "partners", "partner_invitations",
+  "employee_invitations", "employees",
+  // 금융 데이터
+  "tax_invoices", "bank_transactions", "card_transactions",
+  "bank_classification_rules", "bank_accounts", "corporate_cards",
+  // 자동화/연동
+  "automation_credentials", "automation_logs", "automation_runs",
+  "sync_jobs", "hometax_sync_log", "company_integrations", "certificate_logs",
+  // 재무/금고
+  "monthly_financials", "treasury_positions",
+  "vault_docs", "vault_assets", "vault_accounts",
+  "invoices", "financial_items", "transactions",
+  // 문서/프로그램
+  "documents", "doc_templates", "programs", "growth_targets",
+  // AI/로그
+  "ai_pending_actions", "ai_interactions",
+  "auto_discovery_results", "audit_logs",
+  // 알림/기타
+  "notifications", "onboarding_checklist_items",
+  "feedback", "finance_access_logs",
+  "hr_contract_packages", "leave_promotion_notices",
+  "billing_events", "vendors", "cash_snapshot",
 ] as const;
+
+// company_id 없이 부모 FK로 삭제해야 하는 테이블
+const CHILD_DELETE_GROUPS: { parent: string; parentKey: string; children: { table: string; fk: string }[] }[] = [
+  {
+    parent: "deals",
+    parentKey: "deal_id",
+    children: [
+      { table: "deal_milestones", fk: "deal_id" },
+      { table: "deal_assignments", fk: "deal_id" },
+      { table: "deal_revenue_schedule", fk: "deal_id" },
+      { table: "deal_nodes", fk: "deal_id" },
+      { table: "sub_deals", fk: "parent_deal_id" },
+    ],
+  },
+  {
+    parent: "approval_requests",
+    parentKey: "request_id",
+    children: [{ table: "approval_steps", fk: "request_id" }],
+  },
+  {
+    parent: "documents",
+    parentKey: "document_id",
+    children: [
+      { table: "doc_revisions", fk: "document_id" },
+      { table: "doc_approvals", fk: "document_id" },
+    ],
+  },
+  {
+    parent: "document_shares",
+    parentKey: "share_id",
+    children: [
+      { table: "document_share_feedback", fk: "share_id" },
+      { table: "document_share_views", fk: "share_id" },
+    ],
+  },
+  {
+    parent: "chat_channels",
+    parentKey: "channel_id",
+    children: [
+      { table: "chat_members", fk: "channel_id" },
+      { table: "chat_participants", fk: "channel_id" },
+      { table: "chat_events", fk: "channel_id" },
+      { table: "chat_messages", fk: "channel_id" },
+    ],
+  },
+  {
+    parent: "loans",
+    parentKey: "loan_id",
+    children: [{ table: "loan_payments", fk: "loan_id" }],
+  },
+  {
+    parent: "closing_checklists",
+    parentKey: "checklist_id",
+    children: [{ table: "closing_checklist_items", fk: "checklist_id" }],
+  },
+  {
+    parent: "treasury_positions",
+    parentKey: "position_id",
+    children: [{ table: "treasury_transactions", fk: "position_id" }],
+  },
+  {
+    parent: "hr_contract_packages",
+    parentKey: "package_id",
+    children: [{ table: "hr_contract_package_items", fk: "package_id" }],
+  },
+];
+
+// chat_messages 자식 (2단계 깊이: channel → message → reaction/mention/file)
+const CHAT_MESSAGE_CHILDREN = [
+  { table: "chat_reactions", fk: "message_id" },
+  { table: "chat_mentions", fk: "message_id" },
+  { table: "chat_files", fk: "message_id" },
+  { table: "chat_action_cards", fk: "message_id" },
+];
+
+// payroll_items: batch_id로 삭제 (payment_batches가 부모)
+const PAYROLL_CHILD = { table: "payroll_items", fk: "batch_id", parent: "payment_batches" };
+// transaction_matches: transaction_id로 삭제
+const TX_MATCH_CHILD = { table: "transaction_matches", fk: "transaction_id", parent: "transactions" };
 
 function DataResetTab({ companyId }: { companyId: string }) {
   const { toast } = useToast();
@@ -4776,40 +4804,89 @@ function DataResetTab({ companyId }: { companyId: string }) {
       });
   }, [companyId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  async function fetchIds(table: string, col: string = "id"): Promise<string[]> {
+    const { data } = await db.from(table).select(col).eq("company_id", companyId);
+    if (!data || data.length === 0) return [];
+    return data.map((r: Record<string, string>) => r[col]);
+  }
+
+  async function deleteByIds(table: string, fk: string, ids: string[]): Promise<string | null> {
+    if (ids.length === 0) return null;
+    // .in()은 URL 길이 제한이 있으므로 100개씩 배치
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { error } = await db.from(table).delete().in(fk, batch);
+      if (error) return `${table}: ${error.message}`;
+    }
+    return null;
+  }
+
   async function handleReset() {
     setStep("processing");
     setErrors([]);
-    const total = RESET_TABLES_ORDERED.length + 1;
-    setProgress({ current: 0, total, currentTable: "" });
+    const totalSteps = CHILD_DELETE_GROUPS.length + DIRECT_DELETE_TABLES.length + 4;
+    let current = 0;
     const failedTables: string[] = [];
 
-    for (let i = 0; i < RESET_TABLES_ORDERED.length; i++) {
-      const table = RESET_TABLES_ORDERED[i];
-      setProgress({ current: i + 1, total, currentTable: table });
+    function tick(label: string) {
+      current++;
+      setProgress({ current, total: totalSteps, currentTable: label });
+    }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from(table)
-        .delete()
-        .eq("company_id", companyId);
+    // ── Phase 1: 부모 ID 조회 후 자식 테이블 삭제 ──
 
-      if (error) {
-        failedTables.push(`${table}: ${error.message}`);
+    // 1a. chat_messages 자식 (3단계: channel → message → reaction)
+    tick("chat 메시지 자식");
+    const channelIds = await fetchIds("chat_channels");
+    if (channelIds.length > 0) {
+      // 채널에 속한 메시지 ID 조회
+      let msgIds: string[] = [];
+      for (let i = 0; i < channelIds.length; i += 100) {
+        const batch = channelIds.slice(i, i + 100);
+        const { data } = await db.from("chat_messages").select("id").in("channel_id", batch);
+        if (data) msgIds = msgIds.concat(data.map((r: { id: string }) => r.id));
+      }
+      for (const child of CHAT_MESSAGE_CHILDREN) {
+        const err = await deleteByIds(child.table, child.fk, msgIds);
+        if (err) failedTables.push(err);
       }
     }
 
-    // company_settings 테이블 CODEF 데이터 초기화
-    setProgress({ current: RESET_TABLES_ORDERED.length, total, currentTable: "company_settings" });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from("company_settings")
-      .delete()
-      .eq("company_id", companyId);
+    // 1b. 일반 자식 그룹 삭제
+    for (const group of CHILD_DELETE_GROUPS) {
+      tick(group.parent);
+      const parentIds = await fetchIds(group.parent);
+      for (const child of group.children) {
+        const err = await deleteByIds(child.table, child.fk, parentIds);
+        if (err) failedTables.push(err);
+      }
+    }
 
-    // companies 레코드: 부가 필드 초기화 (이름+id는 유지)
-    setProgress({ current: RESET_TABLES_ORDERED.length + 1, total, currentTable: "companies" });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
+    // 1c. payroll_items (batch_id → payment_batches)
+    tick("payroll_items");
+    const batchIds = await fetchIds(PAYROLL_CHILD.parent);
+    const payrollErr = await deleteByIds(PAYROLL_CHILD.table, PAYROLL_CHILD.fk, batchIds);
+    if (payrollErr) failedTables.push(payrollErr);
+
+    // 1d. transaction_matches (transaction_id → transactions)
+    tick("transaction_matches");
+    const txIds = await fetchIds(TX_MATCH_CHILD.parent);
+    const txErr = await deleteByIds(TX_MATCH_CHILD.table, TX_MATCH_CHILD.fk, txIds);
+    if (txErr) failedTables.push(txErr);
+
+    // ── Phase 2: company_id로 직접 삭제 ──
+    for (const table of DIRECT_DELETE_TABLES) {
+      tick(table);
+      const { error } = await db.from(table).delete().eq("company_id", companyId);
+      if (error) failedTables.push(`${table}: ${error.message}`);
+    }
+
+    // ── Phase 3: companies 레코드 부가 필드 초기화 ──
+    tick("companies");
+    await db
       .from("companies")
       .update({
         business_number: null,
@@ -4832,9 +4909,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
       localStorage.removeItem("leanos-onboarding-dismissed");
     }
 
-    // React Query 캐시 전체 초기화
     queryClient.clear();
-
     setErrors(failedTables);
     setStep("done");
 
