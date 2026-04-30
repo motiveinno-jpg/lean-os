@@ -74,10 +74,10 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   const res = await fetch(`${CODEF_BASE}${path}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(body),
+    body: encodeURIComponent(JSON.stringify(body)),
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
@@ -272,9 +272,6 @@ async function registerAccount(
     // 공동인증서 로그인
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
     accountEntry.password = encryptedCertPw;
-    if (loginOpts.loginId) {
-      accountEntry.id = loginOpts.loginId;
-    }
 
     if (loginOpts.pfxFile) {
       accountEntry.certType = "0";

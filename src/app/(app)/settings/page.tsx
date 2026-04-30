@@ -2460,7 +2460,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           return;
         }
         const { registerCodefCertificate } = await import("@/lib/data-sync");
-        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType, accountType === "bank" ? loginId : undefined);
+        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
         if (res.success) {
           setResult({ ok: true, msg: "금융기관 연결 성공!" });
           toast("금융기관 연결 완료", "success");
@@ -2579,13 +2579,6 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {authMethod === "cert" ? (
             <>
-              {/* 은행 인증서 로그인 시 사용자 ID (선택) */}
-              {accountType === "bank" && (
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 사용자 ID <span className="text-[var(--text-dim)]">(선택)</span></label>
-                  <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="인증서만으로 로그인하면 비워두세요" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-              )}
               {/* 공동인증서 입력 */}
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">공동인증서 파일</label>

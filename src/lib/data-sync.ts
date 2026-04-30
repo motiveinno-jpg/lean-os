@@ -629,14 +629,10 @@ export async function registerCodefCertificate(
   certPassword: string,
   pfxFile?: string,
   clientType: 'P' | 'B' = 'B',
-  loginId?: string,
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
   const params: Record<string, string> = {
     accountType, organization, loginType: '0', certPassword, clientType,
   };
-  if (loginId) {
-    params.loginId = loginId;
-  }
   if (pfxFile) {
     params.pfxFile = pfxFile;
   } else {
