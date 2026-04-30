@@ -830,8 +830,11 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
         codefcert.options.opt1 = false;
         codefcert._show_log = false;
 
-        // Fetch CODEF token from our backend
-        const tokenRes = await fetch("/api/codef/cert-token");
+        // Fetch CODEF token from our backend (authenticated)
+        const { data: { session: certSession } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+        const tokenRes = await fetch("/api/codef/cert-token", {
+          headers: certSession?.access_token ? { Authorization: `Bearer ${certSession.access_token}` } : {},
+        });
         if (!tokenRes.ok) throw new Error("Token fetch failed");
         const { token } = await tokenRes.json();
         codefcert.options.codefToken = token;

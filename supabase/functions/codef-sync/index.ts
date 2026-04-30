@@ -298,7 +298,7 @@ async function registerAccount(
       env: CODEF_ENV,
       baseUrl: CODEF_BASE,
       publicKeyLen: publicKey.length,
-      publicKeyPrefix: publicKey.substring(0, 30),
+      publicKeyHash: publicKey.length > 0 ? "set" : "missing",
       organization,
       loginType: loginOpts.loginType,
       hasDerFile: !!loginOpts.derFile,
