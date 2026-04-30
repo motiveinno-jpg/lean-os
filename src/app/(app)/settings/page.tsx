@@ -3098,7 +3098,10 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
       await scanDir(dirHandle, 0, "");
 
       if (certs.length === 0) {
-        setScanError("선택한 폴더에서 인증서 파일(signCert.der)을 찾을 수 없습니다. 다른 폴더를 선택하거나 '직접 선택'을 이용해주세요.");
+        const isMac = navigator.platform?.toLowerCase().includes("mac");
+        setScanError(isMac
+          ? "선택한 폴더에서 인증서 파일을 찾을 수 없습니다. macOS에서는 보안 정책으로 일부 폴더(Library 등) 접근이 제한될 수 있습니다. 인증서 파일(signCert.der, signPri.key)을 바탕화면 또는 다운로드 폴더에 복사한 뒤 다시 시도하거나, 아래 '직접 선택' 방식을 이용해주세요."
+          : "선택한 폴더에서 인증서 파일(signCert.der)을 찾을 수 없습니다. 다른 폴더를 선택하거나 '직접 선택'을 이용해주세요.");
       } else {
         setFoundCerts(certs);
         if (certs.length === 1) setSelectedCert(0);

@@ -254,12 +254,9 @@ async function registerAccount(
     accountEntry.password = encryptedCertPw;
 
     if (loginOpts.pfxFile) {
-      // PFX 방식 (cert.codef.io에서 추출한 Base64 스트링)
       accountEntry.certType = "pfx";
       accountEntry.certFile = loginOpts.pfxFile;
     } else {
-      // DER + KEY 방식 (PC에서 직접 업로드한 파일)
-      accountEntry.certType = "1";
       accountEntry.derFile = loginOpts.derFile || "";
       accountEntry.keyFile = loginOpts.keyFile || "";
     }
@@ -275,7 +272,8 @@ async function registerAccount(
 
   if (result.result?.code !== "CF-00000") {
     const hint = codefErrorHint(result.result?.code);
-    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${hint ? " — " + hint : ""}`);
+    const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
+    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
   }
 
   return {
