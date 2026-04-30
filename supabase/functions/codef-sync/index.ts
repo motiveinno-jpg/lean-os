@@ -233,9 +233,7 @@ async function registerAccount(
 ): Promise<{ connectedId: string; accountList?: any[] }> {
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
 
-  const path = accountType === "bank"
-    ? "/v1/kr/bank/b/account/create"
-    : "/v1/kr/card/b/account/create";
+  const path = existingConnectedId ? "/v1/account/add" : "/v1/account/create";
 
   const accountEntry: Record<string, any> = {
     countryCode: "KR",
@@ -288,15 +286,10 @@ async function registerAccount(
 
 // Get account list (registered accounts under connectedId)
 async function getAccountList(
-  token: string, connectedId: string, accountType: "bank" | "card",
+  token: string, connectedId: string, _accountType?: "bank" | "card",
 ): Promise<any[]> {
-  const path = accountType === "bank"
-    ? "/v1/kr/bank/b/account/account-list"
-    : "/v1/kr/card/b/account/card-list";
-
-  const result = await codefRequest(token, path, {
+  const result = await codefRequest(token, "/v1/account/list", {
     connectedId,
-    organization: "0000",
   });
 
   if (result.result?.code !== "CF-00000") return [];
