@@ -379,22 +379,6 @@ async function syncHometaxInvoices(
   // 국세청(홈택스) organization code
   const HOMETAX_ORG = "0004";
 
-  // 홈택스 계정이 connectedId에 등록되었는지 확인
-  const accounts = await getAccountList(token, connectedId);
-  const hasHometax = accounts.some((a: any) =>
-    a.organization === HOMETAX_ORG || a.businessType === "NT" || a.businessType === "PB"
-  );
-  if (!hasHometax) {
-    errors.push({
-      accountNo: "",
-      organization: HOMETAX_ORG,
-      code: "NO_HOMETAX_ACCOUNT",
-      message: "홈택스 계정이 등록되지 않았습니다.",
-      hint: "설정 → API 연동에서 홈택스(국세청) 계정을 추가로 등록하세요. 은행/카드와 별도로 홈택스도 공동인증서로 연결해야 합니다.",
-    });
-    return { synced: 0, errors };
-  }
-
   for (const direction of ["매출", "매입"] as const) {
     const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
       connectedId,
@@ -606,10 +590,13 @@ serve(async (req) => {
       ...(results.card?.errors ?? []),
       ...(results.hometax?.errors ?? []),
     ];
+    // 홈택스 CF-00003은 상품 미설정이므로 "skipped"로 분류 (은행/카드 성공 시 전체 실패 방지)
+    const criticalErrors = allErrors.filter(e => !(e.code === "CF-00003" && e.organization === "0004"));
+    const skippedErrors = allErrors.filter(e => e.code === "CF-00003" && e.organization === "0004");
     const totalSynced =
       (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
-      allErrors.length === 0 ? "success" : totalSynced > 0 ? "partial" : "error";
+      criticalErrors.length === 0 ? (skippedErrors.length > 0 ? "partial" : "success") : totalSynced > 0 ? "partial" : "error";
 
     await supabase.from("sync_logs").insert({
       company_id: companyId,

@@ -2382,7 +2382,7 @@ const CODEF_CARDS: Record<string, string> = {
 
 function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
   const { toast } = useToast();
-  const [accountType, setAccountType] = useState<"bank" | "card" | "hometax">("bank");
+  const [accountType, setAccountType] = useState<"bank" | "card">("bank");
   const [clientType, setClientType] = useState<"P" | "B">("B");
   const [authMethod, setAuthMethod] = useState<"cert" | "idpw">("cert");
   const [organization, setOrganization] = useState("");
@@ -2400,7 +2400,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const orgList = accountType === "bank" ? CODEF_BANKS : accountType === "card" ? CODEF_CARDS : { "0004": "국세청(홈택스)" };
+  const orgList = accountType === "bank" ? CODEF_BANKS : CODEF_CARDS;
 
   function readFileAsBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -2539,11 +2539,10 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       <div className="border-t border-[var(--border)] pt-4 mb-4">
         <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
 
-        {/* 은행/카드/홈택스 선택 */}
+        {/* 은행/카드 선택 */}
         <div className="flex gap-2 mb-3">
           <button onClick={() => { setAccountType("bank"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
           <button onClick={() => { setAccountType("card"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
-          <button onClick={() => { setAccountType("hometax"); setOrganization("0004"); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
         </div>
 
         {/* 개인/법인 선택 */}
@@ -2569,7 +2568,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         {/* 금융기관 선택 */}
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "기관"} 선택</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : "카드사"} 선택</label>
             <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
               <option value="">선택하세요</option>
               {Object.entries(orgList).map(([code, name]) => (
@@ -2634,7 +2633,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         disabled={registering || !isReady}
         className="mt-4 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
       >
-        {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "홈택스")} 연결하기`}
+        {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
       </button>
     </div>
   );
@@ -2710,11 +2709,15 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
       const { syncCodefData } = await import("@/lib/data-sync");
       const res = await syncCodefData(companyId, "all");
       const hasErrors = (res.errors?.length ?? 0) > 0;
+      const onlyHometaxErrors = hasErrors && res.errors?.every((e: any) => e.organization === "0004" && (e.code === "CF-00003" || e.code === "NO_HOMETAX_ACCOUNT"));
       if (res.success && !hasErrors) {
         setSyncResult({ ok: true, msg: res.message || "거래내역 동기화 완료" });
         toast("거래내역 동기화 완료", "success");
+      } else if (onlyHometaxErrors) {
+        setSyncResult({ ok: true, msg: "은행·카드 동기화 완료 (홈택스 연동은 별도 설정 필요)" });
+        toast("은행·카드 동기화 완료", "success");
       } else if (res.status === "partial") {
-        setSyncResult({ ok: false, msg: res.message || "부분 동기화", errors: res.errors });
+        setSyncResult({ ok: false, msg: res.message || "부분 동기화", errors: res.errors?.filter((e: any) => !(e.organization === "0004" && e.code === "CF-00003")) });
         toast("일부 계좌 동기화 실패", "info");
       } else {
         setSyncResult({ ok: false, msg: res.error || res.message || "동기화 실패", errors: res.errors });
