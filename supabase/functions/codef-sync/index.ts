@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { publicEncrypt, constants } from "node:crypto";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -202,21 +203,18 @@ async function syncCardBilling(
   return { synced, errors };
 }
 
-// RSA encrypt password with CODEF public key
-async function rsaEncrypt(plainText: string, publicKeyPem: string): Promise<string> {
-  const pemBody = publicKeyPem
+// RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
+function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
+  const base64Body = publicKeyRaw
     .replace(/-----BEGIN PUBLIC KEY-----/, "")
     .replace(/-----END PUBLIC KEY-----/, "")
     .replace(/\s/g, "");
-  const binaryDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "spki", binaryDer.buffer, { name: "RSA-OAEP", hash: "SHA-1" }, false, ["encrypt"],
+  const pem = `-----BEGIN PUBLIC KEY-----\n${base64Body}\n-----END PUBLIC KEY-----`;
+  const encrypted = publicEncrypt(
+    { key: pem, padding: constants.RSA_PKCS1_PADDING },
+    Buffer.from(plainText, "utf8"),
   );
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "RSA-OAEP" }, cryptoKey, new TextEncoder().encode(plainText),
-  );
-  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  return encrypted.toString("base64");
 }
 
 // Register account and get connectedId (ID/PW or certificate)
@@ -245,12 +243,12 @@ async function registerAccount(
 
   if (loginOpts.loginType === "1") {
     // ID/PW 로그인
-    const encryptedPw = publicKey ? await rsaEncrypt(loginOpts.loginPw || "", publicKey) : (loginOpts.loginPw || "");
+    const encryptedPw = publicKey ? rsaEncrypt(loginOpts.loginPw || "", publicKey) : (loginOpts.loginPw || "");
     accountEntry.id = loginOpts.loginId || "";
     accountEntry.password = encryptedPw;
   } else {
     // 공동인증서 로그인
-    const encryptedCertPw = publicKey ? await rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
+    const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
     accountEntry.password = encryptedCertPw;
 
     if (loginOpts.pfxFile) {
