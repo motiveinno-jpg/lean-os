@@ -417,8 +417,8 @@ serve(async (req) => {
       try {
         result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile }, cid);
       } catch (regErr: any) {
-        // CF-04019: stale connectedId — retry with fresh /v1/account/create
-        if (cid && regErr.message?.includes("CF-04019")) {
+        // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
+        if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
           try {
             result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile });
           } catch (retryErr: any) {
