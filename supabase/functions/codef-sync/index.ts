@@ -84,6 +84,9 @@ function codefErrorHint(code?: string): string {
   if (code.startsWith("CF-09")) {
     return "CODEF 서버 일시장애. 잠시 후 다시 시도하세요. 지속 발생 시 CODEF 대시보드의 '오류 로그'를 확인해주세요.";
   }
+  if (code === "CF-00003") {
+    return "CODEF 서비스 상품이 등록되지 않았습니다. CODEF 대시보드에서 해당 상품(은행/카드 계정등록)이 활성화되어 있는지 확인하세요. sandbox 환경에서는 실제 인증서를 사용할 수 없습니다.";
+  }
   if (code === "CF-04015" || code.startsWith("CF-0401")) {
     return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
   }
@@ -273,7 +276,8 @@ async function registerAccount(
   const result = await codefRequest(token, path, body);
 
   if (result.result?.code !== "CF-00000") {
-    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})`);
+    const hint = codefErrorHint(result.result?.code);
+    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${hint ? " — " + hint : ""}`);
   }
 
   return {
@@ -418,7 +422,16 @@ serve(async (req) => {
         }
       }
 
-      const result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile }, cid);
+      let result;
+      try {
+        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile }, cid);
+      } catch (regErr: any) {
+        return new Response(JSON.stringify({
+          error: regErr.message || "계정 등록 실패",
+          env: CODEF_ENV,
+          baseUrl: CODEF_BASE,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       // Save connectedId to company_settings
       if (result.connectedId) {
