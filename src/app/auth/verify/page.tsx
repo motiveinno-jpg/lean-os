@@ -6,12 +6,16 @@ import { createTrialingSubscription } from "@/lib/billing";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type VerifyState = "loading" | "success" | "error" | "already_confirmed";
+type VerifyState = "loading" | "success" | "error" | "email_confirmed_need_login";
 
 export default function VerifyEmailPage() {
   const [state, setState] = useState<VerifyState>("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(3);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -41,10 +45,10 @@ export default function VerifyEmailPage() {
       setState("error");
     }
 
-    function markAlreadyConfirmed() {
+    function markEmailConfirmedNeedLogin() {
       if (completed) return;
       completed = true;
-      setState("already_confirmed");
+      setState("email_confirmed_need_login");
     }
 
     async function setupCompany(user: {
@@ -53,14 +57,13 @@ export default function VerifyEmailPage() {
       user_metadata?: Record<string, string>;
     }) {
       try {
-        // 이미 users 테이블에 있는지 확인
         const { data: existingUser } = await supabase
           .from("users")
           .select("id")
           .eq("auth_id", user.id)
           .maybeSingle();
 
-        if (existingUser) return; // 이미 설정 완료
+        if (existingUser) return;
 
         const companyName =
           user.user_metadata?.company_name ||
@@ -72,7 +75,6 @@ export default function VerifyEmailPage() {
           "사용자";
         const userEmail = user.email || "";
 
-        // UUID를 클라이언트에서 생성하여 INSERT 후 SELECT 불필요
         const companyId = crypto.randomUUID();
 
         const { error: compErr } = await supabase
@@ -84,7 +86,6 @@ export default function VerifyEmailPage() {
           return;
         }
 
-        // 유저 레코드 생성
         const { error: userErr } = await supabase.from("users").insert({
           id: user.id,
           auth_id: user.id,
@@ -94,19 +95,16 @@ export default function VerifyEmailPage() {
           role: "owner",
         });
         if (userErr) {
-          // C3 Fix: 유저 생성 실패 시 고아 회사 정리
           await supabase.from("companies").delete().eq("id", companyId);
           return;
         }
 
-        // 초기 현금 스냅샷
         await supabase.from("cash_snapshot").insert({
           company_id: companyId,
           current_balance: 0,
           monthly_fixed_cost: 0,
         });
 
-        // 런칭 블로커: 신규 가입자 자동 starter 플랜 30일 trialing 구독
         await createTrialingSubscription(companyId, "starter", 30);
       } catch (err) {
         console.error("setupCompany error:", err);
@@ -118,7 +116,6 @@ export default function VerifyEmailPage() {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
 
-        // OAuth 에러 처리 (카카오/구글 로그인 실패 시)
         const oauthError = params.get("error_description") || params.get("error");
         if (oauthError) {
           markError(oauthError);
@@ -126,7 +123,6 @@ export default function VerifyEmailPage() {
         }
 
         if (!code) {
-          // code 없이 접근 — 기존 세션 확인
           const {
             data: { session },
           } = await supabase.auth.getSession();
@@ -139,14 +135,21 @@ export default function VerifyEmailPage() {
           return;
         }
 
-        // PKCE 코드 교환 (signOut 금지 — code-verifier 쿠키가 삭제되어 PKCE 실패함)
         const { data, error: codeError } =
           await supabase.auth.exchangeCodeForSession(code);
 
         if (codeError) {
-          // 코드 만료/무효 → 이미 인증 완료된 유저인지 확인
-          // (링크 만료됐지만 이메일은 이미 확인된 경우)
-          markAlreadyConfirmed();
+          // PKCE 실패 (다른 브라우저/탭에서 열림) — 이미 세션이 있는지 확인
+          const {
+            data: { session: existingSession },
+          } = await supabase.auth.getSession();
+          if (existingSession?.user) {
+            await setupCompany(existingSession.user);
+            markSuccess();
+            return;
+          }
+          // Supabase는 리다이렉트 전에 이메일을 이미 확인 완료함 → 로그인만 하면 됨
+          markEmailConfirmedNeedLogin();
           return;
         }
 
@@ -156,7 +159,6 @@ export default function VerifyEmailPage() {
           return;
         }
 
-        // 세션이 바로 안 잡히면 잠시 대기 후 재시도
         await new Promise((resolve) => setTimeout(resolve, 2000));
         const {
           data: { session: retrySession },
@@ -175,7 +177,6 @@ export default function VerifyEmailPage() {
 
     handleVerification();
 
-    // 안전장치: 15초 후에도 loading이면 에러 표시
     const safetyTimeout = setTimeout(() => {
       markError("인증 처리 시간이 초과되었습니다. 다시 시도해주세요.");
     }, 15000);
@@ -310,21 +311,21 @@ export default function VerifyEmailPage() {
             </div>
           )}
 
-          {/* Already Confirmed — link expired but email already verified */}
-          {state === "already_confirmed" && (
+          {/* Email confirmed but PKCE failed — let user login directly */}
+          {state === "email_confirmed_need_login" && (
             <div className="text-center py-8">
               <div
                 className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
                 style={{
-                  background: "linear-gradient(135deg, #DBEAFE, #E0E7FF)",
+                  background: "linear-gradient(135deg, #D1FAE5, #DCFCE7)",
                 }}
               >
                 <svg
-                  className="w-10 h-10 text-blue-600"
+                  className="w-10 h-10 text-green-600"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                 >
                   <path
                     strokeLinecap="round"
@@ -334,19 +335,93 @@ export default function VerifyEmailPage() {
                 </svg>
               </div>
               <h2 className="text-xl font-extrabold text-[var(--text)] mb-2">
-                인증 링크가 만료되었습니다
+                이메일 인증이 완료되었습니다!
               </h2>
-              <p className="text-sm text-[var(--text-muted)] mb-2">
-                이미 가입이 완료된 계정일 수 있습니다.
-              </p>
               <p className="text-sm text-[var(--text-muted)] mb-6">
-                아래 버튼을 눌러 로그인해주세요.
+                비밀번호를 입력하고 로그인해주세요.
               </p>
+
+              {loginError && (
+                <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm text-left">
+                  {loginError}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setLoginLoading(true);
+                  setLoginError("");
+                  const { data: loginData, error: loginErr } =
+                    await supabase.auth.signInWithPassword({
+                      email: loginEmail,
+                      password: loginPassword,
+                    });
+                  if (loginErr) {
+                    setLoginLoading(false);
+                    setLoginError(
+                      loginErr.message.includes("Invalid login")
+                        ? "이메일 또는 비밀번호가 올바르지 않습니다."
+                        : loginErr.message,
+                    );
+                    return;
+                  }
+                  if (loginData.user) {
+                    const { data: existingUser } = await supabase
+                      .from("users")
+                      .select("id")
+                      .eq("auth_id", loginData.user.id)
+                      .maybeSingle();
+                    if (!existingUser) {
+                      router.push("/dashboard");
+                      return;
+                    }
+                  }
+                  router.push("/dashboard");
+                }}
+                className="text-left space-y-4"
+              >
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                    이메일
+                  </label>
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="가입한 이메일 주소"
+                    autoComplete="email"
+                    className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                    비밀번호
+                  </label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="가입 시 설정한 비밀번호"
+                    autoComplete="current-password"
+                    className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm"
+                >
+                  {loginLoading ? "로그인 중..." : "로그인하기"}
+                </button>
+              </form>
               <Link
                 href="/auth"
-                className="inline-flex items-center justify-center w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition shadow-sm"
+                className="block mt-3 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition"
               >
-                로그인하기
+                로그인 페이지로 이동
               </Link>
             </div>
           )}

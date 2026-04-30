@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 import BulkInvite from "@/components/bulk-invite";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions" | "danger";
 
 export default function SettingsPage() {
   const { role } = useUser();
@@ -142,6 +142,7 @@ export default function SettingsPage() {
     { key: "notifications", label: "알림" },
     { key: "invite", label: "구성원 초대" },
     { key: "permissions", label: "권한 설정" },
+    { key: "danger", label: "데이터 관리" },
   ];
 
   if (pageLoading) {
@@ -160,22 +161,33 @@ export default function SettingsPage() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <h1 className="text-2xl font-extrabold mb-2">설정</h1>
 
-      {/* Main Tab Bar — scrollable on mobile with fade hint */}
-      <div className="relative mb-6">
-        <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto scrollbar-hide">
+      {/* Main Tab Bar — horizontal scroll */}
+      <div className="mb-6 -mx-4 px-4">
+        <div
+          className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto"
+          style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
+        >
           {mainTabs.map((t) => (
             <button
               key={t.key}
+              ref={(el) => {
+                if (el && mainTab === t.key) {
+                  el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }
+              }}
               onClick={() => setMainTab(t.key)}
               className={`whitespace-nowrap shrink-0 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold min-h-[44px] transition ${
-                mainTab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
+                mainTab === t.key
+                  ? t.key === "danger"
+                    ? "bg-red-500/10 text-red-500 shadow-sm"
+                    : "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
+                  : "text-[var(--text-muted)]"
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--bg-surface)] to-transparent rounded-r-lg pointer-events-none sm:hidden" />
       </div>
 
       {/* ═══ General Tab ═══ */}
@@ -483,6 +495,9 @@ export default function SettingsPage() {
 
       {/* ═══ Permissions Tab ═══ */}
       {mainTab === "permissions" && companyId && <PermissionsTab companyId={companyId} />}
+
+      {/* ═══ Data Management (Danger Zone) ═══ */}
+      {mainTab === "danger" && companyId && <DataResetTab companyId={companyId} />}
     </div>
   );
 }
@@ -4635,6 +4650,376 @@ function PermissionsTab({ companyId }: { companyId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Data Reset Tab — 전체 데이터 초기화
+// ═══════════════════════════════════════════
+
+const RESET_TABLES_ORDERED = [
+  "approval_steps",
+  "deal_files",
+  "deal_milestones",
+  "deal_assignments",
+  "deal_cost_schedule",
+  "deal_revenue_schedule",
+  "deal_nodes",
+  "sub_deals",
+  "deal_classifications",
+  "payroll_items",
+  "salary_history",
+  "leave_requests",
+  "leave_balances",
+  "employee_contracts",
+  "employee_files",
+  "attendance_records",
+  "transaction_matches",
+  "tax_invoice_monthly_summary",
+  "tax_invoice_queue",
+  "routing_rules",
+  "closing_checklist_items",
+  "closing_checklists",
+  "doc_revisions",
+  "doc_approvals",
+  "document_share_feedback",
+  "document_share_views",
+  "document_shares",
+  "document_notifications",
+  "chat_reactions",
+  "chat_mentions",
+  "chat_files",
+  "chat_action_cards",
+  "chat_messages",
+  "chat_events",
+  "chat_members",
+  "chat_participants",
+  "chat_channels",
+  "expense_approvals",
+  "expense_requests",
+  "payment_queue",
+  "payment_batches",
+  "recurring_payments",
+  "loan_payments",
+  "loans",
+  "signature_requests",
+  "contract_archives",
+  "quote_tracking",
+  "approval_requests",
+  "approval_policies",
+  "deals",
+  "partners",
+  "partner_invitations",
+  "employee_invitations",
+  "employees",
+  "tax_invoices",
+  "bank_transactions",
+  "card_transactions",
+  "bank_classification_rules",
+  "bank_accounts",
+  "corporate_cards",
+  "automation_credentials",
+  "automation_logs",
+  "automation_runs",
+  "sync_jobs",
+  "hometax_sync_log",
+  "company_integrations",
+  "certificate_logs",
+  "monthly_financials",
+  "treasury_transactions",
+  "treasury_positions",
+  "vault_docs",
+  "vault_assets",
+  "vault_accounts",
+  "invoices",
+  "financial_items",
+  "transactions",
+  "documents",
+  "doc_templates",
+  "programs",
+  "growth_targets",
+  "ai_pending_actions",
+  "ai_interactions",
+  "auto_discovery_results",
+  "audit_logs",
+  "notifications",
+  "notification_prefs",
+  "onboarding_checklist_items",
+  "feedback",
+  "finance_access_logs",
+  "hr_contract_package_items",
+  "hr_contract_packages",
+  "leave_promotion_notices",
+  "billing_events",
+  "vendors",
+  "cash_snapshot",
+] as const;
+
+function DataResetTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<"idle" | "confirm" | "processing" | "done">("idle");
+  const [confirmText, setConfirmText] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [progress, setProgress] = useState({ current: 0, total: 0, currentTable: "" });
+  const [errors, setErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("companies")
+      .select("name")
+      .eq("id", companyId)
+      .single()
+      .then(({ data }) => {
+        if (data?.name) setCompanyName(data.name);
+      });
+  }, [companyId]);
+
+  async function handleReset() {
+    setStep("processing");
+    setErrors([]);
+    const total = RESET_TABLES_ORDERED.length + 1;
+    setProgress({ current: 0, total, currentTable: "" });
+    const failedTables: string[] = [];
+
+    for (let i = 0; i < RESET_TABLES_ORDERED.length; i++) {
+      const table = RESET_TABLES_ORDERED[i];
+      setProgress({ current: i + 1, total, currentTable: table });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from(table)
+        .delete()
+        .eq("company_id", companyId);
+
+      if (error) {
+        failedTables.push(`${table}: ${error.message}`);
+      }
+    }
+
+    // company_settings 테이블 CODEF 데이터 초기화
+    setProgress({ current: RESET_TABLES_ORDERED.length, total, currentTable: "company_settings" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("company_settings")
+      .delete()
+      .eq("company_id", companyId);
+
+    // companies 레코드: 부가 필드 초기화 (이름+id는 유지)
+    setProgress({ current: RESET_TABLES_ORDERED.length + 1, total, currentTable: "companies" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("companies")
+      .update({
+        business_number: null,
+        representative: null,
+        address: null,
+        phone: null,
+        fax: null,
+        business_type: null,
+        business_category: null,
+        seal_url: null,
+        logo_url: null,
+        tax_settings: null,
+        cert_settings: null,
+      })
+      .eq("id", companyId);
+
+    // localStorage 온보딩 상태 초기화
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("leanos-onboarding-done");
+      localStorage.removeItem("leanos-onboarding-dismissed");
+    }
+
+    // React Query 캐시 전체 초기화
+    queryClient.clear();
+
+    setErrors(failedTables);
+    setStep("done");
+
+    if (failedTables.length === 0) {
+      toast("모든 데이터가 초기화되었습니다.", "success");
+    } else {
+      toast(`초기화 완료 (${failedTables.length}개 테이블 오류)`, "error");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 경고 배너 */}
+      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg shrink-0">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-red-500">위험 구역</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              이 작업은 되돌릴 수 없습니다. 신중하게 진행해주세요.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 전체 데이터 초기화 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[var(--text)]">전체 데이터 초기화</h3>
+            <p className="text-xs text-[var(--text-muted)]">설정 및 업무 데이터를 모두 삭제합니다</p>
+          </div>
+        </div>
+
+        {/* 삭제 대상 목록 */}
+        <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-5">
+          <p className="text-xs font-semibold text-[var(--text)] mb-3">삭제되는 데이터:</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {[
+              "통장 / 법인카드",
+              "거래처 / 직원",
+              "딜 / 프로젝트",
+              "세금계산서",
+              "은행·카드 거래내역",
+              "승인정책 / 결재",
+              "급여 / 인사",
+              "문서 / 계약",
+              "CODEF 인증서 연동",
+              "은행연동 자격증명",
+              "알림 설정 / 내역",
+              "회사 부가정보",
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-1.5">
+                <span className="text-red-400 text-xs">x</span>
+                <span className="text-xs text-[var(--text-muted)]">{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <p className="text-xs font-semibold text-[var(--text)] mb-1.5">유지되는 데이터:</p>
+            <div className="flex flex-wrap gap-3">
+              {["계정 (이메일/비밀번호)", "회사명", "구독/결제 정보"].map((item) => (
+                <div key={item} className="flex items-center gap-1.5">
+                  <span className="text-green-400 text-xs">o</span>
+                  <span className="text-xs text-[var(--text-muted)]">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {step === "idle" && (
+          <button
+            onClick={() => setStep("confirm")}
+            className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl font-semibold text-sm transition border border-red-500/20"
+          >
+            데이터 초기화 시작
+          </button>
+        )}
+
+        {step === "confirm" && (
+          <div className="space-y-4">
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+              <p className="text-sm font-bold text-red-500 mb-2">
+                정말 모든 데이터를 삭제하시겠습니까?
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                확인을 위해 회사명 <span className="font-bold text-[var(--text)]">&ldquo;{companyName}&rdquo;</span>을 입력해주세요.
+              </p>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={companyName}
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-red-500/30 rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-red-500 transition"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setStep("idle"); setConfirmText(""); }}
+                className="flex-1 py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={confirmText !== companyName}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                초기화 실행
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "processing" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-semibold text-[var(--text)]">초기화 진행 중...</span>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-[var(--text-muted)]">{progress.currentTable}</span>
+                <span className="text-xs text-[var(--text-muted)]">{progress.current} / {progress.total}</span>
+              </div>
+              <div className="h-2 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-500 rounded-full transition-all duration-300"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-[var(--text-dim)]">브라우저를 닫지 마세요. 잠시만 기다려주세요.</p>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="space-y-4">
+            <div className={`p-4 rounded-xl border ${errors.length === 0 ? "bg-green-500/10 border-green-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                {errors.length === 0 ? (
+                  <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c-.866 1.5.217 3.374 1.948 3.374H2.697c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                )}
+                <span className={`text-sm font-bold ${errors.length === 0 ? "text-green-600" : "text-amber-600"}`}>
+                  {errors.length === 0 ? "초기화가 완료되었습니다" : `초기화 완료 (${errors.length}개 항목 오류)`}
+                </span>
+              </div>
+              {errors.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">모든 데이터가 삭제되었습니다. 온보딩부터 다시 시작할 수 있습니다.</p>
+              ) : (
+                <div className="mt-2">
+                  <p className="text-xs text-[var(--text-muted)] mb-2">일부 테이블 삭제 중 오류가 발생했습니다 (데이터가 없거나 권한 문제):</p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {errors.map((err, i) => (
+                      <p key={i} className="text-[10px] text-amber-600 font-mono">{err}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => window.location.href = "/dashboard"}
+              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition"
+            >
+              대시보드로 이동
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -133,8 +133,22 @@ export default function AuthPage() {
 
     setLoading(false);
 
-    if (authErr) return setError(translateAuthError(authErr.message));
+    if (authErr) {
+      if (authErr.message.includes("User already registered")) {
+        setError("이미 가입된 이메일입니다. 로그인 탭에서 로그인해주세요.");
+        setMode("login");
+        return;
+      }
+      return setError(translateAuthError(authErr.message));
+    }
     if (!authData.user) return setError("가입 처리 중 오류가 발생했습니다.");
+
+    // Supabase는 이미 확인된 이메일로 signUp 시 identities 빈 배열 반환
+    if (authData.user.identities && authData.user.identities.length === 0) {
+      setError("이미 가입된 이메일입니다. 로그인 탭에서 로그인해주세요.");
+      setMode("login");
+      return;
+    }
 
     // 이메일 인증이 필요한 경우 (세션이 없음)
     if (!authData.session) {
