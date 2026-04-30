@@ -210,7 +210,8 @@ function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
     .replace(/-----BEGIN PUBLIC KEY-----/, "")
     .replace(/-----END PUBLIC KEY-----/, "")
     .replace(/\s/g, "");
-  const pem = `-----BEGIN PUBLIC KEY-----\n${base64Body}\n-----END PUBLIC KEY-----`;
+  const lines = base64Body.match(/.{1,64}/g)?.join("\n") || base64Body;
+  const pem = `-----BEGIN PUBLIC KEY-----\n${lines}\n-----END PUBLIC KEY-----`;
   const encrypted = publicEncrypt(
     { key: pem, padding: constants.RSA_PKCS1_PADDING },
     Buffer.from(plainText, "utf8"),

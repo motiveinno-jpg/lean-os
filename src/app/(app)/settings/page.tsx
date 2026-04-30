@@ -3072,25 +3072,27 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
       const dirHandle = await (window as any).showDirectoryPicker({ mode: "read" });
       const certs: { name: string; derFile: File; keyFile: File | null }[] = [];
 
-      // Recursively scan for .der / .key pairs (up to 3 levels deep)
       async function scanDir(handle: any, depth: number, path: string) {
-        if (depth > 3) return;
+        if (depth > 5) return;
         try {
+          const entries: { kind: string; name: string; entry: any }[] = [];
           for await (const entry of handle.values()) {
-            if (entry.kind === "directory") {
-              await scanDir(entry, depth + 1, `${path}/${entry.name}`);
-            } else if (entry.kind === "file" && entry.name === "signCert.der") {
+            entries.push({ kind: entry.kind, name: entry.name, entry });
+          }
+          for (const { kind, name, entry } of entries) {
+            if (kind === "directory") {
+              await scanDir(entry, depth + 1, `${path}/${name}`);
+            } else if (kind === "file" && name.toLowerCase() === "signcert.der") {
               const derFile = await entry.getFile();
-              // Look for matching signPri.key in same directory
               let keyFile: File | null = null;
-              try {
-                const keyHandle = await handle.getFileHandle("signPri.key");
-                keyFile = await keyHandle.getFile();
-              } catch { /* key file not found in same dir */ }
+              const keyEntry = entries.find(e => e.kind === "file" && e.name.toLowerCase() === "signpri.key");
+              if (keyEntry) {
+                keyFile = await keyEntry.entry.getFile();
+              }
               certs.push({ name: path || dirHandle.name, derFile, keyFile });
             }
           }
-        } catch { /* permission denied or read error */ }
+        } catch { /* permission denied */ }
       }
 
       await scanDir(dirHandle, 0, "");
