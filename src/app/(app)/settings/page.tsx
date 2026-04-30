@@ -4664,9 +4664,6 @@ function PermissionsTab({ companyId }: { companyId: string }) {
 const DIRECT_DELETE_TABLES = [
   // ── Layer 1: 최하위 자식 (다른 테이블을 참조만 함) ──
   "deal_files", "deal_classifications",
-  "salary_history", "leave_requests", "leave_balances",
-  "leave_promotion_notices", "onboarding_checklist_items",
-  "employee_contracts", "employee_files", "attendance_records",
   "certificate_logs",
   "tax_invoice_queue",
   "expense_approvals",
@@ -4710,7 +4707,6 @@ const DIRECT_DELETE_TABLES = [
   // ── Layer 8: 핵심 엔티티 ──
   "partners",
   "bank_accounts", "corporate_cards",
-  "employees", "employee_invitations",
 
   // ── Layer 9: approval (requests → policies) ──
   "approval_requests", "approval_policies",
@@ -4966,12 +4962,11 @@ function DataResetTab({ companyId }: { companyId: string }) {
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             {[
               "통장 / 법인카드",
-              "거래처 / 직원",
+              "거래처",
               "딜 / 프로젝트",
               "세금계산서",
               "은행·카드 거래내역",
               "승인정책 / 결재",
-              "급여 / 인사",
               "문서 / 계약",
               "CODEF 인증서 연동",
               "은행연동 자격증명",
@@ -4987,7 +4982,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
           <div className="mt-3 pt-3 border-t border-[var(--border)]">
             <p className="text-xs font-semibold text-[var(--text)] mb-1.5">유지되는 데이터:</p>
             <div className="flex flex-wrap gap-3">
-              {["계정 (이메일/비밀번호)", "회사명", "구독/결제 정보"].map((item) => (
+              {["계정 (이메일/비밀번호)", "회사명", "직원 / 관리자 정보", "구독/결제 정보"].map((item) => (
                 <div key={item} className="flex items-center gap-1.5">
                   <span className="text-green-400 text-xs">o</span>
                   <span className="text-xs text-[var(--text-muted)]">{item}</span>
