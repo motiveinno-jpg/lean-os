@@ -2460,7 +2460,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           return;
         }
         const { registerCodefCertificate } = await import("@/lib/data-sync");
-        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
+        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType, accountType === "bank" ? loginId : undefined);
         if (res.success) {
           setResult({ ok: true, msg: "금융기관 연결 성공!" });
           toast("금융기관 연결 완료", "success");
@@ -2493,7 +2493,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(false);
   }
 
-  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization;
+  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization && (accountType !== "bank" || !!loginId);
   const isIdPwReady = !!loginId && !!loginPw && !!organization;
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
@@ -2579,6 +2579,14 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {authMethod === "cert" ? (
             <>
+              {/* 은행 인증서 로그인 시 사용자 ID 필요 */}
+              {accountType === "bank" && (
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 사용자 ID</label>
+                  <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="기업 인터넷뱅킹 사용자 ID" className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <p className="text-[10px] text-[var(--text-dim)] mt-1">은행 기업 인터넷뱅킹 로그인 시 사용하는 아이디를 입력하세요</p>
+                </div>
+              )}
               {/* 공동인증서 입력 */}
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">공동인증서 파일</label>

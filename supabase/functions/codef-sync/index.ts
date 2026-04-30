@@ -272,11 +272,15 @@ async function registerAccount(
     // 공동인증서 로그인
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
     accountEntry.password = encryptedCertPw;
+    if (loginOpts.loginId) {
+      accountEntry.id = loginOpts.loginId;
+    }
 
     if (loginOpts.pfxFile) {
-      accountEntry.certType = "pfx";
+      accountEntry.certType = "0";
       accountEntry.certFile = loginOpts.pfxFile;
     } else {
+      accountEntry.certType = "1";
       accountEntry.derFile = loginOpts.derFile || "";
       accountEntry.keyFile = loginOpts.keyFile || "";
     }
