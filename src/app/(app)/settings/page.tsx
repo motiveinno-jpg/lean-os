@@ -2790,8 +2790,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 text-xs font-bold">B</div>
                             <div>
-                              <div className="text-sm font-medium">{acc.resAccountName || acc.organization || "계좌"}</div>
-                              <div className="text-xs text-[var(--text-dim)]">{acc.resAccount || acc.resAccountDisplay || ""}</div>
+                              <div className="text-sm font-medium">{acc.displayName || acc.resAccountName || acc.organization || "계좌"}</div>
+                              <div className="text-xs text-[var(--text-dim)]">{acc.resAccount || acc.resAccountDisplay || acc.organization || ""}</div>
                             </div>
                           </div>
                           {acc.resAccountBalance && (
@@ -2811,8 +2811,8 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 text-xs font-bold">C</div>
                             <div>
-                              <div className="text-sm font-medium">{card.resCardName || card.organization || "카드"}</div>
-                              <div className="text-xs text-[var(--text-dim)]">{card.resCardNo || ""}</div>
+                              <div className="text-sm font-medium">{card.displayName || card.resCardName || card.organization || "카드"}</div>
+                              <div className="text-xs text-[var(--text-dim)]">{card.resCardNo || card.organization || ""}</div>
                             </div>
                           </div>
                         </div>

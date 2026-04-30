@@ -125,55 +125,83 @@ async function syncBankTransactions(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
 ) {
-  // First get all registered bank accounts
-  const accounts = await getAccountList(token, connectedId, "bank");
+  const errors: SyncError[] = [];
   let totalSynced = 0;
 
-  const errors: SyncError[] = [];
-
-  for (const acct of accounts) {
+  // 1. 등록된 은행 기관 코드 추출
+  const registeredAccounts = await getAccountList(token, connectedId);
+  const bankOrgs = new Set<string>();
+  for (const acct of registeredAccounts) {
     const org = acct.organization;
     if (!org) continue;
-    // 카드사 코드(03XX)는 은행 동기화에서 제외
     if (CARD_CODES[org]) continue;
-    const accountNo = acct.resAccount || acct.resAccountDisplay || "";
-    if (!accountNo) continue;
+    if (acct.businessType === "BK" || BANK_CODES[org]) {
+      bankOrgs.add(org);
+    }
+  }
 
-    const result = await codefRequest(token, "/v1/kr/bank/b/account/transaction-list", {
-      connectedId, organization: org, account: accountNo,
-      startDate, endDate, orderBy: "0", inquiryType: "1",
+  if (bankOrgs.size === 0) {
+    errors.push({ accountNo: "", organization: "", code: "NO_BANK_ACCOUNTS", message: "등록된 은행 계정이 없습니다.", hint: "설정 → API 연동에서 은행을 먼저 연결하세요." });
+    return { synced: 0, errors };
+  }
+
+  // 2. 각 은행에서 보유계좌 목록 조회 → 실제 계좌번호 확보
+  for (const org of bankOrgs) {
+    const acctListResult = await codefRequest(token, "/v1/kr/bank/b/account/account-list", {
+      connectedId, organization: org,
     });
 
-    if (result.result?.code !== "CF-00000") {
-      errors.push({
-        accountNo,
-        organization: org,
-        code: result.result?.code || "UNKNOWN",
-        message: result.result?.message || "응답 없음",
-        hint: codefErrorHint(result.result?.code),
-      });
+    if (acctListResult.result?.code !== "CF-00000") {
+      errors.push({ accountNo: "", organization: org, code: acctListResult.result?.code || "UNKNOWN", message: acctListResult.result?.message || "보유계좌 조회 실패", hint: codefErrorHint(acctListResult.result?.code) });
       continue;
     }
-    if (!result.data) continue;
 
-    const transactions = Array.isArray(result.data) ? result.data : [result.data];
+    const rawData = acctListResult.data?.resAccountList ?? acctListResult.data;
+    const realAccounts = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+    console.log(`[CODEF] Bank ${org} account-list: ${realAccounts.length} accounts`);
 
-    for (const tx of transactions) {
-      if (!tx.resTrDate) continue;
-      const externalId = `codef_bank_${accountNo}_${tx.resAccountTrDate || tx.resTrDate}_${tx.resAccountTrTime || ""}_${tx.resAccountOut || tx.resAccountIn || "0"}`;
+    if (realAccounts.length === 0) continue;
 
-      const { error } = await supabase.from("transactions").upsert({
-        company_id: companyId,
-        external_id: externalId,
-        amount: Number(tx.resAccountIn || 0) - Number(tx.resAccountOut || 0),
-        type: Number(tx.resAccountIn || 0) > 0 ? "income" : "expense",
-        description: tx.resAccountDesc || tx.resAccountMemo || "",
-        transaction_date: `${tx.resTrDate.slice(0,4)}-${tx.resTrDate.slice(4,6)}-${tx.resTrDate.slice(6,8)}`,
-        source: "codef_bank",
-        balance_after: Number(tx.resAfterTranBalance || 0),
-      }, { onConflict: "external_id" });
+    // 3. 각 계좌의 거래내역 조회
+    for (const bankAcct of realAccounts) {
+      const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || bankAcct.resAccountDisplay || "";
+      if (!accountNo) continue;
 
-      if (!error) totalSynced++;
+      const result = await codefRequest(token, "/v1/kr/bank/b/account/transaction-list", {
+        connectedId, organization: org, account: accountNo,
+        startDate, endDate, orderBy: "0", inquiryType: "1",
+      });
+
+      if (result.result?.code !== "CF-00000") {
+        errors.push({ accountNo, organization: org, code: result.result?.code || "UNKNOWN", message: result.result?.message || "거래내역 조회 실패", hint: codefErrorHint(result.result?.code) });
+        continue;
+      }
+
+      const txData = result.data?.resTrHistoryList ?? result.data;
+      const transactions = Array.isArray(txData) ? txData : txData ? [txData] : [];
+
+      for (const tx of transactions) {
+        if (!tx.resAccountTrDate && !tx.resTrDate) continue;
+        const trDate = tx.resAccountTrDate || tx.resTrDate;
+        const formattedDate = `${trDate.slice(0,4)}-${trDate.slice(4,6)}-${trDate.slice(6,8)}`;
+        const inAmt = Number(tx.resAccountIn || 0);
+        const outAmt = Number(tx.resAccountOut || 0);
+
+        const { error } = await supabase.from("bank_transactions").insert({
+          company_id: companyId,
+          transaction_date: formattedDate,
+          amount: inAmt > 0 ? inAmt : -outAmt,
+          balance_after: Number(tx.resAfterTranBalance || 0),
+          type: inAmt > 0 ? "입금" : "출금",
+          counterparty: tx.resAccountDesc || "",
+          description: tx.resAccountMemo || "",
+          source: "codef_bank",
+          mapping_status: "unmapped",
+          raw_data: { accountNo, organization: org, trDate, trTime: tx.resAccountTrTime || "" },
+        });
+
+        if (!error) totalSynced++;
+      }
     }
   }
 
@@ -229,7 +257,10 @@ async function syncCardBilling(
     }
     if (!result.data) continue;
 
-    const billings = Array.isArray(result.data) ? result.data : [result.data];
+    // CODEF 카드 청구 응답: data 자체가 배열이거나, data.resBillingList 안에 있을 수 있음
+    const rawBillings = result.data?.resBillingList ?? result.data;
+    const billings = Array.isArray(rawBillings) ? rawBillings : rawBillings ? [rawBillings] : [];
+    console.log(`[CODEF] Card ${org} billing: ${billings.length} items, raw keys: ${Object.keys(result.data || {}).join(",")}`);
 
     for (const bill of billings) {
       const externalId = `codef_card_${org}_${bill.resUsedDate || ""}_${bill.resUsedTime || ""}_${bill.resCardApprovalNo || totalSynced}`;
@@ -241,8 +272,9 @@ async function syncCardBilling(
         merchant_name: bill.resStoreName || bill.resMemberStoreName || "",
         transaction_date: bill.resUsedDate ? `${bill.resUsedDate.slice(0,4)}-${bill.resUsedDate.slice(4,6)}-${bill.resUsedDate.slice(6,8)}` : null,
         approval_number: bill.resCardApprovalNo || null,
-        card_name: bill.resCardName || null,
+        card_name: bill.resCardName || CARD_CODES[org] || null,
         source: "codef_card",
+        mapping_status: "unmapped",
       }, { onConflict: "external_id" });
 
       if (!error) totalSynced++;
@@ -559,7 +591,22 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 먼저 계정을 등록하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const { accountType = "bank" } = body;
-      const accounts = await getAccountList(token, cid, accountType);
+      const allAccounts = await getAccountList(token, cid);
+
+      // 은행/카드 필터링 + 이름 매핑
+      const accounts = allAccounts
+        .filter((a: any) => {
+          const org = a.organization;
+          if (!org) return false;
+          if (accountType === "bank") return !CARD_CODES[org] && (a.businessType === "BK" || BANK_CODES[org]);
+          if (accountType === "card") return CARD_CODES[org] || a.businessType === "CD";
+          return true;
+        })
+        .map((a: any) => ({
+          ...a,
+          displayName: BANK_CODES[a.organization] || CARD_CODES[a.organization] || a.organization,
+        }));
+
       return new Response(JSON.stringify({ success: true, accounts }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
