@@ -766,7 +766,31 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
 
 // ═══════════════════════════════════════════
 // Step 3: Certificate Registration (공동인증서 등록)
+// CodefCert 엔진 연동 + PFX 파일 업로드 폴백
 // ═══════════════════════════════════════════
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const codefcert: any;
+
+type EngineStatus = "loading" | "connected" | "not-installed" | "error";
+interface CertItem {
+  "cert.subjectname.CN": string;
+  "cert.extension.policyid": string;
+  "cert.validity.notAfter": number;
+  "cert.der.path": string;
+  "cert.key.path": string;
+  [key: string]: unknown;
+}
+
+const CERT_ORGS = [
+  { code: "0004", label: "국민은행" }, { code: "0088", label: "신한은행" },
+  { code: "0020", label: "우리은행" }, { code: "0081", label: "하나은행" },
+  { code: "0003", label: "기업은행" }, { code: "0011", label: "농협은행" },
+  { code: "0023", label: "SC제일은행" }, { code: "0090", label: "카카오뱅크" },
+  { code: "0092", label: "토스뱅크" }, { code: "0031", label: "대구은행" },
+  { code: "0032", label: "부산은행" },
+];
+
 function StepCertRegistration({ data, set, companyId, isCompleted }: {
   data: { pfxBase64: string; fileName: string; certPassword: string; organization: string; registering: boolean; registered: boolean; connectedId: string; error: string };
   set: (d: any) => void;
@@ -774,16 +798,105 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
   isCompleted: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"engine" | "manual">("engine");
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>("loading");
+  const [certList, setCertList] = useState<CertItem[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const engineInitRef = useRef(false);
 
-  const ORGS = [
-    { code: "0004", label: "국민은행" }, { code: "0088", label: "신한은행" },
-    { code: "0020", label: "우리은행" }, { code: "0081", label: "하나은행" },
-    { code: "0003", label: "기업은행" }, { code: "0011", label: "농협은행" },
-    { code: "0023", label: "SC제일은행" }, { code: "0090", label: "카카오뱅크" },
-    { code: "0092", label: "토스뱅크" }, { code: "0031", label: "대구은행" },
-    { code: "0032", label: "부산은행" },
-  ];
+  // ── Load CodefCert scripts + initialize engine ──
+  useEffect(() => {
+    if (engineInitRef.current || data.registered) return;
+    engineInitRef.current = true;
 
+    function loadScript(src: string): Promise<void> {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function init() {
+      try {
+        await loadScript("/scripts/jquery-jsonp-polyfill.js");
+        await loadScript("/scripts/codefcert.js");
+
+        // Set encryption OFF for simplicity
+        codefcert.options.opt1 = false;
+        codefcert._show_log = false;
+
+        // Fetch CODEF token from our backend
+        const tokenRes = await fetch("/api/codef/cert-token");
+        if (!tokenRes.ok) throw new Error("Token fetch failed");
+        const { token } = await tokenRes.json();
+        codefcert.options.codefToken = token;
+
+        // Initialize engine (checks if CodefCert agent is installed)
+        codefcert.initialization((success: boolean, errorCode?: string) => {
+          if (success) {
+            setEngineStatus("connected");
+            // Load cert list from hard drive
+            codefcert.engineGetCertification("", (certs: CertItem[] | { SUCCESS: boolean }) => {
+              if (Array.isArray(certs)) {
+                const now = Math.floor(Date.now() / 1000);
+                const valid = certs.filter((c) => c["cert.validity.notAfter"] > now);
+                setCertList(valid);
+              }
+            });
+          } else {
+            if (errorCode === "E010002") {
+              setEngineStatus("not-installed");
+            } else {
+              setEngineStatus("error");
+            }
+            setMode("manual");
+          }
+        });
+      } catch {
+        setEngineStatus("not-installed");
+        setMode("manual");
+      }
+    }
+    init();
+
+    return () => {
+      if (typeof codefcert !== "undefined" && codefcert._connected) {
+        codefcert.finalization();
+      }
+    };
+  }, [data.registered]);
+
+  // ── Extract PFX from selected cert via CodefCert engine ──
+  const handleExtractPfx = () => {
+    if (selectedIdx === null || !data.certPassword) {
+      set({ ...data, error: "인증서를 선택하고 비밀번호를 입력해주세요." });
+      return;
+    }
+    setExtracting(true);
+    set({ ...data, error: "" });
+
+    const cert = certList[selectedIdx];
+    codefcert.engineGetExportCertificationB64(
+      { certPassword: data.certPassword, certPath: cert["cert.der.path"], keyPath: cert["cert.key.path"] },
+      (result: { SUCCESS: boolean; CONVERT?: string; REASON?: string }) => {
+        setExtracting(false);
+        if (result.SUCCESS && result.CONVERT) {
+          set({ ...data, pfxBase64: result.CONVERT, fileName: cert["cert.subjectname.CN"], error: "" });
+        } else {
+          const code = result.REASON || "";
+          const msg = code === "-9997" ? "인증서 비밀번호가 일치하지 않습니다." : `인증서 추출 실패 (${code})`;
+          set({ ...data, error: msg });
+        }
+      },
+    );
+  };
+
+  // ── Manual PFX file select ──
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -792,9 +905,10 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
     set({ ...data, pfxBase64: base64, fileName: file.name, error: "" });
   };
 
+  // ── Register PFX with CODEF API ──
   const handleRegister = async () => {
     if (!data.pfxBase64 || !data.certPassword) {
-      set({ ...data, error: "인증서 파일과 비밀번호를 입력해주세요." });
+      set({ ...data, error: "인증서와 비밀번호를 입력해주세요." });
       return;
     }
     set({ ...data, registering: true, error: "" });
@@ -822,6 +936,11 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
     }
   };
 
+  const certExpiry = (ts: number) => {
+    const d = new Date(ts * 1000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+
   return (
     <div className="flex-1">
       <StepHeader
@@ -836,55 +955,183 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
 
       {!data.registered && (
         <div className="space-y-4">
-          {/* File upload */}
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
-            <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 파일 (PFX/P12) *</label>
-            <input ref={fileInputRef} type="file" accept=".pfx,.p12,.PFX,.P12" onChange={handleFileSelect} className="hidden" />
+          {/* Mode tabs */}
+          <div className="flex rounded-xl overflow-hidden border border-[var(--border)]">
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full py-3 rounded-xl text-sm font-semibold transition border-2 border-dashed"
-              style={{ borderColor: data.pfxBase64 ? "var(--primary)" : "var(--border)", background: data.pfxBase64 ? "var(--primary-light)" : "var(--bg-card)", color: data.pfxBase64 ? "var(--primary)" : "var(--text-muted)" }}
+              onClick={() => setMode("engine")}
+              className="flex-1 py-2 text-xs font-semibold transition"
+              style={{
+                background: mode === "engine" ? "var(--primary)" : "var(--bg-surface)",
+                color: mode === "engine" ? "#fff" : "var(--text-muted)",
+              }}
             >
-              {data.pfxBase64 ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                  {data.fileName}
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                  인증서 파일 선택 (.pfx / .p12)
-                </span>
-              )}
+              PC 인증서 자동 추출
             </button>
+            <button
+              onClick={() => setMode("manual")}
+              className="flex-1 py-2 text-xs font-semibold transition"
+              style={{
+                background: mode === "manual" ? "var(--primary)" : "var(--bg-surface)",
+                color: mode === "manual" ? "#fff" : "var(--text-muted)",
+              }}
+            >
+              PFX 파일 직접 업로드
+            </button>
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 비밀번호 *</label>
-              <input
-                type="password"
-                value={data.certPassword}
-                onChange={(e) => set({ ...data, certPassword: e.target.value })}
-                placeholder="공동인증서 비밀번호"
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
-              />
+          {/* ── Engine mode: CodefCert agent ── */}
+          {mode === "engine" && (
+            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+              {engineStatus === "loading" && (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-[var(--text-muted)]">
+                  <span className="animate-spin w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full" />
+                  CodefCert 엔진 연결 중...
+                </div>
+              )}
+
+              {engineStatus === "not-installed" && (
+                <div className="py-4 space-y-3">
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                    <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <div className="text-[11px] text-amber-800 leading-relaxed">
+                      <p className="font-semibold mb-1">CodefCert 프로그램이 설치되어 있지 않습니다</p>
+                      <p>PC에 저장된 공동인증서를 자동으로 불러오려면 CodefCert 프로그램을 설치해주세요.</p>
+                      <p className="mt-1">또는 &quot;PFX 파일 직접 업로드&quot; 탭을 사용하세요.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setMode("manual")}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-[var(--text)] bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-elevated)] transition"
+                  >
+                    PFX 파일 직접 업로드로 전환
+                  </button>
+                </div>
+              )}
+
+              {engineStatus === "connected" && (
+                <>
+                  {/* Cert list */}
+                  {certList.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-[var(--text-muted)]">PC에서 인증서를 찾을 수 없습니다.</p>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">인증서 선택 *</label>
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto">
+                        {certList.map((c, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedIdx(i)}
+                            className="w-full text-left px-3 py-2.5 rounded-lg text-xs transition border"
+                            style={{
+                              borderColor: selectedIdx === i ? "var(--primary)" : "var(--border)",
+                              background: selectedIdx === i ? "var(--primary-light)" : "var(--bg-card)",
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-[var(--text)]">{c["cert.subjectname.CN"]}</span>
+                              <span className="text-[10px] text-[var(--text-dim)]">{certExpiry(c["cert.validity.notAfter"])}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 비밀번호 *</label>
+                    <input
+                      type="password"
+                      value={data.certPassword}
+                      onChange={(e) => set({ ...data, certPassword: e.target.value })}
+                      placeholder="공동인증서 비밀번호"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+                    />
+                  </div>
+
+                  {/* Extract button (if PFX not yet extracted) */}
+                  {!data.pfxBase64 && (
+                    <button
+                      onClick={handleExtractPfx}
+                      disabled={selectedIdx === null || !data.certPassword || extracting}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-40"
+                      style={{ background: "var(--primary)" }}
+                    >
+                      {extracting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                          인증서 추출 중...
+                        </span>
+                      ) : "인증서 추출"}
+                    </button>
+                  )}
+
+                  {data.pfxBase64 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                      인증서 추출 완료 — {data.fileName}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">주거래 은행 *</label>
-              <select
-                value={data.organization}
-                onChange={(e) => set({ ...data, organization: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+          {/* ── Manual mode: PFX file upload ── */}
+          {mode === "manual" && (
+            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+              <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 파일 (PFX/P12) *</label>
+              <input ref={fileInputRef} type="file" accept=".pfx,.p12,.PFX,.P12" onChange={handleFileSelect} className="hidden" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-3 rounded-xl text-sm font-semibold transition border-2 border-dashed"
+                style={{ borderColor: data.pfxBase64 ? "var(--primary)" : "var(--border)", background: data.pfxBase64 ? "var(--primary-light)" : "var(--bg-card)", color: data.pfxBase64 ? "var(--primary)" : "var(--text-muted)" }}
               >
-                {ORGS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
-              </select>
+                {data.pfxBase64 ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                    {data.fileName}
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                    인증서 파일 선택 (.pfx / .p12)
+                  </span>
+                )}
+              </button>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 비밀번호 *</label>
+                <input
+                  type="password"
+                  value={data.certPassword}
+                  onChange={(e) => set({ ...data, certPassword: e.target.value })}
+                  placeholder="공동인증서 비밀번호"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+                />
+              </div>
             </div>
+          )}
+
+          {/* Organization select (shared) */}
+          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">주거래 은행 *</label>
+            <select
+              value={data.organization}
+              onChange={(e) => set({ ...data, organization: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)]"
+            >
+              {CERT_ORGS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
+            </select>
           </div>
 
           {data.error && (
             <div className="px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">{data.error}</div>
           )}
 
+          {/* Register button */}
           <button
             onClick={handleRegister}
             disabled={!data.pfxBase64 || !data.certPassword || data.registering}
@@ -904,8 +1151,9 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
             <p className="text-[11px] text-blue-700 leading-relaxed">
-              PFX 파일은 은행 인터넷뱅킹에서 &quot;인증서 내보내기&quot;로 발급받을 수 있습니다.
-              인증서는 암호화되어 안전하게 전송되며, 금융 데이터 조회에만 사용됩니다.
+              {mode === "engine"
+                ? "PC에 설치된 공동인증서를 CodefCert 프로그램이 자동으로 찾아 추출합니다. 인증서는 암호화되어 안전하게 전송됩니다."
+                : "PFX 파일은 은행 인터넷뱅킹에서 \"인증서 내보내기\"로 발급받을 수 있습니다. 인증서는 암호화되어 안전하게 전송되며, 금융 데이터 조회에만 사용됩니다."}
             </p>
           </div>
         </div>
