@@ -2612,7 +2612,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       </div>
 
       {result && (
-        <div className={`mt-3 p-3 rounded-xl text-xs font-medium ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+        <div className={`mt-3 p-3 rounded-xl text-xs font-medium whitespace-pre-wrap break-all ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {result.msg}
         </div>
       )}

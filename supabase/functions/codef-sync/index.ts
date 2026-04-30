@@ -60,6 +60,17 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 }
 
 async function codefRequest(token: string, path: string, body: Record<string, any>): Promise<any> {
+  const sanitizedBody = { ...body };
+  if (sanitizedBody.accountList) {
+    sanitizedBody.accountList = (sanitizedBody.accountList as any[]).map((a: any) => ({
+      ...a,
+      password: a.password ? "[ENCRYPTED]" : undefined,
+      derFile: a.derFile ? `[${a.derFile.length} chars]` : undefined,
+      keyFile: a.keyFile ? `[${a.keyFile.length} chars]` : undefined,
+    }));
+  }
+  console.log(`[CODEF] ${path}`, JSON.stringify(sanitizedBody));
+
   const res = await fetch(`${CODEF_BASE}${path}`, {
     method: "POST",
     headers: {
@@ -68,14 +79,21 @@ async function codefRequest(token: string, path: string, body: Record<string, an
     },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`CODEF API error: ${res.status}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.error(`[CODEF] HTTP ${res.status}: ${errText}`);
+    throw new Error(`CODEF API error: ${res.status}`);
+  }
   const text = await res.text();
+  let parsed: any;
   try {
     const decoded = decodeURIComponent(text);
-    return JSON.parse(decoded);
+    parsed = JSON.parse(decoded);
   } catch {
-    return JSON.parse(text);
+    parsed = JSON.parse(text);
   }
+  console.log(`[CODEF] Response:`, JSON.stringify({ code: parsed.result?.code, message: parsed.result?.message, extraMessage: parsed.result?.extraMessage }));
+  return parsed;
 }
 
 // Known CODEF error codes → actionable hints (한글).
@@ -232,6 +250,7 @@ async function registerAccount(
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+  console.log(`[CODEF] registerAccount: env=${CODEF_ENV}, hasPublicKey=${!!publicKey}, publicKeyLen=${publicKey.length}, org=${organization}, loginType=${loginOpts.loginType}, hasDer=${!!loginOpts.derFile}, hasKey=${!!loginOpts.keyFile}, hasCertPw=${!!loginOpts.certPassword}, existingCid=${!!existingConnectedId}`);
 
   const path = existingConnectedId ? "/v1/account/add" : "/v1/account/create";
 
@@ -273,7 +292,26 @@ async function registerAccount(
   if (result.result?.code !== "CF-00000") {
     const hint = codefErrorHint(result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
-    throw new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
+    const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
+    err.codefResponse = result;
+    err.diagnostics = {
+      env: CODEF_ENV,
+      baseUrl: CODEF_BASE,
+      publicKeyLen: publicKey.length,
+      publicKeyPrefix: publicKey.substring(0, 30),
+      organization,
+      loginType: loginOpts.loginType,
+      hasDerFile: !!loginOpts.derFile,
+      derFileLen: loginOpts.derFile?.length || 0,
+      hasKeyFile: !!loginOpts.keyFile,
+      keyFileLen: loginOpts.keyFile?.length || 0,
+      hasPfxFile: !!loginOpts.pfxFile,
+      hasCertPassword: !!loginOpts.certPassword,
+      certPasswordLen: loginOpts.certPassword?.length || 0,
+      usedPath: path,
+      hadExistingCid: !!existingConnectedId,
+    };
+    throw err;
   }
 
   return {
@@ -424,15 +462,15 @@ serve(async (req) => {
           } catch (retryErr: any) {
             return new Response(JSON.stringify({
               error: retryErr.message || "계정 등록 실패",
-              env: CODEF_ENV,
-              baseUrl: CODEF_BASE,
+              codefResponse: retryErr.codefResponse || null,
+              diagnostics: retryErr.diagnostics || null,
             }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
         } else {
           return new Response(JSON.stringify({
             error: regErr.message || "계정 등록 실패",
-            env: CODEF_ENV,
-            baseUrl: CODEF_BASE,
+            codefResponse: regErr.codefResponse || null,
+            diagnostics: regErr.diagnostics || null,
           }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }

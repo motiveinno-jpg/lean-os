@@ -662,7 +662,17 @@ async function callCodefRegister(
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '계정 등록 오류' }));
-      return { success: false, error: err.error || `HTTP ${res.status}` };
+      const diagParts: string[] = [];
+      if (err.diagnostics) {
+        const d = err.diagnostics;
+        diagParts.push(`[env=${d.env}, keyLen=${d.publicKeyLen}, keyPrefix=${d.publicKeyPrefix}, org=${d.organization}, loginType=${d.loginType}, der=${d.derFileLen}, key=${d.keyFileLen}, certPw=${d.certPasswordLen}ch, path=${d.usedPath}]`);
+      }
+      if (err.codefResponse?.result) {
+        const r = err.codefResponse.result;
+        diagParts.push(`[CODEF: ${r.code} ${r.message} ${r.extraMessage || ''}]`);
+      }
+      const diagStr = diagParts.length > 0 ? '\n' + diagParts.join('\n') : '';
+      return { success: false, error: (err.error || `HTTP ${res.status}`) + diagStr };
     }
 
     const result = await res.json();
