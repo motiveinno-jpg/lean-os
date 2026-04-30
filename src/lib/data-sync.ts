@@ -609,7 +609,7 @@ function inferCategory(payee: string): string {
 
 export async function registerCodefAccount(
   companyId: string,
-  accountType: 'bank' | 'card',
+  accountType: 'bank' | 'card' | 'hometax',
   organization: string,
   loginId: string,
   loginPw: string,
@@ -622,7 +622,7 @@ export async function registerCodefAccount(
 
 export async function registerCodefCertificate(
   companyId: string,
-  accountType: 'bank' | 'card',
+  accountType: 'bank' | 'card' | 'hometax',
   organization: string,
   derFile: string,
   keyFile: string,

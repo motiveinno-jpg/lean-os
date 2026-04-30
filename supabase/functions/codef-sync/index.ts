@@ -132,7 +132,10 @@ async function syncBankTransactions(
   const errors: SyncError[] = [];
 
   for (const acct of accounts) {
-    const org = acct.organization || acct.countryCode === "KR" ? (acct.organization || "0004") : "0004";
+    const org = acct.organization;
+    if (!org) continue;
+    // 카드사 코드(03XX)는 은행 동기화에서 제외
+    if (CARD_CODES[org]) continue;
     const accountNo = acct.resAccount || acct.resAccountDisplay || "";
     if (!accountNo) continue;
 
@@ -183,43 +186,70 @@ async function syncCardBilling(
 ) {
   const errors: SyncError[] = [];
 
-  const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
-    connectedId, organization: "0301", startDate, endDate, orderBy: "0", inquiryType: "1",
-  });
-
-  if (result.result?.code !== "CF-00000") {
+  const accounts = await getAccountList(token, connectedId, "card");
+  const cardOrgs = new Set<string>();
+  for (const acct of accounts) {
+    const org = acct.organization;
+    if (!org) continue;
+    if (acct.businessType === "CD" || CARD_CODES[org]) {
+      cardOrgs.add(org);
+    }
+  }
+  if (cardOrgs.size === 0) {
     errors.push({
       accountNo: "",
-      organization: "0301",
-      code: result.result?.code || "UNKNOWN",
-      message: result.result?.message || "응답 없음",
-      hint: codefErrorHint(result.result?.code),
+      organization: "",
+      code: "NO_CARD_ACCOUNTS",
+      message: "등록된 카드 계정이 없습니다. 설정에서 카드를 먼저 연결하세요.",
+      hint: "설정 → API 연동에서 카드 계정을 등록하세요.",
     });
     return { synced: 0, errors };
   }
-  if (!result.data) return { synced: 0, errors };
 
-  const billings = Array.isArray(result.data) ? result.data : [result.data];
-  let synced = 0;
+  let totalSynced = 0;
 
-  for (const bill of billings) {
-    const externalId = `codef_card_${bill.resUsedDate || ""}_${bill.resUsedTime || ""}_${bill.resCardApprovalNo || synced}`;
+  // 카드 청구 내역은 YYYYMM 6자리 날짜
+  const billingStart = startDate.slice(0, 6);
+  const billingEnd = endDate.slice(0, 6);
 
-    const { error } = await supabase.from("card_transactions").upsert({
-      company_id: companyId,
-      external_id: externalId,
-      amount: Number(bill.resUsedAmount || 0),
-      merchant_name: bill.resStoreName || bill.resMemberStoreName || "",
-      transaction_date: bill.resUsedDate ? `${bill.resUsedDate.slice(0,4)}-${bill.resUsedDate.slice(4,6)}-${bill.resUsedDate.slice(6,8)}` : null,
-      approval_number: bill.resCardApprovalNo || null,
-      card_name: bill.resCardName || null,
-      source: "codef_card",
-    }, { onConflict: "external_id" });
+  for (const org of cardOrgs) {
+    const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
+      connectedId, organization: org, startDate: billingStart, endDate: billingEnd, orderBy: "0", inquiryType: "1",
+    });
 
-    if (!error) synced++;
+    if (result.result?.code !== "CF-00000") {
+      errors.push({
+        accountNo: "",
+        organization: org,
+        code: result.result?.code || "UNKNOWN",
+        message: result.result?.message || "응답 없음",
+        hint: codefErrorHint(result.result?.code),
+      });
+      continue;
+    }
+    if (!result.data) continue;
+
+    const billings = Array.isArray(result.data) ? result.data : [result.data];
+
+    for (const bill of billings) {
+      const externalId = `codef_card_${org}_${bill.resUsedDate || ""}_${bill.resUsedTime || ""}_${bill.resCardApprovalNo || totalSynced}`;
+
+      const { error } = await supabase.from("card_transactions").upsert({
+        company_id: companyId,
+        external_id: externalId,
+        amount: Number(bill.resUsedAmount || 0),
+        merchant_name: bill.resStoreName || bill.resMemberStoreName || "",
+        transaction_date: bill.resUsedDate ? `${bill.resUsedDate.slice(0,4)}-${bill.resUsedDate.slice(4,6)}-${bill.resUsedDate.slice(6,8)}` : null,
+        approval_number: bill.resCardApprovalNo || null,
+        card_name: bill.resCardName || null,
+        source: "codef_card",
+      }, { onConflict: "external_id" });
+
+      if (!error) totalSynced++;
+    }
   }
 
-  return { synced, errors };
+  return { synced: totalSynced, errors };
 }
 
 // RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
@@ -257,7 +287,7 @@ async function registerAccount(
 
   const accountEntry: Record<string, any> = {
     countryCode: "KR",
-    businessType: accountType === "card" ? "CD" : "BK",
+    businessType: accountType === "card" ? "CD" : accountType === "hometax" ? "PB" : "BK",
     clientType: loginOpts.clientType || "B",
     organization,
     loginType: loginOpts.loginType,
@@ -332,7 +362,10 @@ async function getAccountList(
   });
 
   if (result.result?.code !== "CF-00000") return [];
-  return Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+  // CODEF returns { data: { connectedId, accountList: [...] } }
+  const accounts = result.data?.accountList ?? result.data;
+  console.log(`[CODEF] accountList raw:`, JSON.stringify(accounts));
+  return Array.isArray(accounts) ? accounts : accounts ? [accounts] : [];
 }
 
 // HomeTax tax invoice sync via CODEF API
@@ -343,10 +376,29 @@ async function syncHometaxInvoices(
   const errors: SyncError[] = [];
   let totalSynced = 0;
 
+  // 국세청(홈택스) organization code
+  const HOMETAX_ORG = "0004";
+
+  // 홈택스 계정이 connectedId에 등록되었는지 확인
+  const accounts = await getAccountList(token, connectedId);
+  const hasHometax = accounts.some((a: any) =>
+    a.organization === HOMETAX_ORG || a.businessType === "NT" || a.businessType === "PB"
+  );
+  if (!hasHometax) {
+    errors.push({
+      accountNo: "",
+      organization: HOMETAX_ORG,
+      code: "NO_HOMETAX_ACCOUNT",
+      message: "홈택스 계정이 등록되지 않았습니다.",
+      hint: "설정 → API 연동에서 홈택스(국세청) 계정을 추가로 등록하세요. 은행/카드와 별도로 홈택스도 공동인증서로 연결해야 합니다.",
+    });
+    return { synced: 0, errors };
+  }
+
   for (const direction of ["매출", "매입"] as const) {
     const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
       connectedId,
-      organization: "0004",
+      organization: HOMETAX_ORG,
       inquiryType: direction === "매출" ? "0" : "1",
       startDate,
       endDate,
@@ -355,7 +407,7 @@ async function syncHometaxInvoices(
     if (result.result?.code !== "CF-00000") {
       errors.push({
         accountNo: "",
-        organization: "0004",
+        organization: HOMETAX_ORG,
         code: result.result?.code || "UNKNOWN",
         message: result.result?.message || "응답 없음",
         hint: codefErrorHint(result.result?.code),
@@ -492,6 +544,9 @@ serve(async (req) => {
 
     // --- Action: sandbox-connect (샌드박스 데모 데이터 즉시 연결) ---
     if (action === "sandbox-connect") {
+      if (CODEF_ENV === "production") {
+        return new Response(JSON.stringify({ error: "프로덕션 환경에서는 샌드박스 연결을 사용할 수 없습니다." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const sandboxConnectedId = "sandbox_connectedId_01";
 
       // Verify sandbox connection by fetching account list
