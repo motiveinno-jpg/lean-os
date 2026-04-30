@@ -4663,7 +4663,7 @@ function PermissionsTab({ companyId }: { companyId: string }) {
 // tax_invoice_monthly_summary = VIEW이므로 제외
 const DIRECT_DELETE_TABLES = [
   // ── Layer 1: 최하위 자식 (다른 테이블을 참조만 함) ──
-  "deal_files", "deal_cost_schedule", "deal_classifications",
+  "deal_files", "deal_classifications",
   "salary_history", "leave_requests", "leave_balances",
   "leave_promotion_notices", "onboarding_checklist_items",
   "employee_contracts", "employee_files", "attendance_records",
@@ -4680,6 +4680,7 @@ const DIRECT_DELETE_TABLES = [
   "bank_transactions", "card_transactions",
   "bank_classification_rules",
   "payment_queue",
+  "deal_cost_schedule",
   "expense_requests",
   "financial_items",
   "vault_docs",
@@ -4764,7 +4765,6 @@ const CHILD_DELETE_GROUPS: { parent: string; parentKey: string; children: { tabl
     parent: "chat_channels",
     parentKey: "channel_id",
     children: [
-      { table: "chat_reactions", fk: "channel_id" },
       { table: "chat_mentions", fk: "channel_id" },
       { table: "chat_files", fk: "channel_id" },
       { table: "chat_action_cards", fk: "channel_id" },
@@ -4844,7 +4844,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
   async function handleReset() {
     setStep("processing");
     setErrors([]);
-    const totalSteps = 1 + CHILD_DELETE_GROUPS.length + DIRECT_DELETE_TABLES.length + 1;
+    const totalSteps = 2 + CHILD_DELETE_GROUPS.length + DIRECT_DELETE_TABLES.length + 1;
     let current = 0;
     const failedTables: string[] = [];
 
@@ -4858,6 +4858,21 @@ function DataResetTab({ companyId }: { companyId: string }) {
     await db.from("partners").update({ source_deal_id: null }).eq("company_id", companyId);
     await db.from("tax_invoices").update({ original_invoice_id: null }).eq("company_id", companyId);
     await db.from("deals").update({ partner_id: null, bank_account_id: null }).eq("company_id", companyId);
+    await db.from("deal_cost_schedule").update({ sub_deal_id: null }).eq("company_id", companyId);
+
+    // ── Phase 1.5: chat_reactions는 message_id로만 삭제 가능 ──
+    tick("chat_reactions");
+    const chatChannelIds = await fetchIds("chat_channels");
+    if (chatChannelIds.length > 0) {
+      const allMsgIds: string[] = [];
+      for (let i = 0; i < chatChannelIds.length; i += 100) {
+        const batch = chatChannelIds.slice(i, i + 100);
+        const { data: msgs } = await db.from("chat_messages").select("id").in("channel_id", batch);
+        if (msgs) allMsgIds.push(...msgs.map((m: { id: string }) => m.id));
+      }
+      const reactErr = await deleteByIds("chat_reactions", "message_id", allMsgIds);
+      if (reactErr) failedTables.push(reactErr);
+    }
 
     // ── Phase 2: 부모 ID 조회 후 자식 테이블 삭제 ──
     for (const group of CHILD_DELETE_GROUPS) {
