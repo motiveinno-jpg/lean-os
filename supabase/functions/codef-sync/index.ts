@@ -750,10 +750,20 @@ serve(async (req) => {
       } catch { /* non-critical */ }
 
       if (status === "error") {
+        const code = verifyResult.result?.code;
+        // holetax 컨텍스트에 맞는 hint
+        let hint = codefErrorHint(code);
+        if (code === "CF-00401") {
+          hint = "홈택스(공공) API 운영 환경 권한이 없습니다. CODEF 대시보드 → 상품 관리 → 운영(Production) 환경에서 '국세청 회원 등록부(계정등록전용상품)' 또는 '전자세금계산서 통합' 상품을 신청/활성화하세요. 운영 환경은 별도 심사(1~3영업일)가 필요할 수 있습니다.";
+        } else if (code === "CF-03002") {
+          hint = "홈택스가 추가 인증을 요구합니다 (보안카드/간편인증/전자서명). 현재 OwnerView 는 추가 인증 미지원 — 향후 구현 예정.";
+        } else if (code === "CF-12826") {
+          hint = "홈택스 비밀번호 길이 제한 초과 (15자 초과). 비밀번호를 9~15자로 변경 후 재시도하세요.";
+        }
         return new Response(JSON.stringify({
           success: false,
-          error: `홈택스 검증 실패: ${verifyResult.result?.message || "알 수 없는 오류"} (${verifyResult.result?.code})`,
-          hint: codefErrorHint(verifyResult.result?.code),
+          error: `홈택스 검증 실패: ${verifyResult.result?.message || "알 수 없는 오류"} (${code})`,
+          hint,
           codefResponse: verifyResult,
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
