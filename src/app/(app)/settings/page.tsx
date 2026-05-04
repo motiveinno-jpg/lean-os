@@ -2959,7 +2959,10 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
 function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   const db2 = supabase as any;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, hometax_id: "", hometax_password: "", hometax_login_method: "id_pw" as "id_pw" | "certificate", hometax_cert_password: "", vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
@@ -2972,6 +2975,47 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
     await db2.from("companies").update({ tax_settings: settings }).eq("id", companyId);
     queryClient.invalidateQueries({ queryKey: ["tax-settings"] });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function testHometaxConnection() {
+    if (!companyId || testing) return;
+    setTestResult(null);
+
+    if (settings.hometax_login_method === "certificate") {
+      setTestResult({
+        ok: false,
+        msg: "공동인증서 방식은 인증서 파일이 필요합니다. 상단의 '금융기관 연결' 섹션 → '홈택스' 버튼을 사용하세요.",
+      });
+      return;
+    }
+
+    if (!settings.hometax_id || !settings.hometax_password) {
+      setTestResult({ ok: false, msg: "홈택스 ID와 비밀번호를 모두 입력하세요." });
+      return;
+    }
+
+    setTesting(true);
+    try {
+      const { registerCodefAccount } = await import("@/lib/data-sync");
+      const res = await registerCodefAccount(
+        companyId,
+        "hometax",
+        "0001",
+        settings.hometax_id,
+        settings.hometax_password,
+        "B",
+      );
+      if (res.success) {
+        setTestResult({ ok: true, msg: `홈택스 연결 성공! (ConnectedID: ${(res.connectedId || "").slice(0, 8)}...)` });
+        toast("홈택스 연결 완료", "success");
+      } else {
+        setTestResult({ ok: false, msg: res.error || "연결 실패" });
+      }
+    } catch (err: any) {
+      setTestResult({ ok: false, msg: err.message || "오류" });
+    } finally {
+      setTesting(false);
+    }
   }
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
   const Tog = ({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) => (
@@ -3050,8 +3094,23 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           </div>
         )}
         <div className="flex gap-3">
-          <button className="flex-1 py-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">연결 테스트</button>
+          <button
+            onClick={testHometaxConnection}
+            disabled={testing}
+            className="flex-1 py-3 bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 border border-[var(--primary)]/30 rounded-xl text-xs font-semibold text-[var(--primary)] transition disabled:opacity-50"
+          >
+            {testing ? "연결 시도 중..." : "연결 테스트"}
+          </button>
         </div>
+        {testResult && (
+          <div className={`mt-3 p-3 rounded-xl text-xs ${testResult.ok ? "bg-green-500/10 border border-green-500/30 text-green-700" : "bg-red-500/10 border border-red-500/30 text-red-700"}`}>
+            {testResult.msg}
+          </div>
+        )}
+        <p className="mt-3 text-[10px] text-[var(--text-dim)]">
+          공동인증서 방식 또는 처음 등록 시에는 상단의 <b>금융 데이터 연동 → 금융기관 연결 → 홈택스</b>를 사용하세요.
+          이 영역은 ID/PW 빠른 연결 테스트용입니다.
+        </p>
         <label className="flex items-center gap-2 mt-4 text-xs text-[var(--text-muted)]"><input type="checkbox" checked={settings.vat_auto_aggregate} onChange={(e) => setSettings({ ...settings, vat_auto_aggregate: e.target.checked })} className="rounded" /> 부가세 자동 집계 (매 분기별)</label>
       </div>
       <button onClick={saveTaxSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "세무자동화 설정 저장"}</button>
