@@ -341,6 +341,12 @@ async function registerAccount(
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
     accountEntry.password = encryptedCertPw;
 
+    // 홈택스 등 일부 product 는 인증서 + 식별자(사업자번호) 모두 요구.
+    // loginId 가 전달되면 인증서 모드에서도 id 필드로 함께 전송.
+    if (loginOpts.loginId) {
+      accountEntry.id = loginOpts.loginId;
+    }
+
     if (loginOpts.pfxFile) {
       accountEntry.certType = "0";
       accountEntry.certFile = loginOpts.pfxFile;
@@ -528,14 +534,32 @@ serve(async (req) => {
         }
       }
 
+      // 홈택스 등록 시 사업자번호를 식별자로 함께 전송 (CODEF 공공 카테고리 요구사항)
+      // 인증서만으로는 식별 불가능, 인증서 + BRN 조합 필요.
+      let extraId: string | undefined;
+      if (accountType === "hometax") {
+        const { data: companyRow } = await supabase
+          .from("companies")
+          .select("business_number")
+          .eq("id", companyId)
+          .maybeSingle();
+        const brn = (companyRow?.business_number || "").replace(/[^0-9]/g, "");
+        if (!brn || brn.length !== 10) {
+          return new Response(JSON.stringify({
+            error: "홈택스 등록을 위해 회사의 사업자등록번호(10자리)가 필요합니다. 설정 → 회사 정보에서 사업자번호를 등록해주세요.",
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        extraId = brn;
+      }
+
       let result;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
       } catch (regErr: any) {
         // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
         if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
           } catch (retryErr: any) {
             return new Response(JSON.stringify({
               error: retryErr.message || "계정 등록 실패",
