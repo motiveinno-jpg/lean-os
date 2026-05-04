@@ -2984,7 +2984,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
     if (settings.hometax_login_method === "certificate") {
       setTestResult({
         ok: false,
-        msg: "공동인증서 방식은 인증서 파일이 필요합니다. 상단의 '금융기관 연결' 섹션 → '홈택스' 버튼을 사용하세요.",
+        msg: "공동인증서 방식은 인증서 파일이 필요합니다. '은행연동' 탭 → '금융기관 연결' → '홈택스' 버튼을 사용하세요.",
       });
       return;
     }
@@ -3108,7 +3108,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           </div>
         )}
         <p className="mt-3 text-[10px] text-[var(--text-dim)]">
-          공동인증서 방식 또는 처음 등록 시에는 상단의 <b>금융 데이터 연동 → 금융기관 연결 → 홈택스</b>를 사용하세요.
+          공동인증서 방식 또는 처음 등록 시에는 <b>'은행연동' 탭 → 금융기관 연결 → 홈택스</b>를 사용하세요.
           이 영역은 ID/PW 빠른 연결 테스트용입니다.
         </p>
         <label className="flex items-center gap-2 mt-4 text-xs text-[var(--text-muted)]"><input type="checkbox" checked={settings.vat_auto_aggregate} onChange={(e) => setSettings({ ...settings, vat_auto_aggregate: e.target.checked })} className="rounded" /> 부가세 자동 집계 (매 분기별)</label>
@@ -3750,7 +3750,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
           </div>
         </div>
         <div className="mb-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700">
-          ⚠️ 이 입력은 더 이상 동기화에 사용되지 않습니다. 홈택스 연동은 위의 <b>금융기관 연결 → 홈택스</b> 버튼으로 등록하세요.
+          ⚠️ 이 입력은 더 이상 동기화에 사용되지 않습니다. 홈택스 연동은 <b>'은행연동' 탭 → 금융기관 연결 → 홈택스</b> 버튼으로 등록하세요.
         </div>
         <div className="mb-3">
           <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-2">로그인 방식</div>
