@@ -19,6 +19,7 @@ export default function TransactionsPage() {
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userLoadFailed, setUserLoadFailed] = useState(false);
   const [tab, setTab] = useState<Tab>('inbox');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('unmapped');
   const [filterType, setFilterType] = useState<string>('');
@@ -62,9 +63,18 @@ export default function TransactionsPage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
-      if (u) { setCompanyId(u.company_id); setUserId(u.id); }
-    });
+    getCurrentUser()
+      .then((u) => {
+        if (u) {
+          setCompanyId(u.company_id);
+          setUserId(u.id);
+        } else {
+          setUserLoadFailed(true);
+        }
+      })
+      .catch(() => {
+        setUserLoadFailed(true);
+      });
   }, []);
 
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
@@ -113,7 +123,7 @@ export default function TransactionsPage() {
     enabled: !!companyId,
   });
 
-  const { data: cardTx = [], isLoading: cardTxLoading } = useQuery({
+  const { data: cardTx = [], isLoading: cardTxLoading, error: cardError } = useQuery({
     queryKey: ['card-transactions', companyId, selectedCardId, selectedCardName, cardFilterStatus, cardDateFrom, cardDateTo],
     queryFn: () => getCardTransactions(companyId!, {
       cardId: selectedCardId || undefined,
@@ -514,7 +524,20 @@ export default function TransactionsPage() {
   const categoryEntries = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
   const categoryTotal = categoryEntries.reduce((s, [, v]) => s + v, 0);
 
-  if (!companyId && !isLoading) {
+  if (!companyId) {
+    if (userLoadFailed) {
+      return (
+        <div className="p-6 text-center">
+          <p className="text-red-400 mb-3">사용자 정보를 불러올 수 없습니다.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm"
+          >
+            새로고침
+          </button>
+        </div>
+      );
+    }
     return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   }
 
@@ -765,7 +788,7 @@ export default function TransactionsPage() {
                   toast('거래내역이 등록되었습니다', 'success');
                   setManualForm(f => ({ ...f, amount: '', counterparty: '', description: '', category: '', memo: '' }));
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
-                  queryClient.invalidateQueries({ queryKey: ['bank-stats'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
                   // Refresh manual entries list
                   const { data: entries } = await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50);
                   setManualEntries(entries || []);
@@ -1043,6 +1066,12 @@ export default function TransactionsPage() {
       {/* Cards Tab */}
       {tab === 'cards' && (
         <div className="space-y-4">
+          {/* Card Query Error */}
+          {cardError && (
+            <div className="p-3 rounded-lg text-sm bg-red-500/10 text-red-400">
+              카드 거래 데이터를 불러올 수 없습니다. 새로고침해 주세요.
+            </div>
+          )}
           {/* Card Upload Result */}
           {cardUploadResult && (
             <div className={`p-3 rounded-lg text-sm ${cardUploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
@@ -1530,7 +1559,7 @@ function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
   }).join(' ');
 
   return (
-    <div className="mb-5 p-4 rounded-2xl bg-[var(--card)] border border-[var(--border)]">
+    <div className="mb-5 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
       <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">월별 입금 / 출금 추이 (최근 6개월)</p>
       <svg viewBox={`0 0 ${totalW} ${CHART_H}`} className="w-full" style={{ maxHeight: CHART_H }}>
         {/* Grid lines */}
