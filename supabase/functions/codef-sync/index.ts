@@ -681,9 +681,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Action: hometax-verify (홈택스 회원 등록여부 확인) ---
-    // PDF 명세: /v1/kr/public/nt/tax-invoice/registration-status
-    // organization=0002, 인증서 + 비밀번호 + identity(대표자 주민번호 앞 7자리, 법인) 또는 ID/PW.
+    // --- Action: hometax-verify (홈택스 검증) ---
+    // 활성화된 '전자세금계산서 통합 API' 직접 호출해서 검증 — registration-status 우회.
+    // (registration-status 는 별도 product 인 듯하고 운영 권한 따로 신청 필요할 수 있음.)
+    // 짧은 기간(어제~오늘) 1건 시도 — 응답이 정상이면 권한 + 인증 OK.
     if (action === "hometax-verify") {
       const { loginType: ht_loginType = "0", certPassword: ht_certPassword, identity: ht_identity, id: ht_id, userPassword: ht_userPassword } = body;
 
@@ -709,28 +710,43 @@ serve(async (req) => {
         }
       }
 
+      // 검증 기간: 최근 7일 (실제 데이터 있을 가능성 높임)
+      const today = new Date();
+      const yesterday = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fmtDate = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+
       const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
       const reqBody: Record<string, any> = {
         organization: "0002",
         loginType: ht_loginType,
+        inquiryType: "01",     // 01=전자세금계산서
+        searchType: "01",      // 01=작성일자
+        startDate: fmtDate(yesterday),
+        endDate: fmtDate(today),
+        sortby: "1",
+        orderBy: "0",
+        transeType: "01",      // 01=매출 (검증용 1건만)
+        type: "0",
       };
       if (ht_loginType === "0") {
         reqBody.certType = "1";
         reqBody.certFile = certB64;
         reqBody.keyFile = keyB64Str;
         reqBody.certPassword = publicKey ? rsaEncrypt(ht_certPassword, publicKey) : ht_certPassword;
-        if (ht_identity) reqBody.identity = ht_identity; // 법인은 대표자 주민번호 앞7자리
+        if (ht_identity) reqBody.identity = ht_identity;
       } else {
         reqBody.id = ht_id;
         reqBody.userPassword = publicKey ? rsaEncrypt(ht_userPassword, publicKey) : ht_userPassword;
         if (ht_identity) reqBody.identity = ht_identity;
       }
 
-      const verifyResult = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/registration-status", reqBody);
+      const verifyResult = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", reqBody);
 
-      // 결과 저장
-      const status = verifyResult.result?.code === "CF-00000" ? "success" : "error";
-      const isRegistered = verifyResult.data?.resRegistrationStatus === "1";
+      // 결과 저장 — 응답이 CF-00000 이면 권한 + 인증 OK (조회된 건수 무관).
+      // CF-03002 (continue2Way) 도 인증은 통과한 것 (추가인증만 필요).
+      const code = verifyResult.result?.code;
+      const status = (code === "CF-00000" || code === "CF-03002") ? "success" : "error";
+      const isRegistered = code === "CF-00000" || code === "CF-03002";
       try {
         await supabase.from("sync_logs").insert({
           company_id: companyId,
@@ -751,13 +767,10 @@ serve(async (req) => {
       } catch { /* non-critical */ }
 
       if (status === "error") {
-        const code = verifyResult.result?.code;
         // holetax 컨텍스트에 맞는 hint
         let hint = codefErrorHint(code);
         if (code === "CF-00401") {
-          hint = "홈택스(공공) API 운영 환경 권한이 없습니다. CODEF 대시보드 → 상품 관리 → 운영(Production) 환경에서 '국세청 회원 등록부(계정등록전용상품)' 또는 '전자세금계산서 통합' 상품을 신청/활성화하세요. 운영 환경은 별도 심사(1~3영업일)가 필요할 수 있습니다.";
-        } else if (code === "CF-03002") {
-          hint = "홈택스가 추가 인증을 요구합니다 (보안카드/간편인증/전자서명). 현재 OwnerView 는 추가 인증 미지원 — 향후 구현 예정.";
+          hint = "홈택스 '전자세금계산서 통합' API 운영 권한이 없습니다. 카드 상품은 동일 client_id 로 정상 동작 중인 것으로 보아, 이 product 만 별도 권한 신청이 필요합니다. CODEF 운영팀 1:1 문의 (https://codef.io/#/cs/inquiry) 권장 — transactionId 와 함께 정확한 사유 확인 가능.";
         } else if (code === "CF-12826") {
           hint = "홈택스 비밀번호 길이 제한 초과 (15자 초과). 비밀번호를 9~15자로 변경 후 재시도하세요.";
         }
