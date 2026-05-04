@@ -67,7 +67,7 @@ export async function getCardTransactions(companyId: string, filters?: {
   if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
   if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
 
-  const { data } = await q.limit(500);
+  const { data } = await q.limit(2000);
   return data || [];
 }
 
@@ -77,28 +77,39 @@ export async function getDistinctCardNames(companyId: string) {
     .from('card_transactions')
     .select('card_name, amount')
     .eq('company_id', companyId)
-    .not('card_name', 'is', null);
+    .not('card_name', 'is', null)
+    .limit(50000);
   const map = new Map<string, { card_name: string; count: number; total: number }>();
   for (const tx of (data || [])) {
     const name = tx.card_name || '미분류';
     const cur = map.get(name) || { card_name: name, count: 0, total: 0 };
     cur.count++;
-    cur.total += Number(tx.amount || 0);
+    cur.total += Math.abs(Number(tx.amount || 0));  // 취소거래 합산 안 됨
     map.set(name, cur);
   }
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
 export async function getCardTransactionStats(companyId: string) {
+  // 모든 거래 가져오기 (default 1000 limit 회피)
   const { data } = await supabase
     .from('card_transactions')
     .select('mapping_status, amount, is_deductible')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId)
+    .limit(50000);
 
   const items = data || [];
-  const totalSpent = items.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const deductible = items.filter(i => i.is_deductible).reduce((s, i) => s + Number(i.amount || 0), 0);
-  const nonDeductible = totalSpent - deductible;
+  // amount 음수 = 취소/환불 거래. 통계는 절댓값 기준 + 부호별 분리.
+  const totalSpent = items.reduce((s, i) => s + Math.abs(Number(i.amount || 0)), 0);
+  const deductible = items
+    .filter(i => i.is_deductible === true)
+    .reduce((s, i) => s + Math.abs(Number(i.amount || 0)), 0);
+  const nonDeductible = items
+    .filter(i => i.is_deductible === false)
+    .reduce((s, i) => s + Math.abs(Number(i.amount || 0)), 0);
+  const cancelled = items
+    .filter(i => Number(i.amount || 0) < 0)
+    .reduce((s, i) => s + Math.abs(Number(i.amount || 0)), 0);
 
   return {
     total: items.length,
@@ -107,6 +118,7 @@ export async function getCardTransactionStats(companyId: string) {
     totalSpent,
     deductible,
     nonDeductible,
+    cancelled,  // 취소된 거래 합 (정보용)
   };
 }
 
