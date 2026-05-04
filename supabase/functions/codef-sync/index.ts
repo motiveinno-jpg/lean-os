@@ -258,38 +258,64 @@ async function syncCardBilling(
 
   let totalSynced = 0;
 
-  // PDF 명세: startDate 는 YYYYMM (6 자리, 청구년월). endDate 명세에 없음 — 보내지 않음.
-  // 미입력 시 최근 명세서 조회되므로, startDate 만 보내고 endDate 는 생략.
-  const billingStart = startDate.slice(0, 6);
+  // PDF 명세: startDate 는 YYYYMM (한 청구년월만 조회). 여러 청구월 받으려면 매월별로 호출.
+  // 카드사별 조회 가능 기간: 24개월(국민) / 12개월(현대,삼성,NH,신한,씨티,우리,롯데,하나,전북,광주) / 4개월(비씨,수협)
+  // 안전하게 최근 6개월 (대부분 카드사 OK) 반복 호출.
+  // 시작/종료 청구월 계산
+  const startYear = parseInt(startDate.slice(0, 4));
+  const startMonth = parseInt(startDate.slice(4, 6));
+  const endYear = parseInt(endDate.slice(0, 4));
+  const endMonth = parseInt(endDate.slice(4, 6));
+  const startKey = startYear * 12 + (startMonth - 1);
+  const endKey = endYear * 12 + (endMonth - 1);
+  // 최소 6개월 (사용자가 짧은 기간 보내면 6개월로 확장), 최대 12개월
+  const requestedMonths = endKey - startKey + 1;
+  const monthsToFetch = Math.min(12, Math.max(6, requestedMonths));
+  const fetchEndKey = endKey;
+  const fetchStartKey = endKey - monthsToFetch + 1;
+  const billingMonths: string[] = [];
+  for (let k = fetchStartKey; k <= fetchEndKey; k++) {
+    const y = Math.floor(k / 12);
+    const m = (k % 12) + 1;
+    billingMonths.push(`${y}${String(m).padStart(2, "0")}`);
+  }
+  console.log(`[CODEF] Card billing months to fetch: ${billingMonths.join(", ")}`);
 
   for (const org of cardOrgs) {
-    // PDF: /v1/kr/card/p/account/billing-list (개인) — 법인은 /b/. 활성화 product 에 맞춰 /b/ 유지.
-    const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
-      connectedId,
-      organization: org,
-      startDate: billingStart,
-      orderBy: "0",
-      inquiryType: "1",
-      memberStoreInfoYN: "1",  // 가맹점 정보 포함
-    });
-
-    if (result.result?.code !== "CF-00000") {
-      errors.push({
-        accountNo: "",
+    // 카드사별 매월 청구 호출 (병렬 — 빠르고, 일부 실패해도 다른 월 계속).
+    const monthResults = await Promise.all(billingMonths.map(month =>
+      codefRequest(token, "/v1/kr/card/b/account/billing-list", {
+        connectedId,
         organization: org,
-        code: result.result?.code || "UNKNOWN",
-        message: result.result?.message || "응답 없음",
-        hint: codefErrorHint(result.result?.code),
-      });
-      continue;
-    }
-    if (!result.data) continue;
+        startDate: month,
+        orderBy: "0",
+        inquiryType: "1",
+        memberStoreInfoYN: "1",
+      }).then(result => ({ month, result }))
+        .catch(err => ({ month, result: { result: { code: "FETCH_ERROR", message: err.message } } }))
+    ));
 
-    // PDF 응답 구조: 단건은 객체, 다건은 배열. 각 element 가 청구서이고 안에 resChargeHistoryList 있음.
-    const billings = Array.isArray(result.data) ? result.data : [result.data];
-    console.log(`[CODEF] Card ${org} billing: ${billings.length} bills`);
+    let orgErrorCount = 0;
+    for (const { month, result } of monthResults) {
+      if (result.result?.code !== "CF-00000") {
+        orgErrorCount++;
+        // 첫 실패만 기록 (같은 카드 같은 사유로 여러 번 기록 방지)
+        if (orgErrorCount === 1) {
+          errors.push({
+            accountNo: month, organization: org,
+            code: result.result?.code || "UNKNOWN",
+            message: result.result?.message || "응답 없음",
+            hint: codefErrorHint(result.result?.code),
+          });
+        }
+        continue;
+      }
+      if (!result.data) continue;
 
-    for (const bill of billings) {
+      const billings = Array.isArray(result.data) ? result.data : [result.data];
+      console.log(`[CODEF] Card ${org} ${month}: ${billings.length} bills`);
+
+      for (const bill of billings) {
       // 청구서 안의 실제 이용내역 (resChargeHistoryList) 평탄화
       const charges = Array.isArray(bill.resChargeHistoryList)
         ? bill.resChargeHistoryList
@@ -331,6 +357,7 @@ async function syncCardBilling(
         if (!error) totalSynced++;
       }
     }
+    }  // monthResults loop
   }
 
   return { synced: totalSynced, errors };
