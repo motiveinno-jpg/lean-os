@@ -86,6 +86,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const [editSaving, setEditSaving] = useState(false);
   const { toast } = useToast();
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
+  const [quoteContent, setQuoteContent] = useState('');
   const [paymentStages, setPaymentStages] = useState<{ label: string; ratio: number; condition: string; milestone_id?: string }[]>([
     { label: '선금', ratio: 30, condition: '계약 후 7일 이내' },
     { label: '잔금', ratio: 70, condition: '납품 완료 후 14일 이내' },
@@ -109,19 +110,20 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const totalCost = (data?.costs || []).reduce((s, c) => s + Number(c.amount), 0);
   const dealMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100) : 0;
 
-  // custom_scope에서 품목/결제 단계 복원
+  // custom_scope에서 품목/결제 단계/견적 내용 복원
   useEffect(() => {
     if (!deal?.custom_scope) return;
     const scope = deal.custom_scope as any;
     if (scope.quoteItems?.length) setQuoteItems(scope.quoteItems);
     if (scope.paymentStages?.length) setPaymentStages(scope.paymentStages);
+    if (scope.quoteContent) setQuoteContent(scope.quoteContent);
   }, [deal?.custom_scope]);
 
   const [itemsSaving, setItemsSaving] = useState(false);
   async function saveQuoteAndPayment() {
     setItemsSaving(true);
     try {
-      const scope = { ...(deal?.custom_scope as any || {}), quoteItems, paymentStages };
+      const scope = { ...(deal?.custom_scope as any || {}), quoteItems, paymentStages, quoteContent };
       const { error } = await (supabase as any).from('deals').update({ custom_scope: scope }).eq('id', dealId);
       if (error) throw error;
       toast('품목/결제 단계가 저장되었습니다', 'success');
@@ -204,7 +206,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">마진</div><div className={`text-lg font-bold mt-1 ${dealMargin < 20 ? 'text-red-400' : dealMargin < 35 ? 'text-yellow-400' : 'text-green-400'}`}>{dealMargin.toFixed(1)}%</div></div>
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">작업 단계</div><div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div></div>
       </div>
-      <DealPipelineWidget dealId={dealId} companyId={companyId} userId={userId} onRefresh={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["deal-detail"] }); }} quoteItems={quoteItems} paymentRatio={{ advance: paymentStages[0]?.ratio ?? 30, balance: paymentStages.slice(1).reduce((s, st) => s + st.ratio, 0) }} paymentSchedule={paymentStages} />
+      <DealPipelineWidget dealId={dealId} companyId={companyId} userId={userId} onRefresh={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["deal-detail"] }); }} quoteItems={quoteItems} quoteContent={quoteContent} paymentRatio={{ advance: paymentStages[0]?.ratio ?? 30, balance: paymentStages.slice(1).reduce((s, st) => s + st.ratio, 0) }} paymentSchedule={paymentStages} />
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">견적 품목 / 결제 비율</h2><button onClick={() => setQuoteItems(prev => prev.length === 0 ? [{ name: deal?.name || '', quantity: 1, unitPrice: Number(deal?.contract_total || 0), supplyAmount: Number(deal?.contract_total || 0), taxAmount: Math.round(Number(deal?.contract_total || 0) * 0.1), totalAmount: Math.round(Number(deal?.contract_total || 0) * 1.1), note: '' }] : prev)} className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">{quoteItems.length === 0 ? '+ 품목 추가' : `${quoteItems.length}건`}</button></div>
         <div className="px-5 py-3 border-b border-[var(--border)]/50">
@@ -240,8 +242,12 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
           )}
         </div>
         {quoteItems.length > 0 && (<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-xs"><thead><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-3 py-2 font-medium">품명</th><th className="text-right px-3 py-2 font-medium w-20">수량</th><th className="text-right px-3 py-2 font-medium w-24">단가</th><th className="text-right px-3 py-2 font-medium w-24">공급가액</th><th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th><th className="text-right px-3 py-2 font-medium w-28">합계</th><th className="w-10" /></tr></thead><tbody>{quoteItems.map((item: any, idx: number) => (<tr key={idx} className="border-b border-[var(--border)]/50"><td className="px-3 py-2"><input value={item.name || ''} onChange={(e) => { const arr = [...quoteItems]; arr[idx] = { ...arr[idx], name: e.target.value }; setQuoteItems(arr); }} placeholder="품목명" className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="number" value={item.quantity || 0} onChange={(e) => { const arr = [...quoteItems]; const q = Number(e.target.value) || 0; const u = arr[idx].unitPrice || 0; const supply = q * u; arr[idx] = { ...arr[idx], quantity: q, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right"><input type="text" inputMode="numeric" value={item.unitPrice ? Number(item.unitPrice).toLocaleString('ko-KR') : '0'} onChange={(e) => { const arr = [...quoteItems]; const u = Number(e.target.value.replace(/[^0-9]/g, '')) || 0; const q = arr[idx].quantity || 0; const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) }; setQuoteItems(arr); }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" /></td><td className="px-3 py-2 text-right text-[var(--text-muted)] font-medium">{Number(item.supplyAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-[var(--text-muted)]">{Number(item.taxAmount || 0).toLocaleString()}</td><td className="px-3 py-2 text-right font-bold">{Number(item.totalAmount || 0).toLocaleString()}</td><td className="px-2 py-2 text-center">{quoteItems.length > 1 && (<button onClick={() => setQuoteItems(quoteItems.filter((_: any, i: number) => i !== idx))} className="text-red-400 hover:text-red-300 text-xs">X</button>)}</td></tr>))}</tbody><tfoot><tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]"><td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-bold">{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()}</td><td className="px-3 py-2 text-right text-xs font-black">{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td><td /></tr><tr className="bg-[var(--bg-surface)]"><td colSpan={7} className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">공급가액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 세액 합계: ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString()} &nbsp;|&nbsp; 총액(VAT포함): ₩{quoteItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString()}</td></tr></tfoot></table><div className="px-5 py-2 border-t border-[var(--border)]/50 flex items-center justify-between"><button onClick={() => setQuoteItems([...quoteItems, { name: '', quantity: 1, unitPrice: 0, supplyAmount: 0, taxAmount: 0, totalAmount: 0, note: '' }])} className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button><button onClick={saveQuoteAndPayment} disabled={itemsSaving} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{itemsSaving ? '저장 중...' : '저장'}</button></div></div>)}
+        <div className="px-5 py-3 border-b border-[var(--border)]/50">
+          <label className="block text-xs text-[var(--text-dim)] font-medium mb-1.5">견적서 내용 / 비고</label>
+          <textarea value={quoteContent} onChange={(e) => setQuoteContent(e.target.value)} rows={3} placeholder="견적서에 포함할 내용, 조건, 비고 등을 입력하세요..." className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] resize-none" />
+        </div>
         {quoteItems.length === 0 && (<div className="px-5 py-4 text-center text-xs text-[var(--text-dim)]">품목을 추가하면 견적서 생성 시 자동으로 반영됩니다</div>)}
-        {(quoteItems.length > 0 || paymentStages.length > 0) && !quoteItems.length && (<div className="px-5 py-2 border-t border-[var(--border)]/50 flex justify-end"><button onClick={saveQuoteAndPayment} disabled={itemsSaving} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{itemsSaving ? '저장 중...' : '결제 단계 저장'}</button></div>)}
+        {(quoteItems.length > 0 || paymentStages.length > 0 || quoteContent) && !quoteItems.length && (<div className="px-5 py-2 border-t border-[var(--border)]/50 flex justify-end"><button onClick={saveQuoteAndPayment} disabled={itemsSaving} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{itemsSaving ? '저장 중...' : '저장'}</button></div>)}
       </div>
       <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
       {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">서브딜 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
@@ -619,7 +625,7 @@ const CONTRACT_TEMPLATES = [
   { key: 'general', label: '기본 용역계약서' },
 ];
 
-function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, paymentRatio, paymentSchedule }: { dealId: string; companyId: string | null; userId: string | null; onRefresh: () => void; quoteItems?: any[]; paymentRatio?: { advance: number; balance: number }; paymentSchedule?: { label: string; ratio: number; condition: string; milestone_id?: string }[] }) {
+function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, quoteContent, paymentRatio, paymentSchedule }: { dealId: string; companyId: string | null; userId: string | null; onRefresh: () => void; quoteItems?: any[]; quoteContent?: string; paymentRatio?: { advance: number; balance: number }; paymentSchedule?: { label: string; ratio: number; condition: string; milestone_id?: string }[] }) {
   const { toast } = useToast();
   const [creating, setCreating] = useState(false); const [confirming, setConfirming] = useState(false); const [forceApproving, setForceApproving] = useState(false);
   const [contractTemplate, setContractTemplate] = useState('general');
@@ -634,6 +640,8 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
   const [newPartner, setNewPartner] = useState({ name: '', email: '', business_number: '', contact_phone: '' });
   const [partnerSaving, setPartnerSaving] = useState(false);
+  const [emailMessage, setEmailMessage] = useState('');
+  const [docFeedbacks, setDocFeedbacks] = useState<any[]>([]);
   const queryClient = useQueryClient(); const db2 = supabase as any;
   const { data: stages = [] } = useQuery({ queryKey: ['deal-pipeline', dealId], queryFn: () => getDealPipelineStatus(dealId), enabled: !!dealId });
   const completedCount = stages.filter(s => s.status === 'completed').length;
@@ -650,7 +658,27 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
     return () => document.removeEventListener("keydown", handleEscape);
   }, [emailModal, previewUrl]);
 
-  async function handleCreateQuote() { if (!companyId || !userId || creating) return; if (paymentSchedule && paymentSchedule.length > 0) { const ratioSum = paymentSchedule.reduce((s, p) => s + (p.ratio || 0), 0); if (ratioSum !== 100) { setPipelineError(`결제 비율 합계가 ${ratioSum}%입니다. 100%로 맞춰주세요.`); return; } } setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio, paymentSchedule }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
+  async function handleCreateQuote() { if (!companyId || !userId || creating) return; if (paymentSchedule && paymentSchedule.length > 0) { const ratioSum = paymentSchedule.reduce((s, p) => s + (p.ratio || 0), 0); if (ratioSum !== 100) { setPipelineError(`결제 비율 합계가 ${ratioSum}%입니다. 100%로 맞춰주세요.`); return; } } setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio, paymentSchedule, content: quoteContent || undefined }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
+
+  useEffect(() => {
+    if (!dealId || !companyId) return;
+    (async () => {
+      const { data: docs } = await db2.from('documents').select('id').eq('deal_id', dealId);
+      if (!docs || docs.length === 0) return;
+      const docIds = docs.map((d: any) => d.id);
+      const { data: shares } = await db2.from('document_shares').select('id, document_id, documents(name), document_share_feedback(*)').in('document_id', docIds).order('created_at', { ascending: false });
+      if (!shares) return;
+      const fb: any[] = [];
+      for (const s of shares) {
+        const feedbacks = (s as any).document_share_feedback || [];
+        for (const f of feedbacks) {
+          fb.push({ ...f, documentName: (s as any).documents?.name || '문서', shareId: s.id });
+        }
+      }
+      fb.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setDocFeedbacks(fb);
+    })();
+  }, [dealId, companyId, stages]);
 
   const hasQuote = stages.some(s => s.stage === 'quote' && s.status !== 'pending');
   const paymentStage = stages.find(s => s.stage === 'payment_received');
@@ -729,6 +757,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
     setPartnerResults([]);
     setSelectedPartner(null);
     setNewPartner({ name: '', email: '', business_number: '', contact_phone: '' });
+    setEmailMessage('');
     // 기존 거래처 자동 로드
     loadDealPartner(documentId);
   }
@@ -783,7 +812,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
       const { data: comp } = await db2.from('companies').select('name').eq('id', companyId).single();
       const share = await createDocumentShare({ documentId: emailModal.documentId, companyId, createdBy: userId || '', expiresInDays: 30 });
       const shareUrl = share.shareUrl || `${window.location.origin}/share/${share.shareToken}`;
-      const result = await sendShareEmail({ email: selectedPartner.contact_email, recipientName: selectedPartner.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '' });
+      const result = await sendShareEmail({ email: selectedPartner.contact_email, recipientName: selectedPartner.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '', message: emailMessage || undefined });
       if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); }
       else if (result.success) { toast('이메일 발송 완료', 'success'); }
       setEmailModal(null);
@@ -819,6 +848,40 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
         {PIPELINE_STAGES.map((ps, idx) => { const stage = stages.find(s => s.stage === ps.key); const status = stage?.status || 'pending'; const isCompleted = status === 'completed'; const isActive = status === 'active'; const docNum = (stage as any)?.document_number; return (<div key={ps.key} className="flex items-center flex-1"><div className={`flex-1 rounded-xl p-3 text-center transition ${isCompleted ? 'bg-green-500/8 border border-green-500/20' : isActive ? 'bg-blue-500/8 border border-blue-500/20' : 'bg-[var(--bg-surface)] border border-[var(--border)]'}`}><div className="text-lg mb-1">{ps.icon}</div><div className={`text-[10px] font-semibold ${isCompleted ? 'text-green-500' : isActive ? 'text-blue-500' : 'text-[var(--text-dim)]'}`}>{ps.label}</div>{docNum && (<div className="text-[8px] font-mono text-[var(--text-dim)] mt-0.5 truncate px-1" title={docNum}>{docNum}</div>)}<div className={`text-[9px] mt-0.5 ${isCompleted ? 'text-green-400' : isActive ? 'text-blue-400' : 'text-[var(--text-dim)]'}`}>{isCompleted ? '완료' : isActive ? '진행중' : '대기'}</div></div>{idx < PIPELINE_STAGES.length - 1 && (<div className={`w-4 h-0.5 mx-0.5 flex-shrink-0 rounded ${isCompleted ? 'bg-green-500/40' : 'bg-[var(--border)]'}`} />)}</div>); })}
       </div>
       <div className="px-5 pb-4"><div className="text-[10px] text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-lg p-2.5">자동 흐름: 견적서 승인 → 계약서 자동생성 → 계약서 승인 → 세금계산서 자동발행 + 입금 스케줄({paymentSchedule && paymentSchedule.length > 0 ? paymentSchedule.map(s => `${s.label} ${s.ratio}%`).join(' / ') : `선금 ${paymentRatio?.advance ?? 30}% / 잔금 ${paymentRatio?.balance ?? 70}%`}) 자동생성</div></div>
+
+      {/* 거래처 피드백 */}
+      {docFeedbacks.length > 0 && (
+        <div className="px-5 pb-4">
+          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4">
+            <h3 className="text-xs font-bold mb-3 flex items-center gap-1.5">💬 거래처 피드백 <span className="text-[10px] font-normal text-[var(--text-dim)]">({docFeedbacks.length}건)</span></h3>
+            <div className="space-y-2">
+              {docFeedbacks.map((fb: any) => {
+                const decisionConfig: Record<string, { label: string; color: string; bg: string }> = { approved: { label: '승인', color: '#22C55E', bg: 'rgba(34,197,94,0.1)' }, hold: { label: '보류', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' }, rejected: { label: '거절', color: '#EF4444', bg: 'rgba(239,68,68,0.1)' } };
+                const cfg = decisionConfig[fb.decision] || { label: fb.decision, color: '#6B7280', bg: 'rgba(107,114,128,0.1)' };
+                return (
+                  <div key={fb.id} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)]/50">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 mt-0.5" style={{ color: cfg.color, backgroundColor: cfg.bg }}>{cfg.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold truncate">{fb.responder_name || '익명'}</span>
+                        <span className="text-[10px] text-[var(--text-dim)]">{fb.documentName}</span>
+                        <span className="text-[10px] text-[var(--text-dim)] ml-auto flex-shrink-0">{fb.created_at ? new Date(fb.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      </div>
+                      {fb.comment && <p className="text-xs text-[var(--text-muted)] leading-relaxed">{fb.comment}</p>}
+                      {fb.responder_email && <p className="text-[10px] text-[var(--text-dim)] mt-1">{fb.responder_email}</p>}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      {fb.decision === 'rejected' && activeQuote?.documentId && (
+                        <button onClick={() => handleSendEmail(activeQuote.documentId!)} className="text-[10px] px-2 py-1 rounded bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 transition font-semibold">재발송</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 견적서/계약서 미리보기 모달 */}
       {previewUrl && (
@@ -895,6 +958,12 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
                   </div>
                 </div>
               )}
+
+              {/* 메시지 입력 */}
+              <div>
+                <label className="block text-[10px] text-[var(--text-dim)] font-semibold mb-1">전달 메시지 (선택)</label>
+                <textarea value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)} placeholder="거래처에 전달할 메시지를 입력하세요..." rows={3} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] resize-none" />
+              </div>
 
               {pipelineError && (<div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{pipelineError}</div>)}
             </div>

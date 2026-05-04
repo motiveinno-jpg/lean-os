@@ -197,7 +197,7 @@ function ShareContent() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
           <h2 className="text-sm font-bold text-gray-900 mb-3">내용</h2>
           <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-            {doc?.content || contentJson.content || '(내용 없음)'}
+            {doc?.content || contentJson.body || contentJson.content || '(내용 없음)'}
           </div>
           {contentJson.notes && (
             <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-xs text-yellow-800">
