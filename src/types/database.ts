@@ -851,12 +851,14 @@ export type Database = {
           amount: number
           approval_number: string | null
           card_id: string | null
+          card_name: string | null
           category: string | null
           classification: string | null
           company_id: string
           created_at: string | null
           currency: string | null
           deal_id: string | null
+          external_id: string | null
           id: string
           installments: number | null
           is_deductible: boolean | null
@@ -877,12 +879,14 @@ export type Database = {
           amount?: number
           approval_number?: string | null
           card_id?: string | null
+          card_name?: string | null
           category?: string | null
           classification?: string | null
           company_id: string
           created_at?: string | null
           currency?: string | null
           deal_id?: string | null
+          external_id?: string | null
           id?: string
           installments?: number | null
           is_deductible?: boolean | null
@@ -903,12 +907,14 @@ export type Database = {
           amount?: number
           approval_number?: string | null
           card_id?: string | null
+          card_name?: string | null
           category?: string | null
           classification?: string | null
           company_id?: string
           created_at?: string | null
           currency?: string | null
           deal_id?: string | null
+          external_id?: string | null
           id?: string
           installments?: number | null
           is_deductible?: boolean | null
