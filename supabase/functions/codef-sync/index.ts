@@ -110,6 +110,9 @@ function codefErrorHint(code?: string): string {
   if (code === "CF-00401") {
     return "해당 API 상품의 조회 권한이 없습니다. CODEF 대시보드 → 상품 관리에서 '법인 은행 거래내역 조회' 또는 '법인 카드 매출/매입 내역 조회' 상품을 활성화하세요.";
   }
+  if (code === "CF-00007") {
+    return "요청 파라미터가 CODEF 기준과 맞지 않습니다. 홈택스 등록 시: ① 인증서가 홈택스에 등록된 인증서인지 확인 (은행 전용 인증서는 홈택스 등록 불가) ② 사업자 형태(법인/개인) 일치 ③ CODEF 대시보드에서 '국세청 회원 등록부(계정등록전용상품)' 활성화 여부 확인.";
+  }
   if (code === "CF-04015" || code.startsWith("CF-0401")) {
     return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
   }
@@ -304,7 +307,7 @@ function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
 
 // Register account and get connectedId (ID/PW or certificate)
 async function registerAccount(
-  token: string, accountType: "bank" | "card",
+  token: string, accountType: "bank" | "card" | "hometax",
   organization: string,
   loginOpts: {
     loginType: "0" | "1";
