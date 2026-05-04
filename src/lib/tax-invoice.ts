@@ -406,23 +406,51 @@ export function parseHomeTaxExcel(rows: any[]) {
 }
 
 // ── Sync HomeTax invoices ──
+// CODEF 통합 sync 경유 (국세청 organization 0004).
+// 자체 hometax-sync Edge Function은 NPKI 복호화 미구현으로 사용하지 않음.
 export async function syncHomeTaxInvoices(params: {
-  type?: 'sales' | 'purchase' | 'both';
+  companyId: string;
   startDate: string;
   endDate: string;
-}) {
+}): Promise<{
+  success: boolean;
+  status: 'success' | 'partial' | 'error';
+  synced: number;
+  errors: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
+}> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('로그인이 필요합니다');
 
-  const res = await supabase.functions.invoke('sync-hometax-invoices', {
-    body: {
-      type: params.type || 'both',
-      start_date: params.startDate,
-      end_date: params.endDate,
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Supabase URL이 설정되지 않았습니다');
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
     },
+    body: JSON.stringify({
+      companyId: params.companyId,
+      action: 'sync',
+      syncType: 'hometax',
+      startDate: params.startDate.replace(/-/g, ''),
+      endDate: params.endDate.replace(/-/g, ''),
+    }),
   });
-  if (res.error) throw res.error;
-  return res.data;
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: '홈택스 동기화 오류' }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  const result = await res.json();
+  return {
+    success: result.success ?? false,
+    status: result.status ?? 'error',
+    synced: result.results?.hometax?.synced ?? 0,
+    errors: result.errors ?? [],
+  };
 }
 
 // ── Modify tax invoice (수정세금계산서) ──

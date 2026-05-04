@@ -693,10 +693,18 @@ export default function TaxInvoicesPage() {
             if (syncing) return;
             setSyncing(true);
             try {
+              if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
               const startDate = `${month}-01`;
               const [sy, sm] = month.split('-').map(Number);
               const endDate = `${month}-${String(new Date(sy, sm, 0).getDate()).padStart(2, '0')}`;
-              await syncHomeTaxInvoices({ startDate, endDate });
+              const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
+              if (r.status === 'error') {
+                toast(`동기화 실패 (${r.errors.length}건): ${r.errors[0]?.hint || r.errors[0]?.message || ''}`, 'error');
+              } else if (r.status === 'partial') {
+                toast(`부분 동기화: ${r.synced}건 (오류 ${r.errors.length}건)`, 'info');
+              } else {
+                toast(`동기화 완료: ${r.synced}건`, 'success');
+              }
               invalidate();
               queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
               queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
@@ -1501,13 +1509,20 @@ export default function TaxInvoicesPage() {
               <button
                 onClick={async () => {
                   if (syncing) return;
+                  if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
                   setSyncing(true);
                   try {
                     const startDate = `${month}-01`;
                     const [sy2, sm2] = month.split('-').map(Number);
                     const endDate = `${month}-${String(new Date(sy2, sm2, 0).getDate()).padStart(2, '0')}`;
-                    const result = await syncHomeTaxInvoices({ startDate, endDate });
-                    toast(`동기화 완료: ${JSON.stringify(result.results?.map((r: any) => `${r.type}: ${r.created}건 생성`) || [])}`, "success");
+                    const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
+                    if (r.status === 'error') {
+                      toast(`동기화 실패 (${r.errors.length}건): ${r.errors[0]?.hint || r.errors[0]?.message || ''}`, 'error');
+                    } else if (r.status === 'partial') {
+                      toast(`부분 동기화: ${r.synced}건 (오류 ${r.errors.length}건)`, 'info');
+                    } else {
+                      toast(`홈택스 동기화 완료: ${r.synced}건`, 'success');
+                    }
                     invalidate();
                     queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
                   } catch (err: any) {

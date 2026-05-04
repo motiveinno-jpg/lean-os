@@ -107,6 +107,9 @@ function codefErrorHint(code?: string): string {
   if (code === "CF-00003") {
     return "CODEF 서비스 상품이 등록되지 않았습니다. CODEF 대시보드에서 해당 상품(은행/카드 계정등록)이 활성화되어 있는지 확인하세요. sandbox 환경에서는 실제 인증서를 사용할 수 없습니다.";
   }
+  if (code === "CF-00401") {
+    return "해당 API 상품의 조회 권한이 없습니다. CODEF 대시보드 → 상품 관리에서 '법인 은행 거래내역 조회' 또는 '법인 카드 매출/매입 내역 조회' 상품을 활성화하세요.";
+  }
   if (code === "CF-04015" || code.startsWith("CF-0401")) {
     return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
   }
