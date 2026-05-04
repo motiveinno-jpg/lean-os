@@ -767,10 +767,15 @@ serve(async (req) => {
       } catch { /* non-critical */ }
 
       if (status === "error") {
-        // holetax 컨텍스트에 맞는 hint
+        const txId = verifyResult.result?.transactionId || "(없음)";
         let hint = codefErrorHint(code);
         if (code === "CF-00401") {
-          hint = "홈택스 '전자세금계산서 통합' API 운영 권한이 없습니다. 카드 상품은 동일 client_id 로 정상 동작 중인 것으로 보아, 이 product 만 별도 권한 신청이 필요합니다. CODEF 운영팀 1:1 문의 (https://codef.io/#/cs/inquiry) 권장 — transactionId 와 함께 정확한 사유 확인 가능.";
+          hint = `CODEF 운영팀에 다음 정보로 문의 필요 (https://codef.io/#/cs/inquiry):\n` +
+                 `- 운영(Production) 환경에서 카드 상품은 정상이지만 홈택스(공공) API 만 CF-00401 발생\n` +
+                 `- 활성화된 product: '국세청 회원 등록여부' + '전자세금계산서 통합'\n` +
+                 `- 호출 endpoint: /v1/kr/public/nt/tax-invoice/integrated-check-list\n` +
+                 `- transactionId: ${txId}\n` +
+                 `→ 활성화는 됐지만 실제 권한 부여 안 된 상태로 보입니다. 운영팀 확인 요청.`;
         } else if (code === "CF-12826") {
           hint = "홈택스 비밀번호 길이 제한 초과 (15자 초과). 비밀번호를 9~15자로 변경 후 재시도하세요.";
         }
@@ -778,6 +783,7 @@ serve(async (req) => {
           success: false,
           error: `홈택스 검증 실패: ${verifyResult.result?.message || "알 수 없는 오류"} (${code})`,
           hint,
+          transactionId: txId,
           codefResponse: verifyResult,
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
