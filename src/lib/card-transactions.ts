@@ -154,6 +154,21 @@ export async function ignoreCardTransaction(id: string) {
   if (error) throw error;
 }
 
+// '무시' 또는 '매핑' 상태를 미매핑으로 되돌리기 (실수로 누른 경우)
+export async function restoreCardTransaction(id: string) {
+  const { error } = await supabase
+    .from('card_transactions')
+    .update({
+      mapping_status: 'unmapped',
+      deal_id: null,
+      classification: null,
+      mapped_at: null,
+      mapped_by: null,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function uploadReceiptToCard(id: string, receiptUrl: string) {
   const { error } = await supabase
     .from('card_transactions')

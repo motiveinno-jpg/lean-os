@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
-import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames } from "@/lib/card-transactions";
+import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames, restoreCardTransaction } from "@/lib/card-transactions";
 import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card-vat-classification";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -452,6 +452,14 @@ export default function TransactionsPage() {
 
   const cardIgnoreMut = useMutation({
     mutationFn: (id: string) => ignoreCardTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
+    },
+  });
+
+  const cardRestoreMut = useMutation({
+    mutationFn: (id: string) => restoreCardTransaction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
@@ -1054,7 +1062,15 @@ export default function TransactionsPage() {
           {/* Card 별 사용액 (CODEF sync 거래) */}
           {codefCards.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">카드별 사용액</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold text-[var(--text-muted)]">카드별 사용액 (카드번호 끝 4자리)</div>
+                {selectedCardName && (
+                  <button onClick={() => setSelectedCardName('')}
+                    className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text)] transition">
+                    ✕ 선택 해제 (전체 보기)
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {codefCards.map((c: any) => (
                   <button
@@ -1166,9 +1182,10 @@ export default function TransactionsPage() {
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-4 py-2.5">
                         <div className="text-sm">{tx.merchant_name || "---"}</div>
-                        {tx.corporate_cards?.card_name && (
-                          <div className="text-[9px] text-[var(--text-dim)]">{tx.corporate_cards.card_name}</div>
-                        )}
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                          {tx.card_name || tx.corporate_cards?.card_name || "카드 미지정"}
+                          {tx.corporate_cards?.card_company && ` · ${tx.corporate_cards.card_company}`}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-sm text-right font-medium mono-number text-red-400">
                         -₩{Number(tx.amount).toLocaleString()}
@@ -1209,6 +1226,13 @@ export default function TransactionsPage() {
                                 무시
                               </button>
                             </>
+                          )}
+                          {(tx.mapping_status === 'ignored' || tx.mapping_status === 'manual_mapped' || tx.mapping_status === 'auto_mapped') && (
+                            <button onClick={() => cardRestoreMut.mutate(tx.id)}
+                              className="px-2 py-1 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition"
+                              title="미매핑 상태로 되돌리기">
+                              복원
+                            </button>
                           )}
                           <input ref={receiptFileRef} type="file" accept="image/*,.pdf" className="hidden"
                             onChange={(e) => handleReceiptUpload(tx.id, e)} />
