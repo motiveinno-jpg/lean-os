@@ -315,6 +315,7 @@ async function registerAccount(
     derFile?: string; keyFile?: string; certPassword?: string;
     pfxFile?: string;
     clientType?: "P" | "B";
+    extraCompanyInfo?: { businessNumber?: string; userName?: string; representative?: string; phone?: string };
   },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
@@ -355,6 +356,20 @@ async function registerAccount(
       accountEntry.derFile = loginOpts.derFile || "";
       accountEntry.keyFile = loginOpts.keyFile || "";
     }
+  }
+
+  // 홈택스 (공공) 등록 시 추가 회사 식별 필드들 — CODEF 가 어느 필드를 받는지
+  // 명세 미공개라 가능성 있는 필드를 모두 함께 전송. 불필요한 필드는 보통 무시됨.
+  if (accountType === "hometax" && loginOpts.extraCompanyInfo) {
+    const info = loginOpts.extraCompanyInfo;
+    if (info.businessNumber) {
+      accountEntry.identity = info.businessNumber;
+      accountEntry.identityNumber = info.businessNumber;
+      accountEntry.businessNumber = info.businessNumber;
+    }
+    if (info.userName) accountEntry.userName = info.userName;
+    if (info.representative) accountEntry.representative = info.representative;
+    if (info.phone) accountEntry.phoneNo = info.phone;
   }
 
   const body: Record<string, any> = { accountList: [accountEntry] };
@@ -538,13 +553,14 @@ serve(async (req) => {
         }
       }
 
-      // 홈택스 등록 시 사업자번호를 식별자로 함께 전송 (CODEF 공공 카테고리 요구사항)
-      // 인증서만으로는 식별 불가능, 인증서 + BRN 조합 필요.
+      // 홈택스 등록 시 회사 정보를 식별자로 함께 전송.
+      // CODEF 공공 카테고리는 인증서만으로 식별 불가, 추가 식별 필드 필요.
       let extraId: string | undefined;
+      let extraCompanyInfo: { businessNumber?: string; userName?: string; representative?: string; phone?: string } | undefined;
       if (accountType === "hometax") {
         const { data: companyRow } = await supabase
           .from("companies")
-          .select("business_number")
+          .select("business_number, name, representative, phone")
           .eq("id", companyId)
           .maybeSingle();
         const brn = (companyRow?.business_number || "").replace(/[^0-9]/g, "");
@@ -554,17 +570,23 @@ serve(async (req) => {
           }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         extraId = brn;
+        extraCompanyInfo = {
+          businessNumber: brn,
+          userName: companyRow?.name || "",
+          representative: companyRow?.representative || "",
+          phone: (companyRow?.phone || "").replace(/[^0-9]/g, ""),
+        };
       }
 
       let result;
       let regError: any = null;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, extraCompanyInfo }, cid);
       } catch (regErr: any) {
         // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
         if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, extraCompanyInfo });
           } catch (retryErr: any) {
             regError = retryErr;
           }
