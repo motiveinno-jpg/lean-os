@@ -642,6 +642,52 @@ export async function registerCodefCertificate(
   return callCodefRegister(companyId, params);
 }
 
+// 홈택스 회원 등록여부 검증 (CODEF 명세: /v1/kr/public/nt/tax-invoice/registration-status)
+// register/connectedId 흐름이 아닌 직접 호출 패턴.
+export async function verifyHometaxRegistration(
+  companyId: string,
+  params: {
+    loginType: '0' | '1';
+    certPassword?: string;        // loginType='0' 필수
+    identity?: string;            // 법인은 대표자 주민번호 앞 7자리, 개인사업자 사업장전환 시
+    id?: string;                  // loginType='1' 필수
+    userPassword?: string;        // loginType='1' 필수
+  },
+): Promise<{ success: boolean; registered?: boolean; message?: string; error?: string; hint?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: '로그인이 필요합니다' };
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return { success: false, error: 'Supabase URL이 설정되지 않았습니다' };
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ companyId, action: 'hometax-verify', ...params }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) {
+      return {
+        success: false,
+        error: result.error || `HTTP ${res.status}`,
+        hint: result.hint,
+      };
+    }
+    return {
+      success: true,
+      registered: result.registered,
+      message: result.message,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || '홈택스 검증 실패' };
+  }
+}
+
 async function callCodefRegister(
   companyId: string,
   params: Record<string, string>,

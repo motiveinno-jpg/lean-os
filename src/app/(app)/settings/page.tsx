@@ -2402,6 +2402,8 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   const [derFileB64, setDerFileB64] = useState("");
   const [keyFileB64, setKeyFileB64] = useState("");
   const [certFileName, setCertFileName] = useState("");
+  // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
+  const [hometaxIdentity, setHometaxIdentity] = useState("");
   // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -2459,6 +2461,90 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(true);
     setResult(null);
     try {
+      // ── 홈택스 (공공 0002) — register/connectedId 흐름 사용 안 함 ──
+      // 인증서 파일은 storage 에 업로드, 비밀번호는 automation_credentials 에 저장.
+      // verify API 로 회원 등록여부 확인.
+      if (accountType === "hometax") {
+        if (authMethod === "cert") {
+          if (!derFileB64 || !keyFileB64 || !certPassword) {
+            setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
+            setRegistering(false);
+            return;
+          }
+          // 1. 인증서 파일을 storage 에 업로드 (codef-sync 가 거기서 가져감)
+          const derBytes = Uint8Array.from(atob(derFileB64), (c) => c.charCodeAt(0));
+          const keyBytes = Uint8Array.from(atob(keyFileB64), (c) => c.charCodeAt(0));
+          await supabase.storage.from("certificates").upload(
+            `${companyId}/signCert.der`, new Blob([derBytes]), { upsert: true },
+          );
+          await supabase.storage.from("certificates").upload(
+            `${companyId}/signPri.key`, new Blob([keyBytes]), { upsert: true },
+          );
+          // 2. 인증서 비밀번호를 암호화하여 automation_credentials 에 저장 (sync 시 사용)
+          const { encryptCredential } = await import("@/lib/crypto");
+          const enc = await encryptCredential(certPassword);
+          await (supabase as any).from("automation_credentials").upsert({
+            company_id: companyId,
+            service: "hometax",
+            credentials: { login_method: "certificate", cert_password: enc || "" },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id,service" });
+          // 3. verify API 호출 (회원 등록여부)
+          const { verifyHometaxRegistration } = await import("@/lib/data-sync");
+          const res = await verifyHometaxRegistration(companyId, {
+            loginType: "0",
+            certPassword,
+            identity: hometaxIdentity || undefined,
+          });
+          if (res.success && res.registered) {
+            setResult({ ok: true, msg: "홈택스 등록 확인 완료. 이제 세금계산서 동기화를 사용할 수 있습니다." });
+            toast("홈택스 연결 완료", "success");
+            setCertPassword("");
+            onRegistered();
+          } else if (res.success && !res.registered) {
+            setResult({ ok: false, msg: "홈택스 미등록 사용자입니다. 홈택스 사이트에서 회원가입 후 다시 시도하세요." });
+          } else {
+            setResult({ ok: false, msg: (res.error || "검증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
+          }
+        } else {
+          if (!loginId || !loginPw) {
+            setResult({ ok: false, msg: "아이디와 비밀번호를 모두 입력하세요" });
+            setRegistering(false);
+            return;
+          }
+          // ID/PW 정보를 automation_credentials 에 저장 (sync 시 사용)
+          const { encryptCredential } = await import("@/lib/crypto");
+          const encPw = await encryptCredential(loginPw);
+          await (supabase as any).from("automation_credentials").upsert({
+            company_id: companyId,
+            service: "hometax",
+            credentials: { login_method: "id_pw", login_id: loginId, login_password: encPw || "" },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id,service" });
+          const { verifyHometaxRegistration } = await import("@/lib/data-sync");
+          const res = await verifyHometaxRegistration(companyId, {
+            loginType: "1",
+            id: loginId,
+            userPassword: loginPw,
+            identity: hometaxIdentity || undefined,
+          });
+          if (res.success && res.registered) {
+            setResult({ ok: true, msg: "홈택스 등록 확인 완료." });
+            toast("홈택스 연결 완료", "success");
+            setLoginId("");
+            setLoginPw("");
+            onRegistered();
+          } else if (res.success && !res.registered) {
+            setResult({ ok: false, msg: "홈택스 미등록 사용자입니다." });
+          } else {
+            setResult({ ok: false, msg: (res.error || "검증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
+          }
+        }
+        setRegistering(false);
+        return;
+      }
+
+      // ── 은행/카드 — 기존 register/connectedId 흐름 ──
       if (authMethod === "cert") {
         if (!derFileB64 || !keyFileB64 || !certPassword) {
           setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
@@ -2583,6 +2669,25 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
               ))}
             </select>
           </div>
+
+          {accountType === "hometax" && (
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">대표자 주민번호 앞 7자리 <span className="text-[10px] text-[var(--text-dim)]">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={7}
+                value={hometaxIdentity}
+                onChange={(e) => setHometaxIdentity(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="예: 8001011 (생년월일 6 + 성별 1)"
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">
+                개인사업자: 본인 주민번호 앞 7자리 / 법인: 대표자 주민번호 앞 7자리.
+                안전한 보관을 위해 바로 CODEF 호출 후 즉시 폐기됩니다 (DB 저장 X).
+              </p>
+            </div>
+          )}
 
           {authMethod === "cert" ? (
             <>
@@ -2996,20 +3101,19 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
 
     setTesting(true);
     try {
-      const { registerCodefAccount } = await import("@/lib/data-sync");
-      const res = await registerCodefAccount(
-        companyId,
-        "hometax",
-        "0001",
-        settings.hometax_id,
-        settings.hometax_password,
-        "B",
-      );
-      if (res.success) {
-        setTestResult({ ok: true, msg: `홈택스 연결 성공! (ConnectedID: ${(res.connectedId || "").slice(0, 8)}...)` });
+      const { verifyHometaxRegistration } = await import("@/lib/data-sync");
+      const res = await verifyHometaxRegistration(companyId, {
+        loginType: "1",
+        id: settings.hometax_id,
+        userPassword: settings.hometax_password,
+      });
+      if (res.success && res.registered) {
+        setTestResult({ ok: true, msg: "홈택스 연결 성공! 회원 등록 확인됨." });
         toast("홈택스 연결 완료", "success");
+      } else if (res.success && !res.registered) {
+        setTestResult({ ok: false, msg: "홈택스 미등록 사용자입니다." });
       } else {
-        setTestResult({ ok: false, msg: res.error || "연결 실패" });
+        setTestResult({ ok: false, msg: (res.error || "연결 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
       }
     } catch (err: any) {
       setTestResult({ ok: false, msg: err.message || "오류" });
