@@ -825,18 +825,47 @@ export async function syncCodefData(
     const status: 'success' | 'partial' | 'error' =
       result.status ?? (errors.length === 0 ? 'success' : bankSynced + cardSynced > 0 ? 'partial' : 'error');
 
+    // 카드 sync 후 unmapped 거래 자동 VAT 분류 (가맹점 패턴 + 금액 휴리스틱).
+    let cardClassified = 0;
+    if ((syncType === 'card' || syncType === 'all') && cardSynced > 0) {
+      try {
+        const { classifyCardTransaction, batchSaveVATClassifications } = await import('./card-vat-classification');
+        const { data: unmapped } = await db
+          .from('card_transactions')
+          .select('id, merchant_name, merchant_category, amount')
+          .eq('company_id', companyId)
+          .is('category', null)  // 아직 분류 안 된 거래만
+          .limit(2000);
+        if (unmapped && unmapped.length > 0) {
+          const classifications = unmapped.map((tx: any) => ({
+            transactionId: tx.id,
+            result: classifyCardTransaction({
+              merchant_name: tx.merchant_name || undefined,
+              category: tx.merchant_category || undefined,
+              amount: tx.amount,
+            }),
+          }));
+          const { success } = await batchSaveVATClassifications(classifications);
+          cardClassified = success;
+        }
+      } catch (e) {
+        console.warn('[sync] auto-classify failed:', e);
+      }
+    }
+
+    const messageParts: string[] = [];
+    if (status === 'success') messageParts.push(`거래내역 동기화 완료 (은행 ${bankSynced}건, 카드 ${cardSynced}건)`);
+    else if (status === 'partial') messageParts.push(`부분 동기화: 은행 ${bankSynced}건, 카드 ${cardSynced}건 · 오류 ${errors.length}건`);
+    else messageParts.push(`동기화 실패 · 오류 ${errors.length}건`);
+    if (cardClassified > 0) messageParts.push(`VAT 자동분류 ${cardClassified}건`);
+
     return {
       success: result.success ?? status !== 'error',
       status,
       errors,
       bankSynced,
       cardSynced,
-      message:
-        status === 'success'
-          ? `거래내역 동기화 완료 (은행 ${bankSynced}건, 카드 ${cardSynced}건)`
-          : status === 'partial'
-            ? `부분 동기화: 은행 ${bankSynced}건, 카드 ${cardSynced}건 · 오류 ${errors.length}건`
-            : `동기화 실패 · 오류 ${errors.length}건`,
+      message: messageParts.join(' / '),
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'CODEF 동기화 실패' };
