@@ -274,6 +274,9 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                       {item.amount > 0 && <span className="font-semibold text-[var(--text)]">{formatAmount(item.amount)}</span>}
                       <span>{formatDate(item.createdAt)}</span>
                     </div>
+                    {item.description && (
+                      <div className="mt-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg text-xs text-[var(--text-muted)] whitespace-pre-wrap">{item.description}</div>
+                    )}
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button

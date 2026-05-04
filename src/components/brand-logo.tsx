@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 /* ── OwnerView SVG Icon ── */
 export function OwnerViewIcon({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={`shrink-0 ${className}`} style={{ imageRendering: "auto" }} shapeRendering="geometricPrecision">
-      <rect width="40" height="40" rx="10" fill="#111"/>
-      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.5" fill="none"/>
-      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={`shrink-0 ${className}`} xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill="#1E293B"/>
+      <circle cx="18" cy="17" r="8.5" stroke="#fff" strokeWidth="2.5" fill="none"/>
+      <line x1="24" y1="23" x2="31" y2="30" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
       <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       <circle cx="22" cy="14" r="2" fill="#3b82f6"/>
     </svg>

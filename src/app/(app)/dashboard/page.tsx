@@ -141,8 +141,8 @@ export default function DashboardPage() {
 
   // Cash Pulse data
   const { data: pulseRaw } = useQuery({
-    queryKey: ["cash-pulse", companyId],
-    queryFn: () => getCashPulseData(companyId!),
+    queryKey: ["cash-pulse", companyId, userId],
+    queryFn: () => getCashPulseData(companyId!, userId || undefined),
     enabled: !!companyId,
     refetchInterval: 30_000,
     retry: 1,
@@ -2303,7 +2303,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 
   const { data: summary } = useQuery({
     queryKey: ['ceo-approval-summary', companyId],
-    queryFn: () => getApprovalSummary(companyId),
+    queryFn: () => getApprovalSummary(companyId, userId),
     enabled: !!companyId,
     refetchInterval: 15_000,
   });

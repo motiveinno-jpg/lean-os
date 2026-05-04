@@ -224,7 +224,7 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
 
 // ── Get summary counts ──
 
-export async function getApprovalSummary(companyId: string): Promise<ApprovalSummary> {
+export async function getApprovalSummary(companyId: string, userId?: string): Promise<ApprovalSummary> {
   const [payments, expenses, documents, leaves, signatures, costs, approvals] = await Promise.all([
     supabase.from('payment_queue').select('id', { count: 'exact', head: true })
       .eq('company_id', companyId).eq('status', 'pending'),
@@ -248,7 +248,22 @@ export async function getApprovalSummary(companyId: string): Promise<ApprovalSum
   const l = leaves.count || 0;
   const s = signatures.count || 0;
   const c = costs.count || 0;
-  const a = approvals.count || 0;
+
+  // Filter approval count: if userId provided, only count requests where the user has a pending step
+  let a = approvals.count || 0;
+  if (userId && a > 0) {
+    const { data: mySteps } = await db
+      .from('approval_steps')
+      .select('request_id, stage, approval_requests!inner(current_stage)')
+      .eq('approver_id', userId)
+      .eq('status', 'pending');
+    const myApprovalIds = new Set(
+      (mySteps || [])
+        .filter((s: any) => s.stage === s.approval_requests?.current_stage)
+        .map((s: any) => s.request_id)
+    );
+    a = myApprovalIds.size;
+  }
 
   return {
     total: p + e + d + l + s + c + a,

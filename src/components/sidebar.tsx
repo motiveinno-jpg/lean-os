@@ -249,9 +249,9 @@ export function Sidebar() {
               collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2"
             }`}
           >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2" />
+              <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
             </svg>
             {!collapsed && (
               <>

@@ -306,13 +306,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               try {
                 const company = await db.from('companies').select('*').eq('id', companyId).single();
                 const companyName = company.data?.name || '';
-                const cType = (doc as any).content_type || '';
+                const cj = (doc as any).content_json || {};
+                const cType = cj.type || (doc as any).content_type || '';
                 const isQuote = cType === 'invoice' || cType === 'quote';
                 let pdfBlob: Blob;
 
                 if (isQuote) {
                   // 견적서 전용 PDF - 담당자/계좌 포함
-                  const cj = (doc as any).content_json || {};
                   const rawItems = editItems.length > 0 ? editItems : (cj.items || []);
                   const items = rawItems.map((it: any) => ({
                     name: it.name || '',
@@ -350,10 +350,39 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     bankInfo: bankAcct ? { bankName: bankAcct.bank_name, accountNumber: bankAcct.account_number, accountHolder: bankAcct.alias || companyName } : undefined,
                     deliveryDate: cj.deliveryDate || undefined,
                   });
+                } else if (cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) {
+                  // 계약서 HTML → 브라우저 인쇄 PDF 변환
+                  const printWindow = window.open('', '_blank');
+                  if (printWindow) {
+                    printWindow.document.write(editContent);
+                    printWindow.document.close();
+                    printWindow.focus();
+                    printWindow.print();
+                  } else {
+                    toast('팝업 차단을 해제해주세요', 'error');
+                  }
+                  return;
                 } else {
+                  // HTML 태그가 섞인 내용이면 태그 제거 후 PDF 생성
+                  let pdfContent = editContent;
+                  if (pdfContent.includes('<') && pdfContent.includes('>')) {
+                    pdfContent = pdfContent
+                      .replace(/<br\s*\/?>/gi, '\n')
+                      .replace(/<\/p>/gi, '\n')
+                      .replace(/<\/div>/gi, '\n')
+                      .replace(/<\/h[1-6]>/gi, '\n\n')
+                      .replace(/<[^>]+>/g, '')
+                      .replace(/&amp;/g, '&')
+                      .replace(/&lt;/g, '<')
+                      .replace(/&gt;/g, '>')
+                      .replace(/&quot;/g, '"')
+                      .replace(/&#39;/g, "'")
+                      .replace(/\n{3,}/g, '\n\n')
+                      .trim();
+                  }
                   pdfBlob = await generateDocumentPDF({
                     title: doc.name,
-                    content: editContent,
+                    content: pdfContent,
                     companyName,
                     companyInfo: company.data ? {
                       representative: company.data.representative,

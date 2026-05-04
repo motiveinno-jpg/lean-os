@@ -242,9 +242,9 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
   // Get active employees with salary, 비과세금액/부양가족 수 포함
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, salary, bank_account, bank_name, is_4_insurance, status, non_taxable_amount, dependents')
+    .select('id, name, salary, bank_account, bank_name, is_4_insurance, status, meal_allowance_included')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined']);
+    .in('status', ['active', 'joined', 'invited']);
 
   if (!employees?.length) throw new Error('활성 직원이 없습니다');
 
@@ -253,8 +253,8 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
     const salary = Number(emp.salary || 0);
     if (salary <= 0) return null;
     return calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000), // 기본 식대 20만원
-      dependents: Number(emp.dependents ?? 1), // 기본 본인 1인
+      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      dependents: 1,
     });
   }).filter(Boolean) as PayrollItem[];
 
@@ -422,9 +422,9 @@ export async function sendPayslipEmails(
   // Get employees with emails (비과세/부양가족 포함)
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, email, salary, is_4_insurance, non_taxable_amount, dependents')
+    .select('id, name, email, salary, is_4_insurance, meal_allowance_included')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined']);
+    .in('status', ['active', 'joined', 'invited']);
 
   if (!employees?.length) return { sent: 0, failed: 0 };
 
@@ -446,8 +446,8 @@ export async function sendPayslipEmails(
     if (salary <= 0) { failed++; continue; }
 
     const payroll = calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000),
-      dependents: Number(emp.dependents ?? 1),
+      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      dependents: 1,
     });
 
     try {

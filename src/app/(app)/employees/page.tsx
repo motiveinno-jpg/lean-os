@@ -212,6 +212,7 @@ const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = 
   contract_pending: { label: "계약대기", bg: "bg-purple-500/10", text: "text-purple-400" },
   active: { label: "재직", bg: "bg-green-500/10", text: "text-green-400" },
   inactive: { label: "퇴직", bg: "bg-gray-500/10", text: "text-gray-400" },
+  resigned: { label: "퇴사", bg: "bg-gray-500/10", text: "text-gray-400" },
 };
 
 function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
@@ -2026,7 +2027,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       <div className="flex gap-4 mb-6">
         <select value={selectedEmpId || ""} onChange={e => setSelectedEmpId(e.target.value || null)} className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
           <option value="">직원 선택...</option>
-          {employees.filter((e: any) => ['active', 'joined'].includes(e.status)).map((e: any) => (
+          {employees.filter((e: any) => ['active', 'joined', 'invited'].includes(e.status)).map((e: any) => (
             <option key={e.id} value={e.id}>{e.name} ({e.department || '미배정'})</option>
           ))}
         </select>
@@ -3611,7 +3612,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
       const meta = (empMap as Record<string, { department: string | null; position: string | null }>)[item.employeeId] || {};
-      downloadPayslipPDF({
+      await downloadPayslipPDF({
         item,
         companyName: companyMeta?.name || "회사",
         representative: companyMeta?.representative || undefined,

@@ -64,9 +64,9 @@ export async function previewPayroll(companyId: string): Promise<{
 }> {
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, salary, status, non_taxable_amount, dependents')
+    .select('id, name, salary, status, meal_allowance_included')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined']);
+    .in('status', ['active', 'joined', 'invited']);
 
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0 };
 
@@ -80,8 +80,8 @@ export async function previewPayroll(companyId: string): Promise<{
     if (salary <= 0) continue;
 
     const item = calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: Number(emp.non_taxable_amount ?? 200_000),
-      dependents: Number(emp.dependents ?? 1),
+      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      dependents: 1,
     });
     items.push(item);
     totalGross += item.baseSalary;
@@ -112,7 +112,7 @@ export async function getMonthlyTotalSalary(companyId: string): Promise<number> 
     .from('employees')
     .select('salary')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined']);
+    .in('status', ['active', 'joined', 'invited']);
 
   return (employees || []).reduce((sum: number, e: any) => sum + Number(e.salary || 0), 0);
 }

@@ -2,20 +2,19 @@
  * OwnerView Employee Certificate Generator
  * 재직증명서 + 경력증명서 PDF 생성 + 발급 이력 관리
  *
- * NotoSansKR 폰트를 Base64로 임베드하여 한글 완벽 렌더링
+ * NanumGothic 폰트를 CDN에서 로드하여 한글 렌더링
  */
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
-import { NotoSansKR_Regular } from '@/assets/fonts/NotoSansKR-Regular';
+import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
 
-/** jsPDF에 한글 폰트를 등록하고 설정 */
-function setupKoreanFont(doc: jsPDF) {
-  doc.addFileToVFS('NotoSansKR-Regular.otf', NotoSansKR_Regular);
-  doc.addFont('NotoSansKR-Regular.otf', 'NotoSansKR', 'normal');
-  doc.setFont('NotoSansKR');
+/** jsPDF에 한글 폰트를 등록하고 설정 (NanumGothic CDN 로드) */
+async function setupKoreanFont(doc: jsPDF) {
+  await loadKoreanFont(doc);
+  setKoreanFont(doc, 'normal');
 }
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
@@ -78,7 +77,7 @@ export async function generateEmploymentCertificate(params: {
   const tenure = calculateTenure(hireDate, today);
 
   const doc = new jsPDF('p', 'mm', 'a4');
-  setupKoreanFont(doc);
+  await setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 25;
 
@@ -122,7 +121,7 @@ export async function generateEmploymentCertificate(params: {
     body: personalInfo,
     theme: 'grid',
     styles: {
-      font: 'NotoSansKR',
+      font: 'NanumGothic',
       fontSize: 11,
       cellPadding: { top: 5, bottom: 5, left: 8, right: 8 },
       textColor: [40, 40, 40],
@@ -224,7 +223,7 @@ export async function generateCareerCertificate(params: {
   const tenure = calculateTenure(hireDate, endDate);
 
   const doc = new jsPDF('p', 'mm', 'a4');
-  setupKoreanFont(doc);
+  await setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   let y = 25;
 
@@ -268,7 +267,7 @@ export async function generateCareerCertificate(params: {
     body: personalInfo,
     theme: 'grid',
     styles: {
-      font: 'NotoSansKR',
+      font: 'NanumGothic',
       fontSize: 11,
       cellPadding: { top: 5, bottom: 5, left: 8, right: 8 },
       textColor: [40, 40, 40],
@@ -307,7 +306,7 @@ export async function generateCareerCertificate(params: {
       body: dutyRows,
       theme: 'grid',
       styles: {
-        font: 'NotoSansKR',
+        font: 'NanumGothic',
         fontSize: 10,
         cellPadding: { top: 4, bottom: 4, left: 6, right: 6 },
         textColor: [40, 40, 40],
@@ -537,7 +536,7 @@ function addFooter(doc: jsPDF, companyName: string) {
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFont('NotoSansKR');
+    setKoreanFont(doc, 'normal');
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(

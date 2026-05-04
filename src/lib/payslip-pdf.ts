@@ -1,12 +1,11 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { NotoSansKR_Regular } from '@/assets/fonts/NotoSansKR-Regular';
+import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
 import type { PayrollItem } from './payment-batch';
 
-function setupKoreanFont(doc: jsPDF) {
-  doc.addFileToVFS('NotoSansKR-Regular.otf', NotoSansKR_Regular);
-  doc.addFont('NotoSansKR-Regular.otf', 'NotoSansKR', 'normal');
-  doc.setFont('NotoSansKR');
+async function setupKoreanFont(doc: jsPDF) {
+  await loadKoreanFont(doc);
+  setKoreanFont(doc, 'normal');
 }
 
 export interface PayslipParams {
@@ -21,10 +20,10 @@ export interface PayslipParams {
 
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString()}`;
 
-export function generatePayslipPDF(params: PayslipParams): jsPDF {
+export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> {
   const { item, companyName, representative, periodLabel, department, position, paymentDate } = params;
   const doc = new jsPDF('p', 'mm', 'a4');
-  setupKoreanFont(doc);
+  await setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   const today = paymentDate || new Date().toISOString().slice(0, 10);
   let y = 22;
@@ -54,7 +53,7 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
       ['성명', item.employeeName, '소속', `${department || '-'} / ${position || '-'}`],
     ],
     theme: 'grid',
-    styles: { font: 'NotoSansKR', fontSize: 9, cellPadding: 3, textColor: [40, 40, 40], lineColor: [220, 220, 220], lineWidth: 0.2 },
+    styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 3, textColor: [40, 40, 40], lineColor: [220, 220, 220], lineWidth: 0.2 },
     columnStyles: {
       0: { cellWidth: 25, fontStyle: 'bold', fillColor: [245, 247, 250] },
       1: { cellWidth: (pageW - 28 - 50) / 2 },
@@ -78,7 +77,7 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
       [{ content: '지급액 합계', styles: { fontStyle: 'bold', fillColor: [240, 247, 255] } }, { content: fmt(item.baseSalary), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 247, 255] } }],
     ],
     theme: 'grid',
-    styles: { font: 'NotoSansKR', fontSize: 9, cellPadding: 3, lineColor: [220, 220, 220], lineWidth: 0.2 },
+    styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 3, lineColor: [220, 220, 220], lineWidth: 0.2 },
     headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: colW - 30, halign: 'right' } },
     margin: { left: 14, right: pageW - 14 - colW },
@@ -99,7 +98,7 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
       [{ content: '공제액 합계', styles: { fontStyle: 'bold', fillColor: [255, 240, 240] } }, { content: fmt(item.deductionsTotal), styles: { fontStyle: 'bold', halign: 'right', fillColor: [255, 240, 240], textColor: [200, 50, 50] } }],
     ],
     theme: 'grid',
-    styles: { font: 'NotoSansKR', fontSize: 9, cellPadding: 3, lineColor: [220, 220, 220], lineWidth: 0.2 },
+    styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 3, lineColor: [220, 220, 220], lineWidth: 0.2 },
     headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: colW - 35, halign: 'right' } },
     margin: { left: 14 + colW + 4, right: 14 },
@@ -143,8 +142,8 @@ export function generatePayslipPDF(params: PayslipParams): jsPDF {
   return doc;
 }
 
-export function downloadPayslipPDF(params: PayslipParams) {
-  const doc = generatePayslipPDF(params);
+export async function downloadPayslipPDF(params: PayslipParams) {
+  const doc = await generatePayslipPDF(params);
   const safeName = params.item.employeeName.replace(/[^\w가-힣]/g, '_');
   doc.save(`급여명세서_${safeName}_${params.periodLabel.replace(/[^\w]/g, '')}.pdf`);
 }

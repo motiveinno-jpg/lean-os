@@ -82,12 +82,11 @@ export async function getPartner(id: string) {
 // ── Create or update partner ──
 
 export async function upsertPartner(params: UpsertPartnerParams) {
-  const row: any = {
+  const row: Record<string, unknown> = {
     company_id: params.companyId,
     name: params.name,
   };
 
-  if (params.id) row.id = params.id;
   if (params.type !== undefined) row.type = params.type;
   if (params.classification !== undefined) row.classification = params.classification;
   if (params.businessNumber !== undefined) row.business_number = params.businessNumber;
@@ -105,12 +104,24 @@ export async function upsertPartner(params: UpsertPartnerParams) {
   if (params.businessType !== undefined) row.business_type = params.businessType;
   if (params.businessItem !== undefined) row.business_item = params.businessItem;
 
+  // Use insert for new records, update for existing — avoids upsert
+  // conflict-resolution issues with PostgREST when id is not in payload
+  if (params.id) {
+    const { data, error } = await supabase
+      .from('partners')
+      .update(row as any)
+      .eq('id', params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   const { data, error } = await supabase
     .from('partners')
-    .upsert(row)
+    .insert(row as any)
     .select()
     .single();
-
   if (error) throw error;
   return data;
 }

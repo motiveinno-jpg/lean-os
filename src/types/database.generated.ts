@@ -4257,7 +4257,9 @@ export type Database = {
           account_number: string | null
           address: string | null
           bank_name: string | null
+          business_item: string | null
           business_number: string | null
+          business_type: string | null
           classification: string | null
           company_id: string
           company_name: string | null
@@ -4281,7 +4283,9 @@ export type Database = {
           account_number?: string | null
           address?: string | null
           bank_name?: string | null
+          business_item?: string | null
           business_number?: string | null
+          business_type?: string | null
           classification?: string | null
           company_id: string
           company_name?: string | null
@@ -4305,7 +4309,9 @@ export type Database = {
           account_number?: string | null
           address?: string | null
           bank_name?: string | null
+          business_item?: string | null
           business_number?: string | null
+          business_type?: string | null
           classification?: string | null
           company_id?: string
           company_name?: string | null

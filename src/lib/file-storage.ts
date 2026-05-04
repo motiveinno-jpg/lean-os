@@ -68,9 +68,19 @@ const ALLOWED_TYPES = [
   "text/plain",
   "application/zip",
   "application/x-zip-compressed",
+  "application/x-hwp",
+  "application/haansofthwp",
+  "application/vnd.hancom.hwp",
 ];
 
 // ── Helpers ──
+
+// Extensions allowed when browser reports empty or generic MIME type
+const ALLOWED_EXTENSIONS = [
+  "jpg", "jpeg", "png", "gif", "webp", "svg",
+  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+  "csv", "txt", "zip", "hwp",
+];
 
 function validateFile(file: File, bucket: BucketName): void {
   const maxSize = MAX_SIZES[bucket];
@@ -79,9 +89,14 @@ function validateFile(file: File, bucket: BucketName): void {
     throw new Error(`파일 크기는 ${limitMB}MB 이하만 가능합니다.`);
   }
 
-  const isAllowed = ALLOWED_TYPES.includes(file.type);
-  if (!isAllowed) {
-    throw new Error(`지원하지 않는 파일 형식입니다: ${file.type}`);
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  const isAllowedType = ALLOWED_TYPES.includes(file.type);
+  const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
+
+  // Accept if MIME type matches OR if extension matches (browsers may report
+  // empty/generic MIME for less common formats like .hwp)
+  if (!isAllowedType && !isAllowedExt) {
+    throw new Error(`지원하지 않는 파일 형식입니다: ${file.type || ext}`);
   }
 }
 
@@ -148,8 +163,8 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     .single();
   if (insertError) throw insertError;
 
-  // Audit log
-  await logAudit({
+  // Audit log (non-blocking — upload already succeeded)
+  logAudit({
     companyId,
     userId,
     entityType: "file",
@@ -162,7 +177,7 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
       bucket,
       context,
     },
-  });
+  }).catch(() => {});
 
   return {
     id: record.id,
@@ -263,8 +278,8 @@ export async function createNewVersion(
     .single();
   if (insertError) throw insertError;
 
-  // Audit log
-  await logAudit({
+  // Audit log (non-blocking)
+  logAudit({
     companyId,
     userId,
     entityType: "file",
@@ -275,7 +290,7 @@ export async function createNewVersion(
       version: nextVersion,
       parentFileId: rootId,
     },
-  });
+  }).catch(() => {});
 
   return {
     id: record.id,
@@ -319,8 +334,8 @@ export async function deleteFile(
     .eq("id", fileId);
   if (deleteError) throw deleteError;
 
-  // Audit log
-  await logAudit({
+  // Audit log (non-blocking)
+  logAudit({
     companyId,
     userId,
     entityType: "file",
@@ -332,7 +347,7 @@ export async function deleteFile(
       mimeType: file.mime_type,
       bucket,
     },
-  });
+  }).catch(() => {});
 }
 
 // ── 5. Get files for a document ──
@@ -490,8 +505,8 @@ export async function deleteFolder(
     .eq("id", folderId);
   if (error) throw error;
 
-  // Audit log
-  await logAudit({
+  // Audit log (non-blocking)
+  logAudit({
     companyId,
     userId,
     entityType: "file",
@@ -500,7 +515,7 @@ export async function deleteFolder(
     beforeJson: {
       folderName: folder?.name,
     },
-  });
+  }).catch(() => {});
 }
 
 // ── 14. Upload employee file (입사서류) ──

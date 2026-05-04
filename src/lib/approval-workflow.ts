@@ -594,7 +594,7 @@ export async function getMyPendingApprovals(
 ): Promise<any[]> {
   const { data: steps, error } = await db
     .from('approval_steps')
-    .select('*, approval_requests!inner(id, company_id, title, amount, request_type, requester_id, status, current_stage, total_stages, created_at, attachments)')
+    .select('*, approval_requests!inner(id, company_id, title, amount, description, request_type, requester_id, status, current_stage, total_stages, created_at, attachments)')
     .eq('approver_id', userId)
     .eq('status', 'pending')
     .eq('approval_requests.company_id', companyId)
@@ -626,6 +626,7 @@ export async function getMyPendingApprovals(
     requestId: s.approval_requests?.id,
     title: s.approval_requests?.title,
     amount: s.approval_requests?.amount,
+    description: s.approval_requests?.description || '',
     requestType: s.approval_requests?.request_type,
     requesterId: s.approval_requests?.requester_id,
     requesterName: requesterMap.get(s.approval_requests?.requester_id) || '',

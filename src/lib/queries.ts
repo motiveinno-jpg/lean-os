@@ -1128,7 +1128,7 @@ export async function getActionCards(channelId: string) {
 export async function getChannelFiles(channelId: string) {
   const { data } = await supabase
     .from('chat_files')
-    .select('*, users:uploader_id(name, email)')
+    .select('*, chat_messages!message_id(sender_id, users:sender_id(name, email))')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false });
   return data || [];
@@ -1963,10 +1963,10 @@ export async function touchDealActivity(dealId: string) {
 // ═══════════════════════════════════════════════
 // Cash Pulse Data (for buildCashPulse engine)
 // ═══════════════════════════════════════════════
-export async function getCashPulseData(companyId: string) {
+export async function getCashPulseData(companyId: string, userId?: string) {
   const db = supabase as any;
 
-  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems] = await Promise.all([
+  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps] = await Promise.all([
     // 1. Bank balances
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     // 2. Revenue schedules
@@ -1981,8 +1981,17 @@ export async function getCashPulseData(companyId: string) {
     supabase.from('payment_queue').select('amount, status').eq('company_id', companyId),
     // 7. Risk count (financial_items with risk_label)
     supabase.from('financial_items').select('risk_label').eq('company_id', companyId).not('risk_label', 'is', null),
-    // 8. Pending approvals (documents in review + payment_queue pending)
+    // 8. Pending approvals (documents in review)
     supabase.from('documents').select('id').eq('company_id', companyId).eq('status', 'review'),
+    // 9. My pending approval steps (filtered by userId)
+    userId
+      ? db.from('approval_steps')
+          .select('id, stage, approval_requests!inner(current_stage, status, company_id)')
+          .eq('approver_id', userId)
+          .eq('status', 'pending')
+          .eq('approval_requests.status', 'pending')
+          .eq('approval_requests.company_id', companyId)
+      : Promise.resolve({ data: null }),
   ]);
 
   const employeeSalaryTotal = (employees.data || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
@@ -2002,9 +2011,14 @@ export async function getCashPulseData(companyId: string) {
   const receivedCount = (revenue.data || []).filter((r: any) => r.status === 'received').length;
   const matchedRate = totalRevItems > 0 ? receivedCount / totalRevItems : 0;
 
-  // Pending approvals count: documents in review + payment_queue pending
+  // Pending approvals count: user-specific approval steps + doc reviews + payment queue pending
   const pendingPaymentCount = (paymentQ.data || []).filter((p: any) => p.status === 'pending').length;
-  const pendingApprovalCount = (approvalItems.data || []).length + pendingPaymentCount;
+  const myStepCount = userId
+    ? (myApprovalSteps.data || []).filter(
+        (s: any) => s.stage === s.approval_requests?.current_stage
+      ).length
+    : 0;
+  const pendingApprovalCount = myStepCount + (approvalItems.data || []).length + pendingPaymentCount;
 
   // Risk count from financial_items
   const riskCount = (riskItems.data || []).length;
