@@ -2768,13 +2768,22 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   const [telegramTestResult, setTelegramTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [sendingTelegramTest, setSendingTelegramTest] = useState(false);
 
-  // 연결 상태 확인 (connected_id만 체크)
+  // 연결 상태 확인 — 은행/카드는 ConnectedID, 홈택스는 automation_credentials.hometax 존재 여부.
   const { data: connectionStatus, refetch: refetchConnection } = useQuery({
     queryKey: ["codef-connection", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await db2.from("company_settings").select("codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle();
-      return data;
+      const [{ data: cs }, { data: ht }] = await Promise.all([
+        db2.from("company_settings").select("codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle(),
+        db2.from("automation_credentials").select("id, updated_at, credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+      ]);
+      return {
+        codef_connected_id: cs?.codef_connected_id || null,
+        codef_connected_at: cs?.codef_connected_at || null,
+        hometax_registered: !!ht?.id,
+        hometax_method: ht?.credentials?.login_method || null,
+        hometax_registered_at: ht?.updated_at || null,
+      };
     },
     enabled: !!companyId,
   });
@@ -2786,11 +2795,14 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string; errors?: any[] } | null>(null);
   const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
 
-  const isConnected = !!connectionStatus?.codef_connected_id;
+  // 은행/카드 ConnectedID 또는 홈택스 자격증명 등록 시 모두 "연결됨" 표시.
+  const hasCodefConnection = !!connectionStatus?.codef_connected_id;
+  const hasHometaxConnection = !!connectionStatus?.hometax_registered;
+  const isConnected = hasCodefConnection || hasHometaxConnection;
 
-  // CODEF 계좌 목록 조회
+  // CODEF 계좌 목록 조회 — ConnectedID 가 있을 때만 (holetax 단독 등록은 의미 없음).
   useEffect(() => {
-    if (!companyId || !isConnected) return;
+    if (!companyId || !hasCodefConnection) return;
     setLoadingAccounts(true);
     Promise.all([
       import("@/lib/data-sync").then(m => m.listCodefAccounts(companyId, "bank")),
@@ -2872,7 +2884,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미연결</span>
             )}
           </div>
-          {isConnected && (
+          {hasCodefConnection && (
             <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
               {syncing ? "동기화 중..." : "거래내역 동기화"}
             </button>
@@ -2882,9 +2894,22 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
         {isConnected ? (
           <div className="space-y-3">
             <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20">
-              <p className="text-xs text-green-600 font-semibold">은행/카드가 연결되었습니다. 거래내역이 자동으로 수집됩니다.</p>
+              <p className="text-xs text-green-600 font-semibold">
+                {hasCodefConnection && hasHometaxConnection
+                  ? "은행/카드 + 홈택스가 모두 연결되었습니다. 거래내역과 세금계산서가 자동으로 수집됩니다."
+                  : hasCodefConnection
+                    ? "은행/카드가 연결되었습니다. 거래내역이 자동으로 수집됩니다."
+                    : "홈택스가 연결되었습니다. 세금계산서가 자동으로 수집됩니다."}
+              </p>
               {connectionStatus?.codef_connected_at && (
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">연결일: {new Date(connectionStatus.codef_connected_at).toLocaleDateString("ko-KR")}</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {new Date(connectionStatus.codef_connected_at).toLocaleDateString("ko-KR")}</p>
+              )}
+              {hasHometaxConnection && connectionStatus?.hometax_registered_at && (
+                <p className="text-[10px] text-[var(--text-dim)]">
+                  홈택스 연결일: {new Date(connectionStatus.hometax_registered_at).toLocaleDateString("ko-KR")}
+                  {connectionStatus.hometax_method === "certificate" && " (공동인증서)"}
+                  {connectionStatus.hometax_method === "id_pw" && " (ID/PW)"}
+                </p>
               )}
             </div>
 
@@ -3086,27 +3111,36 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
     if (!companyId || testing) return;
     setTestResult(null);
 
-    if (settings.hometax_login_method === "certificate") {
-      setTestResult({
-        ok: false,
-        msg: "공동인증서 방식은 인증서 파일이 필요합니다. '은행연동' 탭 → '금융기관 연결' → '홈택스' 버튼을 사용하세요.",
-      });
-      return;
-    }
-
-    if (!settings.hometax_id || !settings.hometax_password) {
-      setTestResult({ ok: false, msg: "홈택스 ID와 비밀번호를 모두 입력하세요." });
-      return;
-    }
-
     setTesting(true);
     try {
       const { verifyHometaxRegistration } = await import("@/lib/data-sync");
-      const res = await verifyHometaxRegistration(companyId, {
-        loginType: "1",
-        id: settings.hometax_id,
-        userPassword: settings.hometax_password,
-      });
+      let res;
+      if (settings.hometax_login_method === "certificate") {
+        if (!settings.hometax_cert_password) {
+          setTestResult({
+            ok: false,
+            msg: "인증서 비밀번호를 입력하세요. (인증서 파일이 아직 업로드 안 됐다면 '은행연동' 탭 → '금융기관 연결' → '홈택스'에서 한 번만 업로드하세요)",
+          });
+          setTesting(false);
+          return;
+        }
+        // backend (hometax-verify) 가 storage 의 인증서 파일 + 입력받은 비밀번호로 검증.
+        res = await verifyHometaxRegistration(companyId, {
+          loginType: "0",
+          certPassword: settings.hometax_cert_password,
+        });
+      } else {
+        if (!settings.hometax_id || !settings.hometax_password) {
+          setTestResult({ ok: false, msg: "홈택스 ID와 비밀번호를 모두 입력하세요." });
+          setTesting(false);
+          return;
+        }
+        res = await verifyHometaxRegistration(companyId, {
+          loginType: "1",
+          id: settings.hometax_id,
+          userPassword: settings.hometax_password,
+        });
+      }
       if (res.success && res.registered) {
         setTestResult({ ok: true, msg: "홈택스 연결 성공! 회원 등록 확인됨." });
         toast("홈택스 연결 완료", "success");
