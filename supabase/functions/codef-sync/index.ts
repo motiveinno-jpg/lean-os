@@ -432,32 +432,92 @@ async function getAccountList(
 }
 
 // HomeTax tax invoice sync via CODEF API
+// 명세: /v1/kr/public/nt/tax-invoice/integrated-check-list (전자세금계산서 통합 API)
+// organization=0002, register/connectedId 흐름 사용 안 함 — 매번 인증서 + 비밀번호 직접 전송.
 async function syncHometaxInvoices(
-  supabase: any, token: string, companyId: string, connectedId: string,
+  supabase: any, token: string, companyId: string, _connectedId: string,
   startDate: string, endDate: string
 ) {
   const errors: SyncError[] = [];
   let totalSynced = 0;
+  const HOMETAX_ORG = "0002";
 
-  // 국세청(홈택스) organization code (CODEF API: 공공 카테고리, 국세청 = "0001")
-  const HOMETAX_ORG = "0001";
+  // 인증서 파일 + 비밀번호 로드
+  const certPath = `${companyId}/signCert.der`;
+  const keyPath = `${companyId}/signPri.key`;
 
+  const [{ data: derFile }, { data: keyDataFile }] = await Promise.all([
+    supabase.storage.from("certificates").download(certPath),
+    supabase.storage.from("certificates").download(keyPath),
+  ]);
+
+  if (!derFile || !keyDataFile) {
+    errors.push({
+      accountNo: "", organization: HOMETAX_ORG,
+      code: "NO_CERT", message: "공동인증서 파일이 없습니다",
+      hint: "설정 → 인증서에서 공동인증서 파일(signCert.der + signPri.key)을 업로드하세요.",
+    });
+    return { synced: 0, errors };
+  }
+
+  const derB64 = btoa(String.fromCharCode(...new Uint8Array(await derFile.arrayBuffer())));
+  const keyB64 = btoa(String.fromCharCode(...new Uint8Array(await keyDataFile.arrayBuffer())));
+
+  // 인증서 비밀번호 — automation_credentials.hometax.cert_password (encrypted)
+  const { data: credRow } = await supabase
+    .from("automation_credentials")
+    .select("credentials")
+    .eq("company_id", companyId).eq("service", "hometax")
+    .maybeSingle();
+
+  let certPasswordPlain = credRow?.credentials?.cert_password || "";
+  if (certPasswordPlain && certPasswordPlain.length > 100) {
+    // PGP 암호화된 형태 → decrypt RPC 호출
+    const { data: dec } = await supabase.rpc("decrypt_credential", { p_ciphertext: certPasswordPlain });
+    if (dec) certPasswordPlain = dec;
+  }
+
+  if (!certPasswordPlain) {
+    errors.push({
+      accountNo: "", organization: HOMETAX_ORG,
+      code: "NO_CERT_PW", message: "공동인증서 비밀번호가 설정되지 않았습니다",
+      hint: "설정 → 인증서 또는 세무자동화 탭에서 인증서 비밀번호를 등록하세요.",
+    });
+    return { synced: 0, errors };
+  }
+
+  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+  const encryptedCertPw = publicKey ? rsaEncrypt(certPasswordPlain, publicKey) : certPasswordPlain;
+
+  // 매출(transeType=01) + 매입(transeType=02) 모두 조회
   for (const direction of ["매출", "매입"] as const) {
-    const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
-      connectedId,
+    const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
-      inquiryType: direction === "매출" ? "0" : "1",
+      loginType: "0",
+      certType: "1",
+      certFile: derB64,
+      keyFile: keyB64,
+      certPassword: encryptedCertPw,
+      inquiryType: "01",  // 01=전자세금계산서
+      searchType: "01",   // 01=작성일자
+      transeType: direction === "매출" ? "01" : "02",
       startDate,
       endDate,
+      sortby: "1",
+      orderBy: "0",
+      type: "0",
     });
 
     if (result.result?.code !== "CF-00000") {
+      // CF-03002 = continue2Way (추가 인증 필요)
+      const code = result.result?.code || "UNKNOWN";
       errors.push({
-        accountNo: "",
-        organization: HOMETAX_ORG,
-        code: result.result?.code || "UNKNOWN",
+        accountNo: "", organization: HOMETAX_ORG,
+        code,
         message: result.result?.message || "응답 없음",
-        hint: codefErrorHint(result.result?.code),
+        hint: code === "CF-03002"
+          ? "추가 인증(보안카드/간편인증/전자서명)이 필요합니다. 현재 미지원 — 향후 구현 예정."
+          : codefErrorHint(code),
       });
       continue;
     }
@@ -465,10 +525,10 @@ async function syncHometaxInvoices(
     const invoices = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
 
     for (const inv of invoices) {
-      const invoiceNumber = inv.resApprovalNo || inv.resInvoiceNumber || "";
+      const invoiceNumber = inv.resApprovalNo || "";
       if (!invoiceNumber) continue;
 
-      const issueDate = inv.resIssueDate || inv.resWriteDate || "";
+      const issueDate = inv.resIssueDate || inv.resReportingDate || "";
       const formattedDate = issueDate.length === 8
         ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
         : issueDate;
@@ -477,14 +537,14 @@ async function syncHometaxInvoices(
         company_id: companyId,
         invoice_number: invoiceNumber,
         issue_date: formattedDate || null,
-        supplier_name: inv.resSupplierName || inv.resCompanyNm || "",
-        supplier_brn: inv.resSupplierRegNumber || inv.resCompanyBizNo || "",
-        buyer_name: inv.resBuyerName || inv.resReceiverNm || "",
-        buyer_brn: inv.resBuyerRegNumber || inv.resReceiverBizNo || "",
-        supply_amount: Number(inv.resSupplyValue || inv.resSupplyAmt || 0),
-        tax_amount: Number(inv.resTaxAmount || inv.resTaxAmt || 0),
-        total_amount: Number(inv.resTotalAmount || inv.resTotalAmt || 0),
-        item_name: inv.resItemName || inv.resItemNm || null,
+        supplier_name: inv.resSupplierCompanyName || inv.resSupplierName || "",
+        supplier_brn: inv.resSupplierRegNumber || "",
+        buyer_name: inv.resContractorCompanyName || inv.resContractorName || "",
+        buyer_brn: inv.resContractorRegNumber || "",
+        supply_amount: Number(inv.resSupplyValue || 0),
+        tax_amount: Number(inv.resTaxAmt || 0),
+        total_amount: Number(inv.resTotalAmount || 0),
+        item_name: inv.resRepItems || null,
         direction: direction === "매출" ? "issued" : "received",
         source: "codef_hometax",
       }, { onConflict: "invoice_number" });
@@ -538,6 +598,14 @@ serve(async (req) => {
     if (action === "register") {
       const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B" } = body;
 
+      // 홈택스는 register/connectedId 흐름 사용 안 함 (PDF 명세 확인됨).
+      // 매 sync 마다 인증서 + 비밀번호 직접 전송하는 방식. 별도 hometax-verify 액션 사용.
+      if (accountType === "hometax") {
+        return new Response(JSON.stringify({
+          error: "홈택스는 register 흐름이 아닙니다. action='hometax-verify' 를 사용하세요.",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수
         if (!organization || !certPassword) {
@@ -553,30 +621,8 @@ serve(async (req) => {
         }
       }
 
-      // 홈택스 등록 시 회사 정보를 식별자로 함께 전송.
-      // CODEF 공공 카테고리는 인증서만으로 식별 불가, 추가 식별 필드 필요.
-      let extraId: string | undefined;
-      let extraCompanyInfo: { businessNumber?: string; userName?: string; representative?: string; phone?: string } | undefined;
-      if (accountType === "hometax") {
-        const { data: companyRow } = await supabase
-          .from("companies")
-          .select("business_number, name, representative, phone")
-          .eq("id", companyId)
-          .maybeSingle();
-        const brn = (companyRow?.business_number || "").replace(/[^0-9]/g, "");
-        if (!brn || brn.length !== 10) {
-          return new Response(JSON.stringify({
-            error: "홈택스 등록을 위해 회사의 사업자등록번호(10자리)가 필요합니다. 설정 → 회사 정보에서 사업자번호를 등록해주세요.",
-          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        extraId = brn;
-        extraCompanyInfo = {
-          businessNumber: brn,
-          userName: companyRow?.name || "",
-          representative: companyRow?.representative || "",
-          phone: (companyRow?.phone || "").replace(/[^0-9]/g, ""),
-        };
-      }
+      const extraId: string | undefined = undefined;
+      const extraCompanyInfo: undefined = undefined;
 
       let result;
       let regError: any = null;
@@ -633,6 +679,91 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Action: hometax-verify (홈택스 회원 등록여부 확인) ---
+    // PDF 명세: /v1/kr/public/nt/tax-invoice/registration-status
+    // organization=0002, 인증서 + 비밀번호 + identity(대표자 주민번호 앞 7자리, 법인) 또는 ID/PW.
+    if (action === "hometax-verify") {
+      const { loginType: ht_loginType = "0", certPassword: ht_certPassword, identity: ht_identity, id: ht_id, userPassword: ht_userPassword } = body;
+
+      // 인증서 파일 로드 (storage에 미리 업로드된 NPKI)
+      let certB64 = "", keyB64Str = "";
+      if (ht_loginType === "0") {
+        const { data: derFileData } = await supabase.storage.from("certificates").download(`${companyId}/signCert.der`);
+        const { data: keyFileData } = await supabase.storage.from("certificates").download(`${companyId}/signPri.key`);
+        if (!derFileData || !keyFileData) {
+          return new Response(JSON.stringify({
+            error: "공동인증서 파일이 storage에 없습니다. 설정 → 인증서 탭에서 signCert.der + signPri.key 를 먼저 업로드하세요.",
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        certB64 = btoa(String.fromCharCode(...new Uint8Array(await derFileData.arrayBuffer())));
+        keyB64Str = btoa(String.fromCharCode(...new Uint8Array(await keyFileData.arrayBuffer())));
+
+        if (!ht_certPassword) {
+          return new Response(JSON.stringify({ error: "certPassword 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      } else if (ht_loginType === "1") {
+        if (!ht_id || !ht_userPassword) {
+          return new Response(JSON.stringify({ error: "id, userPassword 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+
+      const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+      const reqBody: Record<string, any> = {
+        organization: "0002",
+        loginType: ht_loginType,
+      };
+      if (ht_loginType === "0") {
+        reqBody.certType = "1";
+        reqBody.certFile = certB64;
+        reqBody.keyFile = keyB64Str;
+        reqBody.certPassword = publicKey ? rsaEncrypt(ht_certPassword, publicKey) : ht_certPassword;
+        if (ht_identity) reqBody.identity = ht_identity; // 법인은 대표자 주민번호 앞7자리
+      } else {
+        reqBody.id = ht_id;
+        reqBody.userPassword = publicKey ? rsaEncrypt(ht_userPassword, publicKey) : ht_userPassword;
+        if (ht_identity) reqBody.identity = ht_identity;
+      }
+
+      const verifyResult = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/registration-status", reqBody);
+
+      // 결과 저장
+      const status = verifyResult.result?.code === "CF-00000" ? "success" : "error";
+      const isRegistered = verifyResult.data?.resRegistrationStatus === "1";
+      try {
+        await supabase.from("sync_logs").insert({
+          company_id: companyId,
+          sync_type: "codef_hometax_verify",
+          status,
+          details: {
+            organization: "0002",
+            loginType: ht_loginType,
+            isRegistered,
+            codefCode: verifyResult.result?.code,
+            codefMessage: verifyResult.result?.message,
+            resultDesc: verifyResult.data?.resResultDesc,
+            errorCount: status === "error" ? 1 : 0,
+          },
+          synced_by: user.id,
+        });
+      } catch { /* non-critical */ }
+
+      if (status === "error") {
+        return new Response(JSON.stringify({
+          success: false,
+          error: `홈택스 검증 실패: ${verifyResult.result?.message || "알 수 없는 오류"} (${verifyResult.result?.code})`,
+          hint: codefErrorHint(verifyResult.result?.code),
+          codefResponse: verifyResult,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        registered: isRegistered,
+        message: isRegistered ? "홈택스 회원 등록 확인 완료" : "홈택스에 등록되지 않은 사용자",
+        resultDesc: verifyResult.data?.resResultDesc || "",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: sandbox-connect (샌드박스 데모 데이터 즉시 연결) ---
