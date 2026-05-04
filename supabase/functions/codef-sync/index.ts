@@ -321,13 +321,22 @@ async function syncCardBilling(
         ? bill.resChargeHistoryList
         : bill.resChargeHistoryList ? [bill.resChargeHistoryList] : [];
 
-      console.log(`[CODEF] Card ${org} bill ${bill.resPaymentDueDate || ""}: ${charges.length} charges`);
+      const issuer = CARD_CODES[org] || "카드";
+      const billCardNo = bill.resCardNo || "";  // 청구서 단위 카드번호 (마스킹)
+
+      console.log(`[CODEF] Card ${org} bill ${bill.resPaymentDueDate || ""}: ${charges.length} charges, cardNo=${billCardNo}`);
 
       for (const ch of charges) {
         // PDF 명세 필드명: resApprovalNo (승인번호), resMemberStoreName (가맹점명),
         //   resUsedAmount (이용금액), resUsedDate (사용일자), resUsedCard (이용카드)
         const usedDate = ch.resUsedDate || "";
         const externalId = `codef_card_${org}_${usedDate}_${ch.resApprovalNo || ""}_${ch.resMemberStoreName?.slice(0, 10) || ""}_${ch.resUsedAmount || 0}`;
+
+        // 카드 식별: ch.resUsedCard (4자리 형태) > bill.resCardNo > 카드사명만
+        // card_name 통일 형식: "{카드사} {카드 식별자}" — 사용자가 어느 카드 사용했는지 명확.
+        const cardId = ch.resUsedCard || billCardNo || "";
+        const last4 = cardId ? cardId.replace(/[^0-9]/g, "").slice(-4) : "";
+        const cardName = last4 ? `${issuer} ${last4}` : issuer;
 
         const { error } = await supabase.from("card_transactions").upsert({
           company_id: companyId,
@@ -339,10 +348,13 @@ async function syncCardBilling(
             ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
             : null,
           approval_number: ch.resApprovalNo || null,
-          card_name: ch.resUsedCard || CARD_CODES[org] || null,
+          card_name: cardName,
           installments: ch.resInstallmentMonth ? Number(ch.resInstallmentMonth) : 0,
           raw_data: {
             org,
+            issuer,
+            cardNo: billCardNo,
+            cardIdentifier: ch.resUsedCard || null,
             merchantBusinessNo: ch.resMemberStoreCorpNo || null,
             merchantTelNo: ch.resMemberStoreTelNo || null,
             merchantAddr: ch.resMemberStoreAddr || null,

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
-import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard } from "@/lib/card-transactions";
+import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames } from "@/lib/card-transactions";
 import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card-vat-classification";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -35,6 +35,7 @@ export default function TransactionsPage() {
   const [editingCard, setEditingCard] = useState<any>(null);
   const [cardForm, setCardForm] = useState({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '' });
   const [selectedCardId, setSelectedCardId] = useState<string>('');
+  const [selectedCardName, setSelectedCardName] = useState<string>('');  // CODEF sync 카드 필터
   const [cardFilterStatus, setCardFilterStatus] = useState<CardFilterStatus>('all');
   const [cardDateFrom, setCardDateFrom] = useState('');
   const [cardDateTo, setCardDateTo] = useState('');
@@ -113,9 +114,10 @@ export default function TransactionsPage() {
   });
 
   const { data: cardTx = [], isLoading: cardTxLoading } = useQuery({
-    queryKey: ['card-transactions', companyId, selectedCardId, cardFilterStatus, cardDateFrom, cardDateTo],
+    queryKey: ['card-transactions', companyId, selectedCardId, selectedCardName, cardFilterStatus, cardDateFrom, cardDateTo],
     queryFn: () => getCardTransactions(companyId!, {
       cardId: selectedCardId || undefined,
+      cardName: selectedCardName || undefined,
       status: cardFilterStatus === 'all' ? undefined : cardFilterStatus,
       dateFrom: cardDateFrom || undefined,
       dateTo: cardDateTo || undefined,
@@ -126,6 +128,13 @@ export default function TransactionsPage() {
   const { data: cardStats } = useQuery({
     queryKey: ['card-tx-stats', companyId],
     queryFn: () => getCardTransactionStats(companyId!),
+    enabled: !!companyId && tab === 'cards',
+  });
+
+  // CODEF sync 로 들어온 거래의 distinct card_name (카드사 + 끝4자리)
+  const { data: codefCards = [] } = useQuery({
+    queryKey: ['codef-card-names', companyId],
+    queryFn: () => getDistinctCardNames(companyId!),
     enabled: !!companyId && tab === 'cards',
   });
 
@@ -1042,11 +1051,35 @@ export default function TransactionsPage() {
             <StatCard label="미매핑" value={cs.unmapped} color={cs.unmapped > 0 ? 'var(--warning)' : 'var(--success)'} />
           </div>
 
+          {/* Card 별 사용액 (CODEF sync 거래) */}
+          {codefCards.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">카드별 사용액</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {codefCards.map((c: any) => (
+                  <button
+                    key={c.card_name}
+                    onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
+                    className={`p-3 rounded-xl border text-left transition ${
+                      selectedCardName === c.card_name
+                        ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-[var(--text)] truncate">{c.card_name}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{c.count.toLocaleString()}건</div>
+                    <div className="text-sm font-semibold text-[var(--primary)] mt-1">₩{Number(c.total).toLocaleString()}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Card Selector + Actions */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)}
+            <select value={selectedCardId} onChange={e => { setSelectedCardId(e.target.value); if (e.target.value) setSelectedCardName(''); }}
               className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm w-full sm:w-auto sm:min-w-[200px]">
-              <option value="">전체 카드</option>
+              <option value="">전체 카드 (등록된)</option>
               {corpCards.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.card_name} ({c.card_company})</option>
               ))}

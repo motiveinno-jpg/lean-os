@@ -50,6 +50,7 @@ export async function deleteCorporateCard(id: string) {
 
 export async function getCardTransactions(companyId: string, filters?: {
   cardId?: string;
+  cardName?: string;  // CODEF sync 거래 필터용 (card_name 기반)
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -61,12 +62,31 @@ export async function getCardTransactions(companyId: string, filters?: {
     .order('transaction_date', { ascending: false });
 
   if (filters?.cardId) q = q.eq('card_id', filters.cardId);
+  if (filters?.cardName) q = q.eq('card_name', filters.cardName);
   if (filters?.status) q = q.eq('mapping_status', filters.status);
   if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
   if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
 
   const { data } = await q.limit(500);
   return data || [];
+}
+
+// CODEF sync 거래에서 사용된 카드 목록 (distinct card_name + 통계).
+export async function getDistinctCardNames(companyId: string) {
+  const { data } = await supabase
+    .from('card_transactions')
+    .select('card_name, amount')
+    .eq('company_id', companyId)
+    .not('card_name', 'is', null);
+  const map = new Map<string, { card_name: string; count: number; total: number }>();
+  for (const tx of (data || [])) {
+    const name = tx.card_name || '미분류';
+    const cur = map.get(name) || { card_name: name, count: 0, total: 0 };
+    cur.count++;
+    cur.total += Number(tx.amount || 0);
+    map.set(name, cur);
+  }
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
 export async function getCardTransactionStats(companyId: string) {
