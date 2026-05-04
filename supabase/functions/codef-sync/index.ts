@@ -743,6 +743,7 @@ serve(async (req) => {
             codefCode: verifyResult.result?.code,
             codefMessage: verifyResult.result?.message,
             resultDesc: verifyResult.data?.resResultDesc,
+            transactionId: verifyResult.result?.transactionId,
             errorCount: status === "error" ? 1 : 0,
           },
           synced_by: user.id,
