@@ -2824,27 +2824,42 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   }
   useEffect(() => { if (isConnected) loadRecentSyncLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [companyId, isConnected]);
 
-  // 거래내역 동기화
+  // 거래내역 동기화 — bank/card 와 hometax 를 분리 호출 (각자 Edge Function 150s timeout 회피).
   async function handleSync() {
     if (!companyId || syncing) return;
     setSyncing(true);
     setSyncResult(null);
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
-      const res = await syncCodefData(companyId, "all");
-      const hasErrors = (res.errors?.length ?? 0) > 0;
-      const onlyHometaxErrors = hasErrors && res.errors?.every((e: any) => e.organization === "0004" && (e.code === "CF-00003" || e.code === "NO_HOMETAX_ACCOUNT"));
-      if (res.success && !hasErrors) {
-        setSyncResult({ ok: true, msg: res.message || "거래내역 동기화 완료" });
+
+      // 1단계: 은행/카드 동기화 (빠름, ConnectedID 필요)
+      const bankCardRes = hasCodefConnection
+        ? await syncCodefData(companyId, "all")
+        : { success: true, errors: [], status: "success" as const, message: "은행/카드 미등록" };
+
+      // 2단계: 홈택스 동기화 (느림, 인증서 storage 필요) — 등록된 경우만
+      const hometaxRes = hasHometaxConnection
+        ? await syncCodefData(companyId, "hometax")
+        : null;
+
+      const allErrors = [...(bankCardRes.errors || []), ...(hometaxRes?.errors || [])];
+      const totalSuccess = (bankCardRes.success ?? false) && (hometaxRes ? hometaxRes.success : true);
+
+      if (totalSuccess && allErrors.length === 0) {
+        const parts = [];
+        if (hasCodefConnection) parts.push(bankCardRes.message || "은행/카드 동기화 완료");
+        if (hometaxRes) parts.push(hometaxRes.message || "홈택스 동기화 완료");
+        setSyncResult({ ok: true, msg: parts.join(" + ") || "동기화 완료" });
         toast("거래내역 동기화 완료", "success");
-      } else if (onlyHometaxErrors) {
-        setSyncResult({ ok: true, msg: "은행·카드 동기화 완료 (홈택스 연동은 별도 설정 필요)" });
-        toast("은행·카드 동기화 완료", "success");
-      } else if (res.status === "partial") {
-        setSyncResult({ ok: false, msg: res.message || "부분 동기화", errors: res.errors?.filter((e: any) => !(e.organization === "0004" && e.code === "CF-00003")) });
-        toast("일부 계좌 동기화 실패", "info");
+      } else if (allErrors.length > 0) {
+        setSyncResult({
+          ok: false,
+          msg: `부분 동기화 (오류 ${allErrors.length}건)`,
+          errors: allErrors,
+        });
+        toast("일부 동기화 실패", "info");
       } else {
-        setSyncResult({ ok: false, msg: res.error || res.message || "동기화 실패", errors: res.errors });
+        setSyncResult({ ok: false, msg: bankCardRes.error || "동기화 실패", errors: allErrors });
         toast("동기화 실패", "error");
       }
       await loadRecentSyncLogs();
@@ -2852,7 +2867,6 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
       setSyncResult({ ok: false, msg: err.message || "오류 발생" });
     }
     setSyncing(false);
-    // 오류가 있으면 메시지를 남겨 두어 대표님이 읽을 수 있게 함
     if (!syncResult?.errors?.length) setTimeout(() => setSyncResult((prev) => (prev?.errors?.length ? prev : null)), 5000);
   }
 
@@ -2884,9 +2898,9 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미연결</span>
             )}
           </div>
-          {hasCodefConnection && (
+          {isConnected && (
             <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
-              {syncing ? "동기화 중..." : "거래내역 동기화"}
+              {syncing ? "동기화 중..." : hasCodefConnection && hasHometaxConnection ? "전체 동기화" : hasHometaxConnection ? "홈택스 동기화" : "거래내역 동기화"}
             </button>
           )}
         </div>

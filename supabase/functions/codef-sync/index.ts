@@ -919,6 +919,9 @@ serve(async (req) => {
 
     const results: Record<string, any> = {};
 
+    // syncType="all" 은 bank + card 만 (빠름). holetax 는 매 호출 60~80초+ 라
+    // 합치면 Edge Function 150 초 timeout 에 걸려서 504 발생. holetax 는 명시적
+    // syncType="hometax" 로만 호출.
     if (syncType === "bank" || syncType === "all") {
       results.bank = await syncBankTransactions(supabase, token, companyId, cid, start, end);
     }
@@ -927,7 +930,7 @@ serve(async (req) => {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 
-    if (syncType === "hometax" || syncType === "all") {
+    if (syncType === "hometax") {
       results.hometax = await syncHometaxInvoices(supabase, token, companyId, cid, start, end);
     }
 
