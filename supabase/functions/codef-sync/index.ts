@@ -377,7 +377,11 @@ async function registerAccount(
       publicKeyLen: publicKey.length,
       publicKeyHash: publicKey.length > 0 ? "set" : "missing",
       organization,
+      accountType,
       loginType: loginOpts.loginType,
+      hasLoginId: !!loginOpts.loginId,
+      loginIdLen: loginOpts.loginId?.length || 0,
+      loginIdPreview: loginOpts.loginId ? `${loginOpts.loginId.slice(0, 4)}***` : "(none)",
       hasDerFile: !!loginOpts.derFile,
       derFileLen: loginOpts.derFile?.length || 0,
       hasKeyFile: !!loginOpts.keyFile,
@@ -553,6 +557,7 @@ serve(async (req) => {
       }
 
       let result;
+      let regError: any = null;
       try {
         result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
       } catch (regErr: any) {
@@ -561,19 +566,39 @@ serve(async (req) => {
           try {
             result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
           } catch (retryErr: any) {
-            return new Response(JSON.stringify({
-              error: retryErr.message || "계정 등록 실패",
-              codefResponse: retryErr.codefResponse || null,
-              diagnostics: retryErr.diagnostics || null,
-            }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            regError = retryErr;
           }
         } else {
-          return new Response(JSON.stringify({
-            error: regErr.message || "계정 등록 실패",
-            codefResponse: regErr.codefResponse || null,
-            diagnostics: regErr.diagnostics || null,
-          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          regError = regErr;
         }
+      }
+
+      // 등록 시도 결과를 sync_logs 에 기록 (디버깅용)
+      try {
+        await supabase.from("sync_logs").insert({
+          company_id: companyId,
+          sync_type: `codef_register_${accountType}`,
+          status: regError ? "error" : "success",
+          details: {
+            organization,
+            accountType,
+            loginType,
+            errorCount: regError ? 1 : 0,
+            error: regError?.message || null,
+            codefResponse: regError?.codefResponse || null,
+            diagnostics: regError?.diagnostics || null,
+            connectedId: result?.connectedId ? `${result.connectedId.slice(0, 8)}***` : null,
+          },
+          synced_by: user.id,
+        });
+      } catch { /* non-critical */ }
+
+      if (regError) {
+        return new Response(JSON.stringify({
+          error: regError.message || "계정 등록 실패",
+          codefResponse: regError.codefResponse || null,
+          diagnostics: regError.diagnostics || null,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Save connectedId to company_settings
