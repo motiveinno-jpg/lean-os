@@ -411,8 +411,8 @@ async function syncHometaxInvoices(
   const errors: SyncError[] = [];
   let totalSynced = 0;
 
-  // 국세청(홈택스) organization code
-  const HOMETAX_ORG = "0004";
+  // 국세청(홈택스) organization code (CODEF API: 공공 카테고리, 국세청 = "0001")
+  const HOMETAX_ORG = "0001";
 
   for (const direction of ["매출", "매입"] as const) {
     const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
@@ -641,8 +641,8 @@ serve(async (req) => {
       ...(results.hometax?.errors ?? []),
     ];
     // 홈택스 CF-00003은 상품 미설정이므로 "skipped"로 분류 (은행/카드 성공 시 전체 실패 방지)
-    const criticalErrors = allErrors.filter(e => !(e.code === "CF-00003" && e.organization === "0004"));
-    const skippedErrors = allErrors.filter(e => e.code === "CF-00003" && e.organization === "0004");
+    const criticalErrors = allErrors.filter(e => !(e.code === "CF-00003" && e.organization === "0001"));
+    const skippedErrors = allErrors.filter(e => e.code === "CF-00003" && e.organization === "0001");
     const totalSynced =
       (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
