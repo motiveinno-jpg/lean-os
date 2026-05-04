@@ -489,35 +489,50 @@ async function syncHometaxInvoices(
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
   const encryptedCertPw = publicKey ? rsaEncrypt(certPasswordPlain, publicKey) : certPasswordPlain;
 
-  // 매출(transeType=01) + 매입(transeType=02) 모두 조회
-  for (const direction of ["매출", "매입"] as const) {
-    const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
-      organization: HOMETAX_ORG,
-      loginType: "0",
-      certType: "1",
-      certFile: derB64,
-      keyFile: keyB64,
-      certPassword: encryptedCertPw,
-      inquiryType: "01",  // 01=전자세금계산서
-      searchType: "01",   // 01=작성일자
-      transeType: direction === "매출" ? "01" : "02",
-      startDate,
-      endDate,
-      sortby: "1",
-      orderBy: "0",
-      type: "0",
-    });
+  // endDate 가 미래일 경우 오늘로 cap (CODEF CF-13001 회피).
+  // startDate 도 endDate 이후면 동일 cap.
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`;
+  const cappedEndDate = endDate > todayStr ? todayStr : endDate;
+  const cappedStartDate = startDate > cappedEndDate ? cappedEndDate : startDate;
+  if (cappedEndDate !== endDate || cappedStartDate !== startDate) {
+    console.log(`[hometax] date capped: ${startDate}~${endDate} → ${cappedStartDate}~${cappedEndDate}`);
+  }
 
+  // 매출(transeType=01) + 매입(transeType=02) 병렬 호출 (Edge Function 150s timeout 회피).
+  const baseReqBody = {
+    organization: HOMETAX_ORG,
+    loginType: "0",
+    certType: "1",
+    certFile: derB64,
+    keyFile: keyB64,
+    certPassword: encryptedCertPw,
+    inquiryType: "01",  // 01=전자세금계산서
+    searchType: "01",   // 01=작성일자
+    startDate: cappedStartDate,
+    endDate: cappedEndDate,
+    sortby: "1",
+    orderBy: "0",
+    type: "0",
+  };
+
+  const [salesResult, purchaseResult] = await Promise.all([
+    codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", { ...baseReqBody, transeType: "01" }),
+    codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", { ...baseReqBody, transeType: "02" }),
+  ]);
+
+  for (const [direction, result] of [["매출", salesResult], ["매입", purchaseResult]] as const) {
     if (result.result?.code !== "CF-00000") {
-      // CF-03002 = continue2Way (추가 인증 필요)
       const code = result.result?.code || "UNKNOWN";
       errors.push({
         accountNo: "", organization: HOMETAX_ORG,
         code,
         message: result.result?.message || "응답 없음",
         hint: code === "CF-03002"
-          ? "추가 인증(보안카드/간편인증/전자서명)이 필요합니다. 현재 미지원 — 향후 구현 예정."
-          : codefErrorHint(code),
+          ? "추가 인증(보안카드/간편인증/전자서명) 필요. 현재 미지원."
+          : code === "CF-13001"
+            ? "조회 기간이 잘못됨 (미래 날짜 등). 이번 달 또는 과거 데이터로 시도하세요."
+            : codefErrorHint(code),
       });
       continue;
     }
