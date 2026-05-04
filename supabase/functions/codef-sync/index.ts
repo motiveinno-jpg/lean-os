@@ -162,8 +162,24 @@ async function syncBankTransactions(
       continue;
     }
 
-    const rawData = acctListResult.data?.resAccountList ?? acctListResult.data;
-    const realAccounts = Array.isArray(rawData) ? rawData : rawData ? [rawData] : [];
+    // PDF 명세: data 가 카테고리별 배열을 가진 객체.
+    //   resDepositTrust(예금/신탁 - 수시입출 포함), resForeignCurrency(외화),
+    //   resFund(펀드), resLoan(대출), resInsurance(보험)
+    // 거래내역은 수시입출/예적금/외화 위주로 조회. 펀드/보험은 transaction-list 의미 없음.
+    const rawData = acctListResult.data;
+    const realAccounts: any[] = [];
+    if (Array.isArray(rawData)) {
+      realAccounts.push(...rawData);
+    } else if (rawData && typeof rawData === "object") {
+      // 거래내역 가능한 카테고리만: 예금/신탁 + 외화
+      for (const key of ["resDepositTrust", "resForeignCurrency"]) {
+        if (Array.isArray(rawData[key])) realAccounts.push(...rawData[key]);
+      }
+      // fallback: 예전 응답 구조 (resAccountList 또는 평탄화된 배열)
+      if (realAccounts.length === 0 && Array.isArray(rawData.resAccountList)) {
+        realAccounts.push(...rawData.resAccountList);
+      }
+    }
     console.log(`[CODEF] Bank ${org} account-list: ${realAccounts.length} accounts`);
 
     if (realAccounts.length === 0) continue;
@@ -242,13 +258,19 @@ async function syncCardBilling(
 
   let totalSynced = 0;
 
-  // 카드 청구 내역은 YYYYMM 6자리 날짜
+  // PDF 명세: startDate 는 YYYYMM (6 자리, 청구년월). endDate 명세에 없음 — 보내지 않음.
+  // 미입력 시 최근 명세서 조회되므로, startDate 만 보내고 endDate 는 생략.
   const billingStart = startDate.slice(0, 6);
-  const billingEnd = endDate.slice(0, 6);
 
   for (const org of cardOrgs) {
+    // PDF: /v1/kr/card/p/account/billing-list (개인) — 법인은 /b/. 활성화 product 에 맞춰 /b/ 유지.
     const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
-      connectedId, organization: org, startDate: billingStart, endDate: billingEnd, orderBy: "0", inquiryType: "1",
+      connectedId,
+      organization: org,
+      startDate: billingStart,
+      orderBy: "0",
+      inquiryType: "1",
+      memberStoreInfoYN: "1",  // 가맹점 정보 포함
     });
 
     if (result.result?.code !== "CF-00000") {
@@ -263,27 +285,51 @@ async function syncCardBilling(
     }
     if (!result.data) continue;
 
-    // CODEF 카드 청구 응답: data 자체가 배열이거나, data.resBillingList 안에 있을 수 있음
-    const rawBillings = result.data?.resBillingList ?? result.data;
-    const billings = Array.isArray(rawBillings) ? rawBillings : rawBillings ? [rawBillings] : [];
-    console.log(`[CODEF] Card ${org} billing: ${billings.length} items, raw keys: ${Object.keys(result.data || {}).join(",")}`);
+    // PDF 응답 구조: 단건은 객체, 다건은 배열. 각 element 가 청구서이고 안에 resChargeHistoryList 있음.
+    const billings = Array.isArray(result.data) ? result.data : [result.data];
+    console.log(`[CODEF] Card ${org} billing: ${billings.length} bills`);
 
     for (const bill of billings) {
-      const externalId = `codef_card_${org}_${bill.resUsedDate || ""}_${bill.resUsedTime || ""}_${bill.resCardApprovalNo || totalSynced}`;
+      // 청구서 안의 실제 이용내역 (resChargeHistoryList) 평탄화
+      const charges = Array.isArray(bill.resChargeHistoryList)
+        ? bill.resChargeHistoryList
+        : bill.resChargeHistoryList ? [bill.resChargeHistoryList] : [];
 
-      const { error } = await supabase.from("card_transactions").upsert({
-        company_id: companyId,
-        external_id: externalId,
-        amount: Number(bill.resUsedAmount || 0),
-        merchant_name: bill.resStoreName || bill.resMemberStoreName || "",
-        transaction_date: bill.resUsedDate ? `${bill.resUsedDate.slice(0,4)}-${bill.resUsedDate.slice(4,6)}-${bill.resUsedDate.slice(6,8)}` : null,
-        approval_number: bill.resCardApprovalNo || null,
-        card_name: bill.resCardName || CARD_CODES[org] || null,
-        source: "codef_card",
-        mapping_status: "unmapped",
-      }, { onConflict: "external_id" });
+      console.log(`[CODEF] Card ${org} bill ${bill.resPaymentDueDate || ""}: ${charges.length} charges`);
 
-      if (!error) totalSynced++;
+      for (const ch of charges) {
+        // PDF 명세 필드명: resApprovalNo (승인번호), resMemberStoreName (가맹점명),
+        //   resUsedAmount (이용금액), resUsedDate (사용일자), resUsedCard (이용카드)
+        const usedDate = ch.resUsedDate || "";
+        const externalId = `codef_card_${org}_${usedDate}_${ch.resApprovalNo || ""}_${ch.resMemberStoreName?.slice(0, 10) || ""}_${ch.resUsedAmount || 0}`;
+
+        const { error } = await supabase.from("card_transactions").upsert({
+          company_id: companyId,
+          external_id: externalId,
+          amount: Number(ch.resUsedAmount || 0),
+          merchant_name: ch.resMemberStoreName || "",
+          merchant_category: ch.resMemberStoreType || null,
+          transaction_date: usedDate.length === 8
+            ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
+            : null,
+          approval_number: ch.resApprovalNo || null,
+          card_name: ch.resUsedCard || CARD_CODES[org] || null,
+          installments: ch.resInstallmentMonth ? Number(ch.resInstallmentMonth) : 0,
+          raw_data: {
+            org,
+            merchantBusinessNo: ch.resMemberStoreCorpNo || null,
+            merchantTelNo: ch.resMemberStoreTelNo || null,
+            merchantAddr: ch.resMemberStoreAddr || null,
+            paymentType: ch.resPaymentType || null,
+            cancelAmount: ch.resCancelAmount || null,
+            billPaymentDueDate: bill.resPaymentDueDate || null,
+          },
+          source: "codef_card",
+          mapping_status: "unmapped",
+        }, { onConflict: "external_id" });
+
+        if (!error) totalSynced++;
+      }
     }
   }
 
