@@ -345,6 +345,8 @@ export default function TaxInvoicesPage() {
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
   const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null);
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchIssuing, setBatchIssuing] = useState(false);
   const [form, setForm] = useState({
     type: "sales" as "sales" | "purchase",
     counterpartyName: "",
@@ -647,6 +649,59 @@ export default function TaxInvoicesPage() {
     form.supplyAmount &&
     form.issueDate &&
     Number(form.supplyAmount) > 0;
+
+  const draftInCurrentList = currentList.filter((inv: any) => inv.status === 'draft');
+  const selectedDrafts = draftInCurrentList.filter((inv: any) => selectedIds.has(inv.id));
+
+  function toggleSelectAll() {
+    if (selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(draftInCurrentList.map((inv: any) => inv.id)));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBatchIssue() {
+    if (selectedDrafts.length === 0) return;
+    setBatchIssuing(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const inv of selectedDrafts) {
+      try {
+        await issueTaxInvoice(inv.id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBatchIssuing(false);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    if (failCount === 0) {
+      toast(`${successCount}건 일괄 발행 완료`, "success");
+    } else {
+      toast(`${successCount}건 발행, ${failCount}건 실패`, "error");
+    }
+  }
+
+  async function handleSingleIssue(id: string) {
+    try {
+      await issueTaxInvoice(id);
+      queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+      toast("발행 완료", "success");
+    } catch (err: any) {
+      toast(`발행 실패: ${err.message || err}`, "error");
+    }
+  }
 
   if (isLoading && invoices.length === 0) {
     return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -1216,6 +1271,29 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
+      {/* Batch Actions */}
+      {(tab === "sales" || tab === "purchase") && selectedDrafts.length > 0 && (
+        <div className="mb-3 flex items-center gap-3 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
+          <span className="text-xs font-semibold text-[var(--primary)]">{selectedDrafts.length}건 선택</span>
+          <button
+            onClick={handleBatchIssue}
+            disabled={batchIssuing}
+            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+          >
+            {batchIssuing ? "발행 중..." : "일괄 발행"}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="px-3 py-1.5 text-[var(--text-muted)] text-xs hover:text-[var(--text)] transition"
+          >
+            선택 해제
+          </button>
+          <span className="text-[10px] text-[var(--text-dim)] ml-auto">
+            합계 ₩{selectedDrafts.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}
+          </span>
+        </div>
+      )}
+
       {/* Sales / Purchase Table */}
       {(tab === "sales" || tab === "purchase") && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
@@ -1234,9 +1312,20 @@ export default function TaxInvoicesPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+            <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  {draftInCurrentList.length > 0 && (
+                    <th className="w-10 px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
+                        title="전체 선택"
+                      />
+                    </th>
+                  )}
                   <th className="text-left px-5 py-3 font-medium">거래처명</th>
                   <th className="text-left px-5 py-3 font-medium">구분</th>
                   <th className="text-right px-5 py-3 font-medium">공급가</th>
@@ -1245,18 +1334,32 @@ export default function TaxInvoicesPage() {
                   <th className="text-left px-5 py-3 font-medium">딜</th>
                   <th className="text-left px-5 py-3 font-medium">발행일</th>
                   <th className="text-center px-5 py-3 font-medium">상태</th>
+                  <th className="text-center px-5 py-3 font-medium">액션</th>
                 </tr>
               </thead>
               <tbody>
                 {currentList.map((inv: any) => {
                   const sc =
                     (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+                  const isDraft = inv.status === 'draft';
                   return (
                     <tr
                       key={inv.id}
                       onClick={() => setSelectedInvoice(inv)}
                       className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
                     >
+                      {draftInCurrentList.length > 0 && (
+                        <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                          {isDraft && (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(inv.id)}
+                              onChange={() => toggleSelect(inv.id)}
+                              className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
+                            />
+                          )}
+                        </td>
+                      )}
                       <td className="px-5 py-3 text-sm font-medium">
                         {inv.counterparty_name}
                       </td>
@@ -1302,6 +1405,16 @@ export default function TaxInvoicesPage() {
                           {sc.label}
                         </span>
                       </td>
+                      <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {isDraft && (
+                          <button
+                            onClick={() => handleSingleIssue(inv.id)}
+                            className="px-2.5 py-1 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-lg text-[11px] font-semibold transition"
+                          >
+                            발행
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -1310,7 +1423,7 @@ export default function TaxInvoicesPage() {
               <tfoot>
                 <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                   <td
-                    colSpan={2}
+                    colSpan={draftInCurrentList.length > 0 ? 3 : 2}
                     className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
                   >
                     합계 ({currentList.length}건)
@@ -1345,7 +1458,7 @@ export default function TaxInvoicesPage() {
                       )
                       .toLocaleString("ko")}
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             </table></div>

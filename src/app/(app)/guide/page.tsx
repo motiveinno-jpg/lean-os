@@ -524,6 +524,193 @@ function FeatureCard({
 }
 
 // ═══════════════════════════════════════════
+// Step-by-Step Workflow Guides
+// ═══════════════════════════════════════════
+
+type WorkflowStep = { title: string; description: string; route?: string };
+type Workflow = { id: string; icon: string; title: string; description: string; steps: WorkflowStep[] };
+
+const WORKFLOWS: Workflow[] = [
+  {
+    id: 'getting-started',
+    icon: '🚀',
+    title: '시작하기 — 회사 설정',
+    description: '회원가입 후 첫 설정을 완료하는 과정입니다. 10분이면 시작할 수 있습니다.',
+    steps: [
+      { title: '회원가입', description: '이메일 또는 카카오/구글 소셜 로그인으로 가입합니다. 가입 시 회사명을 입력하면 30일 무료 체험이 시작됩니다.' },
+      { title: '회사 정보 입력', description: '설정 → 회사정보에서 사업자등록번호, 대표자명, 주소를 입력합니다. 세금계산서 자동 발행에 필요합니다.', route: '/settings' },
+      { title: '법인통장 연결', description: '설정 → 현금관리에서 주거래 은행 계좌를 등록합니다. 계좌별 용도(운영/예비/투자)를 지정하면 자금 흐름이 자동 분류됩니다.', route: '/settings' },
+      { title: '거래처 등록', description: '거래처 메뉴에서 첫 번째 고객사 또는 공급사를 추가합니다. 사업자등록번호와 담당자 연락처를 입력하세요.', route: '/partners' },
+      { title: '첫 딜 생성', description: '딜 파이프라인에서 진행 중인 프로젝트를 등록합니다. 계약금액과 거래처를 연결하면 매출 추적이 시작됩니다.', route: '/deals' },
+      { title: '대시보드 확인', description: '모든 설정이 완료되면 대시보드에서 6-Pack 생존지표가 실시간으로 표시됩니다.', route: '/dashboard' },
+    ],
+  },
+  {
+    id: 'codef-cert',
+    icon: '🔐',
+    title: 'CODEF 인증서 등록',
+    description: '공동인증서를 등록하면 은행/카드 거래내역과 홈택스 세금계산서를 자동으로 가져올 수 있습니다.',
+    steps: [
+      { title: '인증서 파일 준비', description: 'PC에 저장된 공동인증서(구 공인인증서)를 준비합니다. 보통 NPKI 폴더(USB 또는 하드디스크)에 있으며, .der / .key 파일 2개가 필요합니다.' },
+      { title: '설정 → 인증서 관리', description: '설정 페이지의 "인증서 관리" 탭에서 인증서 등록 버튼을 클릭합니다.', route: '/settings' },
+      { title: '인증서 업로드', description: '.der(인증서) 파일과 .key(개인키) 파일을 각각 선택하여 업로드합니다. 또는 PFX 파일 하나로도 등록 가능합니다.' },
+      { title: '인증서 비밀번호 입력', description: '인증서의 비밀번호를 입력합니다. 비밀번호는 암호화되어 안전하게 저장됩니다.' },
+      { title: '연결 확인', description: '등록이 완료되면 "연결됨" 상태가 표시됩니다. 이제 거래내역 자동 동기화와 홈택스 세금계산서 조회가 가능합니다.' },
+    ],
+  },
+  {
+    id: 'bank-card',
+    icon: '🏦',
+    title: '은행/카드 연동',
+    description: '법인 계좌와 카드를 연동하면 거래내역이 자동으로 수집되고, AI가 계정과목을 분류합니다.',
+    steps: [
+      { title: '인증서 등록 (선행)', description: 'CODEF 인증서가 등록되어 있어야 합니다. 아직 등록하지 않았다면 위의 "CODEF 인증서 등록" 가이드를 먼저 따라하세요.' },
+      { title: '거래내역 동기화', description: '대시보드 또는 거래내역 페이지에서 "동기화" 버튼을 클릭하면 은행 거래내역을 자동으로 가져옵니다.', route: '/transactions' },
+      { title: 'AI 자동 분류', description: '가져온 거래내역에 대해 "AI 분류" 버튼을 누르면 계정과목(급여, 임대료, 매출 등)이 자동 분류됩니다.', route: '/transactions' },
+      { title: '분류 검토/수정', description: 'AI 분류 결과를 검토하고, 틀린 항목은 클릭하여 수동 수정합니다. 수정 내역은 AI가 학습하여 다음번 정확도가 높아집니다.' },
+      { title: '카드 내역 확인', description: '법인카드 거래내역도 동일한 방식으로 조회됩니다. 카드별 사용금액, 승인/취소 현황을 한눈에 확인할 수 있습니다.' },
+    ],
+  },
+  {
+    id: 'deal-to-payment',
+    icon: '📋',
+    title: '딜 → 계약 → 정산 워크플로우',
+    description: '영업에서 수주한 프로젝트를 등록하고, 견적→계약→세금계산서→입금 확인까지 전 과정을 자동화합니다.',
+    steps: [
+      { title: '딜 생성', description: '딜 파이프라인에서 "새 딜"을 클릭합니다. 프로젝트명, 거래처, 예상 계약금액, 예상 마감일을 입력합니다.', route: '/deals' },
+      { title: '견적서 작성', description: '딜 상세에서 "견적서 생성" 버튼을 누르면 딜 정보가 자동으로 채워진 견적서가 만들어집니다. 품목과 금액을 확인 후 발행합니다.', route: '/documents' },
+      { title: '견적 승인 → 계약서 자동 생성', description: '견적서가 승인되면 계약서가 자동으로 생성됩니다. 선금/잔금 비율, 결제 조건 등이 견적서에서 승계됩니다.' },
+      { title: '전자서명 요청', description: '계약서에서 "서명 요청"을 보내면 거래처 담당자에게 이메일이 발송됩니다. 서명 상태를 실시간으로 추적할 수 있습니다.', route: '/signatures' },
+      { title: '세금계산서 자동 발행', description: '계약 승인 시 결제 스케줄에 따라 세금계산서가 자동 발행됩니다. 선금 분, 잔금 분이 각각 생성됩니다.', route: '/tax-invoices' },
+      { title: '입금 확인 및 3-Way 매칭', description: '입금이 확인되면 세금계산서-계약서-입금내역 간 3-Way 매칭이 자동으로 이루어집니다. 매칭 결과는 매칭 페이지에서 확인합니다.', route: '/matching' },
+    ],
+  },
+  {
+    id: 'team-setup',
+    icon: '👥',
+    title: '직원 초대 및 권한 설정',
+    description: '팀원을 초대하고 역할별 접근 권한을 설정합니다. 관리자, 직원, 파트너 3가지 역할을 지원합니다.',
+    steps: [
+      { title: '팀원 초대', description: '설정 → 팀 관리에서 "초대하기"를 클릭합니다. 이메일 주소, 이름, 역할(관리자/직원/파트너)을 입력하고 초대를 보냅니다.', route: '/settings' },
+      { title: '역할 설명', description: '관리자(admin): 모든 기능 접근. 직원(employee): 자신의 출퇴근/급여/결재만 조회. 파트너(partner): 연결된 딜과 채팅만 접근 가능.' },
+      { title: '초대 수락', description: '초대받은 사람은 이메일의 링크를 클릭하여 회원가입(또는 로그인)합니다. 자동으로 해당 회사에 연결됩니다.' },
+      { title: '권한 세부 설정', description: '설정 → 권한 관리에서 역할별로 페이지 접근 권한을 세부 조정할 수 있습니다. 각 메뉴별 열람/수정/삭제 권한을 설정합니다.', route: '/settings' },
+      { title: '결재선 설정', description: '설정 → 결재 정책에서 경비, 휴가, 계약 등 유형별로 결재선을 등록합니다. N단계 승인, 금액 기준 자동승인 등을 설정할 수 있습니다.', route: '/settings' },
+    ],
+  },
+];
+
+function WorkflowGuides() {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <div style={{ marginTop: '40px', marginBottom: '12px' }}>
+      <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)', margin: '0 0 4px' }}>
+        단계별 워크플로우 가이드
+      </h2>
+      <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 16px' }}>
+        주요 업무 흐름을 단계별로 안내합니다. 클릭하여 상세 과정을 확인하세요.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {WORKFLOWS.map((wf) => {
+          const isOpen = expandedId === wf.id;
+          return (
+            <div
+              key={wf.id}
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: `1px solid ${isOpen ? 'var(--primary)' : 'var(--border)'}`,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                transition: 'border-color 0.2s ease',
+              }}
+            >
+              <button
+                onClick={() => setExpandedId(isOpen ? null : wf.id)}
+                aria-expanded={isOpen}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '14px 20px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text)',
+                }}
+              >
+                <span style={{ fontSize: '22px', flexShrink: 0 }}>{wf.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{wf.title}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{wf.description}</div>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', flexShrink: 0 }}>
+                  {wf.steps.length}단계
+                </span>
+                <svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ flexShrink: 0, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              <div style={{ maxHeight: isOpen ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+                <div style={{ padding: '0 20px 20px 20px' }}>
+                  <div style={{ position: 'relative', paddingLeft: '28px' }}>
+                    <div style={{ position: 'absolute', left: '11px', top: '4px', bottom: '4px', width: '2px', backgroundColor: 'var(--border)', borderRadius: '1px' }} />
+                    {wf.steps.map((step, idx) => (
+                      <div key={idx} style={{ position: 'relative', paddingBottom: idx < wf.steps.length - 1 ? '20px' : '0' }}>
+                        <div style={{
+                          position: 'absolute', left: '-22px', top: '2px',
+                          width: '20px', height: '20px', borderRadius: '50%',
+                          backgroundColor: 'var(--primary)', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '10px', fontWeight: 700, zIndex: 1,
+                        }}>
+                          {idx + 1}
+                        </div>
+                        <div style={{ marginLeft: '8px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                            {step.title}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                            {step.description}
+                          </div>
+                          {step.route && (
+                            <Link
+                              href={step.route}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                marginTop: '6px', fontSize: '11px', fontWeight: 600,
+                                color: 'var(--primary)', textDecoration: 'none',
+                              }}
+                            >
+                              바로가기
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                              </svg>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════
 export default function GuidePage() {
@@ -836,6 +1023,9 @@ export default function GuidePage() {
             </p>
           </div>
         )}
+
+        {/* ── Step-by-Step Workflow Guides ── */}
+        <WorkflowGuides />
 
         {/* ── Quick Links Footer ── */}
         <div
