@@ -807,9 +807,12 @@ export default function TaxInvoicesPage() {
           <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {syncing ? "동기화 중..." : "최신자료 업데이트"}
+          {syncing ? "동기화 중..." : "홈택스에서 가져오기"}
         </button>
       </div>
+      <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
+        ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
+      </p>
 
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
