@@ -59,6 +59,10 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
   return data.access_token;
 }
 
+// CODEF 게이트웨이 응답이 멈출 때 Edge Function 150초 timeout (HTTP 546) 회피.
+// 각 호출 60초 cap → 그 이상이면 abort → 우리가 정한 응답으로 매핑.
+const CODEF_REQUEST_TIMEOUT_MS = 60_000;
+
 async function codefRequest(token: string, path: string, body: Record<string, any>): Promise<any> {
   const sanitizedBody = { ...body };
   if (sanitizedBody.accountList) {
@@ -71,14 +75,31 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   }
   console.log(`[CODEF] ${path}`, JSON.stringify(sanitizedBody));
 
-  const res = await fetch(`${CODEF_BASE}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${token}`,
-    },
-    body: encodeURIComponent(JSON.stringify(body)),
-  });
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), CODEF_REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${CODEF_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Bearer ${token}`,
+      },
+      body: encodeURIComponent(JSON.stringify(body)),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(tid);
+    if (err?.name === "AbortError") {
+      // 60초 cap 초과 — CODEF 게이트웨이 응답 없음. 우리 측 가짜 응답으로 매핑해서
+      // 호출자가 정상 흐름으로 처리 (errors 배열에 push, status='error').
+      console.error(`[CODEF] AbortError: ${path} > ${CODEF_REQUEST_TIMEOUT_MS}ms`);
+      return { result: { code: "CF-TIMEOUT", message: `CODEF 게이트웨이 응답 시간 초과 (${CODEF_REQUEST_TIMEOUT_MS / 1000}초). 잠시 후 다시 시도하세요.` } };
+    }
+    throw err;
+  }
+  clearTimeout(tid);
+
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     console.error(`[CODEF] HTTP ${res.status}: ${errText}`);
@@ -124,6 +145,9 @@ function codefErrorHint(code?: string): string {
   }
   if (code === "NO_DEMAND_DEPOSIT") {
     return "거래내역 조회 가능한 입출금 계좌가 등록되어 있지 않습니다. CODEF 대시보드에서 보통예금/당좌예금 계좌를 추가 등록하세요.";
+  }
+  if (code === "CF-TIMEOUT") {
+    return "CODEF 게이트웨이 응답 지연 (60초 초과). 일시적 외부 시스템 부하 가능성. 잠시 후 다시 시도하세요.";
   }
   return "CODEF 오류가 발생했습니다. 코드와 메시지를 CODEF 대시보드에서 검색해 대응하세요.";
 }
@@ -834,7 +858,7 @@ serve(async (req) => {
     ];
     // 환경/설정성 안내(외부 액션 필요, 코드로 못 고침)는 errors가 아닌 notes로 분리 — 사용자 빨간 알림 안 뜨게
     // CF-00003: 상품 미활성화 / CF-00401: 권한 없음 / CF-13021: 계좌 형식 불일치 / NO_DEMAND_DEPOSIT: 입출금 계좌 미등록
-    const noteCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT"]);
+    const noteCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT", "CF-TIMEOUT", "CF-12200"]);
     const errors = allEntries.filter(e => !noteCodes.has(e.code));
     const notes = allEntries.filter(e => noteCodes.has(e.code));
     const totalSynced =
