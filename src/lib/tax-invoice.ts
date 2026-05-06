@@ -167,17 +167,22 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
     .select('id, name, contract_total')
     .eq('company_id', companyId);
 
-  // Fetch received revenue
-  const { data: revenues } = await supabase
+  // Fetch ALL revenue schedule entries (not just received) for partial matching
+  const { data: allRevenues } = await supabase
     .from('deal_revenue_schedule')
     .select('*, deals!inner(company_id)')
-    .eq('deals.company_id', companyId)
-    .eq('status', 'received');
+    .eq('deals.company_id', companyId);
 
   const receivedByDeal = new Map<string, number>();
-  (revenues || []).forEach((r: any) => {
+  const schedulesByDeal = new Map<string, { amount: number; status: string; label?: string }[]>();
+  (allRevenues || []).forEach((r: any) => {
     const dealId = r.deal_id;
-    receivedByDeal.set(dealId, (receivedByDeal.get(dealId) ?? 0) + Number(r.amount ?? 0));
+    if (r.status === 'received') {
+      receivedByDeal.set(dealId, (receivedByDeal.get(dealId) ?? 0) + Number(r.amount ?? 0));
+    }
+    const arr = schedulesByDeal.get(dealId) || [];
+    arr.push({ amount: Number(r.amount ?? 0), status: r.status, label: r.label });
+    schedulesByDeal.set(dealId, arr);
   });
 
   return invoices.map((inv: any) => {
@@ -195,7 +200,9 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
     if (contractAmount <= 0 && invoiceSupplyAmount > 0 && allDeals) {
       const candidate = allDeals.find((d: any) => {
         const ct = Number(d.contract_total ?? 0);
-        return ct > 0 && Math.abs(ct - invoiceSupplyAmount) / ct <= tolerance;
+        if (ct > 0 && Math.abs(ct - invoiceSupplyAmount) / ct <= tolerance) return true;
+        const sched = schedulesByDeal.get(d.id) || [];
+        return sched.some(s => s.amount > 0 && Math.abs(s.amount - invoiceSupplyAmount) / s.amount <= tolerance);
       });
       if (candidate) {
         matchedDealId = candidate.id;
@@ -207,7 +214,11 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
 
     const receivedAmount = matchedDealId ? (receivedByDeal.get(matchedDealId) ?? 0) : 0;
 
-    const amountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceSupplyAmount) / contractAmount <= tolerance;
+    // Check against full contract or individual schedule entries (선금/잔금)
+    const fullAmountMatch = contractAmount > 0 && Math.abs(contractAmount - invoiceSupplyAmount) / contractAmount <= tolerance;
+    const schedules = matchedDealId ? (schedulesByDeal.get(matchedDealId) || []) : [];
+    const partialMatch = schedules.some(s => s.amount > 0 && Math.abs(s.amount - invoiceSupplyAmount) / s.amount <= tolerance);
+    const amountMatch = fullAmountMatch || partialMatch;
     const paymentMatch = invoiceAmount > 0 && Math.abs(invoiceAmount - receivedAmount) / invoiceAmount <= tolerance;
     const fullMatch = amountMatch && paymentMatch;
 

@@ -2853,6 +2853,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           {leaveBalance && (
             <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>
           )}
+          <div className="text-[8px] text-[var(--text-dim)] mt-1 opacity-70">인력관리 → 휴가 탭에서 신청</div>
         </Link>
         <Link href="/approvals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
           <div className="text-xl md:text-2xl mb-1.5 relative">
