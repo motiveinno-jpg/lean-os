@@ -581,17 +581,10 @@ async function syncHometaxInvoices(
   const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
   const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
 
-  // 한 organization에서 같은 에러는 한 번만 보고 (매출/매입 중복 제거)
-  const reportedCodes = new Set<string>();
-  // 환경(상품 미활성화/연결 만료/통신 실패)면 매출 단계에서 잡고 매입은 skip
-  const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
-  let hometaxBlocked = false;
-
-  for (const direction of ["매출", "매입"] as const) {
-    if (hometaxBlocked) break;
-
-    // 활성화된 '전자세금계산서 통합 API' 의 정확한 endpoint + body 형식 (3a91f86 hometax-verify 와 동일).
-    const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
+  // ─── 매출/매입 병렬 호출 (Edge Function 150초 timeout 회피, b667a6d 패턴 복원) ───
+  // 순차 호출은 각 호출 60~90초 → 합 150초 초과 → HTTP 546.
+  const callDirection = (direction: "매출" | "매입") =>
+    codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
       loginType: "0",                                      // 0=공동인증서
       certType: "1",
@@ -606,8 +599,15 @@ async function syncHometaxInvoices(
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",     // 01=매출 / 02=매입
       type: "0",
-    });
+    }).then((result) => ({ direction, result }));
 
+  const reportedCodes = new Set<string>();
+  // 환경성 코드 — 이번 sync 세션에서 한 번만 push
+  const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
+
+  const settled = await Promise.all([callDirection("매출"), callDirection("매입")]);
+
+  for (const { direction, result } of settled) {
     if (result.result?.code !== "CF-00000") {
       const code = result.result?.code || "UNKNOWN";
       if (!reportedCodes.has(code)) {
@@ -620,7 +620,8 @@ async function syncHometaxInvoices(
           hint: codefErrorHint(code),
         });
       }
-      if (fatalCodes.has(code)) hometaxBlocked = true;
+      // fatalCodes 는 이미 dedup 처리됨. 병렬 모드라 break/skip 의미 없음.
+      void fatalCodes;
       continue;
     }
 
