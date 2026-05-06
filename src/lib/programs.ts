@@ -2,13 +2,33 @@ import { supabase } from "./supabase";
 
 // ─── Types ───────────────────────────────────────────────
 
+export interface LabelOption {
+  value: string;
+  label: string;
+  color: string;
+}
+
+export type ColumnType = "text" | "number" | "date" | "label" | "select";
+
+export interface ColumnConfig {
+  id: string;
+  name: string;
+  type: ColumnType;
+  width?: number;
+  options?: LabelOption[];
+  required?: boolean;
+}
+
 export interface DealTemplate {
   classification?: string;
   defaultAmount?: number;
   paymentStages?: { label: string; ratio: number }[];
   serviceScope?: string;
   notes?: string;
+  columns?: ColumnConfig[];
 }
+
+export type DealColumnValues = Record<string, string | number | null>;
 
 export interface Program {
   id: string;
@@ -402,4 +422,139 @@ export async function getProgramDeals(
   }
 
   return results;
+}
+
+// ─── Column Management ──────────────────────────────────
+
+let _colCounter = 0;
+export function generateColumnId(): string {
+  return `col_${Date.now()}_${++_colCounter}`;
+}
+
+export async function addProgramColumn(
+  programId: string,
+  column: Omit<ColumnConfig, "id">,
+): Promise<ColumnConfig> {
+  const program = await getProgram(programId);
+  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+
+  const template = (program.deal_template as DealTemplate) || {};
+  const columns = template.columns || [];
+  const newCol: ColumnConfig = { id: generateColumnId(), ...column };
+  columns.push(newCol);
+
+  await updateProgram(programId, {
+    deal_template: { ...template, columns } as any,
+  });
+
+  return newCol;
+}
+
+export async function removeProgramColumn(
+  programId: string,
+  columnId: string,
+): Promise<void> {
+  const program = await getProgram(programId);
+  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+
+  const template = (program.deal_template as DealTemplate) || {};
+  const columns = (template.columns || []).filter((c) => c.id !== columnId);
+
+  await updateProgram(programId, {
+    deal_template: { ...template, columns } as any,
+  });
+}
+
+export async function updateProgramColumns(
+  programId: string,
+  columns: ColumnConfig[],
+): Promise<void> {
+  const program = await getProgram(programId);
+  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+
+  const template = (program.deal_template as DealTemplate) || {};
+  await updateProgram(programId, {
+    deal_template: { ...template, columns } as any,
+  });
+}
+
+export async function updateDealColumnValue(
+  dealId: string,
+  columnId: string,
+  value: string | number | null,
+): Promise<void> {
+  const { data: deal, error: fetchErr } = await supabase
+    .from("deals")
+    .select("custom_scope")
+    .eq("id", dealId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+
+  const scope = (deal?.custom_scope as Record<string, any>) || {};
+  const columns = scope.columns || {};
+  columns[columnId] = value;
+
+  const { error } = await supabase
+    .from("deals")
+    .update({ custom_scope: { ...scope, columns } })
+    .eq("id", dealId);
+
+  if (error) throw error;
+}
+
+export function getDealColumnValue(
+  deal: any,
+  columnId: string,
+): string | number | null {
+  const scope = deal?.custom_scope || {};
+  return scope.columns?.[columnId] ?? null;
+}
+
+// ─── Excel Export ────────────────────────────────────────
+
+export function exportProgramToCsv(
+  programName: string,
+  deals: any[],
+  columns: ColumnConfig[],
+): void {
+  const builtInHeaders = ["업체명", "담당자", "이메일", "파트너", "금액", "상태"];
+  const customHeaders = columns.map((c) => c.name);
+  const headers = [...builtInHeaders, ...customHeaders];
+
+  const rows = deals.map((d: any) => {
+    const scope = d.custom_scope || {};
+    const colValues = scope.columns || {};
+    const builtIn = [
+      d.counterparty || d.name || "",
+      scope.contactName || "",
+      scope.contactEmail || "",
+      scope.partnerName || "",
+      String(d.contract_total || 0),
+      d.status || "pending",
+    ];
+    const custom = columns.map((c) => String(colValues[c.id] ?? ""));
+    return [...builtIn, ...custom];
+  });
+
+  const escapeCsv = (v: string) => {
+    if (v.includes(",") || v.includes('"') || v.includes("\n")) {
+      return `"${v.replace(/"/g, '""')}"`;
+    }
+    return v;
+  };
+
+  const csv =
+    "﻿" +
+    [headers.map(escapeCsv).join(","), ...rows.map((r) => r.map(escapeCsv).join(","))].join(
+      "\n",
+    );
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${programName}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

@@ -13,9 +13,17 @@ import {
   bulkCreateDeals,
   bulkUpdateDealStatus,
   parseProgramCsv,
+  updateDealColumnValue,
+  getDealColumnValue,
+  updateProgramColumns,
+  generateColumnId,
+  exportProgramToCsv,
   type Program,
   type DealTemplate,
   type BulkDealRow,
+  type ColumnConfig,
+  type LabelOption,
+  type ColumnType,
 } from "@/lib/programs";
 import { useToast } from "@/components/toast";
 
@@ -43,6 +51,11 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "완료" },
   { value: "closed_won", label: "수주" },
   { value: "closed_lost", label: "실주" },
+];
+
+const DEFAULT_LABEL_COLORS = [
+  "#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6",
+  "#EC4899", "#06B6D4", "#F97316", "#6366F1", "#14B8A6",
 ];
 
 function formatAmount(n: number): string {
@@ -339,6 +352,591 @@ export function CreateProgramModal({
   );
 }
 
+// ─── Monday-Style Spreadsheet Cell Components ───────────
+
+function LabelCell({
+  value,
+  options,
+  onChange,
+}: {
+  value: string | null;
+  options: LabelOption[];
+  onChange: (v: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const current = options.find((o) => o.value === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className="w-full text-left px-2 py-1 rounded text-[10px] font-semibold transition hover:opacity-80"
+        style={
+          current
+            ? { backgroundColor: current.color + "20", color: current.color }
+            : { backgroundColor: "var(--bg-surface)", color: "var(--text-dim)" }
+        }
+      >
+        {current?.label || "선택"}
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg z-30 min-w-[120px] py-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-surface)] transition flex items-center gap-2"
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: opt.color }}
+              />
+              {opt.label}
+            </button>
+          ))}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-1.5 text-xs text-[var(--text-dim)] hover:bg-[var(--bg-surface)] transition"
+          >
+            선택 해제
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineEditCell({
+  value,
+  type,
+  onSave,
+}: {
+  value: string | number | null;
+  type: ColumnType;
+  onSave: (v: string | number | null) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value ?? ""));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      setDraft(String(value ?? ""));
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [isEditing, value]);
+
+  const commit = () => {
+    setIsEditing(false);
+    if (type === "number") {
+      const num = Number(draft.replace(/[^0-9.-]/g, ""));
+      if (!isNaN(num) && draft.trim()) onSave(num);
+      else if (!draft.trim()) onSave(null);
+    } else {
+      onSave(draft.trim() || null);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type={type === "date" ? "date" : type === "number" ? "text" : "text"}
+        inputMode={type === "number" ? "numeric" : undefined}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setIsEditing(false); }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full px-1.5 py-1 bg-[var(--bg)] border border-[var(--primary)] rounded text-xs focus:outline-none"
+      />
+    );
+  }
+
+  const display = type === "number" && value != null
+    ? Number(value).toLocaleString()
+    : type === "date" && value
+      ? String(value).slice(0, 10)
+      : String(value ?? "");
+
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+      className="w-full px-1.5 py-1 rounded text-xs cursor-text hover:bg-[var(--bg-surface)] transition min-h-[24px] truncate"
+      title={display || "클릭하여 편집"}
+    >
+      {display || <span className="text-[var(--text-dim)] italic">-</span>}
+    </div>
+  );
+}
+
+// ─── Monday-Style Spreadsheet Table ─────────────────────
+
+function SpreadsheetTable({
+  deals,
+  columns,
+  selectedDeals,
+  onToggleDeal,
+  onToggleAll,
+  onSelectDeal,
+  onCellChange,
+  onStatusChange,
+}: {
+  deals: any[];
+  columns: ColumnConfig[];
+  selectedDeals: Set<string>;
+  onToggleDeal: (id: string) => void;
+  onToggleAll: () => void;
+  onSelectDeal?: (id: string) => void;
+  onCellChange: (dealId: string, columnId: string, value: string | number | null) => void;
+  onStatusChange: (dealId: string, status: string) => void;
+}) {
+  const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!statusDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) setStatusDropdown(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [statusDropdown]);
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[600px]">
+          <thead>
+            <tr className="bg-[var(--bg-surface)]">
+              <th className="w-10 px-3 py-3 sticky left-0 bg-[var(--bg-surface)] z-10">
+                <input
+                  type="checkbox"
+                  checked={selectedDeals.size === deals.length && deals.length > 0}
+                  onChange={onToggleAll}
+                  className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                />
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[var(--text-muted)] min-w-[140px] sticky left-10 bg-[var(--bg-surface)] z-10">
+                업체명
+              </th>
+              <th className="text-left px-3 py-3 font-semibold text-[var(--text-muted)] min-w-[90px]">
+                파트너
+              </th>
+              <th className="text-right px-3 py-3 font-semibold text-[var(--text-muted)] min-w-[100px]">
+                금액
+              </th>
+              <th className="text-center px-3 py-3 font-semibold text-[var(--text-muted)] min-w-[80px]">
+                상태
+              </th>
+              {columns.map((col) => (
+                <th
+                  key={col.id}
+                  className="text-left px-3 py-3 font-semibold text-[var(--text-muted)]"
+                  style={{ minWidth: col.width || (col.type === "label" ? 100 : col.type === "number" ? 90 : 120) }}
+                >
+                  {col.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {deals.map((d: any) => {
+              const scope = d.custom_scope || {};
+              const colValues = scope.columns || {};
+              return (
+                <tr
+                  key={d.id}
+                  onClick={() => onSelectDeal?.(d.id)}
+                  className="border-t border-[var(--border)] hover:bg-[var(--bg-surface)]/50 transition cursor-pointer group"
+                >
+                  <td className="px-3 py-2.5 sticky left-0 bg-[var(--bg-card)] group-hover:bg-[var(--bg-surface)]/50 z-10" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedDeals.has(d.id)}
+                      onChange={() => onToggleDeal(d.id)}
+                      className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                    />
+                  </td>
+                  <td className="px-3 py-2.5 sticky left-10 bg-[var(--bg-card)] group-hover:bg-[var(--bg-surface)]/50 z-10">
+                    <div className="font-semibold truncate max-w-[180px]">
+                      {d.counterparty || d.name}
+                    </div>
+                    {scope.contactEmail && (
+                      <div className="text-[var(--text-dim)] mt-0.5 truncate text-[10px]">
+                        {scope.contactEmail}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)]">
+                    {scope.partnerName || "-"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-semibold">
+                    ₩{Number(d.contract_total || 0).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative" ref={statusDropdown === d.id ? statusRef : undefined}>
+                      <button
+                        onClick={() => setStatusDropdown(statusDropdown === d.id ? null : d.id)}
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer hover:opacity-80 transition ${
+                          d.status === "completed" || d.status === "closed_won"
+                            ? "bg-green-500/10 text-green-400"
+                            : d.status === "active" || d.status === "in_progress"
+                              ? "bg-yellow-500/10 text-yellow-400"
+                              : "bg-gray-500/10 text-gray-400"
+                        }`}
+                      >
+                        {STATUS_LABEL[d.status] || d.status || "대기"}
+                      </button>
+                      {statusDropdown === d.id && (
+                        <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg z-30 min-w-[110px] py-1">
+                          {STATUS_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => {
+                                onStatusChange(d.id, opt.value);
+                                setStatusDropdown(null);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-surface)] transition ${
+                                d.status === opt.value ? "text-[var(--primary)] font-semibold" : ""
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  {columns.map((col) => (
+                    <td key={col.id} className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      {col.type === "label" || col.type === "select" ? (
+                        <LabelCell
+                          value={colValues[col.id] ?? null}
+                          options={col.options || []}
+                          onChange={(v) => onCellChange(d.id, col.id, v || null)}
+                        />
+                      ) : (
+                        <InlineEditCell
+                          value={colValues[col.id] ?? null}
+                          type={col.type}
+                          onSave={(v) => onCellChange(d.id, col.id, v)}
+                        />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Label Filter Bar ───────────────────────────────────
+
+function LabelFilterBar({
+  columns,
+  activeFilters,
+  onToggleFilter,
+  onClearAll,
+}: {
+  columns: ColumnConfig[];
+  activeFilters: Record<string, Set<string>>;
+  onToggleFilter: (columnId: string, value: string) => void;
+  onClearAll: () => void;
+}) {
+  const labelColumns = columns.filter((c) => c.type === "label" && c.options && c.options.length > 0);
+  if (labelColumns.length === 0) return null;
+
+  const hasActiveFilter = Object.values(activeFilters).some((s) => s.size > 0);
+
+  return (
+    <div className="flex items-center gap-3 mb-3 flex-wrap">
+      {labelColumns.map((col) => (
+        <div key={col.id} className="flex items-center gap-1">
+          <span className="text-[10px] text-[var(--text-dim)] font-semibold mr-1">{col.name}:</span>
+          {col.options!.map((opt) => {
+            const isActive = activeFilters[col.id]?.has(opt.value);
+            return (
+              <button
+                key={opt.value}
+                onClick={() => onToggleFilter(col.id, opt.value)}
+                className="px-2 py-0.5 rounded text-[10px] font-semibold transition"
+                style={
+                  isActive
+                    ? { backgroundColor: opt.color + "30", color: opt.color, border: `1px solid ${opt.color}50` }
+                    : { backgroundColor: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid transparent" }
+                }
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+      {hasActiveFilter && (
+        <button
+          onClick={onClearAll}
+          className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)] underline"
+        >
+          필터 초기화
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Column Settings Panel ──────────────────────────────
+
+function ColumnSettingsPanel({
+  columns,
+  onSave,
+  onClose,
+}: {
+  columns: ColumnConfig[];
+  onSave: (cols: ColumnConfig[]) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<ColumnConfig[]>(
+    columns.map((c) => ({ ...c, options: c.options?.map((o) => ({ ...o })) })),
+  );
+  const [newColName, setNewColName] = useState("");
+  const [newColType, setNewColType] = useState<ColumnType>("text");
+
+  const addColumn = () => {
+    if (!newColName.trim()) return;
+    const col: ColumnConfig = {
+      id: generateColumnId(),
+      name: newColName.trim(),
+      type: newColType,
+      options:
+        newColType === "label"
+          ? [
+              { value: "todo", label: "할일", color: DEFAULT_LABEL_COLORS[0] },
+              { value: "in_progress", label: "진행중", color: DEFAULT_LABEL_COLORS[1] },
+              { value: "done", label: "완료", color: DEFAULT_LABEL_COLORS[2] },
+            ]
+          : undefined,
+    };
+    setDraft([...draft, col]);
+    setNewColName("");
+    setNewColType("text");
+  };
+
+  const removeColumn = (id: string) => {
+    setDraft(draft.filter((c) => c.id !== id));
+  };
+
+  const moveColumn = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= draft.length) return;
+    const next = [...draft];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setDraft(next);
+  };
+
+  const updateColumnName = (id: string, name: string) => {
+    setDraft(draft.map((c) => (c.id === id ? { ...c, name } : c)));
+  };
+
+  const addLabelOption = (colId: string) => {
+    setDraft(
+      draft.map((c) => {
+        if (c.id !== colId) return c;
+        const opts = c.options || [];
+        const colorIdx = opts.length % DEFAULT_LABEL_COLORS.length;
+        return {
+          ...c,
+          options: [
+            ...opts,
+            { value: `opt_${Date.now()}`, label: "새 라벨", color: DEFAULT_LABEL_COLORS[colorIdx] },
+          ],
+        };
+      }),
+    );
+  };
+
+  const updateLabelOption = (colId: string, optIdx: number, field: "label" | "color", value: string) => {
+    setDraft(
+      draft.map((c) => {
+        if (c.id !== colId) return c;
+        const opts = (c.options || []).map((o, i) =>
+          i === optIdx ? { ...o, [field]: value, value: field === "label" ? value.toLowerCase().replace(/\s+/g, "_") : o.value } : o,
+        );
+        return { ...c, options: opts };
+      }),
+    );
+  };
+
+  const removeLabelOption = (colId: string, optIdx: number) => {
+    setDraft(
+      draft.map((c) => {
+        if (c.id !== colId) return c;
+        return { ...c, options: (c.options || []).filter((_, i) => i !== optIdx) };
+      }),
+    );
+  };
+
+  const typeLabel: Record<ColumnType, string> = {
+    text: "텍스트",
+    number: "숫자",
+    date: "날짜",
+    label: "라벨",
+    select: "선택",
+  };
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold">컬럼 설정</h3>
+        <button onClick={onClose} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
+          닫기
+        </button>
+      </div>
+
+      {draft.length > 0 && (
+        <div className="space-y-3 mb-4">
+          {draft.map((col, idx) => (
+            <div key={col.id} className="p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex gap-0.5">
+                  <button
+                    onClick={() => moveColumn(idx, -1)}
+                    disabled={idx === 0}
+                    className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-30"
+                    aria-label="위로"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button
+                    onClick={() => moveColumn(idx, 1)}
+                    disabled={idx === draft.length - 1}
+                    className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-30"
+                    aria-label="아래로"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
+                <input
+                  value={col.name}
+                  onChange={(e) => updateColumnName(col.id, e.target.value)}
+                  className="flex-1 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+                <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg)] text-[var(--text-dim)]">
+                  {typeLabel[col.type]}
+                </span>
+                <button
+                  onClick={() => removeColumn(col.id)}
+                  className="p-1 text-red-400 hover:text-red-300"
+                  aria-label="삭제"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {col.type === "label" && (
+                <div className="ml-8 space-y-1.5">
+                  {(col.options || []).map((opt, optIdx) => (
+                    <div key={optIdx} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={opt.color}
+                        onChange={(e) => updateLabelOption(col.id, optIdx, "color", e.target.value)}
+                        className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent"
+                      />
+                      <input
+                        value={opt.label}
+                        onChange={(e) => updateLabelOption(col.id, optIdx, "label", e.target.value)}
+                        className="flex-1 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                      />
+                      <button
+                        onClick={() => removeLabelOption(col.id, optIdx)}
+                        className="p-0.5 text-[var(--text-dim)] hover:text-red-400"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addLabelOption(col.id)}
+                    className="text-[10px] text-[var(--primary)] hover:underline"
+                  >
+                    + 라벨 추가
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg)] border border-dashed border-[var(--border)]">
+        <input
+          value={newColName}
+          onChange={(e) => setNewColName(e.target.value)}
+          placeholder="새 컬럼명"
+          className="flex-1 px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+          onKeyDown={(e) => { if (e.key === "Enter") addColumn(); }}
+        />
+        <select
+          value={newColType}
+          onChange={(e) => setNewColType(e.target.value as ColumnType)}
+          className="px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+        >
+          <option value="text">텍스트</option>
+          <option value="number">숫자</option>
+          <option value="date">날짜</option>
+          <option value="label">라벨</option>
+        </select>
+        <button
+          onClick={addColumn}
+          disabled={!newColName.trim()}
+          className="px-3 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-semibold disabled:opacity-50"
+        >
+          추가
+        </button>
+      </div>
+
+      <div className="flex gap-2 mt-4">
+        <button
+          onClick={() => onSave(draft)}
+          className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold"
+        >
+          저장
+        </button>
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-xs"
+        >
+          취소
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Program Detail Dashboard ────────────────────────────
 
 interface ProgramDashboardProps {
@@ -369,6 +967,8 @@ export function ProgramDashboard({
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [bulkStatusAction, setBulkStatusAction] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [labelFilters, setLabelFilters] = useState<Record<string, Set<string>>>({});
 
   const { data: program } = useQuery({
     queryKey: ["program", programId],
@@ -385,7 +985,6 @@ export function ProgramDashboard({
   const {
     data: deals = [],
     isLoading,
-    refetch,
   } = useQuery({
     queryKey: ["program-deals", programId, filterStatus, filterPartner, search],
     queryFn: () =>
@@ -401,6 +1000,20 @@ export function ProgramDashboard({
     stats && stats.totalDeals > 0
       ? Math.round((stats.completedDeals / stats.totalDeals) * 100)
       : 0;
+
+  const template = (program?.deal_template as DealTemplate) || {};
+  const customColumns: ColumnConfig[] = template.columns || [];
+
+  // Apply label filters to deals
+  const filteredDeals = deals.filter((d: any) => {
+    const colValues = d.custom_scope?.columns || {};
+    for (const [colId, filterValues] of Object.entries(labelFilters)) {
+      if (filterValues.size === 0) continue;
+      const cellValue = colValues[colId];
+      if (!cellValue || !filterValues.has(String(cellValue))) return false;
+    }
+    return true;
+  });
 
   // ── CSV Upload ──
 
@@ -472,11 +1085,67 @@ export function ProgramDashboard({
   };
 
   const toggleAll = () => {
-    if (selectedDeals.size === deals.length && deals.length > 0) {
+    if (selectedDeals.size === filteredDeals.length && filteredDeals.length > 0) {
       setSelectedDeals(new Set());
     } else {
-      setSelectedDeals(new Set(deals.map((d: any) => d.id)));
+      setSelectedDeals(new Set(filteredDeals.map((d: any) => d.id)));
     }
+  };
+
+  // ── Cell value change ──
+
+  const handleCellChange = async (dealId: string, columnId: string, value: string | number | null) => {
+    try {
+      await updateDealColumnValue(dealId, columnId, value);
+      queryClient.invalidateQueries({ queryKey: ["program-deals"] });
+    } catch {
+      toast("값 저장 실패", "error");
+    }
+  };
+
+  // ── Inline status change ──
+
+  const handleStatusChange = async (dealId: string, status: string) => {
+    const { success } = await bulkUpdateDealStatus([dealId], status);
+    if (success) {
+      queryClient.invalidateQueries({ queryKey: ["program-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["program-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["deals"] });
+    }
+  };
+
+  // ── Label filter toggle ──
+
+  const handleToggleLabelFilter = (columnId: string, value: string) => {
+    setLabelFilters((prev) => {
+      const next = { ...prev };
+      const set = new Set(prev[columnId] || []);
+      if (set.has(value)) set.delete(value);
+      else set.add(value);
+      next[columnId] = set;
+      return next;
+    });
+  };
+
+  // ── Column settings save ──
+
+  const handleSaveColumns = async (cols: ColumnConfig[]) => {
+    try {
+      await updateProgramColumns(programId, cols);
+      queryClient.invalidateQueries({ queryKey: ["program"] });
+      toast("컬럼 설정이 저장되었습니다", "success");
+      setShowColumnSettings(false);
+    } catch {
+      toast("컬럼 설정 저장 실패", "error");
+    }
+  };
+
+  // ── Excel export ──
+
+  const handleExport = () => {
+    if (!program) return;
+    exportProgramToCsv(program.name, filteredDeals, customColumns);
+    toast("CSV 파일이 다운로드됩니다", "success");
   };
 
   // ── Program Settings (inline edit) ──
@@ -502,7 +1171,7 @@ export function ProgramDashboard({
   }
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="max-w-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button
@@ -625,6 +1294,21 @@ export function ProgramDashboard({
             className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs w-40 focus:outline-none focus:border-[var(--primary)]"
           />
           <button
+            onClick={() => setShowColumnSettings(!showColumnSettings)}
+            className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--border)] rounded-lg text-xs font-semibold transition"
+            title="컬럼 설정"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={filteredDeals.length === 0}
+            className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--border)] rounded-lg text-xs font-semibold transition disabled:opacity-50"
+            title="엑셀 내보내기"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          </button>
+          <button
             onClick={() => setShowCsvUpload(!showCsvUpload)}
             className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--border)] rounded-lg text-xs font-semibold transition"
           >
@@ -632,6 +1316,15 @@ export function ProgramDashboard({
           </button>
         </div>
       </div>
+
+      {/* Column Settings */}
+      {showColumnSettings && (
+        <ColumnSettingsPanel
+          columns={customColumns}
+          onSave={handleSaveColumns}
+          onClose={() => setShowColumnSettings(false)}
+        />
+      )}
 
       {/* CSV Upload Section */}
       {showCsvUpload && (
@@ -648,6 +1341,16 @@ export function ProgramDashboard({
             setCsvRows([]);
             setCsvErrors([]);
           }}
+        />
+      )}
+
+      {/* Label Filters */}
+      {tab === "all" && customColumns.length > 0 && (
+        <LabelFilterBar
+          columns={customColumns}
+          activeFilters={labelFilters}
+          onToggleFilter={handleToggleLabelFilter}
+          onClearAll={() => setLabelFilters({})}
         />
       )}
 
@@ -802,11 +1505,13 @@ export function ProgramDashboard({
         <div className="text-center py-12 text-sm text-[var(--text-muted)]">
           로딩 중...
         </div>
-      ) : deals.length === 0 ? (
+      ) : filteredDeals.length === 0 ? (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center">
           <div className="text-3xl mb-3">📋</div>
           <div className="text-sm font-bold mb-2">
-            {search ? "검색 결과가 없습니다" : "등록된 딜이 없습니다"}
+            {search || Object.values(labelFilters).some((s) => s.size > 0)
+              ? "검색/필터 결과가 없습니다"
+              : "등록된 딜이 없습니다"}
           </div>
           <p className="text-xs text-[var(--text-muted)] mb-4">
             CSV로 업체를 일괄 등록하세요
@@ -820,92 +1525,25 @@ export function ProgramDashboard({
         </div>
       ) : (
         <>
-          {/* Desktop Table */}
+          {/* Desktop: Monday-style Spreadsheet */}
           <div className="hidden sm:block">
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-[var(--bg-surface)]">
-                    <th className="w-10 px-3 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedDeals.size === deals.length && deals.length > 0}
-                        onChange={toggleAll}
-                        className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
-                      />
-                    </th>
-                    <th className="text-left px-3 py-3 font-semibold text-[var(--text-muted)]">
-                      업체명
-                    </th>
-                    <th className="text-left px-3 py-3 font-semibold text-[var(--text-muted)]">
-                      파트너
-                    </th>
-                    <th className="text-right px-3 py-3 font-semibold text-[var(--text-muted)]">
-                      금액
-                    </th>
-                    <th className="text-center px-3 py-3 font-semibold text-[var(--text-muted)]">
-                      상태
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deals.map((d: any) => {
-                    const scope = d.custom_scope || {};
-                    return (
-                      <tr
-                        key={d.id}
-                        onClick={() => onSelectDeal?.(d.id)}
-                        className="border-t border-[var(--border)] hover:bg-[var(--bg-surface)]/50 transition cursor-pointer"
-                      >
-                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedDeals.has(d.id)}
-                            onChange={() => toggleDeal(d.id)}
-                            className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
-                          />
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="font-semibold">
-                            {d.counterparty || d.name}
-                          </div>
-                          {scope.contactEmail && (
-                            <div className="text-[var(--text-dim)] mt-0.5">
-                              {scope.contactEmail}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-[var(--text-muted)]">
-                          {scope.partnerName || "-"}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold">
-                          ₩{Number(d.contract_total || 0).toLocaleString()}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              d.status === "completed" || d.status === "closed_won"
-                                ? "bg-green-500/10 text-green-400"
-                                : d.status === "active" || d.status === "in_progress"
-                                  ? "bg-yellow-500/10 text-yellow-400"
-                                  : "bg-gray-500/10 text-gray-400"
-                            }`}
-                          >
-                            {STATUS_LABEL[d.status] || d.status || "대기"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <SpreadsheetTable
+              deals={filteredDeals}
+              columns={customColumns}
+              selectedDeals={selectedDeals}
+              onToggleDeal={toggleDeal}
+              onToggleAll={toggleAll}
+              onSelectDeal={onSelectDeal}
+              onCellChange={handleCellChange}
+              onStatusChange={handleStatusChange}
+            />
           </div>
 
           {/* Mobile Cards */}
           <div className="sm:hidden space-y-2">
-            {deals.map((d: any) => {
+            {filteredDeals.map((d: any) => {
               const scope = d.custom_scope || {};
+              const colValues = scope.columns || {};
               return (
                 <div
                   key={d.id}
@@ -943,6 +1581,32 @@ export function ProgramDashboard({
                           <span>파트너: {scope.partnerName}</span>
                         )}
                       </div>
+                      {customColumns.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {customColumns.map((col) => {
+                            const val = colValues[col.id];
+                            if (!val) return null;
+                            if (col.type === "label") {
+                              const opt = col.options?.find((o) => o.value === val);
+                              if (!opt) return null;
+                              return (
+                                <span
+                                  key={col.id}
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                                  style={{ backgroundColor: opt.color + "20", color: opt.color }}
+                                >
+                                  {opt.label}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span key={col.id} className="text-[10px] text-[var(--text-dim)]">
+                                {col.name}: {String(val)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -951,7 +1615,8 @@ export function ProgramDashboard({
           </div>
 
           <div className="mt-3 text-xs text-[var(--text-dim)] text-right">
-            총 {deals.length}건
+            총 {filteredDeals.length}건
+            {filteredDeals.length !== deals.length && ` (전체 ${deals.length}건 중 필터됨)`}
           </div>
         </>
       )}
