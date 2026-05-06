@@ -638,6 +638,21 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
   const [files, setFiles] = useState<File[]>([]);
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  useEffect(() => {
+    if (draftLoaded || !companyId) return;
+    const draftKey = `ov-approval-draft-${companyId}`;
+    const saved = localStorage.getItem(draftKey);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft.form) setForm(draft.form);
+        if (draft.leaveForm) setLeaveForm(draft.leaveForm);
+      } catch { /* ignore corrupt draft */ }
+    }
+    setDraftLoaded(true);
+  }, [companyId, draftLoaded]);
 
   const isLeave = form.requestType === "leave";
 
@@ -794,11 +809,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     },
     onSuccess: () => {
       invalidate();
-      setForm({ requestType: "expense", title: "", amount: "", description: "" });
+      setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
       setSelectedApprovers([]);
       setDescriptionInited("");
+      localStorage.removeItem(`ov-approval-draft-${companyId}`);
       onComplete();
     },
   });
@@ -1051,10 +1067,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
                 className="w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary)]/10 file:text-[var(--primary)] hover:file:bg-[var(--primary)]/20 cursor-pointer"
               />
               {files.length > 0 && (
-                <div className="mt-2 text-xs text-[var(--text-muted)]">
+                <div className="mt-2 space-y-1">
                   {files.map((f, i) => (
-                    <div key={i} className="flex items-center gap-1">
-                      <span>&#128206;</span> {f.name} ({(f.size / 1024).toFixed(1)}KB)
+                    <div key={i} className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                      <span>&#128206;</span>
+                      <span className="truncate flex-1">{f.name} ({(f.size / 1024).toFixed(1)}KB)</span>
+                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300 font-bold px-1">✕</button>
                     </div>
                   ))}
                 </div>
@@ -1069,6 +1087,31 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
               className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
             >
               {createMut.isPending ? "제출 중..." : "결재 요청"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const draftKey = `ov-approval-draft-${companyId}`;
+                const draft = { form, leaveForm, description: form.description };
+                localStorage.setItem(draftKey, JSON.stringify(draft));
+                alert("임시저장되었습니다");
+              }}
+              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-sm font-semibold hover:border-[var(--primary)] transition"
+            >
+              임시저장
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
+                setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+                setFiles([]);
+                setSelectedApprovers([]);
+                localStorage.removeItem(`ov-approval-draft-${companyId}`);
+              }}
+              className="px-4 py-2.5 text-[var(--text-dim)] text-sm hover:text-red-400 transition"
+            >
+              초기화
             </button>
           </div>
 

@@ -217,7 +217,7 @@ const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = 
 
 function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "" });
+  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
   const [showFlexSync, setShowFlexSync] = useState(false);
@@ -307,7 +307,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         department: form.department || null,
         position: form.position || null,
         salary: Math.round((Number(form.salary) || 0) / 12),
-        hire_date: new Date().toISOString().slice(0, 10),
+        hire_date: form.hireDate || new Date().toISOString().slice(0, 10),
         status: "invited",
       });
       return invitation;
@@ -332,7 +332,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       setShowAcqEdi(true);
       setAcqEdiGenerated(false);
       setShowForm(false);
-      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "" });
+      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "" });
     },
     onError: (err: any) => {
       const msg = err.message || "";
@@ -533,6 +533,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
               <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
@@ -1980,7 +1981,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
         result = await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: "제출용" });
       } else {
         result = await generateCareerCertificate({
-          employee: { ...empData, end_date: emp.end_date },
+          employee: { ...empData, end_date: emp.resignation_date || emp.end_date },
           company: companyData,
           duties: emp.job_title ? [emp.job_title] : [emp.position || emp.department || "업무 전반"],
         });

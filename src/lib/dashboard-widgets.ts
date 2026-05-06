@@ -160,7 +160,7 @@ export async function loadUserPreferences(
       pinned_pages: [],
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (createError) {
     // 동시 생성 충돌 시 재조회

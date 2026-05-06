@@ -1269,8 +1269,12 @@ export default function TaxInvoicesPage() {
                         {inv.auto_issued && (
                           <span className="ml-1.5 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">자동</span>
                         )}
-                        {inv.source === 'hometax_sync' && (
+                        {inv.source === 'hometax_sync' ? (
                           <span className="ml-1.5 px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 text-[10px]">홈택스</span>
+                        ) : inv.hometax_synced_at ? (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]" title={`전송: ${new Date(inv.hometax_synced_at).toLocaleDateString('ko-KR')}`}>전송완료</span>
+                        ) : (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 text-[10px]">미전송</span>
                         )}
                         {inv.original_invoice_id && (
                           <span className="ml-1.5 px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 text-[10px]">수정</span>
