@@ -47,6 +47,7 @@ export default function TransactionsPage() {
   const receiptFileRef = useRef<HTMLInputElement>(null);
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
   const [codefSyncing, setCodefSyncing] = useState(false);
+  const [aiClassifying, setAiClassifying] = useState(false);
   // Manual entry state
   const [manualForm, setManualForm] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -407,6 +408,37 @@ export default function TransactionsPage() {
     }
   }, [companyId, queryClient]);
 
+  const handleAIClassify = useCallback(async () => {
+    if (!companyId) return;
+    setAiClassifying(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { toast("로그인이 필요합니다", "error"); return; }
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/classify-transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(
+          selectedIds.size > 0
+            ? { transaction_ids: Array.from(selectedIds) }
+            : {}
+        ),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "AI 분류 실패");
+      toast(`AI 분류 완료: ${result.classified}건 분류됨 (총 ${result.total}건)`, "success");
+      queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      toast(err.message || "AI 분류 실패", "error");
+    } finally {
+      setAiClassifying(false);
+    }
+  }, [companyId, selectedIds, queryClient]);
+
   const mapMut = useMutation({
     mutationFn: (params: { id: string; dealId?: string; classification?: string; category?: string; isFixedCost?: boolean }) =>
       mapBankTransaction(params.id, { ...params, mappedBy: userId! }),
@@ -598,6 +630,17 @@ export default function TransactionsPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
           >
             {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
+          </button>
+          <button
+            onClick={handleAIClassify}
+            disabled={aiClassifying || !companyId}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {aiClassifying ? (
+              <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 분류 중...</>
+            ) : (
+              <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> AI 자동분류{selectedIds.size > 0 ? ` (${selectedIds.size}건)` : ""}</>
+            )}
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap">

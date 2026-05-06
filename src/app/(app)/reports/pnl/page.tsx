@@ -8,8 +8,15 @@ import PnlChart from "./pnl-chart";
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
-const MONTHS_TO_SHOW = 6;
-const PREV_MONTHS_TO_SHOW = 12; // fetch 12 months so we can compute previous period
+const DEFAULT_MONTHS = 6;
+type PeriodPreset = "3m" | "6m" | "12m" | "ytd" | "custom";
+const PERIOD_LABELS: Record<PeriodPreset, string> = {
+  "3m": "3개월",
+  "6m": "6개월",
+  "12m": "12개월",
+  ytd: "올해",
+  custom: "직접 선택",
+};
 
 const COGS_KEYWORDS = ["외주", "인프라", "서버", "호스팅", "AWS", "클라우드", "도메인"];
 const SALARY_KEYWORDS = ["급여", "인건비", "상여", "보너스"];
@@ -83,6 +90,30 @@ function getLastNMonths(n: number): string[] {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     result.push(`${yyyy}-${mm}`);
+  }
+  return result;
+}
+
+function getMonthsBetween(start: string, end: string): string[] {
+  const result: string[] = [];
+  const [sy, sm] = start.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  let y = sy, m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    result.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
+function getMonthsBefore(month: string, count: number): string[] {
+  const result: string[] = [];
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  for (let i = count; i >= 1; i--) {
+    const prev = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    result.push(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`);
   }
   return result;
 }
@@ -174,9 +205,12 @@ const PRINT_CSS = `
 /* ------------------------------------------------------------------ */
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
-async function fetchPnlData(companyId: string): Promise<PnlData> {
-  const allMonths = getLastNMonths(PREV_MONTHS_TO_SHOW);
-  const months = allMonths.slice(-MONTHS_TO_SHOW);
+async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MONTHS, customStart?: string, customEnd?: string): Promise<PnlData> {
+  const months = customStart && customEnd
+    ? getMonthsBetween(customStart, customEnd)
+    : getLastNMonths(monthsToShow);
+  const prevMonthsList = getMonthsBefore(months[0], months.length);
+  const allMonths = [...prevMonthsList, ...months];
   const startDate = `${allMonths[0]}-01`;
 
   const [txRes, tiRes, empRes] = await Promise.all([
@@ -202,7 +236,7 @@ async function fetchPnlData(companyId: string): Promise<PnlData> {
   const taxInvoices = tiRes.data || [];
   const employees = empRes.data || [];
 
-  const prevMonths = allMonths.slice(0, MONTHS_TO_SHOW);
+  const prevMonths = prevMonthsList;
 
   const revenue = emptyRow(allMonths);
   const otherRevenue = emptyRow(allMonths);
@@ -310,6 +344,21 @@ export default function PnlPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [tooltipKey, setTooltipKey] = useState<CategoryKey | null>(null);
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("6m");
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 5);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [customEnd, setCustomEnd] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const resolvedMonthCount = periodPreset === "3m" ? 3
+    : periodPreset === "6m" ? 6
+    : periodPreset === "12m" ? 12
+    : periodPreset === "ytd" ? new Date().getMonth() + 1
+    : 0;
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -322,11 +371,17 @@ export default function PnlPage() {
     if (!companyId) return;
     setIsLoading(true);
     setError(null);
-    fetchPnlData(companyId)
+    const isCustom = periodPreset === "custom";
+    fetchPnlData(
+      companyId,
+      isCustom ? 0 : resolvedMonthCount,
+      isCustom ? customStart : undefined,
+      isCustom ? customEnd : undefined,
+    )
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId]);
+  }, [companyId, periodPreset, resolvedMonthCount, customStart, customEnd]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -659,6 +714,61 @@ export default function PnlPage() {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Period Presets */}
+          <div style={{ display: "flex", gap: 2, background: "var(--bg-surface)", borderRadius: 8, padding: 2 }}>
+            {(Object.entries(PERIOD_LABELS) as [PeriodPreset, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setPeriodPreset(key)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: periodPreset === key ? 600 : 400,
+                  border: "none",
+                  cursor: "pointer",
+                  background: periodPreset === key ? "var(--bg-card)" : "transparent",
+                  color: periodPreset === key ? "var(--text)" : "var(--text-muted)",
+                  boxShadow: periodPreset === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {periodPreset === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+              <input
+                type="month"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  fontSize: 12,
+                }}
+              />
+              <span style={{ color: "var(--text-dim)" }}>~</span>
+              <input
+                type="month"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                style={{
+                  padding: "5px 8px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  fontSize: 12,
+                }}
+              />
+            </div>
+          )}
           <label
             style={{
               display: "flex",

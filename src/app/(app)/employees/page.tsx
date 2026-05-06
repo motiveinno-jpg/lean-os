@@ -2894,6 +2894,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
   const [form, setForm] = useState({ title: "", amount: "", category: "general", description: "" });
   const [receiptFiles, setReceiptFiles] = useState<{ file: File; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
 
   async function uploadReceipts(): Promise<string[]> {
     if (receiptFiles.length === 0) return [];
@@ -2907,6 +2908,44 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
       urls.push(urlData.publicUrl);
     }
     return urls;
+  }
+
+  async function ocrReceipt(file: File) {
+    setOcrProcessing(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `expense-receipts/${companyId}/ocr-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("document-files").upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("document-files").getPublicUrl(path);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ocr-receipt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ image_url: urlData.publicUrl }),
+      });
+      const result = await res.json();
+      if (result.success && result.confidence > 30) {
+        setForm(prev => ({
+          ...prev,
+          title: result.merchant ? `${result.merchant} 결제` : prev.title,
+          amount: result.amount ? String(result.amount) : prev.amount,
+          category: result.category === "식대" ? "meal" : result.category === "교통" ? "transport" : result.category === "소모품" ? "supplies" : prev.category,
+          description: result.items.length > 0 ? result.items.join(", ") : prev.description,
+        }));
+        toast(`영수증 인식 완료 (확신도 ${result.confidence}%)`, "success");
+      } else {
+        toast("영수증 인식 실패 — 수동으로 입력해주세요", "info");
+      }
+    } catch (err: any) {
+      toast(`OCR 실패: ${err.message}`, "error");
+    } finally {
+      setOcrProcessing(false);
+    }
   }
 
   const addExpense = useMutation({
@@ -2976,12 +3015,21 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
                   multiple
                   accept=".pdf,.jpg,.jpeg,.png,.gif"
                   onChange={e => {
-                    const added = Array.from(e.target.files || []).map(f => ({ file: f, name: f.name }));
+                    const files = Array.from(e.target.files || []);
+                    const added = files.map(f => ({ file: f, name: f.name }));
                     setReceiptFiles(prev => [...prev, ...added]);
+                    const imageFile = files.find(f => /\.(jpg|jpeg|png|gif)$/i.test(f.name));
+                    if (imageFile && !form.title && !form.amount) ocrReceipt(imageFile);
                     e.target.value = "";
                   }}
                 />
               </label>
+              {ocrProcessing && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-500/10 text-violet-500 rounded-lg text-[10px]">
+                  <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-500 rounded-full animate-spin" />
+                  AI 인식 중...
+                </div>
+              )}
               {receiptFiles.map((f, i) => (
                 <div key={i} className="flex items-center gap-1 px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-[10px]">
                   <span className="max-w-[120px] truncate">{f.name}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "@/components/theme-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -24,6 +24,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }),
       })
   );
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
