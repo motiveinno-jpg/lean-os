@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
-import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames, restoreCardTransaction } from "@/lib/card-transactions";
+import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames, restoreCardTransaction, upsertCardAlias } from "@/lib/card-transactions";
 import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card-vat-classification";
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -498,6 +498,26 @@ export default function TransactionsPage() {
     mutationFn: (id: string) => deleteCorporateCard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }),
   });
+
+  const aliasMut = useMutation({
+    mutationFn: (p: { sourceCardName: string; alias: string }) =>
+      upsertCardAlias({ companyId: companyId!, ...p }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["codef-card-names"] });
+      toast("카드 별명이 저장되었습니다", "success");
+    },
+    onError: (err: any) => toast(`별명 저장 실패: ${err.message || err}`, "error"),
+  });
+
+  function handleEditCardAlias(cardName: string, currentAlias: string | null | undefined) {
+    if (!companyId) return;
+    const next = window.prompt(
+      `카드 별명을 입력하세요 (비우면 별명 삭제)\n\n원본 카드명: ${cardName}\n예: 법인 AMEX 66120, 출장비 카드 등`,
+      currentAlias || ""
+    );
+    if (next === null) return; // 취소
+    aliasMut.mutate({ sourceCardName: cardName, alias: next });
+  }
 
   const s = stats || { total: 0, unmapped: 0, autoMapped: 0, manualMapped: 0, totalIncome: 0, totalExpense: 0 };
   const cs = cardStats || { total: 0, unmapped: 0, autoMapped: 0, totalSpent: 0, deductible: 0, nonDeductible: 0 };
@@ -1118,28 +1138,45 @@ export default function TransactionsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {codefCards.map((c: any) => {
                     const unid = isUnidentified(c.card_name);
+                    const displayName = c.alias || c.card_name;
                     return (
-                      <button
+                      <div
                         key={c.card_name}
-                        onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
-                        title={unid ? '⚠️ 카드 식별자 미확인 — 같은 카드사 여러 카드 거래가 묶여 있을 수 있습니다' : undefined}
-                        className={`p-3 rounded-xl border text-left transition ${
+                        className={`relative group p-3 rounded-xl border text-left transition cursor-pointer ${
                           selectedCardName === c.card_name
                             ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
                             : unid
                               ? 'bg-amber-500/5 border-amber-500/30 hover:border-amber-500/60'
                               : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
                         }`}
+                        onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
+                        title={unid ? '⚠️ 카드 식별자 미확인 — 같은 카드사 여러 카드 거래가 묶여 있을 수 있습니다' : undefined}
+                        role="button"
+                        tabIndex={0}
                       >
-                        <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleEditCardAlias(c.card_name, c.alias); }}
+                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] text-[var(--text-muted)] hover:text-[var(--primary)]"
+                          title="카드 별명 편집"
+                          aria-label="카드 별명 편집"
+                        >
+                          ✏️
+                        </button>
+                        <div className="flex items-center gap-1 pr-6">
                           {unid && <span className="text-[10px]">⚠️</span>}
-                          <div className="text-xs font-bold text-[var(--text)] truncate">{c.card_name}</div>
+                          <div className="text-xs font-bold text-[var(--text)] truncate">{displayName}</div>
                         </div>
+                        {c.alias && (
+                          <div className="text-[10px] text-[var(--text-dim)] truncate" title={c.card_name}>
+                            {c.card_name}
+                          </div>
+                        )}
                         <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
                           {c.count.toLocaleString()}건{unid && <span className="ml-1 text-amber-600">· 미식별</span>}
                         </div>
                         <div className="text-sm font-semibold text-[var(--primary)] mt-1">₩{Number(c.total).toLocaleString()}</div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

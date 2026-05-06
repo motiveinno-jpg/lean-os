@@ -71,23 +71,69 @@ export async function getCardTransactions(companyId: string, filters?: {
   return data || [];
 }
 
-// CODEF sync 거래에서 사용된 카드 목록 (distinct card_name + 통계).
+// CODEF sync 거래에서 사용된 카드 목록 (distinct card_name + 통계 + 사용자 별명).
+// alias 가 있으면 UI 에서 우선 표시. card_name 은 항상 원본 (필터/매칭에 사용).
 export async function getDistinctCardNames(companyId: string) {
-  const { data } = await supabase
-    .from('card_transactions')
-    .select('card_name, amount')
-    .eq('company_id', companyId)
-    .not('card_name', 'is', null)
-    .limit(50000);
-  const map = new Map<string, { card_name: string; count: number; total: number }>();
-  for (const tx of (data || [])) {
+  const [{ data: txs }, { data: aliases }] = await Promise.all([
+    supabase
+      .from('card_transactions')
+      .select('card_name, amount')
+      .eq('company_id', companyId)
+      .not('card_name', 'is', null)
+      .limit(50000),
+    (supabase as any)
+      .from('card_aliases')
+      .select('source_card_name, alias')
+      .eq('company_id', companyId),
+  ]);
+
+  const aliasMap = new Map<string, string>();
+  for (const a of (aliases || [])) {
+    if (a.source_card_name && a.alias) aliasMap.set(a.source_card_name, a.alias);
+  }
+
+  const map = new Map<string, { card_name: string; alias: string | null; count: number; total: number }>();
+  for (const tx of (txs || [])) {
     const name = tx.card_name || '미분류';
-    const cur = map.get(name) || { card_name: name, count: 0, total: 0 };
+    const cur = map.get(name) || { card_name: name, alias: aliasMap.get(name) || null, count: 0, total: 0 };
     cur.count++;
     cur.total += Math.abs(Number(tx.amount || 0));  // 취소거래 합산 안 됨
     map.set(name, cur);
   }
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
+// 카드 별명 upsert (사용자가 카드 그리드에서 별명 편집 시 호출).
+export async function upsertCardAlias(params: {
+  companyId: string;
+  sourceCardName: string;
+  alias: string;
+}) {
+  const trimmed = params.alias.trim();
+  if (!trimmed) {
+    // 빈 별명은 삭제로 간주
+    return deleteCardAlias(params.companyId, params.sourceCardName);
+  }
+  const { error } = await (supabase as any)
+    .from('card_aliases')
+    .upsert(
+      {
+        company_id: params.companyId,
+        source_card_name: params.sourceCardName,
+        alias: trimmed,
+      },
+      { onConflict: 'company_id,source_card_name' },
+    );
+  if (error) throw error;
+}
+
+export async function deleteCardAlias(companyId: string, sourceCardName: string) {
+  const { error } = await (supabase as any)
+    .from('card_aliases')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('source_card_name', sourceCardName);
+  if (error) throw error;
 }
 
 export async function getCardTransactionStats(companyId: string) {
