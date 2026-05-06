@@ -502,15 +502,78 @@ async function getAccountList(
 }
 
 // HomeTax tax invoice sync via CODEF API
+// '전자세금계산서 통합 API' (/integrated-check-list) 는 connectedId 가 아닌 매번 cert 로 인증.
+// 1) Storage 의 NPKI 인증서(signCert.der/signPri.key) + automation_credentials.hometax.cert_password 로딩
+// 2) RSA 암호화 (CODEF_PUBLIC_KEY) 후 reqBody 에 포함
+// 3) verify 함수와 동일한 endpoint/필드 사용
 async function syncHometaxInvoices(
-  supabase: any, token: string, companyId: string, connectedId: string,
+  supabase: any, token: string, companyId: string, _connectedId: string,
   startDate: string, endDate: string
 ) {
   const errors: SyncError[] = [];
   let totalSynced = 0;
 
-  // 국세청(홈택스) organization code
-  const HOMETAX_ORG = "0004";
+  // 국세청(홈택스) organization code — '전자세금계산서 통합' product 는 0002 사용 (3a91f86 확인).
+  const HOMETAX_ORG = "0002";
+
+  // ─── cert 로딩 + 비밀번호 ───
+  let certB64 = "", keyB64 = "", certPassword = "";
+  try {
+    const certPath = `${companyId}/signCert.der`;
+    const keyPath = `${companyId}/signPri.key`;
+    const [certDl, keyDl, credRow] = await Promise.all([
+      supabase.storage.from("certificates").download(certPath),
+      supabase.storage.from("certificates").download(keyPath),
+      supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+    ]);
+    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_MISSING",
+        message: "홈택스 공동인증서 파일(signCert.der/signPri.key)이 storage에 없습니다.",
+        hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요.",
+      });
+      return { synced: 0, errors };
+    }
+    const encryptedPw = credRow.data?.credentials?.cert_password;
+    if (!encryptedPw) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_PASSWORD_MISSING",
+        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.",
+        hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요.",
+      });
+      return { synced: 0, errors };
+    }
+    // automation_credentials 의 cert_password 는 pgcrypto AES-256 으로 암호화 저장됨.
+    // CODEF 로 보내기 전에 평문 복원 필요.
+    const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
+    if (decErr || !plainPw) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_DECRYPT_FAILED",
+        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`,
+        hint: "설정에서 인증서 비밀번호를 다시 저장하세요.",
+      });
+      return { synced: 0, errors };
+    }
+    const certBytes = new Uint8Array(await certDl.data.arrayBuffer());
+    const keyBytes = new Uint8Array(await keyDl.data.arrayBuffer());
+    certB64 = Buffer.from(certBytes).toString("base64");
+    keyB64 = Buffer.from(keyBytes).toString("base64");
+    certPassword = plainPw;
+  } catch (err: any) {
+    errors.push({
+      accountNo: "", organization: HOMETAX_ORG,
+      code: "HOMETAX_CERT_LOAD_FAILED",
+      message: `인증서 로드 실패: ${err.message || err}`,
+      hint: "설정에서 인증서를 재업로드하세요.",
+    });
+    return { synced: 0, errors };
+  }
+
+  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+  const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
 
   // 한 organization에서 같은 에러는 한 번만 보고 (매출/매입 중복 제거)
   const reportedCodes = new Set<string>();
@@ -521,12 +584,22 @@ async function syncHometaxInvoices(
   for (const direction of ["매출", "매입"] as const) {
     if (hometaxBlocked) break;
 
-    const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
-      connectedId,
+    // 활성화된 '전자세금계산서 통합 API' 의 정확한 endpoint + body 형식 (3a91f86 hometax-verify 와 동일).
+    const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
-      inquiryType: direction === "매출" ? "0" : "1",
-      startDate,
-      endDate,
+      loginType: "0",                                      // 0=공동인증서
+      certType: "1",
+      certFile: certB64,
+      keyFile: keyB64,
+      certPassword: encryptedCertPw,
+      inquiryType: "01",                                  // 01=전자세금계산서
+      searchType: "01",                                   // 01=작성일자
+      startDate,                                          // YYYYMMDD
+      endDate,                                            // YYYYMMDD
+      sortby: "1",
+      orderBy: "0",
+      transeType: direction === "매출" ? "01" : "02",     // 01=매출 / 02=매입
+      type: "0",
     });
 
     if (result.result?.code !== "CF-00000") {
