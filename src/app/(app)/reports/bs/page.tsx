@@ -260,10 +260,36 @@ const PRINT_CSS = `
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
+interface TrendPoint {
+  month: string;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+}
+
+async function fetchBsTrend(companyId: string, months: number = 6): Promise<TrendPoint[]> {
+  const points: TrendPoint[] = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const cutoff = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
+    const label = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+    try {
+      const bs = await fetchBsData(companyId, cutoff);
+      points.push({ month: label, totalAssets: bs.totalAssets, totalLiabilities: bs.totalLiabilities, totalEquity: bs.totalEquity });
+    } catch {
+      points.push({ month: label, totalAssets: 0, totalLiabilities: 0, totalEquity: 0 });
+    }
+  }
+  return points;
+}
+
 export default function BalanceSheetPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [data, setData] = useState<BsData | null>(null);
   const [prevData, setPrevData] = useState<BsData | null>(null);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
@@ -288,10 +314,12 @@ export default function BalanceSheetPage() {
     Promise.all([
       fetchBsData(companyId),
       fetchBsData(companyId, prevCutoff),
+      fetchBsTrend(companyId, 6),
     ])
-      .then(([current, prev]) => {
+      .then(([current, prev, trendData]) => {
         setData(current);
         setPrevData(prev);
+        setTrend(trendData);
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
@@ -923,6 +951,50 @@ export default function BalanceSheetPage() {
         <br />
         - 이익잉여금 = 자산 합계 - 부채 합계 - 자본금 (잔여분 자동 계산)
       </div>
+
+      {/* Monthly Trend Chart */}
+      {trend.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
+            월별 추이 (최근 6개월)
+          </h2>
+          <div style={{ padding: "20px", borderRadius: 12, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            {(() => {
+              const maxVal = Math.max(...trend.map(p => Math.max(p.totalAssets, p.totalLiabilities + Math.max(p.totalEquity, 0))), 1);
+              return (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160 }}>
+                  {trend.map((p) => {
+                    const assetH = Math.round((p.totalAssets / maxVal) * 140);
+                    const liabH = Math.round((p.totalLiabilities / maxVal) * 140);
+                    const eqH = Math.round((Math.max(p.totalEquity, 0) / maxVal) * 140);
+                    return (
+                      <div key={p.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 140 }}>
+                          <div style={{ width: 18, height: assetH, background: "var(--primary)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자산: ₩${p.totalAssets.toLocaleString()}`} />
+                          <div style={{ width: 18, height: liabH, background: "#ef4444", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
+                          <div style={{ width: 18, height: eqH, background: "#10b981", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap" }}>{p.month}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+            <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)", marginTop: 12, justifyContent: "center" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />자산
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} />부채
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />자본
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Financial Ratios */}
       <div style={{ marginTop: 28 }}>
