@@ -55,7 +55,7 @@ export default function SettingsPage() {
         .from("cash_snapshot")
         .select("*")
         .eq("company_id", u.company_id)
-        .single();
+        .maybeSingle();
       if (data) {
         setBalance(String(data.current_balance || 0));
         setFixedCost(String(data.monthly_fixed_cost || 0));
@@ -96,6 +96,7 @@ export default function SettingsPage() {
   const deleteBankMut = useMutation({
     mutationFn: (id: string) => deleteBankAccount(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-accounts"] }),
+    onError: (err: any) => toast(`삭제 실패: ${err.message || err}`, "error"),
   });
 
   const addRuleMut = useMutation({
@@ -109,6 +110,7 @@ export default function SettingsPage() {
       setShowRuleForm(false);
       setRuleForm({ cost_type: "default", bank_account_id: "" });
     },
+    onError: (err: any) => toast(`규칙 저장 실패: ${err.message || err}`, "error"),
   });
 
   useEffect(() => {
@@ -1020,7 +1022,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         .from("companies")
         .select("*")
         .eq("id", companyId)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!companyId,
@@ -1443,6 +1445,7 @@ interface ApprovalStage {
 function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
   const db = supabase as any;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -1509,6 +1512,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-policies"] }),
+    onError: (err: any) => toast(`삭제 실패: ${err.message || err}`, "error"),
   });
 
   function resetForm() {
@@ -1824,6 +1828,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
 
 // ═══ Team Management ═══
 function TeamManagement({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
   const { user } = useUser();
   const [tab, setTab] = useState<"members" | "employees" | "partners">("members");
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -1841,7 +1846,7 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
     queryKey: ["company-name", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await supabase.from("companies").select("name").eq("id", companyId).single();
+      const { data } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
       return data;
     },
     enabled: !!companyId,
@@ -1922,11 +1927,13 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
   const cancelEmpMut = useMutation({
     mutationFn: (id: string) => cancelEmployeeInvitation(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
+    onError: (err: any) => toast(`초대 취소 실패: ${err.message || err}`, "error"),
   });
 
   const cancelPartnerMut = useMutation({
     mutationFn: (id: string) => cancelPartnerInvitation(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["partner-invitations"] }),
+    onError: (err: any) => toast(`초대 취소 실패: ${err.message || err}`, "error"),
   });
 
   function copyInviteLink(token: string) {
@@ -2236,6 +2243,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', color: '#3b82f6' });
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: classifications = [] } = useQuery({
     queryKey: ['deal-classifications', companyId],
@@ -2261,6 +2269,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteDealClassification(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-classifications'] }),
+    onError: (err: any) => toast(`삭제 실패: ${err.message || err}`, "error"),
   });
 
   if (!companyId) return null;
@@ -2883,7 +2892,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
 
   const { data: companySettings } = useQuery({
     queryKey: ["automation-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("automation_settings").eq("id", companyId).single(); return data?.automation_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("automation_settings").eq("id", companyId).maybeSingle(); return data?.automation_settings || {}; },
     enabled: !!companyId,
   });
   useEffect(() => { if (companySettings) setSettings((prev) => ({ ...prev, ...companySettings })); }, [companySettings]);
@@ -3118,7 +3127,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("tax_settings").eq("id", companyId).single(); return data?.tax_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(); return data?.tax_settings || {}; },
     enabled: !!companyId,
   });
   useEffect(() => {
@@ -3575,7 +3584,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
   // 자동서명 설정
   const { data: certSettings } = useQuery({
     queryKey: ["cert-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("cert_settings").eq("id", companyId).single(); return data?.cert_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("cert_settings").eq("id", companyId).maybeSingle(); return data?.cert_settings || {}; },
     enabled: !!companyId,
   });
 
@@ -4999,7 +5008,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
       .from("companies")
       .select("name")
       .eq("id", companyId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data?.name) setCompanyName(data.name);
       });

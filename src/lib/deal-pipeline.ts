@@ -59,7 +59,7 @@ export async function createDocumentFromDeal(params: {
   let partnerName = deal.partners?.name || '';
   let partnerBizNo = deal.partners?.business_number || '';
   if (!partnerName && deal.partner_company_id) {
-    const { data: partnerCompany } = await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).single();
+    const { data: partnerCompany } = await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).maybeSingle();
     if (partnerCompany) {
       partnerName = partnerCompany.name || '';
       partnerBizNo = partnerCompany.business_number || '';
@@ -347,7 +347,7 @@ export async function onDocumentApproved(params: {
     .from('documents')
     .select('id, name, deal_id, content_json')
     .eq('id', documentId)
-    .single();
+    .maybeSingle();
 
   if (!doc || !doc.deal_id) return {};
 
@@ -388,7 +388,7 @@ export async function onDocumentApproved(params: {
         .from('deals')
         .select('name, partners!deals_partner_id_fkey(name, contact_email, contact_phone)')
         .eq('id', doc.deal_id)
-        .single();
+        .maybeSingle();
 
       const partnerEmail = deal?.partners?.contact_email || '';
       const partnerName = deal?.partners?.name || '';
@@ -496,7 +496,7 @@ async function generateContractDocumentForDeal(params: {
       .from('companies')
       .select('name, business_number, representative, address, phone')
       .eq('id', companyId)
-      .single();
+      .maybeSingle();
 
     // Build items list for the contract
     const items = (content?.items || []).map((it: any) => ({
@@ -741,7 +741,7 @@ export async function onRevenueReceived(params: {
       .from('tax_invoices')
       .select('id')
       .eq('revenue_schedule_id', revenueScheduleId)
-      .single();
+      .maybeSingle();
     if (linkedInvoice) {
       await markInvoiceMatched(linkedInvoice.id);
     }
@@ -898,7 +898,7 @@ export async function forceApproveDocument(params: {
     .from('documents')
     .select('id, name, status, deal_id, content_json')
     .eq('id', documentId)
-    .single();
+    .maybeSingle();
 
   if (!doc) throw new Error('문서를 찾을 수 없습니다');
 

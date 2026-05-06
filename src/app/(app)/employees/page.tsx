@@ -276,7 +276,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const { data: companyData } = useQuery({
     queryKey: ["company-name", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId!).single();
+      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId!).maybeSingle();
       return data;
     },
     enabled: !!companyId,
@@ -880,7 +880,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info-edi", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId).single();
+      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId).maybeSingle();
       return data;
     },
     enabled: !!companyId,
@@ -890,7 +890,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const { data: emp } = useQuery({
     queryKey: ["employee-detail", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("employees").select("*").eq("id", employeeId).single();
+      const { data } = await (supabase as any).from("employees").select("*").eq("id", employeeId).maybeSingle();
       return data;
     },
     enabled: !!employeeId,
@@ -1120,7 +1120,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               const retCalcResult = calculateRetirementPay({
                 startDate: emp.hire_date,
                 endDate: retirementEndDate,
-                last3MonthsSalary: Number(emp.salary) * 3,
+                last3MonthsSalary: Number(emp.salary || 0) * 3,
               });
               const hireDate = new Date(emp.hire_date);
               const endDate = new Date(retirementEndDate);
@@ -1466,7 +1466,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           ? calculateRetirementPay({
               startDate: emp.hire_date,
               endDate: termDate,
-              last3MonthsSalary: Number(emp.salary) * 3,
+              last3MonthsSalary: Number(emp.salary || 0) * 3,
             })
           : null;
         const allChecked = termChecklist.equipment && termChecklist.systemAccess && termChecklist.handover && termChecklist.insurance;
@@ -2016,7 +2016,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
   async function issue() {
     setIssuing(true);
     try {
-      const { data: company } = await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).single();
+      const { data: company } = await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).maybeSingle();
       if (!company) { toast("회사 정보를 불러올 수 없습니다", "error"); return; }
       const empData = { name: emp.name, department: emp.department || "", position: emp.position || "", hire_date: emp.hire_date, employee_number: emp.employee_number, birth_date: emp.birth_date };
       const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
@@ -3685,7 +3685,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { data: companyMeta } = useQuery({
     queryKey: ["company-meta-payroll", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative").eq("id", companyId!).single();
+      const { data } = await supabase.from("companies").select("name, representative").eq("id", companyId!).maybeSingle();
       return data as { name: string; representative: string | null } | null;
     },
     enabled: !!companyId,
@@ -4532,7 +4532,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("*").eq("id", companyId).single();
+      const { data } = await db.from("companies").select("*").eq("id", companyId).maybeSingle();
       return data;
     },
     enabled: !!companyId,

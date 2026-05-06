@@ -466,7 +466,7 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
   const requesterNames = useMemo(() => {
     const map = new Map<string, string>();
     allRequests.forEach((r: any) => {
-      if (r.users) map.set(r.requester_id, r.users.name || r.users.email || "");
+      if (r.users) map.set(r.requester_id, r.users?.name || r.users?.email || "");
     });
     return map;
   }, [allRequests]);
@@ -660,7 +660,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
   const { data: currentEmployee } = useQuery({
     queryKey: ["my-employee", companyId, userId],
     queryFn: async () => {
-      const { data: user } = await db.from("users").select("email, name").eq("id", userId).single();
+      const { data: user } = await db.from("users").select("email, name").eq("id", userId).maybeSingle();
       if (!user?.email) return null;
       // 이메일로 매칭
       let { data: emp } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("email", user.email).maybeSingle();
@@ -685,7 +685,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
     enabled: !!currentEmployee?.id,
   });
 
-  const remainingLeave = leaveBalance ? Number(leaveBalance.total_days) - Number(leaveBalance.used_days) : null;
+  const remainingLeave = leaveBalance ? Number(leaveBalance.total_days || 0) - Number(leaveBalance.used_days || 0) : null;
 
   // Calculate leave days
   const leaveDays = useMemo(() => {
@@ -854,7 +854,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
                       <div className="text-xs font-semibold text-blue-500">잔여 연차</div>
                       {leaveBalance && (
                         <div className="text-[11px] text-[var(--text-muted)]">
-                          총 {leaveBalance.total_days}일 중 {leaveBalance.used_days}일 사용
+                          총 {leaveBalance.total_days ?? 0}일 중 {leaveBalance.used_days ?? 0}일 사용
                         </div>
                       )}
                       {!leaveBalance && currentEmployee?.id && (
