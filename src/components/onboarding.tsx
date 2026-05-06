@@ -128,7 +128,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           .from("companies")
           .select("name, business_number")
           .eq("id", companyId)
-          .single();
+          .maybeSingle();
         const hasCompany = !!(comp?.name && comp?.business_number);
 
         // Check bank accounts

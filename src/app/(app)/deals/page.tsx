@@ -102,8 +102,8 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId, companyId!), enabled: !!dealId && !!companyId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
-  const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }) });
-  const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); } });
+  const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }), onError: (err: any) => toast(`채팅 생성 실패: ${err.message || err}`, "error") });
+  const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); }, onError: (err: any) => toast(`전송 실패: ${err.message || err}`, "error") });
 
   const deal = data?.deal;
   const totalRevenue = (data?.revenue || []).reduce((s, r) => s + Number(r.amount), 0);
@@ -1354,7 +1354,7 @@ function DealsPageInner() {
   const assignmentMap: Record<string, { name: string; email: string }[]> = {};
   allAssignments.forEach((a: any) => { if (!a.deal_id || !a.users) return; if (!assignmentMap[a.deal_id]) assignmentMap[a.deal_id] = []; assignmentMap[a.deal_id].push({ name: a.users.name || '', email: a.users.email || '' }); });
 
-  const reactivateMut = useMutation({ mutationFn: (dealId: string) => reactivateDeal(dealId), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['deals'] }); queryClient.invalidateQueries({ queryKey: ['dormant-deals'] }); } });
+  const reactivateMut = useMutation({ mutationFn: (dealId: string) => reactivateDeal(dealId), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['deals'] }); queryClient.invalidateQueries({ queryKey: ['dormant-deals'] }); }, onError: (err: any) => toast(`활성화 실패: ${err.message || err}`, "error") });
   const matchMap = Object.fromEntries(matchingStatuses.map((m: any) => [m.dealId, m]));
   const clsColorMap = Object.fromEntries(classifications.map((c: any) => [c.name, c.color || DEFAULT_COLORS[c.name] || '#8b5cf6']));
 

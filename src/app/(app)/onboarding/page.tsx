@@ -206,7 +206,7 @@ export default function OnboardingPage() {
           .from("companies")
           .select("name, business_number, representative, industry, address, phone")
           .eq("id", companyId)
-          .single();
+          .maybeSingle();
 
         const hasCompany = !!(comp?.name && comp?.business_number);
         if (comp) {

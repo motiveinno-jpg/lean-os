@@ -2010,7 +2010,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     queryFn: async () => {
       const db = supabase as any;
       const [company, bank, partner, deal, employee, transaction] = await Promise.all([
-        db.from("companies").select("id, business_number").eq("id", companyId).single(),
+        db.from("companies").select("id, business_number").eq("id", companyId).maybeSingle(),
         db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
@@ -2320,7 +2320,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
       // Fire-and-forget: 승인 이메일 알림 (요청자에게)
       if (action?.requester) {
-        const { data: reqUser } = await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).single();
+        const { data: reqUser } = await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).maybeSingle();
         if (reqUser?.email) {
           sendApprovalNotificationEmail({
             email: reqUser.email,

@@ -111,6 +111,7 @@ export default function AuthPage() {
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) return setError("이용약관 및 개인정보처리방침에 동의해주세요.");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("유효한 이메일 주소를 입력해주세요.");
     if (password.length < 8) return setError("비밀번호는 8자 이상이어야 합니다.");
     if (!/[a-zA-Z]/.test(password)) return setError("비밀번호에 영문자를 포함해주세요.");
     if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");

@@ -87,6 +87,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       setShowSignRequestForm(false);
       setSignForm({ signerName: "", signerEmail: "", signerPhone: "" });
     },
+    onError: (err: any) => toast(`서명 요청 실패: ${err.message || err}`, "error"),
   });
 
   const bulkSignMut = useMutation({
@@ -203,21 +204,25 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       });
     },
     onSuccess: () => { invalidate(); setComment(""); },
+    onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
   });
 
   const submitMut = useMutation({
     mutationFn: () => submitForReview(id),
     onSuccess: invalidate,
+    onError: (err: any) => toast(`제출 실패: ${err.message || err}`, "error"),
   });
 
   const approveMut = useMutation({
     mutationFn: () => approveDocument(id, userId!, approvalComment || undefined),
     onSuccess: () => { invalidate(); setShowApprovalForm(false); setApprovalComment(""); },
+    onError: (err: any) => toast(`승인 실패: ${err.message || err}`, "error"),
   });
 
   const lockMut = useMutation({
     mutationFn: () => lockDocument(id, userId || undefined),
     onSuccess: invalidate,
+    onError: (err: any) => toast(`잠금 실패: ${err.message || err}`, "error"),
   });
 
   if (!doc) {
@@ -304,7 +309,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             onClick={async () => {
               if (!companyId) return;
               try {
-                const company = await db.from('companies').select('*').eq('id', companyId).single();
+                const company = await db.from('companies').select('*').eq('id', companyId).maybeSingle();
                 const companyName = company.data?.name || '';
                 const cj = (doc as any).content_json || {};
                 const cType = cj.type || (doc as any).content_type || '';
@@ -324,9 +329,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const supplyAmt = items.reduce((s: number, i: any) => s + i.amount, 0);
                   const taxAmt = Math.round(supplyAmt * 0.1);
                   // 회사 대표 계좌 가져오기
-                  const { data: bankAcct } = await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).single();
-                  // 담당자: 현재 사용자 이름
-                  const { data: currentUser } = await db.from('users').select('name, email').eq('id', userId).single();
+                  const { data: bankAcct } = await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle();
+                  const { data: currentUser } = await db.from('users').select('name, email').eq('id', userId).maybeSingle();
 
                   pdfBlob = await generateQuotePDF({
                     documentNumber: (doc as any).document_number || '-',
@@ -536,7 +540,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 setShareSending(true);
                 try {
                   const { sendShareEmail } = await import("@/lib/document-sharing");
-                  const company = await db.from('companies').select('name').eq('id', companyId).single();
+                  const company = await db.from('companies').select('name').eq('id', companyId).maybeSingle();
                   const res = await sendShareEmail({
                     email: shareEmailAddress.trim(),
                     documentName: doc.name,
