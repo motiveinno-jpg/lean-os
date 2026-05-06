@@ -2812,7 +2812,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   const [codefAccounts, setCodefAccounts] = useState<{ bank: any[]; card: any[] }>({ bank: [], card: [] });
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string; errors?: any[] } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string; errors?: any[]; notes?: any[] } | null>(null);
   const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
 
   // 은행/카드 ConnectedID 또는 홈택스 자격증명 등록 시 모두 "연결됨" 표시.
@@ -2862,20 +2862,27 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
         ? await syncCodefData(companyId, "hometax")
         : null;
 
-      const allErrors = [...(bankCardRes.errors || []), ...(hometaxRes?.errors || [])];
+      const allErrors = [...(bankCardRes.errors || []), ...((hometaxRes as any)?.errors || [])];
+      const allNotes = [...((bankCardRes as any).notes || []), ...((hometaxRes as any)?.notes || [])];
       const totalSuccess = (bankCardRes.success ?? false) && (hometaxRes ? hometaxRes.success : true);
 
       if (totalSuccess && allErrors.length === 0) {
+        // 진짜 에러 없음 — 성공. notes(외부 안내)가 있어도 빨간 알림 안 뜸.
         const parts = [];
         if (hasCodefConnection) parts.push(bankCardRes.message || "은행/카드 동기화 완료");
         if (hometaxRes) parts.push(hometaxRes.message || "홈택스 동기화 완료");
-        setSyncResult({ ok: true, msg: parts.join(" + ") || "동기화 완료" });
+        setSyncResult({
+          ok: true,
+          msg: parts.join(" + ") || "동기화 완료",
+          notes: allNotes.length > 0 ? allNotes : undefined,
+        });
         toast("거래내역 동기화 완료", "success");
       } else if (allErrors.length > 0) {
         setSyncResult({
           ok: false,
           msg: `부분 동기화 (오류 ${allErrors.length}건)`,
           errors: allErrors,
+          notes: allNotes.length > 0 ? allNotes : undefined,
         });
         toast("일부 동기화 실패", "info");
       } else {
@@ -3010,6 +3017,20 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                       </li>
                     ))}
                   </ul>
+                )}
+                {syncResult.notes && syncResult.notes.length > 0 && (
+                  <details className="mt-2 text-[11px] font-normal text-[var(--text-muted)]">
+                    <summary className="cursor-pointer hover:text-[var(--text)]">CODEF 설정 안내 {syncResult.notes.length}건 (클릭해서 펼치기)</summary>
+                    <ul className="mt-2 space-y-1.5">
+                      {syncResult.notes.map((n: any, idx: number) => (
+                        <li key={idx} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                          <div className="font-semibold text-[var(--text)]">{n.code} · {n.accountNo || n.organization}</div>
+                          <div>{n.message}</div>
+                          {n.hint && <div className="mt-1">→ {n.hint}</div>}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 )}
               </div>
             )}

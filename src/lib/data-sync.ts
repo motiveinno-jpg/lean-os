@@ -794,6 +794,7 @@ export async function syncCodefData(
   message?: string;
   status?: 'success' | 'partial' | 'error';
   errors?: CodefSyncError[];
+  notes?: CodefSyncError[];
   bankSynced?: number;
   cardSynced?: number;
 }> {
@@ -822,6 +823,7 @@ export async function syncCodefData(
     const bankSynced = result.results?.bank?.synced ?? 0;
     const cardSynced = result.results?.card?.synced ?? 0;
     const errors: CodefSyncError[] = result.errors ?? [];
+    const notes: CodefSyncError[] = result.notes ?? [];
     const status: 'success' | 'partial' | 'error' =
       result.status ?? (errors.length === 0 ? 'success' : bankSynced + cardSynced > 0 ? 'partial' : 'error');
 
@@ -854,15 +856,20 @@ export async function syncCodefData(
     }
 
     const messageParts: string[] = [];
-    if (status === 'success') messageParts.push(`거래내역 동기화 완료 (은행 ${bankSynced}건, 카드 ${cardSynced}건)`);
-    else if (status === 'partial') messageParts.push(`부분 동기화: 은행 ${bankSynced}건, 카드 ${cardSynced}건 · 오류 ${errors.length}건`);
-    else messageParts.push(`동기화 실패 · 오류 ${errors.length}건`);
+    if (status === 'success' || (errors.length === 0 && (bankSynced + cardSynced > 0))) {
+      messageParts.push(`거래내역 동기화 완료 (은행 ${bankSynced}건, 카드 ${cardSynced}건)`);
+    } else if (status === 'partial') {
+      messageParts.push(`부분 동기화: 은행 ${bankSynced}건, 카드 ${cardSynced}건 · 오류 ${errors.length}건`);
+    } else {
+      messageParts.push(`동기화 실패 · 오류 ${errors.length}건`);
+    }
     if (cardClassified > 0) messageParts.push(`VAT 자동분류 ${cardClassified}건`);
 
     return {
       success: result.success ?? status !== 'error',
       status,
       errors,
+      notes,
       bankSynced,
       cardSynced,
       message: messageParts.join(' / '),

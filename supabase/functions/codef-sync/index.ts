@@ -747,35 +747,36 @@ serve(async (req) => {
       results.hometax = await syncHometaxInvoices(supabase, token, companyId, cid, start, end);
     }
 
-    const allErrors: SyncError[] = [
+    const allEntries: SyncError[] = [
       ...(results.bank?.errors ?? []),
       ...(results.card?.errors ?? []),
       ...(results.hometax?.errors ?? []),
     ];
-    // 환경/설정성 에러는 "skipped" 처리 — 다른 sync 성공 시 전체 실패로 보지 않음
+    // 환경/설정성 안내(외부 액션 필요, 코드로 못 고침)는 errors가 아닌 notes로 분리 — 사용자 빨간 알림 안 뜨게
     // CF-00003: 상품 미활성화 / CF-00401: 권한 없음 / CF-13021: 계좌 형식 불일치 / NO_DEMAND_DEPOSIT: 입출금 계좌 미등록
-    const skippableCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT"]);
-    const criticalErrors = allErrors.filter(e => !skippableCodes.has(e.code));
-    const skippedErrors = allErrors.filter(e => skippableCodes.has(e.code));
+    const noteCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT"]);
+    const errors = allEntries.filter(e => !noteCodes.has(e.code));
+    const notes = allEntries.filter(e => noteCodes.has(e.code));
     const totalSynced =
       (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
-      criticalErrors.length === 0 ? (skippedErrors.length > 0 ? "partial" : "success") : totalSynced > 0 ? "partial" : "error";
+      errors.length === 0 ? (notes.length > 0 ? "partial" : "success") : totalSynced > 0 ? "partial" : "error";
 
     await supabase.from("sync_logs").insert({
       company_id: companyId,
       sync_type: `codef_${syncType}`,
       status: logStatus,
-      details: { ...results, errorCount: allErrors.length, errors: allErrors },
+      details: { ...results, errorCount: errors.length, noteCount: notes.length, errors, notes },
       synced_by: user.id,
     });
 
     return new Response(
       JSON.stringify({
-        success: logStatus !== "error",
+        success: errors.length === 0,
         status: logStatus,
         results,
-        errors: allErrors,
+        errors,
+        notes,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
