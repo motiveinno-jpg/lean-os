@@ -512,7 +512,7 @@ export default function TransactionsPage() {
   function handleEditCardAlias(cardName: string, currentAlias: string | null | undefined) {
     if (!companyId) return;
     const next = window.prompt(
-      `카드 별명을 입력하세요 (비우면 별명 삭제)\n\n원본 카드명: ${cardName}\n예: 법인 AMEX 66120, 출장비 카드 등`,
+      `카드 별명을 입력하세요 (비우면 별명 삭제)\n\n원본 카드명: ${cardName}\n예: 대표 카드, 광고비 카드, 영업팀 카드, 출장비 카드 등`,
       currentAlias || ""
     );
     if (next === null) return; // 취소
