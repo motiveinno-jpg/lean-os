@@ -535,6 +535,7 @@ async function syncHometaxInvoices(
   startDate: string, endDate: string
 ) {
   const errors: SyncError[] = [];
+  const debug: string[] = [];   // 응답 구조 진단용 — totalSynced=0 인데 진짜 0건인지 parsing 누락인지 구분
   let totalSynced = 0;
 
   // 국세청(홈택스) organization code — '전자세금계산서 통합' product 는 0002 사용 (3a91f86 확인).
@@ -649,38 +650,88 @@ async function syncHometaxInvoices(
       continue;
     }
 
-    const invoices = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+    // ─── 응답 구조 진단 (debug) ───
+    const dataType = Array.isArray(result.data) ? "array" : typeof result.data;
+    const topKeys = result.data && typeof result.data === "object" && !Array.isArray(result.data)
+      ? Object.keys(result.data) : [];
+    debug.push(`${direction} resp dataType=${dataType}, topKeys=[${topKeys.join(",")}], dataLen=${Array.isArray(result.data) ? result.data.length : "n/a"}`);
+
+    // 통합 API 는 보통 { data: { resTaxInvoiceList: [...] } } 또는 평탄 배열로 반환.
+    // nested 후보들을 순서대로 시도.
+    let raw: any = result.data;
+    const arrayLikeKeys = ["resTaxInvoiceList", "resInvoiceList", "list", "resList"];
+    if (raw && !Array.isArray(raw) && typeof raw === "object") {
+      for (const key of arrayLikeKeys) {
+        if (Array.isArray(raw[key])) { raw = raw[key]; debug.push(`${direction} unwrapped via key=${key}`); break; }
+      }
+    }
+    const invoices = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    debug.push(`${direction} invoices.length=${invoices.length}`);
+    if (invoices.length > 0) {
+      const f = invoices[0];
+      debug.push(`${direction} firstInvoice keys=[${Object.keys(f).join(",")}]`);
+      debug.push(`${direction} sample resApprovalNo='${f.resApprovalNo}' resIssueDate='${f.resIssueDate}' resTotalAmount='${f.resTotalAmount}' resSupplierName='${f.resSupplierName}' resContractorName='${f.resContractorName}'`);
+    }
+
+    const isSales = direction === "매출";
+    let upsertErrors = 0;
+    let firstUpsertError: any = null;
 
     for (const inv of invoices) {
-      const invoiceNumber = inv.resApprovalNo || inv.resInvoiceNumber || "";
-      if (!invoiceNumber) continue;
+      // CODEF 통합 API 응답: resApprovalNo = 국세청 승인번호 (= nts_confirm_no 에 저장)
+      const ntsConfirmNo = String(inv.resApprovalNo || "").trim();
+      if (!ntsConfirmNo) continue;
 
-      const issueDate = inv.resIssueDate || inv.resWriteDate || "";
+      const issueDate = String(inv.resIssueDate || inv.resReportingDate || "").trim();
       const formattedDate = issueDate.length === 8
         ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
-        : issueDate;
+        : null;
+
+      // 매출(우리가 발행) → 거래처는 받는자(Contractor). 매입(상대가 발행) → 거래처는 발급자(Supplier).
+      const counterpartyName = isSales
+        ? (inv.resContractorCompanyName || inv.resContractorName || "")
+        : (inv.resSupplierCompanyName || inv.resSupplierName || "");
+      const counterpartyBizno = isSales
+        ? (inv.resContractorRegNumber || "")
+        : (inv.resSupplierRegNumber || "");
+      const counterpartyBizType = isSales
+        ? (inv.resContractorBusinessTypes || "")
+        : (inv.resSupplierBusinessTypes || "");
+      const counterpartyBizItem = isSales
+        ? (inv.resContractorBusinessItems || "")
+        : (inv.resSupplierBusinessItems || "");
 
       const { error } = await supabase.from("tax_invoices").upsert({
         company_id: companyId,
-        invoice_number: invoiceNumber,
-        issue_date: formattedDate || null,
-        supplier_name: inv.resSupplierName || inv.resCompanyNm || "",
-        supplier_brn: inv.resSupplierRegNumber || inv.resCompanyBizNo || "",
-        buyer_name: inv.resBuyerName || inv.resReceiverNm || "",
-        buyer_brn: inv.resBuyerRegNumber || inv.resReceiverBizNo || "",
-        supply_amount: Number(inv.resSupplyValue || inv.resSupplyAmt || 0),
-        tax_amount: Number(inv.resTaxAmount || inv.resTaxAmt || 0),
-        total_amount: Number(inv.resTotalAmount || inv.resTotalAmt || 0),
-        item_name: inv.resItemName || inv.resItemNm || null,
-        direction: direction === "매출" ? "issued" : "received",
+        nts_confirm_no: ntsConfirmNo,
+        issue_date: formattedDate,
+        type: isSales ? "sales" : "purchase",
+        status: "issued",
         source: "codef_hometax",
-      }, { onConflict: "invoice_number" });
+        counterparty_name: counterpartyName,
+        counterparty_bizno: counterpartyBizno,
+        counterparty_business_type: counterpartyBizType,
+        counterparty_business_item: counterpartyBizItem,
+        supply_amount: Number(inv.resSupplyValue || 0),
+        tax_amount: Number(inv.resTaxAmt || 0),
+        total_amount: Number(inv.resTotalAmount || 0),
+        item_name: inv.resRepItems || null,
+        hometax_synced_at: new Date().toISOString(),
+      }, { onConflict: "company_id,nts_confirm_no" });
 
-      if (!error) totalSynced++;
+      if (error) {
+        upsertErrors++;
+        if (!firstUpsertError) firstUpsertError = { message: error.message, code: (error as any).code };
+      } else {
+        totalSynced++;
+      }
+    }
+    if (upsertErrors > 0) {
+      debug.push(`${direction} upsertErrors=${upsertErrors}, first=${JSON.stringify(firstUpsertError)}`);
     }
   }
 
-  return { synced: totalSynced, errors };
+  return { synced: totalSynced, errors, debug };
 }
 
 serve(async (req) => {
