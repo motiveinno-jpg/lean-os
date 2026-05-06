@@ -119,6 +119,12 @@ function codefErrorHint(code?: string): string {
   if (code.startsWith("CF-12")) {
     return "기관 응답 지연/오류. 해당 은행 또는 카드사 점검 시간을 피해 재시도하세요.";
   }
+  if (code === "CF-13021") {
+    return "보유계좌 형식 불일치. CODEF에 등록된 계좌 종류(입출금/펀드/대출 등)를 확인하세요. 거래내역은 입출금 계좌만 조회 가능합니다.";
+  }
+  if (code === "NO_DEMAND_DEPOSIT") {
+    return "거래내역 조회 가능한 입출금 계좌가 등록되어 있지 않습니다. CODEF 대시보드에서 보통예금/당좌예금 계좌를 추가 등록하세요.";
+  }
   return "CODEF 오류가 발생했습니다. 코드와 메시지를 CODEF 대시보드에서 검색해 대응하세요.";
 }
 
@@ -168,28 +174,48 @@ async function syncBankTransactions(
     const dataKeys = Object.keys(acctListResult.data || {});
     debug.push(`bank ${org} account-list OK, data keys: [${dataKeys.join(",")}]`);
 
-    // CODEF bank account-list returns categorized arrays, not a flat list
+    // CODEF bank account-list returns categorized arrays.
+    // 일반 거래내역 조회(/transaction-list)는 입출금 계좌(resAccountList)만 지원.
+    // 펀드/외화/대출/예신탁은 별도 API 필요 — 여기서 호출하면 CF-13021 발생.
     const acctData = acctListResult.data || {};
-    const realAccounts = [
-      ...(acctData.resDepositTrust || []),
-      ...(acctData.resForeignCurrency || []),
-      ...(acctData.resFund || []),
-      ...(acctData.resLoan || []),
-      ...(acctData.resAccountList || []),
-    ];
-    debug.push(`bank ${org} realAccounts: ${realAccounts.length}개`);
+    const demandDeposits = acctData.resAccountList || [];
+    const otherCounts = {
+      depositTrust: (acctData.resDepositTrust || []).length,
+      foreignCurrency: (acctData.resForeignCurrency || []).length,
+      fund: (acctData.resFund || []).length,
+      loan: (acctData.resLoan || []).length,
+    };
+    const otherTotal = otherCounts.depositTrust + otherCounts.foreignCurrency + otherCounts.fund + otherCounts.loan;
+    debug.push(`bank ${org} demandDeposits: ${demandDeposits.length}개, others: 예신탁${otherCounts.depositTrust}/외화${otherCounts.foreignCurrency}/펀드${otherCounts.fund}/대출${otherCounts.loan}`);
 
-    if (realAccounts.length > 0) {
-      const firstAcct = realAccounts[0];
+    if (demandDeposits.length > 0) {
+      const firstAcct = demandDeposits[0];
       debug.push(`bank ${org} firstAccount keys: [${Object.keys(firstAcct).join(",")}]`);
       debug.push(`bank ${org} firstAccount sample: resAccount=${firstAcct.resAccount}, resAccountNo=${firstAcct.resAccountNo}, resAccountDisplay=${firstAcct.resAccountDisplay}`);
+    } else if (otherTotal > 0) {
+      // 입출금 계좌가 없고 다른 종류만 있을 때 — 명확한 메시지 한 번만
+      const otherDesc = [
+        otherCounts.depositTrust ? `예신탁 ${otherCounts.depositTrust}개` : "",
+        otherCounts.foreignCurrency ? `외화 ${otherCounts.foreignCurrency}개` : "",
+        otherCounts.fund ? `펀드 ${otherCounts.fund}개` : "",
+        otherCounts.loan ? `대출 ${otherCounts.loan}개` : "",
+      ].filter(Boolean).join(", ");
+      errors.push({
+        accountNo: "",
+        organization: org,
+        code: "NO_DEMAND_DEPOSIT",
+        message: `${BANK_CODES[org] || org}에 거래내역 조회 가능한 입출금 계좌가 없습니다 (${otherDesc}만 등록됨).`,
+        hint: "CODEF 대시보드에서 보통예금/당좌예금 등 입출금 계좌도 추가 등록하세요. 펀드/대출/외화/예신탁은 거래내역 조회 미지원입니다.",
+      });
+      continue;
     }
 
-    if (realAccounts.length === 0) continue;
+    if (demandDeposits.length === 0) continue;
 
     // 3. 각 계좌의 거래내역 조회
     let orgPermissionDenied = false;
-    for (const bankAcct of realAccounts) {
+    let orgAccountMismatchReported = false;
+    for (const bankAcct of demandDeposits) {
       const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || bankAcct.resAccountDisplay || "";
       if (!accountNo) continue;
 
@@ -199,11 +225,16 @@ async function syncBankTransactions(
       });
 
       if (result.result?.code !== "CF-00000") {
-        if (result.result?.code === "CF-00401" && !orgPermissionDenied) {
+        const code = result.result?.code || "UNKNOWN";
+        if (code === "CF-00401" && !orgPermissionDenied) {
           orgPermissionDenied = true;
-          errors.push({ accountNo: "", organization: org, code: "CF-00401", message: `${BANK_CODES[org] || org} 거래내역 조회 권한 없음 (${realAccounts.length}개 계좌)`, hint: codefErrorHint("CF-00401") });
-        } else if (result.result?.code !== "CF-00401") {
-          errors.push({ accountNo, organization: org, code: result.result?.code || "UNKNOWN", message: result.result?.message || "거래내역 조회 실패", hint: codefErrorHint(result.result?.code) });
+          errors.push({ accountNo: "", organization: org, code: "CF-00401", message: `${BANK_CODES[org] || org} 거래내역 조회 권한 없음 (${demandDeposits.length}개 계좌)`, hint: codefErrorHint("CF-00401") });
+        } else if (code === "CF-13021" && !orgAccountMismatchReported) {
+          // 같은 organization 안의 다중 CF-13021은 한 번만 push (계좌 형식 불일치 노이즈)
+          orgAccountMismatchReported = true;
+          errors.push({ accountNo: "", organization: org, code: "CF-13021", message: `${BANK_CODES[org] || org}: 일부 계좌(${demandDeposits.length}개 중)가 거래내역 조회 형식과 일치하지 않습니다.`, hint: "CODEF 대시보드에서 등록 계좌 종류를 확인하거나 입출금 계좌만 다시 등록하세요." });
+        } else if (code !== "CF-00401" && code !== "CF-13021") {
+          errors.push({ accountNo, organization: org, code, message: result.result?.message || "거래내역 조회 실패", hint: codefErrorHint(code) });
         }
         if (orgPermissionDenied) continue;
         continue;
@@ -481,7 +512,15 @@ async function syncHometaxInvoices(
   // 국세청(홈택스) organization code
   const HOMETAX_ORG = "0004";
 
+  // 한 organization에서 같은 에러는 한 번만 보고 (매출/매입 중복 제거)
+  const reportedCodes = new Set<string>();
+  // 환경(상품 미활성화/연결 만료/통신 실패)면 매출 단계에서 잡고 매입은 skip
+  const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
+  let hometaxBlocked = false;
+
   for (const direction of ["매출", "매입"] as const) {
+    if (hometaxBlocked) break;
+
     const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
       connectedId,
       organization: HOMETAX_ORG,
@@ -491,13 +530,18 @@ async function syncHometaxInvoices(
     });
 
     if (result.result?.code !== "CF-00000") {
-      errors.push({
-        accountNo: "",
-        organization: HOMETAX_ORG,
-        code: result.result?.code || "UNKNOWN",
-        message: result.result?.message || "응답 없음",
-        hint: codefErrorHint(result.result?.code),
-      });
+      const code = result.result?.code || "UNKNOWN";
+      if (!reportedCodes.has(code)) {
+        reportedCodes.add(code);
+        errors.push({
+          accountNo: "",
+          organization: HOMETAX_ORG,
+          code,
+          message: result.result?.message || "응답 없음",
+          hint: codefErrorHint(code),
+        });
+      }
+      if (fatalCodes.has(code)) hometaxBlocked = true;
       continue;
     }
 
@@ -707,8 +751,9 @@ serve(async (req) => {
       ...(results.card?.errors ?? []),
       ...(results.hometax?.errors ?? []),
     ];
-    // 상품 미활성화(CF-00003, CF-00401)는 "skipped" 처리 — 카드 성공 시 전체 실패 방지
-    const skippableCodes = new Set(["CF-00003", "CF-00401"]);
+    // 환경/설정성 에러는 "skipped" 처리 — 다른 sync 성공 시 전체 실패로 보지 않음
+    // CF-00003: 상품 미활성화 / CF-00401: 권한 없음 / CF-13021: 계좌 형식 불일치 / NO_DEMAND_DEPOSIT: 입출금 계좌 미등록
+    const skippableCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT"]);
     const criticalErrors = allErrors.filter(e => !skippableCodes.has(e.code));
     const skippedErrors = allErrors.filter(e => skippableCodes.has(e.code));
     const totalSynced =
