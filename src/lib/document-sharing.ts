@@ -214,6 +214,8 @@ export async function sendShareEmail(params: {
         body: JSON.stringify(params),
       });
       if (res.ok) return { success: true };
+      const errBody = await res.json().catch(() => ({}));
+      console.error('send-share-email error:', errBody);
     }
   } catch {
     // Edge Function not available — use mailto fallback

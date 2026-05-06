@@ -862,6 +862,8 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const [terminating, setTerminating] = useState(false);
   const [termLossReason, setTermLossReason] = useState("11");
   const [ediGenerated, setEdiGenerated] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -990,6 +992,11 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {!isEditing && detailTab === "info" && (
+            <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setIsEditing(true); }} className="px-3 py-1.5 text-[10px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition">
+              수정
+            </button>
+          )}
           {emp.status !== "inactive" && emp.status !== "resigned" && (
             <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
               퇴사 처리
@@ -1025,6 +1032,15 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
           <div className="space-y-5">
+            {isEditing && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-blue-400">정보 수정 중</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
+                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(e.message || "저장 실패", "error"); } }} className="px-3 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                </div>
+              </div>
+            )}
             {/* 인사 정보 */}
             <div>
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
@@ -1032,22 +1048,25 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 인사 정보
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <InfoRow label="사번" value={emp.employee_number} />
-                <InfoRow label="부서" value={emp.department} />
-                <InfoRow label="직책" value={emp.position} />
-                <InfoRow label="직급" value={emp.job_grade} />
-                <InfoRow label="입사일" value={emp.hire_date} />
-                <InfoRow label="근속기간" value={emp.hire_date ? (() => {
-                  const d = new Date(emp.hire_date);
-                  const now = new Date();
-                  const years = now.getFullYear() - d.getFullYear();
-                  const months = now.getMonth() - d.getMonth() + (years * 12);
-                  const y = Math.floor(months / 12);
-                  const m = months % 12;
-                  return y > 0 ? `${y}년 ${m}개월` : `${m}개월`;
-                })() : undefined} />
-                <InfoRow label="고용형태" value={emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || ""} />
-                <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
+                {isEditing ? (<>
+                  <EditField label="이름" value={editData.name} onChange={(v) => setEditData({ ...editData, name: v })} />
+                  <EditField label="사번" value={editData.employee_number} onChange={(v) => setEditData({ ...editData, employee_number: v })} />
+                  <EditField label="부서" value={editData.department} onChange={(v) => setEditData({ ...editData, department: v })} />
+                  <EditField label="직책" value={editData.position} onChange={(v) => setEditData({ ...editData, position: v })} />
+                  <EditField label="직급" value={editData.job_grade} onChange={(v) => setEditData({ ...editData, job_grade: v })} />
+                  <EditField label="입사일" value={editData.hire_date} onChange={(v) => setEditData({ ...editData, hire_date: v })} type="date" />
+                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">고용형태</div><select value={editData.employment_type} onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option><option value="regular">정규직</option><option value="contract">계약직</option><option value="parttime">파트타임</option><option value="intern">인턴</option></select></div>
+                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">4대보험</div><select value={editData.is_4_insurance} onChange={(e) => setEditData({ ...editData, is_4_insurance: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="true">가입</option><option value="false">미가입</option></select></div>
+                </>) : (<>
+                  <InfoRow label="사번" value={emp.employee_number} />
+                  <InfoRow label="부서" value={emp.department} />
+                  <InfoRow label="직책" value={emp.position} />
+                  <InfoRow label="직급" value={emp.job_grade} />
+                  <InfoRow label="입사일" value={emp.hire_date} />
+                  <InfoRow label="근속기간" value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
+                  <InfoRow label="고용형태" value={emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || ""} />
+                  <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
+                </>)}
               </div>
             </div>
             {/* 기본 정보 */}
@@ -1057,12 +1076,21 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 기본 정보
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <InfoRow label="이메일" value={emp.email} />
-                <InfoRow label="전화번호" value={emp.phone} />
-                <InfoRow label="생년월일" value={emp.birth_date} />
-                <InfoRow label="주소" value={emp.address} />
-                <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
-                <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+                {isEditing ? (<>
+                  <EditField label="이메일" value={editData.email} onChange={(v) => setEditData({ ...editData, email: v })} type="email" />
+                  <EditField label="전화번호" value={editData.phone} onChange={(v) => setEditData({ ...editData, phone: v })} />
+                  <EditField label="생년월일" value={editData.birth_date} onChange={(v) => setEditData({ ...editData, birth_date: v })} type="date" />
+                  <EditField label="주소" value={editData.address} onChange={(v) => setEditData({ ...editData, address: v })} />
+                  <EditField label="비상연락처(이름)" value={editData.emergency_contact} onChange={(v) => setEditData({ ...editData, emergency_contact: v })} />
+                  <EditField label="비상연락처(번호)" value={editData.emergency_phone} onChange={(v) => setEditData({ ...editData, emergency_phone: v })} />
+                </>) : (<>
+                  <InfoRow label="이메일" value={emp.email} />
+                  <InfoRow label="전화번호" value={emp.phone} />
+                  <InfoRow label="생년월일" value={emp.birth_date} />
+                  <InfoRow label="주소" value={emp.address} />
+                  <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
+                  <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+                </>)}
               </div>
             </div>
             {/* 급여/계좌 정보 */}
@@ -1072,11 +1100,19 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 급여 · 계좌
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <InfoRow label="월 급여" value={emp.salary ? `₩${Number(emp.salary).toLocaleString()}` : undefined} />
-                <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
-                <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
-                <InfoRow label="계좌번호" value={emp.bank_account} />
-                <InfoRow label="예금주" value={emp.bank_holder} />
+                {isEditing ? (<>
+                  <EditField label="월 급여" value={editData.salary} onChange={(v) => setEditData({ ...editData, salary: v.replace(/[^0-9]/g, '') })} inputMode="numeric" />
+                  <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
+                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">급여 은행</div><select value={editData.bank_name} onChange={(e) => setEditData({ ...editData, bank_name: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option>{Object.entries(BANK_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                  <EditField label="계좌번호" value={editData.bank_account} onChange={(v) => setEditData({ ...editData, bank_account: v })} />
+                  <EditField label="예금주" value={editData.bank_holder} onChange={(v) => setEditData({ ...editData, bank_holder: v })} />
+                </>) : (<>
+                  <InfoRow label="월 급여" value={emp.salary ? `₩${Number(emp.salary).toLocaleString()}` : undefined} />
+                  <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
+                  <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
+                  <InfoRow label="계좌번호" value={emp.bank_account} />
+                  <InfoRow label="예금주" value={emp.bank_holder} />
+                </>)}
               </div>
             </div>
             {/* 퇴직금 계산 */}
@@ -1960,6 +1996,15 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
     <div>
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
       <div className="text-xs text-[var(--text)]">{value || "—"}</div>
+    </div>
+  );
+}
+
+function EditField({ label, value, onChange, type, inputMode }: { label: string; value: string; onChange: (v: string) => void; type?: string; inputMode?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
+      <input type={type || "text"} inputMode={inputMode as any} value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
     </div>
   );
 }

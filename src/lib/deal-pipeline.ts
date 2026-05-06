@@ -356,6 +356,13 @@ export async function onDocumentApproved(params: {
 
   // CASE A: 견적서(invoice/quote) 승인 → 계약서 자동 생성
   if (docType === 'invoice' || docType === 'quote') {
+    const { count: existingContracts } = await supabase
+      .from('documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('deal_id', doc.deal_id)
+      .eq('content_json->>type', 'contract');
+    if ((existingContracts || 0) > 0) return { nextAction: 'already_created' };
+
     const contractDocId = await createDocumentFromDeal({
       companyId,
       dealId: doc.deal_id,
@@ -436,6 +443,11 @@ export async function onDocumentApproved(params: {
 
   // CASE B: 계약서 승인 → 계약서 PDF 생성 + revenue_schedule 먼저 생성 → 세금계산서 연결
   if (docType === 'contract') {
+    const { count: existingSchedules } = await supabase
+      .from('deal_revenue_schedule')
+      .select('id', { count: 'exact', head: true })
+      .eq('deal_id', doc.deal_id);
+    if ((existingSchedules || 0) > 0) return { nextAction: 'already_created' };
     // Generate the contract PDF HTML and store as a document record
     const contractPdfResult = await generateContractDocumentForDeal({
       dealId: doc.deal_id,

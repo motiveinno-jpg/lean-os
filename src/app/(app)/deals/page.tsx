@@ -813,9 +813,10 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
       const share = await createDocumentShare({ documentId: emailModal.documentId, companyId, createdBy: userId || '', expiresInDays: 30 });
       const shareUrl = share.shareUrl || `${window.location.origin}/share/${share.shareToken}`;
       const result = await sendShareEmail({ email: selectedPartner.contact_email, recipientName: selectedPartner.name, documentName: docData?.name || '문서', shareUrl, companyName: comp?.name || '', message: emailMessage || undefined });
-      if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); }
+      if (result.fallbackMailto) { window.open(result.fallbackMailto, '_blank'); toast('메일 앱에서 발송해주세요', 'info'); }
       else if (result.success) { toast('이메일 발송 완료', 'success'); }
       setEmailModal(null);
+      queryClient.invalidateQueries({ queryKey: ['deal-pipeline'] });
     } catch (err: any) { setPipelineError(`이메일 발송 실패: ${err?.message || '알 수 없는 오류'}`); }
     setEmailSending(false);
   }

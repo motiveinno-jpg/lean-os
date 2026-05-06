@@ -104,23 +104,24 @@ export async function terminateContract(contractId: string) {
   if (error) throw error;
 }
 
-// ── Employee update with new fields ──
-export async function updateEmployee(employeeId: string, updates: {
-  department?: string;
-  position?: string;
-  email?: string;
-  phone?: string;
-  contractType?: string;
-}) {
+// ── Employee update with all editable fields ──
+export async function updateEmployee(employeeId: string, updates: Record<string, unknown>) {
+  const allowedFields = [
+    'name', 'department', 'position', 'job_grade', 'employment_type',
+    'email', 'phone', 'birth_date', 'address',
+    'emergency_contact', 'emergency_phone',
+    'salary', 'bank_name', 'bank_account', 'bank_holder',
+    'employee_number', 'hire_date', 'is_4_insurance',
+    'meal_allowance_included', 'contract_type',
+  ];
+  const filtered: Record<string, unknown> = {};
+  for (const key of allowedFields) {
+    if (key in updates) filtered[key] = updates[key];
+  }
+  if (Object.keys(filtered).length === 0) return;
   const { error } = await db
     .from('employees')
-    .update({
-      department: updates.department,
-      position: updates.position,
-      email: updates.email,
-      phone: updates.phone,
-      contract_type: updates.contractType,
-    })
+    .update(filtered as any)
     .eq('id', employeeId);
   if (error) throw error;
 }
