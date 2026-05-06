@@ -147,6 +147,7 @@ export default function BillingPage() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["referral"] }),
+    onError: (err: any) => toast("추천 코드 생성 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // 피드백 제출
@@ -172,6 +173,7 @@ export default function BillingPage() {
       setFbTitle("");
       setFbDesc("");
     },
+    onError: (err: any) => toast("피드백 제출 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   useEffect(() => {

@@ -18,6 +18,7 @@ import {
   type LoanMatchCandidate,
 } from "@/lib/loans";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useToast } from "@/components/toast";
 
 type Tab = "list" | "payments" | "register" | "match";
 
@@ -166,6 +167,7 @@ const LOAN_TYPES: Record<string, string> = {
 };
 
 export default function LoansPage() {
+  const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("list");
@@ -235,17 +237,20 @@ export default function LoansPage() {
       setTab("list");
       setForm({ name: "", lender: "", loanType: "term", originalAmount: "", remainingBalance: "", interestRate: "", startDate: "", maturityDate: "", paymentDay: "", interestDay: "", notes: "" });
     },
+    onError: (err: any) => toast("대출 등록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const updateMut = useMutation({
     mutationFn: (params: { id: string; data: Parameters<typeof updateLoan>[1] }) =>
       updateLoan(params.id, params.data),
     onSuccess: () => { invalidate(); setEditingLoan(null); },
+    onError: (err: any) => toast("대출 수정 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteLoan,
     onSuccess: invalidate,
+    onError: (err: any) => toast("대출 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const payMut = useMutation({
@@ -262,6 +267,7 @@ export default function LoansPage() {
       setShowPayForm(false);
       setPayForm({ loanId: "", paymentDate: "", principalAmount: "", interestAmount: "", paymentNumber: "", notes: "" });
     },
+    onError: (err: any) => toast("상환 기록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const loans = summary?.loans || [];

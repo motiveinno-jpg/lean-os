@@ -343,7 +343,7 @@ export default function MatchingPage() {
       if (companyId) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data: co } = await (supabase as any).from("companies").select("tax_settings").eq("id", companyId).single();
+          const { data: co } = await (supabase as any).from("companies").select("tax_settings").eq("id", companyId).maybeSingle();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const ts = (co as any)?.tax_settings;
           if (ts?.matching_tolerance != null && Number(ts.matching_tolerance) >= 0) {

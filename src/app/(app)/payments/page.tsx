@@ -895,6 +895,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       isActive: !item.is_active,
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }); recurToast("상태가 변경되었습니다", "success"); },
+    onError: (err: Error) => { recurToast("상태 변경 실패: " + (err?.message || ""), "error"); },
   });
 
   const categories: Record<string, string> = {

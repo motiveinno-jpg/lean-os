@@ -110,6 +110,7 @@ export default function VaultPage() {
       setEditingId(null);
       setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
+    onError: (err: any) => toast(`계정 추가 실패: ${err.message || err}`, "error"),
   });
 
   const createAssetMut = useMutation({
@@ -128,6 +129,7 @@ export default function VaultPage() {
       setEditingId(null);
       setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
     },
+    onError: (err: any) => toast(`자산 추가 실패: ${err.message || err}`, "error"),
   });
 
   const createDocMut = useMutation({
@@ -146,6 +148,7 @@ export default function VaultPage() {
       setEditingId(null);
       setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" });
     },
+    onError: (err: any) => toast(`문서 추가 실패: ${err.message || err}`, "error"),
   });
 
   const updateAccMut = useMutation({
@@ -166,6 +169,7 @@ export default function VaultPage() {
       setEditingId(null);
       setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
+    onError: (err: any) => toast(`계정 수정 실패: ${err.message || err}`, "error"),
   });
 
   const updateAssetMut = useMutation({
@@ -183,6 +187,7 @@ export default function VaultPage() {
       setEditingId(null);
       setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
     },
+    onError: (err: any) => toast(`자산 수정 실패: ${err.message || err}`, "error"),
   });
 
   const updateDocMut = useMutation({
@@ -200,6 +205,7 @@ export default function VaultPage() {
       setEditingId(null);
       setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" });
     },
+    onError: (err: any) => toast(`문서 수정 실패: ${err.message || err}`, "error"),
   });
 
   const deleteAssetMut = useMutation({
@@ -209,6 +215,7 @@ export default function VaultPage() {
       setShowForm(false);
       setEditingId(null);
     },
+    onError: (err: any) => toast(`자산 삭제 실패: ${err.message || err}`, "error"),
   });
 
   const deleteDocMut = useMutation({
@@ -218,6 +225,7 @@ export default function VaultPage() {
       setShowForm(false);
       setEditingId(null);
     },
+    onError: (err: any) => toast(`문서 삭제 실패: ${err.message || err}`, "error"),
   });
 
   async function handleFileUpload(file: File) {
@@ -246,21 +254,25 @@ export default function VaultPage() {
       return patterns;
     },
     onSuccess: () => invalidate(),
+    onError: (err: any) => toast("패턴 분석 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const acceptMut = useMutation({
     mutationFn: (id: string) => acceptDiscovery(id, companyId!),
     onSuccess: () => invalidate(),
+    onError: (err: any) => toast("발견 항목 수락 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const ignoreMut = useMutation({
     mutationFn: (id: string) => dismissDiscovery(id),
     onSuccess: () => invalidate(),
+    onError: (err: any) => toast("발견 항목 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const cancelAccMut = useMutation({
     mutationFn: (id: string) => updateVaultAccount(id, { status: "cancelled" }),
     onSuccess: () => invalidate(),
+    onError: (err: any) => toast("계정 해지 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const stats = vault?.stats || {

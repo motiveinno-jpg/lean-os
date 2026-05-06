@@ -24,6 +24,7 @@ import {
   type ApprovalStep,
   type ApprovalStageConfig,
 } from "@/lib/approval-workflow";
+import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
@@ -204,6 +205,7 @@ export default function ApprovalsPage() {
 function MyApprovalsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
+  const { toast } = useToast();
   const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string } | null>(null);
   const [comment, setComment] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -223,6 +225,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       setComment("");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
+    onError: (err: any) => toast("승인 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const rejectMut = useMutation({
@@ -234,6 +237,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       setComment("");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
+    onError: (err: any) => toast("반려 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   if (isLoading) {
@@ -367,6 +371,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
 function MyRequestsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
+  const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
@@ -378,6 +383,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const resubmitMut = useMutation({
     mutationFn: (requestId: string) => resubmitRequest(requestId),
     onSuccess: invalidate,
+    onError: (err: any) => toast("재제출 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   if (isLoading) {
@@ -619,6 +625,7 @@ const LEAVE_UNIT_OPTIONS = [
 function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
   companyId: string; userId: string; invalidate: () => void; onComplete: () => void;
 }) {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     requestType: "expense" as RequestType,
     title: "",
@@ -817,6 +824,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
       localStorage.removeItem(`ov-approval-draft-${companyId}`);
       onComplete();
     },
+    onError: (err: any) => toast("결재 요청 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   return (
@@ -1202,6 +1210,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
 // ══════════════════════════════════════════════
 
 function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<ApprovalPolicy | null>(null);
   const [form, setForm] = useState({
@@ -1232,11 +1241,13 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       invalidate();
       resetForm();
     },
+    onError: (err: any) => toast("정책 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteApprovalPolicy(id),
     onSuccess: invalidate,
+    onError: (err: any) => toast("정책 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   function resetForm() {

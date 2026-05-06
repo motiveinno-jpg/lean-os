@@ -447,6 +447,7 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
       setMapModal(null);
     },
+    onError: (err: any) => toast("거래 매핑 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const ignoreMut = useMutation({
@@ -455,6 +456,7 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
     },
+    onError: (err: any) => toast("거래 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const addRuleMut = useMutation({
@@ -474,11 +476,13 @@ export default function TransactionsPage() {
       setShowRuleForm(false);
       setRuleForm({ rule_name: '', match_type: 'contains', match_field: 'counterparty', match_value: '', assign_category: '', assign_classification: '', assign_deal_id: '', is_fixed_cost: false });
     },
+    onError: (err: any) => toast("분류 규칙 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteRuleMut = useMutation({
     mutationFn: (id: string) => deleteClassificationRule(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["classification-rules"] }),
+    onError: (err: any) => toast("분류 규칙 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // ── Card Mutations ──
@@ -490,6 +494,7 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
       setCardMapModal(null);
     },
+    onError: (err: any) => toast("카드 거래 매핑 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const cardIgnoreMut = useMutation({
@@ -498,6 +503,7 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
     },
+    onError: (err: any) => toast("카드 거래 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const cardRestoreMut = useMutation({
@@ -506,6 +512,7 @@ export default function TransactionsPage() {
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
     },
+    onError: (err: any) => toast("카드 거래 복원 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const upsertCardMut = useMutation({
@@ -524,11 +531,13 @@ export default function TransactionsPage() {
       setEditingCard(null);
       setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '' });
     },
+    onError: (err: any) => toast("법인카드 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteCardMut = useMutation({
     mutationFn: (id: string) => deleteCorporateCard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }),
+    onError: (err: any) => toast("법인카드 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const aliasMut = useMutation({

@@ -216,6 +216,7 @@ const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = 
 };
 
 function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -349,6 +350,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const cancelMut = useMutation({
     mutationFn: (id: string) => cancelEmployeeInvitation(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
+    onError: (err: any) => toast("초대 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // 직원 삭제 (중복/초대 정리용)
@@ -2057,6 +2059,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
 
 // ── Salary Tab ──
 function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, companyId, userId, queryClient }: any) {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ effectiveDate: "", salary: "", reason: "" });
 
@@ -2066,6 +2069,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       salary: Number(form.salary), changeReason: form.reason, approvedBy: userId,
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-history"] }); setShowForm(false); setForm({ effectiveDate: "", salary: "", reason: "" }); },
+    onError: (err: any) => toast("급여 기록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   return (
@@ -2214,6 +2218,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const cancelContract = useMutation({
     mutationFn: cancelContractPackage,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contract-packages"] }),
+    onError: (err: any) => toast("계약 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // 일괄 발송
@@ -2975,11 +2980,13 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
   const approve = useMutation({
     mutationFn: (expenseId: string) => approveExpense({ companyId: companyId!, expenseId, approverId: userId! }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["payment-queue"] }); },
+    onError: (err: any) => toast("비용 승인 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const reject = useMutation({
     mutationFn: (expenseId: string) => rejectExpense({ companyId: companyId!, expenseId, approverId: userId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onError: (err: any) => toast("비용 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   return (
@@ -3956,6 +3963,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] });
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-candidates"] });
     },
+    onError: (err: any) => toast("촉진 알림 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Approve mutation
@@ -3965,12 +3973,14 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
     },
+    onError: (err: any) => toast("휴가 승인 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Reject mutation
   const rejectMut = useMutation({
     mutationFn: (id: string) => rejectLeaveRequest(id, userId!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-requests"] }),
+    onError: (err: any) => toast("휴가 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Init balance mutation
@@ -3978,6 +3988,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     mutationFn: (params: { employeeId: string; totalDays: number }) =>
       initLeaveBalance(companyId!, params.employeeId, currentYear, params.totalDays),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
+    onError: (err: any) => toast("휴가 잔여일 초기화 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Build leave calendar: who's on leave on which dates
