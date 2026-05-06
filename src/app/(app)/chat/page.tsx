@@ -695,7 +695,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const pinnedMessages = messages.filter((m: any) => m.pinned);
 
   return (
-    <div className="max-w-[900px] flex flex-col" style={{ height: "calc(100vh - 60px)" }}>
+    <div className="max-w-[900px] flex flex-col" style={{ height: "calc(100dvh - 60px)" }}>
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
@@ -1298,7 +1298,7 @@ function GuestChatView({ token }: { token: string }) {
   if (!session) return null;
 
   return (
-    <div className="max-w-[700px] mx-auto flex flex-col" style={{ height: "calc(100vh - 60px)" }}>
+    <div className="max-w-[700px] mx-auto flex flex-col" style={{ height: "calc(100dvh - 60px)" }}>
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <div className="flex items-center gap-2">

@@ -219,15 +219,16 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       } else if (currentStep === 2) {
         // Save bank accounts
         for (const bank of banks) {
-          await db.from("bank_accounts").insert({
+          const { error: bankErr } = await db.from("bank_accounts").insert({
             company_id: companyId,
             bank_name: bank.bank_name,
             account_number: bank.account_number,
             alias: bank.alias,
             role: bank.role,
-            balance: parseInt(bank.balance.replace(/[^0-9]/g, ""), 10) || 0,
+            balance: parseInt((bank.balance || "0").replace(/[^0-9]/g, ""), 10) || 0,
             is_primary: banks.indexOf(bank) === 0,
           });
+          if (bankErr) console.error("Bank save error:", bankErr);
         }
         if (banks.length > 0) setStatus(prev => ({ ...prev, bankAccount: true }));
       } else if (currentStep === 3) {
@@ -248,7 +249,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       } else if (currentStep === 5) {
         // Save employees
         for (const emp of employees) {
-          await db.from("employees").insert({
+          const { error: empErr } = await db.from("employees").insert({
             company_id: companyId,
             name: emp.name,
             position: emp.position || null,
@@ -257,6 +258,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             hire_date: new Date().toISOString().split("T")[0],
             status: "active",
           });
+          if (empErr) console.error("Employee save error:", empErr);
         }
         if (employees.length > 0) setStatus(prev => ({ ...prev, employee: true }));
       } else if (currentStep === 6) {
@@ -266,7 +268,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             company_id: companyId,
             name: dealName,
             type: dealType,
-            amount: parseInt(dealAmount.replace(/[^0-9]/g, ""), 10) || 0,
+            amount: parseInt((dealAmount || "0").replace(/[^0-9]/g, ""), 10) || 0,
             partner_name: dealPartner || null,
             status: "active",
             stage: "lead",

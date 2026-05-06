@@ -272,6 +272,7 @@ export default function DashboardPage() {
 
   // ── Employee Dashboard ──
   if (role === "employee") {
+    if (!companyId) return <div className="flex items-center justify-center h-[60vh] text-sm text-[var(--text-muted)]">로딩 중...</div>;
     return (
       <EmployeeDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} userEmail={userEmail} />
     );
@@ -279,6 +280,7 @@ export default function DashboardPage() {
 
   // ── Partner Dashboard (mobile-first, dynamic counts) ──
   if (role === "partner") {
+    if (!companyId) return <div className="flex items-center justify-center h-[60vh] text-sm text-[var(--text-muted)]">로딩 중...</div>;
     return (
       <PartnerDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} />
     );

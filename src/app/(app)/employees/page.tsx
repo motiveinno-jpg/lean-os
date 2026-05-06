@@ -241,7 +241,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
   const leaveBalanceMap: Record<string, number> = {};
   leaveBalancesForList.forEach((b: any) => {
-    leaveBalanceMap[b.employee_id] = b.remaining_days ?? (b.total_days - b.used_days);
+    leaveBalanceMap[b.employee_id] = b.remaining_days ?? (Number(b.total_days || 0) - Number(b.used_days || 0));
   });
 
   // Flex 직원 데이터 (DB에서 조회)
@@ -495,7 +495,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             {FLEX_EMPLOYEES.map((fe: any) => (
               <div key={fe.employeeNumber} className="flex items-center justify-between px-4 py-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-600/10 flex items-center justify-center text-purple-400 font-bold text-sm">{fe.name.charAt(0)}</div>
+                  <div className="w-8 h-8 rounded-lg bg-purple-600/10 flex items-center justify-center text-purple-400 font-bold text-sm">{(fe.name || '?')[0]}</div>
                   <div>
                     <div className="text-sm font-medium">{fe.name}</div>
                     <div className="text-[10px] text-[var(--text-dim)]">{fe.department} · {fe.position} · 사번{fe.employeeNumber}</div>

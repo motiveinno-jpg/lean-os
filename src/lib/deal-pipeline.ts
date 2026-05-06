@@ -69,11 +69,12 @@ export async function createDocumentFromDeal(params: {
   const contractTotal = Number(deal.contract_total || 0);
 
   // Fetch company info for documents
-  const { data: company } = await db.from('companies').select('name, business_number, representative, address').eq('id', companyId).single();
-  const companyName = company?.name || '';
-  const companyBizNo = company?.business_number || '';
-  const companyRep = company?.representative || '';
-  const companyAddr = company?.address || '';
+  const { data: company, error: companyError } = await db.from('companies').select('name, business_number, representative, address').eq('id', companyId).single();
+  if (companyError || !company) throw new Error(`회사 정보를 찾을 수 없습니다 (id: ${companyId})`);
+  const companyName = company.name || '';
+  const companyBizNo = company.business_number || '';
+  const companyRep = company.representative || '';
+  const companyAddr = company.address || '';
 
   // Build content JSON based on doc type
   const typeLabels: Record<DocChainType, string> = {
@@ -412,7 +413,7 @@ export async function onDocumentApproved(params: {
       }
 
       // Send signature request if partner has a valid email
-      if (partnerEmail && partnerEmail.includes('@')) {
+      if (partnerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(partnerEmail)) {
         const sigReq = await createSignatureRequest({
           companyId,
           documentId: contractDocId,
@@ -667,7 +668,7 @@ async function createPaymentScheduleFromContract(params: {
     const term = schedule[i];
     const dueDate = new Date(now.getTime() + (i === 0 ? 7 : 60) * 24 * 60 * 60 * 1000);
 
-    const { data: row } = await db
+    const { data: row, error: schedErr } = await db
       .from('deal_revenue_schedule')
       .insert({
         deal_id: dealId,
@@ -680,7 +681,11 @@ async function createPaymentScheduleFromContract(params: {
       .select('id')
       .single();
 
-    if (row?.id) createdIds.push(row.id);
+    if (schedErr || !row?.id) {
+      console.error(`Revenue schedule insert failed for ${term.label}:`, schedErr);
+      throw new Error(`매출 스케줄 생성 실패 (${term.label}): ${schedErr?.message || 'no data returned'}`);
+    }
+    createdIds.push(row.id);
   }
 
   // Create payment queue entries for ALL payment terms

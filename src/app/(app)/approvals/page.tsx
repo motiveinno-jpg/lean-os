@@ -515,8 +515,8 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
       </div>
 
       {/* Table */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+        <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
               <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">상태</th>
@@ -820,9 +820,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
   });
 
   return (
-    <div className="grid grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Form */}
-      <div className="col-span-2">
+      <div className="lg:col-span-2">
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 

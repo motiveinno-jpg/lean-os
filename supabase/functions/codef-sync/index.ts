@@ -105,13 +105,10 @@ function codefErrorHint(code?: string): string {
     return "CODEF 서버 일시장애. 잠시 후 다시 시도하세요. 지속 발생 시 CODEF 대시보드의 '오류 로그'를 확인해주세요.";
   }
   if (code === "CF-00003") {
-    return "CODEF 서비스 상품이 등록되지 않았습니다. CODEF 대시보드에서 해당 상품(은행/카드 계정등록)이 활성화되어 있는지 확인하세요. sandbox 환경에서는 실제 인증서를 사용할 수 없습니다.";
+    return "CODEF 대시보드에서 해당 상품이 활성화되지 않았습니다. CODEF 관리자 페이지 → 상품 관리에서 활성화하세요.";
   }
   if (code === "CF-00401") {
-    return "해당 API 상품의 조회 권한이 없습니다. CODEF 대시보드 → 상품 관리에서 '은행 > 기업 > 수시입출 거래내역' 또는 '카드 > 법인 > 청구내역' 등 필요한 상품을 운영(Production) 환경에서 활성화하세요. 운영 신청은 1~3영업일 심사가 필요합니다.";
-  }
-  if (code === "CF-00007") {
-    return "요청 파라미터가 CODEF 기준과 맞지 않습니다. 홈택스 등록 시: ① 인증서가 홈택스에 등록된 인증서인지 확인 (은행 전용 인증서는 홈택스 등록 불가) ② 사업자 형태(법인/개인) 일치 ③ CODEF 대시보드에서 '국세청 회원 등록부(계정등록전용상품)' 활성화 여부 확인.";
+    return "해당 API 상품의 조회 권한이 없습니다. CODEF 대시보드 → 상품 관리에서 '법인 은행 거래내역 조회' 상품을 활성화하세요.";
   }
   if (code === "CF-04015" || code.startsWith("CF-0401")) {
     return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
@@ -133,9 +130,12 @@ async function syncBankTransactions(
 ) {
   const errors: SyncError[] = [];
   let totalSynced = 0;
+  const debug: string[] = [];
 
   // 1. 등록된 은행 기관 코드 추출
   const registeredAccounts = await getAccountList(token, connectedId);
+  debug.push(`registeredAccounts: ${registeredAccounts.length}개, orgs: ${registeredAccounts.map((a: any) => `${a.organization}(${a.businessType})`).join(",")}`);
+
   const bankOrgs = new Set<string>();
   for (const acct of registeredAccounts) {
     const org = acct.organization;
@@ -146,9 +146,11 @@ async function syncBankTransactions(
     }
   }
 
+  debug.push(`bankOrgs: ${[...bankOrgs].join(",") || "없음"}`);
+
   if (bankOrgs.size === 0) {
     errors.push({ accountNo: "", organization: "", code: "NO_BANK_ACCOUNTS", message: "등록된 은행 계정이 없습니다.", hint: "설정 → API 연동에서 은행을 먼저 연결하세요." });
-    return { synced: 0, errors };
+    return { synced: 0, errors, debug };
   }
 
   // 2. 각 은행에서 보유계좌 목록 조회 → 실제 계좌번호 확보
@@ -158,33 +160,35 @@ async function syncBankTransactions(
     });
 
     if (acctListResult.result?.code !== "CF-00000") {
+      debug.push(`bank ${org} account-list FAILED: ${acctListResult.result?.code} ${acctListResult.result?.message}`);
       errors.push({ accountNo: "", organization: org, code: acctListResult.result?.code || "UNKNOWN", message: acctListResult.result?.message || "보유계좌 조회 실패", hint: codefErrorHint(acctListResult.result?.code) });
       continue;
     }
 
-    // PDF 명세: data 가 카테고리별 배열을 가진 객체.
-    //   resDepositTrust(예금/신탁 - 수시입출 포함), resForeignCurrency(외화),
-    //   resFund(펀드), resLoan(대출), resInsurance(보험)
-    // 거래내역은 수시입출/예적금/외화 위주로 조회. 펀드/보험은 transaction-list 의미 없음.
-    const rawData = acctListResult.data;
-    const realAccounts: any[] = [];
-    if (Array.isArray(rawData)) {
-      realAccounts.push(...rawData);
-    } else if (rawData && typeof rawData === "object") {
-      // 거래내역 가능한 카테고리만: 예금/신탁 + 외화
-      for (const key of ["resDepositTrust", "resForeignCurrency"]) {
-        if (Array.isArray(rawData[key])) realAccounts.push(...rawData[key]);
-      }
-      // fallback: 예전 응답 구조 (resAccountList 또는 평탄화된 배열)
-      if (realAccounts.length === 0 && Array.isArray(rawData.resAccountList)) {
-        realAccounts.push(...rawData.resAccountList);
-      }
+    const dataKeys = Object.keys(acctListResult.data || {});
+    debug.push(`bank ${org} account-list OK, data keys: [${dataKeys.join(",")}]`);
+
+    // CODEF bank account-list returns categorized arrays, not a flat list
+    const acctData = acctListResult.data || {};
+    const realAccounts = [
+      ...(acctData.resDepositTrust || []),
+      ...(acctData.resForeignCurrency || []),
+      ...(acctData.resFund || []),
+      ...(acctData.resLoan || []),
+      ...(acctData.resAccountList || []),
+    ];
+    debug.push(`bank ${org} realAccounts: ${realAccounts.length}개`);
+
+    if (realAccounts.length > 0) {
+      const firstAcct = realAccounts[0];
+      debug.push(`bank ${org} firstAccount keys: [${Object.keys(firstAcct).join(",")}]`);
+      debug.push(`bank ${org} firstAccount sample: resAccount=${firstAcct.resAccount}, resAccountNo=${firstAcct.resAccountNo}, resAccountDisplay=${firstAcct.resAccountDisplay}`);
     }
-    console.log(`[CODEF] Bank ${org} account-list: ${realAccounts.length} accounts`);
 
     if (realAccounts.length === 0) continue;
 
     // 3. 각 계좌의 거래내역 조회
+    let orgPermissionDenied = false;
     for (const bankAcct of realAccounts) {
       const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || bankAcct.resAccountDisplay || "";
       if (!accountNo) continue;
@@ -195,7 +199,13 @@ async function syncBankTransactions(
       });
 
       if (result.result?.code !== "CF-00000") {
-        errors.push({ accountNo, organization: org, code: result.result?.code || "UNKNOWN", message: result.result?.message || "거래내역 조회 실패", hint: codefErrorHint(result.result?.code) });
+        if (result.result?.code === "CF-00401" && !orgPermissionDenied) {
+          orgPermissionDenied = true;
+          errors.push({ accountNo: "", organization: org, code: "CF-00401", message: `${BANK_CODES[org] || org} 거래내역 조회 권한 없음 (${realAccounts.length}개 계좌)`, hint: codefErrorHint("CF-00401") });
+        } else if (result.result?.code !== "CF-00401") {
+          errors.push({ accountNo, organization: org, code: result.result?.code || "UNKNOWN", message: result.result?.message || "거래내역 조회 실패", hint: codefErrorHint(result.result?.code) });
+        }
+        if (orgPermissionDenied) continue;
         continue;
       }
 
@@ -227,7 +237,7 @@ async function syncBankTransactions(
     }
   }
 
-  return { synced: totalSynced, errors };
+  return { synced: totalSynced, errors, debug };
 }
 
 async function syncCardBilling(
@@ -235,6 +245,7 @@ async function syncCardBilling(
   startDate: string, endDate: string
 ) {
   const errors: SyncError[] = [];
+  const debug: string[] = [];
 
   const accounts = await getAccountList(token, connectedId, "card");
   const cardOrgs = new Set<string>();
@@ -253,148 +264,94 @@ async function syncCardBilling(
       message: "등록된 카드 계정이 없습니다. 설정에서 카드를 먼저 연결하세요.",
       hint: "설정 → API 연동에서 카드 계정을 등록하세요.",
     });
-    return { synced: 0, errors };
+    return { synced: 0, errors, debug };
   }
 
+  debug.push(`cardOrgs: ${[...cardOrgs].join(",")}`);
   let totalSynced = 0;
+  let debuggedChargeKeys = false;
+  let debuggedInsertErr = false;
 
-  // PDF 명세: startDate 는 YYYYMM (한 청구년월만 조회). 여러 청구월 받으려면 매월별로 호출.
-  // 카드사별 조회 가능 기간: 24개월(국민) / 12개월(현대,삼성,NH,신한,씨티,우리,롯데,하나,전북,광주) / 4개월(비씨,수협)
-  // 안전하게 최근 6개월 (대부분 카드사 OK) 반복 호출.
-  // 시작/종료 청구월 계산
-  const startYear = parseInt(startDate.slice(0, 4));
-  const startMonth = parseInt(startDate.slice(4, 6));
-  const endYear = parseInt(endDate.slice(0, 4));
-  const endMonth = parseInt(endDate.slice(4, 6));
-  const startKey = startYear * 12 + (startMonth - 1);
-  const endKey = endYear * 12 + (endMonth - 1);
-  // 최소 6개월 (사용자가 짧은 기간 보내면 6개월로 확장), 최대 12개월
-  const requestedMonths = endKey - startKey + 1;
-  const monthsToFetch = Math.min(12, Math.max(6, requestedMonths));
-  const fetchEndKey = endKey;
-  const fetchStartKey = endKey - monthsToFetch + 1;
-  const billingMonths: string[] = [];
-  for (let k = fetchStartKey; k <= fetchEndKey; k++) {
-    const y = Math.floor(k / 12);
-    const m = (k % 12) + 1;
-    billingMonths.push(`${y}${String(m).padStart(2, "0")}`);
-  }
-  console.log(`[CODEF] Card billing months to fetch: ${billingMonths.join(", ")}`);
+  // 카드 청구 내역은 YYYYMM 6자리 날짜
+  const billingStart = startDate.slice(0, 6);
+  const billingEnd = endDate.slice(0, 6);
 
   for (const org of cardOrgs) {
-    // 카드사별 매월 청구 호출 (병렬 — 빠르고, 일부 실패해도 다른 월 계속).
-    const monthResults = await Promise.all(billingMonths.map(month =>
-      codefRequest(token, "/v1/kr/card/b/account/billing-list", {
-        connectedId,
+    const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
+      connectedId, organization: org, startDate: billingStart, endDate: billingEnd, orderBy: "0", inquiryType: "1",
+    });
+
+    if (result.result?.code !== "CF-00000") {
+      errors.push({
+        accountNo: "",
         organization: org,
-        startDate: month,
-        orderBy: "0",
-        inquiryType: "1",
-        memberStoreInfoYN: "1",
-      }).then(result => ({ month, result }))
-        .catch(err => ({ month, result: { result: { code: "FETCH_ERROR", message: err.message } } }))
-    ));
+        code: result.result?.code || "UNKNOWN",
+        message: result.result?.message || "응답 없음",
+        hint: codefErrorHint(result.result?.code),
+      });
+      continue;
+    }
+    if (!result.data) { debug.push(`card ${org} billing: data is null/undefined`); continue; }
 
-    let orgErrorCount = 0;
-    for (const { month, result } of monthResults) {
-      if (result.result?.code !== "CF-00000") {
-        orgErrorCount++;
-        // 첫 실패만 기록 (같은 카드 같은 사유로 여러 번 기록 방지)
-        if (orgErrorCount === 1) {
-          errors.push({
-            accountNo: month, organization: org,
-            code: result.result?.code || "UNKNOWN",
-            message: result.result?.message || "응답 없음",
-            hint: codefErrorHint(result.result?.code),
-          });
-        }
-        continue;
+    const dataKeys = Object.keys(result.data || {});
+    debug.push(`card ${org} billing OK, data keys: [${dataKeys.join(",")}], isArray: ${Array.isArray(result.data)}`);
+
+    // CODEF 카드 청구 응답: data 자체가 배열이거나, data.resBillingList 안에 있을 수 있음
+    const rawBillings = result.data?.resBillingList ?? result.data;
+    const billings = Array.isArray(rawBillings) ? rawBillings : rawBillings ? [rawBillings] : [];
+    debug.push(`card ${org} billings count: ${billings.length}`);
+    if (billings.length > 0) {
+      debug.push(`card ${org} firstBilling keys: [${Object.keys(billings[0]).join(",")}]`);
+    }
+
+    for (const bill of billings) {
+      // Each billing period contains resChargeHistoryList with actual transactions
+      const charges = bill.resChargeHistoryList || [];
+      const cardNo = bill.resCardNo || "";
+      debug.push(`card ${org} billing ${bill.resPaymentDueDate || "?"}: ${charges.length} charges`);
+
+      if (charges.length > 0 && !debuggedChargeKeys) {
+        debug.push(`card ${org} firstCharge keys: [${Object.keys(charges[0]).join(",")}]`);
+        debug.push(`card ${org} firstCharge sample: resUsedDate=${charges[0].resUsedDate}, resUsedAmount=${charges[0].resUsedAmount}, resStoreName=${charges[0].resStoreName}`);
+        debuggedChargeKeys = true;
       }
-      if (!result.data) continue;
 
-      const billings = Array.isArray(result.data) ? result.data : [result.data];
-      console.log(`[CODEF] Card ${org} ${month}: ${billings.length} bills`);
-
-      for (const bill of billings) {
-      // 청구서 안의 실제 이용내역 (resChargeHistoryList) 평탄화
-      const charges = Array.isArray(bill.resChargeHistoryList)
-        ? bill.resChargeHistoryList
-        : bill.resChargeHistoryList ? [bill.resChargeHistoryList] : [];
-
-      const issuer = CARD_CODES[org] || "카드";
-      const billCardNo = bill.resCardNo || "";  // 청구서 단위 카드번호 (마스킹)
-
-      console.log(`[CODEF] Card ${org} bill ${bill.resPaymentDueDate || ""}: ${charges.length} charges, cardNo=${billCardNo}`);
-
-      for (const ch of charges) {
-        // PDF 명세 필드명: resApprovalNo (승인번호), resMemberStoreName (가맹점명),
-        //   resUsedAmount (이용금액), resUsedDate (사용일자), resUsedCard (이용카드)
-        const usedDate = ch.resUsedDate || "";
-        const externalId = `codef_card_${org}_${usedDate}_${ch.resApprovalNo || ""}_${ch.resMemberStoreName?.slice(0, 10) || ""}_${ch.resUsedAmount || 0}`;
-
-        // 카드 식별: ch.resUsedCard 비어있을 때를 대비한 폴백 체인 (CODEF가 거래마다 다른 필드 채울 수 있음).
-        // card_name 통일 형식: "{카드사} {카드 식별자}" — 사용자가 어느 카드 사용했는지 명확.
-        const cardIdCandidates: Array<string | undefined> = [
-          ch.resUsedCard,
-          ch.resCardNo,
-          ch.resOurCardNo,
-          ch.resCardName,
-          ch.resCardId,
-          ch.resCardNumber,
-          bill.resOurCardNo,
-          bill.resCardName,
-          billCardNo,
-        ];
-        const cardIdRaw = cardIdCandidates.find(v => v && String(v).trim()) || "";
-        const last4 = cardIdRaw ? String(cardIdRaw).replace(/[^0-9]/g, "").slice(-4) : "";
-        const cardName = last4 ? `${issuer} ${last4}` : issuer;
+      for (const charge of charges) {
+        const usedDate = charge.resUsedDate || charge.resDate || "";
+        const usedAmount = charge.resUsedAmount || charge.resAmount || charge.resMemberStoreAmt || 0;
+        const storeName = charge.resStoreName || charge.resMemberStoreName || charge.resUsedStore || "";
+        const approvalNo = charge.resCardApprovalNo || charge.resApprovalNo || "";
+        const externalId = `codef_card_${org}_${usedDate}_${charge.resUsedTime || ""}_${approvalNo || totalSynced}`;
+        const formattedDate = usedDate.length >= 8
+          ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
+          : new Date().toISOString().split("T")[0];
 
         const { error } = await supabase.from("card_transactions").upsert({
           company_id: companyId,
           external_id: externalId,
-          amount: Number(ch.resUsedAmount || 0),
-          merchant_name: ch.resMemberStoreName || "",
-          merchant_category: ch.resMemberStoreType || null,
-          transaction_date: usedDate.length === 8
-            ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
-            : null,
-          approval_number: ch.resApprovalNo || null,
-          card_name: cardName,
-          installments: ch.resInstallmentMonth ? Number(ch.resInstallmentMonth) : 0,
-          raw_data: {
-            org,
-            issuer,
-            cardNo: billCardNo,
-            cardIdentifier: ch.resUsedCard || null,
-            // 진단용: 카드 식별 추적 가능하도록 모든 후보 값 + 거래 객체 통째로 보존.
-            // 누락 거래 backfill 시 raw_data 에서 카드번호 재추출 가능.
-            cardIdCandidates: cardIdCandidates.map(v => v ?? null),
-            cardIdResolved: cardIdRaw || null,
-            ch_full: ch,
-            bill_meta: {
-              resCardNo: bill.resCardNo || null,
-              resCardName: bill.resCardName || null,
-              resOurCardNo: bill.resOurCardNo || null,
-              resPaymentDueDate: bill.resPaymentDueDate || null,
-            },
-            merchantBusinessNo: ch.resMemberStoreCorpNo || null,
-            merchantTelNo: ch.resMemberStoreTelNo || null,
-            merchantAddr: ch.resMemberStoreAddr || null,
-            paymentType: ch.resPaymentType || null,
-            cancelAmount: ch.resCancelAmount || null,
-            billPaymentDueDate: bill.resPaymentDueDate || null,
-          },
+          amount: Number(usedAmount),
+          merchant_name: storeName,
+          transaction_date: formattedDate,
+          approval_number: approvalNo || null,
+          card_name: charge.resCardName || CARD_CODES[org] || null,
           source: "codef_card",
           mapping_status: "unmapped",
+          raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
         }, { onConflict: "external_id" });
 
-        if (!error) totalSynced++;
+        if (error) {
+          if (!debuggedInsertErr) {
+            debug.push(`card ${org} insert error: ${error.message} | code: ${error.code}`);
+            debuggedInsertErr = true;
+          }
+        } else {
+          totalSynced++;
+        }
       }
     }
-    }  // monthResults loop
   }
 
-  return { synced: totalSynced, errors };
+  return { synced: totalSynced, errors, debug };
 }
 
 // RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
@@ -414,7 +371,7 @@ function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
 
 // Register account and get connectedId (ID/PW or certificate)
 async function registerAccount(
-  token: string, accountType: "bank" | "card" | "hometax",
+  token: string, accountType: "bank" | "card",
   organization: string,
   loginOpts: {
     loginType: "0" | "1";
@@ -422,7 +379,6 @@ async function registerAccount(
     derFile?: string; keyFile?: string; certPassword?: string;
     pfxFile?: string;
     clientType?: "P" | "B";
-    extraCompanyInfo?: { businessNumber?: string; userName?: string; representative?: string; phone?: string };
   },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
@@ -449,12 +405,6 @@ async function registerAccount(
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
     accountEntry.password = encryptedCertPw;
 
-    // 홈택스 등 일부 product 는 인증서 + 식별자(사업자번호) 모두 요구.
-    // loginId 가 전달되면 인증서 모드에서도 id 필드로 함께 전송.
-    if (loginOpts.loginId) {
-      accountEntry.id = loginOpts.loginId;
-    }
-
     if (loginOpts.pfxFile) {
       accountEntry.certType = "0";
       accountEntry.certFile = loginOpts.pfxFile;
@@ -463,20 +413,6 @@ async function registerAccount(
       accountEntry.derFile = loginOpts.derFile || "";
       accountEntry.keyFile = loginOpts.keyFile || "";
     }
-  }
-
-  // 홈택스 (공공) 등록 시 추가 회사 식별 필드들 — CODEF 가 어느 필드를 받는지
-  // 명세 미공개라 가능성 있는 필드를 모두 함께 전송. 불필요한 필드는 보통 무시됨.
-  if (accountType === "hometax" && loginOpts.extraCompanyInfo) {
-    const info = loginOpts.extraCompanyInfo;
-    if (info.businessNumber) {
-      accountEntry.identity = info.businessNumber;
-      accountEntry.identityNumber = info.businessNumber;
-      accountEntry.businessNumber = info.businessNumber;
-    }
-    if (info.userName) accountEntry.userName = info.userName;
-    if (info.representative) accountEntry.representative = info.representative;
-    if (info.phone) accountEntry.phoneNo = info.phone;
   }
 
   const body: Record<string, any> = { accountList: [accountEntry] };
@@ -499,11 +435,7 @@ async function registerAccount(
       publicKeyLen: publicKey.length,
       publicKeyHash: publicKey.length > 0 ? "set" : "missing",
       organization,
-      accountType,
       loginType: loginOpts.loginType,
-      hasLoginId: !!loginOpts.loginId,
-      loginIdLen: loginOpts.loginId?.length || 0,
-      loginIdPreview: loginOpts.loginId ? `${loginOpts.loginId.slice(0, 4)}***` : "(none)",
       hasDerFile: !!loginOpts.derFile,
       derFileLen: loginOpts.derFile?.length || 0,
       hasKeyFile: !!loginOpts.keyFile,
@@ -539,107 +471,32 @@ async function getAccountList(
 }
 
 // HomeTax tax invoice sync via CODEF API
-// 명세: /v1/kr/public/nt/tax-invoice/integrated-check-list (전자세금계산서 통합 API)
-// organization=0002, register/connectedId 흐름 사용 안 함 — 매번 인증서 + 비밀번호 직접 전송.
 async function syncHometaxInvoices(
-  supabase: any, token: string, companyId: string, _connectedId: string,
+  supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
 ) {
   const errors: SyncError[] = [];
   let totalSynced = 0;
-  const HOMETAX_ORG = "0002";
 
-  // 인증서 파일 + 비밀번호 로드
-  const certPath = `${companyId}/signCert.der`;
-  const keyPath = `${companyId}/signPri.key`;
+  // 국세청(홈택스) organization code
+  const HOMETAX_ORG = "0004";
 
-  const [{ data: derFile }, { data: keyDataFile }] = await Promise.all([
-    supabase.storage.from("certificates").download(certPath),
-    supabase.storage.from("certificates").download(keyPath),
-  ]);
-
-  if (!derFile || !keyDataFile) {
-    errors.push({
-      accountNo: "", organization: HOMETAX_ORG,
-      code: "NO_CERT", message: "공동인증서 파일이 없습니다",
-      hint: "설정 → 인증서에서 공동인증서 파일(signCert.der + signPri.key)을 업로드하세요.",
+  for (const direction of ["매출", "매입"] as const) {
+    const result = await codefRequest(token, "/v1/kr/public/nt/taxinvoice/list", {
+      connectedId,
+      organization: HOMETAX_ORG,
+      inquiryType: direction === "매출" ? "0" : "1",
+      startDate,
+      endDate,
     });
-    return { synced: 0, errors };
-  }
 
-  const derB64 = btoa(String.fromCharCode(...new Uint8Array(await derFile.arrayBuffer())));
-  const keyB64 = btoa(String.fromCharCode(...new Uint8Array(await keyDataFile.arrayBuffer())));
-
-  // 인증서 비밀번호 — automation_credentials.hometax.cert_password (encrypted)
-  const { data: credRow } = await supabase
-    .from("automation_credentials")
-    .select("credentials")
-    .eq("company_id", companyId).eq("service", "hometax")
-    .maybeSingle();
-
-  let certPasswordPlain = credRow?.credentials?.cert_password || "";
-  if (certPasswordPlain && certPasswordPlain.length > 100) {
-    // PGP 암호화된 형태 → decrypt RPC 호출
-    const { data: dec } = await supabase.rpc("decrypt_credential", { p_ciphertext: certPasswordPlain });
-    if (dec) certPasswordPlain = dec;
-  }
-
-  if (!certPasswordPlain) {
-    errors.push({
-      accountNo: "", organization: HOMETAX_ORG,
-      code: "NO_CERT_PW", message: "공동인증서 비밀번호가 설정되지 않았습니다",
-      hint: "설정 → 인증서 또는 세무자동화 탭에서 인증서 비밀번호를 등록하세요.",
-    });
-    return { synced: 0, errors };
-  }
-
-  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
-  const encryptedCertPw = publicKey ? rsaEncrypt(certPasswordPlain, publicKey) : certPasswordPlain;
-
-  // endDate 가 미래일 경우 오늘로 cap (CODEF CF-13001 회피).
-  // startDate 도 endDate 이후면 동일 cap.
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`;
-  const cappedEndDate = endDate > todayStr ? todayStr : endDate;
-  const cappedStartDate = startDate > cappedEndDate ? cappedEndDate : startDate;
-  if (cappedEndDate !== endDate || cappedStartDate !== startDate) {
-    console.log(`[hometax] date capped: ${startDate}~${endDate} → ${cappedStartDate}~${cappedEndDate}`);
-  }
-
-  // 매출(transeType=01) + 매입(transeType=02) 병렬 호출 (Edge Function 150s timeout 회피).
-  const baseReqBody = {
-    organization: HOMETAX_ORG,
-    loginType: "0",
-    certType: "1",
-    certFile: derB64,
-    keyFile: keyB64,
-    certPassword: encryptedCertPw,
-    inquiryType: "01",  // 01=전자세금계산서
-    searchType: "01",   // 01=작성일자
-    startDate: cappedStartDate,
-    endDate: cappedEndDate,
-    sortby: "1",
-    orderBy: "0",
-    type: "0",
-  };
-
-  const [salesResult, purchaseResult] = await Promise.all([
-    codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", { ...baseReqBody, transeType: "01" }),
-    codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", { ...baseReqBody, transeType: "02" }),
-  ]);
-
-  for (const [direction, result] of [["매출", salesResult], ["매입", purchaseResult]] as const) {
     if (result.result?.code !== "CF-00000") {
-      const code = result.result?.code || "UNKNOWN";
       errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code,
+        accountNo: "",
+        organization: HOMETAX_ORG,
+        code: result.result?.code || "UNKNOWN",
         message: result.result?.message || "응답 없음",
-        hint: code === "CF-03002"
-          ? "추가 인증(보안카드/간편인증/전자서명) 필요. 현재 미지원."
-          : code === "CF-13001"
-            ? "조회 기간이 잘못됨 (미래 날짜 등). 이번 달 또는 과거 데이터로 시도하세요."
-            : codefErrorHint(code),
+        hint: codefErrorHint(result.result?.code),
       });
       continue;
     }
@@ -647,10 +504,10 @@ async function syncHometaxInvoices(
     const invoices = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
 
     for (const inv of invoices) {
-      const invoiceNumber = inv.resApprovalNo || "";
+      const invoiceNumber = inv.resApprovalNo || inv.resInvoiceNumber || "";
       if (!invoiceNumber) continue;
 
-      const issueDate = inv.resIssueDate || inv.resReportingDate || "";
+      const issueDate = inv.resIssueDate || inv.resWriteDate || "";
       const formattedDate = issueDate.length === 8
         ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
         : issueDate;
@@ -659,14 +516,14 @@ async function syncHometaxInvoices(
         company_id: companyId,
         invoice_number: invoiceNumber,
         issue_date: formattedDate || null,
-        supplier_name: inv.resSupplierCompanyName || inv.resSupplierName || "",
-        supplier_brn: inv.resSupplierRegNumber || "",
-        buyer_name: inv.resContractorCompanyName || inv.resContractorName || "",
-        buyer_brn: inv.resContractorRegNumber || "",
-        supply_amount: Number(inv.resSupplyValue || 0),
-        tax_amount: Number(inv.resTaxAmt || 0),
-        total_amount: Number(inv.resTotalAmount || 0),
-        item_name: inv.resRepItems || null,
+        supplier_name: inv.resSupplierName || inv.resCompanyNm || "",
+        supplier_brn: inv.resSupplierRegNumber || inv.resCompanyBizNo || "",
+        buyer_name: inv.resBuyerName || inv.resReceiverNm || "",
+        buyer_brn: inv.resBuyerRegNumber || inv.resReceiverBizNo || "",
+        supply_amount: Number(inv.resSupplyValue || inv.resSupplyAmt || 0),
+        tax_amount: Number(inv.resTaxAmount || inv.resTaxAmt || 0),
+        total_amount: Number(inv.resTotalAmount || inv.resTotalAmt || 0),
+        item_name: inv.resItemName || inv.resItemNm || null,
         direction: direction === "매출" ? "issued" : "received",
         source: "codef_hometax",
       }, { onConflict: "invoice_number" });
@@ -720,14 +577,6 @@ serve(async (req) => {
     if (action === "register") {
       const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B" } = body;
 
-      // 홈택스는 register/connectedId 흐름 사용 안 함 (PDF 명세 확인됨).
-      // 매 sync 마다 인증서 + 비밀번호 직접 전송하는 방식. 별도 hometax-verify 액션 사용.
-      if (accountType === "hometax") {
-        return new Response(JSON.stringify({
-          error: "홈택스는 register 흐름이 아닙니다. action='hometax-verify' 를 사용하세요.",
-        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수
         if (!organization || !certPassword) {
@@ -743,52 +592,28 @@ serve(async (req) => {
         }
       }
 
-      const extraId: string | undefined = undefined;
-      const extraCompanyInfo: undefined = undefined;
-
       let result;
-      let regError: any = null;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, extraCompanyInfo }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
       } catch (regErr: any) {
         // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
         if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId: loginId || extraId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, extraCompanyInfo });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
           } catch (retryErr: any) {
-            regError = retryErr;
+            return new Response(JSON.stringify({
+              error: retryErr.message || "계정 등록 실패",
+              codefResponse: retryErr.codefResponse || null,
+              diagnostics: retryErr.diagnostics || null,
+            }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
         } else {
-          regError = regErr;
+          return new Response(JSON.stringify({
+            error: regErr.message || "계정 등록 실패",
+            codefResponse: regErr.codefResponse || null,
+            diagnostics: regErr.diagnostics || null,
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-      }
-
-      // 등록 시도 결과를 sync_logs 에 기록 (디버깅용)
-      try {
-        await supabase.from("sync_logs").insert({
-          company_id: companyId,
-          sync_type: `codef_register_${accountType}`,
-          status: regError ? "error" : "success",
-          details: {
-            organization,
-            accountType,
-            loginType,
-            errorCount: regError ? 1 : 0,
-            error: regError?.message || null,
-            codefResponse: regError?.codefResponse || null,
-            diagnostics: regError?.diagnostics || null,
-            connectedId: result?.connectedId ? `${result.connectedId.slice(0, 8)}***` : null,
-          },
-          synced_by: user.id,
-        });
-      } catch { /* non-critical */ }
-
-      if (regError) {
-        return new Response(JSON.stringify({
-          error: regError.message || "계정 등록 실패",
-          codefResponse: regError.codefResponse || null,
-          diagnostics: regError.diagnostics || null,
-        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Save connectedId to company_settings
@@ -801,121 +626,6 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // --- Action: hometax-verify (홈택스 검증) ---
-    // 활성화된 '전자세금계산서 통합 API' 직접 호출해서 검증 — registration-status 우회.
-    // (registration-status 는 별도 product 인 듯하고 운영 권한 따로 신청 필요할 수 있음.)
-    // 짧은 기간(어제~오늘) 1건 시도 — 응답이 정상이면 권한 + 인증 OK.
-    if (action === "hometax-verify") {
-      const { loginType: ht_loginType = "0", certPassword: ht_certPassword, identity: ht_identity, id: ht_id, userPassword: ht_userPassword } = body;
-
-      // 인증서 파일 로드 (storage에 미리 업로드된 NPKI)
-      let certB64 = "", keyB64Str = "";
-      if (ht_loginType === "0") {
-        const { data: derFileData } = await supabase.storage.from("certificates").download(`${companyId}/signCert.der`);
-        const { data: keyFileData } = await supabase.storage.from("certificates").download(`${companyId}/signPri.key`);
-        if (!derFileData || !keyFileData) {
-          return new Response(JSON.stringify({
-            error: "공동인증서 파일이 storage에 없습니다. 설정 → 인증서 탭에서 signCert.der + signPri.key 를 먼저 업로드하세요.",
-          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        certB64 = btoa(String.fromCharCode(...new Uint8Array(await derFileData.arrayBuffer())));
-        keyB64Str = btoa(String.fromCharCode(...new Uint8Array(await keyFileData.arrayBuffer())));
-
-        if (!ht_certPassword) {
-          return new Response(JSON.stringify({ error: "certPassword 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      } else if (ht_loginType === "1") {
-        if (!ht_id || !ht_userPassword) {
-          return new Response(JSON.stringify({ error: "id, userPassword 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      }
-
-      // 검증 기간: 최근 7일 (실제 데이터 있을 가능성 높임)
-      const today = new Date();
-      const yesterday = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const fmtDate = (d: Date) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-
-      const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
-      const reqBody: Record<string, any> = {
-        organization: "0002",
-        loginType: ht_loginType,
-        inquiryType: "01",     // 01=전자세금계산서
-        searchType: "01",      // 01=작성일자
-        startDate: fmtDate(yesterday),
-        endDate: fmtDate(today),
-        sortby: "1",
-        orderBy: "0",
-        transeType: "01",      // 01=매출 (검증용 1건만)
-        type: "0",
-      };
-      if (ht_loginType === "0") {
-        reqBody.certType = "1";
-        reqBody.certFile = certB64;
-        reqBody.keyFile = keyB64Str;
-        reqBody.certPassword = publicKey ? rsaEncrypt(ht_certPassword, publicKey) : ht_certPassword;
-        if (ht_identity) reqBody.identity = ht_identity;
-      } else {
-        reqBody.id = ht_id;
-        reqBody.userPassword = publicKey ? rsaEncrypt(ht_userPassword, publicKey) : ht_userPassword;
-        if (ht_identity) reqBody.identity = ht_identity;
-      }
-
-      const verifyResult = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", reqBody);
-
-      // 결과 저장 — 응답이 CF-00000 이면 권한 + 인증 OK (조회된 건수 무관).
-      // CF-03002 (continue2Way) 도 인증은 통과한 것 (추가인증만 필요).
-      const code = verifyResult.result?.code;
-      const status = (code === "CF-00000" || code === "CF-03002") ? "success" : "error";
-      const isRegistered = code === "CF-00000" || code === "CF-03002";
-      try {
-        await supabase.from("sync_logs").insert({
-          company_id: companyId,
-          sync_type: "codef_hometax_verify",
-          status,
-          details: {
-            organization: "0002",
-            loginType: ht_loginType,
-            isRegistered,
-            codefCode: verifyResult.result?.code,
-            codefMessage: verifyResult.result?.message,
-            resultDesc: verifyResult.data?.resResultDesc,
-            transactionId: verifyResult.result?.transactionId,
-            errorCount: status === "error" ? 1 : 0,
-          },
-          synced_by: user.id,
-        });
-      } catch { /* non-critical */ }
-
-      if (status === "error") {
-        const txId = verifyResult.result?.transactionId || "(없음)";
-        let hint = codefErrorHint(code);
-        if (code === "CF-00401") {
-          hint = `CODEF 운영팀에 다음 정보로 문의 필요 (https://codef.io/#/cs/inquiry):\n` +
-                 `- 운영(Production) 환경에서 카드 상품은 정상이지만 홈택스(공공) API 만 CF-00401 발생\n` +
-                 `- 활성화된 product: '국세청 회원 등록여부' + '전자세금계산서 통합'\n` +
-                 `- 호출 endpoint: /v1/kr/public/nt/tax-invoice/integrated-check-list\n` +
-                 `- transactionId: ${txId}\n` +
-                 `→ 활성화는 됐지만 실제 권한 부여 안 된 상태로 보입니다. 운영팀 확인 요청.`;
-        } else if (code === "CF-12826") {
-          hint = "홈택스 비밀번호 길이 제한 초과 (15자 초과). 비밀번호를 9~15자로 변경 후 재시도하세요.";
-        }
-        return new Response(JSON.stringify({
-          success: false,
-          error: `홈택스 검증 실패: ${verifyResult.result?.message || "알 수 없는 오류"} (${code})`,
-          hint,
-          transactionId: txId,
-          codefResponse: verifyResult,
-        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        registered: isRegistered,
-        message: isRegistered ? "홈택스 회원 등록 확인 완료" : "홈택스에 등록되지 않은 사용자",
-        resultDesc: verifyResult.data?.resResultDesc || "",
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: sandbox-connect (샌드박스 데모 데이터 즉시 연결) ---
@@ -980,9 +690,6 @@ serve(async (req) => {
 
     const results: Record<string, any> = {};
 
-    // syncType="all" 은 bank + card 만 (빠름). holetax 는 매 호출 60~80초+ 라
-    // 합치면 Edge Function 150 초 timeout 에 걸려서 504 발생. holetax 는 명시적
-    // syncType="hometax" 로만 호출.
     if (syncType === "bank" || syncType === "all") {
       results.bank = await syncBankTransactions(supabase, token, companyId, cid, start, end);
     }
@@ -991,7 +698,7 @@ serve(async (req) => {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 
-    if (syncType === "hometax") {
+    if (syncType === "hometax" || syncType === "all") {
       results.hometax = await syncHometaxInvoices(supabase, token, companyId, cid, start, end);
     }
 
@@ -1000,9 +707,10 @@ serve(async (req) => {
       ...(results.card?.errors ?? []),
       ...(results.hometax?.errors ?? []),
     ];
-    // 홈택스 CF-00003은 상품 미설정이므로 "skipped"로 분류 (은행/카드 성공 시 전체 실패 방지)
-    const criticalErrors = allErrors.filter(e => !(e.code === "CF-00003" && e.organization === "0001"));
-    const skippedErrors = allErrors.filter(e => e.code === "CF-00003" && e.organization === "0001");
+    // 상품 미활성화(CF-00003, CF-00401)는 "skipped" 처리 — 카드 성공 시 전체 실패 방지
+    const skippableCodes = new Set(["CF-00003", "CF-00401"]);
+    const criticalErrors = allErrors.filter(e => !skippableCodes.has(e.code));
+    const skippedErrors = allErrors.filter(e => skippableCodes.has(e.code));
     const totalSynced =
       (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
