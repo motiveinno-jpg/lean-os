@@ -499,6 +499,27 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId,
   });
 
+  // 홈택스 연결 상태 — automation_credentials.hometax 존재 여부 (codef-sync edge function이 실제로 사용하는 자격증명)
+  const { data: hometaxConnection } = useQuery({
+    queryKey: ["hometax-connection", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data } = await db
+        .from('automation_credentials')
+        .select('id, updated_at, credentials')
+        .eq('company_id', companyId!)
+        .eq('service', 'hometax')
+        .maybeSingle();
+      return data ? {
+        connected: true,
+        method: data.credentials?.login_method as 'certificate' | 'id_pw' | undefined,
+        connectedAt: data.updated_at as string | undefined,
+      } : { connected: false };
+    },
+    enabled: !!companyId,
+  });
+  const isHometaxConnected = !!hometaxConnection?.connected;
+
   // Excel import handler
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -684,13 +705,22 @@ export default function TaxInvoicesPage() {
             <span>
               마지막 업데이트: <strong className="text-[var(--text)]">{new Date(lastSyncData).toLocaleString('ko', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>
             </span>
+          ) : isHometaxConnected ? (
+            <span>홈택스 연결됨 — 첫 동기화를 시작하세요</span>
           ) : (
-            <span>아직 홈택스 동기화 이력이 없습니다</span>
+            <span>
+              홈택스 미연결 —{" "}
+              <Link href="/settings?tab=bank" className="text-[var(--primary)] font-semibold hover:underline">
+                설정 &gt; 은행연동
+              </Link>
+              에서 연결하세요
+            </span>
           )}
         </div>
         <button
           onClick={async () => {
             if (syncing) return;
+            if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
             setSyncing(true);
             try {
               if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
@@ -715,8 +745,9 @@ export default function TaxInvoicesPage() {
               setSyncing(false);
             }
           }}
-          disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50"
+          disabled={syncing || !isHometaxConnected}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : undefined}
         >
           <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1464,8 +1495,8 @@ export default function TaxInvoicesPage() {
       {/* Sync Tab (홈택스 동기화) */}
       {tab === "sync" && (
         <div className="space-y-4">
-          {/* KAIROS M3: 첫 사용자 가이드 — 동기화 이력이 없을 때만 노출 */}
-          {syncLogs.length === 0 && (
+          {/* 미연결 상태 — 등록 가이드 */}
+          {!isHometaxConnected && (
             <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-5">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">💡</div>
@@ -1475,9 +1506,9 @@ export default function TaxInvoicesPage() {
                     <li className="flex gap-2">
                       <span className="font-bold text-blue-500 flex-shrink-0">1.</span>
                       <span>
-                        <Link href="/settings?tab=tax-auto" className="text-blue-500 font-semibold hover:underline">설정 &gt; 세무자동화</Link>
-                        에서 <strong>홈택스 사업자 인증정보</strong>를 먼저 등록하세요
-                        (ID/PW 방식 또는 공동인증서)
+                        <Link href="/settings?tab=bank" className="text-blue-500 font-semibold hover:underline">설정 &gt; 은행연동</Link>
+                        의 <strong>금융기관 연결 → 홈택스</strong>에서 사업자 인증정보를 먼저 등록하세요
+                        (공동인증서 또는 ID/PW)
                       </span>
                     </li>
                     <li className="flex gap-2">
@@ -1498,18 +1529,46 @@ export default function TaxInvoicesPage() {
             </div>
           )}
 
+          {/* 연결됨 + 첫 동기화 전 — 시작 안내 */}
+          {isHometaxConnected && syncLogs.length === 0 && (
+            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-5">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">✅</div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-[var(--text)] mb-1">
+                    홈택스 연결 완료
+                    {hometaxConnection?.method === 'certificate' && <span className="ml-2 text-[10px] font-normal text-[var(--text-dim)]">(공동인증서)</span>}
+                    {hometaxConnection?.method === 'id_pw' && <span className="ml-2 text-[10px] font-normal text-[var(--text-dim)]">(ID/PW)</span>}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    아래 <strong>{month} 동기화 실행</strong> 버튼을 누르면 첫 매출/매입 세금계산서를 가져옵니다.
+                    수집 후 자동으로 <strong>3-Way 매칭</strong>이 시작됩니다.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <div className="text-sm font-bold">홈택스 세금계산서 동기화</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">홈택스 세금계산서 동기화</span>
+                  {isHometaxConnected ? (
+                    <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-semibold border border-green-500/30">연결됨</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)] text-[10px] font-semibold border border-[var(--border)]">미연결</span>
+                  )}
+                </div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">
-                  설정 &gt; 세무자동화에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
+                  설정 &gt; 은행연동에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
                 </div>
               </div>
               <button
                 onClick={async () => {
                   if (syncing) return;
                   if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
+                  if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
                   setSyncing(true);
                   try {
                     const startDate = `${month}-01`;
@@ -1531,8 +1590,9 @@ export default function TaxInvoicesPage() {
                     setSyncing(false);
                   }
                 }}
-                disabled={syncing}
-                className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                disabled={syncing || !isHometaxConnected}
+                className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : undefined}
               >
                 {syncing ? "동기화 중..." : `${month} 동기화 실행`}
               </button>
