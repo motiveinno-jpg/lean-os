@@ -41,7 +41,7 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
       .from("user_preferences")
       .select("role_preset, dashboard_widgets")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!data) return null;
 

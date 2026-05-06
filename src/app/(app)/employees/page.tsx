@@ -1009,7 +1009,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
       </div>
 
       {/* Detail Tabs */}
-      <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto">
+      <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto scrollbar-hide">
         {[
           { key: "info", label: "정보" },
           { key: "contracts", label: "계약서" },
@@ -2710,7 +2710,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
       {/* 상태 필터 탭 + 일괄 발송 */}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
           {[
             { key: "all", label: "전체" },
             { key: "draft", label: "임시저장" },

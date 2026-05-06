@@ -49,7 +49,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
           .from("user_preferences")
           .select("pinned_pages")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
         if (data?.pinned_pages && Array.isArray(data.pinned_pages)) {
           setPinnedPages(data.pinned_pages);
         }

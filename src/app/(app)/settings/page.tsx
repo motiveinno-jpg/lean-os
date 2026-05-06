@@ -169,10 +169,10 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-extrabold mb-2">설정</h1>
 
       {/* Main Tab Bar — horizontal scroll */}
-      <div className="mb-6 -mx-4 px-4">
+      <div className="mb-6 -mx-6 px-6">
         <div
-          className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto"
-          style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
+          className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto scrollbar-hide"
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           {mainTabs.map((t) => (
             <button

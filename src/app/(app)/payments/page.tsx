@@ -90,12 +90,12 @@ export default function PaymentsPage() {
       )}
 
       {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto">
+      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 px-3 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+            className={`shrink-0 flex-1 min-w-fit px-3 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
               tab === t.key
                 ? 'bg-[var(--bg-card)] text-[var(--text)] shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'
