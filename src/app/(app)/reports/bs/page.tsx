@@ -8,9 +8,13 @@ import { getCurrentUser } from "@/lib/queries";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 interface BsData {
-  /* Assets */
+  /* Assets — Current */
   cashAndDeposits: number;
   accountsReceivable: number;
+  currentAssets: number;
+  /* Assets — Fixed */
+  fixedAssets: number;
+  fixedAssetDetails: { name: string; value: number; type: string }[];
   totalAssets: number;
   /* Liabilities */
   borrowings: number;
@@ -18,7 +22,7 @@ interface BsData {
   totalLiabilities: number;
   /* Equity */
   capital: number;
-  isCapitalDefault: boolean; /* DB에서 자본금을 못 찾아 기본값 사용 여부 */
+  isCapitalDefault: boolean;
   retainedEarnings: number;
   totalEquity: number;
   /* Detail rows */
@@ -46,7 +50,7 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes, companyRes, settingsRes] = await Promise.all([
+  const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes, companyRes, settingsRes, vaultRes] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -75,20 +79,22 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("counterparty_name, total_amount, type, status")
       .eq("company_id", companyId)
       .eq("type", "purchase")
-      /* 실제 INVOICE_STATUS 기준: received(수취), issued(발행), modified(수정발행) — 미결제 상태만 필터 */
       .in("status", ["received", "issued", "modified"]),
-    /* 자본금 조회: companies 테이블 */
     supabase
       .from("companies")
       .select("capital, registered_capital")
       .eq("id", companyId)
       .maybeSingle(),
-    /* 자본금 조회 fallback: company_settings 테이블 (타입 미정의 테이블) */
     (supabase as any)
       .from("company_settings")
       .select("capital")
       .eq("company_id", companyId)
       .maybeSingle(),
+    supabase
+      .from("vault_assets")
+      .select("name, value, type, status")
+      .eq("company_id", companyId)
+      .neq("status", "disposed"),
   ]);
 
   const bankAccounts = bankRes.data || [];
@@ -97,13 +103,13 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const deals = dealsRes.data || [];
   const revenueSchedules = revenueRes.data || [];
   const invoices = invoicesRes.data || [];
+  const vaultAssets = (vaultRes.data || []) as { name: string; value: number | null; type: string; status: string | null }[];
 
-  /* --- Assets --- */
+  /* --- Assets: Current --- */
   const bankTotal = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
   const cashAmount = cashSnapshots.length > 0 ? (cashSnapshots[0].current_balance || 0) : 0;
   const cashAndDeposits = bankTotal + cashAmount;
 
-  /* Calculate paid amounts per deal from revenue schedule */
   const paidByDeal = new Map<string, number>();
   for (const rs of revenueSchedules) {
     if (!rs.deal_id) continue;
@@ -124,7 +130,22 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       };
     });
   const accountsReceivable = receivableDetails.reduce((sum, r) => sum + r.amount, 0);
-  const totalAssets = cashAndDeposits + accountsReceivable;
+  const currentAssets = cashAndDeposits + accountsReceivable;
+
+  /* --- Assets: Fixed (vault_assets) --- */
+  const ASSET_TYPE_LABELS: Record<string, string> = {
+    equipment: "장비", vehicle: "차량", furniture: "가구", it_equipment: "IT장비",
+    software: "소프트웨어", real_estate: "부동산", other: "기타",
+  };
+  const fixedAssetDetails = vaultAssets
+    .filter((a) => (a.value || 0) > 0)
+    .map((a) => ({
+      name: a.name || "unnamed asset",
+      value: a.value || 0,
+      type: ASSET_TYPE_LABELS[a.type] || a.type,
+    }));
+  const fixedAssets = fixedAssetDetails.reduce((sum, a) => sum + a.value, 0);
+  const totalAssets = currentAssets + fixedAssets;
 
   /* --- Liabilities --- */
   const loanDetails = loans.map((l) => ({
@@ -162,6 +183,9 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   return {
     cashAndDeposits,
     accountsReceivable,
+    currentAssets,
+    fixedAssets,
+    fixedAssetDetails,
     totalAssets,
     borrowings,
     accountsPayable,
@@ -192,12 +216,11 @@ interface RatioInfo {
 }
 
 function computeRatios(d: BsData): RatioInfo[] {
-  const currentAssets = d.cashAndDeposits + d.accountsReceivable;
   const currentLiabilities = d.accountsPayable;
 
   const currentRatio = currentLiabilities > 0
-    ? (currentAssets / currentLiabilities) * 100
-    : currentAssets > 0 ? 999 : 0;
+    ? (d.currentAssets / currentLiabilities) * 100
+    : d.currentAssets > 0 ? 999 : 0;
 
   const debtToEquity = d.totalEquity > 0
     ? (d.totalLiabilities / d.totalEquity) * 100
@@ -333,15 +356,22 @@ export default function BalanceSheetPage() {
     const lines: string[] = [];
     lines.push("구분,항목,금액");
 
-    lines.push("자산,,");
-    lines.push(`자산,현금 및 예금,${Math.round(data.cashAndDeposits)}`);
+    lines.push("유동자산,,");
+    lines.push(`유동자산,현금 및 예금,${Math.round(data.cashAndDeposits)}`);
     for (const b of data.bankAccountDetails) {
-      lines.push(`자산 > 현금 및 예금,${b.name},${Math.round(b.balance)}`);
+      lines.push(`유동자산 > 현금 및 예금,${b.name},${Math.round(b.balance)}`);
     }
-    lines.push(`자산,매출채권,${Math.round(data.accountsReceivable)}`);
+    lines.push(`유동자산,매출채권,${Math.round(data.accountsReceivable)}`);
     for (const r of data.receivableDetails) {
-      lines.push(`자산 > 매출채권,${r.name},${Math.round(r.amount)}`);
+      lines.push(`유동자산 > 매출채권,${r.name},${Math.round(r.amount)}`);
     }
+    lines.push(`유동자산 소계,,${Math.round(data.currentAssets)}`);
+    lines.push("");
+    lines.push("고정자산,,");
+    for (const a of data.fixedAssetDetails) {
+      lines.push(`고정자산,${a.name} (${a.type}),${Math.round(a.value)}`);
+    }
+    lines.push(`고정자산 소계,,${Math.round(data.fixedAssets)}`);
     lines.push(`자산 합계,,${Math.round(data.totalAssets)}`);
 
     lines.push("");
@@ -763,8 +793,8 @@ export default function BalanceSheetPage() {
             </tr>
           </thead>
           <tbody>
-            {/* Assets Section */}
-            {renderSectionHeader("자산 (Assets)")}
+            {/* Current Assets */}
+            {renderSectionHeader("유동자산 (Current Assets)")}
             {renderSectionRow("현금 및 예금", data.cashAndDeposits, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.cashAndDeposits : undefined })}
             {data.bankAccountDetails.map((b) =>
               renderSectionRow(b.name, b.balance, { isNested: true }),
@@ -773,6 +803,23 @@ export default function BalanceSheetPage() {
             {data.receivableDetails.map((r) =>
               renderSectionRow(r.name, r.amount, { isNested: true }),
             )}
+            {renderDivider("div-ca")}
+            {renderSectionRow("유동자산 소계", data.currentAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.currentAssets : undefined })}
+
+            {/* Fixed Assets */}
+            {renderSectionHeader("고정자산 (Fixed Assets)")}
+            {data.fixedAssetDetails.length > 0 ? (
+              <>
+                {data.fixedAssetDetails.map((a) =>
+                  renderSectionRow(`${a.name} (${a.type})`, a.value, { isNested: true }),
+                )}
+              </>
+            ) : (
+              renderSectionRow("등록된 고정자산 없음", 0, { indent: true })
+            )}
+            {renderDivider("div-fa")}
+            {renderSectionRow("고정자산 소계", data.fixedAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.fixedAssets : undefined })}
+
             {renderDivider("div-a1")}
             {renderSectionRow("자산 합계", data.totalAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalAssets : undefined })}
 
@@ -853,6 +900,24 @@ export default function BalanceSheetPage() {
                   >
                     {Math.round((data.accountsReceivable / data.totalAssets) * 100) > 10 ? "채권" : ""}
                   </div>
+                  {data.fixedAssets > 0 && (
+                    <div
+                      style={{
+                        width: `${Math.round((data.fixedAssets / data.totalAssets) * 100)}%`,
+                        background: "#8b5cf6",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 9,
+                        color: "#fff",
+                        fontWeight: 600,
+                        minWidth: 40,
+                      }}
+                      title={`고정자산: ₩${Math.round(data.fixedAssets).toLocaleString("ko-KR")}`}
+                    >
+                      {Math.round((data.fixedAssets / data.totalAssets) * 100) > 10 ? "고정" : ""}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -901,12 +966,15 @@ export default function BalanceSheetPage() {
               )}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)" }}>
+          <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)", flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />현금
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />채권/자본
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", display: "inline-block" }} />고정자산
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} />부채
@@ -940,6 +1008,8 @@ export default function BalanceSheetPage() {
         - 현금 및 예금은 등록된 은행계좌 잔액과 현금 스냅샷의 합계입니다.
         <br />
         - 매출채권은 진행 중인 프로젝트/딜의 미수금액을 기반으로 산출됩니다.
+        <br />
+        - 고정자산은 자산관리(Vault)에 등록된 장비, 차량, 소프트웨어 등의 자산가치입니다.
         <br />
         - 차입금은 대출 관리에서 진행 중인 대출 잔액입니다.
         <br />
