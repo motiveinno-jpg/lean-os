@@ -332,10 +332,21 @@ async function syncCardBilling(
         const usedDate = ch.resUsedDate || "";
         const externalId = `codef_card_${org}_${usedDate}_${ch.resApprovalNo || ""}_${ch.resMemberStoreName?.slice(0, 10) || ""}_${ch.resUsedAmount || 0}`;
 
-        // 카드 식별: ch.resUsedCard (4자리 형태) > bill.resCardNo > 카드사명만
+        // 카드 식별: ch.resUsedCard 비어있을 때를 대비한 폴백 체인 (CODEF가 거래마다 다른 필드 채울 수 있음).
         // card_name 통일 형식: "{카드사} {카드 식별자}" — 사용자가 어느 카드 사용했는지 명확.
-        const cardId = ch.resUsedCard || billCardNo || "";
-        const last4 = cardId ? cardId.replace(/[^0-9]/g, "").slice(-4) : "";
+        const cardIdCandidates: Array<string | undefined> = [
+          ch.resUsedCard,
+          ch.resCardNo,
+          ch.resOurCardNo,
+          ch.resCardName,
+          ch.resCardId,
+          ch.resCardNumber,
+          bill.resOurCardNo,
+          bill.resCardName,
+          billCardNo,
+        ];
+        const cardIdRaw = cardIdCandidates.find(v => v && String(v).trim()) || "";
+        const last4 = cardIdRaw ? String(cardIdRaw).replace(/[^0-9]/g, "").slice(-4) : "";
         const cardName = last4 ? `${issuer} ${last4}` : issuer;
 
         const { error } = await supabase.from("card_transactions").upsert({
@@ -355,6 +366,17 @@ async function syncCardBilling(
             issuer,
             cardNo: billCardNo,
             cardIdentifier: ch.resUsedCard || null,
+            // 진단용: 카드 식별 추적 가능하도록 모든 후보 값 + 거래 객체 통째로 보존.
+            // 누락 거래 backfill 시 raw_data 에서 카드번호 재추출 가능.
+            cardIdCandidates: cardIdCandidates.map(v => v ?? null),
+            cardIdResolved: cardIdRaw || null,
+            ch_full: ch,
+            bill_meta: {
+              resCardNo: bill.resCardNo || null,
+              resCardName: bill.resCardName || null,
+              resOurCardNo: bill.resOurCardNo || null,
+              resPaymentDueDate: bill.resPaymentDueDate || null,
+            },
             merchantBusinessNo: ch.resMemberStoreCorpNo || null,
             merchantTelNo: ch.resMemberStoreTelNo || null,
             merchantAddr: ch.resMemberStoreAddr || null,

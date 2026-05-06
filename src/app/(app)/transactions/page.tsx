@@ -1089,36 +1089,63 @@ export default function TransactionsPage() {
           </div>
 
           {/* Card 별 사용액 (CODEF sync 거래) */}
-          {codefCards.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-semibold text-[var(--text-muted)]">카드별 사용액 (카드번호 끝 4자리)</div>
-                {selectedCardName && (
-                  <button onClick={() => setSelectedCardName('')}
-                    className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text)] transition">
-                    ✕ 선택 해제 (전체 보기)
-                  </button>
+          {codefCards.length > 0 && (() => {
+            // 끝번호(숫자4자리) 없이 카드사명만 있는 항목 = CODEF 응답에 카드 식별자 없는 미식별 거래 묶음.
+            // 사용자가 어떤 카드인지 알 수 없으므로 경고 + 클릭해서 안의 거래 확인 가능하게 안내.
+            const isUnidentified = (name: string) => !/\d{4}\s*$/.test(name);
+            const unidentifiedCards = codefCards.filter((c: any) => isUnidentified(c.card_name));
+            const unidentifiedCount = unidentifiedCards.reduce((s: number, c: any) => s + Number(c.count || 0), 0);
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-[var(--text-muted)]">카드별 사용액 (카드번호 끝 4자리)</div>
+                  {selectedCardName && (
+                    <button onClick={() => setSelectedCardName('')}
+                      className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text)] transition">
+                      ✕ 선택 해제 (전체 보기)
+                    </button>
+                  )}
+                </div>
+                {unidentifiedCount > 0 && (
+                  <div className="mb-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/30 text-xs text-amber-600">
+                    <div className="font-semibold mb-0.5">⚠️ 카드 식별자 미확인 거래 {unidentifiedCount.toLocaleString()}건</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      CODEF 응답에 카드 끝번호가 없는 거래입니다. 같은 카드사 여러 카드 거래가 한 묶음으로 표시됩니다.
+                      해당 카드 항목을 클릭해 거래를 확인하고 필요 시 수동으로 카드 매핑하세요.
+                    </div>
+                  </div>
                 )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {codefCards.map((c: any) => {
+                    const unid = isUnidentified(c.card_name);
+                    return (
+                      <button
+                        key={c.card_name}
+                        onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
+                        title={unid ? '⚠️ 카드 식별자 미확인 — 같은 카드사 여러 카드 거래가 묶여 있을 수 있습니다' : undefined}
+                        className={`p-3 rounded-xl border text-left transition ${
+                          selectedCardName === c.card_name
+                            ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
+                            : unid
+                              ? 'bg-amber-500/5 border-amber-500/30 hover:border-amber-500/60'
+                              : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1">
+                          {unid && <span className="text-[10px]">⚠️</span>}
+                          <div className="text-xs font-bold text-[var(--text)] truncate">{c.card_name}</div>
+                        </div>
+                        <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                          {c.count.toLocaleString()}건{unid && <span className="ml-1 text-amber-600">· 미식별</span>}
+                        </div>
+                        <div className="text-sm font-semibold text-[var(--primary)] mt-1">₩{Number(c.total).toLocaleString()}</div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {codefCards.map((c: any) => (
-                  <button
-                    key={c.card_name}
-                    onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
-                    className={`p-3 rounded-xl border text-left transition ${
-                      selectedCardName === c.card_name
-                        ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
-                        : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-[var(--text)] truncate">{c.card_name}</div>
-                    <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{c.count.toLocaleString()}건</div>
-                    <div className="text-sm font-semibold text-[var(--primary)] mt-1">₩{Number(c.total).toLocaleString()}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Card Selector + Actions */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
