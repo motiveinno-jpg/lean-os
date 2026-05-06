@@ -734,11 +734,12 @@ serve(async (req) => {
 
     const results: Record<string, any> = {};
 
-    if (syncType === "bank" || syncType === "all") {
+    // syncType="bank_card": 은행+카드만 (홈택스 timeout 분리용 — settings handleSync 1단계에서 사용)
+    if (syncType === "bank" || syncType === "all" || syncType === "bank_card") {
       results.bank = await syncBankTransactions(supabase, token, companyId, cid, start, end);
     }
 
-    if (syncType === "card" || syncType === "all") {
+    if (syncType === "card" || syncType === "all" || syncType === "bank_card") {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
     }
 

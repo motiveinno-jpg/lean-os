@@ -2852,9 +2852,9 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
 
-      // 1단계: 은행/카드 동기화 (빠름, ConnectedID 필요)
+      // 1단계: 은행/카드만 동기화 (빠름, ConnectedID 필요). 홈택스는 2단계에서 별도 호출 — timeout 분리.
       const bankCardRes = hasCodefConnection
-        ? await syncCodefData(companyId, "all")
+        ? await syncCodefData(companyId, "bank_card")
         : { success: true, errors: [], status: "success" as const, message: "은행/카드 미등록" };
 
       // 2단계: 홈택스 동기화 (느림, 인증서 storage 필요) — 등록된 경우만
