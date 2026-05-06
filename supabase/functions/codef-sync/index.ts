@@ -669,8 +669,7 @@ async function syncHometaxInvoices(
     debug.push(`${direction} invoices.length=${invoices.length}`);
     if (invoices.length > 0) {
       const f = invoices[0];
-      debug.push(`${direction} firstInvoice keys=[${Object.keys(f).join(",")}]`);
-      debug.push(`${direction} sample resApprovalNo='${f.resApprovalNo}' resIssueDate='${f.resIssueDate}' resTotalAmount='${f.resTotalAmount}' resSupplierName='${f.resSupplierName}' resContractorName='${f.resContractorName}'`);
+      debug.push(`${direction} sample resApprovalNo='${f.resApprovalNo}' resIssueDate='${f.resIssueDate}' resReportingDate='${f.resReportingDate}' resSendDate='${f.resSendDate}'`);
     }
 
     const isSales = direction === "매출";
@@ -682,7 +681,13 @@ async function syncHometaxInvoices(
       const ntsConfirmNo = String(inv.resApprovalNo || "").trim();
       if (!ntsConfirmNo) continue;
 
-      const issueDate = String(inv.resIssueDate || inv.resReportingDate || "").trim();
+      // ⚠️ 작성일자(공급일자) vs 발행일자 구분:
+      //   resReportingDate = 작성일자/공급일자 (예: 20260228) — 한국 세무 관행상 거래 월 기준
+      //   resIssueDate     = 발행일 (예: 20260309) — 다음달 10일까지 발행 가능
+      //   resSendDate      = 전송일 (≈ 발행일)
+      // 사용자가 "2월 세금계산서" 라고 인식할 때 = 2월에 거래한 것 = resReportingDate.
+      // 화면 월별 그룹핑이 issue_date 컬럼 기준이라 작성일자를 issue_date 에 매핑해야 일치.
+      const issueDate = String(inv.resReportingDate || inv.resIssueDate || "").trim();
       const formattedDate = issueDate.length === 8
         ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
         : null;
