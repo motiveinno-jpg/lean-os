@@ -684,13 +684,16 @@ async function syncHometaxInvoices(
       // ⚠️ 작성일자(공급일자) vs 발행일자 구분:
       //   resReportingDate = 작성일자/공급일자 (예: 20260228) — 한국 세무 관행상 거래 월 기준
       //   resIssueDate     = 발행일 (예: 20260309) — 다음달 10일까지 발행 가능
-      //   resSendDate      = 전송일 (≈ 발행일)
-      // 사용자가 "2월 세금계산서" 라고 인식할 때 = 2월에 거래한 것 = resReportingDate.
-      // 화면 월별 그룹핑이 issue_date 컬럼 기준이라 작성일자를 issue_date 에 매핑해야 일치.
-      const issueDate = String(inv.resReportingDate || inv.resIssueDate || "").trim();
-      const formattedDate = issueDate.length === 8
-        ? `${issueDate.slice(0,4)}-${issueDate.slice(4,6)}-${issueDate.slice(6,8)}`
-        : null;
+      // 화면 월별 그룹핑은 issue_date 컬럼(=작성일자) 기준.
+      const reportingDate = String(inv.resReportingDate || "").trim();
+      // CODEF 매입 응답이 검색 기간 외(특히 그 이후) 작성일자도 섞어 보내는 케이스 방어:
+      // 작성일자가 sync 호출 기간(cappedStart~cappedEnd) 밖이면 skip.
+      // 이렇게 안 하면 2월 sync 응답에 들어온 작성일자 3월 매입이 DB에 잘못 들어가고,
+      // 3월 sync 했을 때 64건이 또 들어와서 두 배(이중 카운트)됨.
+      if (reportingDate.length !== 8 || reportingDate < cappedStart || reportingDate > cappedEnd) {
+        continue;
+      }
+      const formattedDate = `${reportingDate.slice(0,4)}-${reportingDate.slice(4,6)}-${reportingDate.slice(6,8)}`;
 
       // 매출(우리가 발행) → 거래처는 받는자(Contractor). 매입(상대가 발행) → 거래처는 발급자(Supplier).
       const counterpartyName = isSales
