@@ -221,7 +221,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             {paymentStages.map((stage, idx) => (
               <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <input value={stage.label} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], label: e.target.value }; setPaymentStages(arr); }} className="w-20 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" placeholder="단계명" />
-                <input type="text" inputMode="numeric" value={String(stage.ratio)} onChange={(e) => { const arr = [...paymentStages]; const v = e.target.value.replace(/[^0-9]/g, ''); const num = v === '' ? 0 : Math.min(100, parseInt(v, 10)); arr[idx] = { ...arr[idx], ratio: num }; setPaymentStages(arr); }} placeholder="0" className="w-16 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-right focus:outline-none focus:border-[var(--primary)]" /><span className="text-[10px] text-[var(--text-dim)]">%</span>
+                <input type="text" inputMode="numeric" value={stage.ratio === 0 ? '' : String(stage.ratio)} onChange={(e) => { const arr = [...paymentStages]; const v = e.target.value.replace(/[^0-9]/g, ''); const num = v === '' ? 0 : Math.min(100, parseInt(v, 10)); arr[idx] = { ...arr[idx], ratio: num }; setPaymentStages(arr); }} placeholder="0" className="w-16 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-right focus:outline-none focus:border-[var(--primary)]" /><span className="text-[10px] text-[var(--text-dim)]">%</span>
                 <input value={stage.condition} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], condition: e.target.value }; setPaymentStages(arr); }} className="flex-1 min-w-[120px] px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" placeholder="지급 조건 (예: 계약 후 7일)" />
                 {milestones.length > 0 && (
                   <select value={stage.milestone_id || ''} onChange={(e) => { const arr = [...paymentStages]; arr[idx] = { ...arr[idx], milestone_id: e.target.value || undefined }; setPaymentStages(arr); }} className="w-28 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
@@ -730,7 +730,10 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
     try {
       const { data: docData, error: docErr } = await db2.from('documents').select('name, content_json, deal_id').eq('id', documentId).single();
       if (docErr || !docData) throw new Error('문서를 찾을 수 없습니다');
-      if (!docData.content_json) throw new Error('문서 내용이 비어있습니다. 견적서를 다시 생성해주세요.');
+      if (!docData.content_json) {
+        const { data: dealData } = await db2.from('deals').select('name, contract_total').eq('id', docData.deal_id).single();
+        throw new Error(`문서 내용이 비어있습니다. ${dealData ? `딜: ${dealData.name} (₩${Number(dealData.contract_total || 0).toLocaleString()})` : ''} 견적서를 다시 생성해주세요.`);
+      }
       const cj = docData.content_json as any;
       const { data: comp } = await db2.from('companies').select('name, business_number, representative, address, seal_url').eq('id', companyId).single();
       const companyInfo = { name: comp?.name || '', businessNumber: comp?.business_number || '', representative: comp?.representative || '', address: comp?.address || '' };
