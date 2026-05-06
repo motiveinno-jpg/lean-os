@@ -935,3 +935,43 @@ export async function forceApproveDocument(params: {
 
   return { nextAction: 'force_approved' };
 }
+
+// ── 8. Revert Pipeline — 마지막 완료 단계를 되돌림 ──
+export async function revertLastPipelineStage(params: {
+  dealId: string;
+  companyId: string;
+  userId: string;
+}): Promise<{ revertedStage: string }> {
+  const { dealId, companyId, userId } = params;
+  const stages = await getDealPipelineStatus(dealId);
+  const completed = stages.filter(s => s.status === 'completed');
+  if (completed.length === 0) throw new Error('되돌릴 단계가 없습니다');
+
+  const lastCompleted = completed[completed.length - 1];
+
+  if (lastCompleted.stage === 'payment_received') {
+    const { data: schedules } = await db.from('deal_revenue_schedule').select('id, status').eq('deal_id', dealId).eq('status', 'received').order('updated_at', { ascending: false }).limit(1);
+    if (schedules?.[0]) {
+      await db.from('deal_revenue_schedule').update({ status: 'expected' }).eq('id', schedules[0].id);
+    }
+  } else if (lastCompleted.stage === 'payment_schedule') {
+    await db.from('deal_revenue_schedule').delete().eq('deal_id', dealId);
+  } else if (lastCompleted.stage === 'tax_invoice') {
+    await supabase.from('tax_invoices').update({ status: 'void' as any }).eq('deal_id', dealId).neq('status', 'void');
+  } else if (lastCompleted.stage === 'contract' && lastCompleted.documentId) {
+    await supabase.from('documents').update({ status: 'draft' }).eq('id', lastCompleted.documentId);
+  } else if (lastCompleted.stage === 'quote' && lastCompleted.documentId) {
+    await supabase.from('documents').update({ status: 'draft' }).eq('id', lastCompleted.documentId);
+  }
+
+  await dispatchBusinessEvent({
+    dealId,
+    eventType: 'document_approved' as BusinessEventType,
+    userId,
+    referenceId: dealId,
+    referenceTable: 'deals',
+    summary: { title: `파이프라인 "${lastCompleted.stage}" 단계 되돌림` },
+  });
+
+  return { revertedStage: lastCompleted.stage };
+}
