@@ -96,7 +96,7 @@ export default function BillingPage() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!companyId,
@@ -127,7 +127,7 @@ export default function BillingPage() {
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!companyId,

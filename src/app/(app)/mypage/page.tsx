@@ -27,7 +27,7 @@ export default function MyPage() {
   const { data: userInfo } = useQuery({
     queryKey: ["my-user-info", userId],
     queryFn: async () => {
-      const { data } = await supabase.from("users").select("name, email, role").eq("id", userId!).single();
+      const { data } = await supabase.from("users").select("name, email, role").eq("id", userId!).maybeSingle();
       return data;
     },
     enabled: !!userId,
@@ -51,7 +51,7 @@ export default function MyPage() {
   const { data: company } = useQuery({
     queryKey: ["my-company-info", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name").eq("id", companyId!).single();
+      const { data } = await supabase.from("companies").select("name").eq("id", companyId!).maybeSingle();
       return data;
     },
     enabled: !!companyId,

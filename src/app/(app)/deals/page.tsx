@@ -767,7 +767,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   }
 
   async function loadDealPartner(documentId: string) {
-    const { data: dealData } = await db2.from('deals').select('*, partners!deals_partner_id_fkey(id, name, contact_email, business_number, contact_phone)').eq('id', dealId).single();
+    const { data: dealData } = await db2.from('deals').select('*, partners!deals_partner_id_fkey(id, name, contact_email, business_number, contact_phone)').eq('id', dealId).maybeSingle();
     if (dealData?.partners?.contact_email) {
       setSelectedPartner(dealData.partners);
       setEmailTab('existing');

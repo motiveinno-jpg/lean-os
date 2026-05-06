@@ -186,7 +186,7 @@ function SignContent() {
         .from("hr_contract_packages")
         .select("*, employees(name, email, department, position), companies(name)")
         .eq("sign_token", token)
-        .single();
+        .maybeSingle();
 
       if (!p) {
         // Fallback: check general document signature_requests
@@ -194,7 +194,7 @@ function SignContent() {
           .from("signature_requests")
           .select("*, documents(name, content_json, status, company_id)")
           .eq("sign_token", token)
-          .single();
+          .maybeSingle();
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
@@ -203,7 +203,7 @@ function SignContent() {
             .from("companies")
             .select("name")
             .eq("id", sigReq.documents?.company_id || sigReq.company_id)
-            .single();
+            .maybeSingle();
 
           setPkg({
             id: sigReq.id,
@@ -247,7 +247,7 @@ function SignContent() {
           .from("employees")
           .select("saved_signature")
           .eq("id", p.employee_id)
-          .single();
+          .maybeSingle();
         if (emp?.saved_signature) {
           setSavedSignature(emp.saved_signature);
         }

@@ -464,7 +464,7 @@ export default function TaxInvoicesPage() {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).single();
+      const { data } = await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle();
       return data;
     },
     enabled: !!companyId,
