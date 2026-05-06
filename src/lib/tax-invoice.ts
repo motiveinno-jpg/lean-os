@@ -249,17 +249,54 @@ export async function markInvoiceMatched(invoiceId: string) {
   if (error) throw error;
 }
 
-// ── Issue tax invoice (draft → issued) ──
-export async function issueTaxInvoice(invoiceId: string) {
-  const { data, error } = await supabase
+// ── Issue tax invoice (실제 홈택스 전자발행) ──
+// - 기본: hometax-issue edge function 호출 → CODEF 거쳐서 국세청 전자발행 + 승인번호 받음.
+// - opts.dbOnly: true 이면 외부 호출 없이 DB status 만 'issued' 마킹 (자동화/마이그레이션 등 특수 케이스).
+// - 실패 시 throw — 호출자가 catch 해서 사용자에게 toast 로 명확한 에러 + hint 표시 권장.
+export async function issueTaxInvoice(
+  invoiceId: string,
+  opts: { dbOnly?: boolean } = {},
+) {
+  if (opts.dbOnly) {
+    const { data, error } = await supabase
+      .from('tax_invoices')
+      .update({ status: 'issued', issue_date: new Date().toISOString().split('T')[0] })
+      .eq('id', invoiceId)
+      .eq('status', 'draft')
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  // 정공법: 홈택스 전자발행
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Supabase URL 미설정');
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/hometax-issue`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ invoice_id: invoiceId }),
+  });
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(result.error || `홈택스 발행 실패 (HTTP ${res.status})`);
+    (err as any).code = result.code;
+    (err as any).hint = result.hint;
+    throw err;
+  }
+  // 발행 성공 — 갱신된 invoice 반환
+  const { data: invoice } = await supabase
     .from('tax_invoices')
-    .update({ status: 'issued', issue_date: new Date().toISOString().split('T')[0] })
+    .select('*')
     .eq('id', invoiceId)
-    .eq('status', 'draft')
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+    .maybeSingle();
+  return invoice;
 }
 
 // ── Period Aggregation (월/분기/연간) ──

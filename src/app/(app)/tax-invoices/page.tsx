@@ -675,21 +675,23 @@ export default function TaxInvoicesPage() {
     setBatchIssuing(true);
     let successCount = 0;
     let failCount = 0;
+    let firstHint = "";
     for (const inv of selectedDrafts) {
       try {
         await issueTaxInvoice(inv.id);
         successCount++;
-      } catch {
+      } catch (err: any) {
         failCount++;
+        if (!firstHint && err?.hint) firstHint = err.hint;
       }
     }
     setBatchIssuing(false);
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
     if (failCount === 0) {
-      toast(`${successCount}건 일괄 발행 완료`, "success");
+      toast(`${successCount}건 일괄 발행 완료 (홈택스)`, "success");
     } else {
-      toast(`${successCount}건 발행, ${failCount}건 실패`, "error");
+      toast(`${successCount}건 발행, ${failCount}건 실패${firstHint ? ' — ' + firstHint : ''}`, "error");
     }
   }
 
@@ -697,9 +699,10 @@ export default function TaxInvoicesPage() {
     try {
       await issueTaxInvoice(id);
       queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
-      toast("발행 완료", "success");
+      toast("홈택스 발행 완료 (승인번호 저장됨)", "success");
     } catch (err: any) {
-      toast(`발행 실패: ${err.message || err}`, "error");
+      const hint = err?.hint ? `\n→ ${err.hint}` : "";
+      toast(`발행 실패: ${err.message || err}${hint}`, "error");
     }
   }
 

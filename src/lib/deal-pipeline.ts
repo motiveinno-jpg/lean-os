@@ -756,7 +756,9 @@ export async function onRevenueReceived(params: {
       .order('created_at', { ascending: true })
       .limit(1);
     if (nextDraftInvoices && nextDraftInvoices.length > 0) {
-      await issueTaxInvoice(nextDraftInvoices[0].id);
+      // 자동화 흐름은 사용자 인터랙션 불가 — DB 마킹만 하고 실제 홈택스 발행은 추후
+      // process-invoice-queue 큐에서 처리(별도 작업). 사용자 수동 발행 시에만 hometax-issue 호출.
+      await issueTaxInvoice(nextDraftInvoices[0].id, { dbOnly: true });
     }
   }
 
