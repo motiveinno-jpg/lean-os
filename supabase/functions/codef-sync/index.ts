@@ -575,6 +575,12 @@ async function syncHometaxInvoices(
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
   const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
 
+  // CF-13001 방지: 미래 날짜는 today 로 cap. CODEF 통합 API 는 endDate > today 면 거부.
+  // 사용자가 5월 보고 있어도 5/31 (미래)을 보내면 안 됨 → 5/6 (오늘)으로 cap.
+  const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
+  const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
+
   // 한 organization에서 같은 에러는 한 번만 보고 (매출/매입 중복 제거)
   const reportedCodes = new Set<string>();
   // 환경(상품 미활성화/연결 만료/통신 실패)면 매출 단계에서 잡고 매입은 skip
@@ -594,8 +600,8 @@ async function syncHometaxInvoices(
       certPassword: encryptedCertPw,
       inquiryType: "01",                                  // 01=전자세금계산서
       searchType: "01",                                   // 01=작성일자
-      startDate,                                          // YYYYMMDD
-      endDate,                                            // YYYYMMDD
+      startDate: cappedStart,                             // YYYYMMDD (미래 보호)
+      endDate: cappedEnd,                                 // YYYYMMDD (today 로 cap)
       sortby: "1",
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",     // 01=매출 / 02=매입
