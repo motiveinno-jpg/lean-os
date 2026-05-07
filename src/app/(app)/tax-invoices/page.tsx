@@ -387,9 +387,8 @@ export default function TaxInvoicesPage() {
   type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
   const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
 
-  // 일별 sync — timeout 발생 시 자동으로 기간을 반으로 쪼개 재귀 시도.
-  // CODEF 가 거래량 많은 월(예: 1월 23~31일)에 매출/매입 70초 cap 초과해도, 더 짧은 구간으로 분할하면 응답 받음.
-  // depth 한도 = 5 (한 달 → 16일 → 8일 → 4일 → 2일 → 1일).
+  // sync 헬퍼 — timeout 발생 시 한 번만 반으로 분할 시도 (depth=1 한도).
+  // 더 깊은 재귀는 시간만 소비하고 답답 → 거기서도 실패하면 결과 패널의 "재시도" 버튼으로 사용자 결정.
   async function syncRangeWithSplit(
     companyId: string, startYmd: string, endYmd: string, depth = 0,
   ): Promise<{ synced: number; responseCount: number; errors: any[] }> {
@@ -400,7 +399,8 @@ export default function TaxInvoicesPage() {
     const startDate = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
     const endDate = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
     const days = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-    if (timedOut && depth < 5 && days >= 2) {
+    // depth 1만 — 한 번 분할 시도 후에도 timeout 이면 사용자에게 알리고 끝 (재시도 버튼 노출).
+    if (timedOut && depth < 1 && days >= 8) {
       const midOffset = Math.floor(days / 2) - 1;
       const mid = new Date(startDate.getTime() + midOffset * 86400000);
       const midNext = new Date(mid.getTime() + 86400000);
