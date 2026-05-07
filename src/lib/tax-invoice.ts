@@ -466,6 +466,7 @@ export async function syncHomeTaxInvoices(params: {
   synced: number;
   responseCount: number;  // CODEF 응답에 들어온 row 수 — synced 와 차이가 있으면 누락
   errors: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
+  notes: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
 }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('로그인이 필요합니다');
@@ -500,6 +501,7 @@ export async function syncHomeTaxInvoices(params: {
     synced: result.results?.hometax?.synced ?? 0,
     responseCount: result.results?.hometax?.responseCount ?? 0,
     errors: result.errors ?? [],
+    notes: result.notes ?? [],
   };
 }
 

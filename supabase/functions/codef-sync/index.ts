@@ -59,9 +59,10 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
   return data.access_token;
 }
 
-// CODEF 게이트웨이 응답이 멈출 때 Edge Function 150초 timeout (HTTP 546) 회피.
-// 각 호출 60초 cap → 그 이상이면 abort → 우리가 정한 응답으로 매핑.
-const CODEF_REQUEST_TIMEOUT_MS = 60_000;
+// CODEF 게이트웨이 응답이 멈출 때 Edge Function 150초 timeout (HTTP 546) 회째.
+// 각 호출 70초 cap (매출+매입 sequential = max 140초, Edge Function 150초 안에 안전).
+// 일부 월(예: 1월처럼 거래량 많거나 CODEF 부하시)은 60초 부족, 70초로 늘림.
+const CODEF_REQUEST_TIMEOUT_MS = 70_000;
 
 async function codefRequest(token: string, path: string, body: Record<string, any>): Promise<any> {
   const sanitizedBody = { ...body };

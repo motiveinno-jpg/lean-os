@@ -387,6 +387,39 @@ export default function TaxInvoicesPage() {
   type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
   const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
 
+  // 일별 sync — timeout 발생 시 자동으로 기간을 반으로 쪼개 재귀 시도.
+  // CODEF 가 거래량 많은 월(예: 1월 23~31일)에 매출/매입 70초 cap 초과해도, 더 짧은 구간으로 분할하면 응답 받음.
+  // depth 한도 = 5 (한 달 → 16일 → 8일 → 4일 → 2일 → 1일).
+  async function syncRangeWithSplit(
+    companyId: string, startYmd: string, endYmd: string, depth = 0,
+  ): Promise<{ synced: number; responseCount: number; errors: any[] }> {
+    const startISO = `${startYmd.slice(0, 4)}-${startYmd.slice(4, 6)}-${startYmd.slice(6, 8)}`;
+    const endISO = `${endYmd.slice(0, 4)}-${endYmd.slice(4, 6)}-${endYmd.slice(6, 8)}`;
+    const r = await syncHomeTaxInvoices({ companyId, startDate: startISO, endDate: endISO });
+    const timedOut = (r.notes || []).some((n: any) => n.code === "CF-TIMEOUT");
+    const startDate = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
+    const endDate = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
+    const days = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+    if (timedOut && depth < 5 && days >= 2) {
+      const midOffset = Math.floor(days / 2) - 1;
+      const mid = new Date(startDate.getTime() + midOffset * 86400000);
+      const midNext = new Date(mid.getTime() + 86400000);
+      const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      const r1 = await syncRangeWithSplit(companyId, startYmd, fmt(mid), depth + 1);
+      const r2 = await syncRangeWithSplit(companyId, fmt(midNext), endYmd, depth + 1);
+      return {
+        synced: r1.synced + r2.synced,
+        responseCount: r1.responseCount + r2.responseCount,
+        errors: [...r1.errors, ...r2.errors],
+      };
+    }
+    return {
+      synced: r.synced || 0,
+      responseCount: r.responseCount || 0,
+      errors: [...(r.errors || []), ...(timedOut ? r.notes : [])],
+    };
+  }
+
   // 사용자가 선택한 시작~종료 월 범위로 sequential 동기화. 진행 상황 syncProgress 로 표시.
   // CODEF 가 동시 호출 거부(CF-00016/CF-TIMEOUT) 라 매월/매출/매입 모두 sequential 필수.
   async function runHometaxSync(fromMonth: string, toMonth: string) {
@@ -413,13 +446,12 @@ export default function TaxInvoicesPage() {
         setSyncProgress({ done: i + 1, total: months.length, label: ml });
         const [my, mm] = ml.split('-').map(Number);
         const lastDay = new Date(my, mm, 0).getDate();
-        const startDate = `${ml}-01`;
-        const endDate = `${ml}-${String(lastDay).padStart(2, '0')}`;
+        const startYmd = `${my}${String(mm).padStart(2, '0')}01`;
+        const endYmd = `${my}${String(mm).padStart(2, '0')}${String(lastDay).padStart(2, '0')}`;
         try {
-          const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-          const responseCount = r.responseCount ?? r.synced;
-          // 누락 판정: 응답 받은 수보다 저장된 수 적음 OR errors 있음 (CF-12200/CF-TIMEOUT 등)
-          const hasErrors = (r.errors?.length || 0) > 0;
+          const r = await syncRangeWithSplit(companyId, startYmd, endYmd);
+          const responseCount = r.responseCount;
+          const hasErrors = r.errors.length > 0;
           const status: "ok" | "partial" | "error" =
             hasErrors && r.synced === 0 ? "error"
             : (hasErrors || responseCount > r.synced) ? "partial"
@@ -429,7 +461,7 @@ export default function TaxInvoicesPage() {
             responseCount,
             synced: r.synced || 0,
             status,
-            errorMsg: r.errors?.[0]?.hint || r.errors?.[0]?.message,
+            errorMsg: r.errors[0]?.hint || r.errors[0]?.message,
           });
         } catch (e: any) {
           monthResults.push({ month: ml, responseCount: 0, synced: 0, status: "error", errorMsg: e.message });
@@ -468,19 +500,17 @@ export default function TaxInvoicesPage() {
     try {
       const [my, mm] = month.split('-').map(Number);
       const lastDay = new Date(my, mm, 0).getDate();
-      const r = await syncHomeTaxInvoices({
-        companyId,
-        startDate: `${month}-01`,
-        endDate: `${month}-${String(lastDay).padStart(2, '0')}`,
-      });
-      const responseCount = r.responseCount ?? r.synced;
-      const hasErrors = (r.errors?.length || 0) > 0;
+      const startYmd = `${my}${String(mm).padStart(2, '0')}01`;
+      const endYmd = `${my}${String(mm).padStart(2, '0')}${String(lastDay).padStart(2, '0')}`;
+      const r = await syncRangeWithSplit(companyId, startYmd, endYmd);
+      const responseCount = r.responseCount;
+      const hasErrors = r.errors.length > 0;
       const status: "ok" | "partial" | "error" =
         hasErrors && r.synced === 0 ? "error"
         : (hasErrors || responseCount > r.synced) ? "partial"
         : "ok";
       setSyncResultDetail((prev) => (prev || []).map((m) =>
-        m.month === month ? { month, responseCount, synced: r.synced || 0, status, errorMsg: r.errors?.[0]?.hint || r.errors?.[0]?.message } : m
+        m.month === month ? { month, responseCount, synced: r.synced || 0, status, errorMsg: r.errors[0]?.hint || r.errors[0]?.message } : m
       ));
       if (status === "ok") toast(`${month} 재동기화 완료: ${r.synced}건`, 'success');
       else toast(`${month} 재시도: ${r.synced}건 동기화 (누락 남음)`, 'info');
