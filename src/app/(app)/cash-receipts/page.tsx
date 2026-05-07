@@ -167,9 +167,17 @@ export default function CashReceiptsPage() {
           queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
           queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
           if (payload.new.status === "completed") {
-            toast(`현금영수증 동기화 완료: ${payload.new.total_synced || 0}건`, "success");
+            const synced = payload.new.total_synced || 0;
+            const errs = payload.new.errors || [];
+            const errSummary = errs.length > 0 ? ` (오류 ${errs.length}건: ${errs[0]?.hint || errs[0]?.message || ""})` : "";
+            if (synced === 0 && errs.length === 0) {
+              toast("동기화 완료 — 해당 기간에 발행한 매출 현금영수증이 없습니다. (홈택스에서 직접 확인 권장)", "info");
+            } else {
+              toast(`매출 현금영수증 ${synced}건 동기화${errSummary}`, synced > 0 ? "success" : "info");
+            }
           } else {
-            toast(`현금영수증 동기화 실패: ${payload.new.errors?.[0]?.message || "알 수 없는 오류"}`, "error");
+            const e = payload.new.errors?.[0];
+            toast(`동기화 실패: ${e?.hint || e?.message || "알 수 없는 오류"}`, "error");
           }
         }
       })
@@ -340,7 +348,7 @@ export default function CashReceiptsPage() {
             onClick={startSync}
             disabled={syncStarting || !!activeJobId}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title="홈택스에서 현금영수증 매출 가져오기 (백그라운드)"
+            title="홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
           >
             <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -348,7 +356,7 @@ export default function CashReceiptsPage() {
             {syncStarting ? "시작 중..."
               : activeJobId
                 ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ""})`
-                : "홈택스에서 가져오기"}
+                : "홈택스 매출 가져오기"}
           </button>
           <label className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[var(--bg)] transition">
             {uploading ? "업로드 중..." : "엑셀 업로드"}
@@ -655,7 +663,9 @@ export default function CashReceiptsPage() {
                   : "매입 현금영수증이 없습니다"}
               </div>
               <div className="text-xs text-[var(--text-muted)] mt-1">
-                등록 탭에서 직접 등록하거나 홈택스 엑셀을 업로드하세요
+                {tab === "income"
+                  ? "상단의 '홈택스 매출 가져오기' 또는 등록 탭에서 직접 등록하세요"
+                  : "매입은 CODEF 미지원 — 등록 탭에서 직접 등록하거나 홈택스 엑셀을 업로드하세요"}
               </div>
             </div>
           ) : (

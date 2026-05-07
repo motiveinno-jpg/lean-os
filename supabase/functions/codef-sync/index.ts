@@ -138,6 +138,12 @@ function codefErrorHint(code?: string): string {
   if (code.startsWith("CF-03") || code.startsWith("CF-04")) {
     return "인증 실패. 아이디/비밀번호 또는 공동인증서 상태를 확인하세요.";
   }
+  if (code === "CF-12201") {
+    return "홈택스에 다른 기기/브라우저에서 동시 로그인 중입니다. 모두 로그아웃 후 다시 시도하세요.";
+  }
+  if (code === "CF-00016") {
+    return "동일 요청이 처리 중입니다. 잠시(1~2분) 기다린 후 재시도하세요. 세금계산서 sync 와 동시 실행 시 발생합니다.";
+  }
   if (code.startsWith("CF-12")) {
     return "기관 응답 지연/오류. 해당 은행 또는 카드사 점검 시간을 피해 재시도하세요.";
   }
