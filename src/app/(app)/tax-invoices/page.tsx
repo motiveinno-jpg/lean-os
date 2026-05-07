@@ -108,6 +108,8 @@ function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
 
 // ── Monthly Trend Mini Chart (SVG) ──
 function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
+  // 사용자가 범례 클릭으로 매출만/매입만/둘 다 토글 가능.
+  const [visibility, setVisibility] = useState<"all" | "sales" | "purchase">("all");
   const CHART_MONTHS = 6;
   const monthData = useMemo(() => {
     const now = new Date();
@@ -132,9 +134,14 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
     return months;
   }, [invoices]);
 
+  // visibility 에 따라 maxVal 다시 계산 — 한 쪽만 표시 시 그 쪽 기준 스케일.
   const maxVal = Math.max(
     1,
-    ...monthData.map((m) => Math.max(m.sales, m.purchase))
+    ...monthData.map((m) => {
+      if (visibility === "sales") return m.sales;
+      if (visibility === "purchase") return m.purchase;
+      return Math.max(m.sales, m.purchase);
+    })
   );
 
   const WIDTH = 320;
@@ -162,8 +169,32 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-bold text-[var(--text-muted)]">최근 6개월 매출/매입 추이</span>
         <div className="flex items-center gap-3 text-[10px]">
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-green-400 rounded" />매출</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-orange-400 rounded" />매입</span>
+          <button
+            type="button"
+            onClick={() => setVisibility((v) => v === "sales" ? "all" : "sales")}
+            className={`flex items-center gap-1 transition ${visibility === "purchase" ? "opacity-30" : "opacity-100"} hover:opacity-100`}
+            title="매출만 보기"
+          >
+            <span className="inline-block w-3 h-0.5 bg-green-400 rounded" />매출
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibility((v) => v === "purchase" ? "all" : "purchase")}
+            className={`flex items-center gap-1 transition ${visibility === "sales" ? "opacity-30" : "opacity-100"} hover:opacity-100`}
+            title="매입만 보기"
+          >
+            <span className="inline-block w-3 h-0.5 bg-orange-400 rounded" />매입
+          </button>
+          {visibility !== "all" && (
+            <button
+              type="button"
+              onClick={() => setVisibility("all")}
+              className="text-[var(--text-muted)] hover:text-[var(--text)] underline"
+              title="둘 다 보기"
+            >
+              둘 다
+            </button>
+          )}
         </div>
       </div>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: 120 }}>
@@ -184,16 +215,24 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
           );
         })}
         {/* Sales line */}
-        <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        {visibility !== "purchase" && (
+          <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        )}
         {/* Purchase line */}
-        <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
+        {visibility !== "sales" && (
+          <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
+        )}
         {/* Dots + labels */}
         {monthData.map((m, i) => {
           const x = PADDING_X + (i / (monthData.length - 1)) * chartW;
           return (
             <g key={m.key}>
-              <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={2.5} fill="#4ade80" />
-              <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={2.5} fill="#fb923c" />
+              {visibility !== "purchase" && (
+                <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={2.5} fill="#4ade80" />
+              )}
+              {visibility !== "sales" && (
+                <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={2.5} fill="#fb923c" />
+              )}
               <text x={x} y={HEIGHT - 1} textAnchor="middle" fill="var(--text-dim)" fontSize={8}>
                 {m.label}
               </text>
@@ -873,37 +912,6 @@ export default function TaxInvoicesPage() {
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
 
-      {/* 보기 필터: 동기화 범위 안에서 전체/특정월 선택 */}
-      <div className="flex items-center justify-between bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6">
-        <div className="text-xs text-[var(--text-muted)]">
-          보기 범위: <strong className="text-[var(--text)]">{viewFromMonth} ~ {viewToMonth}</strong>
-          {viewFilterMonth !== "all" && (
-            <span className="ml-2 text-[var(--primary)]">· {viewFilterMonth} 만 표시 중</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewFilterMonth("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              viewFilterMonth === "all"
-                ? "bg-[var(--primary)] text-white"
-                : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
-            }`}
-          >
-            전체
-          </button>
-          <input
-            type="month"
-            value={viewFilterMonth === "all" ? "" : viewFilterMonth}
-            min={viewFromMonth}
-            max={viewToMonth}
-            onChange={(e) => setViewFilterMonth(e.target.value || "all")}
-            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-            aria-label="단일 월 필터"
-            title="범위 안에서 특정 월만 보려면 선택"
-          />
-        </div>
-      </div>
 
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
@@ -1053,8 +1061,40 @@ export default function TaxInvoicesPage() {
       </div>
 
       {/* Monthly Trend Mini Chart */}
-      <div className="mb-8 no-print">
+      <div className="mb-4 no-print">
         <MonthlyTrendChart invoices={sixMonthInvoices} />
+      </div>
+
+      {/* 보기 필터: 동기화 범위 안에서 전체/특정월 선택 (그래프 밑, 세금계산서 위) */}
+      <div className="flex items-center justify-between bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6 no-print">
+        <div className="text-xs text-[var(--text-muted)]">
+          보기 범위: <strong className="text-[var(--text)]">{viewFromMonth} ~ {viewToMonth}</strong>
+          {viewFilterMonth !== "all" && (
+            <span className="ml-2 text-[var(--primary)]">· {viewFilterMonth} 만 표시 중</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewFilterMonth("all")}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              viewFilterMonth === "all"
+                ? "bg-[var(--primary)] text-white"
+                : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+            }`}
+          >
+            전체
+          </button>
+          <input
+            type="month"
+            value={viewFilterMonth === "all" ? "" : viewFilterMonth}
+            min={viewFromMonth}
+            max={viewToMonth}
+            onChange={(e) => setViewFilterMonth(e.target.value || "all")}
+            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+            aria-label="단일 월 필터"
+            title="범위 안에서 특정 월만 보려면 선택"
+          />
+        </div>
       </div>
 
       {/* Registration Form */}
