@@ -791,6 +791,256 @@ serve(async (req) => {
 
     const token = await getCodefToken(clientId, clientSecret);
 
+    // --- Action: hometax-job-step (self-invoke 패턴 — 한 호출 = 1개월만 처리 + 다음 월은 자기 자신 호출) ---
+    // EdgeRuntime.waitUntil 가 long-running(10분+) 보장 안 해서 self-invoke chain 으로 전환.
+    if (action === "hometax-job-step") {
+      const { jobId } = body;
+      if (!jobId) return new Response(JSON.stringify({ error: "jobId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: job } = await supabase.from("hometax_sync_jobs").select("*").eq("id", jobId).maybeSingle();
+      if (!job) return new Response(JSON.stringify({ error: "job not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+        return new Response(JSON.stringify({ ok: true, terminal: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // 처리할 월 list 만들기 (job.start_date ~ job.end_date)
+      const sd = new Date(job.start_date);
+      const ed = new Date(job.end_date);
+      const monthsList: string[] = [];
+      let cur = new Date(sd.getFullYear(), sd.getMonth(), 1);
+      while (cur <= ed) {
+        monthsList.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+        cur.setMonth(cur.getMonth() + 1);
+      }
+      const doneCount = (job.result_per_month || []).length;
+      if (doneCount >= monthsList.length) {
+        // 모든 월 처리 완료
+        await supabase.from("hometax_sync_jobs").update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+        }).eq("id", jobId);
+        await supabase.from("company_settings").upsert({
+          company_id: job.company_id,
+          last_hometax_sync_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+        return new Response(JSON.stringify({ ok: true, completed: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // 첫 step 이면 status='running' 으로
+      if (job.status === "pending") {
+        await supabase.from("hometax_sync_jobs").update({
+          status: "running",
+          started_at: new Date().toISOString(),
+        }).eq("id", jobId);
+      }
+
+      // 처리할 다음 월
+      const ml = monthsList[doneCount];
+      const [my, mm] = ml.split("-").map(Number);
+      const lastDay = new Date(my, mm, 0).getDate();
+      const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+      const monthStart = `${my}${String(mm).padStart(2, "0")}01`;
+      let monthEnd = `${my}${String(mm).padStart(2, "0")}${String(lastDay).padStart(2, "0")}`;
+      if (monthEnd > todayYmd) monthEnd = todayYmd;
+
+      // 분할 재시도 (depth 3 — frontend syncRangeWithSplit 동일)
+      const syncRecursive = async (s: string, e: string, depth = 0): Promise<{ synced: number; responseCount: number; errors: any[] }> => {
+        const r = await syncHometaxInvoices(supabase, token, job.company_id, "", s, e);
+        const timedOut = (r.errors || []).some((er: any) => er.code === "CF-TIMEOUT");
+        const sd2 = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
+        const ed2 = new Date(parseInt(e.slice(0, 4)), parseInt(e.slice(4, 6)) - 1, parseInt(e.slice(6, 8)));
+        const days = Math.round((ed2.getTime() - sd2.getTime()) / 86400000) + 1;
+        if (timedOut && depth < 3 && days >= 4) {
+          const mo = Math.floor(days / 2) - 1;
+          const md = new Date(sd2.getTime() + mo * 86400000);
+          const mn = new Date(md.getTime() + 86400000);
+          const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+          const r1 = await syncRecursive(s, fmt(md), depth + 1);
+          const r2 = await syncRecursive(fmt(mn), e, depth + 1);
+          return { synced: r1.synced + r2.synced, responseCount: r1.responseCount + r2.responseCount, errors: [...r1.errors, ...r2.errors] };
+        }
+        return { synced: r.synced || 0, responseCount: r.responseCount || 0, errors: r.errors || [] };
+      };
+
+      let r;
+      try {
+        r = await syncRecursive(monthStart, monthEnd);
+      } catch (err: any) {
+        r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
+      }
+
+      const monthStatus =
+        r.errors.length && r.synced === 0 ? "error"
+        : r.errors.length || (r.responseCount > r.synced) ? "partial"
+        : "ok";
+
+      const newPerMonth = [...(job.result_per_month || []), {
+        month: ml, synced: r.synced, responseCount: r.responseCount,
+        status: monthStatus, errorMsg: r.errors[0]?.message,
+      }];
+      await supabase.from("hometax_sync_jobs").update({
+        current_progress: { done: doneCount + 1, total: monthsList.length, label: ml },
+        total_synced: (job.total_synced || 0) + r.synced,
+        total_response: (job.total_response || 0) + r.responseCount,
+        result_per_month: newPerMonth,
+        errors: [...(job.errors || []), ...r.errors],
+      }).eq("id", jobId);
+
+      // 다음 월 있으면 self-invoke
+      if (doneCount + 1 < monthsList.length) {
+        const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+        // service_role 로 self-invoke (회사 단독 행위 가정 — companyId 검증 안 함)
+        // EdgeRuntime.waitUntil 로 응답 후 trigger
+        const triggerNext = async () => {
+          await fetch(selfUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ companyId: job.company_id, action: "hometax-job-step-internal", jobId }),
+          });
+        };
+        // @ts-expect-error
+        if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+          // @ts-expect-error
+          EdgeRuntime.waitUntil(triggerNext());
+        } else {
+          triggerNext().catch(() => {});
+        }
+      } else {
+        // 마지막 월 — 완료 처리
+        await supabase.from("hometax_sync_jobs").update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+        }).eq("id", jobId);
+        await supabase.from("company_settings").upsert({
+          company_id: job.company_id,
+          last_hometax_sync_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+      }
+
+      return new Response(JSON.stringify({ ok: true, monthDone: ml, totalDone: doneCount + 1, totalCount: monthsList.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // --- Action: hometax-job-step-internal (service_role 인증 — self-invoke 전용. user 검사 우회) ---
+    if (action === "hometax-job-step-internal") {
+      // 이 액션은 service_role 만 호출 가능. authHeader 가 service_role JWT 인지 확인.
+      const isServiceRole = authHeader?.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "____");
+      if (!isServiceRole) {
+        return new Response(JSON.stringify({ error: "internal action — service_role only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { jobId } = body;
+      // 위 hometax-job-step 와 동일 처리 — 코드 중복 피하려면 추출. 일단 self-invoke chain 위해 같은 로직 inline.
+      // 같은 코드 재실행: req.json() 다시 못 하니 body 만 변환 후 재진입 어려움.
+      // → fetch 자기 자신 with action='hometax-job-step' (user 검사 우회 위해 별도 처리 필요).
+      // 단순화: hometax-job-step-internal 안에서 hometax-job-step 로직 inline 복사 (유지보수 간단).
+      const { data: job } = await supabase.from("hometax_sync_jobs").select("*").eq("id", jobId).maybeSingle();
+      if (!job) return new Response(JSON.stringify({ error: "job not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+        return new Response(JSON.stringify({ ok: true, terminal: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const sd = new Date(job.start_date);
+      const ed = new Date(job.end_date);
+      const monthsList: string[] = [];
+      let cur = new Date(sd.getFullYear(), sd.getMonth(), 1);
+      while (cur <= ed) {
+        monthsList.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+        cur.setMonth(cur.getMonth() + 1);
+      }
+      const doneCount = (job.result_per_month || []).length;
+      if (doneCount >= monthsList.length) {
+        await supabase.from("hometax_sync_jobs").update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+        }).eq("id", jobId);
+        await supabase.from("company_settings").upsert({
+          company_id: job.company_id,
+          last_hometax_sync_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+        return new Response(JSON.stringify({ ok: true, completed: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const ml = monthsList[doneCount];
+      const [my, mm] = ml.split("-").map(Number);
+      const lastDay = new Date(my, mm, 0).getDate();
+      const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+      const monthStart = `${my}${String(mm).padStart(2, "0")}01`;
+      let monthEnd = `${my}${String(mm).padStart(2, "0")}${String(lastDay).padStart(2, "0")}`;
+      if (monthEnd > todayYmd) monthEnd = todayYmd;
+
+      const syncRecursive2 = async (s: string, e: string, depth = 0): Promise<{ synced: number; responseCount: number; errors: any[] }> => {
+        const r = await syncHometaxInvoices(supabase, token, job.company_id, "", s, e);
+        const timedOut = (r.errors || []).some((er: any) => er.code === "CF-TIMEOUT");
+        const sd2 = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
+        const ed2 = new Date(parseInt(e.slice(0, 4)), parseInt(e.slice(4, 6)) - 1, parseInt(e.slice(6, 8)));
+        const days = Math.round((ed2.getTime() - sd2.getTime()) / 86400000) + 1;
+        if (timedOut && depth < 3 && days >= 4) {
+          const mo = Math.floor(days / 2) - 1;
+          const md = new Date(sd2.getTime() + mo * 86400000);
+          const mn = new Date(md.getTime() + 86400000);
+          const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+          const r1 = await syncRecursive2(s, fmt(md), depth + 1);
+          const r2 = await syncRecursive2(fmt(mn), e, depth + 1);
+          return { synced: r1.synced + r2.synced, responseCount: r1.responseCount + r2.responseCount, errors: [...r1.errors, ...r2.errors] };
+        }
+        return { synced: r.synced || 0, responseCount: r.responseCount || 0, errors: r.errors || [] };
+      };
+      let r;
+      try {
+        r = await syncRecursive2(monthStart, monthEnd);
+      } catch (err: any) {
+        r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
+      }
+      const monthStatus =
+        r.errors.length && r.synced === 0 ? "error"
+        : r.errors.length || (r.responseCount > r.synced) ? "partial"
+        : "ok";
+      const newPerMonth = [...(job.result_per_month || []), {
+        month: ml, synced: r.synced, responseCount: r.responseCount, status: monthStatus, errorMsg: r.errors[0]?.message,
+      }];
+      await supabase.from("hometax_sync_jobs").update({
+        current_progress: { done: doneCount + 1, total: monthsList.length, label: ml },
+        total_synced: (job.total_synced || 0) + r.synced,
+        total_response: (job.total_response || 0) + r.responseCount,
+        result_per_month: newPerMonth,
+        errors: [...(job.errors || []), ...r.errors],
+      }).eq("id", jobId);
+      if (doneCount + 1 < monthsList.length) {
+        const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+        const triggerNext = async () => {
+          await fetch(selfUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({ companyId: job.company_id, action: "hometax-job-step-internal", jobId }),
+          });
+        };
+        // @ts-expect-error
+        if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+          // @ts-expect-error
+          EdgeRuntime.waitUntil(triggerNext());
+        } else {
+          triggerNext().catch(() => {});
+        }
+      } else {
+        await supabase.from("hometax_sync_jobs").update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+        }).eq("id", jobId);
+        await supabase.from("company_settings").upsert({
+          company_id: job.company_id,
+          last_hometax_sync_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+      }
+      return new Response(JSON.stringify({ ok: true, monthDone: ml, totalDone: doneCount + 1, totalCount: monthsList.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // --- Action: hometax-sync-async (Background sync — job 만들고 즉시 응답 + 백그라운드 처리) ---
     if (action === "hometax-sync-async") {
       const { startDate: aStart, endDate: aEnd } = body;
@@ -849,107 +1099,27 @@ serve(async (req) => {
         });
       }
 
-      // 분할 재시도 헬퍼 — frontend 의 syncRangeWithSplit 와 동일 (depth 3 = 4일까지).
-      const syncRangeRecursive = async (
-        startYmd: string, endYmd: string, depth = 0,
-      ): Promise<{ synced: number; responseCount: number; errors: any[] }> => {
-        const r = await syncHometaxInvoices(supabase, token, companyId, cid || "", startYmd, endYmd);
-        const timedOut = (r.errors || []).some((e: any) => e.code === "CF-TIMEOUT");
-        const sd = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
-        const ed = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
-        const days = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
-        if (timedOut && depth < 3 && days >= 4) {
-          const mo = Math.floor(days / 2) - 1;
-          const md = new Date(sd.getTime() + mo * 86400000);
-          const mn = new Date(md.getTime() + 86400000);
-          const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-          const r1 = await syncRangeRecursive(startYmd, fmt(md), depth + 1);
-          const r2 = await syncRangeRecursive(fmt(mn), endYmd, depth + 1);
-          return {
-            synced: r1.synced + r2.synced,
-            responseCount: r1.responseCount + r2.responseCount,
-            errors: [...r1.errors, ...r2.errors],
-          };
-        }
-        return { synced: r.synced || 0, responseCount: r.responseCount || 0, errors: r.errors || [] };
+      // self-invoke chain 시작 — 첫 step 만 트리거. 다음 step 은 step 끝에서 자기 자신 호출.
+      // EdgeRuntime instance 가 일정 시간 후 종료돼도 chain 끊기지 않음 (각 호출 = 1개월).
+      const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+      const triggerFirst = async () => {
+        await fetch(selfUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({ companyId, action: "hometax-job-step-internal", jobId: job.id }),
+        });
       };
-
-      // 백그라운드 처리 — EdgeRuntime.waitUntil
-      const processJob = async () => {
-        const monthsList: string[] = [];
-        const sd = new Date(aStart);
-        const ed = new Date(aEnd);
-        let cur = new Date(sd.getFullYear(), sd.getMonth(), 1);
-        while (cur <= ed) {
-          monthsList.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
-          cur.setMonth(cur.getMonth() + 1);
-        }
-        await supabase.from("hometax_sync_jobs").update({
-          status: "running", started_at: new Date().toISOString(),
-          current_progress: { done: 0, total: monthsList.length, label: "시작" },
-        }).eq("id", job.id);
-
-        let totalSynced = 0, totalResponse = 0;
-        const monthResults: any[] = [];
-        const allErrors: any[] = [], allNotes: any[] = [];
-
-        for (let i = 0; i < monthsList.length; i++) {
-          const ml = monthsList[i];
-          const [my, mm] = ml.split("-").map(Number);
-          const lastDay = new Date(my, mm, 0).getDate();
-          const monthStart = `${my}${String(mm).padStart(2, "0")}01`;
-          // 미래 cap
-          const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-          let monthEnd = `${my}${String(mm).padStart(2, "0")}${String(lastDay).padStart(2, "0")}`;
-          if (monthEnd > todayYmd) monthEnd = todayYmd;
-          // 분할 재시도 적용 — 거래 폭증 월도 자동 분할
-          const r = await syncRangeRecursive(monthStart, monthEnd);
-          totalSynced += r.synced;
-          totalResponse += r.responseCount;
-          if (r.errors.length) allErrors.push(...r.errors);
-          const monthStatus =
-            r.errors.length && r.synced === 0 ? "error"
-            : r.errors.length || (r.responseCount > r.synced) ? "partial"
-            : "ok";
-          monthResults.push({
-            month: ml, synced: r.synced, responseCount: r.responseCount,
-            status: monthStatus, errorMsg: r.errors[0]?.message,
-          });
-          await supabase.from("hometax_sync_jobs").update({
-            current_progress: { done: i + 1, total: monthsList.length, label: ml },
-            total_synced: totalSynced, total_response: totalResponse,
-            result_per_month: monthResults,
-          }).eq("id", job.id);
-        }
-
-        // 완료
-        await supabase.from("hometax_sync_jobs").update({
-          status: "completed", completed_at: new Date().toISOString(),
-          total_synced: totalSynced, total_response: totalResponse,
-          result_per_month: monthResults, errors: allErrors, notes: allNotes,
-          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
-        }).eq("id", job.id);
-
-        // last_hometax_sync_at 업데이트 (incremental sync 기준)
-        await supabase.from("company_settings").upsert({
-          company_id: companyId,
-          last_hometax_sync_at: new Date().toISOString(),
-        }, { onConflict: "company_id" });
-      };
-
-      // EdgeRuntime.waitUntil 로 응답 후 백그라운드 처리.
-      // @ts-expect-error — Deno 런타임 전역
+      // @ts-expect-error
       if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
         // @ts-expect-error
-        EdgeRuntime.waitUntil(processJob().catch(async (err) => {
+        EdgeRuntime.waitUntil(triggerFirst().catch(async (err) => {
           await supabase.from("hometax_sync_jobs").update({
             status: "failed", completed_at: new Date().toISOString(),
-            errors: [{ code: "BG_FATAL", message: err?.message || String(err) }],
+            errors: [{ code: "BG_TRIGGER_FAIL", message: err?.message || String(err) }],
           }).eq("id", job.id);
         }));
       } else {
-        // Fallback — Edge runtime 미지원 시 fire-and-forget (response 끊겨도 처리 시도)
-        processJob().catch(() => {});
+        triggerFirst().catch(() => {});
       }
 
       return new Response(JSON.stringify({
