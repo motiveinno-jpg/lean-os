@@ -402,6 +402,12 @@ export default function TaxInvoicesPage() {
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [syncFromMonth, setSyncFromMonth] = useState(getCurrentMonth());
   const [syncToMonth, setSyncToMonth] = useState(getCurrentMonth());
+  // Incremental sync 토글 — ON 이면 last_hometax_sync_at - 30일 ~ today 자동 사용 (picker 무시).
+  const [incrementalMode, setIncrementalMode] = useState(false);
+  // Background sync 토글 — ON 이면 hometax-sync-async 호출 (백그라운드).
+  const [backgroundMode, setBackgroundMode] = useState(false);
+  // 백그라운드 진행 중인 job ID (Realtime 구독용)
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   // 월별 동기화 결과 — 완료 후 사용자에게 명확히 표시 (누락 N건 식)
   type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
   const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
@@ -439,6 +445,38 @@ export default function TaxInvoicesPage() {
       responseCount: r.responseCount || 0,
       errors: [...(r.errors || []), ...(timedOut ? r.notes : [])],
     };
+  }
+
+  // Background sync 시작 — 즉시 응답 받고 사용자는 페이지 떠나도 됨.
+  async function runHometaxSyncBackground(fromMonth: string, toMonth: string) {
+    if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
+    if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
+    if (fromMonth > toMonth) { toast('시작 월이 종료 월보다 늦을 수 없습니다', 'error'); return; }
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    const lastDay = new Date(ty, tm, 0).getDate();
+    const startDate = `${fromMonth}-01`;
+    const endDate = `${toMonth}-${String(lastDay).padStart(2, '0')}`;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('로그인 필요');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ companyId, action: 'hometax-sync-async', startDate, endDate }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.jobId) throw new Error(result.error || '백그라운드 시작 실패');
+      setActiveJobId(result.jobId);
+      toast(`백그라운드 동기화 시작됨 (${fromMonth} ~ ${toMonth}). 페이지 떠나도 됩니다.`, 'success');
+      // 동기화 범위로 보기 자동 세팅
+      setViewFromMonth(fromMonth);
+      setViewToMonth(toMonth);
+      void fy; void fm;
+    } catch (err: any) {
+      toast(`백그라운드 동기화 시작 실패: ${err.message}`, 'error');
+    }
   }
 
   // 사용자가 선택한 시작~종료 월 범위로 sequential 동기화. 진행 상황 syncProgress 로 표시.
@@ -711,6 +749,60 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId,
   });
 
+  // Incremental sync 기준 시각 — company_settings.last_hometax_sync_at
+  const { data: lastHometaxSyncAt } = useQuery({
+    queryKey: ["last-hometax-sync-at", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data } = await db
+        .from('company_settings')
+        .select('last_hometax_sync_at')
+        .eq('company_id', companyId!)
+        .maybeSingle();
+      return data?.last_hometax_sync_at as string | null;
+    },
+    enabled: !!companyId,
+  });
+
+  // Background sync job — Realtime 구독해서 진행 상황 표시.
+  const { data: activeJob } = useQuery({
+    queryKey: ["hometax-sync-job", activeJobId],
+    queryFn: async () => {
+      if (!activeJobId) return null;
+      const db = supabase as any;
+      const { data } = await db
+        .from('hometax_sync_jobs')
+        .select('*')
+        .eq('id', activeJobId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!activeJobId,
+    refetchInterval: activeJobId ? 2000 : false,  // 2초 polling (Realtime 보조)
+  });
+
+  useEffect(() => {
+    if (!activeJobId || !companyId) return;
+    const db = supabase as any;
+    const ch = db.channel(`hometax_sync_jobs:${activeJobId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hometax_sync_jobs', filter: `id=eq.${activeJobId}` }, (payload: any) => {
+        queryClient.setQueryData(["hometax-sync-job", activeJobId], payload.new);
+        if (payload.new.status === 'completed' || payload.new.status === 'failed') {
+          // 완료 시 invalidate
+          queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+          queryClient.invalidateQueries({ queryKey: ["last-hometax-sync-at"] });
+          if (payload.new.status === 'completed') {
+            toast(`백그라운드 동기화 완료: ${payload.new.total_synced}건`, 'success');
+          } else {
+            toast(`백그라운드 동기화 실패`, 'error');
+          }
+          setActiveJobId(null);
+        }
+      })
+      .subscribe();
+    return () => { db.removeChannel(ch); };
+  }, [activeJobId, companyId, queryClient]);
+
   // 홈택스 연결 상태 — automation_credentials.hometax 존재 여부 (codef-sync edge function이 실제로 사용하는 자격증명)
   const { data: hometaxConnection } = useQuery({
     queryKey: ["hometax-connection", companyId],
@@ -978,12 +1070,22 @@ export default function TaxInvoicesPage() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Incremental — last_sync 이후만 (빠름) */}
+          <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)]" title="마지막 sync 이후 데이터만 가져옵니다 (30일 buffer). picker 무시.">
+            <input type="checkbox" checked={incrementalMode} onChange={(e) => setIncrementalMode(e.target.checked)} disabled={syncing || !!activeJobId} />
+            최신만
+          </label>
+          {/* Background — 페이지 떠나도 진행 */}
+          <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)]" title="백그라운드에서 처리. 페이지 떠나도 됨. 완료 시 알림.">
+            <input type="checkbox" checked={backgroundMode} onChange={(e) => setBackgroundMode(e.target.checked)} disabled={syncing || !!activeJobId} />
+            백그라운드
+          </label>
           <input
             type="month"
             value={syncFromMonth}
             onChange={(e) => setSyncFromMonth(e.target.value)}
-            disabled={syncing}
+            disabled={syncing || !!activeJobId || incrementalMode}
             className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
             aria-label="동기화 시작 월"
           />
@@ -992,20 +1094,41 @@ export default function TaxInvoicesPage() {
             type="month"
             value={syncToMonth}
             onChange={(e) => setSyncToMonth(e.target.value)}
-            disabled={syncing}
+            disabled={syncing || !!activeJobId || incrementalMode}
             className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
             aria-label="동기화 종료 월"
           />
           <button
-            onClick={() => runHometaxSync(syncFromMonth, syncToMonth)}
-            disabled={syncing || !isHometaxConnected}
+            onClick={async () => {
+              // Incremental — last_sync_at - 30일 ~ today
+              let from = syncFromMonth, to = syncToMonth;
+              if (incrementalMode) {
+                if (!lastHometaxSyncAt) {
+                  toast('마지막 동기화 기록이 없습니다. 먼저 일반 동기화 한 번 진행하세요.', 'info');
+                  return;
+                }
+                const last = new Date(lastHometaxSyncAt);
+                last.setDate(last.getDate() - 30);  // 30일 buffer
+                const today = new Date();
+                from = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`;
+                to = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+              }
+              if (backgroundMode) {
+                await runHometaxSyncBackground(from, to);
+              } else {
+                await runHometaxSync(from, to);
+              }
+            }}
+            disabled={syncing || !!activeJobId || !isHometaxConnected}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
             title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
           >
-            <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-3.5 h-3.5 ${(syncing || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "홈택스에서 가져오기"}
+            {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...")
+              : activeJobId ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ''})`
+              : "홈택스에서 가져오기"}
           </button>
         </div>
       </div>

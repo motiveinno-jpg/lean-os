@@ -791,6 +791,214 @@ serve(async (req) => {
 
     const token = await getCodefToken(clientId, clientSecret);
 
+    // --- Action: hometax-sync-async (Background sync — job 만들고 즉시 응답 + 백그라운드 처리) ---
+    if (action === "hometax-sync-async") {
+      const { startDate: aStart, endDate: aEnd } = body;
+      if (!aStart || !aEnd) {
+        return new Response(JSON.stringify({ error: "startDate, endDate 필수 (YYYY-MM-DD)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // 사용자의 users.id 매핑
+      const { data: userRow } = await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
+      if (!userRow || userRow.company_id !== companyId) {
+        return new Response(JSON.stringify({ error: "권한이 없습니다." }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // job 생성
+      const { data: job, error: jobErr } = await supabase
+        .from("hometax_sync_jobs")
+        .insert({
+          company_id: companyId,
+          start_date: aStart,
+          end_date: aEnd,
+          status: "pending",
+          triggered_by: userRow.id,
+        })
+        .select()
+        .single();
+      if (jobErr || !job) {
+        return new Response(JSON.stringify({ error: `job 생성 실패: ${jobErr?.message}` }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // 분할 재시도 헬퍼 — frontend 의 syncRangeWithSplit 와 동일 (depth 3 = 4일까지).
+      const syncRangeRecursive = async (
+        startYmd: string, endYmd: string, depth = 0,
+      ): Promise<{ synced: number; responseCount: number; errors: any[] }> => {
+        const r = await syncHometaxInvoices(supabase, token, companyId, cid || "", startYmd, endYmd);
+        const timedOut = (r.errors || []).some((e: any) => e.code === "CF-TIMEOUT");
+        const sd = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
+        const ed = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
+        const days = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+        if (timedOut && depth < 3 && days >= 4) {
+          const mo = Math.floor(days / 2) - 1;
+          const md = new Date(sd.getTime() + mo * 86400000);
+          const mn = new Date(md.getTime() + 86400000);
+          const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+          const r1 = await syncRangeRecursive(startYmd, fmt(md), depth + 1);
+          const r2 = await syncRangeRecursive(fmt(mn), endYmd, depth + 1);
+          return {
+            synced: r1.synced + r2.synced,
+            responseCount: r1.responseCount + r2.responseCount,
+            errors: [...r1.errors, ...r2.errors],
+          };
+        }
+        return { synced: r.synced || 0, responseCount: r.responseCount || 0, errors: r.errors || [] };
+      };
+
+      // 백그라운드 처리 — EdgeRuntime.waitUntil
+      const processJob = async () => {
+        const monthsList: string[] = [];
+        const sd = new Date(aStart);
+        const ed = new Date(aEnd);
+        let cur = new Date(sd.getFullYear(), sd.getMonth(), 1);
+        while (cur <= ed) {
+          monthsList.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+          cur.setMonth(cur.getMonth() + 1);
+        }
+        await supabase.from("hometax_sync_jobs").update({
+          status: "running", started_at: new Date().toISOString(),
+          current_progress: { done: 0, total: monthsList.length, label: "시작" },
+        }).eq("id", job.id);
+
+        let totalSynced = 0, totalResponse = 0;
+        const monthResults: any[] = [];
+        const allErrors: any[] = [], allNotes: any[] = [];
+
+        for (let i = 0; i < monthsList.length; i++) {
+          const ml = monthsList[i];
+          const [my, mm] = ml.split("-").map(Number);
+          const lastDay = new Date(my, mm, 0).getDate();
+          const monthStart = `${my}${String(mm).padStart(2, "0")}01`;
+          // 미래 cap
+          const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+          let monthEnd = `${my}${String(mm).padStart(2, "0")}${String(lastDay).padStart(2, "0")}`;
+          if (monthEnd > todayYmd) monthEnd = todayYmd;
+          // 분할 재시도 적용 — 거래 폭증 월도 자동 분할
+          const r = await syncRangeRecursive(monthStart, monthEnd);
+          totalSynced += r.synced;
+          totalResponse += r.responseCount;
+          if (r.errors.length) allErrors.push(...r.errors);
+          const monthStatus =
+            r.errors.length && r.synced === 0 ? "error"
+            : r.errors.length || (r.responseCount > r.synced) ? "partial"
+            : "ok";
+          monthResults.push({
+            month: ml, synced: r.synced, responseCount: r.responseCount,
+            status: monthStatus, errorMsg: r.errors[0]?.message,
+          });
+          await supabase.from("hometax_sync_jobs").update({
+            current_progress: { done: i + 1, total: monthsList.length, label: ml },
+            total_synced: totalSynced, total_response: totalResponse,
+            result_per_month: monthResults,
+          }).eq("id", job.id);
+        }
+
+        // 완료
+        await supabase.from("hometax_sync_jobs").update({
+          status: "completed", completed_at: new Date().toISOString(),
+          total_synced: totalSynced, total_response: totalResponse,
+          result_per_month: monthResults, errors: allErrors, notes: allNotes,
+          current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+        }).eq("id", job.id);
+
+        // last_hometax_sync_at 업데이트 (incremental sync 기준)
+        await supabase.from("company_settings").upsert({
+          company_id: companyId,
+          last_hometax_sync_at: new Date().toISOString(),
+        }, { onConflict: "company_id" });
+      };
+
+      // EdgeRuntime.waitUntil 로 응답 후 백그라운드 처리.
+      // @ts-expect-error — Deno 런타임 전역
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-expect-error
+        EdgeRuntime.waitUntil(processJob().catch(async (err) => {
+          await supabase.from("hometax_sync_jobs").update({
+            status: "failed", completed_at: new Date().toISOString(),
+            errors: [{ code: "BG_FATAL", message: err?.message || String(err) }],
+          }).eq("id", job.id);
+        }));
+      } else {
+        // Fallback — Edge runtime 미지원 시 fire-and-forget (response 끊겨도 처리 시도)
+        processJob().catch(() => {});
+      }
+
+      return new Response(JSON.stringify({
+        success: true, jobId: job.id, status: "pending",
+        message: "백그라운드 동기화 시작됨. 진행 상황은 hometax_sync_jobs 테이블에서 Realtime 구독.",
+      }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // --- Action: hometax-pagination-test (검증용 — 페이지네이션 응답 시간 측정. 기존 흐름 영향 없음) ---
+    if (action === "hometax-pagination-test") {
+      const { startDate: ts, endDate: te, pageNo = "1", pageSize = "20", transeType = "01" } = body;
+      const certPath = `${companyId}/signCert.der`;
+      const keyPath = `${companyId}/signPri.key`;
+      const [certDl, keyDl, credRow] = await Promise.all([
+        supabase.storage.from("certificates").download(certPath),
+        supabase.storage.from("certificates").download(keyPath),
+        supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+      ]);
+      if (certDl.error || !certDl.data || keyDl.error || !keyDl.data || !credRow.data?.credentials?.cert_password) {
+        return new Response(JSON.stringify({ error: "cert/key/password 누락" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: plainPw } = await supabase.rpc("decrypt_credential", { p_ciphertext: credRow.data.credentials.cert_password });
+      const certBytes = new Uint8Array(await certDl.data.arrayBuffer());
+      const keyBytes = new Uint8Array(await keyDl.data.arrayBuffer());
+      const certB64 = Buffer.from(certBytes).toString("base64");
+      const keyB64 = Buffer.from(keyBytes).toString("base64");
+      const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+      const encryptedCertPw = publicKey ? rsaEncrypt(plainPw as string, publicKey) : (plainPw as string);
+
+      const t0 = Date.now();
+      const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
+        organization: "0002",
+        loginType: "0",
+        certType: "1",
+        certFile: certB64,
+        keyFile: keyB64,
+        certPassword: encryptedCertPw,
+        inquiryType: "01",
+        searchType: "01",
+        startDate: ts,
+        endDate: te,
+        sortby: "1",
+        orderBy: "0",
+        transeType,
+        type: "0",
+        pageNo: String(pageNo),
+        pageSize: String(pageSize),
+      });
+      const dt = Date.now() - t0;
+
+      const dataRaw = result.data;
+      const isArray = Array.isArray(dataRaw);
+      const dataLen = isArray ? dataRaw.length : 0;
+      const topKeys = !isArray && dataRaw && typeof dataRaw === "object" ? Object.keys(dataRaw) : [];
+      const firstRow = isArray && dataRaw[0] ? dataRaw[0] : (dataRaw && typeof dataRaw === "object" ? dataRaw : null);
+
+      return new Response(JSON.stringify({
+        elapsedMs: dt,
+        resultCode: result.result?.code,
+        resultMessage: result.result?.message,
+        dataIsArray: isArray,
+        dataLen,
+        topKeys,
+        paginationFields: firstRow ? {
+          commStartPageNo: firstRow.commStartPageNo,
+          commEndPageNo: firstRow.commEndPageNo,
+          resTotalPageCount: firstRow.resTotalPageCount,
+          resTotalCount: firstRow.resTotalCount,
+        } : null,
+        sampleApprovalNos: isArray ? dataRaw.slice(0, 3).map((r: any) => r.resApprovalNo) : [],
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
       const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B" } = body;
