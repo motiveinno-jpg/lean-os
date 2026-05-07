@@ -338,6 +338,62 @@ export default function TaxInvoicesPage() {
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
+  const [syncFromMonth, setSyncFromMonth] = useState(getCurrentMonth());
+  const [syncToMonth, setSyncToMonth] = useState(getCurrentMonth());
+
+  // 사용자가 선택한 시작~종료 월 범위로 sequential 동기화. 진행 상황 syncProgress 로 표시.
+  // CODEF 가 동시 호출 거부(CF-00016/CF-TIMEOUT) 라 매월/매출/매입 모두 sequential 필수.
+  async function runHometaxSync(fromMonth: string, toMonth: string) {
+    if (syncing) return;
+    if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
+    if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
+    if (fromMonth > toMonth) { toast('시작 월이 종료 월보다 늦을 수 없습니다', 'error'); return; }
+
+    const months: string[] = [];
+    let cur = new Date(parseInt(fromMonth.slice(0, 4)), parseInt(fromMonth.slice(5, 7)) - 1, 1);
+    const endD = new Date(parseInt(toMonth.slice(0, 4)), parseInt(toMonth.slice(5, 7)) - 1, 1);
+    while (cur <= endD) {
+      months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+    setSyncing(true);
+    setSyncProgress({ done: 0, total: months.length, label: '시작' });
+    let totalSynced = 0;
+    const errs: any[] = [];
+    try {
+      for (let i = 0; i < months.length; i++) {
+        const ml = months[i];
+        setSyncProgress({ done: i + 1, total: months.length, label: ml });
+        const [my, mm] = ml.split('-').map(Number);
+        const lastDay = new Date(my, mm, 0).getDate();
+        const startDate = `${ml}-01`;
+        const endDate = `${ml}-${String(lastDay).padStart(2, '0')}`;
+        try {
+          const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
+          totalSynced += r.synced || 0;
+          if (r.errors?.length) errs.push(...r.errors);
+        } catch (e: any) {
+          errs.push({ message: `${ml}: ${e.message}` });
+        }
+      }
+      const periodLabel = months.length === 1 ? months[0] : `${months[0]} ~ ${months[months.length - 1]}`;
+      if (errs.length === 0) {
+        toast(`홈택스 동기화 완료 (${periodLabel}): ${totalSynced}건`, 'success');
+      } else if (totalSynced > 0) {
+        toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
+      } else {
+        toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
+      }
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
+      queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
+    } finally {
+      setSyncing(false);
+      setSyncProgress(null);
+    }
+  }
   const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -776,61 +832,36 @@ export default function TaxInvoicesPage() {
             </span>
           )}
         </div>
-        <button
-          onClick={async () => {
-            if (syncing) return;
-            if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
-            setSyncing(true);
-            setSyncProgress({ done: 0, total: 12, label: '시작' });
-            try {
-              if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
-              // CODEF 가 동일 인증 동시 호출 거부(CF-00016) 라 월별 sequential 호출. 진행 상황 표시.
-              // 1년치 = 12 호출 × 30~60초 = 약 5~10분.
-              const today = new Date();
-              let totalSynced = 0;
-              const errs: any[] = [];
-              for (let i = 11; i >= 0; i--) {
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-                const monthLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                setSyncProgress({ done: 12 - i, total: 12, label: monthLabel });
-                const startDate = `${monthLabel}-01`;
-                const endDate = `${monthLabel}-${String(lastDay).padStart(2, '0')}`;
-                try {
-                  const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-                  totalSynced += r.synced || 0;
-                  if (r.errors?.length) errs.push(...r.errors);
-                } catch (e: any) {
-                  errs.push({ message: `${monthLabel}: ${e.message}` });
-                }
-              }
-              if (errs.length === 0) {
-                toast(`12개월 동기화 완료: ${totalSynced}건`, 'success');
-              } else if (totalSynced > 0) {
-                toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
-              } else {
-                toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
-              }
-              invalidate();
-              queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
-              queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
-              queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
-            } catch (err: any) {
-              toast(`동기화 오류: ${err.message}`, "error");
-            } finally {
-              setSyncing(false);
-              setSyncProgress(null);
-            }
-          }}
-          disabled={syncing || !isHometaxConnected}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-          title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : undefined}
-        >
-          <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "홈택스에서 가져오기 (최근 12개월)"}
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={syncFromMonth}
+            onChange={(e) => setSyncFromMonth(e.target.value)}
+            disabled={syncing}
+            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+            aria-label="동기화 시작 월"
+          />
+          <span className="text-xs text-[var(--text-muted)]">~</span>
+          <input
+            type="month"
+            value={syncToMonth}
+            onChange={(e) => setSyncToMonth(e.target.value)}
+            disabled={syncing}
+            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+            aria-label="동기화 종료 월"
+          />
+          <button
+            onClick={() => runHometaxSync(syncFromMonth, syncToMonth)}
+            disabled={syncing || !isHometaxConnected}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
+          >
+            <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "홈택스에서 가져오기"}
+          </button>
+        </div>
       </div>
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
@@ -1706,54 +1737,33 @@ export default function TaxInvoicesPage() {
                   설정 &gt; 은행연동에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
                 </div>
               </div>
-              <button
-                onClick={async () => {
-                  if (syncing) return;
-                  if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
-                  if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
-                  setSyncing(true);
-                  setSyncProgress({ done: 0, total: 12, label: '시작' });
-                  try {
-                    const today = new Date();
-                    let totalSynced = 0;
-                    const errs: any[] = [];
-                    for (let i = 11; i >= 0; i--) {
-                      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-                      const monthLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                      setSyncProgress({ done: 12 - i, total: 12, label: monthLabel });
-                      const startDate = `${monthLabel}-01`;
-                      const endDate = `${monthLabel}-${String(lastDay).padStart(2, '0')}`;
-                      try {
-                        const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-                        totalSynced += r.synced || 0;
-                        if (r.errors?.length) errs.push(...r.errors);
-                      } catch (e: any) {
-                        errs.push({ message: `${monthLabel}: ${e.message}` });
-                      }
-                    }
-                    if (errs.length === 0) {
-                      toast(`홈택스 12개월 동기화 완료: ${totalSynced}건`, 'success');
-                    } else if (totalSynced > 0) {
-                      toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
-                    } else {
-                      toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
-                    }
-                    invalidate();
-                    queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
-                  } catch (err: any) {
-                    toast(`동기화 오류: ${err.message}`, "error");
-                  } finally {
-                    setSyncing(false);
-                    setSyncProgress(null);
-                  }
-                }}
-                disabled={syncing || !isHometaxConnected}
-                className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : undefined}
-              >
-                {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "최근 12개월 동기화 실행"}
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="month"
+                  value={syncFromMonth}
+                  onChange={(e) => setSyncFromMonth(e.target.value)}
+                  disabled={syncing}
+                  className="px-2 py-2 text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+                  aria-label="동기화 시작 월"
+                />
+                <span className="text-xs text-[var(--text-muted)]">~</span>
+                <input
+                  type="month"
+                  value={syncToMonth}
+                  onChange={(e) => setSyncToMonth(e.target.value)}
+                  disabled={syncing}
+                  className="px-2 py-2 text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+                  aria-label="동기화 종료 월"
+                />
+                <button
+                  onClick={() => runHometaxSync(syncFromMonth, syncToMonth)}
+                  disabled={syncing || !isHometaxConnected}
+                  className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
+                >
+                  {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "동기화 실행"}
+                </button>
+              </div>
             </div>
 
             {/* Automation flow diagram */}

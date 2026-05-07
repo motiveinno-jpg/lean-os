@@ -630,9 +630,11 @@ async function syncHometaxInvoices(
   const reportedCodes = new Set<string>();
   const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
 
-  // 매출/매입은 transeType 다르니 동시 호출 가능 (CF-00016 회피).
-  const settled = await Promise.all([callDirection("매출"), callDirection("매입")]);
-  debug.push(`single-period sync ${cappedStart}~${cappedEnd} done`);
+  // 매출/매입도 sequential — CODEF 가 동시 호출 시 한 쪽 timeout 발생 (검증됨).
+  const salesRes = await callDirection("매출");
+  const purchaseRes = await callDirection("매입");
+  const settled = [salesRes, purchaseRes];
+  debug.push(`single-period sync ${cappedStart}~${cappedEnd} done (sequential)`);
 
   for (const { direction, result, chunkStart, chunkEnd } of settled) {
     if (result.result?.code !== "CF-00000") {
