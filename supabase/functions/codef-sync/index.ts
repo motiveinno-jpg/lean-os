@@ -682,6 +682,7 @@ async function syncHometaxInvoices(
     const isSales = direction === "매출";
     let upsertErrors = 0;
     let firstUpsertError: any = null;
+    const rowsToUpsert: any[] = [];   // batch upsert 용 — N row × DB round trip 1번
 
     for (const inv of invoices) {
       // CODEF 통합 API 응답: resApprovalNo = 국세청 승인번호 (= nts_confirm_no 에 저장)
@@ -714,7 +715,7 @@ async function syncHometaxInvoices(
         ? (inv.resContractorBusinessItems || "")
         : (inv.resSupplierBusinessItems || "");
 
-      const { error } = await supabase.from("tax_invoices").upsert({
+      rowsToUpsert.push({
         company_id: companyId,
         nts_confirm_no: ntsConfirmNo,
         issue_date: formattedDate,
@@ -730,13 +731,18 @@ async function syncHometaxInvoices(
         total_amount: Number(inv.resTotalAmount || 0),
         item_name: inv.resRepItems || null,
         hometax_synced_at: new Date().toISOString(),
-      }, { onConflict: "company_id,nts_confirm_no" });
+      });
+    }
 
+    // Batch upsert — row 마다 1 round trip → 한 번에 처리. 큰 응답일수록 큰 효과 (100건이면 ~100배 빠름).
+    if (rowsToUpsert.length > 0) {
+      const { error } = await supabase.from("tax_invoices").upsert(rowsToUpsert, { onConflict: "company_id,nts_confirm_no" });
       if (error) {
-        upsertErrors++;
-        if (!firstUpsertError) firstUpsertError = { message: error.message, code: (error as any).code };
+        upsertErrors = rowsToUpsert.length;
+        firstUpsertError = { message: error.message, code: (error as any).code };
+        debug.push(`${direction} batch upsert error: ${error.message}`);
       } else {
-        totalSynced++;
+        totalSynced += rowsToUpsert.length;
       }
     }
     if (upsertErrors > 0) {
