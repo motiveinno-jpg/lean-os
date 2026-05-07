@@ -537,6 +537,7 @@ async function syncHometaxInvoices(
   const errors: SyncError[] = [];
   const debug: string[] = [];   // 응답 구조 진단용 — totalSynced=0 인데 진짜 0건인지 parsing 누락인지 구분
   let totalSynced = 0;
+  let totalResponseCount = 0;   // CODEF 가 응답에 준 row 수 (매출+매입 합계). 누락 진단용.
 
   // 국세청(홈택스) organization code — '전자세금계산서 통합' product 는 0002 사용 (3a91f86 확인).
   const HOMETAX_ORG = "0002";
@@ -670,6 +671,7 @@ async function syncHometaxInvoices(
       }
     }
     const invoices = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    totalResponseCount += invoices.length;
     debug.push(`${direction} invoices.length=${invoices.length}`);
     if (invoices.length > 0) {
       const f = invoices[0];
@@ -741,7 +743,7 @@ async function syncHometaxInvoices(
     }
   }
 
-  return { synced: totalSynced, errors, debug };
+  return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
 }
 
 serve(async (req) => {

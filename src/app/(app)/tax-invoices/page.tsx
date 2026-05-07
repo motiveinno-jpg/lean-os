@@ -383,6 +383,9 @@ export default function TaxInvoicesPage() {
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [syncFromMonth, setSyncFromMonth] = useState(getCurrentMonth());
   const [syncToMonth, setSyncToMonth] = useState(getCurrentMonth());
+  // 월별 동기화 결과 — 완료 후 사용자에게 명확히 표시 (누락 N건 식)
+  type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
+  const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
 
   // 사용자가 선택한 시작~종료 월 범위로 sequential 동기화. 진행 상황 syncProgress 로 표시.
   // CODEF 가 동시 호출 거부(CF-00016/CF-TIMEOUT) 라 매월/매출/매입 모두 sequential 필수.
@@ -402,8 +405,8 @@ export default function TaxInvoicesPage() {
 
     setSyncing(true);
     setSyncProgress({ done: 0, total: months.length, label: '시작' });
-    let totalSynced = 0;
-    const errs: any[] = [];
+    setSyncResultDetail(null);
+    const monthResults: MonthSyncResult[] = [];
     try {
       for (let i = 0; i < months.length; i++) {
         const ml = months[i];
@@ -414,19 +417,34 @@ export default function TaxInvoicesPage() {
         const endDate = `${ml}-${String(lastDay).padStart(2, '0')}`;
         try {
           const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-          totalSynced += r.synced || 0;
-          if (r.errors?.length) errs.push(...r.errors);
+          const responseCount = r.responseCount ?? r.synced;
+          // 누락 판정: 응답 받은 수보다 저장된 수 적음 OR errors 있음 (CF-12200/CF-TIMEOUT 등)
+          const hasErrors = (r.errors?.length || 0) > 0;
+          const status: "ok" | "partial" | "error" =
+            hasErrors && r.synced === 0 ? "error"
+            : (hasErrors || responseCount > r.synced) ? "partial"
+            : "ok";
+          monthResults.push({
+            month: ml,
+            responseCount,
+            synced: r.synced || 0,
+            status,
+            errorMsg: r.errors?.[0]?.hint || r.errors?.[0]?.message,
+          });
         } catch (e: any) {
-          errs.push({ message: `${ml}: ${e.message}` });
+          monthResults.push({ month: ml, responseCount: 0, synced: 0, status: "error", errorMsg: e.message });
         }
       }
+      setSyncResultDetail(monthResults);
+      const totalSynced = monthResults.reduce((s, m) => s + m.synced, 0);
+      const failedMonths = monthResults.filter(m => m.status !== "ok");
       const periodLabel = months.length === 1 ? months[0] : `${months[0]} ~ ${months[months.length - 1]}`;
-      if (errs.length === 0) {
+      if (failedMonths.length === 0) {
         toast(`홈택스 동기화 완료 (${periodLabel}): ${totalSynced}건`, 'success');
       } else if (totalSynced > 0) {
-        toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
+        toast(`부분 동기화: ${totalSynced}건 · ${failedMonths.length}개 월 누락 (아래 결과에서 재시도)`, 'info');
       } else {
-        toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
+        toast(`동기화 실패: ${monthResults[0]?.errorMsg || ''}`, 'error');
       }
       // 보기 범위를 동기화 범위로 자동 세팅 → 사용자가 동기화 직후 그 데이터를 바로 봄
       setViewFromMonth(fromMonth);
@@ -436,6 +454,41 @@ export default function TaxInvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
       queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
+    } finally {
+      setSyncing(false);
+      setSyncProgress(null);
+    }
+  }
+
+  // 단일 월만 다시 sync — 결과 패널의 "재시도" 버튼에서 사용.
+  async function retryMonthSync(month: string) {
+    if (syncing || !companyId) return;
+    setSyncing(true);
+    setSyncProgress({ done: 1, total: 1, label: month });
+    try {
+      const [my, mm] = month.split('-').map(Number);
+      const lastDay = new Date(my, mm, 0).getDate();
+      const r = await syncHomeTaxInvoices({
+        companyId,
+        startDate: `${month}-01`,
+        endDate: `${month}-${String(lastDay).padStart(2, '0')}`,
+      });
+      const responseCount = r.responseCount ?? r.synced;
+      const hasErrors = (r.errors?.length || 0) > 0;
+      const status: "ok" | "partial" | "error" =
+        hasErrors && r.synced === 0 ? "error"
+        : (hasErrors || responseCount > r.synced) ? "partial"
+        : "ok";
+      setSyncResultDetail((prev) => (prev || []).map((m) =>
+        m.month === month ? { month, responseCount, synced: r.synced || 0, status, errorMsg: r.errors?.[0]?.hint || r.errors?.[0]?.message } : m
+      ));
+      if (status === "ok") toast(`${month} 재동기화 완료: ${r.synced}건`, 'success');
+      else toast(`${month} 재시도: ${r.synced}건 동기화 (누락 남음)`, 'info');
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
+      queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
+    } catch (e: any) {
+      toast(`${month} 재시도 실패: ${e.message}`, 'error');
     } finally {
       setSyncing(false);
       setSyncProgress(null);
@@ -911,6 +964,69 @@ export default function TaxInvoicesPage() {
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
+
+      {/* 동기화 결과 패널 — 월별 응답 수 vs 저장 수 비교, 누락 월에 재시도 버튼 */}
+      {syncResultDetail && syncResultDetail.length > 0 && (
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-4 no-print">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-bold text-[var(--text)]">
+              동기화 결과
+              {(() => {
+                const okCount = syncResultDetail.filter(m => m.status === "ok").length;
+                const failCount = syncResultDetail.length - okCount;
+                const totalSynced = syncResultDetail.reduce((s, m) => s + m.synced, 0);
+                const totalResp = syncResultDetail.reduce((s, m) => s + m.responseCount, 0);
+                const missing = totalResp - totalSynced;
+                return (
+                  <span className="ml-2 font-normal text-[var(--text-muted)]">
+                    · 총 {totalSynced}건 동기화
+                    {missing > 0 && <span className="ml-1 text-orange-400">· {missing}건 응답 받았으나 저장 누락</span>}
+                    {failCount > 0 && <span className="ml-1 text-red-400">· {failCount}개 월 누락</span>}
+                  </span>
+                );
+              })()}
+            </div>
+            <button
+              onClick={() => setSyncResultDetail(null)}
+              className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]"
+            >
+              닫기
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+            {syncResultDetail.map((m) => (
+              <div
+                key={m.month}
+                className={`rounded-lg p-2 text-[11px] ${
+                  m.status === "ok" ? "bg-green-500/10 border border-green-500/30"
+                  : m.status === "partial" ? "bg-yellow-500/10 border border-yellow-500/30"
+                  : "bg-red-500/10 border border-red-500/30"
+                }`}
+              >
+                <div className="font-semibold text-[var(--text)]">{m.month}</div>
+                <div className={
+                  m.status === "ok" ? "text-green-400"
+                  : m.status === "partial" ? "text-yellow-400"
+                  : "text-red-400"
+                }>
+                  {m.status === "ok" && `✓ ${m.synced}건`}
+                  {m.status === "partial" && `⚠ ${m.synced}/${m.responseCount}건`}
+                  {m.status === "error" && `✗ 0건 — ${m.errorMsg?.slice(0, 30) || '실패'}`}
+                </div>
+                {m.status !== "ok" && (
+                  <button
+                    onClick={() => retryMonthSync(m.month)}
+                    disabled={syncing}
+                    className="mt-1 text-[10px] underline text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:opacity-50"
+                  >
+                    재시도
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
 
       {/* Duplicate Invoice Warning Banner */}
