@@ -801,13 +801,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (action === "hometax-cron-tick") {
-      // 30분 이내 active job 중 30초 이내 처리 안 된 job 만 trigger (현재 진행중 job CF-00016 회피).
+      // 30분 이내 active job 중 3분+ update 없는 job 만 trigger.
+      // step 처리 1~2분 + edge function 150초 timeout 까지 고려 — 3분 skip 으로 진행 중 step 의 동시 호출 차단.
       const now = Date.now();
       const { data: jobs } = await supabase.from("hometax_sync_jobs")
         .select("id, company_id, updated_at")
         .in("status", ["pending", "running"])
         .gt("updated_at", new Date(now - 30 * 60 * 1000).toISOString())
-        .lt("updated_at", new Date(now - 30 * 1000).toISOString())  // 30초 이내 진행 중인 건 skip
+        .lt("updated_at", new Date(now - 3 * 60 * 1000).toISOString())  // 3분 이내 진행 중 skip
         .limit(10);
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const cronSecretForChain = CRON_SECRET;  // cron-tick 호출자가 사용한 secret 그대로 chain 에 전달
@@ -902,27 +903,12 @@ serve(async (req) => {
       if (monthEnd > todayYmd) monthEnd = todayYmd;
 
       // 분할 재시도 (depth 3 — frontend syncRangeWithSplit 동일)
-      const syncRecursive = async (s: string, e: string, depth = 0): Promise<{ synced: number; responseCount: number; errors: any[] }> => {
-        const r = await syncHometaxInvoices(supabase, token, job.company_id, "", s, e);
-        const timedOut = (r.errors || []).some((er: any) => er.code === "CF-TIMEOUT");
-        const sd2 = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
-        const ed2 = new Date(parseInt(e.slice(0, 4)), parseInt(e.slice(4, 6)) - 1, parseInt(e.slice(6, 8)));
-        const days = Math.round((ed2.getTime() - sd2.getTime()) / 86400000) + 1;
-        if (timedOut && depth < 3 && days >= 4) {
-          const mo = Math.floor(days / 2) - 1;
-          const md = new Date(sd2.getTime() + mo * 86400000);
-          const mn = new Date(md.getTime() + 86400000);
-          const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-          const r1 = await syncRecursive(s, fmt(md), depth + 1);
-          const r2 = await syncRecursive(fmt(mn), e, depth + 1);
-          return { synced: r1.synced + r2.synced, responseCount: r1.responseCount + r2.responseCount, errors: [...r1.errors, ...r2.errors] };
-        }
-        return { synced: r.synced || 0, responseCount: r.responseCount || 0, errors: r.errors || [] };
-      };
-
+      // Edge Function 150초 timeout 안전 — step 당 단일 호출 (매출+매입 sequential = 최대 140초).
+      // 분할 재귀는 timeout 유발 (140s + 추가 호출 = 280s+) → 제거. timeout 월은 partial 처리 + 사용자 재시도.
       let r;
       try {
-        r = await syncRecursive(monthStart, monthEnd);
+        const r0 = await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd);
+        r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [] };
       } catch (err: any) {
         r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
       }
