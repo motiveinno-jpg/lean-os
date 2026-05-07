@@ -418,8 +418,9 @@ export default function TaxInvoicesPage() {
     const startDate = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
     const endDate = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
     const days = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-    // depth 1만 — 한 번 분할 시도 후에도 timeout 이면 사용자에게 알리고 끝 (재시도 버튼 노출).
-    if (timedOut && depth < 1 && days >= 8) {
+    // depth 2 — 1달 → 16일 → 8일까지 분할 시도. 거래 폭증 월(1월 같은) 방어.
+    // 그래도 timeout 이면 결과 패널 + 재시도 버튼.
+    if (timedOut && depth < 2 && days >= 4) {
       const midOffset = Math.floor(days / 2) - 1;
       const mid = new Date(startDate.getTime() + midOffset * 86400000);
       const midNext = new Date(mid.getTime() + 86400000);
