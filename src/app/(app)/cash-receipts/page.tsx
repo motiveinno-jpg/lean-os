@@ -21,6 +21,14 @@ import { useToast } from "@/components/toast";
 
 type Tab = "income" | "expense" | "register";
 
+const SYNC_STORAGE_KEY = "cashreceipt-active-job-id";
+const TERMINAL = new Set(["completed", "failed", "cancelled"]);
+
+function thisMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 const INITIAL_FORM = {
   type: "expense" as "income" | "expense",
   amount: "",
@@ -44,6 +52,21 @@ export default function CashReceiptsPage() {
   const [uploading, setUploading] = useState(false);
   const [partnerSearch, setPartnerSearch] = useState("");
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
+
+  // ─── 홈택스 sync (현금영수증 매출) ───
+  const [syncFromMonth, setSyncFromMonth] = useState(thisMonth);
+  const [syncToMonth, setSyncToMonth] = useState(thisMonth);
+  const [syncStarting, setSyncStarting] = useState(false);
+  const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(SYNC_STORAGE_KEY);
+  });
+  const setActiveJobId = (id: string | null) => {
+    setActiveJobIdRaw(id);
+    if (typeof window === "undefined") return;
+    if (id) localStorage.setItem(SYNC_STORAGE_KEY, id);
+    else localStorage.removeItem(SYNC_STORAGE_KEY);
+  };
 
   // Date range for filter
   const now = new Date();
@@ -96,6 +119,119 @@ export default function CashReceiptsPage() {
       (p.business_number || "").includes(partnerSearch)
     ),
   [partners, partnerSearch]);
+
+  // mount 시 진행 중 job 감지 — 사용자가 페이지 떠났다 와도 진행 표시.
+  useEffect(() => {
+    if (!companyId || activeJobId) return;
+    (async () => {
+      const db = supabase as any;
+      const { data } = await db
+        .from("hometax_sync_jobs")
+        .select("id, status, updated_at")
+        .eq("company_id", companyId)
+        .eq("job_type", "cash_receipt")
+        .in("status", ["pending", "running"])
+        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (data && data[0]) setActiveJobId(data[0].id);
+    })();
+  }, [companyId, activeJobId]);
+
+  // active job polling — Realtime 보조.
+  const { data: activeJob } = useQuery({
+    queryKey: ["cashreceipt-sync-job", activeJobId],
+    queryFn: async () => {
+      if (!activeJobId) return null;
+      const db = supabase as any;
+      const { data } = await db
+        .from("hometax_sync_jobs")
+        .select("*")
+        .eq("id", activeJobId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!activeJobId,
+    refetchInterval: activeJobId ? 2000 : false,
+  });
+
+  // Realtime 구독.
+  useEffect(() => {
+    if (!activeJobId || !companyId) return;
+    const db = supabase as any;
+    const ch = db.channel(`cashreceipt_sync_jobs:${activeJobId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "hometax_sync_jobs", filter: `id=eq.${activeJobId}` }, (payload: any) => {
+        queryClient.setQueryData(["cashreceipt-sync-job", activeJobId], payload.new);
+        if (TERMINAL.has(payload.new.status)) {
+          setActiveJobId(null);
+          queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+          queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+          if (payload.new.status === "completed") {
+            toast(`현금영수증 동기화 완료: ${payload.new.total_synced || 0}건`, "success");
+          } else {
+            toast(`현금영수증 동기화 실패: ${payload.new.errors?.[0]?.message || "알 수 없는 오류"}`, "error");
+          }
+        }
+      })
+      .subscribe();
+    return () => { db.removeChannel(ch); };
+  }, [activeJobId, companyId, queryClient, toast]);
+
+  // 폴링 결과로 terminal 감지된 경우도 정리 (Realtime 누락 백업).
+  useEffect(() => {
+    if (!activeJob || !activeJobId) return;
+    if (TERMINAL.has(activeJob.status)) {
+      setActiveJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+    }
+  }, [activeJob, activeJobId, queryClient]);
+
+  const startSync = async () => {
+    if (!companyId || syncStarting || activeJobId) return;
+    if (syncFromMonth > syncToMonth) {
+      toast("시작 월이 종료 월보다 이전이어야 합니다", "error");
+      return;
+    }
+    setSyncStarting(true);
+    try {
+      const startDate = `${syncFromMonth}-01`;
+      const [ey, em] = syncToMonth.split("-").map(Number);
+      const lastDay = new Date(ey, em, 0).getDate();
+      const endDate = `${syncToMonth}-${String(lastDay).padStart(2, "0")}`;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast("세션이 만료되었습니다. 다시 로그인하세요.", "error");
+        return;
+      }
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-sync`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          companyId, action: "hometax-sync-async",
+          startDate, endDate, jobType: "cash_receipt",
+        }),
+      });
+      const result = await res.json();
+      if (res.status === 409 && result.activeJobId) {
+        setActiveJobId(result.activeJobId);
+        toast(`이미 진행 중인 동기화가 있습니다 (${result.progress?.label || "진행 중"})`, "info");
+        return;
+      }
+      if (!res.ok || !result.jobId) {
+        toast(`동기화 시작 실패: ${result.error || "응답 없음"}`, "error");
+        return;
+      }
+      setActiveJobId(result.jobId);
+      toast("백그라운드 동기화 시작됨. 페이지 떠나도 됩니다.", "success");
+    } catch (err: any) {
+      toast(`동기화 실패: ${err.message}`, "error");
+    } finally {
+      setSyncStarting(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!companyId || saving) return;
@@ -174,23 +310,57 @@ export default function CashReceiptsPage() {
   return (
     <div className="space-y-4 max-w-[1200px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-black">현금영수증</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
             매출/매입 현금영수증 관리 + 부가세 매입세액 공제 연동
           </p>
         </div>
-        <label className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[var(--bg)] transition">
-          {uploading ? "업로드 중..." : "엑셀 업로드"}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 홈택스 sync (현금영수증 매출) */}
           <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handleExcelUpload}
-            disabled={uploading}
+            type="month"
+            value={syncFromMonth}
+            onChange={(e) => setSyncFromMonth(e.target.value)}
+            disabled={syncStarting || !!activeJobId}
+            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+            aria-label="동기화 시작 월"
           />
-        </label>
+          <span className="text-[var(--text-dim)] text-xs">~</span>
+          <input
+            type="month"
+            value={syncToMonth}
+            onChange={(e) => setSyncToMonth(e.target.value)}
+            disabled={syncStarting || !!activeJobId}
+            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
+            aria-label="동기화 종료 월"
+          />
+          <button
+            onClick={startSync}
+            disabled={syncStarting || !!activeJobId}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            title="홈택스에서 현금영수증 매출 가져오기 (백그라운드)"
+          >
+            <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {syncStarting ? "시작 중..."
+              : activeJobId
+                ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ""})`
+                : "홈택스에서 가져오기"}
+          </button>
+          <label className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[var(--bg)] transition">
+            {uploading ? "업로드 중..." : "엑셀 업로드"}
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleExcelUpload}
+              disabled={uploading}
+            />
+          </label>
+        </div>
       </div>
 
       {/* Summary cards */}

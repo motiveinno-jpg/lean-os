@@ -753,6 +753,174 @@ async function syncHometaxInvoices(
   return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
 }
 
+// ─── 현금영수증 매출 sync ───
+// CODEF '현금영수증 매출내역' (organization=0003)
+// endpoint: /v1/kr/public/nt/cash-receipt/sales-details
+// timeout: 300s (CODEF 측 — Edge function 150s 제한이 먼저 걸림)
+// 응답: 단건이면 객체, 다건이면 리스트 → 항상 정규화.
+async function syncHometaxCashReceipts(
+  supabase: any, token: string, companyId: string,
+  startDate: string, endDate: string,
+) {
+  const errors: SyncError[] = [];
+  const debug: string[] = [];
+  let totalSynced = 0;
+  let totalResponseCount = 0;
+
+  const HOMETAX_ORG = "0003";
+
+  // ─── cert 로딩 (syncHometaxInvoices 와 동일 패턴) ───
+  let certB64 = "", keyB64 = "", certPassword = "";
+  try {
+    const certPath = `${companyId}/signCert.der`;
+    const keyPath = `${companyId}/signPri.key`;
+    const [certDl, keyDl, credRow] = await Promise.all([
+      supabase.storage.from("certificates").download(certPath),
+      supabase.storage.from("certificates").download(keyPath),
+      supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+    ]);
+    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_MISSING",
+        message: "홈택스 공동인증서 파일이 storage에 없습니다.",
+        hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요.",
+      });
+      return { synced: 0, responseCount: 0, errors, debug };
+    }
+    const encryptedPw = credRow.data?.credentials?.cert_password;
+    if (!encryptedPw) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_PASSWORD_MISSING",
+        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.",
+        hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요.",
+      });
+      return { synced: 0, responseCount: 0, errors, debug };
+    }
+    const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
+    if (decErr || !plainPw) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "HOMETAX_CERT_DECRYPT_FAILED",
+        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`,
+        hint: "설정에서 인증서 비밀번호를 다시 저장하세요.",
+      });
+      return { synced: 0, responseCount: 0, errors, debug };
+    }
+    const certBytes = new Uint8Array(await certDl.data.arrayBuffer());
+    const keyBytes = new Uint8Array(await keyDl.data.arrayBuffer());
+    certB64 = Buffer.from(certBytes).toString("base64");
+    keyB64 = Buffer.from(keyBytes).toString("base64");
+    certPassword = plainPw;
+  } catch (err: any) {
+    errors.push({
+      accountNo: "", organization: HOMETAX_ORG,
+      code: "HOMETAX_CERT_LOAD_FAILED",
+      message: `인증서 로드 실패: ${err.message || err}`,
+      hint: "설정에서 인증서를 재업로드하세요.",
+    });
+    return { synced: 0, responseCount: 0, errors, debug };
+  }
+
+  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+  const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
+
+  // 미래 날짜 cap.
+  const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
+  const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
+
+  const result = await codefRequest(token, "/v1/kr/public/nt/cash-receipt/sales-details", {
+    organization: HOMETAX_ORG,
+    loginType: "0",
+    certType: "1",
+    certFile: certB64,
+    keyFile: keyB64,
+    certPassword: encryptedCertPw,
+    startDate: cappedStart,
+    endDate: cappedEnd,
+    orderBy: "0",  // 최신순
+  });
+  debug.push(`cash-receipt sync ${cappedStart}~${cappedEnd}`);
+
+  if (result.result?.code !== "CF-00000") {
+    errors.push({
+      accountNo: "",
+      organization: HOMETAX_ORG,
+      code: result.result?.code || "UNKNOWN",
+      message: result.result?.message || "응답 없음",
+      hint: codefErrorHint(result.result?.code || ""),
+    });
+    return { synced: 0, responseCount: 0, errors, debug };
+  }
+
+  // 응답 정규화 — 단건이면 객체, 다건이면 리스트. data 자체가 array 일 수도 있고 nested key 일 수도.
+  let raw: any = result.data;
+  if (raw && !Array.isArray(raw) && typeof raw === "object") {
+    const arrayLikeKeys = ["resCashReceiptList", "resList", "list"];
+    for (const key of arrayLikeKeys) {
+      if (Array.isArray(raw[key])) { raw = raw[key]; debug.push(`unwrapped via key=${key}`); break; }
+    }
+  }
+  const receipts = Array.isArray(raw) ? raw : raw && raw.resApprovalNo ? [raw] : [];
+  totalResponseCount = receipts.length;
+  debug.push(`receipts.length=${receipts.length}`);
+  if (receipts.length > 0) {
+    const f = receipts[0];
+    debug.push(`sample resApprovalNo='${f.resApprovalNo}' resUsedDate='${f.resUsedDate}' resTransTypeNm='${f.resTransTypeNm}'`);
+  }
+
+  const rowsToUpsert: any[] = [];
+  for (const r of receipts) {
+    const approvalNo = String(r.resApprovalNo || "").trim();
+    if (!approvalNo) continue;
+    const usedDate = String(r.resUsedDate || "").trim();
+    if (usedDate.length !== 8 || usedDate < cappedStart || usedDate > cappedEnd) continue;
+    const issueDate = `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`;
+
+    const transType = String(r.resTransTypeNm || "");
+    const status = transType.includes("취소") ? "cancelled" : "issued";
+
+    const useType = String(r.resUseType || "");
+    const purpose = useType.includes("소득공제") ? "income_deduction" : "expenditure_proof";
+
+    rowsToUpsert.push({
+      company_id: companyId,
+      type: "income",  // 매출 sync (sales-details)
+      amount: Number(r.resTotalAmount || 0),
+      supply_amount: Number(r.resSupplyValue || 0),
+      tax_amount: Number(r.resVAT || 0),
+      counterparty_name: r.resCompanyNm || null,
+      counterparty_bizno: r.resCompanyIdentityNo || null,
+      issue_date: issueDate,
+      approval_number: approvalNo,
+      purpose,
+      status,
+      source: "hometax_sync",
+      memo: r.resNote || null,
+    });
+  }
+
+  if (rowsToUpsert.length > 0) {
+    const { error } = await supabase.from("cash_receipts").upsert(rowsToUpsert, {
+      onConflict: "company_id,approval_number,type",
+    });
+    if (error) {
+      errors.push({
+        accountNo: "", organization: HOMETAX_ORG,
+        code: "DB_UPSERT_FAIL",
+        message: error.message,
+      });
+      debug.push(`upsert error: ${error.message}`);
+    } else {
+      totalSynced = rowsToUpsert.length;
+    }
+  }
+
+  return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -924,9 +1092,10 @@ serve(async (req) => {
             completed_at: new Date().toISOString(),
             current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
           });
+          const syncTsCol = job.job_type === "cash_receipt" ? "last_cashreceipt_sync_at" : "last_hometax_sync_at";
           await supabase.from("company_settings").upsert({
             company_id: job.company_id,
-            last_hometax_sync_at: new Date().toISOString(),
+            [syncTsCol]: new Date().toISOString(),
           }, { onConflict: "company_id" });
           return new Response(JSON.stringify({ ok: true, completed: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
@@ -948,7 +1117,9 @@ serve(async (req) => {
 
         let r;
         try {
-          const r0 = await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd);
+          const r0 = job.job_type === "cash_receipt"
+            ? await syncHometaxCashReceipts(supabase, token, job.company_id, monthStart, monthEnd)
+            : await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd);
           r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [] };
         } catch (err: any) {
           r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
@@ -1034,9 +1205,10 @@ serve(async (req) => {
             completed_at: new Date().toISOString(),
             current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
           }).eq("id", jobId);
+          const syncTsCol = job.job_type === "cash_receipt" ? "last_cashreceipt_sync_at" : "last_hometax_sync_at";
           await supabase.from("company_settings").upsert({
             company_id: job.company_id,
-            last_hometax_sync_at: new Date().toISOString(),
+            [syncTsCol]: new Date().toISOString(),
           }, { onConflict: "company_id" });
         }
 
@@ -1057,7 +1229,8 @@ serve(async (req) => {
 
     // --- Action: hometax-sync-async (Background sync — job 만들고 즉시 응답 + 백그라운드 처리) ---
     if (action === "hometax-sync-async") {
-      const { startDate: aStart, endDate: aEnd } = body;
+      const { startDate: aStart, endDate: aEnd, jobType: rawJobType } = body;
+      const jobType = rawJobType === "cash_receipt" ? "cash_receipt" : "tax_invoice";
       if (!aStart || !aEnd) {
         return new Response(JSON.stringify({ error: "startDate, endDate 필수 (YYYY-MM-DD)" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1071,13 +1244,15 @@ serve(async (req) => {
         });
       }
 
-      // 같은 회사에 활성 job 있는지 — 동시 sync 차단 (CODEF 동시 호출 거부 방지)
+      // 같은 회사 + 같은 job_type 활성 차단 (CODEF 동시 호출 거부 방지)
+      // 다른 job_type (세금계산서 vs 현금영수증) 은 다른 endpoint 라 동시 진행 허용.
       const { data: activeJobs } = await supabase
         .from("hometax_sync_jobs")
         .select("id, status, current_progress, created_at")
         .eq("company_id", companyId)
+        .eq("job_type", jobType)
         .in("status", ["pending", "running"])
-        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString()) // 30분 이내 활성만
+        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
         .limit(1);
       if (activeJobs && activeJobs.length > 0) {
         return new Response(JSON.stringify({
@@ -1087,12 +1262,12 @@ serve(async (req) => {
         }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // 30분+ 무응답 stale job 자동 정리 (worker 죽었거나 instance 종료)
+      // 30분+ 무응답 stale job 자동 정리 — 같은 type 만
       await supabase.from("hometax_sync_jobs").update({
         status: "failed",
         completed_at: new Date().toISOString(),
         errors: [{ code: "STALE", message: "30분간 응답 없어 자동 종료" }],
-      }).eq("company_id", companyId).in("status", ["pending", "running"])
+      }).eq("company_id", companyId).eq("job_type", jobType).in("status", ["pending", "running"])
         .lt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString());
 
       // job 생성
@@ -1104,6 +1279,7 @@ serve(async (req) => {
           end_date: aEnd,
           status: "pending",
           triggered_by: userRow.id,
+          job_type: jobType,
         })
         .select()
         .single();
@@ -1141,9 +1317,10 @@ serve(async (req) => {
       }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // --- Action: hometax-pagination-test (검증용 — 페이지네이션 응답 시간 측정. 기존 흐름 영향 없음) ---
+    // --- Action: hometax-pagination-test (검증용 — endpoint/응답 구조 측정. 기존 흐름 영향 없음) ---
     if (action === "hometax-pagination-test") {
-      const { startDate: ts, endDate: te, pageNo = "1", pageSize = "20", transeType = "01" } = body;
+      const { startDate: ts, endDate: te, pageNo = "1", pageSize = "20", transeType = "01",
+              path: customPath, organization: customOrg, extraBody = {} } = body;
       const certPath = `${companyId}/signCert.der`;
       const keyPath = `${companyId}/signPri.key`;
       const [certDl, keyDl, credRow] = await Promise.all([
@@ -1163,15 +1340,13 @@ serve(async (req) => {
       const encryptedCertPw = publicKey ? rsaEncrypt(plainPw as string, publicKey) : (plainPw as string);
 
       const t0 = Date.now();
-      const result = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
-        organization: "0002",
+      const reqBody: Record<string, any> = {
+        organization: customOrg || "0002",
         loginType: "0",
         certType: "1",
         certFile: certB64,
         keyFile: keyB64,
         certPassword: encryptedCertPw,
-        inquiryType: "01",
-        searchType: "01",
         startDate: ts,
         endDate: te,
         sortby: "1",
@@ -1180,7 +1355,15 @@ serve(async (req) => {
         type: "0",
         pageNo: String(pageNo),
         pageSize: String(pageSize),
-      });
+        ...extraBody,
+      };
+      // 통합세금계산서 호출 시 inquiryType/searchType 필요.
+      if (!customPath) {
+        reqBody.inquiryType = "01";
+        reqBody.searchType = "01";
+      }
+      const path = customPath || "/v1/kr/public/nt/tax-invoice/integrated-check-list";
+      const result = await codefRequest(token, path, reqBody);
       const dt = Date.now() - t0;
 
       const dataRaw = result.data;

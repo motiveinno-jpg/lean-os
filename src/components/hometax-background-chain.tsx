@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
-const STORAGE_KEY = "hometax-active-job-id";
+// 페이지별 active job key — terminal 시 자동 정리.
+const STORAGE_KEYS = ["hometax-active-job-id", "cashreceipt-active-job-id"];
 
 /**
  * Hometax 백그라운드 sync — frontend 측 보조 컴포넌트.
@@ -25,18 +26,25 @@ export function HometaxBackgroundChain() {
 
     const checkJob = async () => {
       if (stopped) return;
-      const jobId = localStorage.getItem(STORAGE_KEY);
-      if (!jobId) {
+      const entries = STORAGE_KEYS
+        .map((k) => ({ key: k, id: localStorage.getItem(k) }))
+        .filter((e) => e.id);
+      if (entries.length === 0) {
         timer = setTimeout(checkJob, 60000);
         return;
       }
       try {
         const db = supabase as any;
-        const { data: job } = await db.from("hometax_sync_jobs")
+        const ids = entries.map((e) => e.id);
+        const { data: jobs } = await db.from("hometax_sync_jobs")
           .select("id, status")
-          .eq("id", jobId).maybeSingle();
-        if (!job || ["completed", "failed", "cancelled"].includes(job.status)) {
-          localStorage.removeItem(STORAGE_KEY);
+          .in("id", ids);
+        const byId = new Map<string, any>((jobs || []).map((j: any) => [j.id, j]));
+        for (const e of entries) {
+          const j = byId.get(e.id as string);
+          if (!j || ["completed", "failed", "cancelled"].includes(j.status)) {
+            localStorage.removeItem(e.key);
+          }
         }
       } catch (e) {
         console.warn("[hometax bg cleanup]", e);
