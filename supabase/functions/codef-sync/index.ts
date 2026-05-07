@@ -782,12 +782,44 @@ serve(async (req) => {
       user = result.data?.user ?? null;
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
-      // service_role 호출은 internal action 만 허용
-      if (action !== "hometax-job-step-internal") {
+      // service_role 호출은 cron-tick / job-step (background sync chain) 만 허용
+      const allowedServiceActions = new Set(["hometax-cron-tick", "hometax-job-step"]);
+      if (!allowedServiceActions.has(action)) {
         return new Response(JSON.stringify({ error: "service_role 은 internal action 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
+    // cron-tick 은 companyId 없이 글로벌 처리. 그 외 action 은 companyId 필수.
+    if (!companyId && action !== "hometax-cron-tick") {
+      return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (action === "hometax-cron-tick") {
+      // service_role 만 호출 가능 (위 검증). 30분 이내 active job 들 step trigger.
+      const { data: jobs } = await supabase.from("hometax_sync_jobs")
+        .select("id, company_id, updated_at")
+        .in("status", ["pending", "running"])
+        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .limit(10);
+      const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+      const triggers = (jobs || []).map((job) =>
+        fetch(selfUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": authHeader as string },
+          body: JSON.stringify({ companyId: job.company_id, action: "hometax-job-step", jobId: job.id }),
+        }).catch(() => {})
+      );
+      // fire-and-forget — 응답 즉시 반환. EdgeRuntime.waitUntil 로 fetch 보장.
+      // @ts-expect-error
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-expect-error
+        EdgeRuntime.waitUntil(Promise.all(triggers));
+      } else {
+        Promise.all(triggers).catch(() => {});
+      }
+      return new Response(JSON.stringify({ ok: true, triggered: jobs?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Get CODEF credentials from company settings

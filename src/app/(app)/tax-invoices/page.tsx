@@ -406,8 +406,18 @@ export default function TaxInvoicesPage() {
   const [incrementalMode, setIncrementalMode] = useState(false);
   // Background sync 토글 — ON 이면 hometax-sync-async 호출 (백그라운드).
   const [backgroundMode, setBackgroundMode] = useState(false);
-  // 백그라운드 진행 중인 job ID (Realtime 구독용)
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  // 백그라운드 진행 중인 job ID (Realtime 구독용) — localStorage 와 동기화하여 페이지 무관 chain.
+  const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("hometax-active-job-id");
+  });
+  const setActiveJobId = (id: string | null) => {
+    setActiveJobIdRaw(id);
+    if (typeof window !== "undefined") {
+      if (id) localStorage.setItem("hometax-active-job-id", id);
+      else localStorage.removeItem("hometax-active-job-id");
+    }
+  };
   // 월별 동기화 결과 — 완료 후 사용자에게 명확히 표시 (누락 N건 식)
   type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
   const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);

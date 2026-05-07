@@ -11,6 +11,7 @@ import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
+import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -234,6 +235,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarProvider>
         <BoardProvider>
           <AppContent>{children}</AppContent>
+          {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}
+          <HometaxBackgroundChain />
         </BoardProvider>
       </SidebarProvider>
     </UserProvider>
