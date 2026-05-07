@@ -765,16 +765,28 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const { data: { user } } = await createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    ).auth.getUser();
-
-    if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
     const body = await req.json();
     const { companyId, action = "sync", syncType = "all", startDate, endDate, connectedId } = body;
+
+    // service_role JWT 면 user 검사 skip — self-invoke chain (hometax-job-step-internal) 용
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const isServiceRoleAuth = !!authHeader && SERVICE_ROLE && authHeader.includes(SERVICE_ROLE);
+    let user: any = null;
+
+    if (!isServiceRoleAuth) {
+      const result = await createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      ).auth.getUser();
+      user = result.data?.user ?? null;
+      if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } else {
+      // service_role 호출은 internal action 만 허용
+      if (action !== "hometax-job-step-internal") {
+        return new Response(JSON.stringify({ error: "service_role 은 internal action 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
