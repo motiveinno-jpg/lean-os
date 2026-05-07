@@ -367,11 +367,30 @@ export default function TaxInvoicesPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">("sales");
-  // 보기 범위 — 동기화 후 자동으로 sync 범위와 동일하게 세팅됨. 사용자가 picker 로도 변경 가능.
-  const [viewFromMonth, setViewFromMonth] = useState(getCurrentMonth());
-  const [viewToMonth, setViewToMonth] = useState(getCurrentMonth());
-  // 보기 범위 안에서 단일 월 추가 필터 — "all" 이면 전체, 아니면 그 월만 표시.
-  const [viewFilterMonth, setViewFilterMonth] = useState<string>("all");
+  // 보기 범위 — localStorage 에 저장해 새로고침해도 유지. default 는 1년 전 ~ 현재 월.
+  const [viewFromMonth, setViewFromMonth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tax-invoices-viewFromMonth");
+      if (saved) return saved;
+    }
+    const d = new Date();
+    d.setMonth(d.getMonth() - 11);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [viewToMonth, setViewToMonth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tax-invoices-viewToMonth");
+      if (saved) return saved;
+    }
+    return getCurrentMonth();
+  });
+  // 새로고침 후에도 유지
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("tax-invoices-viewFromMonth", viewFromMonth);
+  }, [viewFromMonth]);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("tax-invoices-viewToMonth", viewToMonth);
+  }, [viewToMonth]);
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -481,7 +500,6 @@ export default function TaxInvoicesPage() {
       // 보기 범위를 동기화 범위로 자동 세팅 → 사용자가 동기화 직후 그 데이터를 바로 봄
       setViewFromMonth(fromMonth);
       setViewToMonth(toMonth);
-      setViewFilterMonth("all");
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
       queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
@@ -563,14 +581,12 @@ export default function TaxInvoicesPage() {
     ensurePrintStyles();
   }, []);
 
-  // 보기 기간 계산 — viewFilterMonth 가 "all" 이면 viewFrom~viewTo 전체, 아니면 그 월 단일.
+  // 보기 기간 계산 — viewFromMonth ~ viewToMonth 전체. 단일 월 보고 싶으면 from=to 로 설정.
   const { startDate, endDate } = useMemo(() => {
-    const range = viewFilterMonth === "all" ? [viewFromMonth, viewToMonth] : [viewFilterMonth, viewFilterMonth];
-    const [from, to] = range;
-    const [ty, tm] = to.split('-').map(Number);
+    const [ty, tm] = viewToMonth.split('-').map(Number);
     const lastDay = new Date(ty, tm, 0).getDate();
-    return { startDate: `${from}-01`, endDate: `${to}-${String(lastDay).padStart(2, '0')}` };
-  }, [viewFromMonth, viewToMonth, viewFilterMonth]);
+    return { startDate: `${viewFromMonth}-01`, endDate: `${viewToMonth}-${String(lastDay).padStart(2, '0')}` };
+  }, [viewFromMonth, viewToMonth]);
 
   // Fetch all invoices in view range
   const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
@@ -1211,35 +1227,50 @@ export default function TaxInvoicesPage() {
         <MonthlyTrendChart invoices={sixMonthInvoices} />
       </div>
 
-      {/* 보기 필터: 동기화 범위 안에서 전체/특정월 선택 (그래프 밑, 세금계산서 위) */}
-      <div className="flex items-center justify-between bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6 no-print">
+      {/* 보기 필터: 자유롭게 시작~종료 월 선택 (그래프 밑, 세금계산서 위). localStorage 로 유지 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6 no-print">
         <div className="text-xs text-[var(--text-muted)]">
           보기 범위: <strong className="text-[var(--text)]">{viewFromMonth} ~ {viewToMonth}</strong>
-          {viewFilterMonth !== "all" && (
-            <span className="ml-2 text-[var(--primary)]">· {viewFilterMonth} 만 표시 중</span>
-          )}
+          {viewFromMonth === viewToMonth && <span className="ml-2 text-[var(--primary)]">· 단일 월</span>}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewFilterMonth("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-              viewFilterMonth === "all"
-                ? "bg-[var(--primary)] text-white"
-                : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
-            }`}
-          >
-            전체
-          </button>
           <input
             type="month"
-            value={viewFilterMonth === "all" ? "" : viewFilterMonth}
-            min={viewFromMonth}
-            max={viewToMonth}
-            onChange={(e) => setViewFilterMonth(e.target.value || "all")}
+            value={viewFromMonth}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              setViewFromMonth(v);
+              if (v > viewToMonth) setViewToMonth(v);  // from > to 면 to 도 맞춤
+            }}
             className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-            aria-label="단일 월 필터"
-            title="범위 안에서 특정 월만 보려면 선택"
+            aria-label="보기 시작 월"
           />
+          <span className="text-xs text-[var(--text-muted)]">~</span>
+          <input
+            type="month"
+            value={viewToMonth}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              setViewToMonth(v);
+              if (v < viewFromMonth) setViewFromMonth(v);
+            }}
+            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+            aria-label="보기 종료 월"
+          />
+          <button
+            onClick={() => {
+              const d = new Date();
+              d.setMonth(d.getMonth() - 11);
+              setViewFromMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+              setViewToMonth(getCurrentMonth());
+            }}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition"
+            title="최근 1년"
+          >
+            전체(1년)
+          </button>
         </div>
       </div>
 
