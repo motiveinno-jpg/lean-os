@@ -768,12 +768,19 @@ serve(async (req) => {
     const body = await req.json();
     const { companyId, action = "sync", syncType = "all", startDate, endDate, connectedId } = body;
 
-    // service_role JWT 면 user 검사 skip — self-invoke chain (hometax-job-step-internal) 용
+    // 인증 분기:
+    //   1) HOMETAX_CRON_SECRET 헤더 매칭 → cron 호출 (cron-tick/job-step만 허용, user 검사 skip)
+    //   2) service_role JWT (env 매칭) → 같은 권한
+    //   3) 그 외 → user JWT 필수
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const isServiceRoleAuth = !!authHeader && SERVICE_ROLE && authHeader.includes(SERVICE_ROLE);
+    const CRON_SECRET = Deno.env.get("HOMETAX_CRON_SECRET") || "";
+    const cronSecretHeader = req.headers.get("x-cron-secret") || "";
+    const isCronAuth = !!CRON_SECRET && cronSecretHeader === CRON_SECRET;
+    const isServiceRoleAuth = !!authHeader && !!SERVICE_ROLE && authHeader.includes(SERVICE_ROLE);
+    const isInternalAuth = isCronAuth || isServiceRoleAuth;
     let user: any = null;
 
-    if (!isServiceRoleAuth) {
+    if (!isInternalAuth) {
       const result = await createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -782,10 +789,10 @@ serve(async (req) => {
       user = result.data?.user ?? null;
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
-      // service_role 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedServiceActions = new Set(["hometax-cron-tick", "hometax-job-step"]);
-      if (!allowedServiceActions.has(action)) {
-        return new Response(JSON.stringify({ error: "service_role 은 internal action 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step"]);
+      if (!allowedInternalActions.has(action)) {
+        return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
@@ -794,11 +801,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (action === "hometax-cron-tick") {
-      // service_role 만 호출 가능 (위 검증). 30분 이내 active job 들 step trigger.
+      // 30분 이내 active job 중 30초 이내 처리 안 된 job 만 trigger (현재 진행중 job CF-00016 회피).
+      const now = Date.now();
       const { data: jobs } = await supabase.from("hometax_sync_jobs")
         .select("id, company_id, updated_at")
         .in("status", ["pending", "running"])
-        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .gt("updated_at", new Date(now - 30 * 60 * 1000).toISOString())
+        .lt("updated_at", new Date(now - 30 * 1000).toISOString())  // 30초 이내 진행 중인 건 skip
         .limit(10);
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const triggers = (jobs || []).map((job) =>
