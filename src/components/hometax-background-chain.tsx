@@ -57,8 +57,9 @@ export function HometaxBackgroundChain() {
         if (result?.completed || result?.terminal) {
           localStorage.removeItem(STORAGE_KEY);
         }
-        // 1초 후 다음 step (또는 종료 처리)
-        timer = setTimeout(advance, 1000);
+        // 30초 후 다음 step — CODEF 측 동시 호출 처리 완전히 끝날 시간 확보 (CF-00016 회피).
+        // 1초 짧게 했더니 같은 인증 동시 호출로 인식돼 거부. 30초면 안전.
+        timer = setTimeout(advance, 30000);
       } catch (e) {
         // 네트워크 오류 — 5초 후 재시도
         console.warn("[hometax bg chain]", e);
