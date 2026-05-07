@@ -807,6 +807,30 @@ serve(async (req) => {
         });
       }
 
+      // 같은 회사에 활성 job 있는지 — 동시 sync 차단 (CODEF 동시 호출 거부 방지)
+      const { data: activeJobs } = await supabase
+        .from("hometax_sync_jobs")
+        .select("id, status, current_progress, created_at")
+        .eq("company_id", companyId)
+        .in("status", ["pending", "running"])
+        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString()) // 30분 이내 활성만
+        .limit(1);
+      if (activeJobs && activeJobs.length > 0) {
+        return new Response(JSON.stringify({
+          error: "이미 진행 중인 백그라운드 동기화가 있습니다. 완료 후 다시 시도하세요.",
+          activeJobId: activeJobs[0].id,
+          progress: activeJobs[0].current_progress,
+        }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // 30분+ 무응답 stale job 자동 정리 (worker 죽었거나 instance 종료)
+      await supabase.from("hometax_sync_jobs").update({
+        status: "failed",
+        completed_at: new Date().toISOString(),
+        errors: [{ code: "STALE", message: "30분간 응답 없어 자동 종료" }],
+      }).eq("company_id", companyId).in("status", ["pending", "running"])
+        .lt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString());
+
       // job 생성
       const { data: job, error: jobErr } = await supabase
         .from("hometax_sync_jobs")

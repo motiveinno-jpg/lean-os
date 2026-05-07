@@ -467,6 +467,11 @@ export default function TaxInvoicesPage() {
         body: JSON.stringify({ companyId, action: 'hometax-sync-async', startDate, endDate }),
       });
       const result = await res.json();
+      if (res.status === 409 && result.activeJobId) {
+        setActiveJobId(result.activeJobId);
+        toast(`이미 진행 중인 백그라운드 동기화가 있습니다 (${result.progress?.label || '진행 중'}). 완료 후 재시도.`, 'info');
+        return;
+      }
       if (!res.ok || !result.jobId) throw new Error(result.error || '백그라운드 시작 실패');
       setActiveJobId(result.jobId);
       toast(`백그라운드 동기화 시작됨 (${fromMonth} ~ ${toMonth}). 페이지 떠나도 됩니다.`, 'success');
@@ -763,6 +768,23 @@ export default function TaxInvoicesPage() {
     },
     enabled: !!companyId,
   });
+
+  // 페이지 mount 시 — 진행 중인 background job 감지 (사용자가 페이지 떠났다 다시 와도 진행 표시).
+  useEffect(() => {
+    if (!companyId || activeJobId) return;
+    (async () => {
+      const db = supabase as any;
+      const { data } = await db
+        .from('hometax_sync_jobs')
+        .select('id, status, updated_at')
+        .eq('company_id', companyId)
+        .in('status', ['pending', 'running'])
+        .gt('updated_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (data && data[0]) setActiveJobId(data[0].id);
+    })();
+  }, [companyId, activeJobId]);
 
   // Background sync job — Realtime 구독해서 진행 상황 표시.
   const { data: activeJob } = useQuery({
