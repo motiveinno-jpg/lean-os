@@ -810,10 +810,15 @@ serve(async (req) => {
         .lt("updated_at", new Date(now - 30 * 1000).toISOString())  // 30초 이내 진행 중인 건 skip
         .limit(10);
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+      const cronSecretForChain = CRON_SECRET;  // cron-tick 호출자가 사용한 secret 그대로 chain 에 전달
       const triggers = (jobs || []).map((job) =>
         fetch(selfUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": authHeader as string },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader as string,
+            "X-Cron-Secret": cronSecretForChain,  // step 호출도 internal auth 통과하게
+          },
           body: JSON.stringify({ companyId: job.company_id, action: "hometax-job-step", jobId: job.id }),
         }).catch(() => {})
       );
@@ -939,13 +944,17 @@ serve(async (req) => {
         errors: [...(job.errors || []), ...r.errors],
       }).eq("id", jobId);
 
-      // 다음 월 있으면 self-invoke — user JWT 그대로 (chain 안전)
+      // 다음 월 있으면 self-invoke — Authorization 과 X-Cron-Secret 둘 다 전달 (cron 호출도 chain 통과)
       if (doneCount + 1 < monthsList.length) {
         const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
         const triggerNext = async () => {
           await fetch(selfUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": authHeader as string },
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": authHeader as string,
+              "X-Cron-Secret": cronSecretHeader || CRON_SECRET,  // cron 호출이면 그대로 전달, user 호출이면 새로 추가
+            },
             body: JSON.stringify({ companyId: job.company_id, action: "hometax-job-step", jobId }),
           });
         };
