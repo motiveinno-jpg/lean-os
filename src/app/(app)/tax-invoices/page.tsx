@@ -328,7 +328,11 @@ export default function TaxInvoicesPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">("sales");
-  const [month, setMonth] = useState(getCurrentMonth());
+  // 보기 범위 — 동기화 후 자동으로 sync 범위와 동일하게 세팅됨. 사용자가 picker 로도 변경 가능.
+  const [viewFromMonth, setViewFromMonth] = useState(getCurrentMonth());
+  const [viewToMonth, setViewToMonth] = useState(getCurrentMonth());
+  // 보기 범위 안에서 단일 월 추가 필터 — "all" 이면 전체, 아니면 그 월만 표시.
+  const [viewFilterMonth, setViewFilterMonth] = useState<string>("all");
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -385,6 +389,10 @@ export default function TaxInvoicesPage() {
       } else {
         toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
       }
+      // 보기 범위를 동기화 범위로 자동 세팅 → 사용자가 동기화 직후 그 데이터를 바로 봄
+      setViewFromMonth(fromMonth);
+      setViewToMonth(toMonth);
+      setViewFilterMonth("all");
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
       queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
@@ -433,14 +441,19 @@ export default function TaxInvoicesPage() {
     ensurePrintStyles();
   }, []);
 
-  // Fetch all invoices
+  // 보기 기간 계산 — viewFilterMonth 가 "all" 이면 viewFrom~viewTo 전체, 아니면 그 월 단일.
+  const { startDate, endDate } = useMemo(() => {
+    const range = viewFilterMonth === "all" ? [viewFromMonth, viewToMonth] : [viewFilterMonth, viewFilterMonth];
+    const [from, to] = range;
+    const [ty, tm] = to.split('-').map(Number);
+    const lastDay = new Date(ty, tm, 0).getDate();
+    return { startDate: `${from}-01`, endDate: `${to}-${String(lastDay).padStart(2, '0')}` };
+  }, [viewFromMonth, viewToMonth, viewFilterMonth]);
+
+  // Fetch all invoices in view range
   const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
-    queryKey: ["tax-invoices-full", companyId, month],
+    queryKey: ["tax-invoices-full", companyId, startDate, endDate],
     queryFn: async () => {
-      const startDate = `${month}-01`;
-      const [y, m] = month.split('-').map(Number);
-      const lastDay = new Date(y, m, 0).getDate();
-      const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
       const { data } = await supabase
         .from("tax_invoices")
         .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item)")
@@ -496,7 +509,7 @@ export default function TaxInvoicesPage() {
   });
 
   // VAT Preview
-  const currentYear = Number(month.split("-")[0]);
+  const currentYear = Number(viewToMonth.split("-")[0]);
   const { data: vatPreview = [] } = useQuery({
     queryKey: ["vat-preview", companyId, currentYear],
     queryFn: () => getVATPreview(companyId!, currentYear),
@@ -783,13 +796,6 @@ export default function TaxInvoicesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            aria-label="조회 월 선택"
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-[var(--text-muted)]"
-          />
           <button
             onClick={() => window.print()}
             className="no-print px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition flex items-center gap-1.5 cursor-pointer"
@@ -866,6 +872,38 @@ export default function TaxInvoicesPage() {
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
+
+      {/* 보기 필터: 동기화 범위 안에서 전체/특정월 선택 */}
+      <div className="flex items-center justify-between bg-[var(--bg-card)] rounded-xl border border-[var(--border)] px-4 py-2.5 mb-6">
+        <div className="text-xs text-[var(--text-muted)]">
+          보기 범위: <strong className="text-[var(--text)]">{viewFromMonth} ~ {viewToMonth}</strong>
+          {viewFilterMonth !== "all" && (
+            <span className="ml-2 text-[var(--primary)]">· {viewFilterMonth} 만 표시 중</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewFilterMonth("all")}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              viewFilterMonth === "all"
+                ? "bg-[var(--primary)] text-white"
+                : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+            }`}
+          >
+            전체
+          </button>
+          <input
+            type="month"
+            value={viewFilterMonth === "all" ? "" : viewFilterMonth}
+            min={viewFromMonth}
+            max={viewToMonth}
+            onChange={(e) => setViewFilterMonth(e.target.value || "all")}
+            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+            aria-label="단일 월 필터"
+            title="범위 안에서 특정 월만 보려면 선택"
+          />
+        </div>
+      </div>
 
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
@@ -1311,7 +1349,7 @@ export default function TaxInvoicesPage() {
               onClick={() =>
                 exportToExcel(
                   currentList,
-                  `세금계산서_${tab === "sales" ? "매출" : "매입"}_${month}.xlsx`
+                  `세금계산서_${tab === "sales" ? "매출" : "매입"}_${viewFromMonth}~${viewToMonth}.xlsx`
                 )
               }
               className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
@@ -1686,7 +1724,7 @@ export default function TaxInvoicesPage() {
                     </li>
                     <li className="flex gap-2">
                       <span className="font-bold text-blue-500 flex-shrink-0">2.</span>
-                      <span>이 페이지에서 <strong>{month} 동기화 실행</strong> 버튼을 누르면 매월 매출/매입 세금계산서가 자동 조회됩니다</span>
+                      <span>이 페이지에서 <strong>시작/종료 월 선택 후 동기화</strong> 버튼을 누르면 매출/매입 세금계산서가 자동 조회됩니다</span>
                     </li>
                     <li className="flex gap-2">
                       <span className="font-bold text-blue-500 flex-shrink-0">3.</span>
@@ -1714,7 +1752,7 @@ export default function TaxInvoicesPage() {
                     {hometaxConnection?.method === 'id_pw' && <span className="ml-2 text-[10px] font-normal text-[var(--text-dim)]">(ID/PW)</span>}
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">
-                    아래 <strong>{month} 동기화 실행</strong> 버튼을 누르면 첫 매출/매입 세금계산서를 가져옵니다.
+                    아래 <strong>시작/종료 월 선택 후 동기화 실행</strong> 버튼을 누르면 첫 매출/매입 세금계산서를 가져옵니다.
                     수집 후 자동으로 <strong>3-Way 매칭</strong>이 시작됩니다.
                   </div>
                 </div>
