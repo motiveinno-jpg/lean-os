@@ -825,6 +825,40 @@ export default function TaxInvoicesPage() {
     return () => { db.removeChannel(ch); };
   }, [activeJobId, companyId, queryClient]);
 
+  // Frontend chain — EdgeRuntime.waitUntil 가 self-invoke 안전하게 보장 못 해 frontend 가 step polling 으로 chain 추진.
+  // 페이지 열려있는 동안 작동. 페이지 닫으면 멈춤 → mount 시 자동 재개 (위 mount 감지 useEffect).
+  useEffect(() => {
+    if (!activeJobId || !companyId) return;
+    let stopped = false;
+    const advance = async () => {
+      while (!stopped) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) break;
+          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-sync`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyId, action: 'hometax-job-step', jobId: activeJobId }),
+          });
+          const result = await res.json();
+          if (result?.completed || result?.terminal) break;
+          if (!res.ok) {
+            console.warn('[hometax chain] step error:', result);
+            break;
+          }
+          // 다음 step 즉시 진행 — 1초 대기 (CODEF rate-limit 안전 마진)
+          await new Promise((r) => setTimeout(r, 1000));
+        } catch (e: any) {
+          console.warn('[hometax chain] error:', e);
+          break;
+        }
+      }
+    };
+    advance();
+    return () => { stopped = true; };
+  }, [activeJobId, companyId]);
+
   // 홈택스 연결 상태 — automation_credentials.hometax 존재 여부 (codef-sync edge function이 실제로 사용하는 자격증명)
   const { data: hometaxConnection } = useQuery({
     queryKey: ["hometax-connection", companyId],
