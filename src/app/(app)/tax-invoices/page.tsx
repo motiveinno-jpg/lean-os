@@ -337,6 +337,7 @@ export default function TaxInvoicesPage() {
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -780,18 +781,35 @@ export default function TaxInvoicesPage() {
             if (syncing) return;
             if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
             setSyncing(true);
+            setSyncProgress({ done: 0, total: 12, label: '시작' });
             try {
               if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
-              const startDate = `${month}-01`;
-              const [sy, sm] = month.split('-').map(Number);
-              const endDate = `${month}-${String(new Date(sy, sm, 0).getDate()).padStart(2, '0')}`;
-              const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-              if (r.status === 'error') {
-                toast(`동기화 실패 (${r.errors.length}건): ${r.errors[0]?.hint || r.errors[0]?.message || ''}`, 'error');
-              } else if (r.status === 'partial') {
-                toast(`부분 동기화: ${r.synced}건 (오류 ${r.errors.length}건)`, 'info');
+              // CODEF 가 동일 인증 동시 호출 거부(CF-00016) 라 월별 sequential 호출. 진행 상황 표시.
+              // 1년치 = 12 호출 × 30~60초 = 약 5~10분.
+              const today = new Date();
+              let totalSynced = 0;
+              const errs: any[] = [];
+              for (let i = 11; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                const monthLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                setSyncProgress({ done: 12 - i, total: 12, label: monthLabel });
+                const startDate = `${monthLabel}-01`;
+                const endDate = `${monthLabel}-${String(lastDay).padStart(2, '0')}`;
+                try {
+                  const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
+                  totalSynced += r.synced || 0;
+                  if (r.errors?.length) errs.push(...r.errors);
+                } catch (e: any) {
+                  errs.push({ message: `${monthLabel}: ${e.message}` });
+                }
+              }
+              if (errs.length === 0) {
+                toast(`12개월 동기화 완료: ${totalSynced}건`, 'success');
+              } else if (totalSynced > 0) {
+                toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
               } else {
-                toast(`동기화 완료: ${r.synced}건`, 'success');
+                toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
               }
               invalidate();
               queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
@@ -801,6 +819,7 @@ export default function TaxInvoicesPage() {
               toast(`동기화 오류: ${err.message}`, "error");
             } finally {
               setSyncing(false);
+              setSyncProgress(null);
             }
           }}
           disabled={syncing || !isHometaxConnected}
@@ -810,7 +829,7 @@ export default function TaxInvoicesPage() {
           <svg className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {syncing ? "동기화 중..." : "홈택스에서 가져오기"}
+          {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "홈택스에서 가져오기 (최근 12개월)"}
         </button>
       </div>
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
@@ -1693,17 +1712,32 @@ export default function TaxInvoicesPage() {
                   if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
                   if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
                   setSyncing(true);
+                  setSyncProgress({ done: 0, total: 12, label: '시작' });
                   try {
-                    const startDate = `${month}-01`;
-                    const [sy2, sm2] = month.split('-').map(Number);
-                    const endDate = `${month}-${String(new Date(sy2, sm2, 0).getDate()).padStart(2, '0')}`;
-                    const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
-                    if (r.status === 'error') {
-                      toast(`동기화 실패 (${r.errors.length}건): ${r.errors[0]?.hint || r.errors[0]?.message || ''}`, 'error');
-                    } else if (r.status === 'partial') {
-                      toast(`부분 동기화: ${r.synced}건 (오류 ${r.errors.length}건)`, 'info');
+                    const today = new Date();
+                    let totalSynced = 0;
+                    const errs: any[] = [];
+                    for (let i = 11; i >= 0; i--) {
+                      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                      const monthLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                      setSyncProgress({ done: 12 - i, total: 12, label: monthLabel });
+                      const startDate = `${monthLabel}-01`;
+                      const endDate = `${monthLabel}-${String(lastDay).padStart(2, '0')}`;
+                      try {
+                        const r = await syncHomeTaxInvoices({ companyId, startDate, endDate });
+                        totalSynced += r.synced || 0;
+                        if (r.errors?.length) errs.push(...r.errors);
+                      } catch (e: any) {
+                        errs.push({ message: `${monthLabel}: ${e.message}` });
+                      }
+                    }
+                    if (errs.length === 0) {
+                      toast(`홈택스 12개월 동기화 완료: ${totalSynced}건`, 'success');
+                    } else if (totalSynced > 0) {
+                      toast(`동기화 완료(부분): ${totalSynced}건 / 오류 ${errs.length}건`, 'info');
                     } else {
-                      toast(`홈택스 동기화 완료: ${r.synced}건`, 'success');
+                      toast(`동기화 실패: ${errs[0]?.hint || errs[0]?.message || ''}`, 'error');
                     }
                     invalidate();
                     queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
@@ -1711,13 +1745,14 @@ export default function TaxInvoicesPage() {
                     toast(`동기화 오류: ${err.message}`, "error");
                   } finally {
                     setSyncing(false);
+                    setSyncProgress(null);
                   }
                 }}
                 disabled={syncing || !isHometaxConnected}
                 className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : undefined}
               >
-                {syncing ? "동기화 중..." : `${month} 동기화 실행`}
+                {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "최근 12개월 동기화 실행"}
               </button>
             </div>
 

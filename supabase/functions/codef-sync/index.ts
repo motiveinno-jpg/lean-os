@@ -601,38 +601,40 @@ async function syncHometaxInvoices(
   const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
 
   // CF-13001 방지: 미래 날짜는 today 로 cap. CODEF 통합 API 는 endDate > today 면 거부.
-  // 사용자가 5월 보고 있어도 5/31 (미래)을 보내면 안 됨 → 5/6 (오늘)으로 cap.
   const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
   const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
 
-  // ─── 매출/매입 병렬 호출 (Edge Function 150초 timeout 회피, b667a6d 패턴 복원) ───
-  // 순차 호출은 각 호출 60~90초 → 합 150초 초과 → HTTP 546.
+  // ─── 매출/매입 병렬 호출 (단일 기간) ───
+  // CODEF 가 동일 인증 정보로 같은 product 의 동시 호출 거부 (CF-00016 — 중복 요청 거부).
+  // chunk 별 병렬은 불가. 한 호출에 받은 startDate~endDate 그대로 처리.
+  // 1년치 sync 가 필요하면 frontend 가 월별 12번 sequential 호출.
   const callDirection = (direction: "매출" | "매입") =>
     codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
-      loginType: "0",                                      // 0=공동인증서
+      loginType: "0",
       certType: "1",
       certFile: certB64,
       keyFile: keyB64,
       certPassword: encryptedCertPw,
-      inquiryType: "01",                                  // 01=전자세금계산서
-      searchType: "01",                                   // 01=작성일자
-      startDate: cappedStart,                             // YYYYMMDD (미래 보호)
-      endDate: cappedEnd,                                 // YYYYMMDD (today 로 cap)
+      inquiryType: "01",
+      searchType: "01",
+      startDate: cappedStart,
+      endDate: cappedEnd,
       sortby: "1",
       orderBy: "0",
-      transeType: direction === "매출" ? "01" : "02",     // 01=매출 / 02=매입
+      transeType: direction === "매출" ? "01" : "02",
       type: "0",
-    }).then((result) => ({ direction, result }));
+    }).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
 
   const reportedCodes = new Set<string>();
-  // 환경성 코드 — 이번 sync 세션에서 한 번만 push
   const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
 
+  // 매출/매입은 transeType 다르니 동시 호출 가능 (CF-00016 회피).
   const settled = await Promise.all([callDirection("매출"), callDirection("매입")]);
+  debug.push(`single-period sync ${cappedStart}~${cappedEnd} done`);
 
-  for (const { direction, result } of settled) {
+  for (const { direction, result, chunkStart, chunkEnd } of settled) {
     if (result.result?.code !== "CF-00000") {
       const code = result.result?.code || "UNKNOWN";
       if (!reportedCodes.has(code)) {
@@ -686,11 +688,9 @@ async function syncHometaxInvoices(
       //   resIssueDate     = 발행일 (예: 20260309) — 다음달 10일까지 발행 가능
       // 화면 월별 그룹핑은 issue_date 컬럼(=작성일자) 기준.
       const reportingDate = String(inv.resReportingDate || "").trim();
-      // CODEF 매입 응답이 검색 기간 외(특히 그 이후) 작성일자도 섞어 보내는 케이스 방어:
-      // 작성일자가 sync 호출 기간(cappedStart~cappedEnd) 밖이면 skip.
-      // 이렇게 안 하면 2월 sync 응답에 들어온 작성일자 3월 매입이 DB에 잘못 들어가고,
-      // 3월 sync 했을 때 64건이 또 들어와서 두 배(이중 카운트)됨.
-      if (reportingDate.length !== 8 || reportingDate < cappedStart || reportingDate > cappedEnd) {
+      // CODEF 매입 응답이 검색 기간 외(특히 그 이후) 작성일자도 섞어 보내는 케이스 방어.
+      // 작성일자가 이 chunk 기간 밖이면 skip — 다른 chunk 호출에서 정확히 잡힘.
+      if (reportingDate.length !== 8 || reportingDate < chunkStart || reportingDate > chunkEnd) {
         continue;
       }
       const formattedDate = `${reportingDate.slice(0,4)}-${reportingDate.slice(4,6)}-${reportingDate.slice(6,8)}`;
