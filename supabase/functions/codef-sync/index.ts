@@ -249,6 +249,36 @@ async function syncBankTransactions(
 
     if (demandDeposits.length === 0) continue;
 
+    // 2.5. bank_accounts upsert — 대시보드 / 통장관리 잔액 카드용
+    // CODEF account-list 응답의 resAccountBalance 가 현재 잔액. alias 는 이미 있으면 보존.
+    for (const bankAcct of demandDeposits) {
+      const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || "";
+      if (!accountNo) continue;
+      const balance = Number(bankAcct.resAccountBalance || 0);
+      const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
+        `${BANK_CODES[org] || org} ${(bankAcct.resAccountDisplay || accountNo).slice(-4)}`;
+      const existing = await supabase
+        .from("bank_accounts")
+        .select("id, alias")
+        .eq("company_id", companyId)
+        .eq("account_number", accountNo)
+        .maybeSingle();
+      if (existing.data?.id) {
+        await supabase.from("bank_accounts").update({
+          balance,
+          bank_name: BANK_CODES[org] || org,
+        }).eq("id", existing.data.id);
+      } else {
+        await supabase.from("bank_accounts").insert({
+          company_id: companyId,
+          bank_name: BANK_CODES[org] || org,
+          account_number: accountNo,
+          alias: aliasGuess,
+          balance,
+        });
+      }
+    }
+
     // 3. 각 계좌의 거래내역 조회
     let orgPermissionDenied = false;
     let orgAccountMismatchReported = false;

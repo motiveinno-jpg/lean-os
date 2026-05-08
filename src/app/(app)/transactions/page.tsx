@@ -1096,6 +1096,42 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
+          {/* 통장별 잔액 카드 + 총잔액 */}
+          {bankAccountsList.length > 0 && (
+            <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-gradient-to-br from-[var(--primary)]/15 to-[var(--primary)]/5 rounded-xl p-3 border border-[var(--primary)]/20">
+                <div className="text-[10px] text-[var(--primary)] font-semibold uppercase tracking-wider">총 잔액</div>
+                <div className="text-lg font-black mt-1 mono-number">
+                  ₩{bankAccountsList.reduce((s, a) => s + (a.balance || 0), 0).toLocaleString()}
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{bankAccountsList.length}개 통장</div>
+              </div>
+              {bankAccountsList.slice(0, 8).map((a) => {
+                const display = a.alias || (a.accountNo.length >= 12
+                  ? `${a.accountNo.slice(0,3)}-${a.accountNo.slice(3,9)}-${a.accountNo.slice(9,11)}-${a.accountNo.slice(11)}`
+                  : a.accountNo);
+                const isSelected = selectedAccountNo === a.accountNo;
+                return (
+                  <button
+                    key={a.accountNo}
+                    onClick={() => setSelectedAccountNo(isSelected ? '' : a.accountNo)}
+                    className={`text-left rounded-xl p-3 border transition ${
+                      isSelected
+                        ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 ring-1 ring-[var(--primary)]/30'
+                        : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-surface)]'
+                    }`}
+                    title={`클릭해서 ${isSelected ? '해제' : '필터'}`}
+                  >
+                    <div className="text-[10px] text-[var(--text-dim)] truncate">{a.bankName || ''}</div>
+                    <div className="text-[11px] font-semibold mono-number truncate">{display}</div>
+                    <div className="text-sm font-bold mono-number mt-1">₩{(a.balance || 0).toLocaleString()}</div>
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{a.count}건</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
           {bankAccountsList.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
@@ -1207,6 +1243,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     <th className="text-left px-4 py-3 font-medium">거래처</th>
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
+                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">잔액</th>
                     <th className="text-center px-4 py-3 font-medium" title="고정지출">고정</th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
@@ -1237,6 +1274,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>
                       <td className={`px-4 py-2.5 text-sm text-right font-medium mono-number ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
                         {tx.type === 'income' ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)] mono-number hidden md:table-cell">
+                        ₩{Number(tx.balance_after || 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <input

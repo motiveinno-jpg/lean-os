@@ -1528,23 +1528,60 @@ export async function getBankTransactions(companyId: string, filters?: {
   return data || [];
 }
 
-// CODEF sync 로 들어온 통장별 distinct accountNo + 거래 건수
-export async function getDistinctBankAccountNos(companyId: string): Promise<Array<{ accountNo: string; count: number }>> {
-  const { data } = await supabase
-    .from('bank_transactions')
-    .select('raw_data')
-    .eq('company_id', companyId)
-    .eq('source', 'codef_bank')
-    .limit(5000);
-  const counts = new Map<string, number>();
-  for (const row of (data || [])) {
-    const acct = (row as any).raw_data?.accountNo;
+// CODEF sync 로 들어온 통장별 distinct accountNo + 거래 건수 + 최신 잔액
+// (bank_accounts 우선, 없으면 bank_transactions 의 가장 최근 balance_after)
+export async function getDistinctBankAccountNos(companyId: string): Promise<Array<{
+  accountNo: string;
+  count: number;
+  balance: number;
+  alias?: string;
+  bankName?: string;
+}>> {
+  const [{ data: txs }, { data: accts }] = await Promise.all([
+    supabase
+      .from('bank_transactions')
+      .select('raw_data, balance_after, transaction_date, created_at')
+      .eq('company_id', companyId)
+      .eq('source', 'codef_bank')
+      .order('transaction_date', { ascending: false })
+      .limit(5000),
+    supabase
+      .from('bank_accounts')
+      .select('account_number, alias, bank_name, balance')
+      .eq('company_id', companyId),
+  ]);
+  // tx 별 count + 최신 잔액 계산
+  const countByAcct = new Map<string, number>();
+  const latestBalanceByAcct = new Map<string, number>();
+  for (const row of (txs || []) as any[]) {
+    const acct = row.raw_data?.accountNo;
     if (!acct) continue;
-    counts.set(acct, (counts.get(acct) || 0) + 1);
+    countByAcct.set(acct, (countByAcct.get(acct) || 0) + 1);
+    if (!latestBalanceByAcct.has(acct)) latestBalanceByAcct.set(acct, Number(row.balance_after || 0));
   }
-  return Array.from(counts.entries())
+  // bank_accounts 정보 매핑 (alias / 권위 잔액)
+  const acctInfo = new Map<string, { alias?: string; bankName?: string; balance: number }>();
+  for (const a of (accts || []) as any[]) {
+    if (a.account_number) {
+      acctInfo.set(a.account_number, {
+        alias: a.alias || undefined,
+        bankName: a.bank_name || undefined,
+        balance: Number(a.balance || 0),
+      });
+    }
+  }
+  return Array.from(countByAcct.entries())
     .sort((a, b) => b[1] - a[1])
-    .map(([accountNo, count]) => ({ accountNo, count }));
+    .map(([accountNo, count]) => {
+      const info = acctInfo.get(accountNo);
+      return {
+        accountNo,
+        count,
+        balance: info?.balance ?? latestBalanceByAcct.get(accountNo) ?? 0,
+        alias: info?.alias,
+        bankName: info?.bankName,
+      };
+    });
 }
 
 export async function getBankTransactionStats(companyId: string) {
