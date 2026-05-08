@@ -135,11 +135,13 @@ export default function SettingsPage() {
       return;
     }
     setSaved(true);
-    toast("현금 현황이 저장되었습니다. 대시보드 새로고침 시 반영됩니다.", "success");
-    // 대시보드 즉시 갱신 — cash-pulse + real-burn (sixPack.monthlyBurn) + founder-data
-    queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
-    queryClient.invalidateQueries({ queryKey: ["real-burn"] });
-    queryClient.invalidateQueries({ queryKey: ["founder-data"] });
+    toast("현금 현황이 저장되었습니다. 대시보드에 즉시 반영됩니다.", "success");
+    // 대시보드 즉시 갱신 — refetchQueries 로 캐시 무관 강제 fetch
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["cash-pulse"] }),
+      queryClient.refetchQueries({ queryKey: ["real-burn"] }),
+      queryClient.refetchQueries({ queryKey: ["founder-data"] }),
+    ]);
     setTimeout(() => setSaved(false), 2000);
   }
 
