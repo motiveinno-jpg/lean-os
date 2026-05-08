@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule } from "@/lib/queries";
+import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule, getDistinctBankAccountNos } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames, restoreCardTransaction, upsertCardAlias } from "@/lib/card-transactions";
 import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card-vat-classification";
@@ -47,6 +47,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const [tab, setTab] = useState<Tab>(initialTab);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('unmapped');
   const [filterType, setFilterType] = useState<string>('');
+  // 통장별/날짜 필터 — codef sync 결과 분류용
+  const [selectedAccountNo, setSelectedAccountNo] = useState<string>('');
+  const [bankDateFrom, setBankDateFrom] = useState<string>('');
+  const [bankDateTo, setBankDateTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
@@ -103,11 +107,21 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   }, []);
 
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
-    queryKey: ['bank-transactions', companyId, filterStatus, filterType],
+    queryKey: ['bank-transactions', companyId, filterStatus, filterType, selectedAccountNo, bankDateFrom, bankDateTo],
     queryFn: () => getBankTransactions(companyId!, {
       status: filterStatus === 'all' ? undefined : filterStatus,
       type: filterType || undefined,
+      accountNo: selectedAccountNo || undefined,
+      dateFrom: bankDateFrom || undefined,
+      dateTo: bankDateTo || undefined,
     }),
+    enabled: !!companyId,
+  });
+
+  // 통장 목록 (codef sync 한 결과로부터)
+  const { data: bankAccountsList = [] } = useQuery({
+    queryKey: ['bank-accounts-distinct', companyId],
+    queryFn: () => getDistinctBankAccountNos(companyId!),
     enabled: !!companyId,
   });
 
@@ -668,6 +682,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
                   queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
                 } else {
                   toast(result.error || 'CODEF 동기화 실패', 'error');
                 }
@@ -1062,6 +1077,52 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
+          {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
+          {bankAccountsList.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
+              <select
+                value={selectedAccountNo}
+                onChange={e => setSelectedAccountNo(e.target.value)}
+                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+                aria-label="통장 선택"
+              >
+                <option value="">전체 통장 ({bankAccountsList.reduce((s, a) => s + a.count, 0)}건)</option>
+                {bankAccountsList.map(a => {
+                  const display = a.accountNo.length >= 12
+                    ? `${a.accountNo.slice(0,3)}-${a.accountNo.slice(3,9)}-${a.accountNo.slice(9,11)}-${a.accountNo.slice(11)}`
+                    : a.accountNo;
+                  return (
+                    <option key={a.accountNo} value={a.accountNo}>{display} ({a.count}건)</option>
+                  );
+                })}
+              </select>
+              <input
+                type="date"
+                value={bankDateFrom}
+                onChange={e => setBankDateFrom(e.target.value)}
+                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+                aria-label="시작일"
+              />
+              <span className="text-xs text-[var(--text-dim)]">~</span>
+              <input
+                type="date"
+                value={bankDateTo}
+                onChange={e => setBankDateTo(e.target.value)}
+                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+                aria-label="종료일"
+              />
+              {(selectedAccountNo || bankDateFrom || bankDateTo) && (
+                <button
+                  onClick={() => { setSelectedAccountNo(''); setBankDateFrom(''); setBankDateTo(''); }}
+                  className="px-2 py-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]"
+                >초기화</button>
+              )}
+              <span className="ml-auto text-[10px] text-[var(--text-dim)]">
+                {bankTx.length}건 표시
+              </span>
+            </div>
+          )}
+
           {/* Filter pills */}
           {tab === 'all' && (
             <div className="flex items-center gap-2 mb-3">
@@ -1111,6 +1172,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       />
                     </th>}
                     <th className="text-left px-4 py-3 font-medium">날짜</th>
+                    <th className="text-left px-4 py-3 font-medium">통장</th>
                     <th className="text-left px-4 py-3 font-medium">거래처</th>
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
@@ -1136,6 +1198,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       )}
                       {tab === 'inbox' && tx.mapping_status !== 'unmapped' && <td className="w-8" />}
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                      <td className="px-4 py-2.5 text-[10px] text-[var(--text-dim)] mono-number whitespace-nowrap">
+                        {tx.bank_accounts?.alias || tx.raw_data?.accountNo?.slice(-4) || "—"}
+                      </td>
                       <td className="px-4 py-2.5 text-sm">{tx.counterparty || "—"}</td>
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>
                       <td className={`px-4 py-2.5 text-sm text-right font-medium mono-number ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>

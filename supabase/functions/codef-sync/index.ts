@@ -204,20 +204,26 @@ async function syncBankTransactions(
 
     const dataKeys = Object.keys(acctListResult.data || {});
     debug.push(`bank ${org} account-list OK, data keys: [${dataKeys.join(",")}]`);
+    // 진단 — IBK 보통예금이 다른 키로 오는지 확인용 (raw response capture)
+    console.log(`[BANK-ACCOUNT-LIST-RAW] org=${org}`, JSON.stringify(acctListResult.data || {}).slice(0, 3000));
 
     // CODEF bank account-list returns categorized arrays.
-    // 일반 거래내역 조회(/transaction-list)는 입출금 계좌(resAccountList)만 지원.
-    // 펀드/외화/대출/예신탁은 별도 API 필요 — 여기서 호출하면 CF-13021 발생.
+    // 입출금 = resAccountList 가 표준이지만, IBK 는 기업자유예금/보통예금을 resDepositTrust 로 보냄 (검증).
+    // 그래서 resAccountList 비어있으면 resDepositTrust 도 시도. 진짜 예적금이면 transaction-list 가
+    // CF-13021 반환 → 기존 dedup 처리로 한 번만 노이즈.
     const acctData = acctListResult.data || {};
-    const demandDeposits = acctData.resAccountList || [];
+    const demandRaw = acctData.resAccountList || [];
+    const trustRaw = acctData.resDepositTrust || [];
+    const demandDeposits = demandRaw.length > 0 ? demandRaw : trustRaw;
+    const usedFallback = demandRaw.length === 0 && trustRaw.length > 0;
     const otherCounts = {
-      depositTrust: (acctData.resDepositTrust || []).length,
+      depositTrust: trustRaw.length,
       foreignCurrency: (acctData.resForeignCurrency || []).length,
       fund: (acctData.resFund || []).length,
       loan: (acctData.resLoan || []).length,
     };
     const otherTotal = otherCounts.depositTrust + otherCounts.foreignCurrency + otherCounts.fund + otherCounts.loan;
-    debug.push(`bank ${org} demandDeposits: ${demandDeposits.length}개, others: 예신탁${otherCounts.depositTrust}/외화${otherCounts.foreignCurrency}/펀드${otherCounts.fund}/대출${otherCounts.loan}`);
+    debug.push(`bank ${org} demandDeposits: ${demandDeposits.length}개${usedFallback ? '(resDepositTrust fallback)' : ''}, others: 예신탁${otherCounts.depositTrust}/외화${otherCounts.foreignCurrency}/펀드${otherCounts.fund}/대출${otherCounts.loan}`);
 
     if (demandDeposits.length > 0) {
       const firstAcct = demandDeposits[0];
@@ -255,6 +261,13 @@ async function syncBankTransactions(
         startDate, endDate, orderBy: "0", inquiryType: "1",
       });
 
+      // 진단 — 계좌별 응답 구조 (0건 vs parsing 누락 구분)
+      const _data = result.data || {};
+      const _topKeys = typeof _data === "object" && !Array.isArray(_data) ? Object.keys(_data) : [];
+      const _listLen = Array.isArray(_data?.resTrHistoryList) ? _data.resTrHistoryList.length :
+                      Array.isArray(_data) ? _data.length : null;
+      debug.push(`bank ${org} acct=${accountNo} code=${result.result?.code} extraMsg='${result.result?.extraMessage || ""}' topKeys=[${_topKeys.slice(0,8).join(",")}] listLen=${_listLen}`);
+
       if (result.result?.code !== "CF-00000") {
         const code = result.result?.code || "UNKNOWN";
         if (code === "CF-00401" && !orgPermissionDenied) {
@@ -274,27 +287,45 @@ async function syncBankTransactions(
       const txData = result.data?.resTrHistoryList ?? result.data;
       const transactions = Array.isArray(txData) ? txData : txData ? [txData] : [];
 
+      let acctSkipNoDate = 0;
+      let acctInsertErrors = 0;
+      let firstInsertErr = "";
+
       for (const tx of transactions) {
-        if (!tx.resAccountTrDate && !tx.resTrDate) continue;
-        const trDate = tx.resAccountTrDate || tx.resTrDate;
-        const formattedDate = `${trDate.slice(0,4)}-${trDate.slice(4,6)}-${trDate.slice(6,8)}`;
+        const trDate = tx.resAccountTrDate || tx.resTrDate || "";
+        if (!trDate || String(trDate).length < 8) { acctSkipNoDate++; continue; }
+        const tStr = String(trDate);
+        const formattedDate = `${tStr.slice(0,4)}-${tStr.slice(4,6)}-${tStr.slice(6,8)}`;
         const inAmt = Number(tx.resAccountIn || 0);
         const outAmt = Number(tx.resAccountOut || 0);
+        // 잔액/금액 모두 0인 의미 없는 row (예: 신규 개설 표시) 는 skip
+        if (inAmt === 0 && outAmt === 0) { acctSkipNoDate++; continue; }
+        // CODEF descriptions: resAccountDesc1~4. 거래처/메모로 분리.
+        const counterparty = tx.resAccountDesc1 || tx.resAccountDesc3 || tx.resAccountDesc || "";
+        const memo = [tx.resAccountDesc2, tx.resAccountDesc4].filter(Boolean).join(" / ");
 
         const { error } = await supabase.from("bank_transactions").insert({
           company_id: companyId,
           transaction_date: formattedDate,
-          amount: inAmt > 0 ? inAmt : -outAmt,
+          amount: inAmt > 0 ? inAmt : outAmt,
           balance_after: Number(tx.resAfterTranBalance || 0),
-          type: inAmt > 0 ? "입금" : "출금",
-          counterparty: tx.resAccountDesc || "",
-          description: tx.resAccountMemo || "",
+          type: inAmt > 0 ? "income" : "expense",
+          counterparty,
+          description: memo,
           source: "codef_bank",
           mapping_status: "unmapped",
-          raw_data: { accountNo, organization: org, trDate, trTime: tx.resAccountTrTime || "" },
+          raw_data: { accountNo, organization: org, trDate: tStr, trTime: tx.resAccountTrTime || "", counterAccount: tx.resCounterAccount || "" },
         });
 
         if (!error) totalSynced++;
+        else {
+          acctInsertErrors++;
+          if (!firstInsertErr) firstInsertErr = error.message;
+        }
+      }
+
+      if (acctSkipNoDate > 0 || acctInsertErrors > 0) {
+        debug.push(`bank ${org} acct=${accountNo} skipNoDate=${acctSkipNoDate} insertErrors=${acctInsertErrors} firstErr='${firstInsertErr.slice(0,200)}'`);
       }
     }
   }
@@ -764,6 +795,8 @@ async function syncHometaxInvoices(
 // endpoint: /v1/kr/public/nt/cash-receipt/sales-details
 // timeout: 300s (CODEF 측 — Edge function 150s 제한이 먼저 걸림)
 // 응답: 단건이면 객체, 다건이면 리스트 → 항상 정규화.
+// identity: 사업자번호('-' 제거). 가이드는 "사업장 2개 이상 시 필수" 라지만 1개여도 일부 케이스에서
+//           default 사업장이 잘못 잡혀 0건 응답하는 경우가 있어 항상 전송.
 async function syncHometaxCashReceipts(
   supabase: any, token: string, companyId: string,
   startDate: string, endDate: string,
@@ -837,6 +870,10 @@ async function syncHometaxCashReceipts(
   const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
   const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
 
+  // 회사 사업자번호 — '-' 제거. CODEF identity 파라미터.
+  const { data: companyRow } = await supabase.from("companies").select("business_number").eq("id", companyId).maybeSingle();
+  const identity = (companyRow?.business_number || "").replaceAll("-", "");
+
   const result = await codefRequest(token, "/v1/kr/public/nt/cash-receipt/sales-details", {
     organization: HOMETAX_ORG,
     loginType: "0",
@@ -847,8 +884,24 @@ async function syncHometaxCashReceipts(
     startDate: cappedStart,
     endDate: cappedEnd,
     orderBy: "0",  // 최신순
+    ...(identity ? { identity } : {}),
   });
-  debug.push(`cash-receipt sync ${cappedStart}~${cappedEnd}`);
+  debug.push(`cash-receipt sync ${cappedStart}~${cappedEnd} identity=${identity ? "set" : "none"}`);
+  // 진단 — 0건 vs parsing 누락 구분 (raw 전체) + base URL.
+  console.log("[CASH-RECEIPT-DEBUG]", JSON.stringify({
+    period: `${cappedStart}~${cappedEnd}`,
+    identitySet: !!identity,
+    codefEnv: CODEF_ENV,
+    codefBase: CODEF_BASE,
+    code: result.result?.code,
+    message: result.result?.message,
+    extraMessage: result.result?.extraMessage,
+    dataType: Array.isArray(result.data) ? "array" : typeof result.data,
+    topKeys: result.data && typeof result.data === "object" && !Array.isArray(result.data) ? Object.keys(result.data) : [],
+    dataLen: Array.isArray(result.data) ? result.data.length : null,
+    sample: Array.isArray(result.data) && result.data[0] ? result.data[0] : null,
+    rawDataPreview: JSON.stringify(result.data).slice(0, 800),
+  }));
 
   if (result.result?.code !== "CF-00000") {
     errors.push({

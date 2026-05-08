@@ -1509,6 +1509,7 @@ export async function getBankTransactions(companyId: string, filters?: {
   dateFrom?: string;
   dateTo?: string;
   type?: string;
+  accountNo?: string;
 }) {
   let q = supabase
     .from('bank_transactions')
@@ -1520,9 +1521,30 @@ export async function getBankTransactions(companyId: string, filters?: {
   if (filters?.type) q = q.eq('type', filters.type);
   if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
   if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
+  // raw_data->>accountNo 필터 — codef sync 가 채움
+  if (filters?.accountNo) q = (q as any).eq('raw_data->>accountNo', filters.accountNo);
 
-  const { data } = await q.limit(500);
+  const { data } = await q.limit(2000);
   return data || [];
+}
+
+// CODEF sync 로 들어온 통장별 distinct accountNo + 거래 건수
+export async function getDistinctBankAccountNos(companyId: string): Promise<Array<{ accountNo: string; count: number }>> {
+  const { data } = await supabase
+    .from('bank_transactions')
+    .select('raw_data')
+    .eq('company_id', companyId)
+    .eq('source', 'codef_bank')
+    .limit(5000);
+  const counts = new Map<string, number>();
+  for (const row of (data || [])) {
+    const acct = (row as any).raw_data?.accountNo;
+    if (!acct) continue;
+    counts.set(acct, (counts.get(acct) || 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([accountNo, count]) => ({ accountNo, count }));
 }
 
 export async function getBankTransactionStats(companyId: string) {
