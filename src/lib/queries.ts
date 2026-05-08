@@ -1559,8 +1559,9 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
     countByAcct.set(acct, (countByAcct.get(acct) || 0) + 1);
     if (!latestBalanceByAcct.has(acct)) latestBalanceByAcct.set(acct, Number(row.balance_after || 0));
   }
-  // bank_accounts 정보 매핑 (alias / 권위 잔액)
+  // bank_accounts 정보 매핑 — 통장 list 의 source. 거래 0건이어도 표시하기 위해.
   const acctInfo = new Map<string, { alias?: string; bankName?: string; balance: number }>();
+  const allAccountNos = new Set<string>();
   for (const a of (accts || []) as any[]) {
     if (a.account_number) {
       acctInfo.set(a.account_number, {
@@ -1568,19 +1569,27 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         bankName: a.bank_name || undefined,
         balance: Number(a.balance || 0),
       });
+      allAccountNos.add(a.account_number);
     }
   }
-  return Array.from(countByAcct.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([accountNo, count]) => {
+  // 거래만 있고 bank_accounts 에 없는 케이스도 union (구버전 sync 호환)
+  for (const acct of countByAcct.keys()) allAccountNos.add(acct);
+
+  return Array.from(allAccountNos)
+    .map((accountNo) => {
       const info = acctInfo.get(accountNo);
       return {
         accountNo,
-        count,
+        count: countByAcct.get(accountNo) || 0,
         balance: info?.balance ?? latestBalanceByAcct.get(accountNo) ?? 0,
         alias: info?.alias,
         bankName: info?.bankName,
       };
+    })
+    .sort((a, b) => {
+      // 거래 많은 통장 먼저, 같으면 잔액 큰 순
+      if (a.count !== b.count) return b.count - a.count;
+      return b.balance - a.balance;
     });
 }
 
