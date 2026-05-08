@@ -16,7 +16,19 @@ type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 type CardFilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 
+const BANK_TABS: Tab[] = ['inbox', 'all', 'manual', 'rules'];
+const CARD_TABS: Tab[] = ['cards'];
+
+interface TransactionsViewProps {
+  initialTab?: Tab;
+  visibleTabs?: Tab[];
+}
+
 export default function TransactionsPage() {
+  return <TransactionsView initialTab="inbox" visibleTabs={BANK_TABS} />;
+}
+
+export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: TransactionsViewProps = {}) {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
     return (
@@ -32,7 +44,7 @@ export default function TransactionsPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userLoadFailed, setUserLoadFailed] = useState(false);
-  const [tab, setTab] = useState<Tab>('inbox');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('unmapped');
   const [filterType, setFilterType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -772,17 +784,21 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
-        {([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][]).map(([t, label]) => (
-          <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
-            className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold transition border-b-2 -mb-px whitespace-nowrap ${
-              tab === t ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
+      {visibleTabs.length > 1 && (
+        <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
+          {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
+            .filter(([t]) => visibleTabs.includes(t))
+          ).map(([t, label]) => (
+            <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
+              className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold transition border-b-2 -mb-px whitespace-nowrap ${
+                tab === t ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Manual Entry Tab */}
       {tab === 'manual' && (

@@ -30,7 +30,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/payments", label: "결제 관리", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
-      { href: "/transactions", label: "거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/transactions", label: "통장관리", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/cards", label: "카드관리", icon: "wallet", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
       { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
       { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
@@ -89,6 +90,7 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "briefcase": return <svg {...props}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>;
     case "users": return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
     case "credit-card": return <svg {...props}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+    case "wallet": return <svg {...props}><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-2"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/><circle cx="17.5" cy="14" r="0.8" fill="currentColor"/></svg>;
     case "file-text": return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
     case "arrow-right-left": return <svg {...props}><path d="M21 7H3M21 7l-4-4M21 7l-4 4M3 17h18M3 17l4-4M3 17l4 4"/></svg>;
     case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
