@@ -107,15 +107,25 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   }, []);
 
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
-    queryKey: ['bank-transactions', companyId, filterStatus, filterType, selectedAccountNo, bankDateFrom, bankDateTo],
+    queryKey: ['bank-transactions', companyId, filterStatus, filterType, bankDateFrom, bankDateTo],
     queryFn: () => getBankTransactions(companyId!, {
       status: filterStatus === 'all' ? undefined : filterStatus,
       type: filterType || undefined,
-      accountNo: selectedAccountNo || undefined,
       dateFrom: bankDateFrom || undefined,
       dateTo: bankDateTo || undefined,
+      // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정).
     }),
     enabled: !!companyId,
+  });
+
+  // bank_transactions 의 is_fixed_cost 토글 mutation
+  const toggleFixedMut = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await (supabase as any).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
+    onError: (e: any) => toast(`고정지출 변경 실패: ${e.message}`, 'error'),
   });
 
   // 통장 목록 (codef sync 한 결과로부터)
@@ -601,17 +611,26 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const s = stats || { total: 0, unmapped: 0, autoMapped: 0, manualMapped: 0, totalIncome: 0, totalExpense: 0 };
   const cs = cardStats || { total: 0, unmapped: 0, autoMapped: 0, totalSpent: 0, deductible: 0, nonDeductible: 0 };
 
-  /* Search filter */
-  const filteredBankTx = searchQuery.trim()
-    ? bankTx.filter((tx: any) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          (tx.counterparty || '').toLowerCase().includes(q) ||
-          (tx.description || '').toLowerCase().includes(q) ||
-          (tx.category || '').toLowerCase().includes(q)
-        );
-      })
-    : bankTx;
+  /* Search + 통장 + 고정지출 필터 (client-side — server-side JSON eq 불안정해서 안전하게 여기서) */
+  const [showFixedOnly, setShowFixedOnly] = useState(false);
+  const filteredBankTx = (() => {
+    let xs = bankTx as any[];
+    if (selectedAccountNo) {
+      xs = xs.filter((tx: any) => tx.raw_data?.accountNo === selectedAccountNo);
+    }
+    if (showFixedOnly) {
+      xs = xs.filter((tx: any) => tx.is_fixed_cost === true);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      xs = xs.filter((tx: any) =>
+        (tx.counterparty || '').toLowerCase().includes(q) ||
+        (tx.description || '').toLowerCase().includes(q) ||
+        (tx.category || '').toLowerCase().includes(q),
+      );
+    }
+    return xs;
+  })();
 
   /* Category breakdown for expense donut chart */
   const categoryBreakdown = bankTx.reduce((acc: Record<string, number>, tx: any) => {
@@ -1111,14 +1130,26 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
                 aria-label="종료일"
               />
-              {(selectedAccountNo || bankDateFrom || bankDateTo) && (
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2">
+                <input
+                  type="checkbox"
+                  checked={showFixedOnly}
+                  onChange={e => setShowFixedOnly(e.target.checked)}
+                  className="accent-[var(--primary)]"
+                />
+                고정지출만
+              </label>
+              {(selectedAccountNo || bankDateFrom || bankDateTo || showFixedOnly) && (
                 <button
-                  onClick={() => { setSelectedAccountNo(''); setBankDateFrom(''); setBankDateTo(''); }}
+                  onClick={() => { setSelectedAccountNo(''); setBankDateFrom(''); setBankDateTo(''); setShowFixedOnly(false); }}
                   className="px-2 py-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]"
                 >초기화</button>
               )}
               <span className="ml-auto text-[10px] text-[var(--text-dim)]">
-                {bankTx.length}건 표시
+                {filteredBankTx.length}건 표시 / 전체 {bankTx.length}건
+                {showFixedOnly || filteredBankTx.some((t: any) => t.is_fixed_cost) ? (
+                  <> · 고정지출 합계 ₩{filteredBankTx.filter((t: any) => t.is_fixed_cost && t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0).toLocaleString()}</>
+                ) : null}
               </span>
             </div>
           )}
@@ -1176,6 +1207,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     <th className="text-left px-4 py-3 font-medium">거래처</th>
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
+                    <th className="text-center px-4 py-3 font-medium" title="고정지출">고정</th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
                     <th className="text-center px-4 py-3 font-medium">액션</th>
@@ -1205,6 +1237,16 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>
                       <td className={`px-4 py-2.5 text-sm text-right font-medium mono-number ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
                         {tx.type === 'income' ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!tx.is_fixed_cost}
+                          onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
+                          disabled={toggleFixedMut.isPending}
+                          className="accent-orange-500 cursor-pointer"
+                          title={tx.is_fixed_cost ? '고정지출 — 클릭해서 해제' : '고정지출로 표시'}
+                        />
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${
