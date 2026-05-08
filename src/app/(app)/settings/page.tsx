@@ -245,17 +245,17 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">월 고정비 (원)</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">추가 월 고정비 (원)</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={fixedCost ? Number(fixedCost).toLocaleString() : ""}
                   onChange={(e) => setFixedCost(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="8,000,000"
+                  placeholder="0"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                  임대료 + 급여 + 보험 + 기타 고정 지출. 입력하면 대시보드 cash-pulse 가 이 값으로 계산. 0 또는 비워두면 자동 계산 (직원 급여 + 반복결제).
+                  대시보드 월 고정비 = <b>반복결제 합 + 직원급여 합 + 이 값</b>. 이미 등록된 반복결제/급여 외에 추가로 잡아둘 임대료/보험/기타 비용을 입력하세요.
                 </p>
               </div>
 

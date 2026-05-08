@@ -21,9 +21,8 @@ export interface CashPulseInput {
   arOver30Amount: number;
   matchedRate: number; // 0~1
   // 설정 → 일반설정 → 현금 현황의 사용자 보정값 (cash_snapshot 테이블)
-  // 0/undefined 면 무시. > 0 이면 사용.
-  manualCashAdjustment?: number;     // 시재금/미연동 계좌 등 추가 현금
-  monthlyFixedCostOverride?: number;  // 사용자가 직접 입력한 월 고정비. 있으면 recurring + salary 자동계산 대신 이 값 사용
+  manualCashAdjustment?: number;     // 시재금/미연동 계좌 등 추가 현금. 잔액에 더함.
+  monthlyFixedCostOverride?: number;  // 사용자가 직접 입력한 추가 월 고정비. 반복결제+직원급여 외에 더 합산 (임대료/보험 등 미등록 항목).
 }
 
 // ── Output ──
@@ -85,14 +84,11 @@ export function buildCashPulse(input: CashPulseInput): CashPulseResult {
   const linkedBalance = input.bankBalances.reduce((s, b) => s + Number(b.balance || 0), 0);
   const currentBalance = linkedBalance + Number(input.manualCashAdjustment || 0);
 
-  // 2. Monthly burn — 사용자가 설정에서 직접 입력하면 그 값 우선, 아니면 자동계산
+  // 2. Monthly burn — 반복결제 + 직원급여 + 사용자가 설정에서 입력한 추가 월고정비 (모두 합산)
   const recurringTotal = input.recurringPayments
     .filter(r => r.is_active)
     .reduce((s, r) => s + Number(r.amount || 0), 0);
-  const autoBurn = recurringTotal + input.employeeSalaryTotal;
-  const monthlyBurn = (input.monthlyFixedCostOverride && input.monthlyFixedCostOverride > 0)
-    ? input.monthlyFixedCostOverride
-    : autoBurn;
+  const monthlyBurn = recurringTotal + input.employeeSalaryTotal + Number(input.monthlyFixedCostOverride || 0);
 
   // 3. Pending payment queue (approved but not executed)
   const pendingPayments = input.paymentQueue
