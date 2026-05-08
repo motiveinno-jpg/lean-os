@@ -2025,7 +2025,7 @@ export async function touchDealActivity(dealId: string) {
 export async function getCashPulseData(companyId: string, userId?: string) {
   const db = supabase as any;
 
-  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps] = await Promise.all([
+  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot] = await Promise.all([
     // 1. Bank balances
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     // 2. Revenue schedules
@@ -2051,6 +2051,8 @@ export async function getCashPulseData(companyId: string, userId?: string) {
           .eq('approval_requests.status', 'pending')
           .eq('approval_requests.company_id', companyId)
       : Promise.resolve({ data: null }),
+    // 10. Cash snapshot — 사용자가 설정 → 일반설정에서 입력한 수동 보정값
+    db.from('cash_snapshot').select('current_balance, monthly_fixed_cost').eq('company_id', companyId).maybeSingle(),
   ]);
 
   const employeeSalaryTotal = (employees.data || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
@@ -2107,6 +2109,8 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     pendingApprovalCount,
     arOver30Amount,
     matchedRate,
+    manualCashAdjustment: Number((snapshot as any)?.data?.current_balance || 0),
+    monthlyFixedCostOverride: Number((snapshot as any)?.data?.monthly_fixed_cost || 0),
   };
 }
 

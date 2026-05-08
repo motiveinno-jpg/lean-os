@@ -135,7 +135,9 @@ export default function SettingsPage() {
       return;
     }
     setSaved(true);
-    toast("현금 현황이 저장되었습니다.", "success");
+    toast("현금 현황이 저장되었습니다. 대시보드 새로고침 시 반영됩니다.", "success");
+    // 대시보드 cash-pulse 즉시 갱신
+    queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
     setTimeout(() => setSaved(false), 2000);
   }
 
@@ -207,17 +209,41 @@ export default function SettingsPage() {
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
             <h2 className="text-sm font-bold mb-4">현금 현황</h2>
             <div className="space-y-4">
+              {/* 연동 통장 합산 (자동, read-only) */}
+              <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-semibold text-[var(--primary)] uppercase tracking-wider">🔗 연동 통장 합산</div>
+                    <div className="text-xs text-[var(--text-dim)] mt-0.5">통장관리에서 동기화한 모든 계좌 잔액 합산</div>
+                  </div>
+                  <div className="text-xl font-black mono-number">₩{totalBankBalance.toLocaleString()}</div>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-2">{bankAccounts.length}개 계좌</div>
+              </div>
+
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">현재 계좌 잔고 (원)</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={balance ? Number(balance).toLocaleString() : ""}
                   onChange={(e) => setBalance(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="50,000,000"
+                  placeholder="0"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">연동되지 않은 통장이나 시재금이 있을 때만 입력. 0이면 무시.</p>
               </div>
+
+              {/* 총 가용 현금 합계 */}
+              <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-[var(--text-muted)]">💰 총 가용 현금 (대시보드 반영)</div>
+                  <div className="text-2xl font-black mono-number text-[var(--primary)]">
+                    ₩{(totalBankBalance + (Number(balance) || 0)).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">월 고정비 (원)</label>
                 <input
@@ -228,15 +254,18 @@ export default function SettingsPage() {
                   placeholder="8,000,000"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
-                <p className="text-xs text-[var(--text-dim)] mt-1">임대료 + 급여 + 보험 + 기타 고정 지출</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">
+                  임대료 + 급여 + 보험 + 기타 고정 지출. 입력하면 대시보드 cash-pulse 가 이 값으로 계산. 0 또는 비워두면 자동 계산 (직원 급여 + 반복결제).
+                </p>
               </div>
-              {Number(balance) > 0 && Number(fixedCost) > 0 && (
+
+              {(totalBankBalance + (Number(balance) || 0)) > 0 && Number(fixedCost) > 0 && (
                 <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
                   <div className="text-xs text-[var(--text-dim)]">예상 생존 개월수</div>
                   <div className={`text-2xl font-extrabold mt-1 ${
-                    Number(balance) / Number(fixedCost) < 3 ? "text-red-400" : "text-green-400"
+                    (totalBankBalance + Number(balance)) / Number(fixedCost) < 3 ? "text-red-400" : "text-green-400"
                   }`}>
-                    {(Number(balance) / Number(fixedCost)).toFixed(1)}개월
+                    {((totalBankBalance + Number(balance)) / Number(fixedCost)).toFixed(1)}개월
                   </div>
                 </div>
               )}
