@@ -1260,7 +1260,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       {result && (
         <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
           <div className="text-xs font-bold text-green-500 mb-2">자동화 실행 완료</div>
-          <div className="grid grid-cols-4 gap-2 text-[10px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
             {result.recurringExpense.created > 0 && (
               <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
                 <div className="font-bold">{result.recurringExpense.created}건</div>
