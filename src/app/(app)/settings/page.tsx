@@ -885,6 +885,9 @@ function NotificationsTab({ companyId }: { companyId: string | null }) {
         )}
       </div>
 
+      {/* 자금일보 카카오 알림톡 — 매일 KST 09:00 자동 발송 */}
+      <DailyReportCard companyId={companyId} />
+
       {/* Save bar */}
       <div className="sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2">
         <button
@@ -901,6 +904,197 @@ function NotificationsTab({ companyId }: { companyId: string | null }) {
           {saving ? "저장중..." : "저장"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function DailyReportCard({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
+  const [enabled, setEnabled] = useState(false);
+  const [phones, setPhones] = useState<string[]>([]);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [sendHour, setSendHour] = useState(9);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastSentAt, setLastSentAt] = useState<string | null>(null);
+  const [lastStatus, setLastStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!companyId) return;
+    (async () => {
+      const { data } = await (supabase as any).from("notification_settings")
+        .select("*").eq("company_id", companyId).maybeSingle();
+      if (data) {
+        setEnabled(!!data.daily_report_enabled);
+        setPhones(data.daily_report_phones || []);
+        setSendHour(data.daily_report_send_hour ?? 9);
+        setLastSentAt(data.last_sent_at);
+        setLastStatus(data.last_sent_status);
+      }
+      setLoaded(true);
+    })();
+  }, [companyId]);
+
+  const addPhone = () => {
+    const cleaned = phoneInput.replace(/[^0-9]/g, "");
+    if (cleaned.length < 10) { toast("전화번호 형식이 올바르지 않습니다", "error"); return; }
+    if (phones.includes(cleaned)) { toast("이미 등록된 번호입니다", "info"); return; }
+    setPhones([...phones, cleaned]);
+    setPhoneInput("");
+  };
+
+  const removePhone = (p: string) => setPhones(phones.filter(x => x !== p));
+
+  const save = async () => {
+    if (!companyId || saving) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("notification_settings").upsert({
+        company_id: companyId,
+        daily_report_enabled: enabled,
+        daily_report_phones: phones,
+        daily_report_send_hour: sendHour,
+      }, { onConflict: "company_id" });
+      if (error) throw error;
+      toast("자금일보 알림 설정 저장 완료", "success");
+    } catch (e: any) {
+      toast(`저장 실패: ${e.message}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const testSend = async () => {
+    if (!companyId || testing) return;
+    if (phones.length === 0) { toast("수신 번호를 먼저 등록하세요", "error"); return; }
+    setTesting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast("세션이 만료되었습니다", "error"); return; }
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/daily-report`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: "send-now", companyId }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast(`발송 실패: ${result.error || res.status}`, "error");
+        return;
+      }
+      if (result.skipped === "solapi_not_configured") {
+        toast(`Solapi 키 미설정 — 검수 통과 후 환경변수 추가 필요. 데이터: ${JSON.stringify(result.report).slice(0, 100)}...`, "info");
+      } else if (result.skipped) {
+        toast(`발송 skip: ${result.skipped}`, "info");
+      } else {
+        toast(`발송 ${result.sent}/${result.total} 건 완료`, result.sent > 0 ? "success" : "error");
+      }
+      setLastSentAt(new Date().toISOString());
+      setLastStatus(result.skipped || `sent ${result.sent}/${result.total ?? 0}`);
+    } catch (e: any) {
+      toast(`발송 실패: ${e.message}`, "error");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            💰 자금일보 카카오 알림톡
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 font-semibold">신규</span>
+          </h3>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">매일 정해진 시간에 전일 자금 요약을 카톡으로 발송 (Solapi 검수 통과 후 활성화).</p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="sr-only peer" />
+          <div className="w-10 h-6 bg-[var(--bg-surface)] peer-checked:bg-[var(--primary)] rounded-full transition relative">
+            <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition ${enabled ? "translate-x-4" : ""}`} />
+          </div>
+        </label>
+      </div>
+
+      {enabled && (
+        <div className="space-y-3 mt-4">
+          {/* 발송 시각 */}
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-[var(--text-muted)]">발송 시각:</label>
+            <select
+              value={sendHour}
+              onChange={(e) => setSendHour(Number(e.target.value))}
+              className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg"
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>{String(i).padStart(2, "0")}:00 (KST)</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 수신 번호 */}
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">수신 번호 (카톡 등록된 휴대폰 번호)</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPhone(); } }}
+                placeholder="01012345678"
+                className="flex-1 px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm"
+              />
+              <button onClick={addPhone} className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90">추가</button>
+            </div>
+            {phones.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {phones.map(p => (
+                  <span key={p} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--bg-surface)] rounded-lg text-xs border border-[var(--border)]">
+                    {p.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3")}
+                    <button onClick={() => removePhone(p)} className="text-[var(--text-dim)] hover:text-red-400 ml-1">×</button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-[var(--text-dim)]">등록된 번호 없음. 카톡 알림 받을 번호를 추가하세요.</p>
+            )}
+          </div>
+
+          {/* 마지막 발송 상태 */}
+          {lastSentAt && (
+            <div className="p-2.5 bg-[var(--bg-surface)] rounded-lg text-[11px] text-[var(--text-dim)]">
+              마지막 발송: {new Date(lastSentAt).toLocaleString("ko-KR")} · {lastStatus}
+            </div>
+          )}
+
+          {/* 액션 버튼 */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex-1 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? "저장중..." : "설정 저장"}
+            </button>
+            <button
+              onClick={testSend}
+              disabled={testing || phones.length === 0}
+              className="flex-1 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg)] disabled:opacity-50"
+            >
+              {testing ? "발송중..." : "테스트 발송 (어제 데이터)"}
+            </button>
+          </div>
+
+          <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
+            검수 진행 상태: Solapi 환경변수(SOLAPI_API_KEY/SECRET/PFID/TEMPLATE_ID) 미설정 시 데이터만 집계되고 실제 발송은 skip.
+            검수 통과 후 환경변수 4개 입력하면 즉시 활성화. pg_cron 'daily-report-tick' 매시간 실행 중.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
