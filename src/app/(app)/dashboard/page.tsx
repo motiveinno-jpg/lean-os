@@ -123,20 +123,24 @@ export default function DashboardPage() {
     retry: 1,
   });
 
-  // Real monthly burn = recurring payments + total salary
+  // Real monthly burn = recurring payments + total salary + 사용자 입력 (cash_snapshot.monthly_fixed_cost)
   const { data: realBurnData } = useQuery({
     queryKey: ["real-burn", companyId],
     queryFn: async () => {
-      const [recurring, totalSalary] = await Promise.all([
+      const [recurring, totalSalary, snapshot] = await Promise.all([
         getRecurringPayments(companyId!),
         getMonthlyTotalSalary(companyId!),
+        (supabase as any).from('cash_snapshot')
+          .select('monthly_fixed_cost').eq('company_id', companyId!).maybeSingle(),
       ]);
       const recurringTotal = (recurring || [])
         .filter((r: any) => r.is_active)
         .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-      return recurringTotal + totalSalary;
+      const manualFixed = Number(snapshot.data?.monthly_fixed_cost || 0);
+      return recurringTotal + totalSalary + manualFixed;
     },
     enabled: !!companyId,
+    refetchInterval: 30_000,
   });
 
   // Cash Pulse data

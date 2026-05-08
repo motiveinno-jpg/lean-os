@@ -136,8 +136,10 @@ export default function SettingsPage() {
     }
     setSaved(true);
     toast("현금 현황이 저장되었습니다. 대시보드 새로고침 시 반영됩니다.", "success");
-    // 대시보드 cash-pulse 즉시 갱신
+    // 대시보드 즉시 갱신 — cash-pulse + real-burn (sixPack.monthlyBurn) + founder-data
     queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
+    queryClient.invalidateQueries({ queryKey: ["real-burn"] });
+    queryClient.invalidateQueries({ queryKey: ["founder-data"] });
     setTimeout(() => setSaved(false), 2000);
   }
 
