@@ -985,17 +985,19 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ── 반복결제 상세 모달 (read-only — 수정 form 과 같은 레이아웃) ──
+// ── 반복결제 상세 모달 (read-only — 수정 form 과 같은 레이아웃, "수정" 버튼으로 편집 모드 전환) ──
 function RecurringDetailModal({
   item,
   categories,
   bankAccounts,
   onClose,
+  onEdit,
 }: {
   item: any;
   categories: Record<string, string>;
   bankAccounts: any[];
   onClose: () => void;
+  onEdit: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -1021,7 +1023,7 @@ function RecurringDetailModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h3 className="text-base font-bold">{item.name}</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 우측의 "수정" 버튼을 누르세요.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 하단의 "수정" 버튼을 누르세요.</p>
           </div>
           <button
             onClick={onClose}
@@ -1061,11 +1063,15 @@ function RecurringDetailModal({
             <ReadOnlyField label="마지막 배치 생성" value={item.last_generated_at ? new Date(item.last_generated_at).toLocaleString('ko-KR') : '—'} />
           </div>
 
-          <div className="pt-2 flex justify-end">
+          <div className="pt-2 flex justify-end gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-sm font-semibold border border-[var(--border)] transition"
             >닫기</button>
+            <button
+              onClick={onEdit}
+              className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-sm font-semibold transition"
+            >수정</button>
           </div>
         </div>
       </div>
@@ -1382,6 +1388,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           categories={categories}
           bankAccounts={bankAccounts}
           onClose={() => setViewingItem(null)}
+          onEdit={() => { startEdit(viewingItem); setViewingItem(null); }}
         />
       )}
 
