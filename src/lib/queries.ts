@@ -193,7 +193,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
   const today = now.toISOString().split('T')[0];
 
   const [cash, deals, revenue, costs, transactions, nodes, employees] = await Promise.all([
-    supabase.from('cash_snapshot').select('*').eq('company_id', companyId).single(),
+    supabase.from('cash_snapshot').select('*').eq('company_id', companyId).maybeSingle(),
     supabase.from('deals').select('*').eq('company_id', companyId),
     supabase.from('deal_revenue_schedule').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
@@ -484,7 +484,7 @@ export async function getPartnerDeals(companyId: string, userEmail: string) {
 
 export async function getDealWithNodes(dealId: string) {
   const [deal, nodes, revenue, costs] = await Promise.all([
-    supabase.from('deals').select('*').eq('id', dealId).single(),
+    supabase.from('deals').select('*').eq('id', dealId).maybeSingle(),
     supabase.from('deal_nodes').select('*, users:users!deal_nodes_assignee_id_fkey(id, name, email)').eq('deal_id', dealId).order('sort_order').order('created_at'),
     supabase.from('deal_revenue_schedule').select('*').eq('deal_id', dealId).order('due_date'),
     supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date'),
@@ -816,7 +816,7 @@ export async function completeMilestone(id: string, userId?: string) {
     .from('deal_milestones')
     .select('deal_id, name')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   const { error } = await supabase
     .from('deal_milestones')
@@ -909,7 +909,7 @@ export async function getDocument(documentId: string, companyId: string) {
     .select('*, deals(name), doc_templates(name, type), users!documents_created_by_fkey(name, email)')
     .eq('id', documentId)
     .eq('company_id', companyId)
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
   return data;
 }
@@ -969,7 +969,7 @@ export async function getChannel(channelId: string, companyId: string) {
     .select('*, deals(name), sub_deals(name)')
     .eq('id', channelId)
     .eq('company_id', companyId)
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
   return data;
 }
@@ -982,7 +982,7 @@ export async function getChannelByDeal(dealId: string, companyId: string) {
     .eq('company_id', companyId)
     .eq('is_archived', false)
     .limit(1)
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
   return data;
 }
@@ -1658,7 +1658,7 @@ export async function mapBankTransaction(id: string, params: {
     .from('bank_transactions')
     .select('counterparty, company_id')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (tx?.counterparty) {
     const { learnRuleFromMapping } = await import('./card-transactions');
     await learnRuleFromMapping(tx.company_id, {

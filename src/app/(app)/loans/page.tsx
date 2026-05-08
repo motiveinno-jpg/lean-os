@@ -19,6 +19,7 @@ import {
 } from "@/lib/loans";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 
 type Tab = "list" | "payments" | "register" | "match";
 
@@ -167,6 +168,17 @@ const LOAN_TYPES: Record<string, string> = {
 };
 
 export default function LoansPage() {
+  const { role } = useUser();
+  if (role !== "owner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">대표 계정으로 로그인하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);

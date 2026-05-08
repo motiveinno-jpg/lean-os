@@ -10,12 +10,24 @@ import { classifyCardTransaction, batchSaveVATClassifications } from "@/lib/card
 import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 type CardFilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 
 export default function TransactionsPage() {
+  const { role } = useUser();
+  if (role === "employee" || role === "partner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">관리자에게 문의하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);

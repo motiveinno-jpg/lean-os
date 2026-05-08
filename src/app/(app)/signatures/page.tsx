@@ -23,10 +23,22 @@ import {
   type SignatureStatusValue,
 } from "@/lib/signatures";
 import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 
 type Signer = { name: string; email: string; phone: string };
 
 export default function SignaturesDashboardPage() {
+  const { role } = useUser();
+  if (role === "employee" || role === "partner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">관리자에게 문의하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const qc = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);

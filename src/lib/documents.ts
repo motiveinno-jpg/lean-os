@@ -46,7 +46,7 @@ export async function createFromTemplate(params: {
     .from('doc_templates')
     .select('*')
     .eq('id', params.templateId)
-    .single();
+    .maybeSingle();
 
   if (!template) throw new Error('템플릿을 찾을 수 없습니다');
 
@@ -149,7 +149,7 @@ export async function saveRevision(params: {
     .from('documents')
     .select('version')
     .eq('id', params.documentId)
-    .single();
+    .maybeSingle();
 
   const newVersion = (doc?.version || 0) + 1;
 
@@ -191,7 +191,7 @@ export async function approveDocument(documentId: string, approverId: string, co
   await supabase.from('documents').update({ status: 'approved' }).eq('id', documentId);
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).single();
+  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle();
 
   await logAudit({
     company_id: doc?.company_id || '',
@@ -238,7 +238,7 @@ export async function lockDocument(documentId: string, lockerId?: string) {
   if (error) throw error;
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).single();
+  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle();
 
   await logAudit({
     company_id: doc?.company_id || '',

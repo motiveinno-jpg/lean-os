@@ -854,7 +854,7 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
       </div>
 
       {/* 5-point forecast bars */}
-      <div className="grid grid-cols-5 gap-2 mb-2">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2">
         {pulse.forecastPoints.map((pt, idx) => {
           const pct = maxBalance > 0 ? Math.abs(pt.balance) / maxBalance * 100 : 0;
           const isNegative = pt.balance < 0;
@@ -915,7 +915,7 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
         <summary className="text-[10px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-muted)] transition">
           점수 상세
         </summary>
-        <div className="mt-2 grid grid-cols-5 gap-1 text-[9px]">
+        <div className="mt-2 grid grid-cols-3 sm:grid-cols-5 gap-1 text-[9px]">
           {[
             { label: '생존', score: pulse.scoreBreakdown.runway, max: 40 },
             { label: '현금흐름', score: pulse.scoreBreakdown.cashflowTrend, max: 20 },

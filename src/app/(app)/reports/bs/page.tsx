@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
+import { useUser } from "@/components/user-context";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -309,6 +310,17 @@ async function fetchBsTrend(companyId: string, months: number = 6): Promise<Tren
 }
 
 export default function BalanceSheetPage() {
+  const { role } = useUser();
+  if (role === "employee" || role === "partner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">관리자에게 문의하세요</p>
+        </div>
+      </div>
+    );
+  }
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [data, setData] = useState<BsData | null>(null);
   const [prevData, setPrevData] = useState<BsData | null>(null);

@@ -20,6 +20,7 @@ import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dism
 import { uploadFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
+import { useUser } from "@/components/user-context";
 
 type Tab = "accounts" | "assets" | "docs" | "discovery";
 
@@ -50,6 +51,17 @@ const DOC_CATEGORIES: Record<string, string> = {
 };
 
 export default function VaultPage() {
+  const { role } = useUser();
+  if (role !== "owner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">대표 계정으로 로그인하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -602,7 +614,7 @@ export default function VaultPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">구독 서비스</div>
           <div className="text-xl font-black">{stats.activeSubscriptions}개</div>

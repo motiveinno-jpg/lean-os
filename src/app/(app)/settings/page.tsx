@@ -91,6 +91,7 @@ export default function SettingsPage() {
       setShowBankForm(false);
       setBankForm({ bank_name: "", account_number: "", alias: "", role: "OPERATING", balance: "", is_primary: false });
     },
+    onError: (err: any) => toast("계좌 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteBankMut = useMutation({
@@ -1504,6 +1505,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
       queryClient.invalidateQueries({ queryKey: ["approval-policies"] });
       resetForm();
     },
+    onError: (err: any) => toast("결재 정책 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteMut = useMutation({
@@ -2264,6 +2266,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
       setEditId(null);
       setForm({ name: '', color: '#3b82f6' });
     },
+    onError: (err: any) => toast("분류 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const deleteMut = useMutation({

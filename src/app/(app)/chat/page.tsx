@@ -10,6 +10,7 @@ import {
 import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/toast";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
@@ -638,6 +639,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const pinMut = useMutation({
     mutationFn: ({ msgId, pinned }: { msgId: string; pinned: boolean }) => togglePin(msgId, pinned),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] }),
+    onError: (err: any) => { setSendError(err?.message || "고정 처리 실패"); setTimeout(() => setSendError(null), 5000); },
   });
 
   const reactionMut = useMutation({
@@ -648,6 +650,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       return hasOwn ? removeReaction(msgId, userId, emoji) : addReaction(msgId, userId, emoji);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-reactions", channelId] }),
+    onError: (err: any) => { setSendError(err?.message || "반응 처리 실패"); setTimeout(() => setSendError(null), 5000); },
   });
 
   const editMut = useMutation({
@@ -656,11 +659,13 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
       setEditingId(null);
     },
+    onError: (err: any) => { setSendError(err?.message || "메시지 수정 실패"); setTimeout(() => setSendError(null), 5000); },
   });
 
   const deleteMut = useMutation({
     mutationFn: (msgId: string) => deleteMessage(msgId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] }),
+    onError: (err: any) => { setSendError(err?.message || "메시지 삭제 실패"); setTimeout(() => setSendError(null), 5000); },
   });
 
   const handleSearch = useCallback(async (query: string) => {
@@ -1156,7 +1161,7 @@ function GuestChatView({ token }: { token: string }) {
           .select('id, name, allow_guests')
           .eq('invite_token', token)
           .eq('is_archived', false)
-          .single();
+          .maybeSingle();
 
         if (!channel) {
           setError('유효하지 않은 초대 링크입니다.');
@@ -1181,7 +1186,7 @@ function GuestChatView({ token }: { token: string }) {
           .from('users')
           .select('id, name, email')
           .eq('auth_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!dbUser) {
           setError('사용자 정보를 찾을 수 없습니다.');
@@ -1358,6 +1363,7 @@ function GuestChatView({ token }: { token: string }) {
 
 // ── Chat List ──
 function ChatPageInner() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedChannel = searchParams.get("channel");
@@ -1448,6 +1454,7 @@ function ChannelItem({ ch, unreadMap, router }: { ch: any; unreadMap: any; route
 }
 
 function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm, typeFilter, setTypeFilter, queryClient, router }: any) {
+  const { toast } = useToast();
   const [showTeamForm, setShowTeamForm] = useState(false);
   const [showDMForm, setShowDMForm] = useState(false);
   const [teamName, setTeamName] = useState("");
@@ -1509,6 +1516,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowForm(false);
       setForm({ name: "", deal_id: "", type: "deal" });
     },
+    onError: (err: any) => toast(err?.message || "채널 생성 실패", "error"),
   });
 
   const createTeamMut = useMutation({
@@ -1521,6 +1529,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowTeamForm(false);
       setTeamName("");
     },
+    onError: (err: any) => toast(err?.message || "팀 채널 생성 실패", "error"),
   });
 
   const createDMMut = useMutation({
@@ -1536,6 +1545,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowDMForm(false);
       setDmUserId("");
     },
+    onError: (err: any) => toast(err?.message || "DM 채널 생성 실패", "error"),
   });
 
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;

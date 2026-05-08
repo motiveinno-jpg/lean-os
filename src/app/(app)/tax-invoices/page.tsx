@@ -27,6 +27,7 @@ import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
 
@@ -363,6 +364,17 @@ const MODIFICATION_REASONS = [
 ];
 
 export default function TaxInvoicesPage() {
+  const { role } = useUser();
+  if (role === "employee" || role === "partner") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
+        <div className="text-center">
+          <p className="text-lg font-medium">접근 권한이 없습니다</p>
+          <p className="text-sm mt-1">관리자에게 문의하세요</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -923,11 +935,13 @@ export default function TaxInvoicesPage() {
       });
       setPartnerSearch("");
     },
+    onError: (err: any) => toast("세금계산서 등록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const markMatchedMut = useMutation({
     mutationFn: (id: string) => markInvoiceMatched(id),
     onSuccess: invalidate,
+    onError: (err: any) => toast("매칭 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Derived data
@@ -1628,7 +1642,7 @@ export default function TaxInvoicesPage() {
             </div>
             <div className="col-span-2 border-t border-[var(--border)] pt-3 mt-1">
               <label className="block text-xs text-[var(--text-muted)] mb-2 font-semibold">품목 상세 (선택)</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">품목명</label>
                   <input value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} placeholder="예: 소프트웨어 개발" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
@@ -2804,7 +2818,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
             </div>
 
             {/* Amount summary */}
-            <div className="border-t border-[var(--border)] grid grid-cols-4 divide-x divide-[var(--border)] text-center">
+            <div className="border-t border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--border)] text-center">
               <div className="p-2">
                 <div className="text-[10px] text-[var(--text-dim)]">작성일자</div>
                 <div className="text-xs font-bold mt-0.5">{inv.issue_date}</div>

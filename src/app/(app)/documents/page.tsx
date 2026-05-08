@@ -1146,6 +1146,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 // ── Documents List ──
 
 function DocumentsPageInner() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedId = searchParams.get("id");
@@ -1323,12 +1324,14 @@ function DocumentsPageInner() {
       setShowSignForm(false);
       setSignFormData({ documentId: "", signerName: "", signerEmail: "", signerPhone: "" });
     },
+    onError: (err: any) => toast("서명 요청 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Cancel signature mutation
   const cancelSignMut = useMutation({
     mutationFn: (id: string) => cancelSignature(id),
     onSuccess: () => invalidate(),
+    onError: (err: any) => toast("서명 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Sign (complete) mutation — 서명하기
@@ -1340,6 +1343,7 @@ function DocumentsPageInner() {
       await saveSignature(id, { type: 'type', data: name });
     },
     onSuccess: () => { invalidate(); setSigningId(null); setSignTypeName(""); },
+    onError: (err: any) => toast("서명 완료 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   const createDocMut = useMutation({
@@ -2396,6 +2400,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       setShowNewFolderForm(false);
       setNewFolderName("");
     },
+    onError: (err: any) => toast("폴더 생성 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Delete folder mutation
@@ -2405,6 +2410,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       queryClient.invalidateQueries({ queryKey: ["document-folders"] });
       if (selectedFolderId) setSelectedFolderId(null);
     },
+    onError: (err: any) => toast("폴더 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
   // Upload files

@@ -609,7 +609,7 @@ function SignContent() {
           .from("hr_contract_packages")
           .select("notes")
           .eq("id", pkg.id)
-          .single();
+          .maybeSingle();
         if (freshPkg?.notes) {
           const meta = JSON.parse(freshPkg.notes);
           if (meta.document_hash) packageHash = meta.document_hash;
