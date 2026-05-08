@@ -308,6 +308,7 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
 
 export async function createFixedCostBatch(companyId: string, monthLabel?: string): Promise<{ batchId: string; count: number; totalAmount: number }> {
   const label = monthLabel || `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
+  const batchName = `${label} 고정비`;
 
   const recurring = await getRecurringPayments(companyId);
   const active = recurring.filter((r: any) => r.is_active);
@@ -316,12 +317,27 @@ export async function createFixedCostBatch(companyId: string, monthLabel?: strin
 
   const totalAmount = active.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
+  // 같은 월의 기존 draft/pending_approval 배치가 있으면 그것 + queue items 삭제 (1개로 통합).
+  // 이미 approved/executing/completed 면 그대로 유지하고 새 batch 생성.
+  const { data: existing } = await db
+    .from('payment_batches')
+    .select('id, status')
+    .eq('company_id', companyId)
+    .eq('batch_type', 'fixed_cost')
+    .eq('name', batchName)
+    .in('status', ['draft', 'pending_approval']);
+
+  for (const old of (existing || [])) {
+    await db.from('payment_queue').delete().eq('batch_id', old.id);
+    await db.from('payment_batches').delete().eq('id', old.id);
+  }
+
   // Create batch
   const { data: batch, error: batchError } = await db
     .from('payment_batches')
     .insert({
       company_id: companyId,
-      name: `${label} 고정비`,
+      name: batchName,
       batch_type: 'fixed_cost',
       total_amount: totalAmount,
       item_count: active.length,

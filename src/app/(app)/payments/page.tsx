@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
-import { getRecurringPayments, upsertRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
+import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
 import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
@@ -849,10 +849,43 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     enabled: !!companyId,
   });
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResults, setRefreshResults] = useState<RefreshResult[] | null>(null);
   const queryClient = useQueryClient();
+
+  const startEdit = (r: any) => {
+    setEditingId(r.id);
+    setForm({
+      name: r.name || '',
+      amount: String(r.amount || ''),
+      category: r.category || 'rent',
+      recipientName: r.recipient_name || '',
+      recipientAccount: r.recipient_account || '',
+      recipientBank: r.recipient_bank || '',
+      dayOfMonth: String(r.day_of_month || 25),
+      autoTransferDate: r.auto_transfer_date ? String(r.auto_transfer_date) : '',
+      autoTransferAccountId: r.auto_transfer_account_id || '',
+      autoTransferMemo: r.auto_transfer_memo || '',
+    });
+    setShowForm(true);
+  };
+  const resetForm = () => {
+    setEditingId(null);
+    setShowForm(false);
+    setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
+  };
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteRecurringPayment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
+      invalidate();
+      recurToast("반복결제가 삭제되었습니다", "success");
+    },
+    onError: (err: Error) => recurToast("삭제 실패: " + (err?.message || ""), "error"),
+  });
 
   const { data: recurring = [] } = useQuery({
     queryKey: ["recurring-payments", companyId],
@@ -862,6 +895,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
   const saveMut = useMutation({
     mutationFn: () => upsertRecurringPayment({
+      id: editingId || undefined,
       companyId,
       name: form.name,
       amount: Number(form.amount),
@@ -878,11 +912,11 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
       invalidate();
-      setShowForm(false);
-      setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
-      recurToast("반복결제가 등록되었습니다", "success");
+      const isEdit = !!editingId;
+      resetForm();
+      recurToast(isEdit ? "반복결제가 수정되었습니다" : "반복결제가 등록되었습니다", "success");
     },
-    onError: (err: Error) => { recurToast("등록 실패: " + (err?.message || ""), "error"); },
+    onError: (err: Error) => { recurToast("저장 실패: " + (err?.message || ""), "error"); },
   });
 
   const toggleMut = useMutation({
@@ -1034,7 +1068,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">반복결제 등록</h3>
+          <h3 className="text-sm font-bold mb-4">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">명칭 *</label>
@@ -1101,8 +1135,8 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           <div className="flex gap-2">
             <button onClick={() => form.name && form.amount && saveMut.mutate()}
               disabled={!form.name || !form.amount || saveMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">등록</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? '수정 저장' : '등록'}</button>
+            <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
       )}
@@ -1126,6 +1160,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 <th className="text-center px-5 py-3 font-medium">이체일</th>
                 <th className="text-left px-5 py-3 font-medium">자동이체</th>
                 <th className="text-center px-5 py-3 font-medium">상태</th>
+                <th className="text-center px-5 py-3 font-medium">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -1157,6 +1192,25 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                       }`}>
                       {r.is_active ? '활성' : '비활성'}
                     </button>
+                  </td>
+                  <td className="px-5 py-3 text-center">
+                    <div className="flex gap-1.5 justify-center">
+                      <button
+                        onClick={() => startEdit(r)}
+                        className="text-xs px-2.5 py-1 rounded-lg font-medium bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg)] hover:text-[var(--text)] transition"
+                        title="수정"
+                      >수정</button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`"${r.name}" 반복결제를 삭제하시겠습니까? 등록된 자동이체와 연결도 함께 끊깁니다.`)) {
+                            deleteMut.mutate(r.id);
+                          }
+                        }}
+                        disabled={deleteMut.isPending}
+                        className="text-xs px-2.5 py-1 rounded-lg font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50"
+                        title="삭제"
+                      >삭제</button>
+                    </div>
                   </td>
                 </tr>
               ))}

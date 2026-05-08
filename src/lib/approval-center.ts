@@ -458,6 +458,12 @@ export async function upsertRecurringPayment(params: {
   return data;
 }
 
+// ── Delete recurring payment ──
+export async function deleteRecurringPayment(id: string) {
+  const { error } = await db.from('recurring_payments').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ── Get payment batches ──
 
 export async function getPaymentBatches(companyId: string, status?: string) {
