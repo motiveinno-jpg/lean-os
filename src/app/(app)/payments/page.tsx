@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
 import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
-import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
+import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
@@ -731,6 +731,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
 function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: batches = [] } = useQuery({
@@ -787,6 +788,13 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         </button>
       </div>
 
+      {selectedBatchId && (
+        <BatchDetailModal
+          batchId={selectedBatchId}
+          onClose={() => setSelectedBatchId(null)}
+        />
+      )}
+
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {batches.length === 0 ? (
           <div className="p-12 text-center">
@@ -809,7 +817,11 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
               {batches.map((b: any) => {
                 const sl = statusLabel[b.status] || statusLabel.draft;
                 return (
-                  <tr key={b.id} className="border-b border-[var(--border)]/50">
+                  <tr
+                    key={b.id}
+                    onClick={() => setSelectedBatchId(b.id)}
+                    className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
+                  >
                     <td className="px-5 py-3 text-sm font-medium">{b.name}</td>
                     <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(b.total_amount || 0).toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-center">{b.item_count || 0}건</td>
@@ -819,11 +831,15 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1.5 justify-center">
                         {(b.status === 'draft' || b.status === 'pending_approval') && (
-                          <button onClick={() => approveMut.mutate(b.id)} disabled={approveMut.isPending}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); approveMut.mutate(b.id); }}
+                            disabled={approveMut.isPending}
                             className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">승인</button>
                         )}
                         {b.status === 'approved' && (
-                          <button onClick={() => executeMut.mutate(b.id)} disabled={executeMut.isPending}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); executeMut.mutate(b.id); }}
+                            disabled={executeMut.isPending}
                             className="px-2.5 py-1 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 transition">이체 실행</button>
                         )}
                       </div>
@@ -836,6 +852,136 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         )}
       </div>
     </>
+  );
+}
+
+// ── 고정비 배치 상세 모달 (read-only) ──
+function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["batch-with-items", batchId],
+    queryFn: () => getBatchWithItems(batchId),
+    enabled: !!batchId,
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const batch: any = data?.batch;
+  const items: any[] = data?.items || [];
+
+  const statusLabel: Record<string, { label: string; color: string }> = {
+    draft: { label: '초안', color: 'bg-gray-500/10 text-gray-400' },
+    pending_approval: { label: '승인대기', color: 'bg-yellow-500/10 text-yellow-400' },
+    approved: { label: '승인완료', color: 'bg-blue-500/10 text-blue-400' },
+    executing: { label: '실행중', color: 'bg-orange-500/10 text-orange-400' },
+    completed: { label: '완료', color: 'bg-green-500/10 text-green-400' },
+    failed: { label: '실패', color: 'bg-red-500/10 text-red-400' },
+  };
+  const sl = batch ? (statusLabel[batch.status] || statusLabel.draft) : null;
+
+  const categoryLabels: Record<string, string> = {
+    rent: '임대료', insurance: '보험', loan: '대출상환', subscription: '구독', salary: '급여', utility: '공과금', other: '기타',
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-2xl my-8 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <div>
+            <h3 className="text-base font-bold">{batch?.name || '배치 상세'}</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 반복결제 설정 탭에서 항목을 변경 후 배치 다시 생성</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] p-1"
+            aria-label="닫기"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+        ) : !batch ? (
+          <div className="p-12 text-center text-sm text-[var(--text-muted)]">배치 정보를 불러올 수 없습니다.</div>
+        ) : (
+          <div className="p-6 space-y-5">
+            {/* Batch summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <ReadOnlyField label="총액" value={`₩${Number(batch.total_amount || 0).toLocaleString()}`} />
+              <ReadOnlyField label="건수" value={`${batch.item_count || items.length}건`} />
+              <div>
+                <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-1">상태</div>
+                {sl && (
+                  <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-medium ${sl.color}`}>{sl.label}</span>
+                )}
+              </div>
+              <ReadOnlyField label="배치 종류" value={batch.batch_type === 'fixed_cost' ? '고정비' : (batch.batch_type === 'payroll' ? '급여' : batch.batch_type)} />
+              <ReadOnlyField label="생성일" value={batch.created_at ? new Date(batch.created_at).toLocaleString('ko-KR') : '—'} />
+              <ReadOnlyField label="승인자" value={batch.users?.name || '—'} />
+            </div>
+
+            {/* Items list */}
+            <div>
+              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">포함된 항목 ({items.length}건)</div>
+              {items.length === 0 ? (
+                <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl">포함된 항목이 없습니다.</div>
+              ) : (
+                <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] max-h-[400px] overflow-y-auto">
+                  {items.map((it) => (
+                    <div key={it.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center text-xs">
+                      <div className="col-span-5">
+                        <div className="font-medium text-sm">{it.description || '(설명 없음)'}</div>
+                        {it.recipient_name && (
+                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                            {it.recipient_name}
+                            {it.recipient_account && ` · ${it.recipient_bank || ''} ${it.recipient_account}`}
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-3 text-[var(--text-muted)]">
+                        {it.category && <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)]">{categoryLabels[it.category] || it.category}</span>}
+                      </div>
+                      <div className="col-span-3 text-right font-bold text-sm">₩{Number(it.amount || 0).toLocaleString()}</div>
+                      <div className="col-span-1 text-right text-[10px] text-[var(--text-dim)]">{it.status || ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-sm font-semibold border border-[var(--border)] transition"
+              >닫기</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-1">{label}</div>
+      <div className="text-sm font-medium px-3 py-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] truncate">{value}</div>
+    </div>
   );
 }
 
