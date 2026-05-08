@@ -985,6 +985,94 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ── 반복결제 상세 모달 (read-only — 수정 form 과 같은 레이아웃) ──
+function RecurringDetailModal({
+  item,
+  categories,
+  bankAccounts,
+  onClose,
+}: {
+  item: any;
+  categories: Record<string, string>;
+  bankAccounts: any[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const transferAccount = bankAccounts.find((a: any) => a.id === item.auto_transfer_account_id);
+  const transferAccountLabel = transferAccount
+    ? `${transferAccount.bank_name} ${transferAccount.alias || transferAccount.account_number}`
+    : '미지정';
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-3xl my-8 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <div>
+            <h3 className="text-base font-bold">{item.name}</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 우측의 "수정" 버튼을 누르세요.</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] p-1"
+            aria-label="닫기"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <ReadOnlyField label="명칭" value={item.name || '—'} />
+            <ReadOnlyField label="금액" value={`₩${Number(item.amount || 0).toLocaleString()}`} />
+            <ReadOnlyField label="카테고리" value={categories[item.category] || item.category || '—'} />
+            <ReadOnlyField label="수취인명" value={item.recipient_name || '—'} />
+            <ReadOnlyField label="계좌번호" value={item.recipient_account || '—'} />
+            <ReadOnlyField label="이체일 (매월)" value={item.day_of_month ? `${item.day_of_month}일` : '25일'} />
+          </div>
+
+          <div className="bg-[var(--bg-surface)] rounded-xl p-4">
+            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">자동이체 설정</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <ReadOnlyField label="자동이체 예약일" value={item.auto_transfer_date ? `매월 ${item.auto_transfer_date}일` : '미설정'} />
+              <ReadOnlyField label="출금 계좌" value={transferAccountLabel} />
+              <ReadOnlyField label="적요 (메모)" value={item.auto_transfer_memo || '—'} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <ReadOnlyField label="상태" value={item.is_active ? '활성' : '비활성'} />
+            <ReadOnlyField label="등록일" value={item.created_at ? new Date(item.created_at).toLocaleDateString('ko-KR') : '—'} />
+            <ReadOnlyField label="마지막 배치 생성" value={item.last_generated_at ? new Date(item.last_generated_at).toLocaleString('ko-KR') : '—'} />
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-sm font-semibold border border-[var(--border)] transition"
+            >닫기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Tab 4: Recurring Payments ──
 
 function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
@@ -996,6 +1084,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingItem, setViewingItem] = useState<any | null>(null);
   const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResults, setRefreshResults] = useState<RefreshResult[] | null>(null);
@@ -1287,6 +1376,15 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         </div>
       )}
 
+      {viewingItem && (
+        <RecurringDetailModal
+          item={viewingItem}
+          categories={categories}
+          bankAccounts={bankAccounts}
+          onClose={() => setViewingItem(null)}
+        />
+      )}
+
       {/* List */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
         {recurring.length === 0 ? (
@@ -1311,7 +1409,11 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             </thead>
             <tbody>
               {recurring.map((r: any) => (
-                <tr key={r.id} className={`border-b border-[var(--border)]/50 ${!r.is_active ? 'opacity-50' : ''}`}>
+                <tr
+                  key={r.id}
+                  onClick={() => setViewingItem(r)}
+                  className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer ${!r.is_active ? 'opacity-50' : ''}`}
+                >
                   <td className="px-5 py-3 text-sm font-medium">{r.name}</td>
                   <td className="px-5 py-3 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
@@ -1330,7 +1432,9 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                     ) : <span className="text-[var(--text-dim)]">미설정</span>}
                   </td>
                   <td className="px-5 py-3 text-center">
-                    <button onClick={() => toggleMut.mutate(r)} disabled={toggleMut.isPending}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleMut.mutate(r); }}
+                      disabled={toggleMut.isPending}
                       className={`text-xs px-2.5 py-1 rounded-lg font-medium transition ${
                         r.is_active
                           ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
@@ -1342,12 +1446,13 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                   <td className="px-5 py-3 text-center">
                     <div className="flex gap-1.5 justify-center">
                       <button
-                        onClick={() => startEdit(r)}
+                        onClick={(e) => { e.stopPropagation(); startEdit(r); }}
                         className="text-xs px-2.5 py-1 rounded-lg font-medium bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg)] hover:text-[var(--text)] transition"
                         title="수정"
                       >수정</button>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (confirm(`"${r.name}" 반복결제를 삭제하시겠습니까? 등록된 자동이체와 연결도 함께 끊깁니다.`)) {
                             deleteMut.mutate(r.id);
                           }
