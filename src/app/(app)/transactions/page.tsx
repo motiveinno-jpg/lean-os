@@ -643,13 +643,20 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           <button
             onClick={async () => {
               setCodefSyncing(true);
+              // 통장관리(bank tabs)면 'bank' / 카드관리(cards만)면 'card' — 504 회피.
+              // 'all' 은 hometax까지 포함해 60초 넘김.
+              const syncType: 'bank' | 'card' = (visibleTabs.length === 1 && visibleTabs[0] === 'cards') ? 'card' : 'bank';
               try {
                 const { syncCodefData } = await import('@/lib/data-sync');
-                const result = await syncCodefData(companyId!, 'all');
+                const result = await syncCodefData(companyId!, syncType);
                 if (result.success) {
-                  toast('CODEF 동기화 완료', 'success');
+                  const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : (result.cardSynced ?? 0);
+                  const label = syncType === 'bank' ? '통장' : '카드';
+                  toast(synced > 0 ? `${label} 거래내역 ${synced}건 동기화 완료` : `${label} 동기화 완료 — 새 거래 없음`, synced > 0 ? 'success' : 'info');
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
                 } else {
                   toast(result.error || 'CODEF 동기화 실패', 'error');
                 }
