@@ -414,7 +414,7 @@ export async function approveMatchFromReview(
     .from('ai_pending_actions')
     .select('*')
     .eq('id', actionId)
-    .single();
+    .maybeSingle();
 
   if (!action) throw new Error('Review action not found');
   const payload = action.payload as unknown as {

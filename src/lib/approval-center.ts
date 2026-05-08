@@ -326,7 +326,7 @@ export async function approveAction(
 
     case 'approval': {
       // Find the first pending step for the current stage and approve it
-      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).single();
+      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle();
       if (req) {
         const { data: step } = await db.from('approval_steps')
           .select('id')
@@ -334,7 +334,7 @@ export async function approveAction(
           .eq('stage', req.current_stage)
           .eq('status', 'pending')
           .limit(1)
-          .single();
+          .maybeSingle();
         if (step) {
           const { approveStep } = await import('./approval-workflow');
           await approveStep(step.id, userId);

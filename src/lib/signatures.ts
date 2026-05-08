@@ -187,7 +187,7 @@ export async function saveSignature(
     .from('signature_requests')
     .select('id, status, expires_at')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (!existing) throw new Error('서명 요청을 찾을 수 없습니다');
   if (existing.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
@@ -238,7 +238,7 @@ export async function saveSignature(
         .from('documents')
         .select('id, status, company_id, deal_id')
         .eq('id', data.document_id)
-        .single();
+        .maybeSingle();
 
       if (doc) {
         if (doc.status !== 'approved' && doc.status !== 'locked') {
@@ -396,7 +396,7 @@ export async function applyCompanySeal(params: {
     .from('companies')
     .select('id, name, seal_url')
     .eq('id', companyId)
-    .single();
+    .maybeSingle();
 
   if (!company?.seal_url) {
     throw new Error('직인 이미지가 등록되지 않았습니다. 설정에서 직인을 먼저 업로드하세요.');
@@ -469,7 +469,7 @@ export async function getSignatureRequest(id: string) {
     .from('signature_requests')
     .select('*, documents(name, status, content_json)')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;

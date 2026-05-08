@@ -93,7 +93,7 @@ export async function applyReferralCode(
     .from('referral_codes')
     .select('company_id, referred_count, credit_earned')
     .eq('code', code.toUpperCase().trim())
-    .single();
+    .maybeSingle();
 
   if (findError || !referral) {
     throw new Error('유효하지 않은 추천 코드입니다');
