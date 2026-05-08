@@ -652,7 +652,18 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 if (result.success) {
                   const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : (result.cardSynced ?? 0);
                   const label = syncType === 'bank' ? '통장' : '카드';
-                  toast(synced > 0 ? `${label} 거래내역 ${synced}건 동기화 완료` : `${label} 동기화 완료 — 새 거래 없음`, synced > 0 ? 'success' : 'info');
+                  const allNotes = [...(result.errors || []), ...(result.notes || [])];
+                  // 환경/등록 이슈 — 사용자가 행동해야 풀리는 것 우선 표시
+                  const blockerNote = allNotes.find(n =>
+                    n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
+                  );
+                  if (synced > 0) {
+                    toast(`${label} 거래내역 ${synced}건 동기화 완료`, 'success');
+                  } else if (blockerNote) {
+                    toast(`${label} 동기화 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
+                  } else {
+                    toast(`${label} 동기화 완료 — 해당 기간 새 거래 없음`, 'info');
+                  }
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
