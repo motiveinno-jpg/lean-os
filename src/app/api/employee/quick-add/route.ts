@@ -25,11 +25,22 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // 1) auth 에 같은 이메일의 사용자가 있는지
-    const { data: usersList } = await admin.auth.admin.listUsers();
-    const authUser = usersList?.users?.find((u: any) =>
-      (u.email || "").toLowerCase() === normEmail,
-    );
+    // 1) auth 에 같은 이메일의 사용자가 있는지 — pagination 으로 전체 검색
+    // (기본 listUsers 는 perPage=50, 사용자 50명+ 시 못 찾음)
+    let authUser: any = null;
+    for (let page = 1; page <= 20; page++) {  // 최대 20페이지 × 200 = 4000명
+      const { data: ulist, error: ulistErr } = await admin.auth.admin.listUsers({
+        page,
+        perPage: 200,
+      });
+      if (ulistErr) {
+        return NextResponse.json({ error: `auth users 조회 실패: ${ulistErr.message}` }, { status: 500 });
+      }
+      const users = ulist?.users || [];
+      authUser = users.find((u: any) => (u.email || "").toLowerCase() === normEmail);
+      if (authUser) break;
+      if (users.length < 200) break;  // 마지막 페이지
+    }
 
     if (!authUser) {
       // 미가입 — 일반 invitation 흐름 안내
