@@ -40,17 +40,15 @@ export async function POST(req: NextRequest) {
     const inviteType: 'employee' | 'partner' = ei ? 'employee' : 'partner';
     const role = inviteType === 'partner' ? 'partner' : (invite.role || 'employee');
 
-    // 2) auth 에 같은 이메일 사용자 존재 확인 (pagination 으로 전체 검색)
+    // 2) auth 에 같은 이메일 사용자 존재 확인 — RPC 로 직접 SQL 조회 (listUsers 회피)
     let existingUser: any = null;
-    for (let page = 1; page <= 20; page++) {
-      const { data: ul, error: ulErr } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-      if (ulErr) {
-        return NextResponse.json({ error: `사용자 조회 실패: ${ulErr.message}` }, { status: 500 });
-      }
-      const users = ul?.users || [];
-      existingUser = users.find((u: any) => (u.email || '').toLowerCase() === normEmail);
-      if (existingUser) break;
-      if (users.length < 200) break;
+    const { data: rpcRows, error: rpcErr } = await (admin as any).rpc('find_auth_user_by_email', { p_email: normEmail });
+    if (rpcErr) {
+      return NextResponse.json({ error: `사용자 조회 실패: ${rpcErr.message}` }, { status: 500 });
+    }
+    const rpcArr = Array.isArray(rpcRows) ? (rpcRows as any[]) : [];
+    if (rpcArr.length > 0) {
+      existingUser = { id: rpcArr[0].id, email: rpcArr[0].email, user_metadata: rpcArr[0].raw_user_meta_data };
     }
 
     let authUserId: string;
@@ -77,20 +75,15 @@ export async function POST(req: NextRequest) {
         // 동시성 / 페이지네이션 누락으로 못 잡힌 경우 한 번 더 시도
         const m = (createErr?.message || '').toLowerCase();
         if (m.includes('already') || m.includes('exists') || m.includes('registered')) {
-          // listUsers 로 한 번 더 — 신규 가입자가 사이에 들어왔을 수도
-          let retryUser: any = null;
-          for (let page = 1; page <= 20; page++) {
-            const { data: ul } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-            const users = ul?.users || [];
-            retryUser = users.find((u: any) => (u.email || '').toLowerCase() === normEmail);
-            if (retryUser) break;
-            if (users.length < 200) break;
-          }
+          // RPC 로 다시 조회 (race condition)
+          const { data: retryRows } = await (admin as any).rpc('find_auth_user_by_email', { p_email: normEmail });
+          const retryArr = Array.isArray(retryRows) ? (retryRows as any[]) : [];
+          const retryUser = retryArr.length > 0 ? retryArr[0] : null;
           if (retryUser) {
             await admin.auth.admin.updateUserById(retryUser.id, {
               password,
               email_confirm: true,
-              user_metadata: { name: name || retryUser.user_metadata?.name },
+              user_metadata: { name: name || retryUser.raw_user_meta_data?.name },
             });
             authUserId = retryUser.id;
           } else {

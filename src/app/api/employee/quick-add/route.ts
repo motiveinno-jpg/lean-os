@@ -25,22 +25,17 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
 
-    // 1) auth 에 같은 이메일의 사용자가 있는지 — pagination 으로 전체 검색
-    // (기본 listUsers 는 perPage=50, 사용자 50명+ 시 못 찾음)
-    let authUser: any = null;
-    for (let page = 1; page <= 20; page++) {  // 최대 20페이지 × 200 = 4000명
-      const { data: ulist, error: ulistErr } = await admin.auth.admin.listUsers({
-        page,
-        perPage: 200,
-      });
-      if (ulistErr) {
-        return NextResponse.json({ error: `auth users 조회 실패: ${ulistErr.message}` }, { status: 500 });
-      }
-      const users = ulist?.users || [];
-      authUser = users.find((u: any) => (u.email || "").toLowerCase() === normEmail);
-      if (authUser) break;
-      if (users.length < 200) break;  // 마지막 페이지
+    // 1) auth 에 같은 이메일의 사용자가 있는지 — RPC 로 직접 SQL 조회
+    const { data: rpcRows, error: rpcErr } = await (admin as any).rpc("find_auth_user_by_email", {
+      p_email: normEmail,
+    });
+    if (rpcErr) {
+      return NextResponse.json({ error: `auth users 조회 실패: ${rpcErr.message}` }, { status: 500 });
     }
+    const rpcArr = Array.isArray(rpcRows) ? (rpcRows as any[]) : [];
+    const authUser = rpcArr.length > 0
+      ? { id: rpcArr[0].id, email: rpcArr[0].email, user_metadata: rpcArr[0].raw_user_meta_data }
+      : null;
 
     if (!authUser) {
       // 미가입 — 일반 invitation 흐름 안내
