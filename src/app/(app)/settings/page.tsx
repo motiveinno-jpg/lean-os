@@ -4446,6 +4446,46 @@ function MemberInviteTab({ companyId }: { companyId: string }) {
     if (!inviteForm.email.trim()) return;
     setSending(true);
     try {
+      // 1) 직원/관리자 초대 — 먼저 quick-add 시도 (이미 가입된 사용자면 자동 회사 연결)
+      if (inviteForm.role !== "partner") {
+        try {
+          const qRes = await fetch("/api/employee/quick-add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              companyId,
+              email: inviteForm.email.trim(),
+              name: inviteForm.name.trim() || undefined,
+              role: inviteForm.role,
+              invitedBy: user?.id || "",
+            }),
+          });
+          const q = await qRes.json();
+          if (qRes.ok) {
+            if (q.status === "auto_added") {
+              toast(q.message || "이미 가입된 사용자라서 자동으로 등록했습니다.", "success");
+              setInviteForm({ email: "", name: "", role: "employee" });
+              refetchEmp();
+              refetchPartner();
+              return;
+            }
+            if (q.status === "already_member") {
+              toast("이미 이 회사의 멤버입니다.", "info");
+              return;
+            }
+            // needs_invitation — 일반 invitation 흐름으로 계속 진행
+          } else if (qRes.status === 409 && q.status === "conflict") {
+            toast(q.message || "이미 다른 회사에 소속된 이메일입니다.", "error");
+            return;
+          } else {
+            // quick-add 실패 — 일반 invitation 으로 fallback (조용히)
+          }
+        } catch {
+          // quick-add 네트워크 실패 — 일반 invitation 으로 fallback
+        }
+      }
+
+      // 2) 일반 invitation 흐름 — 미가입 사용자에게 가입 안내 메일 발송
       let invite: { id?: string; invite_token?: string } | null = null;
       if (inviteForm.role === "partner") {
         invite = await createPartnerInvitation({
