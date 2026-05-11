@@ -277,27 +277,66 @@ function NotificationIcon({ type }: { type: string }) {
   }
 }
 
-// ── Entity route mapper ──
-function getEntityRoute(entityType?: string, entityId?: string): string | null {
-  if (!entityType || !entityId) return null;
-  switch (entityType) {
-    case "document":
-      return `/documents?id=${entityId}`;
-    case "deal":
-      return `/deals?id=${entityId}`;
-    case "signature":
-      return `/documents?tab=signatures`;
-    case "chat":
-      return `/chat?channel=${entityId}`;
-    case "payment":
-      return `/payments`;
-    case "approval_request":
-      return `/approvals`;
-    case "milestone":
-      return `/deals`;
-    default:
-      return null;
+// ── Entity / Type route mapper ──
+// entity_type 우선 → 없으면 notification type 매칭. 모두 안 맞으면 type prefix 로 추정.
+function getEntityRoute(entityType?: string, entityId?: string, notifType?: string): string {
+  // 1) entity_type 매핑 (entity 가 있을 때)
+  if (entityType) {
+    switch (entityType) {
+      case "document": return entityId ? `/documents?id=${entityId}` : "/documents";
+      case "deal":
+      case "milestone": return entityId ? `/deals?id=${entityId}` : "/deals";
+      case "signature": return "/documents?tab=signatures";
+      case "chat":
+      case "chat_channel":
+      case "chat_message": return entityId ? `/chat?channel=${entityId}` : "/chat";
+      case "payment":
+      case "payment_queue":
+      case "payment_batch":
+      case "recurring_payment": return "/payments";
+      case "approval_request":
+      case "approval_step":
+      case "doc_approval": return "/approvals";
+      case "expense":
+      case "expense_request": return "/approvals?tab=expense";
+      case "leave":
+      case "leave_request": return "/employees?tab=leave";
+      case "tax_invoice": return "/tax-invoices";
+      case "cash_receipt": return "/cash-receipts";
+      case "bank_transaction": return "/transactions";
+      case "card_transaction": return "/cards";
+      case "schedule_event":
+      case "schedule_todo": return "/schedule";
+      case "employee":
+      case "employee_invitation": return "/settings?tab=invite";
+      case "partner":
+      case "partner_invitation": return entityId ? `/partners?id=${entityId}` : "/partners";
+      case "vault_asset":
+      case "vault_doc": return "/vault";
+      case "loan":
+      case "loan_payment": return "/loans";
+      case "hometax_sync_job": return "/tax-invoices";
+    }
   }
+  // 2) notification type prefix 로 추정
+  const t = (notifType || "").toLowerCase();
+  if (t.includes("approval") || t.includes("결재") || t.includes("승인")) return "/approvals";
+  if (t.includes("chat") || t.includes("mention")) return "/chat";
+  if (t.includes("payment") || t.includes("payroll") || t.includes("고정비") || t.includes("결제")) return "/payments";
+  if (t.includes("expense") || t.includes("경비")) return "/approvals?tab=expense";
+  if (t.includes("tax") || t.includes("세금")) return "/tax-invoices";
+  if (t.includes("schedule") || t.includes("event") || t.includes("todo") || t.includes("일정")) return "/schedule";
+  if (t.includes("bank") || t.includes("통장")) return "/transactions";
+  if (t.includes("card") || t.includes("카드")) return "/cards";
+  if (t.includes("deal") || t.includes("프로젝트")) return "/deals";
+  if (t.includes("partner") || t.includes("거래처")) return "/partners";
+  if (t.includes("employee") || t.includes("직원") || t.includes("급여")) return "/employees";
+  if (t.includes("signature") || t.includes("서명")) return "/documents?tab=signatures";
+  if (t.includes("doc") || t.includes("문서") || t.includes("contract")) return "/documents";
+  if (t.includes("vault") || t.includes("자산")) return "/vault";
+  if (t.includes("loan") || t.includes("대출")) return "/loans";
+  // 3) fallback — 알림 클릭 시 무조건 어디든 이동
+  return "/dashboard";
 }
 
 // ── NotificationCenter Component ──
@@ -412,11 +451,9 @@ export function NotificationCenter() {
       } catch {}
     }
 
-    const route = getEntityRoute(notification.entity_type, notification.entity_id);
-    if (route) {
-      router.push(route);
-      setOpen(false);
-    }
+    const route = getEntityRoute(notification.entity_type, notification.entity_id, notification.type);
+    router.push(route);
+    setOpen(false);
   }
 
   // Group notifications
