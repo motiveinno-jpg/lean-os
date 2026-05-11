@@ -89,10 +89,13 @@ export async function createEmployeeInvitation(params: {
 }
 
 export async function getEmployeeInvitations(companyId: string) {
+  // UI 에는 pending 만 표시 — accepted/cancelled/expired 는 자동 정리됨.
+  // 사용자 입장에서 "재초대" 가능한 상태만 보여 혼란 방지.
   const { data } = await db
     .from('employee_invitations')
     .select('*')
     .eq('company_id', companyId)
+    .eq('status', 'pending')
     .order('created_at', { ascending: false });
   return data || [];
 }

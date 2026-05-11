@@ -107,18 +107,9 @@ export async function POST(req: NextRequest) {
       }).eq("id", emp.id);
     }
 
-    // 5) 추적용 invitation row (status='accepted') — 기록 보존
-    if (invitedBy) {
-      await admin.from("employee_invitations").insert({
-        company_id: companyId,
-        email: normEmail,
-        name: name || null,
-        role: normRole,
-        invited_by: invitedBy,
-        status: "accepted",
-        accepted_at: new Date().toISOString(),
-      });
-    }
+    // (이전엔 추적용 invitation row INSERT — 제거.
+    //  user 가 이미 회사 멤버로 등록됐으므로 invitation row 가 UI list 에 표시되어
+    //  "이미 사용된 초대" / "취소 불가" 혼란 야기. 자동 등록은 invitation 흐름 무용.)
 
     return NextResponse.json({
       status: "auto_added",
