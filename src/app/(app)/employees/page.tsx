@@ -1103,13 +1103,44 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {isEditing ? (<>
-                  <EditField label="월 급여" value={editData.salary} onChange={(v) => setEditData({ ...editData, salary: v.replace(/[^0-9]/g, '') })} inputMode="numeric" />
+                  {/* 월 급여 ↔ 연봉 양방향 — 둘 중 하나 입력하면 다른 하나 자동 계산.
+                      DB 에 저장은 salary (월 급여) 하나만. */}
+                  <div>
+                    <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">월 급여</div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={editData.salary ? Number(editData.salary).toLocaleString('ko-KR') : ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setEditData({ ...editData, salary: raw });
+                      }}
+                      placeholder="3,000,000"
+                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">연봉</div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={editData.salary ? (Number(editData.salary) * 12).toLocaleString('ko-KR') : ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        const monthly = raw ? String(Math.round(Number(raw) / 12)) : '';
+                        setEditData({ ...editData, salary: monthly });
+                      }}
+                      placeholder="36,000,000"
+                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                    />
+                  </div>
                   <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
                   <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">급여 은행</div><select value={editData.bank_name} onChange={(e) => setEditData({ ...editData, bank_name: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option>{Object.entries(BANK_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
                   <EditField label="계좌번호" value={editData.bank_account} onChange={(v) => setEditData({ ...editData, bank_account: v })} />
                   <EditField label="예금주" value={editData.bank_holder} onChange={(v) => setEditData({ ...editData, bank_holder: v })} />
                 </>) : (<>
                   <InfoRow label="월 급여" value={emp.salary ? `₩${Number(emp.salary).toLocaleString()}` : undefined} />
+                  <InfoRow label="연봉 (월급여 × 12)" value={emp.salary ? `₩${(Number(emp.salary) * 12).toLocaleString()}` : undefined} />
                   <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
                   <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
                   <InfoRow label="계좌번호" value={emp.bank_account} />
