@@ -5335,6 +5335,24 @@ function DataResetTab({ companyId }: { companyId: string }) {
       if (error) failedTables.push(`${table}: ${error.message}`);
     }
 
+    // ── Phase 2.5: 멤버 정리 — employees / employee_invitations / 회사 소속 끊기 ──
+    // users 직접 삭제는 chat_participants/messages 등 FK 위반 가능 → company_id=NULL 로 detach.
+    // owner/admin 은 보존 (회사 운영 주체). 본인은 어쨌든 owner/admin 라 자동 보존.
+    tick("멤버 + 초대 정리");
+    try {
+      await db.from("employees").delete().eq("company_id", companyId);
+      await db.from("employee_invitations").delete().eq("company_id", companyId);
+      await db.from("partner_invitations").delete().eq("company_id", companyId);
+      const { error: uErr } = await db
+        .from("users")
+        .update({ company_id: null })
+        .eq("company_id", companyId)
+        .in("role", ["employee", "partner"]);
+      if (uErr) failedTables.push(`users detach: ${uErr.message}`);
+    } catch (e: any) {
+      failedTables.push(`멤버 정리: ${e?.message || e}`);
+    }
+
     // ── Phase 3: companies 레코드 부가 필드 초기화 ──
     tick("companies");
     await db
