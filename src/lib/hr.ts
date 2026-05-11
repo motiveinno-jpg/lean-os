@@ -114,9 +114,28 @@ export async function updateEmployee(employeeId: string, updates: Record<string,
     'employee_number', 'hire_date', 'is_4_insurance',
     'meal_allowance_included', 'contract_type',
   ];
+  // date/number 컬럼 — 빈 string 받으면 Postgres 가 invalid 에러.
+  // 빈 값은 null 로 정규화.
+  const dateFields = new Set(['birth_date', 'hire_date']);
+  const numericFields = new Set(['salary']);
+
   const filtered: Record<string, unknown> = {};
   for (const key of allowedFields) {
-    if (key in updates) filtered[key] = updates[key];
+    if (!(key in updates)) continue;
+    let v = updates[key];
+    if (dateFields.has(key)) {
+      if (v === '' || v === undefined) v = null;
+    } else if (numericFields.has(key)) {
+      if (v === '' || v === undefined || v === null) v = null;
+      else if (typeof v === 'string') {
+        const n = Number(v.replace(/[^0-9.-]/g, ''));
+        v = Number.isFinite(n) ? n : null;
+      }
+    } else if (typeof v === 'string' && v.trim() === '') {
+      // text 컬럼도 빈 문자열을 null 로 (선택사항이지만 깔끔)
+      v = null;
+    }
+    filtered[key] = v;
   }
   if (Object.keys(filtered).length === 0) return;
   const { error } = await db
