@@ -856,7 +856,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
+                  <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                     <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                       <td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td>
                       <td className="px-3 py-2 text-right text-xs font-bold">
@@ -940,7 +940,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       );
                     })}
                   </tbody>
-                  <tfoot>
+                  <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                     <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                       <td className="px-4 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td>
                       <td className={`px-4 py-2 text-right text-xs font-bold ${editPaymentSchedule.reduce((s: number, t: any) => s + (t.ratio || 0), 0) === 100 ? 'text-green-400' : 'text-red-400'}`}>

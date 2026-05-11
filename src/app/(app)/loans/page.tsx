@@ -559,7 +559,7 @@ export default function LoansPage() {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
+                    <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                       <tr className="border-t border-[var(--border)]">
                         <td className="px-3 py-2.5 text-xs font-bold">합계</td>
                         <td className="px-3 py-2.5 text-xs text-right font-bold">

@@ -1934,8 +1934,8 @@ export default function TaxInvoicesPage() {
                   );
                 })}
               </tbody>
-              {/* Footer totals */}
-              <tfoot>
+              {/* Footer totals — 스크롤 무관 하단 고정 */}
+              <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                 <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                   <td
                     colSpan={draftInCurrentList.length > 0 ? 3 : 2}
@@ -2540,7 +2540,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
                 </tr>
               ))}
             </tbody>
-            <tfoot>
+            <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
               <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                 <td className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]">합계</td>
                 <td className="px-5 py-3 text-sm text-center font-bold">{periodSummary.reduce((s: number, p: any) => s + p.salesCount, 0)}</td>
@@ -2584,7 +2584,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
+              <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                 <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                   <td colSpan={5} className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]">연간 카드공제 추정 합계</td>
                   <td className="px-5 py-3 text-sm text-right font-bold text-[var(--primary)]">₩{totalCardDeduction.toLocaleString()}</td>

@@ -755,7 +755,7 @@ export default function CashReceiptsPage() {
                     );
                   })}
                 </tbody>
-                <tfoot>
+                <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                   <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                     <td
                       colSpan={2}
