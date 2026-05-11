@@ -165,120 +165,267 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
   const monthFs = expanded ? 14 : 8;
   const yFs = expanded ? 12 : 7;
 
-  function toPath(data: number[]): string {
-    return data
-      .map((val, i) => {
-        const x = PADDING_X + (i / (data.length - 1)) * chartW;
-        const y = PADDING_Y + chartH - (val / maxVal) * chartH;
-        return `${i === 0 ? "M" : "L"}${x},${y}`;
-      })
-      .join(" ");
+  // 부드러운 Catmull-Rom 곡선 (bezier 근사)
+  function toSmoothPath(data: number[]): string {
+    if (data.length === 0) return "";
+    const points = data.map((val, i) => ({
+      x: PADDING_X + (i / Math.max(1, data.length - 1)) * chartW,
+      y: PADDING_Y + chartH - (val / maxVal) * chartH,
+    }));
+    if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+    let d = `M${points[0].x},${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i - 1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+      const t = 0.18;  // tension — 작을수록 더 부드러움
+      const c1x = p1.x + (p2.x - p0.x) * t;
+      const c1y = p1.y + (p2.y - p0.y) * t;
+      const c2x = p2.x - (p3.x - p1.x) * t;
+      const c2y = p2.y - (p3.y - p1.y) * t;
+      d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+    }
+    return d;
+  }
+  function toAreaPath(data: number[]): string {
+    const line = toSmoothPath(data);
+    if (!line) return "";
+    const lastX = PADDING_X + ((data.length - 1) / Math.max(1, data.length - 1)) * chartW;
+    const firstX = PADDING_X;
+    const baseY = PADDING_Y + chartH;
+    return `${line} L${lastX},${baseY} L${firstX},${baseY} Z`;
   }
 
-  const salesPath = toPath(monthData.map((m) => m.sales));
-  const purchasePath = toPath(monthData.map((m) => m.purchase));
+  const salesPath = toSmoothPath(monthData.map((m) => m.sales));
+  const salesArea = toAreaPath(monthData.map((m) => m.sales));
+  const purchasePath = toSmoothPath(monthData.map((m) => m.purchase));
+  const purchaseArea = toAreaPath(monthData.map((m) => m.purchase));
+
+  // Hover state
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const formatKR = (n: number) => {
+    if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`;
+    if (n >= 10000) return `${Math.round(n / 10000).toLocaleString()}만`;
+    return n.toLocaleString();
+  };
+
+  // 합계 (호버 또는 totals 표시용)
+  const totalSales = monthData.reduce((s, m) => s + m.sales, 0);
+  const totalPurchase = monthData.reduce((s, m) => s + m.purchase, 0);
+  const hover = hoverIdx !== null ? monthData[hoverIdx] : null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
-      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-        <span className="text-xs font-bold text-[var(--text-muted)]">최근 6개월 매출/매입 추이</span>
-        <div className="flex items-center gap-3 text-[10px]">
+    <div className="bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--text)]">최근 6개월 추이</h3>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">매출 / 매입 월별 추이</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Legend pills */}
           <button
             type="button"
             onClick={() => setVisibility((v) => v === "sales" ? "all" : "sales")}
-            className={`flex items-center gap-1 transition ${visibility === "purchase" ? "opacity-30" : "opacity-100"} hover:opacity-100`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition ${
+              visibility === "purchase"
+                ? "opacity-40 border-[var(--border)]"
+                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+            }`}
             title="매출만 보기"
           >
-            <span className="inline-block w-3 h-0.5 bg-green-400 rounded" />매출
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />매출
           </button>
           <button
             type="button"
             onClick={() => setVisibility((v) => v === "purchase" ? "all" : "purchase")}
-            className={`flex items-center gap-1 transition ${visibility === "sales" ? "opacity-30" : "opacity-100"} hover:opacity-100`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition ${
+              visibility === "sales"
+                ? "opacity-40 border-[var(--border)]"
+                : "border-orange-500/30 bg-orange-500/10 text-orange-500"
+            }`}
             title="매입만 보기"
           >
-            <span className="inline-block w-3 h-0.5 bg-orange-400 rounded" />매입
+            <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />매입
           </button>
-          {visibility !== "all" && (
-            <button
-              type="button"
-              onClick={() => setVisibility("all")}
-              className="text-[var(--text-muted)] hover:text-[var(--text)] underline"
-              title="둘 다 보기"
-            >
-              둘 다
-            </button>
-          )}
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="ml-2 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            className="ml-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition border border-[var(--border)]"
             aria-label={expanded ? "접어보기" : "펼쳐보기"}
           >
-            {expanded ? "↑ 접어보기" : "↓ 펼쳐보기"}
+            {expanded ? "↑ 접기" : "↓ 펼치기"}
           </button>
         </div>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: expanded ? 420 : 120 }}>
-        {/* Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-          const y = PADDING_Y + chartH - ratio * chartH;
-          return (
+
+      {/* Totals row (펼쳤을 때만) */}
+      {expanded && (
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
+            <div className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider">6개월 매출</div>
+            <div className="text-base font-black mt-0.5 text-emerald-500 mono-number">₩{totalSales.toLocaleString()}</div>
+          </div>
+          <div className="bg-orange-500/5 border border-orange-500/15 rounded-xl px-4 py-2.5">
+            <div className="text-[10px] text-orange-500 font-semibold uppercase tracking-wider">6개월 매입</div>
+            <div className="text-base font-black mt-0.5 text-orange-500 mono-number">₩{totalPurchase.toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Chart */}
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          className="w-full"
+          style={{ maxHeight: expanded ? 420 : 130 }}
+          onMouseLeave={() => setHoverIdx(null)}
+          onMouseMove={(e) => {
+            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+            const px = ((e.clientX - rect.left) / rect.width) * WIDTH;
+            const stepX = chartW / Math.max(1, monthData.length - 1);
+            const idx = Math.round((px - PADDING_X) / stepX);
+            if (idx >= 0 && idx < monthData.length) setHoverIdx(idx);
+            else setHoverIdx(null);
+          }}
+        >
+          <defs>
+            <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="purchaseGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.30" />
+              <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const y = PADDING_Y + chartH - ratio * chartH;
+            return (
+              <line
+                key={ratio}
+                x1={PADDING_X}
+                x2={WIDTH - PADDING_X}
+                y1={y}
+                y2={y}
+                stroke="var(--border)"
+                strokeWidth={0.5}
+                strokeDasharray={ratio === 0 ? "0" : "3,3"}
+                opacity={0.5}
+              />
+            );
+          })}
+
+          {/* Area fills */}
+          {visibility !== "purchase" && (
+            <path d={salesArea} fill="url(#salesGrad)" stroke="none" />
+          )}
+          {visibility !== "sales" && (
+            <path d={purchaseArea} fill="url(#purchaseGrad)" stroke="none" />
+          )}
+
+          {/* Lines */}
+          {visibility !== "purchase" && (
+            <path d={salesPath} fill="none" stroke="#10b981" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {visibility !== "sales" && (
+            <path d={purchasePath} fill="none" stroke="#f97316" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {/* Dots + month labels */}
+          {monthData.map((m, i) => {
+            const x = PADDING_X + (i / Math.max(1, monthData.length - 1)) * chartW;
+            const isHover = i === hoverIdx;
+            return (
+              <g key={m.key}>
+                {visibility !== "purchase" && (
+                  <circle
+                    cx={x}
+                    cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH}
+                    r={isHover ? dotR * 1.6 : dotR}
+                    fill="#10b981"
+                    stroke="var(--bg-card)"
+                    strokeWidth={isHover ? 2 : 1.2}
+                  />
+                )}
+                {visibility !== "sales" && (
+                  <circle
+                    cx={x}
+                    cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH}
+                    r={isHover ? dotR * 1.6 : dotR}
+                    fill="#f97316"
+                    stroke="var(--bg-card)"
+                    strokeWidth={isHover ? 2 : 1.2}
+                  />
+                )}
+                <text
+                  x={x}
+                  y={HEIGHT - 4}
+                  textAnchor="middle"
+                  fill={isHover ? "var(--text)" : "var(--text-dim)"}
+                  fontSize={monthFs}
+                  fontWeight={isHover ? 700 : 500}
+                >
+                  {m.label}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Hover indicator line */}
+          {hover !== null && hoverIdx !== null && (
             <line
-              key={ratio}
-              x1={PADDING_X}
-              x2={WIDTH - PADDING_X}
-              y1={y}
-              y2={y}
-              stroke="var(--border)"
-              strokeWidth={0.5}
-              strokeDasharray={ratio === 0 ? "0" : "2,2"}
+              x1={PADDING_X + (hoverIdx / Math.max(1, monthData.length - 1)) * chartW}
+              x2={PADDING_X + (hoverIdx / Math.max(1, monthData.length - 1)) * chartW}
+              y1={PADDING_Y}
+              y2={PADDING_Y + chartH}
+              stroke="var(--text-dim)"
+              strokeWidth={1}
+              strokeDasharray="2,3"
+              opacity={0.5}
             />
-          );
-        })}
-        {/* Sales line */}
-        {visibility !== "purchase" && (
-          <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {/* Y-axis labels */}
+          <text x={PADDING_X - 6} y={PADDING_Y + 4} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
+            {formatKR(maxVal)}
+          </text>
+          <text x={PADDING_X - 6} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
+            0
+          </text>
+        </svg>
+
+        {/* Hover tooltip — HTML overlay (positioned by index) */}
+        {hover && (
+          <div
+            className="absolute pointer-events-none px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] shadow-lg text-[11px] whitespace-nowrap"
+            style={{
+              left: `${((PADDING_X + (hoverIdx! / Math.max(1, monthData.length - 1)) * chartW) / WIDTH) * 100}%`,
+              top: 0,
+              transform: "translateX(-50%)",
+            }}
+          >
+            <div className="font-bold text-[var(--text)] mb-1">{hover.label}</div>
+            {visibility !== "purchase" && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-[var(--text-muted)]">매출</span>
+                <span className="font-bold text-emerald-500 ml-auto">₩{hover.sales.toLocaleString()}</span>
+              </div>
+            )}
+            {visibility !== "sales" && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-orange-500" />
+                <span className="text-[var(--text-muted)]">매입</span>
+                <span className="font-bold text-orange-500 ml-auto">₩{hover.purchase.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
         )}
-        {/* Purchase line */}
-        {visibility !== "sales" && (
-          <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
-        )}
-        {/* Dots + labels */}
-        {monthData.map((m, i) => {
-          const x = PADDING_X + (i / (monthData.length - 1)) * chartW;
-          return (
-            <g key={m.key}>
-              {visibility !== "purchase" && (
-                <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={dotR} fill="#4ade80" />
-              )}
-              {visibility !== "sales" && (
-                <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={dotR} fill="#fb923c" />
-              )}
-              <text x={x} y={HEIGHT - 4} textAnchor="middle" fill="var(--text-dim)" fontSize={monthFs}>
-                {m.label}
-              </text>
-              {expanded && visibility !== "purchase" && (
-                <text x={x} y={PADDING_Y + chartH - (m.sales / maxVal) * chartH - 10} textAnchor="middle" fill="#4ade80" fontSize={11} fontWeight={600}>
-                  {m.sales > 0 ? (m.sales >= 100000000 ? `${(m.sales/100000000).toFixed(1)}억` : m.sales >= 10000 ? `${Math.round(m.sales/10000)}만` : m.sales.toLocaleString()) : ""}
-                </text>
-              )}
-              {expanded && visibility !== "sales" && (
-                <text x={x} y={PADDING_Y + chartH - (m.purchase / maxVal) * chartH + 18} textAnchor="middle" fill="#fb923c" fontSize={11} fontWeight={600}>
-                  {m.purchase > 0 ? (m.purchase >= 100000000 ? `${(m.purchase/100000000).toFixed(1)}억` : m.purchase >= 10000 ? `${Math.round(m.purchase/10000)}만` : m.purchase.toLocaleString()) : ""}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {/* Y-axis labels */}
-        <text x={PADDING_X - 6} y={PADDING_Y + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
-          {maxVal >= 100000000 ? `${Math.round(maxVal / 100000000)}억` : maxVal >= 10000 ? `${Math.round(maxVal / 10000)}만` : maxVal.toLocaleString()}
-        </text>
-        <text x={PADDING_X - 6} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
-          0
-        </text>
-      </svg>
+      </div>
     </div>
   );
 }
