@@ -1852,81 +1852,250 @@ const CHART_H = 180;
 const CHART_PAD = { top: 20, right: 16, bottom: 32, left: 16 };
 
 function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
-  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expense]), 1);
-  const barAreaH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
-  const totalW = 600;
-  const barAreaW = totalW - CHART_PAD.left - CHART_PAD.right;
-  const groupW = barAreaW / data.length;
-  const barW = groupW * 0.3;
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("tx-monthly-chart-expanded") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("tx-monthly-chart-expanded", expanded ? "1" : "0");
+  }, [expanded]);
+  const [visibility, setVisibility] = useState<"all" | "income" | "expense">("all");
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const netPoints = data.map((d, i) => {
-    const net = d.income - d.expense;
-    const netMax = Math.max(...data.map(dd => Math.abs(dd.income - dd.expense)), 1);
-    const y = CHART_PAD.top + barAreaH / 2 - (net / netMax) * (barAreaH / 2);
-    const x = CHART_PAD.left + groupW * i + groupW / 2;
-    return `${x},${y}`;
-  }).join(' ');
+  const maxVal = Math.max(
+    1,
+    ...data.map(d => {
+      if (visibility === "income") return d.income;
+      if (visibility === "expense") return d.expense;
+      return Math.max(d.income, d.expense);
+    }),
+  );
+
+  const WIDTH = expanded ? 800 : 320;
+  const HEIGHT = expanded ? 320 : 130;
+  const PADDING_X = expanded ? 64 : 36;
+  const PADDING_Y = expanded ? 24 : 14;
+  const chartW = WIDTH - PADDING_X * 2;
+  const chartH = HEIGHT - PADDING_Y * 2;
+  const dotR = expanded ? 5 : 2.5;
+  const strokeW = expanded ? 3 : 2;
+  const monthFs = expanded ? 14 : 9;
+  const yFs = expanded ? 12 : 8;
+
+  function toSmoothPath(vals: number[]): string {
+    if (vals.length === 0) return "";
+    const points = vals.map((val, i) => ({
+      x: PADDING_X + (i / Math.max(1, vals.length - 1)) * chartW,
+      y: PADDING_Y + chartH - (val / maxVal) * chartH,
+    }));
+    if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+    let d = `M${points[0].x},${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i - 1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+      const t = 0.18;
+      const c1x = p1.x + (p2.x - p0.x) * t;
+      const c1y = p1.y + (p2.y - p0.y) * t;
+      const c2x = p2.x - (p3.x - p1.x) * t;
+      const c2y = p2.y - (p3.y - p1.y) * t;
+      d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+    }
+    return d;
+  }
+  function toAreaPath(vals: number[]): string {
+    const line = toSmoothPath(vals);
+    if (!line) return "";
+    const lastX = PADDING_X + chartW;
+    const firstX = PADDING_X;
+    const baseY = PADDING_Y + chartH;
+    return `${line} L${lastX},${baseY} L${firstX},${baseY} Z`;
+  }
+
+  const incomePath = toSmoothPath(data.map(d => d.income));
+  const incomeArea = toAreaPath(data.map(d => d.income));
+  const expensePath = toSmoothPath(data.map(d => d.expense));
+  const expenseArea = toAreaPath(data.map(d => d.expense));
+
+  const formatKR = (n: number) => {
+    if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`;
+    if (n >= 10000) return `${Math.round(n / 10000).toLocaleString()}만`;
+    return n.toLocaleString();
+  };
+
+  const totalIncome = data.reduce((s, d) => s + d.income, 0);
+  const totalExpense = data.reduce((s, d) => s + d.expense, 0);
+  const hover = hoverIdx !== null ? data[hoverIdx] : null;
+  const hoverMIdx = hover ? parseInt(hover.month.split('-')[1], 10) - 1 : 0;
 
   return (
-    <div className="mb-5 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
-      <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">월별 입금 / 출금 추이 (최근 6개월)</p>
-      <svg viewBox={`0 0 ${totalW} ${CHART_H}`} className="w-full" style={{ maxHeight: CHART_H }}>
-        {/* Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map(r => {
-          const y = CHART_PAD.top + barAreaH * (1 - r);
-          return <line key={r} x1={CHART_PAD.left} x2={totalW - CHART_PAD.right} y1={y} y2={y}
-            stroke="var(--border)" strokeWidth={0.5} strokeDasharray={r === 0 ? 'none' : '4 2'} />;
-        })}
-        {/* Bars */}
-        {data.map((d, i) => {
-          const x = CHART_PAD.left + groupW * i;
-          const incomeH = (d.income / maxVal) * barAreaH;
-          const expenseH = (d.expense / maxVal) * barAreaH;
-          const mIdx = parseInt(d.month.split('-')[1], 10) - 1;
-          return (
-            <g key={d.month}>
-              {/* Income bar */}
-              <rect x={x + groupW / 2 - barW - 1} y={CHART_PAD.top + barAreaH - incomeH}
-                width={barW} height={incomeH} rx={3} fill="var(--success)" opacity={0.85} />
-              {/* Expense bar */}
-              <rect x={x + groupW / 2 + 1} y={CHART_PAD.top + barAreaH - expenseH}
-                width={barW} height={expenseH} rx={3} fill="var(--danger)" opacity={0.85} />
-              {/* Month label */}
-              <text x={x + groupW / 2} y={CHART_H - 6} textAnchor="middle"
-                fontSize={11} fill="var(--text-muted)" fontWeight={500}>
-                {MONTH_LABELS[mIdx]}
-              </text>
-              {/* Value labels */}
-              {incomeH > 14 && (
-                <text x={x + groupW / 2 - barW / 2 - 1} y={CHART_PAD.top + barAreaH - incomeH + 12}
-                  textAnchor="middle" fontSize={8} fill="var(--success)" fontWeight={600}>
-                  {fmtW(d.income)}
+    <div className="mb-5 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--text)]">월별 입금 / 출금 추이</h3>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">최근 6개월</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setVisibility(v => v === "income" ? "all" : "income")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition ${
+              visibility === "expense" ? "opacity-40 border-[var(--border)]" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+            }`}
+          >
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />입금
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibility(v => v === "expense" ? "all" : "expense")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition ${
+              visibility === "income" ? "opacity-40 border-[var(--border)]" : "border-rose-500/30 bg-rose-500/10 text-rose-500"
+            }`}
+          >
+            <span className="inline-block w-2 h-2 rounded-full bg-rose-500" />출금
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            className="ml-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition border border-[var(--border)]"
+          >
+            {expanded ? "↑ 접기" : "↓ 펼치기"}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
+            <div className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider">6개월 입금</div>
+            <div className="text-base font-black mt-0.5 text-emerald-500 mono-number">₩{totalIncome.toLocaleString()}</div>
+          </div>
+          <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-2.5">
+            <div className="text-[10px] text-rose-500 font-semibold uppercase tracking-wider">6개월 출금</div>
+            <div className="text-base font-black mt-0.5 text-rose-500 mono-number">₩{totalExpense.toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          className="w-full"
+          style={{ maxHeight: expanded ? 420 : 160 }}
+          onMouseLeave={() => setHoverIdx(null)}
+          onMouseMove={(e) => {
+            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+            const px = ((e.clientX - rect.left) / rect.width) * WIDTH;
+            const stepX = chartW / Math.max(1, data.length - 1);
+            const idx = Math.round((px - PADDING_X) / stepX);
+            if (idx >= 0 && idx < data.length) setHoverIdx(idx);
+            else setHoverIdx(null);
+          }}
+        >
+          <defs>
+            <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.30" />
+              <stop offset="100%" stopColor="#f43f5e" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.25, 0.5, 0.75, 1].map(r => {
+            const y = PADDING_Y + chartH - r * chartH;
+            return (
+              <line key={r} x1={PADDING_X} x2={WIDTH - PADDING_X} y1={y} y2={y}
+                stroke="var(--border)" strokeWidth={0.5} strokeDasharray={r === 0 ? "0" : "3,3"} opacity={0.5} />
+            );
+          })}
+
+          {visibility !== "expense" && <path d={incomeArea} fill="url(#incomeGrad)" stroke="none" />}
+          {visibility !== "income" && <path d={expenseArea} fill="url(#expenseGrad)" stroke="none" />}
+
+          {visibility !== "expense" && (
+            <path d={incomePath} fill="none" stroke="#10b981" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {visibility !== "income" && (
+            <path d={expensePath} fill="none" stroke="#f43f5e" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
+          )}
+
+          {data.map((d, i) => {
+            const x = PADDING_X + (i / Math.max(1, data.length - 1)) * chartW;
+            const mIdx = parseInt(d.month.split('-')[1], 10) - 1;
+            const isHover = i === hoverIdx;
+            return (
+              <g key={d.month}>
+                {visibility !== "expense" && (
+                  <circle cx={x} cy={PADDING_Y + chartH - (d.income / maxVal) * chartH}
+                    r={isHover ? dotR * 1.6 : dotR} fill="#10b981"
+                    stroke="var(--bg-card)" strokeWidth={isHover ? 2 : 1.2} />
+                )}
+                {visibility !== "income" && (
+                  <circle cx={x} cy={PADDING_Y + chartH - (d.expense / maxVal) * chartH}
+                    r={isHover ? dotR * 1.6 : dotR} fill="#f43f5e"
+                    stroke="var(--bg-card)" strokeWidth={isHover ? 2 : 1.2} />
+                )}
+                <text x={x} y={HEIGHT - 4} textAnchor="middle"
+                  fill={isHover ? "var(--text)" : "var(--text-dim)"}
+                  fontSize={monthFs} fontWeight={isHover ? 700 : 500}>
+                  {MONTH_LABELS[mIdx]}
                 </text>
-              )}
-              {expenseH > 14 && (
-                <text x={x + groupW / 2 + barW / 2 + 1} y={CHART_PAD.top + barAreaH - expenseH + 12}
-                  textAnchor="middle" fontSize={8} fill="var(--danger)" fontWeight={600}>
-                  {fmtW(d.expense)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {/* Net line overlay */}
-        <polyline points={netPoints} fill="none" stroke="var(--primary)" strokeWidth={2}
-          strokeLinecap="round" strokeLinejoin="round" />
-        {data.map((d, i) => {
-          const net = d.income - d.expense;
-          const netMax = Math.max(...data.map(dd => Math.abs(dd.income - dd.expense)), 1);
-          const y = CHART_PAD.top + barAreaH / 2 - (net / netMax) * (barAreaH / 2);
-          const x = CHART_PAD.left + groupW * i + groupW / 2;
-          return <circle key={i} cx={x} cy={y} r={3} fill="var(--primary)" />;
-        })}
-      </svg>
-      <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--text-muted)]">
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--success)' }} />입금</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--danger)' }} />출금</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: 'var(--primary)' }} />순이익</span>
+              </g>
+            );
+          })}
+
+          {hover !== null && hoverIdx !== null && (
+            <line
+              x1={PADDING_X + (hoverIdx / Math.max(1, data.length - 1)) * chartW}
+              x2={PADDING_X + (hoverIdx / Math.max(1, data.length - 1)) * chartW}
+              y1={PADDING_Y} y2={PADDING_Y + chartH}
+              stroke="var(--text-dim)" strokeWidth={1} strokeDasharray="2,3" opacity={0.5}
+            />
+          )}
+
+          <text x={PADDING_X - 6} y={PADDING_Y + 4} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
+            {formatKR(maxVal)}
+          </text>
+          <text x={PADDING_X - 6} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>0</text>
+        </svg>
+
+        {hover && (
+          <div
+            className="absolute pointer-events-none px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] shadow-lg text-[11px] whitespace-nowrap"
+            style={{
+              left: `${((PADDING_X + (hoverIdx! / Math.max(1, data.length - 1)) * chartW) / WIDTH) * 100}%`,
+              top: 0,
+              transform: "translateX(-50%)",
+            }}
+          >
+            <div className="font-bold text-[var(--text)] mb-1">{MONTH_LABELS[hoverMIdx]}</div>
+            {visibility !== "expense" && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-[var(--text-muted)]">입금</span>
+                <span className="font-bold text-emerald-500 ml-auto">₩{hover.income.toLocaleString()}</span>
+              </div>
+            )}
+            {visibility !== "income" && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-[var(--text-muted)]">출금</span>
+                <span className="font-bold text-rose-500 ml-auto">₩{hover.expense.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 pt-1 mt-1 border-t border-[var(--border)]/50">
+              <span className="text-[var(--text-muted)]">순이익</span>
+              <span className={`font-bold ml-auto ${hover.income - hover.expense >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                ₩{(hover.income - hover.expense).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
