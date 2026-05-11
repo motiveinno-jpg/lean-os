@@ -741,129 +741,82 @@ export default function BalanceSheetPage() {
         ))}
       </div>
 
-      {/* Balance Sheet Table */}
-      <div
-        style={{
-          borderRadius: 12,
-          border: "1px solid var(--border)",
-          background: "var(--bg-card)",
-          overflow: "auto",
-        }}
-      >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            minWidth: 500,
-          }}
-        >
-          <thead>
-            <tr
-              style={{
-                borderBottom: "2px solid var(--border)",
-                background: "var(--bg-surface)",
-              }}
-            >
-              <th
-                style={{
-                  padding: "12px 16px",
-                  textAlign: "left",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-dim)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                항목
-              </th>
-              <th
-                style={{
-                  padding: "12px 16px",
-                  textAlign: "right",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-dim)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                금액 (원)
-              </th>
-              {isCompareMode && (
-                <th
-                  style={{
-                    padding: "12px 16px",
-                    textAlign: "right",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--text-dim)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  변동
-                </th>
+      {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── 좌: 자산 ── */}
+        <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)", overflow: "auto" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>자산 (Assets)</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360 }}>
+            <tbody>
+              {renderSectionHeader("유동자산 (Current Assets)")}
+              {renderSectionRow("현금 및 예금", data.cashAndDeposits, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.cashAndDeposits : undefined })}
+              {data.bankAccountDetails.map((b) => renderSectionRow(b.name, b.balance, { isNested: true }))}
+              {renderSectionRow("매출채권", data.accountsReceivable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsReceivable : undefined })}
+              {data.receivableDetails.map((r) => renderSectionRow(r.name, r.amount, { isNested: true }))}
+              {renderDivider("div-ca-left")}
+              {renderSectionRow("유동자산 소계", data.currentAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.currentAssets : undefined })}
+
+              {renderSectionHeader("고정자산 (Fixed Assets)")}
+              {data.fixedAssetDetails.length > 0 ? (
+                data.fixedAssetDetails.map((a) => renderSectionRow(`${a.name} (${a.type})`, a.value, { isNested: true }))
+              ) : (
+                renderSectionRow("등록된 고정자산 없음", 0, { indent: true })
               )}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Current Assets */}
-            {renderSectionHeader("유동자산 (Current Assets)")}
-            {renderSectionRow("현금 및 예금", data.cashAndDeposits, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.cashAndDeposits : undefined })}
-            {data.bankAccountDetails.map((b) =>
-              renderSectionRow(b.name, b.balance, { isNested: true }),
-            )}
-            {renderSectionRow("매출채권", data.accountsReceivable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsReceivable : undefined })}
-            {data.receivableDetails.map((r) =>
-              renderSectionRow(r.name, r.amount, { isNested: true }),
-            )}
-            {renderDivider("div-ca")}
-            {renderSectionRow("유동자산 소계", data.currentAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.currentAssets : undefined })}
+              {renderDivider("div-fa-left")}
+              {renderSectionRow("고정자산 소계", data.fixedAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.fixedAssets : undefined })}
+            </tbody>
+          </table>
+        </div>
 
-            {/* Fixed Assets */}
-            {renderSectionHeader("고정자산 (Fixed Assets)")}
-            {data.fixedAssetDetails.length > 0 ? (
-              <>
-                {data.fixedAssetDetails.map((a) =>
-                  renderSectionRow(`${a.name} (${a.type})`, a.value, { isNested: true }),
-                )}
-              </>
-            ) : (
-              renderSectionRow("등록된 고정자산 없음", 0, { indent: true })
-            )}
-            {renderDivider("div-fa")}
-            {renderSectionRow("고정자산 소계", data.fixedAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.fixedAssets : undefined })}
+        {/* ── 우: 부채 + 자본 ── */}
+        <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)", overflow: "auto" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>부채 + 자본 (Liabilities + Equity)</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360 }}>
+            <tbody>
+              {renderSectionHeader("부채 (Liabilities)")}
+              {renderSectionRow("차입금", data.borrowings, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.borrowings : undefined })}
+              {data.loanDetails.map((l) => renderSectionRow(l.name, l.remainingAmount, { isNested: true }))}
+              {renderSectionRow("미지급금", data.accountsPayable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsPayable : undefined })}
+              {data.payableDetails.map((p) => renderSectionRow(p.name, p.amount, { isNested: true }))}
+              {renderDivider("div-l-right")}
+              {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalLiabilities : undefined })}
 
-            {renderDivider("div-a1")}
-            {renderSectionRow("자산 합계", data.totalAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalAssets : undefined })}
+              {renderSectionHeader("자본 (Equity)")}
+              {renderSectionRow(
+                data.isCapitalDefault ? "자본금 (기본값)" : "자본금",
+                data.capital,
+                { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined },
+              )}
+              {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true, prevAmount: isCompareMode && prevData ? prevData.retainedEarnings : undefined })}
+              {renderDivider("div-e-right")}
+              {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            {renderDivider("div-1")}
-
-            {/* Liabilities Section */}
-            {renderSectionHeader("부채 (Liabilities)")}
-            {renderSectionRow("차입금", data.borrowings, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.borrowings : undefined })}
-            {data.loanDetails.map((l) =>
-              renderSectionRow(l.name, l.remainingAmount, { isNested: true }),
-            )}
-            {renderSectionRow("미지급금", data.accountsPayable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsPayable : undefined })}
-            {data.payableDetails.map((p) =>
-              renderSectionRow(p.name, p.amount, { isNested: true }),
-            )}
-            {renderDivider("div-l1")}
-            {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalLiabilities : undefined })}
-
-            {renderDivider("div-2")}
-
-            {/* Equity Section */}
-            {renderSectionHeader("자본 (Equity)")}
-            {renderSectionRow(
-              data.isCapitalDefault ? "자본금 (기본값)" : "자본금",
-              data.capital,
-              { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined },
-            )}
-            {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true, prevAmount: isCompareMode && prevData ? prevData.retainedEarnings : undefined })}
-            {renderDivider("div-e1")}
-            {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
-          </tbody>
-        </table>
+      {/* 하단 sticky 합계 — 자산 vs 부채+자본 */}
+      <div className="sticky bottom-0 z-20 mt-3 mb-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[0_-4px_12px_-4px_rgba(15,23,42,0.08)]">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--primary)]/8 border border-[var(--primary)]/20">
+          <div className="text-xs font-bold text-[var(--primary)]">자산 합계</div>
+          <div className="text-base font-extrabold text-[var(--primary)] mono-number">₩{Math.round(data.totalAssets).toLocaleString("ko-KR")}</div>
+        </div>
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-orange-500/8 border border-orange-500/20">
+          <div className="text-xs font-bold text-orange-600 dark:text-orange-400">부채 + 자본 합계</div>
+          <div className="text-base font-extrabold text-orange-600 dark:text-orange-400 mono-number">₩{Math.round(data.totalLiabilities + data.totalEquity).toLocaleString("ko-KR")}</div>
+        </div>
+        {/* 균형 여부 표시 — 회계 정합성 */}
+        {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) > 1 && (
+          <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-[10px] text-yellow-700 dark:text-yellow-400">
+            ⚠ 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} — 자본금 / 이익잉여금 데이터 확인 필요
+          </div>
+        )}
       </div>
 
       {/* Asset vs Liability Composition Bar */}
