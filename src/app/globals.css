@@ -3,64 +3,67 @@
 @import "tailwindcss";
 
 :root, [data-theme="light"] {
-  /* OwnerView — Calm Trust Palette */
-  --bg: #F8FAFC;
+  /* OwnerView — Refined Palette (warmer neutrals, deeper shadows) */
+  --bg: #FAFAF9;                /* 살짝 따뜻한 회색 (stone-50) */
   --bg-card: #FFFFFF;
-  --bg-surface: #F1F5F9;
+  --bg-surface: #F5F5F4;        /* 카드 안의 보조 영역 */
   --bg-elevated: #FFFFFF;
-  --border: #E2E8F0;
-  --border-light: #CBD5E1;
-  --text: #0F172A;
-  --text-muted: #475569;
-  --text-dim: #94A3B8;
-  --primary: #2563EB;
-  --primary-hover: #1D4ED8;
-  --primary-light: #EFF6FF;
-  --success: #10B981;
+  --border: #E7E5E4;            /* stone-200 (덜 차가운) */
+  --border-light: #D6D3D1;
+  --text: #0C0A09;              /* stone-950 (진한 검정 대신) */
+  --text-muted: #57534E;        /* stone-600 */
+  --text-dim: #A8A29E;          /* stone-400 */
+  --primary: #4F46E5;           /* indigo-600 (더 세련된 톤) */
+  --primary-hover: #4338CA;
+  --primary-light: #EEF2FF;     /* indigo-50 */
+  --success: #059669;           /* emerald-600 */
   --success-dim: #D1FAE5;
-  --warning: #F59E0B;
+  --warning: #D97706;           /* amber-600 */
   --warning-dim: #FEF3C7;
-  --danger: #EF4444;
+  --danger: #DC2626;            /* red-600 */
   --danger-dim: #FEE2E2;
-  --accent: #6366F1;
-  --critical: #DC2626;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --accent: #7C3AED;            /* violet-600 */
+  --critical: #B91C1C;
+  /* 더 또렷한 그림자 — 카드가 떠 있는 느낌 */
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
+  --shadow-md: 0 4px 12px -2px rgba(15,23,42,0.08), 0 2px 6px -2px rgba(15,23,42,0.04);
+  --shadow-lg: 0 12px 24px -8px rgba(15,23,42,0.12), 0 4px 8px -4px rgba(15,23,42,0.06);
 }
 
 [data-theme="dark"] {
-  --bg: #0B0F19;
-  --bg-card: #111827;
-  --bg-surface: #1E293B;
-  --bg-elevated: #1E293B;
-  --border: #334155;
-  --border-light: #475569;
-  --text: #F1F5F9;
-  --text-muted: #94A3B8;
-  --text-dim: #64748B;
-  --primary: #60A5FA;
-  --primary-hover: #93C5FD;
-  --primary-light: rgba(96,165,250,0.15);
+  --bg: #09090B;                /* zinc-950 — 더 깊은 검정 */
+  --bg-card: #18181B;           /* zinc-900 */
+  --bg-surface: #27272A;        /* zinc-800 */
+  --bg-elevated: #1F1F23;
+  --border: #3F3F46;            /* zinc-700 */
+  --border-light: #52525B;
+  --text: #FAFAFA;              /* zinc-50 */
+  --text-muted: #A1A1AA;        /* zinc-400 */
+  --text-dim: #71717A;           /* zinc-500 */
+  --primary: #818CF8;           /* indigo-400 — 다크 모드에서 더 환함 */
+  --primary-hover: #A5B4FC;
+  --primary-light: rgba(129,140,248,0.15);
   --success: #34D399;
   --success-dim: rgba(52,211,153,0.15);
   --warning: #FBBF24;
   --warning-dim: rgba(251,191,36,0.15);
   --danger: #F87171;
   --danger-dim: rgba(248,113,113,0.15);
-  --accent: #818CF8;
+  --accent: #A78BFA;
   --critical: #EF4444;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 8px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
-  --shadow-lg: 0 10px 20px -3px rgba(0,0,0,0.5), 0 4px 8px -4px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.4), 0 2px 6px -2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 24px -8px rgba(0,0,0,0.5), 0 4px 8px -4px rgba(0,0,0,0.3);
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Pretendard 우선 — 한글 가독성 ↑ (Inter 는 라틴 fallback) */
+  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
 }
 
 /* Scrollbar */
@@ -166,10 +169,25 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-/* Focus ring */
+/* Focus ring — 부드러운 ring */
 *:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* h1/h2/h3 위계 — tracking 미세 조정으로 더 명료 */
+h1 { letter-spacing: -0.02em; }
+h2 { letter-spacing: -0.015em; }
+h3 { letter-spacing: -0.01em; }
+
+/* 부드러운 transition 기본 — 카드, 버튼 호버 */
+button, a {
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Copy Protection ── */
