@@ -972,7 +972,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
                     <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
                     <th className="text-left px-2 py-2">적요</th><th className="text-left px-2 py-2">카테고리</th>
@@ -1222,7 +1222,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     {tab === 'inbox' && <th className="text-center px-2 py-3 font-medium w-8">
@@ -1503,7 +1503,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 <div className="text-sm text-[var(--text-muted)]">카드를 등록하고 CSV를 업로드하세요.</div>
               </div>
             ) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-4 py-3 font-medium">날짜</th>

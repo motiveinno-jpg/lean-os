@@ -111,6 +111,15 @@ function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
 function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
   // 사용자가 범례 클릭으로 매출만/매입만/둘 다 토글 가능.
   const [visibility, setVisibility] = useState<"all" | "sales" | "purchase">("all");
+  // 펼쳐보기/접어보기 (localStorage 유지)
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("tax-trend-chart-expanded") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("tax-trend-chart-expanded", expanded ? "1" : "0");
+  }, [expanded]);
   const CHART_MONTHS = 6;
   const monthData = useMemo(() => {
     const now = new Date();
@@ -145,12 +154,16 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
     })
   );
 
-  const WIDTH = 320;
-  const HEIGHT = 100;
-  const PADDING_X = 36;
-  const PADDING_Y = 12;
+  const WIDTH = expanded ? 800 : 320;
+  const HEIGHT = expanded ? 320 : 100;
+  const PADDING_X = expanded ? 64 : 36;
+  const PADDING_Y = expanded ? 24 : 12;
   const chartW = WIDTH - PADDING_X * 2;
   const chartH = HEIGHT - PADDING_Y * 2;
+  const dotR = expanded ? 5 : 2.5;
+  const strokeW = expanded ? 3 : 2;
+  const monthFs = expanded ? 14 : 8;
+  const yFs = expanded ? 12 : 7;
 
   function toPath(data: number[]): string {
     return data
@@ -167,7 +180,7 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <span className="text-xs font-bold text-[var(--text-muted)]">최근 6개월 매출/매입 추이</span>
         <div className="flex items-center gap-3 text-[10px]">
           <button
@@ -196,9 +209,17 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
               둘 다
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="ml-2 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            aria-label={expanded ? "접어보기" : "펼쳐보기"}
+          >
+            {expanded ? "↑ 접어보기" : "↓ 펼쳐보기"}
+          </button>
         </div>
       </div>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: 120 }}>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: expanded ? 420 : 120 }}>
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const y = PADDING_Y + chartH - ratio * chartH;
@@ -217,11 +238,11 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
         })}
         {/* Sales line */}
         {visibility !== "purchase" && (
-          <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={salesPath} fill="none" stroke="#4ade80" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" />
         )}
         {/* Purchase line */}
         {visibility !== "sales" && (
-          <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
+          <path d={purchasePath} fill="none" stroke="#fb923c" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4,2" />
         )}
         {/* Dots + labels */}
         {monthData.map((m, i) => {
@@ -229,22 +250,32 @@ function MonthlyTrendChart({ invoices }: { invoices: any[] }) {
           return (
             <g key={m.key}>
               {visibility !== "purchase" && (
-                <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={2.5} fill="#4ade80" />
+                <circle cx={x} cy={PADDING_Y + chartH - (m.sales / maxVal) * chartH} r={dotR} fill="#4ade80" />
               )}
               {visibility !== "sales" && (
-                <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={2.5} fill="#fb923c" />
+                <circle cx={x} cy={PADDING_Y + chartH - (m.purchase / maxVal) * chartH} r={dotR} fill="#fb923c" />
               )}
-              <text x={x} y={HEIGHT - 1} textAnchor="middle" fill="var(--text-dim)" fontSize={8}>
+              <text x={x} y={HEIGHT - 4} textAnchor="middle" fill="var(--text-dim)" fontSize={monthFs}>
                 {m.label}
               </text>
+              {expanded && visibility !== "purchase" && (
+                <text x={x} y={PADDING_Y + chartH - (m.sales / maxVal) * chartH - 10} textAnchor="middle" fill="#4ade80" fontSize={11} fontWeight={600}>
+                  {m.sales > 0 ? (m.sales >= 100000000 ? `${(m.sales/100000000).toFixed(1)}억` : m.sales >= 10000 ? `${Math.round(m.sales/10000)}만` : m.sales.toLocaleString()) : ""}
+                </text>
+              )}
+              {expanded && visibility !== "sales" && (
+                <text x={x} y={PADDING_Y + chartH - (m.purchase / maxVal) * chartH + 18} textAnchor="middle" fill="#fb923c" fontSize={11} fontWeight={600}>
+                  {m.purchase > 0 ? (m.purchase >= 100000000 ? `${(m.purchase/100000000).toFixed(1)}억` : m.purchase >= 10000 ? `${Math.round(m.purchase/10000)}만` : m.purchase.toLocaleString()) : ""}
+                </text>
+              )}
             </g>
           );
         })}
         {/* Y-axis labels */}
-        <text x={PADDING_X - 4} y={PADDING_Y + 3} textAnchor="end" fill="var(--text-dim)" fontSize={7}>
+        <text x={PADDING_X - 6} y={PADDING_Y + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
           {maxVal >= 100000000 ? `${Math.round(maxVal / 100000000)}억` : maxVal >= 10000 ? `${Math.round(maxVal / 10000)}만` : maxVal.toLocaleString()}
         </text>
-        <text x={PADDING_X - 4} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={7}>
+        <text x={PADDING_X - 6} y={PADDING_Y + chartH + 3} textAnchor="end" fill="var(--text-dim)" fontSize={yFs}>
           0
         </text>
       </svg>
@@ -1796,8 +1827,8 @@ export default function TaxInvoicesPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
-              <thead>
+            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   {draftInCurrentList.length > 0 && (
                     <th className="w-10 px-3 py-3">
@@ -2028,7 +2059,7 @@ export default function TaxInvoicesPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">액션</th>
@@ -2220,7 +2251,7 @@ export default function TaxInvoicesPage() {
             {syncLogs.length === 0 ? (
               <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 동기화 이력이 없습니다</div>
             ) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-2 font-medium">유형</th>
@@ -2294,7 +2325,7 @@ export default function TaxInvoicesPage() {
                   <button onClick={() => setMatchFilter("none")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "none" ? "bg-red-500/15 text-red-400" : "text-red-400/60 hover:bg-[var(--bg-surface)]"}`}>미매칭 {matchResults.filter((r: any) => !r.fullMatch && !r.amountMatch && !r.paymentMatch).length}건</button>
                 </div>
               </div>
-              <div className="overflow-x-auto"><table className="w-full min-w-[900px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">딜명</th>
@@ -2480,7 +2511,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
             <div className="text-sm text-[var(--text-muted)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">기간</th>
@@ -2530,7 +2561,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
         <div className="mt-6">
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">법인카드 매입세액 공제 추정</h3>
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">월</th>
@@ -2601,7 +2632,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 
       {/* Quarterly Breakdown */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+        <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">분기</th>

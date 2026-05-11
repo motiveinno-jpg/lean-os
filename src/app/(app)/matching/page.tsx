@@ -918,7 +918,7 @@ export default function MatchingPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">거래처명</th>
@@ -1012,7 +1012,7 @@ export default function MatchingPage() {
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <div className="overflow-x-auto"><table className="w-full min-w-[800px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">딜</th>

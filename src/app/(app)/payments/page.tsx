@@ -418,7 +418,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             <div className="text-sm text-[var(--text-muted)]">딜 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="px-3 py-3 w-10">
@@ -674,7 +674,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
             <div className="text-xs text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">배치명</th>
@@ -803,7 +803,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
             <div className="text-xs text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[500px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">배치명</th>
@@ -1401,7 +1401,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             <div className="text-xs text-[var(--text-muted)]">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">명칭</th>
@@ -1856,7 +1856,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
             <div className="text-sm text-[var(--text-muted)]">프로젝트 외 지출이나 구매가 필요할 때 작성하세요</div>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[700px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">유형</th>
