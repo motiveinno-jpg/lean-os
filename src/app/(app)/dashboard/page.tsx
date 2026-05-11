@@ -298,7 +298,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-lg font-black tracking-tight">관리자 현황판</h1>
+              <h1 className="text-lg font-bold tracking-tight">관리자 현황판</h1>
               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">관리자</span>
             </div>
             <p className="text-[11px] text-[var(--text-dim)]">

@@ -62,17 +62,17 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "내 정보",
     items: [
-      { href: "/vault", label: "내 자산", icon: "shield", roles: ["owner"] },
-      { href: "/mypage", label: "마이페이지", icon: "user" },
-      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/vault", label: "자산 / 구독", icon: "shield", roles: ["owner"] },
+      { href: "/mypage", label: "내 계정", icon: "user" },
+      { href: "/billing", label: "오너뷰 요금제", icon: "credit-card", roles: ["owner", "admin"] },
     ],
   },
   {
-    label: "설정",
+    label: "도움말",
     items: [
-      { href: "/import-hub", label: "데이터 가져오기", icon: "upload", roles: ["owner", "admin"] },
-      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
+      { href: "/import-hub", label: "엑셀 가져오기", icon: "upload", roles: ["owner", "admin"] },
+      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
 ];

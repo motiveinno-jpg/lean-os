@@ -3140,7 +3140,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
-          <h3 className="text-sm font-black">수정세금계산서 발행</h3>
+          <h3 className="text-sm font-bold">수정세금계산서 발행</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">
             원본: {invoice.counterparty_name} / ₩{Number(invoice.total_amount).toLocaleString()} ({invoice.issue_date})
           </p>
