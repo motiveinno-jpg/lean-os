@@ -31,6 +31,13 @@ async function fetchLiveItems(userId: string, companyId: string): Promise<LiveIt
   const dayAfter = new Date(); dayAfter.setDate(dayAfter.getDate() + 2);
   const dayAfterStr = dayAfter.toISOString().slice(0, 10);
 
+  // 이상 거래 탐지 (Granter 패턴) — 비동기 import 로 폴백 우아하게
+  let anomalies: any[] = [];
+  try {
+    const mod = await import("@/lib/anomaly-detection");
+    anomalies = await mod.detectAnomalies(companyId, 7);
+  } catch {}
+
   const [todayEvents, todos, approvalSteps, docApprovals, paymentPending] = await Promise.all([
     // 오늘 ~ 내일 일정
     db.from("schedule_events")
@@ -136,6 +143,21 @@ async function fetchLiveItems(userId: string, companyId: string): Promise<LiveIt
       title: `결제 승인 대기 ${payCount}건`,
       color: "text-amber-500",
       href: "/payments",
+    });
+  }
+
+  // 이상 거래 알림 (high/medium 만 노출, 최대 5건)
+  const highMed = anomalies.filter((a) => a.severity !== "low").slice(0, 5);
+  for (const a of highMed) {
+    const isHigh = a.severity === "high";
+    const href = a.type === "off_hours" || a.type === "duplicate_amount" ? "/cards" : "/transactions";
+    items.push({
+      id: `anomaly-${a.id}-${a.type}`,
+      icon: "alert",
+      title: `⚠ ${a.message}`,
+      subtitle: `₩${a.amount.toLocaleString("ko-KR")} · ${a.date}${a.counterparty ? ` · ${a.counterparty}` : ""}`,
+      color: isHigh ? "text-red-500" : "text-amber-500",
+      href,
     });
   }
 
