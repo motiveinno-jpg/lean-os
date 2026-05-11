@@ -10,12 +10,13 @@ export async function POST(req: NextRequest) {
     if (!companyId || !payload) {
       return NextResponse.json({ error: "companyId, payload 필수" }, { status: 400 });
     }
-    const admin = createSupabaseAdminClient();
-    const { data: settings } = await admin
+    const admin = createSupabaseAdminClient() as any;
+    const { data: settingsRaw } = await admin
       .from("company_settings")
       .select("slack_webhook_url, slack_notify_payment, slack_notify_approval, slack_notify_large_tx, slack_large_tx_threshold")
       .eq("company_id", companyId)
       .maybeSingle();
+    const settings = settingsRaw as any;
     if (!settings?.slack_webhook_url) {
       return NextResponse.json({ ok: false, skipped: "no_webhook" });
     }
