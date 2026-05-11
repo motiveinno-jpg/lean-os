@@ -866,6 +866,8 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
   const [ediGenerated, setEdiGenerated] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
+  // 연봉 raw 입력 보존 — ÷12 → ×12 반올림으로 input 이 깨지지 않게.
+  const [annualSalaryInput, setAnnualSalaryInput] = useState<string>("");
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -995,7 +997,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         </div>
         <div className="flex items-center gap-2">
           {!isEditing && detailTab === "info" && (
-            <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setIsEditing(true); }} className="px-3 py-1.5 text-[10px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition">
+            <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[10px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition">
               수정
             </button>
           )}
@@ -1103,15 +1105,17 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {isEditing ? (<>
-                  {/* 연봉 입력 → 월 급여 자동 계산 (DB 저장은 월 급여 = 연봉 ÷ 12) */}
+                  {/* 연봉 직접 입력 — raw 값은 annualSalaryInput 에 보존 (반올림 깨짐 방지).
+                      저장 직전 ÷12 로 월 급여 계산해서 editData.salary 에 동기화. */}
                   <div>
                     <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">연봉</div>
                     <input
                       type="text"
                       inputMode="numeric"
-                      value={editData.salary ? (Number(editData.salary) * 12).toLocaleString('ko-KR') : ''}
+                      value={annualSalaryInput ? Number(annualSalaryInput).toLocaleString('ko-KR') : ''}
                       onChange={(e) => {
                         const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setAnnualSalaryInput(raw);
                         const monthly = raw ? String(Math.round(Number(raw) / 12)) : '';
                         setEditData({ ...editData, salary: monthly });
                       }}
