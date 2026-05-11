@@ -126,10 +126,10 @@ export async function detectAnomalies(companyId: string, daysBack = 7): Promise<
   }
 
   // 4) 짧은 시간 내 동일 금액 반복 (10분 이내 같은 금액 2회+)
-  const cardByTime = (recentCard.data || []).map((t: any) => ({
+  const cardByTime = ((recentCard.data || []) as any[]).map((t: any) => ({
     ...t,
     ts: new Date(`${t.transaction_date}T${(t.transaction_time || "00:00")}`).getTime(),
-  })).sort((a, b) => a.ts - b.ts);
+  })).sort((a: any, b: any) => a.ts - b.ts);
   for (let i = 0; i < cardByTime.length - 1; i++) {
     const a = cardByTime[i];
     const b = cardByTime[i + 1];
