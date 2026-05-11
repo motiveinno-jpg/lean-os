@@ -1103,22 +1103,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {isEditing ? (<>
-                  {/* 월 급여 ↔ 연봉 양방향 — 둘 중 하나 입력하면 다른 하나 자동 계산.
-                      DB 에 저장은 salary (월 급여) 하나만. */}
-                  <div>
-                    <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">월 급여</div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={editData.salary ? Number(editData.salary).toLocaleString('ko-KR') : ''}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/[^0-9]/g, '');
-                        setEditData({ ...editData, salary: raw });
-                      }}
-                      placeholder="3,000,000"
-                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
-                    />
-                  </div>
+                  {/* 연봉 입력 → 월 급여 자동 계산 (DB 저장은 월 급여 = 연봉 ÷ 12) */}
                   <div>
                     <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">연봉</div>
                     <input
@@ -1132,6 +1117,15 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                       }}
                       placeholder="36,000,000"
                       className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">월 급여 (자동)</div>
+                    <input
+                      type="text"
+                      value={editData.salary ? `₩${Number(editData.salary).toLocaleString('ko-KR')}` : '연봉 입력 시 자동 계산'}
+                      readOnly
+                      className="w-full px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] cursor-not-allowed"
                     />
                   </div>
                   <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
