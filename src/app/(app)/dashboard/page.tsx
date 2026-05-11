@@ -143,7 +143,7 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
-  // Cash Pulse data
+  // 현금 상태 data
   const { data: pulseRaw } = useQuery({
     queryKey: ["cash-pulse", companyId, userId],
     queryFn: () => getCashPulseData(companyId!, userId || undefined),
@@ -349,7 +349,7 @@ export default function DashboardPage() {
           <TodayActions dashboard={dashboard} />
         </div>
 
-        {/* 딜 파이프라인 요약 */}
+        {/* 프로젝트 진행 현황 요약 */}
         {companyId && <DealPipelineSummary companyId={companyId} />}
 
         {/* 바로가기 */}
@@ -1486,7 +1486,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-[var(--text)]">딜 파이프라인</span>
+              <span className="text-[11px] font-semibold text-[var(--text)]">프로젝트 진행 현황</span>
               <Link href="/deals" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">전체 보기 →</Link>
             </div>
             <DealFunnel companyId={companyId} />
@@ -1836,12 +1836,12 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
     <div className="mb-5">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-2 h-2 rounded-full bg-blue-500" />
-        <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">딜 파이프라인</h2>
+        <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">프로젝트 진행 현황</h2>
         <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 진행중</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
-          <div className="text-[10px] text-[var(--text-dim)]">파이프라인 총액</div>
+          <div className="text-[10px] text-[var(--text-dim)]">진행 현황 총액</div>
           <div className="text-sm font-bold text-blue-400 mt-0.5">{totalPipeline > 0 ? `₩${totalPipeline.toLocaleString()}` : '—'}</div>
         </Link>
         <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
@@ -1944,7 +1944,7 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
 }
 
 // ═══════════════════════════════════════════
-// DealFunnel — 딜 파이프라인 깔때기 (5단계)
+// DealFunnel — 프로젝트 진행 현황 깔때기 (5단계)
 // ═══════════════════════════════════════════
 const FUNNEL_STAGES: { key: string; label: string; color: string; matches: (d: any) => boolean }[] = [
   { key: "lead",       label: "리드/문의",   color: "var(--text-muted)", matches: (d) => d.status === "pending" && !d.is_dormant },

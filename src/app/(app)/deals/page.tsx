@@ -833,7 +833,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
       <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-        <div className="flex items-center gap-3"><h2 className="text-sm font-bold">프로세스 파이프라인</h2><span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{progress}%</span></div>
+        <div className="flex items-center gap-3"><h2 className="text-sm font-bold">프로세스 진행 현황</h2><span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{progress}%</span></div>
         <div className="flex gap-2 items-center">
           <select value={contractTemplate} onChange={(e) => setContractTemplate(e.target.value)} className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
             {CONTRACT_TEMPLATES.map(t => (<option key={t.key} value={t.key}>{t.label}</option>))}

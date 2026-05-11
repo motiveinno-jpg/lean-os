@@ -1480,7 +1480,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
   );
 }
 
-// ── Smart Setup Banner (이체내역 분석 + 자동화 실행 + 파이프라인) ──
+// ── Smart Setup Banner (이체내역 분석 + 자동화 실행 + 진행 현황) ──
 
 function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
   const [running, setRunning] = useState(false);
@@ -1535,7 +1535,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       {/* Pipeline visualization */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold text-[var(--text)]">자동화 파이프라인</span>
+          <span className="text-xs font-bold text-[var(--text)]">자동화 진행 현황</span>
           <span className="text-[10px] text-[var(--text-dim)]">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto">
