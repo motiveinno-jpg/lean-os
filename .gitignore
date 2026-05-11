@@ -37,3 +37,6 @@ next-env.d.ts
 
 # supabase CLI cache (downloaded function backups, etc.)
 supabase/.temp/
+
+# Local rollback snapshot
+codef-sync-rollback.ts
