@@ -3,57 +3,59 @@
 @import "tailwindcss";
 
 :root, [data-theme="light"] {
-  /* OwnerView — Refined Palette (warmer neutrals, deeper shadows) */
-  --bg: #FAFAF9;                /* 살짝 따뜻한 회색 (stone-50) */
+  /* OwnerView — Granter-inspired (clean B2B SaaS, neutral + accent yellow) */
+  --bg: #FAFAFA;                /* near-white neutral */
   --bg-card: #FFFFFF;
-  --bg-surface: #F5F5F4;        /* 카드 안의 보조 영역 */
+  --bg-surface: #F4F4F5;        /* zinc-100 */
   --bg-elevated: #FFFFFF;
-  --border: #E7E5E4;            /* stone-200 (덜 차가운) */
-  --border-light: #D6D3D1;
-  --text: #0C0A09;              /* stone-950 (진한 검정 대신) */
-  --text-muted: #57534E;        /* stone-600 */
-  --text-dim: #A8A29E;          /* stone-400 */
-  --primary: #4F46E5;           /* indigo-600 (더 세련된 톤) */
-  --primary-hover: #4338CA;
-  --primary-light: #EEF2FF;     /* indigo-50 */
+  --border: #E4E4E7;            /* zinc-200 */
+  --border-light: #D4D4D8;
+  --text: #18181B;              /* zinc-900 — 부드러운 검정 */
+  --text-muted: #52525B;        /* zinc-600 */
+  --text-dim: #A1A1AA;          /* zinc-400 */
+  --primary: #18181B;           /* zinc-900 — Granter 스타일 (검정 기반) */
+  --primary-hover: #27272A;
+  --primary-light: #F4F4F5;     /* zinc-100 */
+  --accent: #FACC15;            /* yellow-400 — Granter 시그니처 노란색 */
+  --accent-dim: #FEF9C3;        /* yellow-100 */
   --success: #059669;           /* emerald-600 */
   --success-dim: #D1FAE5;
-  --warning: #D97706;           /* amber-600 */
+  --warning: #D97706;
   --warning-dim: #FEF3C7;
-  --danger: #DC2626;            /* red-600 */
+  --danger: #DC2626;
   --danger-dim: #FEE2E2;
-  --accent: #7C3AED;            /* violet-600 */
   --critical: #B91C1C;
-  /* 더 또렷한 그림자 — 카드가 떠 있는 느낌 */
-  --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03);
-  --shadow-md: 0 4px 12px -2px rgba(15,23,42,0.08), 0 2px 6px -2px rgba(15,23,42,0.04);
-  --shadow-lg: 0 12px 24px -8px rgba(15,23,42,0.12), 0 4px 8px -4px rgba(15,23,42,0.06);
+  /* 더 미니멀한 그림자 — granter 스타일의 단정한 카드 */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.06), 0 1px 4px -1px rgba(0,0,0,0.04);
+  --shadow-lg: 0 16px 32px -12px rgba(0,0,0,0.10), 0 4px 12px -4px rgba(0,0,0,0.06);
 }
 
 [data-theme="dark"] {
-  --bg: #09090B;                /* zinc-950 — 더 깊은 검정 */
-  --bg-card: #18181B;           /* zinc-900 */
-  --bg-surface: #27272A;        /* zinc-800 */
+  --bg: #09090B;
+  --bg-card: #18181B;
+  --bg-surface: #27272A;
   --bg-elevated: #1F1F23;
-  --border: #3F3F46;            /* zinc-700 */
+  --border: #3F3F46;
   --border-light: #52525B;
-  --text: #FAFAFA;              /* zinc-50 */
-  --text-muted: #A1A1AA;        /* zinc-400 */
-  --text-dim: #71717A;           /* zinc-500 */
-  --primary: #818CF8;           /* indigo-400 — 다크 모드에서 더 환함 */
-  --primary-hover: #A5B4FC;
-  --primary-light: rgba(129,140,248,0.15);
+  --text: #FAFAFA;
+  --text-muted: #A1A1AA;
+  --text-dim: #71717A;
+  --primary: #FAFAFA;           /* dark 모드에선 흰색 = primary */
+  --primary-hover: #E4E4E7;
+  --primary-light: rgba(250,250,250,0.10);
+  --accent: #FACC15;
+  --accent-dim: rgba(250,204,21,0.15);
   --success: #34D399;
   --success-dim: rgba(52,211,153,0.15);
   --warning: #FBBF24;
   --warning-dim: rgba(251,191,36,0.15);
   --danger: #F87171;
   --danger-dim: rgba(248,113,113,0.15);
-  --accent: #A78BFA;
   --critical: #EF4444;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.4), 0 2px 6px -2px rgba(0,0,0,0.3);
-  --shadow-lg: 0 12px 24px -8px rgba(0,0,0,0.5), 0 4px 8px -4px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.4), 0 1px 4px -1px rgba(0,0,0,0.3);
+  --shadow-lg: 0 16px 32px -12px rgba(0,0,0,0.5), 0 4px 12px -4px rgba(0,0,0,0.3);
 }
 
 body {
