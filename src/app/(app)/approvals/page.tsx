@@ -94,6 +94,14 @@ export default function ApprovalsPage() {
     });
   }, []);
 
+  // 결재 페이지 진입 시 dismissed 시각 저장 → sidebar 배지 사라짐.
+  // 그 이후 새로 생성된 결재만 다음 polling에서 다시 카운트됨.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("approvals-dismissed-at", new Date().toISOString());
+    window.dispatchEvent(new Event("sidebar-refresh-badges"));
+  }, []);
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
     queryClient.invalidateQueries({ queryKey: ["my-pending-count"] });

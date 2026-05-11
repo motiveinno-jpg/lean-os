@@ -168,18 +168,26 @@ export function Sidebar() {
       } catch {}
       try {
         const db = supabase as any;
-        const [{ count: docCount }, { count: payCount }, { data: pendingSteps }] = await Promise.all([
-          db.from("doc_approvals").select("id", { count: "exact", head: true })
-            .eq("approver_id", u.id).eq("status", "pending"),
-          db.from("payment_queue").select("id", { count: "exact", head: true })
-            .eq("company_id", u.company_id).eq("status", "pending"),
-          db.from("approval_steps")
-            .select("id, stage, approval_requests!inner(current_stage, status, company_id)")
-            .eq("approver_id", u.id)
-            .eq("status", "pending")
-            .eq("approval_requests.status", "pending")
-            .eq("approval_requests.company_id", u.company_id),
-        ]);
+        // 사용자가 /approvals 페이지를 마지막으로 방문한 시각 — 그 이후 created 항목만 카운트.
+        const dismissedAt = typeof window !== 'undefined'
+          ? localStorage.getItem('approvals-dismissed-at')
+          : null;
+        let docQ = db.from("doc_approvals").select("id", { count: "exact", head: true })
+          .eq("approver_id", u.id).eq("status", "pending");
+        let payQ = db.from("payment_queue").select("id", { count: "exact", head: true })
+          .eq("company_id", u.company_id).eq("status", "pending");
+        let stepQ = db.from("approval_steps")
+          .select("id, stage, created_at, approval_requests!inner(current_stage, status, company_id)")
+          .eq("approver_id", u.id)
+          .eq("status", "pending")
+          .eq("approval_requests.status", "pending")
+          .eq("approval_requests.company_id", u.company_id);
+        if (dismissedAt) {
+          docQ = docQ.gt("created_at", dismissedAt);
+          payQ = payQ.gt("created_at", dismissedAt);
+          stepQ = stepQ.gt("created_at", dismissedAt);
+        }
+        const [{ count: docCount }, { count: payCount }, { data: pendingSteps }] = await Promise.all([docQ, payQ, stepQ]);
         const myStepCount = (pendingSteps || []).filter(
           (s: any) => s.stage === s.approval_requests?.current_stage
         ).length;
