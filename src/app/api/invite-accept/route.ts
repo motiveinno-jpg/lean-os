@@ -44,9 +44,26 @@ export async function POST(req: NextRequest) {
     });
 
     if (authErr) {
-      if (authErr.message?.includes('already been registered')) {
-        const { data: existingUsers } = await admin.auth.admin.listUsers();
-        const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
+      const m = (authErr.message || '').toLowerCase();
+      const isAlreadyRegistered =
+        m.includes('already been registered') ||
+        m.includes('already registered') ||
+        m.includes('already exists') ||
+        m.includes('user already') ||
+        m.includes('email_exists') ||
+        (authErr as any).code === 'email_exists' ||
+        (authErr as any).code === 'user_already_exists';
+      if (isAlreadyRegistered) {
+        // 페이지네이션으로 전체 검색 (기본 perPage=50, 50명+ 시 못 찾음)
+        let existingUser: any = null;
+        const normEmail = (email || '').toLowerCase();
+        for (let page = 1; page <= 20; page++) {
+          const { data: ul } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+          const users = ul?.users || [];
+          existingUser = users.find((u: any) => (u.email || '').toLowerCase() === normEmail);
+          if (existingUser) break;
+          if (users.length < 200) break;
+        }
         if (existingUser) {
           await admin.auth.admin.updateUserById(existingUser.id, {
             password,
