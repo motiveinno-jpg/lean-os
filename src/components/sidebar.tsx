@@ -15,54 +15,64 @@ import { useUser, type UserRole } from "@/components/user-context";
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[] };
 type NavGroup = { label: string; items: NavItem[] };
 
+// ── 사이드바 구조 — 첫 사용자 직관적 (그룹 5개, 친근한 라벨)
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "워크스페이스",
+    label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
-      { href: "/schedule", label: "일정", icon: "calendar" },
-      { href: "/deals", label: "프로젝트/딜", icon: "briefcase" },
-      { href: "/partners", label: "거래처 CRM", icon: "users", roles: ["owner", "admin", "employee"] },
+      { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
+      { href: "/deals", label: "프로젝트", icon: "briefcase" },
+      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin", "employee"] },
     ],
   },
   {
-    label: "재무/세무",
+    label: "돈 관리",
     items: [
-      { href: "/payments", label: "결제 관리", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/transactions", label: "통장 거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/cards", label: "법인카드", icon: "wallet", roles: ["owner", "admin"] },
+      { href: "/payments", label: "결제 / 고정비", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
+    ],
+  },
+  {
+    label: "세무",
+    items: [
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
-      { href: "/transactions", label: "통장관리", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/cards", label: "카드관리", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/loans", label: "대출 관리", icon: "trending-up", roles: ["owner"] },
-      { href: "/matching", label: "입금 매칭", icon: "link", roles: ["owner"] },
+      { href: "/matching", label: "입금 자동매칭", icon: "link", roles: ["owner"] },
+    ],
+  },
+  {
+    label: "리포트",
+    items: [
       { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
       { href: "/reports/bs", label: "재무상태표", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
   {
-    label: "관리",
+    label: "팀 / 문서",
     items: [
-      { href: "/documents", label: "문서/계약", icon: "folder" },
-      { href: "/signatures", label: "전자서명", icon: "edit-3", roles: ["owner", "admin"] },
-      { href: "/approvals", label: "결재", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
+      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/employees", label: "인사/급여/계약", icon: "user-check", roles: ["owner", "admin", "employee"] },
+      { href: "/documents", label: "문서 / 계약 / 서명", icon: "folder" },
+      { href: "/employees", label: "직원 / 급여", icon: "user-check", roles: ["owner", "admin", "employee"] },
     ],
   },
   {
-    label: "자산",
+    label: "내 정보",
     items: [
-      { href: "/vault", label: "구독/자산 관리", icon: "shield", roles: ["owner"] },
-      { href: "/billing", label: "요금제 관리", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/vault", label: "내 자산", icon: "shield", roles: ["owner"] },
       { href: "/mypage", label: "마이페이지", icon: "user" },
+      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
     ],
   },
   {
-    label: "도구",
+    label: "설정",
     items: [
       { href: "/import-hub", label: "데이터 가져오기", icon: "upload", roles: ["owner", "admin"] },
+      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
-      { href: "/settings", label: "설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
 ];
