@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/queries";
+import { supabase } from "@/lib/supabase";
 import {
   getNotifications,
   getUnreadCount,
@@ -10,6 +11,136 @@ import {
   markAllAsRead,
   getNotificationTypeInfo,
 } from "@/lib/notifications";
+
+// ── Live (실시간) 알림 — 일정/투두/결재/채팅 통합 ──
+interface LiveItem {
+  id: string;
+  icon: "calendar" | "todo" | "alert" | "clock" | "chat" | "approval";
+  title: string;
+  subtitle?: string;
+  color: string;
+  href: string;
+  ts?: string;
+}
+
+async function fetchLiveItems(userId: string, companyId: string): Promise<LiveItem[]> {
+  const db = supabase as any;
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const dayAfter = new Date(); dayAfter.setDate(dayAfter.getDate() + 2);
+  const dayAfterStr = dayAfter.toISOString().slice(0, 10);
+
+  const [todayEvents, todos, approvalSteps, docApprovals, paymentPending] = await Promise.all([
+    // 오늘 ~ 내일 일정
+    db.from("schedule_events")
+      .select("id, title, start_at, color")
+      .eq("company_id", companyId)
+      .gte("start_at", today)
+      .lt("start_at", dayAfterStr)
+      .order("start_at")
+      .limit(10),
+    // 오늘 마감 + 지연 투두 (본인)
+    db.from("schedule_todos")
+      .select("id, title, due_date, priority")
+      .eq("user_id", userId)
+      .eq("done", false)
+      .not("due_date", "is", null)
+      .lte("due_date", tomorrowStr)
+      .order("due_date")
+      .limit(10),
+    // 결재 대기 (본인 처리할 step)
+    db.from("approval_steps")
+      .select("id, stage, approval_requests!inner(id, title, current_stage, status, company_id)")
+      .eq("approver_id", userId)
+      .eq("status", "pending")
+      .eq("approval_requests.status", "pending")
+      .eq("approval_requests.company_id", companyId)
+      .limit(10),
+    // 결재 대기 (문서)
+    db.from("doc_approvals")
+      .select("id, status")
+      .eq("approver_id", userId)
+      .eq("status", "pending")
+      .limit(1),
+    // 결제 대기
+    db.from("payment_queue")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "pending"),
+  ]);
+
+  const items: LiveItem[] = [];
+
+  // 일정
+  for (const e of (todayEvents.data || [])) {
+    const startDate = String(e.start_at).slice(0, 10);
+    const when = startDate === today ? "오늘" : "내일";
+    items.push({
+      id: `evt-${e.id}`,
+      icon: "calendar",
+      title: `${when} 일정: ${e.title}`,
+      subtitle: String(e.start_at).slice(11, 16),
+      color: "text-blue-500",
+      href: "/schedule",
+      ts: e.start_at,
+    });
+  }
+
+  // 투두
+  for (const t of (todos.data || [])) {
+    const overdue = t.due_date < today;
+    items.push({
+      id: `todo-${t.id}`,
+      icon: overdue ? "alert" : "todo",
+      title: `${overdue ? "⚠ 지연" : "오늘 마감"}: ${t.title}`,
+      subtitle: t.due_date,
+      color: overdue ? "text-red-400" : "text-amber-500",
+      href: "/schedule",
+      ts: t.due_date,
+    });
+  }
+
+  // 결재 대기 (내 step)
+  const myPendingSteps = (approvalSteps.data || []).filter((s: any) =>
+    s.stage === s.approval_requests?.current_stage
+  );
+  for (const s of myPendingSteps) {
+    items.push({
+      id: `step-${s.id}`,
+      icon: "approval",
+      title: `결재 대기: ${s.approval_requests?.title || ""}`,
+      color: "text-violet-500",
+      href: "/approvals",
+    });
+  }
+
+  // 문서 결재 대기 (요약)
+  const docCount = (docApprovals.data || []).length;
+  if (docCount > 0) {
+    items.push({
+      id: "doc-approvals",
+      icon: "approval",
+      title: `문서 결재 대기 ${docCount}건`,
+      color: "text-violet-500",
+      href: "/approvals",
+    });
+  }
+
+  // 결제 대기 (요약)
+  const payCount = (paymentPending as any).count || 0;
+  if (payCount > 0) {
+    items.push({
+      id: "payment-pending",
+      icon: "clock",
+      title: `결제 승인 대기 ${payCount}건`,
+      color: "text-amber-500",
+      href: "/payments",
+    });
+  }
+
+  return items;
+}
 
 // ── Relative time helper ──
 function relativeTime(dateStr: string): string {
@@ -174,15 +305,17 @@ export function NotificationCenter() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [liveItems, setLiveItems] = useState<LiveItem[]>([]);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Initialize user
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) setUserId(u.id);
+      if (u) { setUserId(u.id); setCompanyId(u.company_id); }
     });
   }, []);
 
@@ -206,19 +339,30 @@ export function NotificationCenter() {
     setLoading(false);
   }, [userId]);
 
-  // Poll every 30 seconds
+  // Fetch live (실시간) 알림 — 일정/투두/결재/결제 대기
+  const fetchLive = useCallback(async () => {
+    if (!userId || !companyId) return;
+    try {
+      const items = await fetchLiveItems(userId, companyId);
+      setLiveItems(items);
+    } catch {}
+  }, [userId, companyId]);
+
+  // Poll every 30 seconds — unread count + live items
   useEffect(() => {
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
+    fetchLive();
+    const interval = setInterval(() => { fetchUnreadCount(); fetchLive(); }, 30000);
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, fetchLive]);
 
-  // Fetch notifications when dropdown opens
+  // Fetch notifications + live when dropdown opens
   useEffect(() => {
     if (open) {
       fetchNotifications();
+      fetchLive();
     }
-  }, [open, fetchNotifications]);
+  }, [open, fetchNotifications, fetchLive]);
 
   // Close on click outside
   useEffect(() => {
@@ -303,9 +447,9 @@ export function NotificationCenter() {
           <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 01-3.46 0" />
         </svg>
-        {unreadCount > 0 && (
+        {(unreadCount + liveItems.length) > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 leading-none">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {(unreadCount + liveItems.length) > 99 ? "99+" : (unreadCount + liveItems.length)}
           </span>
         )}
       </button>
@@ -335,12 +479,37 @@ export function NotificationCenter() {
           </div>
 
           {/* Notification List */}
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="max-h-[480px] overflow-y-auto">
+            {/* Live items (일정/투두/결재) — 항상 최상단 */}
+            {liveItems.length > 0 && (
+              <div>
+                <div className="px-4 py-2 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-surface)]">
+                  지금 처리할 일 ({liveItems.length})
+                </div>
+                {liveItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { router.push(item.href); setOpen(false); }}
+                    className="w-full flex items-start gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)] border-b border-[var(--border)]/50"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-[var(--bg-surface)]`}>
+                      <LiveItemIcon icon={item.icon} className={item.color} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--text)] leading-snug">{item.title}</p>
+                      {item.subtitle && (
+                        <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{item.subtitle}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
             {loading ? (
               <div className="p-8 text-center text-sm text-[var(--text-muted)]">
                 로딩 중...
               </div>
-            ) : notifications.length === 0 ? (
+            ) : notifications.length === 0 && liveItems.length === 0 ? (
               <div className="p-8 text-center">
                 <svg
                   className="w-10 h-10 mx-auto mb-3 text-[var(--text-dim)]"
@@ -399,6 +568,20 @@ export function NotificationCenter() {
       )}
     </div>
   );
+}
+
+// ── Live Item Icon ──
+function LiveItemIcon({ icon, className = "" }: { icon: LiveItem["icon"]; className?: string }) {
+  const p = { className: `w-4 h-4 ${className}`, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (icon) {
+    case "calendar": return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+    case "todo": return <svg {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>;
+    case "alert": return <svg {...p}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    case "clock": return <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+    case "chat": return <svg {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+    case "approval": return <svg {...p}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>;
+    default: return null;
+  }
 }
 
 // ── Notification Item ──
