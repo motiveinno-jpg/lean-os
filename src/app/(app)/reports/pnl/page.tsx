@@ -164,12 +164,14 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       .select("amount, type, transaction_date, counterparty, description, category")
       .eq("company_id", companyId)
       .gte("transaction_date", startDate)
-      .order("transaction_date", { ascending: true }),
+      .order("transaction_date", { ascending: true })
+      .limit(50000),  // default 1000 으로 잘리면 매출 세금계산서 vs 입금 차액이 기타수익으로 잘못 누적됨
     supabase
       .from("tax_invoices")
       .select("type, supply_amount, tax_amount, total_amount, issue_date")
       .eq("company_id", companyId)
-      .gte("issue_date", startDate),
+      .gte("issue_date", startDate)
+      .limit(50000),
     supabase
       .from("employees")
       .select("salary, is_4_insurance, status")
