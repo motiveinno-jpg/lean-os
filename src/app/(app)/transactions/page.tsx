@@ -12,6 +12,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
+import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -1145,8 +1146,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          {/* 다가오는 자동이체 (메인) — 다음에 빠져나갈 금액·날짜·계좌 */}
-          {companyId && <UpcomingAutoTransfersCard companyId={companyId} />}
+          {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 (엑셀 다운로드) */}
+          {companyId && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <UpcomingAutoTransfersCard companyId={companyId} />
+              <TopExpensesThisMonth companyId={companyId} />
+            </div>
+          )}
 
           {/* ═══ 아래: 거래내역 검색·필터 + 차트 ═══ */}
           {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
