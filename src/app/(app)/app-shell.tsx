@@ -79,8 +79,24 @@ function MobileBottomNav() {
 
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
-  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide"],
-  employee: ["/dashboard", "/deals", "/documents", "/chat", "/employees", "/approvals", "/partners", "/guide", "/onboarding"],
+  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage"],
+  // 직원이 사이드바에서 보이는 모든 페이지를 허용 (홈 + 인사관리 + 시스템)
+  employee: [
+    "/dashboard",
+    "/schedule",       // 일정 / 할 일
+    "/notifications",  // 알림
+    "/deals",          // 프로젝트
+    "/partners",       // 거래처 관리
+    "/employees",      // 구성원
+    "/attendance",     // 근태 (→ employees redirect)
+    "/documents",      // 서류 / 계약서 / 서명
+    "/signatures",     // 전자계약 (서명 진행)
+    "/approvals",      // 승인 요청
+    "/chat",           // 팀 채팅
+    "/mypage",         // 내 계정
+    "/guide",          // 사용 가이드
+    "/onboarding",
+  ],
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
