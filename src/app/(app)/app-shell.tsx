@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch } from "@/components/global-search";
-import { NotificationCenter } from "@/components/notification-center";
+// NotificationCenter import 제거 — 알림은 사이드바 페이지(/notifications)로 통합됨
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
@@ -182,8 +182,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
         )}
         <div className="hidden md:block" />
 
-        {/* Right: Notification bell */}
-        <NotificationCenter />
+        {/* (알림은 사이드바 '홈 > 알림' 으로 이동 — 헤더 종 아이콘 제거) */}
       </div>
 
       {/* Main content */}
