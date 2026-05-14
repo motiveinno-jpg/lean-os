@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -78,11 +79,22 @@ function formatDateTime(dateStr: string | null) {
 // ══════════════════════════════════════════════
 
 export default function ApprovalsPage() {
+  const sp = useSearchParams();
+  const newType = sp?.get('new'); // expense / payment / general — 대시보드 quick action 에서 전달
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("my-approvals");
+  const [tab, setTab] = useState<Tab>(newType ? "new-request" : "my-approvals");
+  const [presetType, setPresetType] = useState<string | null>(newType);
   const queryClient = useQueryClient();
+
+  // URL ?new=... 가 바뀌면 탭 + 타입 동기화 (대시보드 → approvals 이동 시)
+  useEffect(() => {
+    if (newType) {
+      setTab("new-request");
+      setPresetType(newType);
+    }
+  }, [newType]);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -197,7 +209,7 @@ export default function ApprovalsPage() {
         <AllRequestsTab companyId={companyId} />
       )}
       {tab === "new-request" && companyId && userId && (
-        <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} />
+        <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
       )}
       {tab === "policies" && companyId && (
         <PoliciesTab companyId={companyId} invalidate={invalidate} />
@@ -630,16 +642,28 @@ const LEAVE_UNIT_OPTIONS = [
 // Tab 4: 새 요청
 // ══════════════════════════════════════════════
 
-function NewRequestTab({ companyId, userId, invalidate, onComplete }: {
-  companyId: string; userId: string; invalidate: () => void; onComplete: () => void;
+function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
+  companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
   const { toast } = useToast();
+  // URL ?new=expense|payment|general 등 → presetType 으로 들어옴. 'leave' 도 지원.
+  const initialType: RequestType = (() => {
+    if (presetType === 'expense' || presetType === 'payment' || presetType === 'leave') return presetType as RequestType;
+    return 'expense';
+  })();
   const [form, setForm] = useState({
-    requestType: "expense" as RequestType,
+    requestType: initialType,
     title: "",
     amount: "",
     description: "",
   });
+  // presetType 이 바뀌면 requestType 동기화 (대시보드에서 들어올 때)
+  useEffect(() => {
+    if (presetType && (presetType === 'expense' || presetType === 'payment' || presetType === 'leave' || presetType === 'general')) {
+      const t = presetType === 'general' ? 'expense' : presetType;
+      setForm(f => ({ ...f, requestType: t as RequestType }));
+    }
+  }, [presetType]);
   // Leave-specific fields
   const [leaveForm, setLeaveForm] = useState({
     leaveType: "annual",
