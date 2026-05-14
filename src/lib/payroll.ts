@@ -56,40 +56,63 @@ export async function savePayrollItems(batchId: string, items: PayrollItem[]): P
 
 // ── Generate payroll preview (no DB write) ──
 
-export async function previewPayroll(companyId: string): Promise<{
+export async function previewPayroll(
+  companyId: string,
+  monthKey?: string, // 'YYYY-MM' — 해당 월 말일 기준 입사한 직원만
+): Promise<{
   items: PayrollItem[];
   totalGross: number;
   totalDeductions: number;
   totalNet: number;
+  skippedNoBirth: string[]; // 생년월일 없는 직원 (비밀번호 못 거는 직원)
 }> {
   const { data: employees } = await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']);
 
-  if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0 };
+  if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [] };
+
+  // 해당월 말일 — 입사일 필터용
+  let monthEnd: string | null = null;
+  if (monthKey) {
+    const [y, m] = monthKey.split('-').map(Number);
+    const last = new Date(y, m, 0); // m 다음 달의 0일 = 해당 월 말일
+    monthEnd = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+  }
 
   const items: PayrollItem[] = [];
+  const skippedNoBirth: string[] = [];
   let totalGross = 0;
   let totalDeductions = 0;
   let totalNet = 0;
 
-  for (const emp of employees) {
+  for (const emp of employees as any[]) {
     const salary = Number(emp.salary || 0);
     if (salary <= 0) continue;
 
+    // 입사일 이후 월만 — 해당 월 말일까지 입사한 직원
+    if (monthEnd && emp.hire_date && emp.hire_date > monthEnd) continue;
+
+    // 비과세 — non_taxable_amount 우선, 없으면 meal_allowance 20만원 기본
+    const nonTaxable = emp.non_taxable_amount != null
+      ? Number(emp.non_taxable_amount)
+      : (emp.meal_allowance_included ? 200_000 : 0);
+
     const item = calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      nonTaxableAmount: nonTaxable,
       dependents: 1,
     });
     items.push(item);
     totalGross += item.baseSalary;
     totalDeductions += item.deductionsTotal;
     totalNet += item.netPay;
+
+    if (!emp.birth_date) skippedNoBirth.push(emp.name);
   }
 
-  return { items, totalGross, totalDeductions, totalNet };
+  return { items, totalGross, totalDeductions, totalNet, skippedNoBirth };
 }
 
 // ── Get payroll history (all batches with payroll items) ──

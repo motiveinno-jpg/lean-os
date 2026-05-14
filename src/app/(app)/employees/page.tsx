@@ -3713,9 +3713,13 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 // ── Payroll Preview Tab ──
 function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
-  const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number } | null>(null);
+  const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정
+  const [editMode, setEditMode] = useState(false);
+  const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number }>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
   // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
   const [periodMonth, setPeriodMonth] = useState(() => {
     const d = new Date();
@@ -3776,10 +3780,45 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     if (!companyId) return;
     setLoading(true);
     try {
-      const result = await previewPayroll(companyId);
+      const result = await previewPayroll(companyId, periodMonth);
       setPreview(result);
+      // 편집값 초기화 — 현재 미리보기 값으로
+      const init: Record<string, { baseSalary: number; nonTaxable: number }> = {};
+      result.items.forEach(it => {
+        init[it.employeeId] = { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount };
+      });
+      setEditValues(init);
+      // 입사일 필터 안내
+      if (result.items.length === 0) {
+        toast(`${periodLabel} 기준 재직 직원이 없습니다 (입사일 이전 또는 미등록).`, 'info');
+      }
+      // 생년월일 누락 안내
+      if (result.skippedNoBirth && result.skippedNoBirth.length > 0) {
+        toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명: ${result.skippedNoBirth.join(', ')}. 명세서 PDF 비밀번호 보호 안 됨.`, 'error');
+      }
     } catch { /* ignore */ }
     setLoading(false);
+  };
+
+  // 편집 모드에서 저장 — employees DB 의 salary / non_taxable_amount 업데이트
+  const saveEdits = async () => {
+    if (!companyId || !preview) return;
+    setSavingEdit(true);
+    try {
+      const updates = Object.entries(editValues).map(([id, v]) =>
+        (supabase as any).from('employees').update({
+          salary: v.baseSalary,
+          non_taxable_amount: v.nonTaxable,
+        }).eq('id', id)
+      );
+      await Promise.all(updates);
+      toast(`${Object.keys(editValues).length}명 급여 정보 저장 완료`, 'success');
+      setEditMode(false);
+      await generate();
+    } catch (err: any) {
+      toast('저장 실패: ' + (err.message || ''), 'error');
+    }
+    setSavingEdit(false);
   };
 
   const handleSendPayslips = async (employeeIds?: string[]) => {
@@ -3816,6 +3855,20 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           />
           {preview && preview.items.length > 0 && (
             <>
+              {editMode ? (
+                <>
+                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                    {savingEdit ? "저장 중..." : "💾 편집 저장"}
+                  </button>
+                  <button onClick={() => { setEditMode(false); generate(); }} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
+                    취소
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setEditMode(true)} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] rounded-xl text-xs font-semibold transition">
+                  ✏️ 급여대장 직접 작성
+                </button>
+              )}
               <button onClick={downloadAll} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
                 전체 PDF 다운로드
               </button>
@@ -3862,7 +3915,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-4 py-3 font-medium">직원</th>
-                <th className="text-right px-4 py-3 font-medium">기본급</th>
+                <th className="text-right px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
+                <th className="text-right px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
                 <th className="text-right px-4 py-3 font-medium">국민연금</th>
                 <th className="text-right px-4 py-3 font-medium">건강보험</th>
                 <th className="text-right px-4 py-3 font-medium">장기요양</th>
@@ -3874,10 +3928,28 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th className="text-center px-4 py-3 font-medium">발송</th>
               </tr></thead>
               <tbody>
-                {preview.items.map((item) => (
+                {preview.items.map((item) => {
+                  const ev = editValues[item.employeeId] || { baseSalary: item.baseSalary, nonTaxable: item.nonTaxableAmount };
+                  return (
                   <tr key={item.employeeId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                     <td className="px-4 py-3 text-sm font-medium">{item.employeeName}</td>
-                    <td className="px-4 py-3 text-sm text-right">{fmtKRW(item.baseSalary)}</td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {editMode ? (
+                        <input type="number" value={ev.baseSalary}
+                          onChange={e => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, baseSalary: Number(e.target.value || 0) } }))}
+                          className="w-28 px-2 py-1 text-right bg-[var(--bg)] border border-[var(--primary)]/40 rounded-md text-xs"
+                        />
+                      ) : fmtKRW(item.baseSalary)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">
+                      {editMode ? (
+                        <input type="number" value={ev.nonTaxable}
+                          onChange={e => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, nonTaxable: Number(e.target.value || 0) } }))}
+                          className="w-24 px-2 py-1 text-right bg-[var(--bg)] border border-[var(--primary)]/40 rounded-md text-xs"
+                          placeholder="0"
+                        />
+                      ) : fmtKRW(item.nonTaxableAmount || 0)}
+                    </td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.nationalPension)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.healthInsurance)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.longTermCareInsurance || 0)}</td>
@@ -3899,7 +3971,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table></div>
           </div>
