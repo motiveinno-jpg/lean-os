@@ -14,6 +14,7 @@ import { useUser } from "@/components/user-context";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { CardBillingSummary } from "@/components/card-billing-summary";
+import { TopCardExpensesThisMonth, CardMonthlyUsage } from "@/components/card-insights";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -630,11 +631,11 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     }
   };
   // 카드 탭 정렬 + 환불 표시 토글
-  const [cardSortBy, setCardSortBy] = useState<'transaction_date' | 'merchant_name'>('transaction_date');
+  const [cardSortBy, setCardSortBy] = useState<'transaction_date' | 'merchant_name' | 'amount'>('transaction_date');
   const [cardSortDir, setCardSortDir] = useState<'asc' | 'desc'>('desc');
-  const toggleCardSort = (key: 'transaction_date' | 'merchant_name') => {
+  const toggleCardSort = (key: 'transaction_date' | 'merchant_name' | 'amount') => {
     if (cardSortBy === key) setCardSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    else { setCardSortBy(key); setCardSortDir(key === 'transaction_date' ? 'desc' : 'asc'); }
+    else { setCardSortBy(key); setCardSortDir(key === 'amount' || key === 'transaction_date' ? 'desc' : 'asc'); }
   };
   const [showRefunds, setShowRefunds] = useState(false);
   const filteredBankTx = (() => {
@@ -674,6 +675,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     xs = [...xs].sort((a: any, b: any) => {
       if (cardSortBy === 'transaction_date') {
         return String(a.transaction_date || '').localeCompare(String(b.transaction_date || '')) * dir;
+      }
+      if (cardSortBy === 'amount') {
+        return (Math.abs(Number(a.amount || 0)) - Math.abs(Number(b.amount || 0))) * dir;
       }
       return String(a.merchant_name || '').localeCompare(String(b.merchant_name || ''), 'ko') * dir;
     });
@@ -1469,13 +1473,19 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             <StatCard label="미매핑" value={cs.unmapped} color={cs.unmapped > 0 ? 'var(--warning)' : 'var(--success)'} />
           </div>
 
-          {/* ═══ 메인: 이용대금 결제일 + 청구서 (카드별) ═══ */}
+          {/* ═══ 메인: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
           {companyId && (
-            <CardBillingSummary
-              companyId={companyId}
-              onSelectCard={(id) => { setSelectedCardId(id); setSelectedCardName(''); }}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <CardBillingSummary
+                companyId={companyId}
+                onSelectCard={(id) => { setSelectedCardId(id); setSelectedCardName(''); }}
+              />
+              <TopCardExpensesThisMonth companyId={companyId} />
+            </div>
           )}
+
+          {/* 카드 월별 사용금액 (카드별/합계) */}
+          {companyId && <CardMonthlyUsage companyId={companyId} />}
 
           {/* Card 별 사용액 (CODEF sync 거래) */}
           {codefCards.length > 0 && (() => {
@@ -1496,12 +1506,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   )}
                 </div>
                 {unidentifiedCount > 0 && (
-                  <div className="mb-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/30 text-xs text-amber-600">
-                    <div className="font-semibold mb-0.5">⚠️ 카드 식별자 미확인 거래 {unidentifiedCount.toLocaleString()}건</div>
-                    <div className="text-[11px] text-[var(--text-muted)]">
-                      CODEF 응답에 카드 끝번호가 없는 거래입니다. 같은 카드사 여러 카드 거래가 한 묶음으로 표시됩니다.
-                      해당 카드 항목을 클릭해 거래를 확인하고 필요 시 수동으로 카드 매핑하세요.
-                    </div>
+                  <div className="mb-2 text-[11px] text-[var(--text-dim)] px-1">
+                    끝번호가 없는 묶음 거래 {unidentifiedCount.toLocaleString()}건이 포함됨 · 거래 클릭 → 매핑에서 정확한 카드를 지정할 수 있습니다.
                   </div>
                 )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1514,12 +1520,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         className={`relative group p-3 rounded-xl border text-left transition cursor-pointer ${
                           selectedCardName === c.card_name
                             ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
-                            : unid
-                              ? 'bg-amber-500/5 border-amber-500/30 hover:border-amber-500/60'
-                              : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
+                            : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
                         }`}
                         onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
-                        title={unid ? '⚠️ 카드 식별자 미확인 — 같은 카드사 여러 카드 거래가 묶여 있을 수 있습니다' : undefined}
+                        title={unid ? '끝번호 없는 묶음 거래 — 클릭해서 안 거래를 보고 매핑하세요' : undefined}
                         role="button"
                         tabIndex={0}
                       >
@@ -1533,7 +1537,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           ✏️
                         </button>
                         <div className="flex items-center gap-1 pr-6">
-                          {unid && <span className="text-[10px]">⚠️</span>}
                           <div className="text-xs font-bold text-[var(--text)] truncate">{displayName}</div>
                         </div>
                         {c.alias && (
@@ -1542,7 +1545,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           </div>
                         )}
                         <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                          {c.count.toLocaleString()}건{unid && <span className="ml-1 text-amber-600">· 미식별</span>}
+                          {c.count.toLocaleString()}건
+                          {unid && <span className="ml-1 text-[var(--text-dim)]">· 묶음</span>}
                         </div>
                         <div className="text-sm font-semibold text-[var(--primary)] mt-1">₩{Number(c.total).toLocaleString()}</div>
                       </div>
@@ -1651,7 +1655,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     >
                       가맹점 {cardSortBy === 'merchant_name' ? (cardSortDir === 'asc' ? '↑' : '↓') : ''}
                     </th>
-                    <th className="text-right px-4 py-3 font-medium">금액</th>
+                    <th
+                      onClick={() => toggleCardSort('amount')}
+                      className="text-right px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"
+                      title="클릭해서 금액순 정렬"
+                    >
+                      금액 {cardSortBy === 'amount' ? (cardSortDir === 'asc' ? '↑' : '↓') : ''}
+                    </th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
                   </tr>
