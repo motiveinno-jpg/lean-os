@@ -3244,25 +3244,46 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
 
-      // 첫 sync 감지 — bank_transactions 0건 → 1년치 자동 가져옴
-      let autoStartDate: string | undefined;
-      let autoEndDate: string | undefined;
+      // 첫 sync 감지 — bank_transactions 0건 → 1년치 자동 가져옴 (3개월씩 4번 chunked)
+      let isFirstSync = false;
       if (hasCodefConnection) {
         const { count } = await db2.from('bank_transactions')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', companyId);
-        if ((count || 0) === 0) {
-          const d = new Date(); d.setFullYear(d.getFullYear() - 1);
-          autoStartDate = toCodefDate(d.toISOString().slice(0, 10));
-          autoEndDate = toCodefDate(new Date().toISOString().slice(0, 10));
-          toast('첫 동기화 — 1년치 데이터를 가져오는 중 (시간이 좀 걸립니다)', 'info');
-        }
+        if ((count || 0) === 0) isFirstSync = true;
       }
 
-      // 1단계: 은행/카드만 동기화 (빠름, ConnectedID 필요). 홈택스는 2단계에서 별도 호출 — timeout 분리.
-      const bankCardRes = hasCodefConnection
-        ? await syncCodefData(companyId, "bank_card", autoStartDate, autoEndDate)
-        : { success: true, errors: [], status: "success" as const, message: "은행/카드 미등록" };
+      // 1단계: 은행/카드만 동기화. 첫 sync 면 1년치 3개월씩 분할, 일반 sync 는 default (3개월).
+      let bankCardRes: any;
+      if (hasCodefConnection && isFirstSync) {
+        toast('첫 동기화 — 1년치 데이터를 4구간으로 나눠 가져오는 중', 'info');
+        let totalBank = 0, totalCard = 0;
+        const allErrors: any[] = [], allNotes: any[] = [];
+        const today = new Date();
+        for (let i = 3; i >= 0; i--) {
+          const cEnd = new Date(today); cEnd.setMonth(cEnd.getMonth() - i * 3);
+          const cStart = new Date(cEnd); cStart.setMonth(cStart.getMonth() - 3); cStart.setDate(cStart.getDate() + 1);
+          const startStr = toCodefDate(cStart.toISOString().slice(0, 10));
+          const endStr = toCodefDate(cEnd.toISOString().slice(0, 10));
+          const r: any = await syncCodefData(companyId, 'bank_card', startStr, endStr);
+          totalBank += r.bankSynced || 0;
+          totalCard += r.cardSynced || 0;
+          if (r.errors) allErrors.push(...r.errors);
+          if (r.notes) allNotes.push(...r.notes);
+        }
+        bankCardRes = {
+          success: allErrors.length === 0,
+          status: allErrors.length === 0 ? 'success' : 'partial',
+          errors: allErrors,
+          notes: allNotes,
+          bankSynced: totalBank, cardSynced: totalCard,
+          message: `은행 ${totalBank}건 + 카드 ${totalCard}건 (1년치)`,
+        };
+      } else {
+        bankCardRes = hasCodefConnection
+          ? await syncCodefData(companyId, 'bank_card')
+          : { success: true, errors: [], status: 'success' as const, message: '은행/카드 미등록' };
+      }
 
       // 2단계: 홈택스 동기화 (느림, 인증서 storage 필요) — 등록된 경우만
       const hometaxRes = hasHometaxConnection
@@ -3304,34 +3325,82 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     if (!syncResult?.errors?.length) setTimeout(() => setSyncResult((prev) => (prev?.errors?.length ? prev : null)), 5000);
   }
 
-  // 사용자가 명시한 기간으로 다시 sync (과거 누락분 채워넣기용)
+  const [rangeProgress, setRangeProgress] = useState<string>('');
+
+  // 사용자가 명시한 기간으로 다시 sync — 3개월씩 분할 sequential 호출 (HTTP 546 timeout 회피)
   async function handleRangeSync() {
     if (!companyId || syncing) return;
     if (!rangeFrom || !rangeTo) { toast('기간을 지정하세요', 'error'); return; }
     if (rangeFrom > rangeTo) { toast('시작일이 종료일보다 늦습니다', 'error'); return; }
     setSyncing(true);
     setSyncResult(null);
+    setRangeProgress('');
     try {
       const { syncCodefData } = await import('@/lib/data-sync');
-      const startCodef = toCodefDate(rangeFrom);
-      const endCodef = toCodefDate(rangeTo);
-      toast(`${rangeFrom} ~ ${rangeTo} 기간 동기화 중...`, 'info');
-      const res = await syncCodefData(companyId, 'bank_card', startCodef, endCodef);
-      const errors = (res as any).errors || [];
-      const notes = (res as any).notes || [];
-      if (res.success && errors.length === 0) {
-        setSyncResult({ ok: true, msg: `${rangeFrom} ~ ${rangeTo} 기간 동기화 완료 — ${res.message || ''}`, notes: notes.length > 0 ? notes : undefined });
-        toast('기간 동기화 완료', 'success');
-      } else if (errors.length > 0) {
-        setSyncResult({ ok: false, msg: `부분 동기화 (오류 ${errors.length}건)`, errors, notes: notes.length > 0 ? notes : undefined });
-      } else {
-        setSyncResult({ ok: false, msg: res.error || '동기화 실패' });
+
+      // 3개월(약 90일) 단위로 chunks 생성
+      const chunks: Array<{ from: string; to: string }> = [];
+      const startD = new Date(rangeFrom);
+      const endD = new Date(rangeTo);
+      let cursor = new Date(startD);
+      while (cursor.getTime() <= endD.getTime()) {
+        const chunkEnd = new Date(cursor);
+        chunkEnd.setMonth(chunkEnd.getMonth() + 3);
+        chunkEnd.setDate(chunkEnd.getDate() - 1);
+        if (chunkEnd.getTime() > endD.getTime()) chunkEnd.setTime(endD.getTime());
+        chunks.push({
+          from: cursor.toISOString().slice(0, 10),
+          to: chunkEnd.toISOString().slice(0, 10),
+        });
+        cursor = new Date(chunkEnd);
+        cursor.setDate(cursor.getDate() + 1);
       }
+
+      toast(`${rangeFrom} ~ ${rangeTo} (${chunks.length}개 구간) 동기화 시작`, 'info');
+
+      let totalBank = 0, totalCard = 0;
+      const allErrors: any[] = [];
+      const allNotes: any[] = [];
+      const failedChunks: string[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const c = chunks[i];
+        setRangeProgress(`${i + 1}/${chunks.length} — ${c.from} ~ ${c.to}`);
+        try {
+          const res = await syncCodefData(companyId, 'bank_card', toCodefDate(c.from), toCodefDate(c.to));
+          totalBank += res.bankSynced || 0;
+          totalCard += res.cardSynced || 0;
+          if ((res as any).errors) allErrors.push(...(res as any).errors);
+          if ((res as any).notes) allNotes.push(...(res as any).notes);
+          if (!res.success && (res as any).errors?.length === 0) {
+            // HTTP 546 등 timeout — 더 작은 chunk 도 고려 대상
+            failedChunks.push(`${c.from} ~ ${c.to}: ${(res as any).error || 'timeout'}`);
+          }
+        } catch (e: any) {
+          failedChunks.push(`${c.from} ~ ${c.to}: ${e.message || '오류'}`);
+        }
+      }
+
+      setRangeProgress('');
+      const msgParts = [`은행 ${totalBank}건 + 카드 ${totalCard}건 sync`];
+      if (allNotes.length > 0) msgParts.push(`안내 ${allNotes.length}건`);
+      if (allErrors.length > 0) msgParts.push(`오류 ${allErrors.length}건`);
+      if (failedChunks.length > 0) msgParts.push(`timeout ${failedChunks.length}개 구간`);
+
+      const ok = allErrors.length === 0 && failedChunks.length === 0;
+      setSyncResult({
+        ok,
+        msg: `${rangeFrom} ~ ${rangeTo} (${chunks.length}구간 처리) — ${msgParts.join(' · ')}`,
+        errors: [...allErrors, ...failedChunks.map(f => ({ message: f, code: 'CHUNK_FAIL' }))].slice(0, 50),
+        notes: allNotes.length > 0 ? allNotes : undefined,
+      });
+      toast(ok ? '기간 동기화 완료' : `부분 완료 — 자세히는 결과 확인`, ok ? 'success' : 'info');
       await loadRecentSyncLogs();
     } catch (err: any) {
       setSyncResult({ ok: false, msg: err.message || '오류 발생' });
     }
     setSyncing(false);
+    setRangeProgress('');
   }
 
   const { data: companySettings } = useQuery({
@@ -3424,7 +3493,14 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                 {syncing ? '동기화 중...' : '이 기간 sync'}
               </button>
             </div>
+            {rangeProgress && (
+              <div className="mt-2 px-3 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[11px] text-[var(--primary)] font-semibold">
+                ⏳ {rangeProgress}
+              </div>
+            )}
             <div className="text-[10px] text-[var(--text-dim)] mt-2">
+              ⚠ 3개월씩 분할 호출 (Edge Function 150초 timeout 회피). 1년 = 4번, 2년 = 8번 호출.
+              <br />
               ⚠ 한국 은행 API 는 등록일 이전 거래를 못 가져올 수 있습니다. 누락분이 계속 있으면 은행 거래내역서를 CSV 로 직접 업로드하세요.
             </div>
           </div>
