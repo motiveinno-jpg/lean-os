@@ -266,7 +266,14 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     salesRevenue,
     purchaseCost,
     totalSalary,
-  };
+    _debug: {
+      txCount: transactions.length,
+      tiCount: taxInvoices.length,
+      empCount: employees.length,
+      startDate,
+      allMonths,
+    },
+  } as PnlData & { _debug: any };
 }
 
 /* ------------------------------------------------------------------ */
@@ -612,6 +619,16 @@ export default function PnlPage() {
           >
             {formatMonthLabel(months[0])} ~ {formatMonthLabel(months[months.length - 1])} 월별 손익 현황 (단위: 원)
           </p>
+          {/* 진단 배지 — 새 빌드 도착 + 받은 데이터 카운트 확인용 */}
+          {(data as any)?._debug && (
+            <div style={{ marginTop: 6, padding: '4px 8px', borderRadius: 4, background: 'var(--bg-surface)', fontSize: 10, color: 'var(--text-dim)', display: 'inline-flex', gap: 8 }}>
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>build:3a0765e</span>
+              <span>tx={(data as any)._debug.txCount}</span>
+              <span>ti={(data as any)._debug.tiCount}</span>
+              <span>start={(data as any)._debug.startDate}</span>
+              <span>otherRev={Math.round(months.reduce((s, m) => s + (data as any).otherRevenue[m], 0)).toLocaleString()}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {/* 조회 기간 — 달력만 (preset 제거) */}
