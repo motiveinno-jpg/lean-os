@@ -6,6 +6,13 @@ import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions"
 
 interface Props { companyId: string; }
 
+const CARD_TYPE_META: Record<string, { label: string; bg: string; color: string }> = {
+  credit: { label: '신용', bg: 'rgba(59,130,246,0.12)', color: '#60a5fa' },
+  check:  { label: '체크', bg: 'rgba(249,115,22,0.12)', color: '#fb923c' },
+  debit:  { label: '직불', bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
+  other:  { label: '기타', bg: 'rgba(148,163,184,0.12)', color: '#94a3b8' },
+};
+
 function fmtKRW(n: number): string {
   return n.toLocaleString('ko-KR');
 }
@@ -135,22 +142,22 @@ export function CardMonthlyUsage({ companyId }: Props) {
     const tx = (txAll as any[]).filter((t: any) => Number(t.amount || 0) > 0);
 
     // card key: card_id 우선, 없으면 card_name
-    const cardKeys = new Map<string, { key: string; label: string }>();
+    const cardKeys = new Map<string, { key: string; label: string; cardType: string | null }>();
     (cards as any[]).forEach((c: any) => {
-      cardKeys.set(c.id, { key: c.id, label: c.card_name });
+      cardKeys.set(c.id, { key: c.id, label: c.card_name, cardType: c.card_type || null });
     });
     // CODEF 사용된 card_name 도 별도 키 (등록 안 된 카드)
     for (const t of tx) {
       if (t.card_id && cardKeys.has(t.card_id)) continue;
       const key = t.card_id || t.card_name || '미지정';
       if (!cardKeys.has(key)) {
-        cardKeys.set(key, { key, label: t.card_name || '미지정 카드' });
+        cardKeys.set(key, { key, label: t.card_name || '미지정 카드', cardType: null });
       }
     }
 
-    const perCard = new Map<string, { label: string; byMonth: Record<string, number>; total: number }>();
+    const perCard = new Map<string, { label: string; cardType: string | null; byMonth: Record<string, number>; total: number }>();
     for (const [k, v] of cardKeys.entries()) {
-      perCard.set(k, { label: v.label, byMonth: Object.fromEntries(months.map(m => [m, 0])), total: 0 });
+      perCard.set(k, { label: v.label, cardType: v.cardType, byMonth: Object.fromEntries(months.map(m => [m, 0])), total: 0 });
     }
 
     const totals: Record<string, number> = Object.fromEntries(months.map(m => [m, 0]));
@@ -233,9 +240,18 @@ export function CardMonthlyUsage({ companyId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {sortedCards.map(c => (
+                {sortedCards.map(c => {
+                  const meta = c.cardType ? CARD_TYPE_META[c.cardType] : null;
+                  return (
                   <tr key={c.key} className="border-b border-[var(--border)]/40">
-                    <td className="px-2 py-1.5 text-[var(--text)] truncate max-w-[140px]">{c.label}</td>
+                    <td className="px-2 py-1.5 truncate max-w-[160px]">
+                      {meta && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold mr-1 align-middle" style={{ background: meta.bg, color: meta.color }}>
+                          {meta.label}
+                        </span>
+                      )}
+                      <span className="text-[var(--text)]">{c.label}</span>
+                    </td>
                     {months.map(m => {
                       const v = c.byMonth[m] || 0;
                       return (
@@ -246,7 +262,8 @@ export function CardMonthlyUsage({ companyId }: Props) {
                     })}
                     <td className="px-2 py-1.5 text-right font-bold mono-number text-[var(--text)]">₩{fmtW(c.total)}</td>
                   </tr>
-                ))}
+                  );
+                })}
                 <tr className="bg-[var(--bg-surface)]">
                   <td className="px-2 py-1.5 font-bold text-[var(--text)]">합계</td>
                   {months.map(m => (

@@ -1545,6 +1545,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           ✏️
                         </button>
                         <div className="flex items-center gap-1 pr-6">
+                          {(() => {
+                            const matched: any = corpCards.find((cc: any) => cc.card_name === c.card_name);
+                            return matched ? <CardTypeBadge type={(matched as any).card_type} /> : null;
+                          })()}
                           <div className="text-xs font-bold text-[var(--text)] truncate">{displayName}</div>
                         </div>
                         {c.alias && (
@@ -1619,6 +1623,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             <div className="flex gap-2 flex-wrap">
               {corpCards.map((c: any) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] text-xs">
+                  <CardTypeBadge type={c.card_type} />
                   <span className="font-semibold">{c.card_name}</span>
                   <span className="text-[var(--text-dim)]">{c.card_company}</span>
                   {c.card_number && <span className="text-[var(--text-dim)]">****{c.card_number.slice(-4)}</span>}
@@ -1877,6 +1882,25 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
       <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
       <div className="text-sm font-black mono-number" style={{ color: color || 'var(--text)' }}>{value}</div>
     </div>
+  );
+}
+
+const CARD_TYPE_META: Record<string, { label: string; bg: string; color: string }> = {
+  credit: { label: '신용', bg: 'rgba(59,130,246,0.12)', color: '#60a5fa' },
+  check:  { label: '체크', bg: 'rgba(249,115,22,0.12)', color: '#fb923c' },
+  debit:  { label: '직불', bg: 'rgba(34,197,94,0.12)',  color: '#4ade80' },
+  other:  { label: '기타', bg: 'rgba(148,163,184,0.12)', color: '#94a3b8' },
+};
+
+function CardTypeBadge({ type }: { type?: string | null }) {
+  const meta = CARD_TYPE_META[type || 'credit'] || CARD_TYPE_META.credit;
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider shrink-0"
+      style={{ background: meta.bg, color: meta.color }}
+    >
+      {meta.label}
+    </span>
   );
 }
 
