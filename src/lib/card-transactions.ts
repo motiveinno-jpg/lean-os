@@ -25,6 +25,8 @@ export async function upsertCorporateCard(params: {
   holderName?: string;
   monthlyLimit?: number;
   isActive?: boolean;
+  paymentDay?: number | null;
+  billingDay?: number | null;
 }) {
   const row: any = {
     company_id: params.companyId,
@@ -34,6 +36,8 @@ export async function upsertCorporateCard(params: {
     holder_name: params.holderName || null,
     monthly_limit: params.monthlyLimit || 0,
     is_active: params.isActive ?? true,
+    payment_day: params.paymentDay ?? null,
+    billing_day: params.billingDay ?? null,
   };
   if (params.id) row.id = params.id;
 
