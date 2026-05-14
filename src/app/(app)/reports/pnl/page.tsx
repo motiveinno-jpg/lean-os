@@ -296,6 +296,8 @@ export default function PnlPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  // sync 후 강제 재fetch trigger
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -312,7 +314,7 @@ export default function PnlPage() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId, customStart, customEnd]);
+  }, [companyId, customStart, customEnd, refreshKey]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -662,6 +664,32 @@ export default function PnlPage() {
             />
             전기 비교
           </label>
+          <button
+            onClick={() => setRefreshKey(k => k + 1)}
+            aria-label="새로고침"
+            title="DB 에서 최신 데이터 다시 불러오기"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--primary)",
+              background: "var(--primary)",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+            새로고침
+          </button>
           <button
             onClick={handleExportCsv}
             aria-label="CSV 다운로드"
