@@ -1,9 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
+
+// "BC카드 5979" → { company: "BC카드", lastFour: "5979" }
+function parseCardName(name: string): { company: string; lastFour: string | null } {
+  const trimmed = (name || '').trim();
+  const match = trimmed.match(/^(.+?)\s*[\s-]?(\d{4})\s*$/);
+  if (match) return { company: match[1].replace(/[\s-]+$/, '').trim() || trimmed, lastFour: match[2] };
+  return { company: trimmed, lastFour: null };
+}
+
+// 카드사 표준화 — corporate_cards.card_company 디폴트 옵션과 매칭
+function normalizeCardCompany(raw: string): string {
+  const s = raw.replace(/카드$/, '').trim();
+  const map: Record<string, string> = {
+    'BC': 'BC', '비씨': 'BC',
+    '삼성': '삼성',
+    '신한': '신한',
+    '현대': '현대',
+    'KB': 'KB', '국민': 'KB',
+    '롯데': '롯데',
+    '하나': '하나',
+    '우리': '우리',
+    'NH': 'NH', '농협': 'NH',
+  };
+  return map[s] || s || '기타';
+}
 
 interface Props {
   companyId: string;
@@ -130,6 +155,36 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
     return (codefCards as any[]).filter((cc) => !registeredNames.has(cc.card_name)).length;
   }, [cards, codefCards]);
+
+  // CODEF sync 거래에 있는데 corporate_cards 미등록인 카드 자동 등록 (세션당 1회).
+  // 카드 종류는 default 'credit' — 체크/직불이면 사용자가 등록 후 '⚙ 결제일' 또는 수정으로 변경.
+  const autoRegRef = useRef(false);
+  useEffect(() => {
+    if (autoRegRef.current) return;
+    if (!companyId) return;
+    if (!Array.isArray(cards) || !Array.isArray(codefCards)) return;
+    const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
+    const newCards = (codefCards as any[]).filter((cc: any) => cc.card_name && !registeredNames.has(cc.card_name));
+    if (newCards.length === 0) return;
+    autoRegRef.current = true;
+
+    (async () => {
+      for (const cc of newCards) {
+        const parsed = parseCardName(cc.card_name);
+        try {
+          await upsertCorporateCard({
+            companyId,
+            cardName: cc.card_name,
+            cardCompany: normalizeCardCompany(parsed.company),
+            cardNumber: parsed.lastFour || undefined,
+            cardType: 'credit',
+            isActive: true,
+          });
+        } catch { /* 중복 / RLS 충돌 시 무시 — 다음 마운트에 재시도 */ }
+      }
+      queryClient.invalidateQueries({ queryKey: ['corp-cards'] });
+    })();
+  }, [companyId, cards, codefCards, queryClient]);
 
   const paymentDayMut = useMutation({
     mutationFn: async ({ card, paymentDay, billingDay }: { card: any; paymentDay: number | null; billingDay: number | null }) => {

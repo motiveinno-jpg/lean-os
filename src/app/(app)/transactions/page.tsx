@@ -1921,18 +1921,40 @@ function CardTypeBadge({ type }: { type?: string | null }) {
 const DEFAULT_CLASSIFICATIONS = ['B2B', 'B2C', 'B2G', '광고/마케팅', '인건비', '운영비', '외주비', '임대료', '소프트웨어', '세금'];
 const DEFAULT_CATEGORIES = ['고정비', '변동비', '매출', '인건비', '복리후생', '식대', '교통/주차', '통신비', '광고선전비', '세금공과', '소모품비', '지급수수료', '임대료'];
 
-// 칩 버튼 — 분류/카테고리 옵션 빠른 선택
+// 칩 버튼 — 분류/카테고리 옵션 빠른 선택. 기본 5개만 표시 + '+ 더보기' 토글 + '+ 직접 추가' input.
 function ChipPicker({ options, value, onSelect }: { options: string[]; value: string; onSelect: (v: string) => void }) {
-  if (!options.length) return null;
+  const [showAll, setShowAll] = useState(false);
+  const [showAddInput, setShowAddInput] = useState(false);
+  const [newChip, setNewChip] = useState('');
+  if (!options.length && !showAddInput) {
+    return (
+      <div className="mt-1.5">
+        <button type="button" onClick={() => setShowAddInput(true)}
+          className="px-2 py-0.5 text-[10px] rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+          + 직접 추가
+        </button>
+      </div>
+    );
+  }
+
+  const visible = showAll ? options : options.slice(0, 5);
+  const hasMore = options.length > 5 && !showAll;
+
+  const submitNew = () => {
+    const v = newChip.trim();
+    if (v) {
+      onSelect(v);
+      setNewChip('');
+      setShowAddInput(false);
+    }
+  };
+
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1">
-      {options.map((opt) => {
+    <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+      {visible.map((opt) => {
         const selected = opt === value;
         return (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onSelect(opt)}
+          <button key={opt} type="button" onClick={() => onSelect(opt)}
             className={`px-2 py-0.5 text-[10px] rounded-full transition ${
               selected
                 ? 'bg-[var(--primary)] text-white'
@@ -1943,6 +1965,34 @@ function ChipPicker({ options, value, onSelect }: { options: string[]; value: st
           </button>
         );
       })}
+      {hasMore && (
+        <button type="button" onClick={() => setShowAll(true)}
+          className="px-2 py-0.5 text-[10px] rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] transition">
+          + 더보기 ({options.length - 5})
+        </button>
+      )}
+      {showAddInput ? (
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            value={newChip}
+            onChange={e => setNewChip(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitNew(); } if (e.key === 'Escape') { setShowAddInput(false); setNewChip(''); } }}
+            placeholder="새 분류"
+            className="w-24 px-2 py-0.5 text-[10px] bg-[var(--bg)] border border-[var(--primary)] rounded-full"
+          />
+          <button type="button" onClick={submitNew}
+            className="px-1.5 py-0.5 text-[10px] rounded-full bg-[var(--primary)] text-white">추가</button>
+          <button type="button" onClick={() => { setShowAddInput(false); setNewChip(''); }}
+            className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">취소</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setShowAddInput(true)}
+          className="px-2 py-0.5 text-[10px] rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+          title="없는 분류 직접 추가">
+          + 추가
+        </button>
+      )}
     </div>
   );
 }
