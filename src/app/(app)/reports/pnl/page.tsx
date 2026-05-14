@@ -9,50 +9,33 @@ import PnlChart from "./pnl-chart";
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
-const DEFAULT_MONTHS = 6;
-type PeriodPreset = "3m" | "6m" | "12m" | "ytd" | "custom";
-const PERIOD_LABELS: Record<PeriodPreset, string> = {
-  "3m": "3개월",
-  "6m": "6개월",
-  "12m": "12개월",
-  ytd: "올해",
-  custom: "직접 선택",
-};
-
+// 매출원가 분류 (운영비/판매관리비 와 분리 — 회계 의미상 별도)
 const COGS_KEYWORDS = ["외주", "인프라", "서버", "호스팅", "AWS", "클라우드", "도메인"];
-const SALARY_KEYWORDS = ["급여", "인건비", "상여", "보너스"];
-const RENT_KEYWORDS = ["임대", "월세", "관리비", "스파크플러스"];
-const SOFTWARE_KEYWORDS = ["소프트웨어", "SaaS", "구독", "라이선스"];
-const PROFESSIONAL_KEYWORDS = ["세무", "법무", "회계", "컨설팅", "자문", "전문서비스"];
-const WELFARE_KEYWORDS = ["복리후생", "식대", "경조사", "체육", "건강검진"];
-const INSURANCE_KEYWORDS = ["4대보험", "국민연금", "건강보험", "고용보험", "산재보험"];
 
-type CategoryKey =
-  | "revenue"
-  | "otherRevenue"
-  | "outsourcing"
-  | "infrastructure"
-  | "salary"
-  | "rent"
-  | "software"
-  | "professional"
-  | "welfare"
-  | "insurance"
-  | "otherOpex";
+// 거래 category 가 비어있을 때만 사용하는 키워드 기반 fallback 라벨
+const FALLBACK_KEYWORDS: Array<[string, string[]]> = [
+  ["급여", ["급여", "인건비", "상여", "보너스"]],
+  ["임대료", ["임대", "월세", "관리비", "스파크플러스"]],
+  ["소프트웨어", ["소프트웨어", "SaaS", "구독", "라이선스"]],
+  ["전문서비스", ["세무", "법무", "회계", "컨설팅", "자문", "전문서비스"]],
+  ["복리후생", ["복리후생", "식대", "경조사", "체육", "건강검진"]],
+  ["4대보험", ["4대보험", "국민연금", "건강보험", "고용보험", "산재보험"]],
+];
 
-const CATEGORY_LABELS: Record<CategoryKey, string> = {
-  revenue: "매출",
-  otherRevenue: "기타수익",
-  outsourcing: "외주비",
-  infrastructure: "인프라비용",
-  salary: "급여",
-  rent: "임대료",
-  software: "소프트웨어",
-  professional: "전문서비스",
-  welfare: "복리후생",
-  insurance: "4대보험",
-  otherOpex: "기타 운영비",
-};
+function inferOpexCategory(counterparty: string | null, description: string | null): string {
+  const combined = [counterparty, description].filter(Boolean).join(" ").toLowerCase();
+  for (const [label, kws] of FALLBACK_KEYWORDS) {
+    if (kws.some(kw => combined.includes(kw.toLowerCase()))) return label;
+  }
+  return "기타";
+}
+
+function isCogs(counterparty: string | null, description: string | null, category: string | null): { is: boolean; sub?: "외주비" | "인프라비용" } {
+  const combined = [counterparty, description, category].filter(Boolean).join(" ").toLowerCase();
+  if (!COGS_KEYWORDS.some(kw => combined.includes(kw.toLowerCase()))) return { is: false };
+  if (combined.includes("외주")) return { is: true, sub: "외주비" };
+  return { is: true, sub: "인프라비용" };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -68,13 +51,8 @@ interface PnlData {
   otherRevenue: MonthlyRow;
   outsourcing: MonthlyRow;
   infrastructure: MonthlyRow;
-  salary: MonthlyRow;
-  rent: MonthlyRow;
-  software: MonthlyRow;
-  professional: MonthlyRow;
-  welfare: MonthlyRow;
-  insurance: MonthlyRow;
-  otherOpex: MonthlyRow;
+  // 판매관리비 — 사용자 category 동적 그룹 (key = 카테고리 이름)
+  opexByCategory: Record<string, MonthlyRow>;
   salesRevenue: MonthlyRow;
   purchaseCost: MonthlyRow;
   totalSalary: MonthlyRow;
@@ -129,25 +107,6 @@ function matchesAny(text: string | null, keywords: string[]): boolean {
   return keywords.some((kw) => lower.includes(kw.toLowerCase()));
 }
 
-function classifyExpense(
-  counterparty: string | null,
-  description: string | null,
-  category: string | null,
-): CategoryKey {
-  const combined = [counterparty, description, category].filter(Boolean).join(" ");
-  if (matchesAny(combined, COGS_KEYWORDS)) {
-    if (matchesAny(combined, ["외주"])) return "outsourcing";
-    return "infrastructure";
-  }
-  if (matchesAny(combined, SALARY_KEYWORDS)) return "salary";
-  if (matchesAny(combined, RENT_KEYWORDS)) return "rent";
-  if (matchesAny(combined, SOFTWARE_KEYWORDS)) return "software";
-  if (matchesAny(combined, PROFESSIONAL_KEYWORDS)) return "professional";
-  if (matchesAny(combined, WELFARE_KEYWORDS)) return "welfare";
-  if (matchesAny(combined, INSURANCE_KEYWORDS)) return "insurance";
-  return "otherOpex";
-}
-
 function emptyRow(months: string[]): MonthlyRow {
   const row: MonthlyRow = {};
   months.forEach((m) => (row[m] = 0));
@@ -171,21 +130,6 @@ function formatMonthLabel(month: string): string {
   return `${parseInt(mm, 10)}월`;
 }
 
-/* Category tooltip descriptions for classification criteria */
-const CATEGORY_TOOLTIPS: Record<CategoryKey, string> = {
-  revenue: "은행 입금 내역 중 '입금' 유형의 거래 합계",
-  otherRevenue: "세금계산서 매출이 은행 입금보다 클 때의 차액 (미수금 등)",
-  outsourcing: "거래처/적요에 '외주' 키워드가 포함된 지출",
-  infrastructure: "거래처/적요에 '인프라, 서버, 호스팅, AWS, 클라우드, 도메인' 키워드가 포함된 지출",
-  salary: "거래처/적요에 '급여, 인건비, 상여, 보너스' 키워드가 포함된 지출 또는 등록 직원 월급여",
-  rent: "거래처/적요에 '임대, 월세, 관리비, 스파크플러스' 키워드가 포함된 지출",
-  software: "거래처/적요에 '소프트웨어, SaaS, 구독, 라이선스' 키워드가 포함된 지출",
-  professional: "거래처/적요에 '세무, 법무, 회계, 컨설팅, 자문' 키워드가 포함된 지출",
-  welfare: "거래처/적요에 '복리후생, 식대, 경조사, 체육, 건강검진' 키워드가 포함된 지출",
-  insurance: "거래처/적요에 '4대보험, 국민연금, 건강보험, 고용보험, 산재보험' 키워드가 포함된 지출 또는 등록 직원 급여의 약 10.55% (사업주 부담분)",
-  otherOpex: "위 분류에 해당하지 않는 나머지 지출",
-};
-
 /* Print CSS */
 const PRINT_CSS = `
 @media print {
@@ -206,7 +150,7 @@ const PRINT_CSS = `
 /* ------------------------------------------------------------------ */
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
-async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MONTHS, customStart?: string, customEnd?: string): Promise<PnlData> {
+async function fetchPnlData(companyId: string, monthsToShow: number = 6, customStart?: string, customEnd?: string): Promise<PnlData> {
   const months = customStart && customEnd
     ? getMonthsBetween(customStart, customEnd)
     : getLastNMonths(monthsToShow);
@@ -243,18 +187,17 @@ async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MO
   const otherRevenue = emptyRow(allMonths);
   const outsourcing = emptyRow(allMonths);
   const infrastructure = emptyRow(allMonths);
-  const salary = emptyRow(allMonths);
-  const rent = emptyRow(allMonths);
-  const software = emptyRow(allMonths);
-  const professional = emptyRow(allMonths);
-  const welfare = emptyRow(allMonths);
-  const insurance = emptyRow(allMonths);
-  const otherOpex = emptyRow(allMonths);
+  const opexByCategory: Record<string, MonthlyRow> = {};
   const salesRevenue = emptyRow(allMonths);
   const purchaseCost = emptyRow(allMonths);
   const totalSalary = emptyRow(allMonths);
 
-  for (const tx of transactions) {
+  const ensureOpex = (cat: string): MonthlyRow => {
+    if (!opexByCategory[cat]) opexByCategory[cat] = emptyRow(allMonths);
+    return opexByCategory[cat];
+  };
+
+  for (const tx of transactions as any[]) {
     const month = toMonth(tx.transaction_date);
     if (!allMonths.includes(month)) continue;
     const amt = Math.abs(tx.amount);
@@ -262,21 +205,17 @@ async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MO
     if (tx.type === "income" || tx.type === "입금") {
       revenue[month] += amt;
     } else if (tx.type === "expense" || tx.type === "출금") {
-      const cat = classifyExpense(tx.counterparty, tx.description, tx.category);
-      const target: Record<CategoryKey, MonthlyRow> = {
-        revenue,
-        otherRevenue,
-        outsourcing,
-        infrastructure,
-        salary,
-        rent,
-        software,
-        professional,
-        welfare,
-        insurance,
-        otherOpex,
-      };
-      target[cat][month] += amt;
+      // 1) 매출원가 (외주/인프라) 먼저 분리
+      const cogs = isCogs(tx.counterparty, tx.description, tx.category);
+      if (cogs.is) {
+        if (cogs.sub === "외주비") outsourcing[month] += amt;
+        else infrastructure[month] += amt;
+        continue;
+      }
+      // 2) 판매관리비 — 사용자 입력 category 우선, 없으면 키워드 추론, 그래도 없으면 '기타'
+      const userCat = (tx.category && String(tx.category).trim()) || "";
+      const catName = userCat || inferOpexCategory(tx.counterparty, tx.description);
+      ensureOpex(catName)[month] += amt;
     }
   }
 
@@ -298,14 +237,13 @@ async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MO
     0,
   );
 
+  // 직원 등록 기반 급여·4대보험 — 거래에 같은 금액 없을 때 보강
+  const salaryRow = ensureOpex("급여");
+  const insuranceRow = ensureOpex("4대보험");
   for (const m of allMonths) {
     totalSalary[m] = monthlySalaryTotal;
-    if (monthlySalaryTotal > salary[m]) {
-      salary[m] = Math.max(salary[m], monthlySalaryTotal);
-    }
-    if (monthlyInsurance > insurance[m]) {
-      insurance[m] = Math.max(insurance[m], monthlyInsurance);
-    }
+    if (monthlySalaryTotal > (salaryRow[m] || 0)) salaryRow[m] = monthlySalaryTotal;
+    if (monthlyInsurance > (insuranceRow[m] || 0)) insuranceRow[m] = monthlyInsurance;
   }
 
   // Cross-reference: if tax invoice sales > bank income, use tax invoice figure
@@ -322,13 +260,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = DEFAULT_MO
     otherRevenue,
     outsourcing,
     infrastructure,
-    salary,
-    rent,
-    software,
-    professional,
-    welfare,
-    insurance,
-    otherOpex,
+    opexByCategory,
     salesRevenue,
     purchaseCost,
     totalSalary,
@@ -355,8 +287,7 @@ export default function PnlPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
-  const [tooltipKey, setTooltipKey] = useState<CategoryKey | null>(null);
-  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("6m");
+  // 달력만 — preset 제거. 기본 최근 6개월.
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() - 5);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -365,12 +296,6 @@ export default function PnlPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
-
-  const resolvedMonthCount = periodPreset === "3m" ? 3
-    : periodPreset === "6m" ? 6
-    : periodPreset === "12m" ? 12
-    : periodPreset === "ytd" ? new Date().getMonth() + 1
-    : 0;
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -383,17 +308,11 @@ export default function PnlPage() {
     if (!companyId) return;
     setIsLoading(true);
     setError(null);
-    const isCustom = periodPreset === "custom";
-    fetchPnlData(
-      companyId,
-      isCustom ? 0 : resolvedMonthCount,
-      isCustom ? customStart : undefined,
-      isCustom ? customEnd : undefined,
-    )
+    fetchPnlData(companyId, 0, customStart, customEnd)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId, periodPreset, resolvedMonthCount, customStart, customEnd]);
+  }, [companyId, customStart, customEnd]);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -411,14 +330,11 @@ export default function PnlPage() {
       totalRevenue[m] = (data.revenue[m] || 0) + (data.otherRevenue[m] || 0);
       cogs[m] = (data.outsourcing[m] || 0) + (data.infrastructure[m] || 0);
       grossProfit[m] = totalRevenue[m] - cogs[m];
-      totalOpex[m] =
-        (data.salary[m] || 0) +
-        (data.rent[m] || 0) +
-        (data.software[m] || 0) +
-        (data.professional[m] || 0) +
-        (data.welfare[m] || 0) +
-        (data.insurance[m] || 0) +
-        (data.otherOpex[m] || 0);
+      let opexSum = 0;
+      for (const row of Object.values(data.opexByCategory)) {
+        opexSum += row[m] || 0;
+      }
+      totalOpex[m] = opexSum;
       operatingIncome[m] = grossProfit[m] - totalOpex[m];
       netIncome[m] = operatingIncome[m];
     }
@@ -458,17 +374,12 @@ export default function PnlPage() {
     lines.push("");
     addLine("외주비", data.outsourcing);
     addLine("인프라비용", data.infrastructure);
-    addLine("매출원가 합계", computed.cogs);
     addLine("매출총이익", computed.grossProfit);
     lines.push("");
-    addLine("급여", data.salary);
-    addLine("임대료", data.rent);
-    addLine("소프트웨어", data.software);
-    addLine("전문서비스", data.professional);
-    addLine("복리후생", data.welfare);
-    addLine("4대보험", data.insurance);
-    addLine("기타 운영비", data.otherOpex);
-    addLine("운영비용 합계", computed.totalOpex);
+    for (const [name, row] of Object.entries(data.opexByCategory)) {
+      addLine(name, row);
+    }
+    addLine("판매관리비 합계", computed.totalOpex);
     lines.push("");
     addLine("영업이익", computed.operatingIncome);
     addLine("당기순이익", computed.netIncome);
@@ -495,14 +406,12 @@ export default function PnlPage() {
       isSubtotal?: boolean;
       isTotal?: boolean;
       indent?: boolean;
-      categoryKey?: CategoryKey;
       prevTotal?: number;
     },
   ) => {
     const total = months.reduce((s, m) => s + (row[m] || 0), 0);
     const isHighlight = options?.isSubtotal || options?.isTotal;
     const delta = options?.prevTotal !== undefined ? total - options.prevTotal : undefined;
-    const hasTooltip = options?.categoryKey && CATEGORY_TOOLTIPS[options.categoryKey];
 
     return (
       <tr
@@ -524,18 +433,9 @@ export default function PnlPage() {
             left: 0,
             background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
             zIndex: 2,
-            cursor: hasTooltip ? "help" : undefined,
           }}
-          title={hasTooltip ? CATEGORY_TOOLTIPS[options!.categoryKey!] : undefined}
-          onMouseEnter={() => options?.categoryKey && setTooltipKey(options.categoryKey)}
-          onMouseLeave={() => setTooltipKey(null)}
         >
           {label}
-          {hasTooltip && (
-            <span style={{ marginLeft: 4, fontSize: 10, color: "var(--text-dim)", verticalAlign: "super" }}>
-              ?
-            </span>
-          )}
         </td>
         <td
           style={{
@@ -710,61 +610,39 @@ export default function PnlPage() {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* Period Presets */}
-          <div style={{ display: "flex", gap: 2, background: "var(--bg-surface)", borderRadius: 8, padding: 2 }}>
-            {(Object.entries(PERIOD_LABELS) as [PeriodPreset, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setPeriodPreset(key)}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: periodPreset === key ? 600 : 400,
-                  border: "none",
-                  cursor: "pointer",
-                  background: periodPreset === key ? "var(--bg-card)" : "transparent",
-                  color: periodPreset === key ? "var(--text)" : "var(--text-muted)",
-                  boxShadow: periodPreset === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                  transition: "all 0.15s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {label}
-              </button>
-            ))}
+          {/* 조회 기간 — 달력만 (preset 제거) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+            <label style={{ color: "var(--text-dim)", marginRight: 4 }}>조회 기간:</label>
+            <input
+              type="month"
+              value={customStart}
+              max={customEnd}
+              onChange={(e) => setCustomStart(e.target.value)}
+              style={{
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: 12,
+              }}
+            />
+            <span style={{ color: "var(--text-dim)" }}>~</span>
+            <input
+              type="month"
+              value={customEnd}
+              min={customStart}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              style={{
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: 12,
+              }}
+            />
           </div>
-          {periodPreset === "custom" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-              <input
-                type="month"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                style={{
-                  padding: "5px 8px",
-                  borderRadius: 6,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  color: "var(--text)",
-                  fontSize: 12,
-                }}
-              />
-              <span style={{ color: "var(--text-dim)" }}>~</span>
-              <input
-                type="month"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                style={{
-                  padding: "5px 8px",
-                  borderRadius: 6,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  color: "var(--text)",
-                  fontSize: 12,
-                }}
-              />
-            </div>
-          )}
           <label
             style={{
               display: "flex",
@@ -1012,17 +890,16 @@ export default function PnlPage() {
           <tbody>
             {/* Revenue Section */}
             {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출", data.revenue, months, { indent: true, categoryKey: "revenue", prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
-            {renderRow("기타수익", data.otherRevenue, months, { indent: true, categoryKey: "otherRevenue", prevTotal: isCompareMode ? prevSum(data.otherRevenue) : undefined })}
+            {renderRow("매출", data.revenue, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
+            {renderRow("기타수익", data.otherRevenue, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.otherRevenue) : undefined })}
             {renderRow("총 매출", computed.totalRevenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? computed.prevTotals.totalRevenue : undefined })}
 
             {renderDivider(months, "div-1")}
 
-            {/* Cost of Revenue */}
+            {/* Cost of Revenue — 항목만, 합계 없음 */}
             {renderSectionHeader("매출원가 (COGS)", months)}
-            {renderRow("외주비", data.outsourcing, months, { indent: true, categoryKey: "outsourcing", prevTotal: isCompareMode ? prevSum(data.outsourcing) : undefined })}
-            {renderRow("인프라비용", data.infrastructure, months, { indent: true, categoryKey: "infrastructure", prevTotal: isCompareMode ? prevSum(data.infrastructure) : undefined })}
-            {renderRow("매출원가 합계", computed.cogs, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? computed.prevTotals.cogs : undefined })}
+            {renderRow("외주비", data.outsourcing, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.outsourcing) : undefined })}
+            {renderRow("인프라비용", data.infrastructure, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.infrastructure) : undefined })}
 
             {renderDivider(months, "div-2")}
 
@@ -1035,16 +912,19 @@ export default function PnlPage() {
 
             {renderDivider(months, "div-3")}
 
-            {/* Operating Expenses */}
-            {renderSectionHeader("운영비용 (Operating Expenses)", months)}
-            {renderRow("급여", data.salary, months, { indent: true, categoryKey: "salary", prevTotal: isCompareMode ? prevSum(data.salary) : undefined })}
-            {renderRow("임대료", data.rent, months, { indent: true, categoryKey: "rent", prevTotal: isCompareMode ? prevSum(data.rent) : undefined })}
-            {renderRow("소프트웨어", data.software, months, { indent: true, categoryKey: "software", prevTotal: isCompareMode ? prevSum(data.software) : undefined })}
-            {renderRow("전문서비스", data.professional, months, { indent: true, categoryKey: "professional", prevTotal: isCompareMode ? prevSum(data.professional) : undefined })}
-            {renderRow("복리후생", data.welfare, months, { indent: true, categoryKey: "welfare", prevTotal: isCompareMode ? prevSum(data.welfare) : undefined })}
-            {renderRow("4대보험", data.insurance, months, { indent: true, categoryKey: "insurance", prevTotal: isCompareMode ? prevSum(data.insurance) : undefined })}
-            {renderRow("기타 운영비", data.otherOpex, months, { indent: true, categoryKey: "otherOpex", prevTotal: isCompareMode ? prevSum(data.otherOpex) : undefined })}
-            {renderRow("운영비용 합계", computed.totalOpex, months, {
+            {/* 판매관리비 — 사용자 category 동적 그룹 (사용자가 직접 입력한 카테고리도 자동 표시) */}
+            {renderSectionHeader("판매관리비 (Sales & Admin Expenses)", months)}
+            {Object.entries(data.opexByCategory)
+              .sort((a, b) => {
+                const sa = months.reduce((s, m) => s + (a[1][m] || 0), 0);
+                const sb = months.reduce((s, m) => s + (b[1][m] || 0), 0);
+                return sb - sa;
+              })
+              .map(([name, row]) => renderRow(name, row, months, {
+                indent: true,
+                prevTotal: isCompareMode ? data.prevMonths.reduce((s, m) => s + (row[m] || 0), 0) : undefined,
+              }))}
+            {renderRow("판매관리비 합계", computed.totalOpex, months, {
               isSubtotal: true,
               isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.totalOpex : undefined,
@@ -1086,24 +966,6 @@ export default function PnlPage() {
           netIncome={computed.netIncome}
         />
       </div>
-
-      {/* Category Tooltip */}
-      {tooltipKey && CATEGORY_TOOLTIPS[tooltipKey] && (
-        <div
-          style={{
-            marginTop: 12,
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "var(--primary)",
-            color: "#fff",
-            fontSize: 12,
-            lineHeight: 1.5,
-            maxWidth: 500,
-          }}
-        >
-          <strong>{CATEGORY_LABELS[tooltipKey]}</strong>: {CATEGORY_TOOLTIPS[tooltipKey]}
-        </div>
-      )}
 
       {/* Footer note */}
       <div
