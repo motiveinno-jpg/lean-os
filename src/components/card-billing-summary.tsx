@@ -113,8 +113,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   const billings = useMemo<Billing[]>(() => {
     const list: Billing[] = [];
 
-    // 1) 등록된 법인카드 (payment_day / billing_day 있음)
+    // 1) 등록된 법인카드 (payment_day / billing_day 있음) — 신용카드(credit)만 청구 사이클 표시.
+    // 체크/직불은 즉시 출금이라 청구서 개념 없음.
     for (const c of (cards as any[])) {
+      if (c.card_type && c.card_type !== 'credit') continue;
       const billingDay = c.billing_day ?? null;
       const paymentDay = c.payment_day ?? null;
       const { start, end } = computeCycle(today, billingDay);

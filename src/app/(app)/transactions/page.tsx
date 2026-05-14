@@ -66,7 +66,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const [cardMapModal, setCardMapModal] = useState<any>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [editingCard, setEditingCard] = useState<any>(null);
-  const [cardForm, setCardForm] = useState({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '' });
+  const [cardForm, setCardForm] = useState({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '', card_type: 'credit' as 'credit' | 'check' | 'debit' | 'other' });
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [selectedCardName, setSelectedCardName] = useState<string>('');  // CODEF sync 카드 필터
   const [cardFilterStatus, setCardFilterStatus] = useState<CardFilterStatus>('all');
@@ -585,12 +585,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       monthlyLimit: cardForm.monthly_limit ? Number(cardForm.monthly_limit) : undefined,
       paymentDay: cardForm.payment_day ? Number(cardForm.payment_day) : null,
       billingDay: cardForm.billing_day ? Number(cardForm.billing_day) : null,
+      cardType: cardForm.card_type,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
       setShowCardForm(false);
       setEditingCard(null);
-      setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '' });
+      setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '', card_type: 'credit' });
     },
     onError: (err: any) => toast("법인카드 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
@@ -1589,7 +1590,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 className="px-3 py-2 bg-emerald-600/10 border border-emerald-600/30 hover:border-emerald-500 text-emerald-400 text-sm rounded-xl font-semibold transition disabled:opacity-50">
                 {vatClassifying ? "분류 중..." : "VAT 자동분류"}
               </button>
-              <button onClick={() => { setEditingCard(null); setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '' }); setShowCardForm(true); }}
+              <button onClick={() => { setEditingCard(null); setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '', card_type: 'credit' }); setShowCardForm(true); }}
                 className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm rounded-xl font-semibold transition">
                 + 카드 등록
               </button>
@@ -1624,7 +1625,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   {c.holder_name && <span className="text-[var(--text-dim)]">{c.holder_name}</span>}
                   <button onClick={() => {
                     setEditingCard(c);
-                    setCardForm({ card_name: c.card_name, card_number: c.card_number || '', card_company: c.card_company, holder_name: c.holder_name || '', monthly_limit: c.monthly_limit ? String(c.monthly_limit) : '', payment_day: c.payment_day ? String(c.payment_day) : '', billing_day: c.billing_day ? String(c.billing_day) : '' });
+                    setCardForm({ card_name: c.card_name, card_number: c.card_number || '', card_company: c.card_company, holder_name: c.holder_name || '', monthly_limit: c.monthly_limit ? String(c.monthly_limit) : '', payment_day: c.payment_day ? String(c.payment_day) : '', billing_day: c.billing_day ? String(c.billing_day) : '', card_type: (c.card_type as any) || 'credit' });
                     setShowCardForm(true);
                   }} className="text-[var(--primary)] hover:underline">수정</button>
                   <button onClick={() => { if (confirm('이 카드를 삭제하시겠습니까?')) deleteCardMut.mutate(c.id); }}
@@ -1712,6 +1713,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           {tx.merchant_category && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{tx.merchant_category}</span>
                           )}
+                          {(() => {
+                            // classification 이 JSON 자동분류 결과면 label 만 표시, 일반 텍스트면 그대로
+                            const raw = tx.classification;
+                            if (!raw || typeof raw !== 'string') return null;
+                            const label = raw.trim().startsWith('{')
+                              ? (() => { try { return JSON.parse(raw)?.label || ''; } catch { return ''; } })()
+                              : raw;
+                            return label ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400">{label}</span>
+                            ) : null;
+                          })()}
                           {tx.category && (
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${tx.is_deductible ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                               {tx.category}
@@ -1721,7 +1733,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           {tx.is_deductible === false && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">불공제</span>}
                           {tx.deals?.name && <span className="text-[9px] text-[var(--text-dim)]">{tx.deals.name}</span>}
                           {tx.receipt_url && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">영수증</span>}
-                          {!tx.merchant_category && !tx.category && tx.is_deductible == null && !tx.deals?.name && (
+                          {!tx.merchant_category && !tx.category && !tx.classification && tx.is_deductible == null && !tx.deals?.name && (
                             <span className="text-[10px] text-[var(--text-dim)]">—</span>
                           )}
                         </div>
@@ -1782,17 +1794,36 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     placeholder="5,000,000" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right font-mono" />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">카드 종류 *</label>
+                <div className="flex gap-2">
+                  {([['credit', '신용카드'], ['check', '체크카드'], ['debit', '직불카드'], ['other', '기타']] as const).map(([k, label]) => (
+                    <button key={k} type="button"
+                      onClick={() => setCardForm({ ...cardForm, card_type: k })}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition border ${
+                        cardForm.card_type === k
+                          ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                          : 'bg-[var(--bg)] text-[var(--text-muted)] border-[var(--border)]'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">이용대금 청구서에는 신용카드만 표시됩니다 (체크/직불은 즉시 출금).</div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">이용대금 결제일 (선택)</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">이용대금 결제일 {cardForm.card_type === 'credit' ? '*' : '(선택)'}</label>
                   <input type="number" min={1} max={31} value={cardForm.payment_day} onChange={e => setCardForm({ ...cardForm, payment_day: e.target.value })}
-                    placeholder="예: 25" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm" />
+                    disabled={cardForm.card_type !== 'credit'}
+                    placeholder="예: 25" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm disabled:opacity-40" />
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">매월 카드사가 자동출금하는 날</div>
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">사용내역 마감일 (선택)</label>
                   <input type="number" min={1} max={31} value={cardForm.billing_day} onChange={e => setCardForm({ ...cardForm, billing_day: e.target.value })}
-                    placeholder="예: 15" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm" />
+                    disabled={cardForm.card_type !== 'credit'}
+                    placeholder="예: 15" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm disabled:opacity-40" />
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">청구 사이클 마감 (마감+1 부터 다음 청구)</div>
                 </div>
               </div>
@@ -1949,8 +1980,22 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
   onMap: (params: { dealId?: string; classification?: string; category?: string; isFixedCost?: boolean; isDeductible?: boolean }) => void;
   onClose: () => void;
 }) {
+  // card_transactions.classification 은 자동 VAT 분류 시 JSON 문자열 형태로 저장됨
+  // ({"label":"식대","confidence":"high","reason":"..."}). 모달에는 label 만 보이게 파싱.
+  const initialClassification = (() => {
+    const raw = tx.classification || '';
+    if (!raw || typeof raw !== 'string') return '';
+    if (!raw.trim().startsWith('{')) return raw;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed?.label || '';
+    } catch {
+      return raw;
+    }
+  })();
+
   const [dealId, setDealId] = useState(tx.deal_id || '');
-  const [classification, setClassification] = useState(tx.classification || '');
+  const [classification, setClassification] = useState(initialClassification);
   const [category, setCategory] = useState(tx.category || '');
   const [isFixed, setIsFixed] = useState(!!tx.is_fixed_cost);
   const [isDeductible, setIsDeductible] = useState(tx.is_deductible !== false);

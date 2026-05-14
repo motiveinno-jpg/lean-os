@@ -25,17 +25,21 @@ function endOfMonth(d: Date): string {
 }
 
 // ─────────────────────────────────────────
-// 1) 이번달 법인카드 큰 지출 TOP 5
+// 1) 최근 30일 법인카드 큰 지출 TOP 5
+//    (이번달만 보면 월 초·말 데이터 부족 → 최근 30일 슬라이딩 윈도우)
 // ─────────────────────────────────────────
 export function TopCardExpensesThisMonth({ companyId }: Props) {
   const now = new Date();
-  const monthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const dateFrom = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  }, [now]);
+  const dateTo = now.toISOString().slice(0, 10);
 
   const { data: rows = [] } = useQuery({
-    queryKey: ['card-top-expenses', companyId, monthLabel],
-    queryFn: () => getCardTransactions(companyId, {
-      dateFrom: startOfMonth(now), dateTo: endOfMonth(now),
-    }),
+    queryKey: ['card-top-expenses-30d', companyId, dateFrom, dateTo],
+    queryFn: () => getCardTransactions(companyId, { dateFrom, dateTo }),
     enabled: !!companyId,
     staleTime: 30_000,
   });
@@ -47,7 +51,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       .slice(0, 5);
   }, [rows]);
 
-  const totalThisMonth = useMemo(() =>
+  const totalRecent = useMemo(() =>
     (rows as any[]).filter((t: any) => Number(t.amount || 0) > 0).reduce((s, r) => s + Number(r.amount || 0), 0)
   , [rows]);
 
@@ -56,17 +60,17 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">💳</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">이번달 카드 큰 지출 TOP 5</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">{monthLabel}</span>
+          <h2 className="text-sm font-bold text-[var(--text)]">최근 30일 카드 큰 지출 TOP 5</h2>
+          <span className="text-[10px] text-[var(--text-dim)]">{dateFrom} ~ {dateTo}</span>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 사용액</div>
-          <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(totalThisMonth)}</div>
+          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">30일 사용액</div>
+          <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(totalRecent)}</div>
         </div>
       </div>
 
       {top.length === 0 ? (
-        <div className="text-center py-6 text-xs text-[var(--text-dim)]">이번달 카드 지출이 없습니다.</div>
+        <div className="text-center py-6 text-xs text-[var(--text-dim)]">최근 30일 카드 지출이 없습니다.</div>
       ) : (
         <div className="space-y-1.5">
           {top.map((t: any, i: number) => {
