@@ -615,6 +615,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
   /* Search + 통장 + 고정지출 필터 (client-side — server-side JSON eq 불안정해서 안전하게 여기서) */
   const [showFixedOnly, setShowFixedOnly] = useState(false);
+  // 거래내역 테이블 정렬 — 날짜/거래처 헤더 클릭 시 토글
+  const [bankSortBy, setBankSortBy] = useState<'transaction_date' | 'counterparty'>('transaction_date');
+  const [bankSortDir, setBankSortDir] = useState<'asc' | 'desc'>('desc');
+  const toggleBankSort = (key: 'transaction_date' | 'counterparty') => {
+    if (bankSortBy === key) {
+      setBankSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setBankSortBy(key);
+      setBankSortDir(key === 'transaction_date' ? 'desc' : 'asc');
+    }
+  };
   const filteredBankTx = (() => {
     let xs = bankTx as any[];
     if (selectedAccountNo) {
@@ -631,6 +642,14 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         (tx.category || '').toLowerCase().includes(q),
       );
     }
+    // 정렬 적용 (기본: 날짜 desc — 기존 동작과 동일)
+    const dir = bankSortDir === 'asc' ? 1 : -1;
+    xs = [...xs].sort((a, b) => {
+      if (bankSortBy === 'transaction_date') {
+        return String(a.transaction_date || '').localeCompare(String(b.transaction_date || '')) * dir;
+      }
+      return String(a.counterparty || '').localeCompare(String(b.counterparty || ''), 'ko') * dir;
+    });
     return xs;
   })();
 
@@ -1246,7 +1265,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     {tab === 'inbox' && <th className="text-center px-2 py-3 font-medium w-8">
                       <input type="checkbox"
@@ -1261,23 +1280,39 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         className="accent-[var(--primary)]"
                       />
                     </th>}
-                    <th className="text-left px-4 py-3 font-medium">날짜</th>
+                    <th
+                      onClick={() => toggleBankSort('transaction_date')}
+                      className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"
+                      title="클릭해서 날짜 정렬"
+                    >
+                      날짜 {bankSortBy === 'transaction_date' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                    </th>
                     <th className="text-left px-4 py-3 font-medium">통장</th>
-                    <th className="text-left px-4 py-3 font-medium">거래처</th>
+                    <th
+                      onClick={() => toggleBankSort('counterparty')}
+                      className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"
+                      title="클릭해서 거래처 이름순 정렬"
+                    >
+                      거래처 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                    </th>
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
                     <th className="text-right px-4 py-3 font-medium hidden md:table-cell">잔액</th>
                     <th className="text-center px-4 py-3 font-medium" title="고정지출">고정</th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
-                    <th className="text-center px-4 py-3 font-medium">액션</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredBankTx.map((tx: any) => (
-                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
+                    <tr
+                      key={tx.id}
+                      onClick={() => setMapModal(tx)}
+                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
+                      title="클릭해서 분류·매핑"
+                    >
                       {tab === 'inbox' && tx.mapping_status === 'unmapped' && (
-                        <td className="text-center px-2 py-2.5 w-8">
+                        <td className="text-center px-2 py-2.5 w-8" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" checked={selectedIds.has(tx.id)}
                             onChange={e => {
                               const next = new Set(selectedIds);
@@ -1301,7 +1336,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)] mono-number hidden md:table-cell">
                         ₩{Number(tx.balance_after || 0).toLocaleString()}
                       </td>
-                      <td className="px-4 py-2.5 text-center">
+                      <td className="px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={!!tx.is_fixed_cost}
@@ -1324,23 +1359,18 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        {tx.classification && <ClassificationBadge classification={tx.classification} />}
-                        {tx.category && !tx.classification && <span className="text-[10px] text-[var(--text-dim)]">{tx.category}</span>}
-                        {tx.deals?.name && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{tx.deals.name}</div>}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {tx.mapping_status === 'unmapped' && (
-                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => setMapModal(tx)}
-                              className="px-2 py-1 rounded text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition">
-                              매핑
-                            </button>
-                            <button onClick={() => ignoreMut.mutate(tx.id)}
-                              className="px-2 py-1 rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text-muted)] transition">
-                              무시
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex flex-col items-center gap-0.5">
+                          {tx.classification && <ClassificationBadge classification={tx.classification} />}
+                          {tx.category && (
+                            <span className="text-[10px] text-[var(--text-muted)]">{tx.category}</span>
+                          )}
+                          {tx.deals?.name && (
+                            <span className="text-[9px] text-[var(--text-dim)]">{tx.deals.name}</span>
+                          )}
+                          {!tx.classification && !tx.category && !tx.deals?.name && (
+                            <span className="text-[10px] text-[var(--text-dim)]">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

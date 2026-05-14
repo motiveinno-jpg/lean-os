@@ -13,8 +13,9 @@ const DEFAULT_COLORS: Record<string, string> = {
 };
 
 export function ClassificationBadge({ classification, color, size = 'sm' }: ClassificationBadgeProps) {
+  if (!classification) return null;
   const c = color || DEFAULT_COLORS[classification] || '#8b5cf6';
-  const cls = classification || 'B2B';
+  const cls = classification;
 
   return (
     <span
