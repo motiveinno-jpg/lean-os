@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 
@@ -78,7 +79,8 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  const [bankRes, loanRes, cashRes, dealsRes, revenueRes, invoicesRes, companyRes, settingsRes, vaultRes] = await Promise.all([
+  // 큰 테이블(deal_revenue_schedule, tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
+  const [bankRes, loanRes, cashRes, dealsRes, revenueSchedules, invoices, companyRes, settingsRes, vaultRes] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -98,11 +100,14 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("id, name, contract_total, status, created_at")
       .eq("company_id", companyId)
       .in("status", ["in_progress", "pending", "contracted"]),
-    supabase
-      .from("deal_revenue_schedule")
-      .select("deal_id, amount, status")
-      .in("status", ["received", "paid"]),
-    (() => {
+    fetchAllPaginated<any>((from, to) =>
+      supabase
+        .from("deal_revenue_schedule")
+        .select("deal_id, amount, status")
+        .in("status", ["received", "paid"])
+        .range(from, to)
+    ),
+    fetchAllPaginated<any>((from, to) => {
       let q = supabase
         .from("tax_invoices")
         .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
@@ -110,8 +115,8 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
         .eq("type", "purchase")
         .in("status", ["received", "issued", "modified"]);
       if (cutoffDate) q = q.lte("issue_date", cutoffDate);
-      return q;
-    })(),
+      return q.range(from, to);
+    }),
     supabase
       .from("companies")
       .select("capital, registered_capital")
@@ -133,8 +138,6 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const loans = loanRes.data || [];
   const cashSnapshots = cashRes.data || [];
   const deals = dealsRes.data || [];
-  const revenueSchedules = revenueRes.data || [];
-  const invoices = (invoicesRes.data || []) as any[];
   const vaultAssets = (vaultRes.data || []) as { name: string; value: number | null; type: string; status: string | null }[];
 
   /* --- Assets: Current --- */

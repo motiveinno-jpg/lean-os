@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 
@@ -35,16 +36,17 @@ export default function PartnerLedgerPage() {
     (async () => {
       const u = await getCurrentUser();
       if (!u) { setLoading(false); return; }
-      let q = (supabase as any)
-        .from('tax_invoices')
-        .select('id, counterparty_name, counterparty_bizno, total_amount, supply_amount, tax_amount, type, status, issue_date, item_name, nts_confirm_no')
-        .eq('company_id', u.company_id)
-        .order('issue_date', { ascending: false })
-        .limit(5000);
-      if (dateFrom) q = q.gte('issue_date', dateFrom);
-      if (dateTo) q = q.lte('issue_date', dateTo);
-      const { data } = await q;
-      const all = (data || []) as any[];
+      // 페이지네이션 — PostgREST 1000건 제약 회피
+      const all = await fetchAllPaginated<any>((from, to) => {
+        let q = (supabase as any)
+          .from('tax_invoices')
+          .select('id, counterparty_name, counterparty_bizno, total_amount, supply_amount, tax_amount, type, status, issue_date, item_name, nts_confirm_no')
+          .eq('company_id', u.company_id)
+          .order('issue_date', { ascending: false });
+        if (dateFrom) q = q.gte('issue_date', dateFrom);
+        if (dateTo) q = q.lte('issue_date', dateTo);
+        return q.range(from, to);
+      });
 
       // 거래처별 그룹
       const map = new Map<string, Row & { invoices: any[] }>();
