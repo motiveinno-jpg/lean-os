@@ -11,6 +11,7 @@ import { ClassificationBadge } from "@/components/classification-badge";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
+import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -1107,6 +1108,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
+          {/* ═══ 메인: 통장 잔액 + 다가오는 자동이체 ═══ */}
           {/* 통장별 잔액 카드 + 총잔액 */}
           {bankAccountsList.length > 0 && (
             <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1143,6 +1145,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
+          {/* 다가오는 자동이체 (메인) — 다음에 빠져나갈 금액·날짜·계좌 */}
+          {companyId && <UpcomingAutoTransfersCard companyId={companyId} />}
+
+          {/* ═══ 아래: 거래내역 검색·필터 + 차트 ═══ */}
           {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
           {bankAccountsList.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
