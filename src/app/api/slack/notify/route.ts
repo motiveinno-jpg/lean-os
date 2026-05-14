@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       approval_pending: !!settings.slack_notify_approval,
       large_transaction: !!settings.slack_notify_large_tx,
       tax_invoice_issued: true,
+      monthly_closed: true,
       test: true,
     };
     if (!eventEnabled[payload.event]) {

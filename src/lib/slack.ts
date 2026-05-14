@@ -9,6 +9,7 @@ export type SlackEvent =
   | "approval_pending"     // 결재 요청
   | "large_transaction"    // 큰 금액 거래
   | "tax_invoice_issued"   // 세금계산서 발행
+  | "monthly_closed"       // 월결산 자동 마감 완료
   | "test";
 
 export interface SlackPayload {
@@ -32,6 +33,7 @@ export async function sendSlackNotification(webhookUrl: string, payload: SlackPa
     approval_pending: "📋",
     large_transaction: "⚠️",
     tax_invoice_issued: "🧾",
+    monthly_closed: "📕",
     test: "🔔",
   };
   const color: Record<SlackEvent, string> = {
@@ -39,6 +41,7 @@ export async function sendSlackNotification(webhookUrl: string, payload: SlackPa
     approval_pending: "#FACC15",
     large_transaction: "#DC2626",
     tax_invoice_issued: "#059669",
+    monthly_closed: "#18181B",
     test: "#18181B",
   };
   const blocks: any[] = [

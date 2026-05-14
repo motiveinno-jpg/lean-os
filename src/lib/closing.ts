@@ -1,10 +1,24 @@
 /**
  * OwnerView Monthly Closing Checklist Engine
- * 월 마감 체크리스트 생성/관리
+ * 월 마감 체크리스트 생성/관리 + 자동 검증 + 자동 마감 + PDF 보관 (Granter 벤치마킹 5단계)
  */
 
 import { supabase } from './supabase';
 import { logAudit } from './audit-log';
+import { getSlackSettings, sendSlackNotification } from './slack';
+
+const db = supabase as any;
+
+// ── Month range helper (YYYY-MM → [startISO, endISO)) ──
+function monthRange(month: string): { startDate: string; endDate: string } {
+  const [y, m] = month.split('-').map(Number);
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const end = new Date(Date.UTC(y, m, 1));
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
 
 // ── Default checklist items for a new month ──
 const DEFAULT_ITEMS = [
@@ -206,4 +220,235 @@ export async function getClosingHistory(companyId: string) {
       progress: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
   });
+}
+
+// ═══════════════════════════════════════════
+// 자동 검증 (Granter 벤치마킹 5단계)
+// ═══════════════════════════════════════════
+export interface AutoVerifyOutcome {
+  itemId: string;
+  title: string;
+  passed: boolean;
+  reason: string;
+}
+
+/**
+ * 체크리스트 10개 항목 중 자동 판정 가능한 7개를 코드로 검증.
+ * 통과한 항목은 is_completed=true, auto_verified=true, verified_reason 자동 채움.
+ * 수동 항목(고정비/딜정합성/부가세)은 건드리지 않음.
+ */
+export async function autoVerifyChecklist(
+  companyId: string,
+  checklistId: string,
+  month: string,
+): Promise<AutoVerifyOutcome[]> {
+  const { startDate, endDate } = monthRange(month);
+
+  const { data: items } = await db
+    .from('closing_checklist_items')
+    .select('id, title, is_completed, auto_verified, sort_order')
+    .eq('checklist_id', checklistId);
+
+  if (!items) return [];
+
+  const outcomes: AutoVerifyOutcome[] = [];
+  const nowIso = new Date().toISOString();
+
+  for (const item of items as any[]) {
+    // 이미 수동으로 통과한 항목은 건드리지 않음 (감사로그 보존)
+    if (item.is_completed && !item.auto_verified) {
+      outcomes.push({ itemId: item.id, title: item.title, passed: true, reason: '수동 완료' });
+      continue;
+    }
+
+    let passed = false;
+    let reason = '';
+    const title = String(item.title || '');
+
+    if (title.includes('은행 거래내역')) {
+      const { count } = await db.from('bank_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('transaction_date', startDate).lt('transaction_date', endDate);
+      passed = (count || 0) > 0;
+      reason = passed ? `${count}건 수집됨` : '당월 거래내역 0건';
+    }
+    else if (title.includes('법인카드 거래내역')) {
+      const { count } = await db.from('card_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('transaction_date', startDate).lt('transaction_date', endDate);
+      passed = (count || 0) > 0;
+      reason = passed ? `${count}건 수집됨` : '당월 카드 거래 0건';
+    }
+    else if (title.includes('미매핑') || title.includes('분류')) {
+      const { count: bankUn } = await db.from('bank_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('transaction_date', startDate).lt('transaction_date', endDate)
+        .eq('mapping_status', 'unmapped');
+      const { count: cardUn } = await db.from('card_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('transaction_date', startDate).lt('transaction_date', endDate)
+        .eq('mapping_status', 'unmapped');
+      const unmapped = (bankUn || 0) + (cardUn || 0);
+      passed = unmapped === 0;
+      reason = passed ? '미매핑 0건' : `미매핑 ${unmapped}건 (은행 ${bankUn || 0} + 카드 ${cardUn || 0})`;
+    }
+    else if (title.includes('세금계산서')) {
+      const { count: unmatchedSales } = await db.from('tax_invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId).eq('type', '매출')
+        .gte('issue_date', startDate).lt('issue_date', endDate)
+        .is('matched_transaction_id', null);
+      passed = (unmatchedSales || 0) === 0;
+      reason = passed ? '매출 대사 완료' : `미매칭 매출 세금계산서 ${unmatchedSales}건`;
+    }
+    else if (title.includes('미수금')) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const { count } = await db.from('tax_invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId).eq('type', '매출')
+        .lt('issue_date', thirtyDaysAgo)
+        .is('matched_transaction_id', null);
+      passed = (count || 0) === 0;
+      reason = passed ? '30일+ 미수금 0건' : `30일+ 미수금 ${count}건`;
+    }
+    else if (title.includes('증빙')) {
+      const { count } = await db.from('expense_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId).eq('status', 'pending')
+        .gte('created_at', startDate).lt('created_at', endDate)
+        .or('receipt_urls.is.null,receipt_urls.eq.{}');
+      passed = (count || 0) === 0;
+      reason = passed ? '증빙 누락 0건' : `증빙 누락 ${count}건`;
+    }
+    else if (title.includes('월간 손익') || title.includes('리포트')) {
+      const { data: cl } = await db.from('closing_checklists')
+        .select('report_url').eq('id', checklistId).maybeSingle();
+      passed = !!cl?.report_url;
+      reason = passed ? 'PDF 보관됨' : 'PDF 미생성';
+    }
+    else {
+      // 수동 항목 (고정비/딜정합성/부가세) — 건너뜀
+      outcomes.push({ itemId: item.id, title, passed: !!item.is_completed, reason: '수동 항목' });
+      continue;
+    }
+
+    outcomes.push({ itemId: item.id, title, passed, reason });
+
+    if (passed && !item.is_completed) {
+      await db.from('closing_checklist_items').update({
+        is_completed: true,
+        completed_at: nowIso,
+        auto_verified: true,
+        verified_at: nowIso,
+        verified_reason: reason,
+      }).eq('id', item.id);
+    } else if (!passed && item.auto_verified) {
+      // 이전에 자동 통과했으나 지금은 실패 — 자동 표시 해제
+      await db.from('closing_checklist_items').update({
+        is_completed: false,
+        completed_at: null,
+        auto_verified: false,
+        verified_at: nowIso,
+        verified_reason: reason,
+      }).eq('id', item.id);
+    } else if (!item.is_completed) {
+      // 미통과 + 미완료 — verified_reason 만 갱신
+      await db.from('closing_checklist_items').update({
+        verified_at: nowIso,
+        verified_reason: reason,
+      }).eq('id', item.id);
+    }
+  }
+
+  return outcomes;
+}
+
+/**
+ * 저장된 PDF URL 을 checklist 에 기록.
+ * generateMonthlyPLReport(... { upload: true }) 와 결합.
+ */
+export async function attachReportUrl(checklistId: string, url: string): Promise<void> {
+  await db.from('closing_checklists').update({
+    report_url: url,
+    report_generated_at: new Date().toISOString(),
+  }).eq('id', checklistId);
+}
+
+/**
+ * 자동 마감: 검증 → 필수 항목 전부 통과 시 completed 처리 + auto_closed=true.
+ * PDF 자동 생성은 호출자(클라이언트)가 generateMonthlyPLReport({ upload:true }) 후
+ * attachReportUrl() 호출. 서버사이드 PDF 생성은 별도 (jsPDF 는 브라우저용).
+ */
+export async function autoCloseMonth(
+  companyId: string,
+  month: string,
+  opts?: { userId?: string },
+): Promise<{
+  checklistId: string;
+  outcomes: AutoVerifyOutcome[];
+  closed: boolean;
+  reason: string;
+}> {
+  const checklist = await getOrCreateChecklist(companyId, month);
+  const outcomes = await autoVerifyChecklist(companyId, checklist.id, month);
+
+  // 다시 읽어서 required 통과 여부 확인
+  const { data: items } = await db
+    .from('closing_checklist_items')
+    .select('is_completed, is_required')
+    .eq('checklist_id', checklist.id);
+
+  const required = (items || []).filter((i: any) => i.is_required);
+  const requiredDone = required.filter((i: any) => i.is_completed).length;
+  const allRequiredDone = required.length > 0 && requiredDone === required.length;
+
+  let closed = false;
+  let reason = '';
+
+  if (allRequiredDone && checklist.status !== 'locked' && checklist.status !== 'completed') {
+    await db.from('closing_checklists').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      completed_by: opts?.userId || null,
+      auto_closed: true,
+    }).eq('id', checklist.id);
+    closed = true;
+    reason = `필수 ${requiredDone}/${required.length} 항목 자동 완료`;
+
+    await logAudit({
+      company_id: companyId,
+      user_id: opts?.userId || 'system',
+      action: 'approve',
+      entity_type: 'closing',
+      entity_id: checklist.id,
+      entity_name: `${month} 자동마감`,
+    });
+
+    // Slack 알림 (webhook 설정된 회사만, 실패해도 무시)
+    try {
+      const slack = await getSlackSettings(companyId);
+      if (slack?.slack_webhook_url) {
+        const { data: cmp } = await db.from('companies').select('name').eq('id', companyId).maybeSingle();
+        await sendSlackNotification(slack.slack_webhook_url, {
+          event: 'monthly_closed',
+          companyName: cmp?.name,
+          title: `${month} 월 마감 자동 완료`,
+          message: reason,
+          fields: outcomes.filter(o => o.passed).slice(0, 5).map(o => ({
+            label: o.title, value: o.reason,
+          })),
+        });
+      }
+    } catch { /* slack 실패는 마감을 막지 않음 */ }
+  } else if (checklist.status === 'locked' || checklist.status === 'completed') {
+    reason = `이미 ${checklist.status === 'locked' ? '잠금' : '완료'}됨`;
+  } else {
+    reason = `필수 ${requiredDone}/${required.length} 미통과`;
+  }
+
+  return { checklistId: checklist.id, outcomes, closed, reason };
 }

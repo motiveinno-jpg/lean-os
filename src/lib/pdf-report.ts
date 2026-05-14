@@ -1,11 +1,12 @@
 /**
  * OwnerView PDF Report Generator
- * 월간 손익 리포트 PDF 다운로드
+ * 월간 손익 리포트 PDF 다운로드 + Storage 보관 (Granter 벤치마킹 5단계)
  */
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { loadKoreanFont } from './pdf-korean-font';
+import { supabase } from './supabase';
 
 interface MonthlyPLData {
   month: string;
@@ -37,7 +38,18 @@ function fmtKRW(n: number): string {
   return `${sign}${abs.toLocaleString()}`;
 }
 
-export async function generateMonthlyPLReport(data: MonthlyPLData) {
+export interface GenerateReportOptions {
+  /** true 면 `documents` 버킷 monthly-reports/{companyId}/{month}.pdf 로 업로드 후 publicUrl 반환 */
+  upload?: boolean;
+  companyId?: string;
+  /** false 면 로컬 다운로드 skip (자동 마감 시) */
+  download?: boolean;
+}
+
+export async function generateMonthlyPLReport(
+  data: MonthlyPLData,
+  options: GenerateReportOptions = {},
+): Promise<{ blob: Blob; publicUrl?: string }> {
   const doc = new jsPDF('p', 'mm', 'a4');
   await loadKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
@@ -167,5 +179,24 @@ export async function generateMonthlyPLReport(data: MonthlyPLData) {
     );
   }
 
-  doc.save(`PL_Report_${data.month}_${data.companyName.replace(/\s/g, '_')}.pdf`);
+  const fileName = `PL_Report_${data.month}_${data.companyName.replace(/\s/g, '_')}.pdf`;
+  const blob: Blob = doc.output('blob');
+
+  let publicUrl: string | undefined;
+  if (options.upload && options.companyId) {
+    const path = `monthly-reports/${options.companyId}/${data.month}.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from('documents')
+      .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
+    if (!upErr) {
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+      publicUrl = urlData.publicUrl;
+    }
+  }
+
+  if (options.download !== false) {
+    doc.save(fileName);
+  }
+
+  return { blob, publicUrl };
 }
