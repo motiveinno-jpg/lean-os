@@ -15,63 +15,52 @@ import { useUser, type UserRole } from "@/components/user-context";
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[] };
 type NavGroup = { label: string; items: NavItem[] };
 
-// ── 사이드바 구조 — 첫 사용자 직관적 (그룹 5개, 친근한 라벨)
+// ── 사이드바 구조 — 3개 큰 카테고리(홈/인사관리/회계관리) + 시스템
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
+      { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
       { href: "/deals", label: "프로젝트", icon: "briefcase" },
-      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin", "employee"] },
+      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "approvals" },
     ],
   },
   {
-    label: "돈 관리",
+    label: "인사관리",
     items: [
-      { href: "/transactions", label: "통장 거래내역", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/cards", label: "법인카드", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/payments", label: "결제 / 고정비", icon: "credit-card", roles: ["owner", "admin"] },
-      { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
+      { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin", "employee"] },
+      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
+      { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin", "employee"] },
+      { href: "/documents", label: "서류", icon: "folder" },
     ],
   },
   {
-    label: "세무",
+    label: "회계관리",
     items: [
+      { href: "/transactions", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
-      { href: "/matching", label: "입금 자동매칭", icon: "link", roles: ["owner"] },
-    ],
-  },
-  {
-    label: "리포트",
-    items: [
-      { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
       { href: "/reports/bs", label: "재무상태표", icon: "bar-chart", roles: ["owner", "admin"] },
+      { href: "/reports/pnl", label: "손익계산서", icon: "bar-chart", roles: ["owner", "admin"] },
+      { href: "/partners/ledger", label: "거래처원장", icon: "book", roles: ["owner", "admin"] },
     ],
   },
   {
-    label: "팀 / 문서",
+    label: "시스템",
     items: [
       { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/documents", label: "문서 / 계약 / 서명", icon: "folder" },
-      { href: "/employees", label: "직원 / 급여", icon: "user-check", roles: ["owner", "admin", "employee"] },
-    ],
-  },
-  {
-    label: "내 정보",
-    items: [
+      { href: "/payments", label: "결제 / 고정비", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
+      { href: "/matching", label: "입금 자동매칭", icon: "link", roles: ["owner"] },
       { href: "/vault", label: "자산 / 구독", icon: "shield", roles: ["owner"] },
-      { href: "/mypage", label: "내 계정", icon: "user" },
-      { href: "/billing", label: "오너뷰 요금제", icon: "credit-card", roles: ["owner", "admin"] },
-    ],
-  },
-  {
-    label: "도움말",
-    items: [
-      { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/import-hub", label: "엑셀 가져오기", icon: "upload", roles: ["owner", "admin"] },
+      { href: "/mypage", label: "내 계정", icon: "user" },
+      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
@@ -120,6 +109,9 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "upload": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
     case "bar-chart": return <svg {...props}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
     case "edit-3": return <svg {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+    case "bell": return <svg {...props}><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
+    case "receipt": return <svg {...props}><path d="M20 2v20l-3-2-3 2-3-2-3 2-3-2-3 2V2l3 2 3-2 3 2 3-2 3 2 3-2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></svg>;
+    case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }
