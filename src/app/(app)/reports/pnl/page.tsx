@@ -150,6 +150,22 @@ const PRINT_CSS = `
 /* ------------------------------------------------------------------ */
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
+// Supabase PostgREST max-rows 1000 으로 잘리는 문제 회피 — range 페이지네이션.
+async function fetchAllPaginated<T = any>(buildQuery: (from: number, to: number) => any, pageSize = 1000): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  // 안전 가드 — 200,000 건 이상이면 중단
+  for (let i = 0; i < 200; i++) {
+    const { data, error } = await buildQuery(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 async function fetchPnlData(companyId: string, monthsToShow: number = 6, customStart?: string, customEnd?: string): Promise<PnlData> {
   const months = customStart && customEnd
     ? getMonthsBetween(customStart, customEnd)
@@ -158,20 +174,25 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const allMonths = [...prevMonthsList, ...months];
   const startDate = `${allMonths[0]}-01`;
 
-  const [txRes, tiRes, empRes] = await Promise.all([
-    supabase
-      .from("bank_transactions")
-      .select("amount, type, transaction_date, counterparty, description, category")
-      .eq("company_id", companyId)
-      .gte("transaction_date", startDate)
-      .order("transaction_date", { ascending: true })
-      .limit(50000),  // default 1000 으로 잘리면 매출 세금계산서 vs 입금 차액이 기타수익으로 잘못 누적됨
-    supabase
-      .from("tax_invoices")
-      .select("type, supply_amount, tax_amount, total_amount, issue_date")
-      .eq("company_id", companyId)
-      .gte("issue_date", startDate)
-      .limit(50000),
+  // PostgREST max-rows 1000 우회 — range 페이지네이션
+  const [transactions, taxInvoices, empRes] = await Promise.all([
+    fetchAllPaginated<any>((from, to) =>
+      supabase
+        .from("bank_transactions")
+        .select("amount, type, transaction_date, counterparty, description, category")
+        .eq("company_id", companyId)
+        .gte("transaction_date", startDate)
+        .order("transaction_date", { ascending: true })
+        .range(from, to)
+    ),
+    fetchAllPaginated<any>((from, to) =>
+      supabase
+        .from("tax_invoices")
+        .select("type, supply_amount, tax_amount, total_amount, issue_date")
+        .eq("company_id", companyId)
+        .gte("issue_date", startDate)
+        .range(from, to)
+    ),
     supabase
       .from("employees")
       .select("salary, is_4_insurance, status")
@@ -179,8 +200,6 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       .eq("status", "active"),
   ]);
 
-  const transactions = txRes.data || [];
-  const taxInvoices = tiRes.data || [];
   const employees = empRes.data || [];
 
   const prevMonths = prevMonthsList;
@@ -622,7 +641,7 @@ export default function PnlPage() {
           {/* 진단 배지 — 새 빌드 도착 + 받은 데이터 카운트 확인용 */}
           {(data as any)?._debug && (
             <div style={{ marginTop: 6, padding: '4px 8px', borderRadius: 4, background: 'var(--bg-surface)', fontSize: 10, color: 'var(--text-dim)', display: 'inline-flex', gap: 8 }}>
-              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>build:3a0765e</span>
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>build:paginated</span>
               <span>tx={(data as any)._debug.txCount}</span>
               <span>ti={(data as any)._debug.tiCount}</span>
               <span>start={(data as any)._debug.startDate}</span>
