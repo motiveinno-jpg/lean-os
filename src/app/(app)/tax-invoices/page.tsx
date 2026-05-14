@@ -1356,6 +1356,17 @@ export default function TaxInvoicesPage() {
               : activeJobId ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ''})`
               : "홈택스에서 가져오기"}
           </button>
+          <button
+            onClick={async () => {
+              const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+              exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+            }}
+            disabled={currentList.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-xs font-semibold transition border border-[var(--border)] disabled:opacity-50"
+            title="현재 보이는 세금계산서를 더존 Smart-A 양식 CSV 로 다운로드"
+          >
+            📄 더존 CSV
+          </button>
         </div>
       </div>
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">

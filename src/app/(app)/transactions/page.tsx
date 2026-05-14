@@ -727,6 +727,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> AI 자동분류{selectedIds.size > 0 ? ` (${selectedIds.size}건)` : ""}</>
             )}
           </button>
+          <button
+            onClick={async () => {
+              const { exportBankTransactionsDouzone } = await import("@/lib/export-douzone");
+              exportBankTransactionsDouzone(filteredBankTx as any);
+            }}
+            disabled={filteredBankTx.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-xs font-semibold transition border border-[var(--border)] disabled:opacity-50 whitespace-nowrap"
+            title="현재 보이는 거래내역을 더존 양식 CSV 로 다운로드"
+          >
+            📄 더존 CSV
+          </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap">
             {uploading ? "업로드 중..." : "CSV 업로드"}
