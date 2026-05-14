@@ -8,6 +8,23 @@ import { useUser } from "@/components/user-context";
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
+interface PayableInvoice {
+  id: string;
+  issueDate: string;
+  amount: number;
+  itemName: string | null;
+  status: string;
+  ntsConfirmNo: string | null;
+}
+
+interface PayableVendor {
+  vendor: string;          // counterparty_name
+  bizno: string | null;    // counterparty_bizno
+  totalAmount: number;
+  invoiceCount: number;
+  invoices: PayableInvoice[];
+}
+
 interface BsData {
   /* Assets — Current */
   cashAndDeposits: number;
@@ -31,6 +48,8 @@ interface BsData {
   loanDetails: { name: string; remainingAmount: number }[];
   receivableDetails: { name: string; amount: number }[];
   payableDetails: { name: string; amount: number }[];
+  /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
+  payableByVendor: PayableVendor[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -75,12 +94,16 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .from("deal_revenue_schedule")
       .select("deal_id, amount, status")
       .in("status", ["received", "paid"]),
-    supabase
-      .from("tax_invoices")
-      .select("counterparty_name, total_amount, type, status")
-      .eq("company_id", companyId)
-      .eq("type", "purchase")
-      .in("status", ["received", "issued", "modified"]),
+    (() => {
+      let q = supabase
+        .from("tax_invoices")
+        .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
+        .eq("company_id", companyId)
+        .eq("type", "purchase")
+        .in("status", ["received", "issued", "modified"]);
+      if (cutoffDate) q = q.lte("issue_date", cutoffDate);
+      return q;
+    })(),
     supabase
       .from("companies")
       .select("capital, registered_capital")
@@ -103,7 +126,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const cashSnapshots = cashRes.data || [];
   const deals = dealsRes.data || [];
   const revenueSchedules = revenueRes.data || [];
-  const invoices = invoicesRes.data || [];
+  const invoices = (invoicesRes.data || []) as any[];
   const vaultAssets = (vaultRes.data || []) as { name: string; value: number | null; type: string; status: string | null }[];
 
   /* --- Assets: Current --- */
@@ -162,6 +185,32 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const accountsPayable = payableDetails.reduce((sum, p) => sum + p.amount, 0);
   const totalLiabilities = borrowings + accountsPayable;
 
+  /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
+  const vendorMap = new Map<string, PayableVendor>();
+  for (const inv of invoices as any[]) {
+    const vendor = (inv.counterparty_name || "(거래처 미상)").trim() || "(거래처 미상)";
+    const key = `${vendor}|${inv.counterparty_bizno || ""}`;
+    const cur = vendorMap.get(key) || {
+      vendor,
+      bizno: inv.counterparty_bizno || null,
+      totalAmount: 0, invoiceCount: 0, invoices: [] as PayableInvoice[],
+    };
+    cur.totalAmount += Number(inv.total_amount || 0);
+    cur.invoiceCount++;
+    cur.invoices.push({
+      id: inv.id,
+      issueDate: inv.issue_date || '',
+      amount: Number(inv.total_amount || 0),
+      itemName: inv.item_name || null,
+      status: inv.status || 'unknown',
+      ntsConfirmNo: inv.nts_confirm_no || null,
+    });
+    vendorMap.set(key, cur);
+  }
+  const payableByVendor = Array.from(vendorMap.values())
+    .map((v) => ({ ...v, invoices: v.invoices.sort((a, b) => b.issueDate.localeCompare(a.issueDate)) }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+
   /* --- Equity --- */
   /* 자본금: companies → company_settings → DEFAULT_CAPITAL 순으로 조회 */
   const companyData = companyRes.data as Record<string, unknown> | null;
@@ -199,6 +248,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     loanDetails,
     receivableDetails,
     payableDetails,
+    payableByVendor,
   };
 }
 
@@ -328,6 +378,8 @@ export default function BalanceSheetPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
+  const [showPayableDrill, setShowPayableDrill] = useState(false);
+  const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -782,8 +834,42 @@ export default function BalanceSheetPage() {
               {renderSectionHeader("부채 (Liabilities)")}
               {renderSectionRow("차입금", data.borrowings, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.borrowings : undefined })}
               {data.loanDetails.map((l) => renderSectionRow(l.name, l.remainingAmount, { isNested: true }))}
-              {renderSectionRow("미지급금", data.accountsPayable, { indent: true, isBold: true, prevAmount: isCompareMode && prevData ? prevData.accountsPayable : undefined })}
-              {data.payableDetails.map((p) => renderSectionRow(p.name, p.amount, { isNested: true }))}
+              <tr
+                onClick={() => setShowPayableDrill(true)}
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                  cursor: 'pointer',
+                }}
+                className="hover:bg-[var(--bg-surface)] transition"
+                title="클릭해서 거래처별·건별 세부 보기"
+              >
+                <td style={{ padding: "10px 16px", paddingLeft: 32, fontSize: 13, fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                  미지급금 <span className="text-[10px] text-[var(--primary)] ml-1">▶ 세부보기</span>
+                </td>
+                <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                  {formatKrw(data.accountsPayable)}
+                </td>
+                {isCompareMode && (() => {
+                  const delta = prevData ? data.accountsPayable - prevData.accountsPayable : undefined;
+                  return (
+                    <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap",
+                      color: delta === undefined || delta === 0 ? "var(--text-dim)" : delta > 0 ? "#ef4444" : "#10b981" }}>
+                      {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${formatKrw(delta)} ${delta > 0 ? "▲" : "▼"}`}
+                    </td>
+                  );
+                })()}
+              </tr>
+              {/* 거래처별 요약 (상위 5개) — 자세히는 클릭 모달 */}
+              {data.payableByVendor.slice(0, 5).map((v) => renderSectionRow(`${v.vendor} (${v.invoiceCount}건)`, v.totalAmount, { isNested: true }))}
+              {data.payableByVendor.length > 5 && (
+                <tr>
+                  <td colSpan={colCount} style={{ padding: "6px 16px", paddingLeft: 48, fontSize: 11, color: 'var(--primary)', cursor: 'pointer' }}
+                    onClick={() => setShowPayableDrill(true)}
+                  >
+                    + {data.payableByVendor.length - 5}개 거래처 더 보기 →
+                  </td>
+                </tr>
+              )}
               {renderDivider("div-l-right")}
               {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalLiabilities : undefined })}
 
@@ -1026,6 +1112,141 @@ export default function BalanceSheetPage() {
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />자본
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 미지급금 드릴다운 모달 */}
+      {showPayableDrill && data && (
+        <div
+          onClick={() => setShowPayableDrill(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column',
+            }}
+          >
+            {/* 모달 헤더 */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>미지급금 세부</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                  거래처별 → 클릭해서 건별 펼침 · 출처: 매입 세금계산서 (status: received/issued/modified)
+                </div>
+              </div>
+              <button onClick={() => setShowPayableDrill(false)}
+                style={{ background: 'transparent', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            {/* 합산 요약 */}
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>총 미지급금</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}>
+                  ₩{formatKrw(data.accountsPayable)}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{data.payableByVendor.length}개 거래처 · {data.payableDetails.length}건</div>
+              </div>
+              {isCompareMode && prevData && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>전월</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>₩{formatKrw(prevData.accountsPayable)}</div>
+                  {(() => {
+                    const delta = data.accountsPayable - prevData.accountsPayable;
+                    return (
+                      <div style={{ fontSize: 11, fontWeight: 600, color: delta === 0 ? 'var(--text-dim)' : delta > 0 ? '#ef4444' : '#10b981' }}>
+                        {delta === 0 ? '-' : `${delta > 0 ? '+' : ''}${formatKrw(delta)} ${delta > 0 ? '▲' : '▼'}`}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* 거래처 리스트 */}
+            <div style={{ overflow: 'auto', flex: 1 }}>
+              {data.payableByVendor.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center', fontSize: 13, color: 'var(--text-dim)' }}>
+                  미지급금 거래처가 없습니다.
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>거래처</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>건수</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>합계</th>
+                      {isCompareMode && (
+                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>전월 대비</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.payableByVendor.map((v) => {
+                      const isExpanded = expandedVendor === v.vendor;
+                      // 전월 비교: 전월 BsData 에서 같은 vendor 찾기
+                      const prevVendor = isCompareMode && prevData
+                        ? prevData.payableByVendor.find((pv) => pv.vendor === v.vendor)
+                        : null;
+                      const delta = prevVendor ? v.totalAmount - prevVendor.totalAmount : null;
+                      return (
+                        <>
+                          <tr
+                            key={v.vendor}
+                            onClick={() => setExpandedVendor(isExpanded ? null : v.vendor)}
+                            style={{
+                              borderBottom: '1px solid var(--border)',
+                              cursor: 'pointer',
+                              background: isExpanded ? 'var(--bg-surface)' : undefined,
+                            }}
+                          >
+                            <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--text)' }}>
+                              <span style={{ display: 'inline-block', width: 12, color: 'var(--text-dim)' }}>{isExpanded ? '▾' : '▸'}</span>
+                              {' '}{v.vendor}
+                              {v.bizno && <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>{v.bizno}</span>}
+                            </td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, textAlign: 'center', color: 'var(--text-muted)' }}>{v.invoiceCount}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'right', color: 'var(--text)' }}>
+                              {formatKrw(v.totalAmount)}
+                            </td>
+                            {isCompareMode && (
+                              <td style={{ padding: '10px 16px', fontSize: 12, textAlign: 'right',
+                                color: delta == null || delta === 0 ? 'var(--text-dim)' : delta > 0 ? '#ef4444' : '#10b981'
+                              }}>
+                                {delta == null ? '-' : delta === 0 ? '-' : `${delta > 0 ? '+' : ''}${formatKrw(delta)} ${delta > 0 ? '▲' : '▼'}`}
+                              </td>
+                            )}
+                          </tr>
+                          {isExpanded && v.invoices.map((inv) => (
+                            <tr key={inv.id} style={{ background: 'var(--bg-surface)/40', borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '6px 16px 6px 40px', fontSize: 11, color: 'var(--text-muted)' }}>
+                                <span className="mono-number">{inv.issueDate}</span>
+                                {inv.itemName && <span style={{ marginLeft: 8 }}>{inv.itemName}</span>}
+                                {inv.ntsConfirmNo && <span style={{ marginLeft: 8, fontSize: 9, color: 'var(--text-dim)' }}>{inv.ntsConfirmNo}</span>}
+                              </td>
+                              <td style={{ padding: '6px 16px', fontSize: 10, textAlign: 'center' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: 4, background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{inv.status}</span>
+                              </td>
+                              <td style={{ padding: '6px 16px', fontSize: 11, fontWeight: 600, textAlign: 'right', color: 'var(--text)' }}>
+                                {formatKrw(inv.amount)}
+                              </td>
+                              {isCompareMode && <td />}
+                            </tr>
+                          ))}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
