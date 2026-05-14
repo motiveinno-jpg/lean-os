@@ -158,6 +158,22 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
+  // 결재 대기 건수 — 전자결재 카드용
+  const { data: approvalsPending = 0 } = useQuery({
+    queryKey: ['approvals-pending-dashboard', companyId],
+    queryFn: async () => {
+      if (!companyId) return 0;
+      const db: any = supabase;
+      const [docRes, payRes] = await Promise.all([
+        db.from('doc_approvals').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
+        db.from('payment_queue').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
+      ]);
+      return (docRes.count || 0) + (payRes.count || 0);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
   // 현금 상태 data
   const { data: pulseRaw } = useQuery({
     queryKey: ["cash-pulse", companyId, userId],
@@ -2664,6 +2680,22 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     enabled: !!companyId && !!userId,
   });
 
+  // 결재 대기 건수 — 전자결재 카드 배지용
+  const { data: approvalsPending = 0 } = useQuery({
+    queryKey: ['approvals-pending-emp-dashboard', companyId],
+    queryFn: async () => {
+      if (!companyId) return 0;
+      const db: any = supabase;
+      const [docRes, payRes] = await Promise.all([
+        db.from('doc_approvals').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
+        db.from('payment_queue').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
+      ]);
+      return (docRes.count || 0) + (payRes.count || 0);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
   // 오늘 출퇴근 기록
   const { data: todayAttendance } = useQuery({
     queryKey: ["emp-attendance-today", employeeId, today],
@@ -2872,8 +2904,11 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       </div>
 
-      {/* 출퇴근 카드 — 최상단, 가장 큰 영역 */}
-      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+      {/* 출퇴근 + 전자결재 — 2열 grid */}
+      <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      {/* 출퇴근 카드 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
@@ -2975,6 +3010,68 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             )}
           </div>
         )}
+      </div>
+
+      {/* 전자결재 카드 — 출퇴근 카드 옆 */}
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+            <span className="text-sm font-bold text-[var(--text)]">전자결재</span>
+            {approvalsPending > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-violet-500/15 text-violet-500 text-[10px] font-bold">
+                {approvalsPending}건 대기
+              </span>
+            )}
+          </div>
+          <Link href="/approvals" className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition">
+            모두 보기 →
+          </Link>
+        </div>
+
+        <div className="mb-4 text-xs text-[var(--text-dim)]">자주 사용하는 결재를 빠르게 작성하세요</div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <Link href="/approvals?new=expense"
+            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition group">
+            <span className="text-lg">💳</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[var(--text)]">경비 청구</div>
+              <div className="text-[10px] text-[var(--text-dim)]">영수증 첨부 + 승인</div>
+            </div>
+          </Link>
+          <Link href="/approvals?new=payment"
+            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition group">
+            <span className="text-lg">📝</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[var(--text)]">지출 결의서</div>
+              <div className="text-[10px] text-[var(--text-dim)]">자금 집행 결재</div>
+            </div>
+          </Link>
+          <Link href="/employees?tab=leave&new=1"
+            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition group">
+            <span className="text-lg">🏖</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[var(--text)]">연차 신청</div>
+              <div className="text-[10px] text-[var(--text-dim)]">휴가 · 반차 · 특별휴가</div>
+            </div>
+          </Link>
+          <Link href="/approvals?new=general"
+            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition group">
+            <span className="text-lg">📋</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-[var(--text)]">일반 결재</div>
+              <div className="text-[10px] text-[var(--text-dim)]">사유서 · 품의서 등</div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="text-[10px] text-[var(--text-dim)] pt-3 border-t border-[var(--border)]">
+          💡 항목 클릭 → 결재 페이지에서 양식 작성 → 승인자 지정 → 결재 요청 발송
+        </div>
+      </div>
+
+      {/* 출퇴근 + 전자결재 grid 닫기 */}
       </div>
 
       {/* 핵심 지표 2x2 — 동적 데이터 */}

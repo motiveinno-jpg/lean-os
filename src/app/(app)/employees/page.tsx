@@ -2234,10 +2234,20 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     setSending(contractId);
     try {
       const result = await sendContractPackage(contractId);
-      if (!result.success) toast("발송 실패: " + (result.error || "알 수 없는 오류"), "error");
+      if (!result.success) {
+        const msg = result.error || "알 수 없는 오류";
+        const isDomainErr = /from.*not.*verif|verify.*domain|owner-view\.com|domain.*verif/i.test(msg);
+        if (isDomainErr) {
+          toast(`발송 실패 — Resend 도메인 인증 필요: owner-view.com 도메인을 Resend 대시보드에서 verify 해주세요. (계약 패키지는 'sent' 로 저장됨, 서명 URL 직접 전달 가능)`, "error");
+        } else {
+          toast("발송 실패: " + msg, "error");
+        }
+      } else {
+        toast("계약 서명 요청 메일 발송 완료", "success");
+      }
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
-      toast(err.message, "error");
+      toast("발송 실패: " + (err.message || "오류"), "error");
     } finally {
       setSending(null);
     }
