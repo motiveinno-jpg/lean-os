@@ -1851,8 +1851,20 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           tx={cardMapModal}
           deals={deals}
           classifications={classifications}
-          existingCategories={Array.from(new Set([...cardTx.map((t: any) => t.category).filter(Boolean), ...bankTx.map((t: any) => t.category).filter(Boolean)])) as string[]}
-          existingClassifications={Array.from(new Set([...bankTx.map((t: any) => t.classification).filter(Boolean), ...cardTx.map((t: any) => t.classification).filter(Boolean)])) as string[]}
+          existingCategories={Array.from(new Set([
+            ...cardTx.map((t: any) => t.category).filter(Boolean),
+            ...bankTx.map((t: any) => t.category).filter(Boolean),
+          ])) as string[]}
+          existingClassifications={Array.from(new Set([
+            ...bankTx.map((t: any) => t.classification).filter(Boolean),
+            // 카드 거래 classification 은 JSON 일 수 있음 — label 만 추출
+            ...cardTx.map((t: any) => {
+              const raw = t.classification;
+              if (!raw || typeof raw !== 'string') return null;
+              if (!raw.trim().startsWith('{')) return raw;
+              try { return JSON.parse(raw)?.label || null; } catch { return null; }
+            }).filter(Boolean),
+          ])) as string[]}
           onMap={(params) => cardMapMut.mutate({ id: cardMapModal.id, ...params })}
           onClose={() => setCardMapModal(null)}
         />
@@ -1909,6 +1921,32 @@ function CardTypeBadge({ type }: { type?: string | null }) {
 const DEFAULT_CLASSIFICATIONS = ['B2B', 'B2C', 'B2G', '광고/마케팅', '인건비', '운영비', '외주비', '임대료', '소프트웨어', '세금'];
 const DEFAULT_CATEGORIES = ['고정비', '변동비', '매출', '인건비', '복리후생', '식대', '교통/주차', '통신비', '광고선전비', '세금공과', '소모품비', '지급수수료', '임대료'];
 
+// 칩 버튼 — 분류/카테고리 옵션 빠른 선택
+function ChipPicker({ options, value, onSelect }: { options: string[]; value: string; onSelect: (v: string) => void }) {
+  if (!options.length) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {options.map((opt) => {
+        const selected = opt === value;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onSelect(opt)}
+            className={`px-2 py-0.5 text-[10px] rounded-full transition ${
+              selected
+                ? 'bg-[var(--primary)] text-white'
+                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]'
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function MapTransactionModal({ tx, deals, classifications, existingCategories, existingClassifications, onMap, onClose }: {
   tx: any;
   deals: any[];
@@ -1950,35 +1988,37 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
               {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
               <input
                 list="bank-cls-options"
                 value={classification}
                 onChange={e => setClassification(e.target.value)}
-                placeholder="원하는 분류 타이핑 또는 ▼ 선택"
+                placeholder="예: B2B, 광고/마케팅, 인건비..."
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="bank-cls-options">
                 {clsOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <ChipPicker options={clsOptions} value={classification} onSelect={setClassification} />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
               <input
                 list="bank-cat-options"
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                placeholder="원하는 카테고리 타이핑 또는 ▼ 선택"
+                placeholder="예: 고정비, 식대, 통신비..."
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="bank-cat-options">
                 {catOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <ChipPicker options={catOptions} value={category} onSelect={setCategory} />
             </div>
           </div>
-          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요. 다음 분류부터 자동완성에 추가됩니다.</div>
+          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
             고정비로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
@@ -2052,35 +2092,37 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
               {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
               <input
                 list="card-cls-options"
                 value={classification}
                 onChange={e => setClassification(e.target.value)}
-                placeholder="원하는 분류 타이핑 또는 ▼ 선택"
+                placeholder="예: B2B, 광고/마케팅, 인건비..."
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="card-cls-options">
                 {clsOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <ChipPicker options={clsOptions} value={classification} onSelect={setClassification} />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
               <input
                 list="card-cat-options"
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                placeholder="원하는 카테고리 타이핑 또는 ▼ 선택"
+                placeholder="예: 식비, 교통비, 접대비..."
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="card-cat-options">
                 {catOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <ChipPicker options={catOptions} value={category} onSelect={setCategory} />
             </div>
           </div>
-          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요. 다음 분류부터 자동완성에 추가됩니다.</div>
+          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <div className="flex gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />

@@ -32,20 +32,20 @@ function endOfMonth(d: Date): string {
 }
 
 // ─────────────────────────────────────────
-// 1) 최근 30일 법인카드 큰 지출 TOP 5
-//    (이번달만 보면 월 초·말 데이터 부족 → 최근 30일 슬라이딩 윈도우)
+// 1) 최근 90일 법인카드 큰 지출 TOP 5
+//    (월 초/말 데이터 부족 회피 — 90일 슬라이딩, 5건 항상 안정)
 // ─────────────────────────────────────────
 export function TopCardExpensesThisMonth({ companyId }: Props) {
   const now = new Date();
   const dateFrom = useMemo(() => {
     const d = new Date(now);
-    d.setDate(d.getDate() - 30);
+    d.setDate(d.getDate() - 90);
     return d.toISOString().slice(0, 10);
   }, [now]);
   const dateTo = now.toISOString().slice(0, 10);
 
   const { data: rows = [] } = useQuery({
-    queryKey: ['card-top-expenses-30d', companyId, dateFrom, dateTo],
+    queryKey: ['card-top-expenses-90d', companyId, dateFrom, dateTo],
     queryFn: () => getCardTransactions(companyId, { dateFrom, dateTo }),
     enabled: !!companyId,
     staleTime: 30_000,
@@ -53,7 +53,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
 
   const top = useMemo(() => {
     return [...(rows as any[])]
-      .filter((t: any) => Number(t.amount || 0) > 0) // 환불/취소 제외
+      .filter((t: any) => Number(t.amount || 0) > 0)
       .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
       .slice(0, 5);
   }, [rows]);
@@ -67,11 +67,11 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">💳</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">최근 30일 카드 큰 지출 TOP 5</h2>
+          <h2 className="text-sm font-bold text-[var(--text)]">최근 90일 카드 큰 지출 TOP 5</h2>
           <span className="text-[10px] text-[var(--text-dim)]">{dateFrom} ~ {dateTo}</span>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">30일 사용액</div>
+          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">90일 사용액</div>
           <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(totalRecent)}</div>
         </div>
       </div>
