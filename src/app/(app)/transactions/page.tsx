@@ -1371,6 +1371,42 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     </tr>
                   ))}
                 </tbody>
+                {(() => {
+                  const sumIncome = filteredBankTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+                  const sumExpense = filteredBankTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+                  const net = sumIncome - sumExpense;
+                  const selectedTx = filteredBankTx.filter((t: any) => selectedIds.has(t.id));
+                  const selSum = selectedTx.reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+                  return (
+                    <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-card)] border-t border-[var(--border)]">
+                      <tr className="text-[11px]">
+                        {tab === 'inbox' && <td className="w-8" />}
+                        <td className="px-4 py-2 text-[var(--text-dim)] uppercase tracking-wider" colSpan={4}>
+                          합계 ({filteredBankTx.length}건)
+                          {selectedIds.size > 0 && (
+                            <span className="ml-2 text-[var(--primary)] font-semibold">
+                              · 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <div className="text-[10px] text-[var(--text-dim)]">입금</div>
+                          <div className="text-green-400 font-bold mono-number">+₩{sumIncome.toLocaleString()}</div>
+                        </td>
+                        <td className="px-4 py-2 text-right hidden md:table-cell">
+                          <div className="text-[10px] text-[var(--text-dim)]">출금</div>
+                          <div className="text-red-400 font-bold mono-number">-₩{sumExpense.toLocaleString()}</div>
+                        </td>
+                        <td className="px-4 py-2 text-right" colSpan={3}>
+                          <div className="text-[10px] text-[var(--text-dim)]">순합계</div>
+                          <div className={`font-bold mono-number ${net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {net >= 0 ? '+' : ''}₩{net.toLocaleString()}
+                          </div>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </table></div>
             )}
           </div>
@@ -1762,6 +1798,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           tx={cardMapModal}
           deals={deals}
           classifications={classifications}
+          existingCategories={Array.from(new Set([...cardTx.map((t: any) => t.category).filter(Boolean), ...bankTx.map((t: any) => t.category).filter(Boolean)])) as string[]}
+          existingClassifications={Array.from(new Set([...bankTx.map((t: any) => t.classification).filter(Boolean), ...cardTx.map((t: any) => t.classification).filter(Boolean)])) as string[]}
           onMap={(params) => cardMapMut.mutate({ id: cardMapModal.id, ...params })}
           onClose={() => setCardMapModal(null)}
         />
@@ -1773,6 +1811,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           tx={mapModal}
           deals={deals}
           classifications={classifications}
+          existingCategories={Array.from(new Set([...bankTx.map((t: any) => t.category).filter(Boolean), ...cardTx.map((t: any) => t.category).filter(Boolean)])) as string[]}
+          existingClassifications={Array.from(new Set([...bankTx.map((t: any) => t.classification).filter(Boolean), ...cardTx.map((t: any) => t.classification).filter(Boolean)])) as string[]}
           onMap={(params) => mapMut.mutate({ id: mapModal.id, ...params })}
           onClose={() => setMapModal(null)}
         />
@@ -1792,17 +1832,33 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   );
 }
 
-function MapTransactionModal({ tx, deals, classifications, onMap, onClose }: {
+// 분류/카테고리 디폴트 옵션. 사용자가 직접 입력해도 OK (datalist 는 자동완성용).
+const DEFAULT_CLASSIFICATIONS = ['B2B', 'B2C', 'B2G', '광고/마케팅', '인건비', '운영비', '외주비', '임대료', '소프트웨어', '세금', '기타'];
+const DEFAULT_CATEGORIES = ['고정비', '변동비', '매출', '인건비', '복리후생', '식대', '교통/주차', '통신비', '광고선전비', '세금공과', '소모품비', '지급수수료', '임대료', '기타'];
+
+function MapTransactionModal({ tx, deals, classifications, existingCategories, existingClassifications, onMap, onClose }: {
   tx: any;
   deals: any[];
   classifications: any[];
+  existingCategories?: string[];
+  existingClassifications?: string[];
   onMap: (params: { dealId?: string; classification?: string; category?: string; isFixedCost?: boolean }) => void;
   onClose: () => void;
 }) {
-  const [dealId, setDealId] = useState('');
-  const [classification, setClassification] = useState('');
-  const [category, setCategory] = useState('');
-  const [isFixed, setIsFixed] = useState(false);
+  const [dealId, setDealId] = useState(tx.deal_id || '');
+  const [classification, setClassification] = useState(tx.classification || '');
+  const [category, setCategory] = useState(tx.category || '');
+  const [isFixed, setIsFixed] = useState(!!tx.is_fixed_cost);
+
+  const clsOptions = Array.from(new Set<string>([
+    ...DEFAULT_CLASSIFICATIONS,
+    ...(classifications.map((c: any) => c.name).filter(Boolean) as string[]),
+    ...(existingClassifications || []),
+  ]));
+  const catOptions = Array.from(new Set<string>([
+    ...DEFAULT_CATEGORIES,
+    ...(existingCategories || []),
+  ]));
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -1824,22 +1880,30 @@ function MapTransactionModal({ tx, deals, classifications, onMap, onClose }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
-              <select value={classification} onChange={e => setClassification(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
-                <option value="">미지정</option>
-                {classifications.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
+              <input
+                list="bank-cls-options"
+                value={classification}
+                onChange={e => setClassification(e.target.value)}
+                placeholder="예: B2B, 광고/마케팅, 인건비..."
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
+              />
+              <datalist id="bank-cls-options">
+                {clsOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">자유 입력 · 자주 쓰는 분류 자동완성</div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
-                <option value="">미지정</option>
-                <option value="고정비">고정비</option>
-                <option value="변동비">변동비</option>
-                <option value="매출">매출</option>
-                <option value="기타">기타</option>
-              </select>
+              <input
+                list="bank-cat-options"
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                placeholder="예: 고정비, 식대, 통신비..."
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
+              />
+              <datalist id="bank-cat-options">
+                {catOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </div>
           </div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -1849,7 +1913,7 @@ function MapTransactionModal({ tx, deals, classifications, onMap, onClose }: {
         </div>
 
         <div className="flex gap-2">
-          <button onClick={() => onMap({ dealId: dealId || undefined, classification: classification || undefined, category: category || undefined, isFixedCost: isFixed })}
+          <button onClick={() => onMap({ dealId: dealId || undefined, classification: classification.trim() || undefined, category: category.trim() || undefined, isFixedCost: isFixed })}
             className="flex-1 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">매핑 저장</button>
           <button onClick={onClose} className="px-4 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
         </div>
@@ -1858,18 +1922,31 @@ function MapTransactionModal({ tx, deals, classifications, onMap, onClose }: {
   );
 }
 
-function CardMapTransactionModal({ tx, deals, classifications, onMap, onClose }: {
+function CardMapTransactionModal({ tx, deals, classifications, existingCategories, existingClassifications, onMap, onClose }: {
   tx: any;
   deals: any[];
   classifications: any[];
+  existingCategories?: string[];
+  existingClassifications?: string[];
   onMap: (params: { dealId?: string; classification?: string; category?: string; isFixedCost?: boolean; isDeductible?: boolean }) => void;
   onClose: () => void;
 }) {
-  const [dealId, setDealId] = useState('');
-  const [classification, setClassification] = useState('');
-  const [category, setCategory] = useState('');
-  const [isFixed, setIsFixed] = useState(false);
-  const [isDeductible, setIsDeductible] = useState(true);
+  const [dealId, setDealId] = useState(tx.deal_id || '');
+  const [classification, setClassification] = useState(tx.classification || '');
+  const [category, setCategory] = useState(tx.category || '');
+  const [isFixed, setIsFixed] = useState(!!tx.is_fixed_cost);
+  const [isDeductible, setIsDeductible] = useState(tx.is_deductible !== false);
+
+  const clsOptions = Array.from(new Set<string>([
+    ...DEFAULT_CLASSIFICATIONS,
+    ...(classifications.map((c: any) => c.name).filter(Boolean) as string[]),
+    ...(existingClassifications || []),
+  ]));
+  const catOptions = Array.from(new Set<string>([
+    ...DEFAULT_CATEGORIES,
+    '접대비', '교통비', '식비', '사무용품',
+    ...(existingCategories || []),
+  ]));
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -1891,25 +1968,30 @@ function CardMapTransactionModal({ tx, deals, classifications, onMap, onClose }:
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
-              <select value={classification} onChange={e => setClassification(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
-                <option value="">미지정</option>
-                {classifications.map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
+              <input
+                list="card-cls-options"
+                value={classification}
+                onChange={e => setClassification(e.target.value)}
+                placeholder="예: B2B, 광고/마케팅, 인건비..."
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
+              />
+              <datalist id="card-cls-options">
+                {clsOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">자유 입력 · 자동완성</div>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
-                <option value="">미지정</option>
-                <option value="고정비">고정비</option>
-                <option value="변동비">변동비</option>
-                <option value="접대비">접대비</option>
-                <option value="교통비">교통비</option>
-                <option value="식비">식비</option>
-                <option value="사무용품">사무용품</option>
-                <option value="기타">기타</option>
-              </select>
+              <input
+                list="card-cat-options"
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                placeholder="예: 식비, 교통비, 접대비..."
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
+              />
+              <datalist id="card-cat-options">
+                {catOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </div>
           </div>
           <div className="flex gap-4">
@@ -1927,8 +2009,8 @@ function CardMapTransactionModal({ tx, deals, classifications, onMap, onClose }:
         <div className="flex gap-2">
           <button onClick={() => onMap({
             dealId: dealId || undefined,
-            classification: classification || undefined,
-            category: category || undefined,
+            classification: classification.trim() || undefined,
+            category: category.trim() || undefined,
             isFixedCost: isFixed,
             isDeductible,
           })}
