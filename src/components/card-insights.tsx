@@ -62,6 +62,12 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
     (rows as any[]).filter((t: any) => Number(t.amount || 0) > 0).reduce((s, r) => s + Number(r.amount || 0), 0)
   , [rows]);
 
+  // 가장 최신 거래일 — CODEF 카드 sync 가 카드사 청구 처리 후만 가져와서 최근 거래는 며칠 늦음.
+  const latestTxDate = useMemo(() => {
+    const dates = (rows as any[]).map((t: any) => t.transaction_date).filter(Boolean).sort();
+    return dates.length ? dates[dates.length - 1] : null;
+  }, [rows]);
+
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
       <div className="flex items-center justify-between mb-3">
@@ -75,6 +81,13 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
           <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(totalRecent)}</div>
         </div>
       </div>
+
+      {latestTxDate && (
+        <div className="mb-2 text-[10px] text-[var(--text-dim)]">
+          최신 카드 거래: <span className="text-[var(--text-muted)] mono-number">{latestTxDate}</span>
+          <span className="ml-1">— CODEF 는 카드사 청구 처리된 거래만 가져와 최근 며칠은 늦게 반영됩니다.</span>
+        </div>
+      )}
 
       {top.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">최근 30일 카드 지출이 없습니다.</div>
