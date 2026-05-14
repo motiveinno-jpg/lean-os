@@ -187,7 +187,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   }, [companyId, cards, codefCards, queryClient]);
 
   const paymentDayMut = useMutation({
-    mutationFn: async ({ card, paymentDay, billingDay }: { card: any; paymentDay: number | null; billingDay: number | null }) => {
+    mutationFn: async ({ card, paymentDay, billingDay, cardType }: { card: any; paymentDay: number | null; billingDay: number | null; cardType?: 'credit' | 'check' | 'debit' | 'other' }) => {
       await upsertCorporateCard({
         id: card.id, companyId,
         cardName: card.card_name, cardNumber: card.card_number || undefined,
@@ -195,7 +195,23 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
         monthlyLimit: card.monthly_limit || undefined,
         isActive: card.is_active ?? true,
         paymentDay, billingDay,
-        cardType: card.card_type || 'credit',
+        cardType: cardType || card.card_type || 'credit',
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['corp-cards'] }),
+  });
+
+  // 카드 종류 빠른 변경 — 체크/직불로 변경하면 청구서에서 즉시 사라짐
+  const typeMut = useMutation({
+    mutationFn: async ({ card, type }: { card: any; type: 'credit' | 'check' | 'debit' | 'other' }) => {
+      await upsertCorporateCard({
+        id: card.id, companyId,
+        cardName: card.card_name, cardNumber: card.card_number || undefined,
+        cardCompany: card.card_company, holderName: card.holder_name || undefined,
+        monthlyLimit: card.monthly_limit || undefined,
+        isActive: card.is_active ?? true,
+        paymentDay: card.payment_day ?? null, billingDay: card.billing_day ?? null,
+        cardType: type,
       });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['corp-cards'] }),
@@ -232,6 +248,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
         </div>
       </div>
 
+      <div className="mb-2 px-1 text-[10px] text-[var(--text-dim)]">
+        💡 CODEF 는 카드 종류(신용/체크) 정보를 안 줘서 자동 등록은 모두 <span className="text-[var(--primary)] font-semibold">신용</span> 으로 들어옵니다.
+        체크/직불이면 아래 카드 옆 <span className="font-mono">신용▾</span> 클릭해 변경 → 즉시 청구서에서 사라집니다.
+      </div>
       <div className="space-y-1">
         {billings.map((b) => (
           <BillingRow
@@ -244,8 +264,12 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
                 paymentDay: payDay, billingDay: billDay,
               })
             }
+            onChangeType={(type) => {
+              const card = (cards as any[]).find((c: any) => c.id === b.cardId);
+              if (card) typeMut.mutate({ card, type });
+            }}
             onSelectCard={onSelectCard}
-            saving={paymentDayMut.isPending}
+            saving={paymentDayMut.isPending || typeMut.isPending}
           />
         ))}
       </div>
@@ -259,16 +283,20 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   );
 }
 
-function BillingRow({ billing: b, card, onSavePayment, onSelectCard, saving }: {
+function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCard, saving }: {
   billing: Billing;
   card: any;
   onSavePayment: (payDay: number | null, billDay: number | null) => void;
+  onChangeType?: (type: 'credit' | 'check' | 'debit' | 'other') => void;
   onSelectCard?: (cardId: string) => void;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const [typeMenu, setTypeMenu] = useState(false);
   const [payInput, setPayInput] = useState(b.paymentDay ? String(b.paymentDay) : '');
   const [billInput, setBillInput] = useState(b.billingDay ? String(b.billingDay) : '');
+  const curType = (card?.card_type as 'credit' | 'check' | 'debit' | 'other') || 'credit';
+  const typeLabel = curType === 'credit' ? '신용' : curType === 'check' ? '체크' : curType === 'debit' ? '직불' : '기타';
 
   const urgent = b.daysToPayment != null && b.daysToPayment <= 3;
   const warn = b.daysToPayment != null && b.daysToPayment > 3 && b.daysToPayment <= 7;
@@ -305,9 +333,44 @@ function BillingRow({ billing: b, card, onSavePayment, onSelectCard, saving }: {
           </button>
         )}
 
-        {/* 이름 + 회사 */}
+        {/* 이름 + 회사 + 종류 토글 */}
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-bold text-[var(--text)] truncate">{b.cardName}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-[var(--text)] truncate">{b.cardName}</span>
+            {/* 카드 종류 토글 */}
+            {onChangeType && card && (
+              <div className="relative">
+                <button
+                  onClick={() => setTypeMenu(v => !v)}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded transition shrink-0"
+                  style={{
+                    background: 'rgba(59,130,246,0.12)',
+                    color: '#60a5fa',
+                  }}
+                  title="카드 종류 변경"
+                >
+                  {typeLabel}▾
+                </button>
+                {typeMenu && (
+                  <div className="absolute top-full left-0 mt-1 z-30 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[80px]"
+                    onMouseLeave={() => setTypeMenu(false)}>
+                    {([['credit', '신용'], ['check', '체크'], ['debit', '직불'], ['other', '기타']] as const).map(([k, label]) => (
+                      <button
+                        key={k}
+                        onClick={() => { onChangeType(k); setTypeMenu(false); }}
+                        disabled={saving}
+                        className={`block w-full text-left px-3 py-1 text-[10px] hover:bg-[var(--bg-surface)] transition ${
+                          curType === k ? 'font-bold text-[var(--primary)]' : 'text-[var(--text-muted)]'
+                        }`}
+                      >
+                        {curType === k ? '✓ ' : '  '}{label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="text-[9px] text-[var(--text-dim)] truncate">{b.cardCompany} · {b.txCount}건</div>
         </div>
 
