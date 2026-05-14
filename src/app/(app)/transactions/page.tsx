@@ -866,15 +866,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
-        <StatCard label="전체" value={s.total} />
-        <StatCard label="미매핑" value={s.unmapped} color={s.unmapped > 0 ? 'var(--warning)' : 'var(--success)'} />
-        <StatCard label="자동매핑" value={s.autoMapped} color="var(--primary)" />
-        <StatCard label="총 입금" value={`₩${fmtW(s.totalIncome)}`} color="var(--success)" />
-        <StatCard label="총 출금" value={`₩${fmtW(s.totalExpense)}`} color="var(--danger)" />
-      </div>
-
       {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
       {visibleTabs.length > 1 && (
         <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
@@ -1480,14 +1471,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          {/* Card Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="총 사용액" value={`₩${fmtW(cs.totalSpent)}`} color="var(--danger)" />
-            <StatCard label="공제 가능" value={`₩${fmtW(cs.deductible)}`} color="var(--success)" />
-            <StatCard label="공제 불가" value={`₩${fmtW(cs.nonDeductible)}`} color="var(--warning)" />
-            <StatCard label="미매핑" value={cs.unmapped} color={cs.unmapped > 0 ? 'var(--warning)' : 'var(--success)'} />
-          </div>
-
           {/* ═══ 메인: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
           {companyId && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -2028,15 +2011,15 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
               </datalist>
             </div>
           </div>
-          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요.</div>
-          <div className="flex gap-4">
+          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요. 다음 분류부터 자동완성에 추가됩니다.</div>
+          <div className="flex gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-              고정비로 표시
+              고정비로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
             </label>
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isDeductible} onChange={e => setIsDeductible(e.target.checked)} />
-              공제 가능
+              공제 가능 <span className="text-[10px] text-[var(--text-dim)]">— 부가세 매입세액 공제 대상이면 체크</span>
             </label>
           </div>
         </div>
