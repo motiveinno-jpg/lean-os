@@ -418,29 +418,36 @@ export async function sendPayslipEmails(
   batchId: string,
   companyId: string,
   batchName: string,
-): Promise<{ sent: number; failed: number }> {
-  // Get company name
+  options?: { employeeIds?: string[] },
+): Promise<{ sent: number; failed: number; errors?: string[] }> {
+  // Get company name + representative
   const { data: company } = await db
     .from('companies')
-    .select('name')
+    .select('name, representative_name')
     .eq('id', companyId)
     .single();
 
-  // Get payment queue items linked to this batch
-  const { data: payments } = await db
-    .from('payment_queue')
-    .select('amount, description, recipient_name, category')
-    .eq('batch_id', batchId)
-    .eq('payment_type', 'payroll');
+  // batch 모드(batchId='preview')는 payment_queue skip — preview 모드도 발송 가능
+  const previewMode = batchId === 'preview';
+  if (!previewMode) {
+    const { data: payments } = await db
+      .from('payment_queue')
+      .select('amount')
+      .eq('batch_id', batchId)
+      .eq('payment_type', 'payroll');
+    if (!payments?.length) return { sent: 0, failed: 0 };
+  }
 
-  if (!payments?.length) return { sent: 0, failed: 0 };
-
-  // Get employees with emails (비과세/부양가족 포함)
-  const { data: employees } = await db
+  // 직원 조회 — birth_date 포함 (PDF 비밀번호용)
+  let q = db
     .from('employees')
-    .select('id, name, email, salary, is_4_insurance, meal_allowance_included')
+    .select('id, name, email, salary, is_4_insurance, meal_allowance_included, birth_date, department, position')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']);
+  if (options?.employeeIds && options.employeeIds.length > 0) {
+    q = q.in('id', options.employeeIds);
+  }
+  const { data: employees } = await q;
 
   if (!employees?.length) return { sent: 0, failed: 0 };
 
@@ -454,17 +461,41 @@ export async function sendPayslipEmails(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   let sent = 0;
   let failed = 0;
+  const errors: string[] = [];
 
-  for (const emp of employees) {
-    if (!emp.email) { failed++; continue; }
+  // PDF 생성기 동적 import — 번들 분리
+  const { generatePayslipPDF, birthDateToPassword } = await import('./payslip-pdf');
+
+  for (const emp of employees as any[]) {
+    if (!emp.email) { failed++; errors.push(`${emp.name}: 이메일 없음`); continue; }
 
     const salary = Number(emp.salary || 0);
-    if (salary <= 0) { failed++; continue; }
+    if (salary <= 0) { failed++; errors.push(`${emp.name}: 급여 0`); continue; }
 
     const payroll = calculatePayroll(salary, emp.name, emp.id, {
       nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
       dependents: 1,
     });
+
+    // PDF 생성 — 비밀번호 = 생년월일 (YYYYMMDD)
+    const password = birthDateToPassword(emp.birth_date);
+    let pdfBase64: string | undefined;
+    try {
+      const doc = await generatePayslipPDF({
+        item: payroll,
+        companyName: company?.name || '',
+        representative: (company as any)?.representative_name || undefined,
+        periodLabel: monthLabel,
+        department: emp.department || undefined,
+        position: emp.position || undefined,
+        password,
+      });
+      // jsPDF 의 base64 output
+      const dataUri = doc.output('datauristring');
+      pdfBase64 = dataUri.split(',')[1]; // "data:application/pdf;base64,..." → base64 only
+    } catch (e: any) {
+      errors.push(`${emp.name}: PDF 생성 실패 ${e.message || ''}`);
+    }
 
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/send-payslip-email`, {
@@ -487,15 +518,25 @@ export async function sendPayslipEmails(
           localIncomeTax: payroll.localIncomeTax,
           deductionsTotal: payroll.deductionsTotal,
           netPay: payroll.netPay,
+          // 첨부: 비밀번호 걸린 PDF (base64)
+          pdfBase64,
+          pdfFilename: `급여명세서_${emp.name}_${monthLabel.replace(/[^\w]/g, '')}.pdf`,
+          hasPassword: !!password,
         }),
       });
-      if (res.ok) { sent++; } else { failed++; }
-    } catch {
+      if (res.ok) { sent++; }
+      else {
+        failed++;
+        const errBody = await res.text().catch(() => '');
+        errors.push(`${emp.name}: HTTP ${res.status} ${errBody.slice(0, 200)}`);
+      }
+    } catch (e: any) {
       failed++;
+      errors.push(`${emp.name}: ${e.message || 'fetch 실패'}`);
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, errors: errors.length > 0 ? errors : undefined };
 }
 
 // ── Trigger batch execution via n8n webhook ──

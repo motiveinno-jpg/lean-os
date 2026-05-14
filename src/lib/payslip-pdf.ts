@@ -16,13 +16,30 @@ export interface PayslipParams {
   department?: string;
   position?: string;
   paymentDate?: string;
+  /** PDF 비밀번호 (생년월일 YYYYMMDD 권장). 설정 시 PDF 열 때 입력 필요. */
+  password?: string;
 }
 
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString()}`;
 
+/** YYYY-MM-DD → YYYYMMDD (직원 생년월일을 PDF 비밀번호로 변환) */
+export function birthDateToPassword(birthDate: string | null | undefined): string | undefined {
+  if (!birthDate) return undefined;
+  const digits = String(birthDate).replace(/[^0-9]/g, '');
+  if (digits.length < 6) return undefined;
+  return digits.slice(0, 8); // YYYYMMDD 또는 그 이상이면 8자리만
+}
+
 export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> {
-  const { item, companyName, representative, periodLabel, department, position, paymentDate } = params;
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const { item, companyName, representative, periodLabel, department, position, paymentDate, password } = params;
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4',
+    ...(password
+      ? { encryption: { userPassword: password, ownerPassword: password, userPermissions: ['print', 'modify', 'copy', 'annot-forms'] } }
+      : {}),
+  } as any);
   await setupKoreanFont(doc);
   const pageW = doc.internal.pageSize.getWidth();
   const today = paymentDate || new Date().toISOString().slice(0, 10);

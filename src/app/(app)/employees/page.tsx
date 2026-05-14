@@ -3716,7 +3716,15 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [periodLabel, setPeriodLabel] = useState(() => `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`);
+  // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
+  const [periodMonth, setPeriodMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const periodLabel = (() => {
+    const [y, m] = periodMonth.split('-');
+    return `${y}년 ${parseInt(m, 10)}월`;
+  })();
 
   const { data: companyMeta } = useQuery({
     queryKey: ["company-meta-payroll", companyId],
@@ -3774,13 +3782,18 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setLoading(false);
   };
 
-  const handleSendPayslips = async () => {
+  const handleSendPayslips = async (employeeIds?: string[]) => {
     if (!companyId || !preview) return;
     setSending(true);
     try {
       const { sendPayslipEmails } = await import("@/lib/payment-batch");
-      const result = await sendPayslipEmails("preview", companyId, `${new Date().toISOString().slice(0, 7)} 급여명세`);
-      toast(`급여명세서 발송 완료: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
+      const label = periodLabel || `${new Date().toISOString().slice(0, 7)} 급여`;
+      const result = await sendPayslipEmails("preview", companyId, label, { employeeIds });
+      const target = employeeIds && employeeIds.length === 1 ? '개인' : `${result.sent + result.failed}명`;
+      toast(`급여명세서 ${target} 발송: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
+      if (result.errors && result.errors.length > 0) {
+        console.warn('payslip send errors:', result.errors);
+      }
     } catch (err: any) {
       toast("급여명세서 발송 실패: " + (err.message || ""), "error");
     }
@@ -3795,18 +3808,19 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
         <div className="flex gap-2 items-center flex-wrap">
           <input
-            value={periodLabel}
-            onChange={(e) => setPeriodLabel(e.target.value)}
-            placeholder="2026년 4월"
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs w-28"
+            type="month"
+            value={periodMonth}
+            onChange={(e) => setPeriodMonth(e.target.value)}
+            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs"
+            title="조회할 급여 명세 월 선택"
           />
           {preview && preview.items.length > 0 && (
             <>
               <button onClick={downloadAll} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
                 전체 PDF 다운로드
               </button>
-              <button onClick={handleSendPayslips} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-                {sending ? "발송 중..." : `전 직원 명세서 발송 (${preview.items.length}명)`}
+              <button onClick={() => handleSendPayslips()} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                {sending ? "발송 중..." : `전 직원 발송 (${preview.items.length}명)`}
               </button>
             </>
           )}
@@ -3857,7 +3871,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th className="text-right px-4 py-3 font-medium">지방소득세</th>
                 <th className="text-right px-4 py-3 font-medium">공제합계</th>
                 <th className="text-right px-4 py-3 font-medium">실수령</th>
-                <th className="text-center px-4 py-3 font-medium">PDF</th>
+                <th className="text-center px-4 py-3 font-medium">발송</th>
               </tr></thead>
               <tbody>
                 {preview.items.map((item) => (
@@ -3873,9 +3887,16 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm text-right text-red-400">-{fmtKRW(item.deductionsTotal)}</td>
                     <td className="px-4 py-3 text-sm text-right font-bold text-green-400">{fmtKRW(item.netPay)}</td>
                     <td className="px-4 py-3 text-center">
-                      <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
-                        ⬇ PDF
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
+                          ⬇ PDF
+                        </button>
+                        <button onClick={() => handleSendPayslips([item.employeeId])} disabled={sending}
+                          title="이 직원에게만 메일로 명세서 발송 (비밀번호=생년월일)"
+                          className="px-2 py-1 text-[10px] font-semibold bg-green-500/10 text-green-500 hover:bg-green-500/20 rounded-lg transition disabled:opacity-50">
+                          ✉ 발송
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

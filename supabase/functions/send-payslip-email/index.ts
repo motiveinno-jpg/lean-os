@@ -11,6 +11,12 @@ function formatKRW(n: number): string {
 }
 
 function buildPayslipHTML(data: any): string {
+  const pwdNote = data.hasPassword
+    ? `<p style="margin:14px 0 0;padding:10px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;font-size:12px;color:#9a3412">
+        📎 첨부된 급여명세서 PDF 는 <b>비밀번호로 보호</b>되어 있습니다. <br/>
+        비밀번호: <b>본인 생년월일 8자리 (YYYYMMDD)</b>
+      </p>`
+    : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
       <h1 style="margin:0;font-size:20px">${data.companyName}</h1>
@@ -31,6 +37,7 @@ function buildPayslipHTML(data: any): string {
         <tr style="border-top:1px solid #e5e7eb"><td style="padding:8px;font-weight:bold">공제 합계</td><td style="text-align:right;padding:8px;font-weight:bold;color:#dc2626">-${formatKRW(data.deductionsTotal)}</td></tr>
         <tr style="background:#1a1a2e;color:#fff"><td style="padding:12px 8px;font-weight:bold;font-size:16px;border-radius:0 0 0 8px">실수령액</td><td style="text-align:right;padding:12px 8px;font-weight:bold;font-size:16px;border-radius:0 0 8px 0">${formatKRW(data.netPay)}</td></tr>
       </table>
+      ${pwdNote}
       <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;text-align:center">본 명세서는 자동 발송되었습니다. 문의사항은 인사팀으로 연락해주세요.</p>
     </div>
   </body></html>`;
@@ -59,6 +66,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, fallback: true, html }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // PDF 첨부 (비밀번호 걸린 명세서)
+    const attachments: any[] = [];
+    if (data.pdfBase64 && data.pdfFilename) {
+      attachments.push({
+        filename: data.pdfFilename,
+        content: data.pdfBase64, // base64 string — Resend 가 자동 디코드
+      });
+    }
+
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
@@ -67,6 +83,7 @@ serve(async (req) => {
         to: [data.email],
         subject: `[${data.companyName}] ${data.monthLabel} 급여명세서`,
         html,
+        ...(attachments.length > 0 ? { attachments } : {}),
       }),
     });
 
