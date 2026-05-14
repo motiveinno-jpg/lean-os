@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions";
+import { supabase } from "@/lib/supabase";
 
 interface Props { companyId: string; }
 
@@ -44,9 +45,22 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   }, [now]);
   const dateTo = now.toISOString().slice(0, 10);
 
+  // nested JOIN(getCardTransactions) 우회 — corporate_cards/deals/tax_invoices FK NULL 시 row 누락 방지.
+  // TopExpense 표시에 필요한 컬럼만 직접 SELECT.
   const { data: rows = [] } = useQuery({
-    queryKey: ['card-top-expenses-90d', companyId, dateFrom, dateTo],
-    queryFn: () => getCardTransactions(companyId, { dateFrom, dateTo }),
+    queryKey: ['card-top-expenses-90d-simple', companyId, dateFrom, dateTo],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('card_transactions')
+        .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification')
+        .eq('company_id', companyId)
+        .gte('transaction_date', dateFrom)
+        .lte('transaction_date', dateTo)
+        .gt('amount', 0)
+        .order('amount', { ascending: false })
+        .limit(50);
+      return data || [];
+    },
     enabled: !!companyId,
     staleTime: 30_000,
   });
@@ -144,8 +158,17 @@ export function CardMonthlyUsage({ companyId }: Props) {
   });
 
   const { data: txAll = [] } = useQuery({
-    queryKey: ['card-tx-6mo', companyId, sixMonthFrom],
-    queryFn: () => getCardTransactions(companyId, { dateFrom: sixMonthFrom, dateTo: todayISO }),
+    queryKey: ['card-tx-6mo-simple', companyId, sixMonthFrom],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('card_transactions')
+        .select('id, transaction_date, amount, card_id, card_name')
+        .eq('company_id', companyId)
+        .gte('transaction_date', sixMonthFrom)
+        .lte('transaction_date', todayISO)
+        .limit(50000);
+      return data || [];
+    },
     enabled: !!companyId,
     staleTime: 60_000,
   });

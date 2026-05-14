@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCorporateCards, getCardTransactions, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
+import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   companyId: string;
@@ -76,8 +77,16 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     return d.toISOString().slice(0, 10);
   }, [today]);
   const { data: txAll = [] } = useQuery({
-    queryKey: ['card-tx-recent-90', companyId, dateFrom],
-    queryFn: () => getCardTransactions(companyId, { dateFrom }),
+    queryKey: ['card-tx-recent-90-simple', companyId, dateFrom],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('card_transactions')
+        .select('id, transaction_date, amount, card_id, card_name')
+        .eq('company_id', companyId)
+        .gte('transaction_date', dateFrom)
+        .limit(50000);
+      return data || [];
+    },
     enabled: !!companyId,
     staleTime: 60_000,
   });
