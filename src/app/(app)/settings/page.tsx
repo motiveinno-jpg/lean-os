@@ -3194,6 +3194,13 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ ok: boolean; msg: string; errors?: any[]; notes?: any[] } | null>(null);
+  // 기간 선택 sync (과거 데이터 채워넣기용)
+  const [showRangeSync, setShowRangeSync] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState(() => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [rangeTo, setRangeTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
 
   // 은행/카드 ConnectedID 또는 홈택스 자격증명 등록 시 모두 "연결됨" 표시.
@@ -3225,7 +3232,11 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   }
   useEffect(() => { if (isConnected) loadRecentSyncLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [companyId, isConnected]);
 
+  // YYYY-MM-DD → YYYYMMDD (CODEF format)
+  function toCodefDate(iso: string): string { return iso.replace(/-/g, ''); }
+
   // 거래내역 동기화 — bank/card 와 hometax 를 분리 호출 (각자 Edge Function 150s timeout 회피).
+  // 첫 sync 자동 감지 — bank_transactions 0건 이면 1년 전부터 가져옴 (default 3개월 제약 회피).
   async function handleSync() {
     if (!companyId || syncing) return;
     setSyncing(true);
@@ -3233,9 +3244,24 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
 
+      // 첫 sync 감지 — bank_transactions 0건 → 1년치 자동 가져옴
+      let autoStartDate: string | undefined;
+      let autoEndDate: string | undefined;
+      if (hasCodefConnection) {
+        const { count } = await db2.from('bank_transactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', companyId);
+        if ((count || 0) === 0) {
+          const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+          autoStartDate = toCodefDate(d.toISOString().slice(0, 10));
+          autoEndDate = toCodefDate(new Date().toISOString().slice(0, 10));
+          toast('첫 동기화 — 1년치 데이터를 가져오는 중 (시간이 좀 걸립니다)', 'info');
+        }
+      }
+
       // 1단계: 은행/카드만 동기화 (빠름, ConnectedID 필요). 홈택스는 2단계에서 별도 호출 — timeout 분리.
       const bankCardRes = hasCodefConnection
-        ? await syncCodefData(companyId, "bank_card")
+        ? await syncCodefData(companyId, "bank_card", autoStartDate, autoEndDate)
         : { success: true, errors: [], status: "success" as const, message: "은행/카드 미등록" };
 
       // 2단계: 홈택스 동기화 (느림, 인증서 storage 필요) — 등록된 경우만
@@ -3278,6 +3304,36 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
     if (!syncResult?.errors?.length) setTimeout(() => setSyncResult((prev) => (prev?.errors?.length ? prev : null)), 5000);
   }
 
+  // 사용자가 명시한 기간으로 다시 sync (과거 누락분 채워넣기용)
+  async function handleRangeSync() {
+    if (!companyId || syncing) return;
+    if (!rangeFrom || !rangeTo) { toast('기간을 지정하세요', 'error'); return; }
+    if (rangeFrom > rangeTo) { toast('시작일이 종료일보다 늦습니다', 'error'); return; }
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const { syncCodefData } = await import('@/lib/data-sync');
+      const startCodef = toCodefDate(rangeFrom);
+      const endCodef = toCodefDate(rangeTo);
+      toast(`${rangeFrom} ~ ${rangeTo} 기간 동기화 중...`, 'info');
+      const res = await syncCodefData(companyId, 'bank_card', startCodef, endCodef);
+      const errors = (res as any).errors || [];
+      const notes = (res as any).notes || [];
+      if (res.success && errors.length === 0) {
+        setSyncResult({ ok: true, msg: `${rangeFrom} ~ ${rangeTo} 기간 동기화 완료 — ${res.message || ''}`, notes: notes.length > 0 ? notes : undefined });
+        toast('기간 동기화 완료', 'success');
+      } else if (errors.length > 0) {
+        setSyncResult({ ok: false, msg: `부분 동기화 (오류 ${errors.length}건)`, errors, notes: notes.length > 0 ? notes : undefined });
+      } else {
+        setSyncResult({ ok: false, msg: res.error || '동기화 실패' });
+      }
+      await loadRecentSyncLogs();
+    } catch (err: any) {
+      setSyncResult({ ok: false, msg: err.message || '오류 발생' });
+    }
+    setSyncing(false);
+  }
+
   const { data: companySettings } = useQuery({
     queryKey: ["automation-settings", companyId],
     queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("automation_settings").eq("id", companyId).maybeSingle(); return data?.automation_settings || {}; },
@@ -3307,11 +3363,72 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
             )}
           </div>
           {isConnected && (
-            <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
-              {syncing ? "동기화 중..." : hasCodefConnection && hasHometaxConnection ? "전체 동기화" : hasHometaxConnection ? "홈택스 동기화" : "거래내역 동기화"}
-            </button>
+            <div className="flex items-center gap-2">
+              {hasCodefConnection && (
+                <button
+                  onClick={() => setShowRangeSync(v => !v)}
+                  disabled={syncing}
+                  className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-xs font-semibold transition disabled:opacity-50 border border-[var(--border)]"
+                  title="원하는 기간으로 과거 거래 다시 가져오기 (누락분 채워넣기)"
+                >
+                  📅 기간 선택 sync
+                </button>
+              )}
+              <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                {syncing ? "동기화 중..." : hasCodefConnection && hasHometaxConnection ? "전체 동기화" : hasHometaxConnection ? "홈택스 동기화" : "거래내역 동기화"}
+              </button>
+            </div>
           )}
         </div>
+
+        {/* 기간 선택 sync — 펼침 */}
+        {showRangeSync && hasCodefConnection && (
+          <div className="mb-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-xs font-bold text-[var(--text)]">📅 기간 선택해서 다시 동기화</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                  CODEF default 는 최근 3개월만 가져옵니다. 과거 누락분이 있으면 시작일/종료일을 지정해 다시 sync 하세요.
+                </div>
+              </div>
+              <button onClick={() => setShowRangeSync(false)}
+                className="text-xs text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap mt-3">
+              <label className="text-xs text-[var(--text-muted)]">시작일</label>
+              <input type="date" value={rangeFrom} max={rangeTo} onChange={e => setRangeFrom(e.target.value)}
+                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
+              <span className="text-xs text-[var(--text-dim)]">~</span>
+              <label className="text-xs text-[var(--text-muted)]">종료일</label>
+              <input type="date" value={rangeTo} min={rangeFrom} max={new Date().toISOString().slice(0,10)} onChange={e => setRangeTo(e.target.value)}
+                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
+              <div className="flex items-center gap-1 ml-2">
+                {[
+                  { label: '최근 6개월', months: 6 },
+                  { label: '최근 1년',   months: 12 },
+                  { label: '최근 2년',   months: 24 },
+                ].map(p => (
+                  <button key={p.label} type="button"
+                    onClick={() => {
+                      const d = new Date(); d.setMonth(d.getMonth() - p.months);
+                      setRangeFrom(d.toISOString().slice(0, 10));
+                      setRangeTo(new Date().toISOString().slice(0, 10));
+                    }}
+                    className="px-2 py-1 text-[10px] rounded bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]">
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={handleRangeSync} disabled={syncing}
+                className="ml-auto px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold transition disabled:opacity-50">
+                {syncing ? '동기화 중...' : '이 기간 sync'}
+              </button>
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-2">
+              ⚠ 한국 은행 API 는 등록일 이전 거래를 못 가져올 수 있습니다. 누락분이 계속 있으면 은행 거래내역서를 CSV 로 직접 업로드하세요.
+            </div>
+          </div>
+        )}
 
         {isConnected ? (
           <div className="space-y-3">
