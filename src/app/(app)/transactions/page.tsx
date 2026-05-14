@@ -837,37 +837,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         <StatCard label="총 출금" value={`₩${fmtW(s.totalExpense)}`} color="var(--danger)" />
       </div>
 
-      {/* Monthly Income/Expense Chart + Category Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-        <div className="md:col-span-2">
-          {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
-        </div>
-        {categoryEntries.length > 0 && (
-          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
-            <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">지출 카테고리 분포</p>
-            <div className="space-y-2">
-              {categoryEntries.slice(0, 6).map(([cat, amount]) => {
-                const pct = categoryTotal > 0 ? Math.round((amount / categoryTotal) * 100) : 0;
-                return (
-                  <div key={cat}>
-                    <div className="flex items-center justify-between text-xs mb-0.5">
-                      <span className="text-[var(--text-muted)] truncate max-w-[120px]">{cat}</span>
-                      <span className="text-[var(--text-dim)] mono-number">{pct}%</span>
-                    </div>
-                    <div className="h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%`, transition: 'width 0.3s' }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {categoryEntries.length > 6 && (
-              <p className="text-[9px] text-[var(--text-dim)] mt-2">외 {categoryEntries.length - 6}개 카테고리</p>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
       {visibleTabs.length > 1 && (
         <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
@@ -1376,6 +1345,37 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   ))}
                 </tbody>
               </table></div>
+            )}
+          </div>
+
+          {/* ═══ 하단: 월별 추이 + 카테고리 분포 차트 ═══ */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+            <div className="md:col-span-2">
+              {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
+            </div>
+            {categoryEntries.length > 0 && (
+              <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+                <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">지출 카테고리 분포</p>
+                <div className="space-y-2">
+                  {categoryEntries.slice(0, 6).map(([cat, amount]) => {
+                    const pct = categoryTotal > 0 ? Math.round((amount / categoryTotal) * 100) : 0;
+                    return (
+                      <div key={cat}>
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className="text-[var(--text-muted)] truncate max-w-[120px]">{cat}</span>
+                          <span className="text-[var(--text-dim)] mono-number">{pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%`, transition: 'width 0.3s' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {categoryEntries.length > 6 && (
+                  <p className="text-[9px] text-[var(--text-dim)] mt-2">외 {categoryEntries.length - 6}개 카테고리</p>
+                )}
+              </div>
             )}
           </div>
         </>
