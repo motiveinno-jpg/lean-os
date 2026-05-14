@@ -161,6 +161,81 @@ function codefErrorHint(code?: string): string {
 
 type SyncError = { accountNo: string; organization: string; code: string; message: string; hint: string };
 
+// 잔고 전용 경량 sync — account-list만 호출하고 bank_accounts.balance 만 upsert.
+// 거래내역(transaction-list) 호출 없음 → 3~10초. 대시보드 마운트 시 자동 호출용.
+async function syncBankBalanceOnly(
+  supabase: any, token: string, companyId: string, connectedId: string
+) {
+  const errors: SyncError[] = [];
+  let updated = 0;
+  const debug: string[] = [];
+
+  const registeredAccounts = await getAccountList(token, connectedId);
+  const bankOrgs = new Set<string>();
+  for (const acct of registeredAccounts) {
+    const org = acct.organization;
+    if (!org || CARD_CODES[org]) continue;
+    if (acct.businessType === "BK" || BANK_CODES[org]) bankOrgs.add(org);
+  }
+
+  if (bankOrgs.size === 0) {
+    return { synced: 0, errors, debug: ["no bank orgs"] };
+  }
+
+  for (const org of bankOrgs) {
+    const acctListResult = await codefRequest(token, "/v1/kr/bank/b/account/account-list", {
+      connectedId, organization: org,
+    });
+
+    if (acctListResult.result?.code !== "CF-00000") {
+      const code = acctListResult.result?.code || "UNKNOWN";
+      // balance-only 모드는 권한/형식 노이즈 조용히 (사용자 빨간 알림 안 띄움)
+      if (code !== "CF-00401" && code !== "CF-13021") {
+        errors.push({ accountNo: "", organization: org, code, message: acctListResult.result?.message || "잔액 조회 실패", hint: codefErrorHint(code) });
+      }
+      continue;
+    }
+
+    const acctData = acctListResult.data || {};
+    const demandDeposits = (acctData.resAccountList?.length ? acctData.resAccountList : acctData.resDepositTrust) || [];
+
+    for (const bankAcct of demandDeposits) {
+      const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || "";
+      if (!accountNo) continue;
+      const balance = Number(bankAcct.resAccountBalance || 0);
+
+      const existing = await supabase
+        .from("bank_accounts")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("account_number", accountNo)
+        .maybeSingle();
+
+      if (existing.data?.id) {
+        await supabase.from("bank_accounts").update({
+          balance,
+          bank_name: BANK_CODES[org] || org,
+        }).eq("id", existing.data.id);
+        updated++;
+      } else {
+        const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
+          `${BANK_CODES[org] || org} ${(bankAcct.resAccountDisplay || accountNo).slice(-4)}`;
+        await supabase.from("bank_accounts").insert({
+          company_id: companyId,
+          bank_name: BANK_CODES[org] || org,
+          account_number: accountNo,
+          alias: aliasGuess,
+          balance,
+        });
+        updated++;
+      }
+    }
+    debug.push(`bank ${org}: ${demandDeposits.length} accts balance updated`);
+  }
+
+  return { synced: updated, errors, debug };
+}
+
 async function syncBankTransactions(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
@@ -1594,6 +1669,11 @@ serve(async (req) => {
     const start = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
 
     const results: Record<string, any> = {};
+
+    // syncType="bank-balance": 잔고만 빠르게 (account-list 만 호출, 거래내역 skip — 대시보드 자동 갱신용)
+    if (syncType === "bank-balance") {
+      results.bank = await syncBankBalanceOnly(supabase, token, companyId, cid);
+    }
 
     // syncType="bank_card": 은행+카드만 (홈택스 timeout 분리용 — settings handleSync 1단계에서 사용)
     if (syncType === "bank" || syncType === "all" || syncType === "bank_card") {

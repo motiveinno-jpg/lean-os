@@ -785,7 +785,7 @@ export type CodefSyncError = {
 
 export async function syncCodefData(
   companyId: string,
-  syncType: 'bank' | 'card' | 'all' | 'hometax' | 'bank_card' = 'all',
+  syncType: 'bank' | 'card' | 'all' | 'hometax' | 'bank_card' | 'bank-balance' = 'all',
   startDate?: string,
   endDate?: string,
 ): Promise<{
@@ -877,6 +877,38 @@ export async function syncCodefData(
   } catch (err: any) {
     return { success: false, error: err.message || 'CODEF 동기화 실패' };
   }
+}
+
+/**
+ * 통장 잔고만 빠르게 새로고침 — 거래내역 sync 안 함 (3~10초).
+ * 5분 throttle (localStorage) — 짧은 시간 안의 중복 호출은 silent skip.
+ * silent: 실패해도 throw 안 함 (대시보드 마운트 시 자동 호출용).
+ */
+export async function refreshBankBalances(
+  companyId: string,
+  opts?: { force?: boolean; throttleMs?: number },
+): Promise<{ ran: boolean; updated?: number; skippedReason?: string; error?: string }> {
+  const throttle = opts?.throttleMs ?? 5 * 60 * 1000; // 5분
+  const key = `ow_bal_sync_${companyId}`;
+
+  if (!opts?.force && typeof window !== 'undefined') {
+    try {
+      const last = Number(window.localStorage.getItem(key) || 0);
+      if (last && Date.now() - last < throttle) {
+        return { ran: false, skippedReason: 'throttled' };
+      }
+    } catch { /* localStorage 차단 환경은 그냥 진행 */ }
+  }
+
+  const result = await syncCodefData(companyId, 'bank-balance');
+
+  if (result.success || result.status === 'partial') {
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(key, String(Date.now())); } catch {}
+    }
+    return { ran: true, updated: result.bankSynced };
+  }
+  return { ran: true, error: result.error || '잔고 새로고침 실패' };
 }
 
 export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {

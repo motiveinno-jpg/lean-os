@@ -19,7 +19,7 @@ import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding"
 import { supabase } from "@/lib/supabase";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
-import { syncCodefData } from "@/lib/data-sync";
+import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import Link from "next/link";
@@ -113,6 +113,21 @@ export default function DashboardPage() {
     }
     loadUser();
   }, []);
+
+  // 통장 잔고 자동 새로고침 (대시보드 마운트 시, 5분 throttle, silent)
+  // CODEF 동기화 버튼 없이도 자동으로 잔고만 빠르게 갱신.
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    (async () => {
+      const r = await refreshBankBalances(companyId);
+      if (cancelled) return;
+      if (r.ran && !r.error) {
+        queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId, queryClient]);
 
   // Fetch data from DB
   const { data: rawData, error: mainError, refetch: mainRefetch } = useQuery({
