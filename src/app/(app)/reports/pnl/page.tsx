@@ -537,22 +537,6 @@ export default function PnlPage() {
             </span>
           )}
         </td>
-        {months.map((m) => (
-          <td
-            key={m}
-            style={{
-              padding: "10px 16px",
-              fontSize: 13,
-              fontWeight: isHighlight ? 600 : 400,
-              textAlign: "right",
-              color: (row[m] || 0) < 0 ? "var(--danger)" : isHighlight ? "var(--text)" : "var(--text-muted)",
-              background: isHighlight ? "var(--bg-surface)" : undefined,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {formatKrw(row[m] || 0)}
-          </td>
-        ))}
         <td
           style={{
             padding: "10px 16px",
@@ -597,7 +581,7 @@ export default function PnlPage() {
     );
   };
 
-  const getColCount = (monthsArr: string[]) => monthsArr.length + 2 + (isCompareMode ? 1 : 0);
+  const getColCount = (_monthsArr: string[]) => 2 + (isCompareMode ? 1 : 0);
 
   const renderSectionHeader = (label: string, months: string[]) => (
     <tr key={`header-${label}`}>
@@ -948,20 +932,6 @@ export default function PnlPage() {
         })}
       </div>
 
-      {/* Chart */}
-      <PnlChart
-        months={months}
-        totalRevenue={computed.totalRevenue}
-        totalExpenses={(() => {
-          const row: Record<string, number> = {};
-          for (const m of months) {
-            row[m] = computed.cogs[m] + computed.totalOpex[m];
-          }
-          return row;
-        })()}
-        netIncome={computed.netIncome}
-      />
-
       {/* Table */}
       <div
         style={{
@@ -975,7 +945,7 @@ export default function PnlPage() {
           style={{
             width: "100%",
             borderCollapse: "collapse",
-            minWidth: 700,
+            minWidth: 480,
           }}
         >
           <thead>
@@ -1001,21 +971,6 @@ export default function PnlPage() {
               >
                 항목
               </th>
-              {months.map((m) => (
-                <th
-                  key={m}
-                  style={{
-                    padding: "12px 16px",
-                    textAlign: "right",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--text-dim)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {m.split("-")[0]}년 {formatMonthLabel(m)}
-                </th>
-              ))}
               <th
                 style={{
                   padding: "12px 16px",
@@ -1114,6 +1069,22 @@ export default function PnlPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Chart — 표 아래 */}
+      <div style={{ marginTop: 20 }}>
+        <PnlChart
+          months={months}
+          totalRevenue={computed.totalRevenue}
+          totalExpenses={(() => {
+            const row: Record<string, number> = {};
+            for (const m of months) {
+              row[m] = computed.cogs[m] + computed.totalOpex[m];
+            }
+            return row;
+          })()}
+          netIncome={computed.netIncome}
+        />
       </div>
 
       {/* Category Tooltip */}
