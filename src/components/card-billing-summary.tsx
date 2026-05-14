@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getCorporateCards, getCardTransactions } from "@/lib/card-transactions";
+import { getCorporateCards, getCardTransactions, getDistinctCardNames } from "@/lib/card-transactions";
 
 interface Props {
   companyId: string;
@@ -89,6 +89,13 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     enabled: !!companyId,
   });
 
+  // CODEF sync 카드 (등록 안 된 카드도 표시) — distinct card_name from card_transactions
+  const { data: codefCards = [] } = useQuery({
+    queryKey: ['distinct-card-names', companyId],
+    queryFn: () => getDistinctCardNames(companyId),
+    enabled: !!companyId,
+  });
+
   // 최근 90일 거래를 한 번에 가져와서 카드별 청구 사이클 합산.
   const dateFrom = useMemo(() => {
     const d = new Date(today);
@@ -104,7 +111,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   });
 
   const billings = useMemo<Billing[]>(() => {
-    return (cards as any[]).map((c) => {
+    const list: Billing[] = [];
+
+    // 1) 등록된 법인카드 (payment_day / billing_day 있음)
+    for (const c of (cards as any[])) {
       const billingDay = c.billing_day ?? null;
       const paymentDay = c.payment_day ?? null;
       const { start, end } = computeCycle(today, billingDay);
@@ -114,41 +124,60 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       const cardTxs = (txAll as any[]).filter((tx) =>
         tx.card_id === c.id &&
         tx.transaction_date >= startISO && tx.transaction_date <= endISO &&
-        Number(tx.amount || 0) > 0, // 카드는 지출만, 음수(취소/환불)는 제외
+        Number(tx.amount || 0) > 0,
       );
       const total = cardTxs.reduce((s, t) => s + Number(t.amount || 0), 0);
-
       const nextPay = computeNextPayment(today, paymentDay);
       const days = nextPay ? Math.max(0, Math.round((nextPay.getTime() - today.getTime()) / (1000*60*60*24))) : null;
 
-      return {
-        cardId: c.id,
-        cardName: c.card_name,
-        cardCompany: c.card_company,
-        paymentDay,
-        billingDay,
-        cycleStart: startISO,
-        cycleEnd: endISO,
-        nextPaymentDate: nextPay,
-        daysToPayment: days,
-        totalAmount: total,
-        txCount: cardTxs.length,
-      };
-    }).sort((a, b) => {
-      // 결제일 가까운 순, 결제일 없는 카드는 뒤로
-      if (a.daysToPayment == null && b.daysToPayment == null) return 0;
+      list.push({
+        cardId: c.id, cardName: c.card_name, cardCompany: c.card_company,
+        paymentDay, billingDay, cycleStart: startISO, cycleEnd: endISO,
+        nextPaymentDate: nextPay, daysToPayment: days,
+        totalAmount: total, txCount: cardTxs.length,
+      });
+    }
+
+    // 2) CODEF sync 로만 들어온 카드 (corporate_cards 미등록) — billing/payment day 미설정 표시
+    const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
+    const { start, end } = computeCycle(today, null); // 결제일 없으면 이번달 1일~말일 합산
+    const startISO = start.toISOString().slice(0, 10);
+    const endISO = end.toISOString().slice(0, 10);
+    for (const cc of (codefCards as any[])) {
+      if (registeredNames.has(cc.card_name)) continue;
+      const cardTxs = (txAll as any[]).filter((tx) =>
+        (tx.card_name === cc.card_name) &&
+        tx.transaction_date >= startISO && tx.transaction_date <= endISO &&
+        Number(tx.amount || 0) > 0,
+      );
+      const total = cardTxs.reduce((s, t) => s + Number(t.amount || 0), 0);
+
+      list.push({
+        cardId: `codef:${cc.card_name}`,
+        cardName: cc.alias || cc.card_name,
+        cardCompany: '결제일 미설정',
+        paymentDay: null, billingDay: null,
+        cycleStart: startISO, cycleEnd: endISO,
+        nextPaymentDate: null, daysToPayment: null,
+        totalAmount: total, txCount: cardTxs.length,
+      });
+    }
+
+    list.sort((a, b) => {
+      if (a.daysToPayment == null && b.daysToPayment == null) return b.totalAmount - a.totalAmount;
       if (a.daysToPayment == null) return 1;
       if (b.daysToPayment == null) return -1;
       return a.daysToPayment - b.daysToPayment;
     });
-  }, [cards, txAll, today]);
+    return list;
+  }, [cards, codefCards, txAll, today]);
 
-  if (cards.length === 0) {
+  if (billings.length === 0) {
     return (
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 text-center">
         <div className="text-2xl mb-2">💳</div>
-        <div className="text-sm font-semibold text-[var(--text)]">등록된 법인카드가 없습니다</div>
-        <div className="text-[11px] text-[var(--text-dim)] mt-1">상단 "+ 카드 등록" 으로 추가하고 이용대금 결제일을 입력하세요.</div>
+        <div className="text-sm font-semibold text-[var(--text)]">법인카드가 없습니다</div>
+        <div className="text-[11px] text-[var(--text-dim)] mt-1">상단 "+ 카드 등록" 또는 CODEF 동기화로 카드 거래를 가져오세요.</div>
       </div>
     );
   }

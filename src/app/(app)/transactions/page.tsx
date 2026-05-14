@@ -494,10 +494,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const mapMut = useMutation({
     mutationFn: (params: { id: string; dealId?: string; classification?: string; category?: string; isFixedCost?: boolean }) =>
       mapBankTransaction(params.id, { ...params, mappedBy: userId! }),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
       setMapModal(null);
+      // 분류 완료된 거래는 inbox 에서 사라지고 '전체' 탭에 남음 — 사용자 혼란 방지 안내
+      const fixedNote = vars.isFixedCost ? " · 고정지출 표시됨" : "";
+      if (tab === 'inbox') {
+        toast(`분류 완료${fixedNote} — '전체' 탭에서 확인할 수 있습니다`, "success");
+      } else {
+        toast(`분류 완료${fixedNote}`, "success");
+      }
     },
     onError: (err: any) => toast("거래 매핑 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
@@ -1208,11 +1215,19 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
                 aria-label="종료일"
               />
-              <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2"
+                title="고정지출로 표시된 거래만 표시 (inbox 는 미분류만 보이므로 자동으로 '전체' 탭 전환)">
                 <input
                   type="checkbox"
                   checked={showFixedOnly}
-                  onChange={e => setShowFixedOnly(e.target.checked)}
+                  onChange={e => {
+                    const next = e.target.checked;
+                    setShowFixedOnly(next);
+                    if (next && tab === 'inbox') {
+                      setTab('all');
+                      setFilterStatus('all');
+                    }
+                  }}
                   className="accent-[var(--primary)]"
                 />
                 고정지출만
@@ -1478,7 +1493,16 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <CardBillingSummary
                 companyId={companyId}
-                onSelectCard={(id) => { setSelectedCardId(id); setSelectedCardName(''); }}
+                onSelectCard={(id) => {
+                  if (id.startsWith('codef:')) {
+                    // CODEF sync only (미등록 카드) — card_name 필터 사용
+                    setSelectedCardId('');
+                    setSelectedCardName(id.slice('codef:'.length));
+                  } else {
+                    setSelectedCardId(id);
+                    setSelectedCardName('');
+                  }
+                }}
               />
               <TopCardExpensesThisMonth companyId={companyId} />
             </div>
@@ -1843,8 +1867,9 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
 }
 
 // 분류/카테고리 디폴트 옵션. 사용자가 직접 입력해도 OK (datalist 는 자동완성용).
-const DEFAULT_CLASSIFICATIONS = ['B2B', 'B2C', 'B2G', '광고/마케팅', '인건비', '운영비', '외주비', '임대료', '소프트웨어', '세금', '기타'];
-const DEFAULT_CATEGORIES = ['고정비', '변동비', '매출', '인건비', '복리후생', '식대', '교통/주차', '통신비', '광고선전비', '세금공과', '소모품비', '지급수수료', '임대료', '기타'];
+// '기타' 는 의도적으로 제거 — 분류 의미 없음. 원하는 분류가 없으면 그냥 직접 타이핑.
+const DEFAULT_CLASSIFICATIONS = ['B2B', 'B2C', 'B2G', '광고/마케팅', '인건비', '운영비', '외주비', '임대료', '소프트웨어', '세금'];
+const DEFAULT_CATEGORIES = ['고정비', '변동비', '매출', '인건비', '복리후생', '식대', '교통/주차', '통신비', '광고선전비', '세금공과', '소모품비', '지급수수료', '임대료'];
 
 function MapTransactionModal({ tx, deals, classifications, existingCategories, existingClassifications, onMap, onClose }: {
   tx: any;
@@ -1889,26 +1914,25 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
               <input
                 list="bank-cls-options"
                 value={classification}
                 onChange={e => setClassification(e.target.value)}
-                placeholder="예: B2B, 광고/마케팅, 인건비..."
+                placeholder="원하는 분류 타이핑 또는 ▼ 선택"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="bank-cls-options">
                 {clsOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
-              <div className="text-[10px] text-[var(--text-dim)] mt-1">자유 입력 · 자주 쓰는 분류 자동완성</div>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
               <input
                 list="bank-cat-options"
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                placeholder="예: 고정비, 식대, 통신비..."
+                placeholder="원하는 카테고리 타이핑 또는 ▼ 선택"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="bank-cat-options">
@@ -1916,9 +1940,10 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
               </datalist>
             </div>
           </div>
+          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요. 다음 분류부터 자동완성에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-            고정비로 표시
+            고정비로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
           </label>
         </div>
 
@@ -1977,26 +2002,25 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
               <input
                 list="card-cls-options"
                 value={classification}
                 onChange={e => setClassification(e.target.value)}
-                placeholder="예: B2B, 광고/마케팅, 인건비..."
+                placeholder="원하는 분류 타이핑 또는 ▼ 선택"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="card-cls-options">
                 {clsOptions.map((c) => <option key={c} value={c} />)}
               </datalist>
-              <div className="text-[10px] text-[var(--text-dim)] mt-1">자유 입력 · 자동완성</div>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(직접 입력 가능)</span></label>
               <input
                 list="card-cat-options"
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                placeholder="예: 식비, 교통비, 접대비..."
+                placeholder="원하는 카테고리 타이핑 또는 ▼ 선택"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
               <datalist id="card-cat-options">
@@ -2004,6 +2028,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
               </datalist>
             </div>
           </div>
+          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 목록에 없으면 직접 타이핑하세요.</div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
