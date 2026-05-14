@@ -85,13 +85,13 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   const today = startOfDay(new Date());
   const queryClient = useQueryClient();
 
-  const { data: cards = [] } = useQuery({
+  const { data: cards = [], isFetched: cardsFetched } = useQuery({
     queryKey: ['corp-cards', companyId],
     queryFn: () => getCorporateCards(companyId),
     enabled: !!companyId,
   });
 
-  const { data: codefCards = [] } = useQuery({
+  const { data: codefCards = [], isFetched: codefFetched } = useQuery({
     queryKey: ['distinct-card-names', companyId],
     queryFn: () => getDistinctCardNames(companyId),
     enabled: !!companyId,
@@ -115,6 +115,11 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     enabled: !!companyId,
     staleTime: 60_000,
   });
+
+  // 체크/직불 카드 — 청구 사이클 무관, 별도 섹션에서 종류 변경만 가능
+  const nonCreditCards = useMemo(() => {
+    return (cards as any[]).filter((c: any) => c.card_type && c.card_type !== 'credit');
+  }, [cards]);
 
   // 신용카드(credit)만 청구서 표시. 체크/직불은 즉시 출금 → 청구 사이클 없음.
   const billings = useMemo<Billing[]>(() => {
@@ -162,10 +167,15 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   useEffect(() => {
     if (autoRegRef.current) return;
     if (!companyId) return;
+    // 두 useQuery 모두 fetch 완료된 후만 실행 (cards 로딩 전 fire 시 모든 카드 새로 insert 되는 문제 방지)
+    if (!cardsFetched || !codefFetched) return;
     if (!Array.isArray(cards) || !Array.isArray(codefCards)) return;
     const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
     const newCards = (codefCards as any[]).filter((cc: any) => cc.card_name && !registeredNames.has(cc.card_name));
-    if (newCards.length === 0) return;
+    if (newCards.length === 0) {
+      autoRegRef.current = true; // 추가 등록할 카드 없음 — 다음에 또 시도 안 함
+      return;
+    }
     autoRegRef.current = true;
 
     (async () => {
@@ -277,6 +287,79 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       {unregisteredCount > 0 && (
         <div className="mt-2 text-[10px] text-[var(--text-dim)]">
           미등록 CODEF 카드 {unregisteredCount}개 — 카드를 등록하면 종류·결제일 지정 가능
+        </div>
+      )}
+
+      {/* 체크·직불 카드 — 청구 사이클 무관, 종류 되돌리기용 */}
+      {nonCreditCards.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+              체크·직불·기타 {nonCreditCards.length}개
+            </div>
+            <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>
+          </div>
+          <div className="space-y-1">
+            {nonCreditCards.map((c: any) => {
+              const curType = c.card_type as 'check' | 'debit' | 'other';
+              const typeLabel = curType === 'check' ? '체크' : curType === 'debit' ? '직불' : '기타';
+              return (
+                <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-[var(--text-muted)] truncate">{c.card_name}</span>
+                      <NonCreditTypeToggle
+                        currentType={curType}
+                        currentLabel={typeLabel}
+                        onChange={(type) => typeMut.mutate({ card: c, type })}
+                        saving={typeMut.isPending}
+                      />
+                    </div>
+                    <div className="text-[9px] text-[var(--text-dim)] truncate">{c.card_company}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NonCreditTypeToggle({ currentType, currentLabel, onChange, saving }: {
+  currentType: 'check' | 'debit' | 'other';
+  currentLabel: string;
+  onChange: (type: 'credit' | 'check' | 'debit' | 'other') => void;
+  saving: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const color = currentType === 'check' ? { bg: 'rgba(249,115,22,0.12)', fg: '#fb923c' }
+    : currentType === 'debit' ? { bg: 'rgba(34,197,94,0.12)', fg: '#4ade80' }
+    : { bg: 'rgba(148,163,184,0.12)', fg: '#94a3b8' };
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(v => !v)}
+        className="text-[9px] font-bold px-1.5 py-0.5 rounded transition shrink-0"
+        style={{ background: color.bg, color: color.fg }}
+        title="카드 종류 변경"
+      >
+        {currentLabel}▾
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[80px]"
+          onMouseLeave={() => setOpen(false)}
+        >
+          {([['credit', '신용'], ['check', '체크'], ['debit', '직불'], ['other', '기타']] as const).map(([k, label]) => (
+            <button key={k} disabled={saving}
+              onClick={() => { onChange(k); setOpen(false); }}
+              className={`block w-full text-left px-3 py-1 text-[10px] hover:bg-[var(--bg-surface)] transition ${
+                currentType === k ? 'font-bold text-[var(--primary)]' : 'text-[var(--text-muted)]'
+              }`}
+            >
+              {currentType === k ? '✓ ' : '  '}{label}
+            </button>
+          ))}
         </div>
       )}
     </div>

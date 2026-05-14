@@ -43,7 +43,11 @@ export async function upsertCorporateCard(params: {
   };
   if (params.id) row.id = params.id;
 
-  const { error } = await supabase.from('corporate_cards').upsert(row);
+  // onConflict (company_id, card_name) — 같은 회사·카드명 으로 중복 row 생성 방지.
+  // id 있으면 PK match update, 없으면 (company_id, card_name) match update or insert.
+  const { error } = await supabase
+    .from('corporate_cards')
+    .upsert(row, { onConflict: 'company_id,card_name' });
   if (error) throw error;
 }
 
