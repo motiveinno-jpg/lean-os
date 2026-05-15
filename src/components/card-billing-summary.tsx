@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPaginated } from "@/lib/supabase-paginated";
 
 // "BC카드 5979" → { company: "BC카드", lastFour: "5979" }
 function parseCardName(name: string): { company: string; lastFour: string | null } {
@@ -102,16 +103,15 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     return d.toISOString().slice(0, 10);
   }, [today]);
   const { data: txAll = [] } = useQuery({
-    queryKey: ['card-tx-recent-90-simple', companyId, dateFrom],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
+    queryKey: ['card-tx-recent-90-paginated', companyId, dateFrom],
+    queryFn: () => fetchAllPaginated<any>((from, to) =>
+      (supabase as any)
         .from('card_transactions')
         .select('id, transaction_date, amount, card_id, card_name')
         .eq('company_id', companyId)
         .gte('transaction_date', dateFrom)
-        .limit(50000);
-      return data || [];
-    },
+        .range(from, to)
+    ),
     enabled: !!companyId,
     staleTime: 60_000,
   });

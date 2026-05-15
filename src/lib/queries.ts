@@ -934,12 +934,15 @@ export async function getDocApprovals(documentId: string) {
 
 // ── Tax Invoices ──
 export async function getTaxInvoices(companyId: string) {
-  const { data } = await supabase
-    .from('tax_invoices')
-    .select('*, deals(name)')
-    .eq('company_id', companyId)
-    .order('issue_date', { ascending: false });
-  return data || [];
+  const { fetchAllPaginated } = await import('./supabase-paginated');
+  return fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from('tax_invoices')
+      .select('*, deals(name)')
+      .eq('company_id', companyId)
+      .order('issue_date', { ascending: false })
+      .range(from, to)
+  );
 }
 
 // ═══════════════════════════════════════════════

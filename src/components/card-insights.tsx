@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPaginated } from "@/lib/supabase-paginated";
 
 interface Props { companyId: string; }
 
@@ -158,17 +159,16 @@ export function CardMonthlyUsage({ companyId }: Props) {
   });
 
   const { data: txAll = [] } = useQuery({
-    queryKey: ['card-tx-6mo-simple', companyId, sixMonthFrom],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
+    queryKey: ['card-tx-6mo-paginated', companyId, sixMonthFrom],
+    queryFn: () => fetchAllPaginated<any>((from, to) =>
+      (supabase as any)
         .from('card_transactions')
         .select('id, transaction_date, amount, card_id, card_name')
         .eq('company_id', companyId)
         .gte('transaction_date', sixMonthFrom)
         .lte('transaction_date', todayISO)
-        .limit(50000);
-      return data || [];
-    },
+        .range(from, to)
+    ),
     enabled: !!companyId,
     staleTime: 60_000,
   });

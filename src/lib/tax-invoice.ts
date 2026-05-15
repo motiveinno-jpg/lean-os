@@ -323,13 +323,17 @@ export async function getTaxInvoiceSummary(
   const startDate = `${year}-01-01`;
   const endDate = `${year}-12-31`;
 
-  const { data: invoices } = await supabase
-    .from('tax_invoices')
-    .select('type, supply_amount, tax_amount, total_amount, issue_date')
-    .eq('company_id', companyId)
-    .neq('status', 'void')
-    .gte('issue_date', startDate)
-    .lte('issue_date', endDate);
+  const { fetchAllPaginated } = await import('./supabase-paginated');
+  const invoices = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from('tax_invoices')
+      .select('type, supply_amount, tax_amount, total_amount, issue_date')
+      .eq('company_id', companyId)
+      .neq('status', 'void')
+      .gte('issue_date', startDate)
+      .lte('issue_date', endDate)
+      .range(from, to)
+  );
 
   if (!invoices || invoices.length === 0) return [];
 

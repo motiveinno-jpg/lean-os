@@ -423,7 +423,7 @@ export async function sendPayslipEmails(
   // Get company name + representative
   const { data: company } = await db
     .from('companies')
-    .select('name, representative_name')
+    .select('name, representative')
     .eq('id', companyId)
     .single();
 
@@ -484,7 +484,7 @@ export async function sendPayslipEmails(
       const doc = await generatePayslipPDF({
         item: payroll,
         companyName: company?.name || '',
-        representative: (company as any)?.representative_name || undefined,
+        representative: (company as any)?.representative || undefined,
         periodLabel: monthLabel,
         department: emp.department || undefined,
         position: emp.position || undefined,
