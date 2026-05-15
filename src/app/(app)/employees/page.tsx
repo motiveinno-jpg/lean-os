@@ -2603,28 +2603,35 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                 try {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
-                    await (supabase as any).from("doc_templates").update({
+                    const { error } = await (supabase as any).from("doc_templates").update({
                       name: `[임시] ${newTemplateName.trim().replace(/^\[임시\]\s*/, '')}`,
                       content_json: { body: newTemplateBody || '' },
                       variables,
                       is_active: false,
                     }).eq("id", editingTemplateId);
+                    if (error) throw error;
                   } else {
-                    const { data: ins } = await (supabase as any).from("doc_templates").insert({
+                    const { data: ins, error } = await (supabase as any).from("doc_templates").insert({
                       company_id: companyId,
                       name: `[임시] ${newTemplateName.trim()}`,
+                      type: "hr_contract",
                       content_json: { body: newTemplateBody || '' },
                       variables,
                       category: "comprehensive_labor",
                       is_active: false,
                       is_custom: true,
                     }).select('id').maybeSingle();
+                    if (error) throw error;
                     if (ins?.id) setEditingTemplateId(ins.id);
                   }
                   queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
-      queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
+                  queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
                   toast("임시 저장되었습니다.", "success");
-                } catch (err: any) { toast("임시 저장 실패: " + (err.message || ""), "error"); }
+                } catch (err: any) {
+                  const msg = err?.message || err?.details || err?.code || JSON.stringify(err).slice(0, 200);
+                  toast("임시 저장 실패: " + msg, "error");
+                  console.error('[임시저장] error:', err);
+                }
                 setSavingTemplate(false);
               }}
               disabled={!newTemplateName.trim() || savingTemplate}
@@ -2640,33 +2647,40 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
                     // UPDATE 기존 서식 — 임시저장 prefix 제거
-                    await (supabase as any).from("doc_templates").update({
+                    const { error } = await (supabase as any).from("doc_templates").update({
                       name: newTemplateName.trim().replace(/^\[임시\]\s*/, ''),
                       content_json: { body: newTemplateBody },
                       variables,
                       is_active: true,
                     }).eq("id", editingTemplateId);
+                    if (error) throw error;
                     toast("서식이 수정되었습니다.", "success");
                   } else {
-                    await (supabase as any).from("doc_templates").insert({
+                    const { error } = await (supabase as any).from("doc_templates").insert({
                       company_id: companyId,
                       name: newTemplateName.trim(),
+                      type: "hr_contract",
                       content_json: { body: newTemplateBody },
                       variables,
                       category: "comprehensive_labor",
                       is_active: true,
                       is_custom: true,
                     });
+                    if (error) throw error;
                     toast("서식이 저장되었습니다.", "success");
                   }
                   queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
-      queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
+                  queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
                   setNewTemplateName("");
                   setNewTemplateBody("");
                   setEditingTemplateId(null);
                   setCustomVariables([]);
                   setShowTemplateEditor(false);
-                } catch (err: any) { toast("저장 실패: " + (err.message || ""), "error"); }
+                } catch (err: any) {
+                  const msg = err?.message || err?.details || err?.code || JSON.stringify(err).slice(0, 200);
+                  toast("저장 실패: " + msg, "error");
+                  console.error('[서식 저장] error:', err);
+                }
                 setSavingTemplate(false);
               }}
               disabled={!newTemplateName.trim() || !newTemplateBody.trim() || savingTemplate}
