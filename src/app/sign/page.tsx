@@ -682,6 +682,10 @@ function SignContent() {
             if (sec.heading) allSections.push(`\n${sec.heading}`);
             if (sec.body) allSections.push(sec.body);
           }
+        } else if (cj.body) {
+          // Built-in 템플릿은 sections 가 없고 단일 body 텍스트
+          allSections.push(`\n${item.title || ''}`);
+          allSections.push(String(cj.body));
         }
         allSections.push(''); // blank line between documents
       }

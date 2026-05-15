@@ -24,7 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
       { href: "/deals", label: "프로젝트", icon: "briefcase" },
-      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "approvals" },
+      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
   {
@@ -155,6 +155,7 @@ export function Sidebar() {
   const { user, role } = useUser();
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const filteredNav = filterNavForRole(role, user?.companies?.name || undefined);
 
   // Build flat lookup for pinned pages
@@ -199,6 +200,16 @@ export function Sidebar() {
         ).length;
         setApprovalsPending((docCount ?? 0) + (payCount ?? 0) + myStepCount);
       } catch {}
+      // notifications unread count — 모든 역할(대표/관리자/직원) 공통
+      try {
+        const db = supabase as any;
+        const { count } = await db
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", u.id)
+          .eq("is_read", false);
+        setNotificationsUnread(count ?? 0);
+      } catch {}
     }
     loadCounts();
     const interval = setInterval(loadCounts, 30000);
@@ -214,6 +225,15 @@ export function Sidebar() {
         const counts = await getUnreadCounts(u.company_id, u.id);
         const total = Array.from(counts.values()).reduce((s, v) => s + v, 0);
         setChatUnread(total);
+      } catch {}
+      try {
+        const db = supabase as any;
+        const { count } = await db
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", u.id)
+          .eq("is_read", false);
+        setNotificationsUnread(count ?? 0);
       } catch {}
     }
     refreshOnNav();
@@ -330,7 +350,7 @@ export function Sidebar() {
               {group.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 const bk = (item as any).badgeKey;
-                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
+                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
                 const pinned = isPinned(item.href);
                 return (
                   <Tooltip key={item.href} label={item.label} show={collapsed}>
@@ -570,7 +590,7 @@ export function Sidebar() {
                   {group.items.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(item.href + "/");
                     const bk = (item as any).badgeKey;
-                    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : 0;
+                    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
                     const pinned = isPinned(item.href);
                     return (
                       <div key={item.href} className="relative flex items-center">

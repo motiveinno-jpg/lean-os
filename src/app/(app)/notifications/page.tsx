@@ -38,7 +38,7 @@ export default function NotificationsPage() {
       const { data } = await (supabase as any)
         .from('notifications')
         .select('id, type, title, message, entity_type, entity_id, is_read, created_at')
-        .eq('company_id', u.company_id)
+        .eq('user_id', u.id)
         .order('created_at', { ascending: false })
         .limit(100);
       setRows((data || []) as NotificationRow[]);
@@ -49,8 +49,18 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     const u = await getCurrentUser();
     if (!u) return;
-    await (supabase as any).from('notifications').update({ is_read: true }).eq('company_id', u.company_id).eq('is_read', false);
+    await (supabase as any).from('notifications').update({ is_read: true }).eq('user_id', u.id).eq('is_read', false);
     setRows(rs => rs.map(r => ({ ...r, is_read: true })));
+    // 사이드바 뱃지 즉시 갱신
+    window.dispatchEvent(new Event('sidebar-refresh-badges'));
+  };
+
+  const markOneRead = async (id: string) => {
+    const u = await getCurrentUser();
+    if (!u) return;
+    await (supabase as any).from('notifications').update({ is_read: true }).eq('id', id);
+    setRows(rs => rs.map(r => (r.id === id ? { ...r, is_read: true } : r)));
+    window.dispatchEvent(new Event('sidebar-refresh-badges'));
   };
 
   const unread = rows.filter(r => !r.is_read).length;
@@ -87,6 +97,7 @@ export default function NotificationsPage() {
             const date = n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '';
             return (
               <Link key={n.id} href={href}
+                onClick={() => { if (!n.is_read) markOneRead(n.id); }}
                 className={`block rounded-xl border transition px-4 py-3 ${
                   n.is_read
                     ? 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-surface)]'
