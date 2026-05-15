@@ -38,10 +38,11 @@ import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
-type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "attendance" | "leave" | "certificates";
+type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
 
 // Employee 역할은 자기 관련 탭만 접근 가능
-const EMPLOYEE_ROLE_TABS: Tab[] = ["attendance", "leave", "expenses", "certificates"];
+// 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
+const EMPLOYEE_ROLE_TABS: Tab[] = ["leave", "expenses", "certificates"];
 
 export default function EmployeesPage() {
   const { toast } = useToast();
@@ -52,7 +53,7 @@ export default function EmployeesPage() {
   const sp = useSearchParams();
   const urlTab = sp?.get('tab') as Tab | null;
   const isValidTab = (t: string | null): t is Tab =>
-    !!t && (['employees','salary','payroll','contracts','expenses','attendance','leave','certificates'] as const).includes(t as Tab);
+    !!t && (['employees','salary','payroll','contracts','expenses','leave','certificates'] as const).includes(t as Tab);
   const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? urlTab : "employees");
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
-      setTab("attendance");
+      setTab("leave");
     }
   }, [isEmployee, tab]);
 
@@ -123,7 +124,6 @@ export default function EmployeesPage() {
     { key: "payroll", label: "급여 명세" },
     { key: "contracts", label: "계약서" },
     { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
-    { key: "attendance", label: "근태" },
     { key: "leave", label: "휴가" },
     { key: "certificates", label: "증명서 발급" },
   ];
@@ -208,7 +208,7 @@ export default function EmployeesPage() {
       {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
       {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
       {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
-      {tab === "attendance" && <AttendanceTab employees={employees} companyId={companyId} userId={userId} userEmail={userEmail} queryClient={queryClient} role={role} />}
+      {/* 근태 관리는 /attendance 별도 페이지로 이동됨 */}
       {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
       {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
@@ -3153,7 +3153,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 }
 
 // ── Attendance Tab ──
-function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
+export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
   const { toast } = useToast();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
