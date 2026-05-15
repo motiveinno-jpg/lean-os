@@ -2259,7 +2259,15 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           toast("발송 실패: " + msg.slice(0, 200), "error");
         }
       } else {
-        toast("계약 서명 요청 메일 발송 완료", "success");
+        const channels: string[] = [];
+        if ((result as any).inAppDelivered) channels.push("OwnerView 알림");
+        if ((result as any).emailSent) channels.push("이메일");
+        toast(
+          channels.length > 0
+            ? `서명 요청 발송 완료 (${channels.join(" + ")})`
+            : "서명 요청 발송 완료",
+          "success",
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {

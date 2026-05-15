@@ -92,6 +92,7 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
     "/attendance",     // 근태 (→ employees redirect)
     "/documents",      // 서류 / 계약서 / 서명
     "/signatures",     // 전자계약 (서명 진행)
+    "/my-contracts",   // 내 서명 요청 (모두사인 스타일 인앱 inbox)
     "/approvals",      // 승인 요청
     "/chat",           // 팀 채팅
     "/mypage",         // 내 계정

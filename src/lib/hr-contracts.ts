@@ -631,21 +631,25 @@ export async function createContractPackage(params: {
   return { package: pkg, items };
 }
 
-// ── Send Contract Package (email) ──
+// ── Send Contract Package (in-app + email) ──
+// 모두사인 스타일: 인앱 알림 + 이메일 (이메일 실패해도 인앱으로 받을 수 있음)
 
 export async function sendContractPackage(
   packageId: string,
   baseUrl?: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; emailSent?: boolean; inAppDelivered?: boolean }> {
   // Get package with employee info
   const { data: pkg } = await db
     .from('hr_contract_packages')
-    .select('*, employees(name, email)')
+    .select('*, employees(id, name, email, user_id)')
     .eq('id', packageId)
     .single();
 
   if (!pkg) throw new Error('계약 패키지를 찾을 수 없습니다');
-  if (!pkg.employees?.email) throw new Error('직원 이메일이 등록되지 않았습니다');
+  // 이메일이 없어도 직원이 OwnerView 계정이 있으면 인앱 전달 가능. 둘 다 없을 때만 실패.
+  if (!pkg.employees?.email && !pkg.employees?.user_id) {
+    throw new Error('직원 이메일도 OwnerView 계정도 등록돼 있지 않습니다 — 인앱·이메일 모두 발송 불가');
+  }
 
   // Get company name
   const { data: company } = await db
@@ -654,89 +658,102 @@ export async function sendContractPackage(
     .eq('id', pkg.company_id)
     .single();
 
-  // Get items count
-  const { count } = await db
-    .from('hr_contract_package_items')
-    .select('id', { count: 'exact', head: true })
-    .eq('package_id', packageId);
-
-  // Build sign URL
+  // Build sign URL — 외부 메일에서 클릭하든 인앱에서 클릭하든 같은 페이지.
   const signUrl = `${baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://owner-view.com'}/sign?token=${pkg.sign_token}`;
 
   // Set expiration (14 days from now)
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 14);
 
-  // Call Edge Function to send email
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('인증 세션이 없습니다');
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-
-  try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-signature-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        to: pkg.employees.email,
-        signerName: pkg.employees.name,
-        companyName: company?.name || '',
-        title: pkg.title,
-        signUrl,
-        expiresAt: expiresAt.toISOString(),
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[sendContractPackage] edge function failed', { status: res.status, body: err });
-      throw new Error(`HTTP ${res.status}: ${err.slice(0, 300)}`);
+  // 1) 인앱 알림 — 직원이 OwnerView 계정 있으면 우선 전달
+  let inAppDelivered = false;
+  if (pkg.employees?.user_id) {
+    try {
+      await db.from('notifications').insert({
+        company_id: pkg.company_id,
+        user_id: pkg.employees.user_id,
+        type: 'signature_request',
+        title: `서명 요청 — ${pkg.title}`,
+        message: `${company?.name || ''} 에서 계약서 서명을 요청했습니다. 14일 안에 서명해주세요.`,
+        entity_type: 'hr_contract_package',
+        entity_id: packageId,
+        is_read: false,
+      });
+      inAppDelivered = true;
+    } catch (e) {
+      console.error('[sendContractPackage] 인앱 알림 인서트 실패:', e);
     }
-    // 성공 응답이라도 body 에 success:false 있을 수 있음 — fallback 모드 검사
-    const okBody = await res.json().catch(() => ({}));
-    if (okBody?.success === false) {
-      console.error('[sendContractPackage] Resend 거부', okBody);
-      throw new Error(`Resend 발송 거부: ${okBody.error || JSON.stringify(okBody).slice(0, 300)}`);
-    }
-    if (okBody?.fallback) {
-      console.warn('[sendContractPackage] RESEND_API_KEY 미설정 — fallback 모드, 실제 메일 미발송');
-      throw new Error('RESEND_API_KEY 가 Supabase secrets 에 등록 안 됨 — 실제 메일 발송 안 됨. signUrl 직접 전달 가능: ' + signUrl);
-    }
-  } catch (e: any) {
-    // Update status but note the email failure
-    await db.from('hr_contract_packages').update({
-      status: 'sent',
-      sent_at: new Date().toISOString(),
-      expires_at: expiresAt.toISOString(),
-      notes: (pkg.notes ? pkg.notes + '\n' : '') + `이메일 발송 실패: ${e.message}`,
-    }).eq('id', packageId);
-
-    return { success: false, error: e.message };
   }
 
-  // Update package status
+  // 2) 이메일 발송 — 이메일이 있는 경우만, 실패해도 전체 send 실패로 처리 안 함 (인앱 fallback)
+  let emailSent = false;
+  let emailError: string | null = null;
+  if (pkg.employees?.email) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('인증 세션이 없습니다');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-signature-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          to: pkg.employees.email,
+          signerName: pkg.employees.name,
+          companyName: company?.name || '',
+          title: pkg.title,
+          signUrl,
+          expiresAt: expiresAt.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status}: ${err.slice(0, 200)}`);
+      }
+      const okBody = await res.json().catch(() => ({}));
+      if (okBody?.success === false) {
+        throw new Error(`Resend 거부: ${okBody.error || ''}`);
+      }
+      if (okBody?.fallback) {
+        throw new Error('RESEND_API_KEY 미설정 (인앱 알림만 발송)');
+      }
+      emailSent = true;
+    } catch (e: any) {
+      emailError = e?.message || String(e);
+      console.warn('[sendContractPackage] 이메일 발송 실패 (인앱 알림 fallback):', emailError);
+    }
+  }
+
+  // 인앱·이메일 둘 다 실패한 경우만 실패 처리
+  if (!inAppDelivered && !emailSent) {
+    await db.from('hr_contract_packages').update({
+      notes: (pkg.notes ? pkg.notes + '\n' : '') + `발송 실패: ${emailError || '경로 없음'}`,
+    }).eq('id', packageId);
+    return { success: false, error: emailError || '인앱·이메일 발송 경로 모두 실패' };
+  }
+
+  // 적어도 하나의 경로로 전달됐으면 sent 상태로 갱신
   await db.from('hr_contract_packages').update({
     status: 'sent',
     sent_at: new Date().toISOString(),
     expires_at: expiresAt.toISOString(),
   }).eq('id', packageId);
 
-  // Audit: email_sent
+  // Audit: 발송 채널 기록
   try {
     await logAuditTrail(packageId, {
       action: 'email_sent',
       timestamp: new Date().toISOString(),
       actor: company?.name || 'system',
-      details: `서명 요청 이메일 발송: ${pkg.employees.email}`,
+      details: `서명 요청 발송 — 인앱:${inAppDelivered ? 'O' : 'X'} 이메일:${emailSent ? 'O' : 'X'}${emailError ? ' (' + emailError + ')' : ''}`,
     });
   } catch (e) {
     console.error('Audit log error:', e);
   }
 
-  return { success: true };
+  return { success: true, emailSent, inAppDelivered };
 }
 
 // ── Get Package by Sign Token (for external signing page) ──

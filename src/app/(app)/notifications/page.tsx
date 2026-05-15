@@ -23,6 +23,8 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   payment: () => `/payments`,
   chat: () => `/chat`,
   document: () => `/documents`,
+  hr_contract_package: () => `/my-contracts`,
+  leave_request: () => `/employees?tab=leave`,
 };
 
 export default function NotificationsPage() {
