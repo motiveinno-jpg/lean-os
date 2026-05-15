@@ -118,22 +118,44 @@ export async function createBlankDocument(params: {
 }
 
 // ── Fill template variables ──
+// 변수명을 공백·률/율 정규화해서 매칭 (예: "수습기간 시작일" → "{{수습기간시작일}}" 도 치환됨)
+function normalizeVarName(s: string): string {
+  return s
+    .replace(/\s+/g, '')
+    .replace(/률/g, '율')
+    .toLowerCase();
+}
+
 export function fillVariables(
   contentJson: Record<string, any>,
   variables: Record<string, string>
 ): Record<string, any> {
   const str = JSON.stringify(contentJson);
-  let filled = str;
-  for (const [key, value] of Object.entries(variables)) {
-    // Escape special characters that would break JSON.parse
-    const safeValue = value
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t');
-    filled = filled.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), safeValue);
+  const escape = (v: string) => v
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
+
+  // 1) 변수 사전 — 직접 키 + 정규화된 키 둘 다 등록
+  const dict: Record<string, string> = {};
+  for (const [k, v] of Object.entries(variables)) {
+    if (!k) continue;
+    dict[k] = v;
+    dict[normalizeVarName(k)] = v;
   }
+
+  // 2) 본문 안의 모든 {{...}} 를 찾아 직접 매칭 → 실패 시 정규화 매칭
+  const filled = str.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (whole, rawName: string) => {
+    const direct = dict[rawName];
+    if (direct !== undefined) return escape(direct);
+    const norm = normalizeVarName(rawName);
+    const fuzzy = dict[norm];
+    if (fuzzy !== undefined) return escape(fuzzy);
+    return whole; // 매칭 실패 시 원래 placeholder 유지
+  });
+
   return JSON.parse(filled);
 }
 
