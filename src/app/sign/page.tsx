@@ -496,6 +496,40 @@ function SignContent() {
           console.error('Audit log error:', e);
         }
 
+        // 발송자(created_by) + 회사 owner/admin 에게 서명 완료 인앱 알림
+        try {
+          // pkg 에는 created_by 필드가 select 'p.*' 에 포함됨
+          const createdBy = (pkg as any).created_by as string | null | undefined;
+          const companyId = (pkg as any).company_id as string | undefined;
+          const recipientIds = new Set<string>();
+          if (createdBy && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(createdBy)) {
+            recipientIds.add(createdBy);
+          }
+          if (companyId) {
+            const { data: admins } = await db
+              .from('users')
+              .select('id')
+              .eq('company_id', companyId)
+              .in('role', ['owner', 'admin']);
+            (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
+          }
+          if (recipientIds.size > 0 && companyId) {
+            const rows = Array.from(recipientIds).map((uid) => ({
+              company_id: companyId,
+              user_id: uid,
+              type: 'signature_request',
+              title: `서명 완료 — ${pkg.title}`,
+              message: `${pkg.employees?.name || '직원'} 이(가) 계약서에 서명을 완료했습니다.`,
+              entity_type: 'hr_contract_package',
+              entity_id: pkg.id,
+              is_read: false,
+            }));
+            await db.from('notifications').insert(rows);
+          }
+        } catch (e) {
+          console.error('[sign] 발송자 알림 인서트 실패:', e);
+        }
+
         // Send completion notification email
         try {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -870,6 +904,17 @@ function SignContent() {
                   </p>
                 </div>
               ))}
+              {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더 */}
+              {!content?.sections && content?.body && (
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {content.body}
+                </div>
+              )}
+              {!content?.sections && !content?.body && (
+                <div className="text-center text-gray-400 text-sm py-8">
+                  문서 내용을 불러올 수 없습니다 — 관리자에게 문의해주세요.
+                </div>
+              )}
             </div>
 
             {/* Signature Area */}

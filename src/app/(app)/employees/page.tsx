@@ -2901,7 +2901,16 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                       </button>
                     )}
                     {p.status === "completed" && (
-                      <span className="px-3 py-2 text-xs text-green-400">서명 완료</span>
+                      <>
+                        <button
+                          onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")}
+                          className="px-3 py-2 text-xs font-medium text-green-400 rounded-lg hover:bg-green-500/10 transition flex items-center gap-1"
+                          title="서명된 계약서 보기 (감사추적 + 다운로드)"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          서명본 보기
+                        </button>
+                      </>
                     )}
                     {/* 직인 적용 버튼 — 모든 상태에서 사용 가능 */}
                     <button
