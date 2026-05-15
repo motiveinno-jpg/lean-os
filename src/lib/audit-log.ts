@@ -21,10 +21,20 @@ export interface AuditLogEntry {
   ip_address?: string;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function logAudit(entry: AuditLogEntry) {
   try {
+    // user_id 는 UUID 컬럼이라 'system' 같은 문자열을 그대로 넣으면 22P02 (invalid uuid) 발생.
+    // 비-UUID 값은 null 로 정규화하고 metadata.actor 로 보존.
+    const safeUserId = UUID_RE.test(entry.user_id) ? entry.user_id : null;
+    const metadata = safeUserId === null
+      ? { ...(entry.metadata || {}), actor: entry.user_id }
+      : entry.metadata;
     await (supabase as any).from('audit_logs').insert({
       ...entry,
+      user_id: safeUserId,
+      metadata,
       created_at: new Date().toISOString(),
     });
   } catch (err) {

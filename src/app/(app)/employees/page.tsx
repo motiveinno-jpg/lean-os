@@ -2183,6 +2183,7 @@ const HR_TEMPLATES = [
 // ── Contract Tab (전자계약 — 플렉스 스타일) ──
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const { toast } = useToast();
+  const { user } = useUser();
   const [showCreate, setShowCreate] = useState(false);
   const [reqForm, setReqForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
   const [sending, setSending] = useState<string | null>(null);
@@ -2228,7 +2229,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
         employeeId: reqForm.employeeId,
         title: reqForm.title || `${emp?.name || ""} ${new Date().getFullYear()}년 계약`,
         templateIds: reqForm.templateIds,
-        createdBy: "system",
+        createdBy: user?.id ?? null,
       });
     },
     onSuccess: () => {

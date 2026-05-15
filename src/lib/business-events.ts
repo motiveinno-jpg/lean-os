@@ -24,7 +24,7 @@ export type BusinessEventType =
 interface BusinessEventParams {
   dealId: string;
   eventType: BusinessEventType;
-  userId: string; // who triggered the event
+  userId: string | null; // who triggered the event — null = system/auto
   referenceId: string; // document/milestone/payment id
   referenceTable: string; // documents/deal_milestones/etc
   summary?: Record<string, any>;
@@ -77,6 +77,13 @@ export async function dispatchBusinessEvent(params: BusinessEventParams) {
     .maybeSingle();
 
   if (!channel) return; // No channel for this deal, skip silently
+
+  // userId 가 null/비-UUID 면 시스템 자동 이벤트 — chat sender 가 필요하므로 채팅 전송은 스킵하고 chat_events 만 남김.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!userId || !UUID_RE.test(userId)) {
+    await logEvent(channel.id, eventType, { ...summary, referenceId, referenceTable, auto: true });
+    return;
+  }
 
   // Generate system message
   const msgFn = EVENT_MESSAGES[eventType];

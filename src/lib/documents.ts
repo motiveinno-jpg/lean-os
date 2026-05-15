@@ -179,14 +179,20 @@ export async function submitForReview(documentId: string) {
 }
 
 // ── Approve document ──
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function approveDocument(documentId: string, approverId: string, comment?: string) {
-  await supabase.from('doc_approvals').insert({
-    document_id: documentId,
-    approver_id: approverId,
-    status: 'approved',
-    comment: comment || null,
-    signed_at: new Date().toISOString(),
-  });
+  // doc_approvals.approver_id 는 NOT NULL UUID. 비-UUID(예: 'system' 자동 승인) 면 doc_approvals 기록은 생략하고 status 만 갱신.
+  const isUuid = _UUID_RE.test(approverId);
+  if (isUuid) {
+    await supabase.from('doc_approvals').insert({
+      document_id: documentId,
+      approver_id: approverId,
+      status: 'approved',
+      comment: comment || null,
+      signed_at: new Date().toISOString(),
+    });
+  }
 
   await supabase.from('documents').update({ status: 'approved' }).eq('id', documentId);
 
@@ -200,7 +206,7 @@ export async function approveDocument(documentId: string, approverId: string, co
     entity_type: 'document',
     entity_id: documentId,
     entity_name: doc?.name,
-    metadata: { comment },
+    metadata: { comment, auto: !isUuid },
   });
 
   if (doc?.deal_id) {
@@ -208,14 +214,15 @@ export async function approveDocument(documentId: string, approverId: string, co
     await dispatchBusinessEvent({
       dealId: doc.deal_id,
       eventType: 'document_approved',
-      userId: approverId,
+      userId: isUuid ? approverId : null,
       referenceId: documentId,
       referenceTable: 'documents',
       summary: { title: doc.name },
     });
 
     // Trigger deal pipeline (견적→계약, 계약→세금계산서+스케줄)
-    if (doc.company_id) {
+    // 자동 승인(approverId 가 UUID 가 아님)인 경우, downstream insert(documents.created_by UUID NOT NULL 등)에서 실패하므로 스킵.
+    if (doc.company_id && isUuid) {
       const { onDocumentApproved } = await import('./deal-pipeline');
       await onDocumentApproved({
         documentId,

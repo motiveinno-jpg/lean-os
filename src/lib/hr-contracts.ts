@@ -499,11 +499,16 @@ export async function createContractPackage(params: {
   employeeId: string;
   title: string;
   templateIds: string[];
-  createdBy: string;
+  createdBy?: string | null;
   variableOverrides?: Record<string, string>;
   notes?: string;
 }): Promise<{ package: ContractPackage; items: ContractPackageItem[] }> {
   const { companyId, employeeId, title, templateIds, createdBy, variableOverrides, notes } = params;
+
+  // created_by 는 users.id (UUID) 만 허용. 문자열 'system' 등은 null 로 정규화.
+  const isUuid = (v: unknown): v is string =>
+    typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+  const createdByUuid: string | null = isUuid(createdBy) ? createdBy : null;
 
   // Generate sign token
   const signToken = crypto.randomUUID() + '-' + crypto.randomUUID();
@@ -516,7 +521,7 @@ export async function createContractPackage(params: {
       employee_id: employeeId,
       title,
       status: 'draft',
-      created_by: createdBy,
+      created_by: createdByUuid,
       sign_token: signToken,
       notes: notes || null,
     })
@@ -581,7 +586,7 @@ export async function createContractPackage(params: {
         status: 'draft',
         content_json: filledContent,
         version: 1,
-        created_by: createdBy,
+        created_by: createdByUuid,
       })
       .select()
       .single();
