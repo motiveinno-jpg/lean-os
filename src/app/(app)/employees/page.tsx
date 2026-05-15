@@ -4248,10 +4248,57 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     }
   };
 
+  // 'YYYY-MM' → 직전 달 'YYYY-MM'
+  const prevMonthKey = (ym: string): string => {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 2, 1); // m-1 이 당월, m-2 가 전월
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
   const generate = async () => {
     if (!companyId) return;
     setLoading(true);
     try {
+      // 1) 당월 override 존재 여부 확인 — 없고 전월엔 있으면 복사 제안
+      const { data: curOv } = await (supabase as any)
+        .from('payslip_overrides')
+        .select('employee_id')
+        .eq('company_id', companyId)
+        .eq('period_month', periodMonth);
+      if (!curOv || curOv.length === 0) {
+        const prevKey = prevMonthKey(periodMonth);
+        const { data: prevOv } = await (supabase as any)
+          .from('payslip_overrides')
+          .select('employee_id, base_salary, non_taxable_amount')
+          .eq('company_id', companyId)
+          .eq('period_month', prevKey);
+        if (prevOv && prevOv.length > 0) {
+          const [py, pm] = prevKey.split('-');
+          const ok = window.confirm(
+            `${py}년 ${parseInt(pm, 10)}월 명세서 수정값(${prevOv.length}명)이 있습니다.\n${periodLabel} 명세서에 그대로 복사하시겠습니까?`,
+          );
+          if (ok) {
+            const rows = prevOv.map((o: any) => ({
+              company_id: companyId,
+              employee_id: o.employee_id,
+              period_month: periodMonth,
+              base_salary: Number(o.base_salary),
+              non_taxable_amount: Number(o.non_taxable_amount),
+              updated_at: new Date().toISOString(),
+            }));
+            const { error: copyErr } = await (supabase as any)
+              .from('payslip_overrides')
+              .upsert(rows, { onConflict: 'employee_id,period_month' });
+            if (copyErr) {
+              toast('전월 복사 실패: ' + (copyErr.message || ''), 'error');
+            } else {
+              toast(`${py}년 ${parseInt(pm, 10)}월 → ${periodLabel} 복사 완료`, 'success');
+            }
+          }
+        }
+      }
+
+      // 2) (복사 반영된) 미리보기 계산
       const result = await previewPayroll(companyId, periodMonth);
       setPreview(result);
       // 편집값 초기화 — 현재 미리보기 값으로
