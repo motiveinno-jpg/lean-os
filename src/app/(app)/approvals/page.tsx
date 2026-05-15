@@ -25,6 +25,7 @@ import {
   type ApprovalStep,
   type ApprovalStageConfig,
 } from "@/lib/approval-workflow";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 
 const db = supabase as any;
@@ -1039,11 +1040,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 {/* Amount */}
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={form.amount ? Number(form.amount).toLocaleString() : ""}
-                    onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, amount: raw }); }}
+                  <CurrencyInput
+                    value={form.amount}
+                    onValueChange={(raw) => { setForm({ ...form, amount: raw }); }}
                     placeholder="0"
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
                   />
@@ -1378,11 +1377,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.autoApproveBelow ? Number(form.autoApproveBelow).toLocaleString() : ""}
-                onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, autoApproveBelow: raw }); }}
+              <CurrencyInput
+                value={form.autoApproveBelow}
+                onValueChange={(raw) => { setForm({ ...form, autoApproveBelow: raw }); }}
                 placeholder="0 (비활성)"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
               />

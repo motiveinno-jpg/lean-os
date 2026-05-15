@@ -10,6 +10,7 @@ import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
 import { QueryErrorBanner } from "@/components/query-status";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { supabase } from "@/lib/supabase";
@@ -338,7 +339,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="1000000"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
@@ -1319,7 +1320,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="500000"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
@@ -1810,7 +1811,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="100000"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>

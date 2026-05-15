@@ -29,6 +29,7 @@ import { uploadEmployeeFile } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { QueryErrorBanner } from "@/components/query-status";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
@@ -4461,16 +4462,16 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm font-medium">{item.employeeName}</td>
                     <td className="px-4 py-3 text-sm text-right">
                       {editMode ? (
-                        <input type="number" value={ev.baseSalary}
-                          onChange={e => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, baseSalary: Number(e.target.value || 0) } }))}
+                        <CurrencyInput value={ev.baseSalary}
+                          onValueChange={(raw) => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, baseSalary: Number(raw || 0) } }))}
                           className="w-28 px-2 py-1 text-right bg-[var(--bg)] border border-[var(--primary)]/40 rounded-md text-xs"
                         />
                       ) : fmtKRW(item.baseSalary)}
                     </td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">
                       {editMode ? (
-                        <input type="number" value={ev.nonTaxable}
-                          onChange={e => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, nonTaxable: Number(e.target.value || 0) } }))}
+                        <CurrencyInput value={ev.nonTaxable}
+                          onValueChange={(raw) => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, nonTaxable: Number(raw || 0) } }))}
                           className="w-24 px-2 py-1 text-right bg-[var(--bg)] border border-[var(--primary)]/40 rounded-md text-xs"
                           placeholder="0"
                         />

@@ -18,6 +18,7 @@ import {
   type LoanMatchCandidate,
 } from "@/lib/loans";
 import { QueryErrorBanner } from "@/components/query-status";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 
@@ -621,12 +622,12 @@ export default function LoansPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1">원금 상환 *</label>
-                  <input type="number" value={payForm.principalAmount} onChange={e => setPayForm(f => ({ ...f, principalAmount: e.target.value }))}
+                  <CurrencyInput value={payForm.principalAmount} onValueChange={raw => setPayForm(f => ({ ...f, principalAmount: raw }))}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="3,751,053" />
                 </div>
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1">이자 *</label>
-                  <input type="number" value={payForm.interestAmount} onChange={e => setPayForm(f => ({ ...f, interestAmount: e.target.value }))}
+                  <CurrencyInput value={payForm.interestAmount} onValueChange={raw => setPayForm(f => ({ ...f, interestAmount: raw }))}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="1,269,125" />
                 </div>
                 <div>
@@ -834,12 +835,12 @@ export default function LoansPage() {
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">최초 대출금액</label>
-              <input type="number" value={form.originalAmount} onChange={e => setForm(f => ({ ...f, originalAmount: e.target.value }))}
+              <CurrencyInput value={form.originalAmount} onValueChange={raw => setForm(f => ({ ...f, originalAmount: raw }))}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" placeholder="100000000" />
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">현재 잔금</label>
-              <input type="number" value={form.remainingBalance} onChange={e => setForm(f => ({ ...f, remainingBalance: e.target.value }))}
+              <CurrencyInput value={form.remainingBalance} onValueChange={raw => setForm(f => ({ ...f, remainingBalance: raw }))}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" placeholder="80000000" />
             </div>
             <div>
@@ -907,12 +908,12 @@ function EditLoanForm({ loan, onSave, onCancel }: {
         </div>
         <div>
           <label className="block text-[10px] text-[var(--text-dim)] mb-1">최초 대출금</label>
-          <input type="number" value={f.originalAmount} onChange={e => setF(p => ({ ...p, originalAmount: e.target.value }))}
+          <CurrencyInput value={f.originalAmount} onValueChange={raw => setF(p => ({ ...p, originalAmount: raw }))}
             className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
         </div>
         <div>
           <label className="block text-[10px] text-[var(--text-dim)] mb-1">현재 잔금</label>
-          <input type="number" value={f.remainingBalance} onChange={e => setF(p => ({ ...p, remainingBalance: e.target.value }))}
+          <CurrencyInput value={f.remainingBalance} onValueChange={raw => setF(p => ({ ...p, remainingBalance: raw }))}
             className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
         </div>
         <div>

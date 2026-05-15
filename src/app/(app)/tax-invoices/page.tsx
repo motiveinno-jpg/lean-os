@@ -26,6 +26,7 @@ import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
@@ -1756,12 +1757,9 @@ export default function TaxInvoicesPage() {
                 공급가액 (원) *
               </label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.supplyAmount ? Number(form.supplyAmount).toLocaleString("ko-KR") : ""}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^0-9]/g, "");
+                <CurrencyInput
+                  value={form.supplyAmount}
+                  onValueChange={(raw) => {
                     setForm({ ...form, supplyAmount: raw });
                   }}
                   placeholder="10,000,000"
@@ -1846,7 +1844,7 @@ export default function TaxInvoicesPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">단가</label>
-                  <input type="text" inputMode="numeric" value={form.itemUnitPrice ? Number(form.itemUnitPrice).toLocaleString('ko-KR') : ''} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                  <CurrencyInput value={form.itemUnitPrice} onValueChange={(raw) => { setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>
             </div>
@@ -3202,10 +3200,9 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
               <label className="block text-xs text-[var(--text-muted)] mb-1 font-medium">
                 {reason === "price_change" ? "변경 후 공급가액 *" : "정정 공급가액"}
               </label>
-              <input
-                type="number"
+              <CurrencyInput
                 value={modifyAmount}
-                onChange={(e) => setModifyAmount(e.target.value)}
+                onValueChange={(raw) => setModifyAmount(raw)}
                 placeholder={`현재: ${Number(invoice.supply_amount).toLocaleString()}`}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />

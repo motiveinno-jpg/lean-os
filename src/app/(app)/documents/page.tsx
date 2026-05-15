@@ -15,6 +15,7 @@ import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
+import { CurrencyInput } from "@/components/currency-input";
 import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
@@ -828,8 +829,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         </td>
                         <td className="px-3 py-2 text-right">
                           {canEdit ? (
-                            <input type="number" value={item.unitPrice || 0} onChange={(e) => {
-                              const arr = [...editItems]; const u = Number(e.target.value) || 0; const q = arr[idx].quantity || 0;
+                            <CurrencyInput value={item.unitPrice || 0} onValueChange={(raw) => {
+                              const arr = [...editItems]; const u = Number(raw) || 0; const q = arr[idx].quantity || 0;
                               const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) };
                               setEditItems(arr);
                             }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" />
@@ -1579,7 +1580,7 @@ function DocumentsPageInner() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">공급가액 (원) *</label>
-              <input type="number" value={invForm.supply_amount} onChange={(e) => setInvForm({ ...invForm, supply_amount: e.target.value })}
+              <CurrencyInput value={invForm.supply_amount} onValueChange={(raw) => setInvForm({ ...invForm, supply_amount: raw })}
                 placeholder="10000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
@@ -1781,7 +1782,7 @@ function DocumentsPageInner() {
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">계약금액</label>
-                    <input type="number" value={archiveForm.amount} onChange={(e) => setArchiveForm({ ...archiveForm, amount: e.target.value })}
+                    <CurrencyInput value={archiveForm.amount} onValueChange={(raw) => setArchiveForm({ ...archiveForm, amount: raw })}
                       placeholder="0" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                   </div>
                   <div>

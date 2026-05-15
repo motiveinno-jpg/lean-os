@@ -17,6 +17,7 @@ import {
 import type { CashReceipt } from "@/lib/cash-receipts";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
+import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 
 type Tab = "income" | "expense" | "register";
@@ -494,13 +495,10 @@ export default function CashReceiptsPage() {
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 합계금액 (VAT포함) *
               </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9]/g, "");
-                  setForm((f) => ({ ...f, amount: v }));
+              <CurrencyInput
+                value={form.amount}
+                onValueChange={(raw) => {
+                  setForm((f) => ({ ...f, amount: raw }));
                 }}
                 placeholder="110,000"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"

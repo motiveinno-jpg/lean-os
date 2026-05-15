@@ -19,6 +19,7 @@ import { decryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
 import { uploadFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
+import { CurrencyInput } from "@/components/currency-input";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useUser } from "@/components/user-context";
 
@@ -675,7 +676,7 @@ export default function VaultPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">월 비용 (원)</label>
-              <input type="number" value={accForm.monthlyCost} onChange={(e) => setAccForm({ ...accForm, monthlyCost: e.target.value })}
+              <CurrencyInput value={accForm.monthlyCost} onValueChange={(raw) => setAccForm({ ...accForm, monthlyCost: raw })}
                 placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
@@ -744,7 +745,7 @@ export default function VaultPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">가치 (원)</label>
-              <input type="number" value={assetForm.value} onChange={(e) => setAssetForm({ ...assetForm, value: e.target.value })}
+              <CurrencyInput value={assetForm.value} onValueChange={(raw) => setAssetForm({ ...assetForm, value: raw })}
                 placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
