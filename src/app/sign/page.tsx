@@ -11,6 +11,96 @@ import { generateDocumentPDF } from "@/lib/document-generator";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
+// 본문 끝의 서명 텍스트 블록 제거 — Flex 스타일 footer 로 별도 렌더하기 위해
+// 매칭: "{{contract_date}}" / 한국어 날짜 / 서명(인) / {{employee_seal}} 등 마커가 있는 마지막 섹션
+function stripSignatureBlock(body: string): string {
+  if (!body) return body;
+  // HTML 태그 안전 처리 위해 단순 텍스트 기준 split
+  // 패턴: "서명(인)" 이 첫 등장하는 지점부터 잘라냄 (그 이후는 footer 가 대체)
+  const markers = ["{{company_seal}}", "{{employee_seal}}", "서명(인)"];
+  let cutAt = -1;
+  for (const m of markers) {
+    const idx = body.indexOf(m);
+    if (idx >= 0 && (cutAt === -1 || idx < cutAt)) cutAt = idx;
+  }
+  if (cutAt < 0) return body;
+  // 직전 줄(회사명/직위/성명/날짜 안내 블록)부터 함께 자르기 위해 적당히 이전 위치 탐색
+  const upTo = body.slice(0, cutAt);
+  // 마지막 빈 줄 또는 "{{contract_date}}" 마커를 기준으로 잘라냄
+  const dateIdx = upTo.lastIndexOf("{{contract_date}}");
+  if (dateIdx >= 0) return body.slice(0, dateIdx).replace(/\s+$/, "");
+  const nameMarkerIdx = Math.max(upTo.lastIndexOf("회사명(A)"), upTo.lastIndexOf("회사명 (A)"));
+  if (nameMarkerIdx >= 0) return body.slice(0, nameMarkerIdx).replace(/\s+$/, "");
+  return body.slice(0, cutAt).replace(/\s+$/, "");
+}
+
+// Flex 스타일 5열 서명 푸터 — 화면 렌더용 React 컴포넌트
+function ContractSignatureFooter(props: {
+  contractDate?: string;
+  companyName?: string;
+  representative?: string;
+  sealUrl?: string | null;
+  sealAppliedAt?: string | null;
+  employeeName?: string;
+  birthDate?: string;
+  signature?: { type: "draw" | "type"; data: string } | null;
+}) {
+  const { contractDate, companyName, representative, sealUrl, sealAppliedAt, employeeName, birthDate, signature } = props;
+  const fmtDate = (d?: string): string => {
+    if (!d) return "";
+    const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}년 ${m[2]}월 ${m[3]}일` : String(d);
+  };
+  const labelCls = "text-[11px] text-gray-500 leading-7";
+  const valueCls = "text-[12px] text-gray-900 font-medium leading-7";
+  return (
+    <div className="mt-8 pt-6 border-t border-gray-200">
+      <div className="grid grid-cols-5 gap-3 items-start">
+        {/* 1. 날짜 */}
+        <div className={`${valueCls} text-left pt-2`}>{fmtDate(contractDate)}</div>
+        {/* 2. 회사 라벨 */}
+        <div className="text-left">
+          <div className={labelCls}>회사명(A)</div>
+          <div className={labelCls}>직위/성명(A)</div>
+          <div className={`${labelCls} mt-6`}>서명(인)</div>
+        </div>
+        {/* 3. 회사 값 + 직인 */}
+        <div className="text-center">
+          <div className={valueCls}>{companyName || ""}</div>
+          <div className={valueCls}>{representative ? `대표 / ${representative}` : "—"}</div>
+          <div className="mt-1 h-16 flex items-center justify-center">
+            {sealUrl && sealAppliedAt ? (
+              <img src={sealUrl} alt="회사 직인" className="h-16 inline-block" />
+            ) : (
+              <span className="text-[10px] text-gray-400">(직인 미적용)</span>
+            )}
+          </div>
+        </div>
+        {/* 4. 사원 라벨 */}
+        <div className="text-left">
+          <div className={labelCls}>생년월일(B)</div>
+          <div className={labelCls}>성명(B)</div>
+          <div className={`${labelCls} mt-6`}>서명(인)</div>
+        </div>
+        {/* 5. 사원 값 + 서명 */}
+        <div className="text-center">
+          <div className={valueCls}>{fmtDate(birthDate) || "—"}</div>
+          <div className={valueCls}>{employeeName || ""}</div>
+          <div className="mt-1 h-16 flex items-center justify-center">
+            {signature?.type === "draw" && typeof signature.data === "string" ? (
+              <img src={signature.data} alt="서명" className="h-16 inline-block" />
+            ) : signature?.type === "type" ? (
+              <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
+            ) : (
+              <span className="text-[10px] text-gray-400">(미서명)</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type PackageData = {
   id: string;
   title: string;
@@ -18,7 +108,7 @@ type PackageData = {
   expired: boolean;
   company_id?: string;
   employees: { name: string; email?: string; department?: string; position?: string };
-  companies?: { name: string; seal_url?: string | null } | null;
+  companies?: { name: string; seal_url?: string | null; representative?: string | null } | null;
   notes?: string;
   // notes JSON 파싱 결과 — seal_applied_at 있으면 직인 표시
   seal_url?: string | null;
@@ -188,7 +278,7 @@ function SignContent() {
       // Get package by sign_token
       const { data: p } = await db
         .from("hr_contract_packages")
-        .select("*, employees(name, email, department, position), companies(name, seal_url)")
+        .select("*, employees(name, email, department, position, birth_date), companies(name, seal_url, representative)")
         .eq("sign_token", token)
         .maybeSingle();
 
@@ -670,7 +760,7 @@ function SignContent() {
             if (sec.body) allSections.push(sec.body);
           }
         } else if (cj.body) {
-          // Built-in/사용자 편집 템플릿: 단일 body — HTML 이면 plain text 로 변환
+          // Built-in/사용자 편집 템플릿: 단일 body — HTML 이면 plain text 로 변환 + 서명 블록 strip
           allSections.push(`\n${item.title || ''}`);
           let bodyText = String(cj.body);
           if (/^\s*</.test(bodyText)) {
@@ -679,6 +769,8 @@ function SignContent() {
             tmp.innerHTML = bodyText;
             bodyText = tmp.textContent || tmp.innerText || '';
           }
+          // 본문 끝의 서명 placeholder 블록 제거 (footer 가 따로 렌더)
+          bodyText = stripSignatureBlock(bodyText);
           allSections.push(bodyText);
         }
         allSections.push(''); // blank line between documents
@@ -701,6 +793,8 @@ function SignContent() {
         title: pkg.title,
         content: allSections.join('\n'),
         companyName: pkg.companies?.name || '',
+        companyInfo: { representative: pkg.companies?.representative || undefined },
+        signerBirthDate: (pkg.employees as any)?.birth_date,
         signatures,
         // 직인이 적용된 패키지면 PDF 우측 하단에 도장 오버레이
         sealUrl: pkg.seal_applied_at && pkg.seal_url ? pkg.seal_url : undefined,
@@ -790,46 +884,25 @@ function SignContent() {
                 ))}
                 {!cj?.sections && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(cj.body) }} />
+                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(cj.body)) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {cj.body}
+                      {stripSignatureBlock(String(cj.body))}
                     </div>
                   )
                 )}
-                {/* Signature block */}
+                {/* Flex 스타일 서명/직인 푸터 */}
                 {sig && signedAt && (
-                  <div className="mt-6 pt-6 border-t-2 border-gray-200">
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="text-xs text-gray-500">
-                        <div>서명자: <span className="font-semibold text-gray-800">{pkg.employees?.name}</span></div>
-                        <div className="mt-0.5">
-                          서명일시: <span className="text-gray-700">{new Date(signedAt).toLocaleString('ko-KR')}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-end gap-6">
-                        {/* 회사 직인 (있을 때만) */}
-                        {pkg.seal_url && pkg.seal_applied_at && (
-                          <div className="text-center">
-                            <div className="text-[10px] text-gray-500 mb-1">{pkg.seal_company_name || pkg.companies?.name || '회사'}</div>
-                            <img src={pkg.seal_url} alt="회사 직인" className="h-16 inline-block" />
-                          </div>
-                        )}
-                        {/* 직원 서명 */}
-                        <div className="text-right">
-                          <div className="text-[10px] text-gray-500 mb-1">{pkg.employees?.name}</div>
-                          {sig.type === 'draw' && typeof sig.data === 'string' ? (
-                            <img src={sig.data} alt="서명" className="h-16 inline-block" />
-                          ) : sig.type === 'type' ? (
-                            <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
-                              {sig.data}
-                            </span>
-                          ) : null}
-                          <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <ContractSignatureFooter
+                    contractDate={signedAt}
+                    companyName={pkg.seal_company_name || pkg.companies?.name || ''}
+                    representative={pkg.companies?.representative || ''}
+                    sealUrl={pkg.seal_url}
+                    sealAppliedAt={pkg.seal_applied_at}
+                    employeeName={pkg.employees?.name}
+                    birthDate={(pkg.employees as any)?.birth_date}
+                    signature={sig as { type: 'draw' | 'type'; data: string }}
+                  />
                 )}
               </div>
             );
@@ -988,32 +1061,25 @@ function SignContent() {
             ))}
             {!content?.sections && content?.body && (
               /^\s*</.test(String(content.body)) ? (
-                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(content.body) }} />
+                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {content.body}
+                  {stripSignatureBlock(String(content.body))}
                 </div>
               )
             )}
-            {/* Inline signature for this item */}
+            {/* Flex 스타일 서명 푸터 */}
             {(currentItem as any).signature_data && (
-              <div className="mt-6 pt-6 border-t-2 border-gray-200">
-                <div className="flex items-end justify-between gap-4">
-                  <div className="text-xs text-gray-500">
-                    <div>서명자: <span className="font-semibold text-gray-800">{pkg.employees?.name}</span></div>
-                  </div>
-                  <div className="text-right">
-                    {(currentItem as any).signature_data?.type === 'draw' && typeof (currentItem as any).signature_data?.data === 'string' ? (
-                      <img src={(currentItem as any).signature_data.data} alt="서명" className="h-16 inline-block" />
-                    ) : (currentItem as any).signature_data?.type === 'type' ? (
-                      <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
-                        {(currentItem as any).signature_data.data}
-                      </span>
-                    ) : null}
-                    <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
-                  </div>
-                </div>
-              </div>
+              <ContractSignatureFooter
+                contractDate={(currentItem as any).signed_at}
+                companyName={pkg.seal_company_name || pkg.companies?.name || ''}
+                representative={pkg.companies?.representative || ''}
+                sealUrl={pkg.seal_url}
+                sealAppliedAt={pkg.seal_applied_at}
+                employeeName={pkg.employees?.name}
+                birthDate={(pkg.employees as any)?.birth_date}
+                signature={(currentItem as any).signature_data}
+              />
             )}
           </div>
         ) : (
@@ -1038,10 +1104,10 @@ function SignContent() {
               {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더 */}
               {!content?.sections && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(content.body) }} />
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {content.body}
+                    {stripSignatureBlock(String(content.body))}
                   </div>
                 )
               )}

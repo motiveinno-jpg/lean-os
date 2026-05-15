@@ -128,6 +128,8 @@ export async function generateDocumentPDF(params: {
     signedAt: string;
     documentTitle?: string;
   }>;
+  // Flex 서명 푸터에 표시할 추가 정보
+  signerBirthDate?: string; // YYYY-MM-DD
 }): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
   await loadKoreanFont(doc);
@@ -183,77 +185,101 @@ export async function generateDocumentPDF(params: {
 
   y = (doc as any).lastAutoTable.finalY + 15;
 
-  // ── 서명 블록 ──
+  // ── 서명 블록 (Flex 스타일 가로 5열) ──
   if (params.signatures && params.signatures.length > 0) {
-    // 직인 이미지를 한 번만 로드해서 모든 서명 블록에 사용
     let sealImg: string | null = null;
     if (params.sealUrl) {
       try { sealImg = await loadImage(params.sealUrl); } catch { sealImg = null; }
     }
     for (const sig of params.signatures) {
-      // 페이지 하단이면 새 페이지 추가
-      if (y > pageH - 60) {
+      // 푸터 약 50mm 높이 — 페이지 끝이면 새 페이지
+      if (y > pageH - 70) {
         doc.addPage();
         y = 20;
       }
-      doc.setFontSize(11);
-      setKoreanFont(doc, 'bold');
-      doc.setTextColor(30, 30, 30);
-      if (sig.documentTitle) {
-        doc.text(`[${sig.documentTitle}] 서명`, 14, y);
-        y += 7;
-      }
-      doc.setFontSize(10);
+
+      // 구분선
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.2);
+      doc.line(14, y, pageW - 14, y);
+      y += 8;
+
+      // 5 컬럼 폭 정의
+      const colW = (pageW - 28) / 5;
+      const colX = (i: number) => 14 + colW * i;
+
+      // 날짜 포맷
+      const fmtDate = (d: string): string => {
+        const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[1]}년 ${m[2]}월 ${m[3]}일` : new Date(d).toLocaleDateString('ko-KR');
+      };
+
+      const labelColor: [number, number, number] = [120, 120, 120];
+      const valueColor: [number, number, number] = [30, 30, 30];
+
+      // 1열 — 계약일
+      doc.setFontSize(9);
       setKoreanFont(doc, 'normal');
-      doc.setTextColor(60, 60, 60);
-      doc.text(`서명자: ${sig.signerName}`, 14, y);
-      y += 6;
-      doc.text(`서명일시: ${new Date(sig.signedAt).toLocaleString('ko-KR')}`, 14, y);
-      y += 6;
+      doc.setTextColor(...valueColor);
+      doc.text(fmtDate(sig.signedAt), colX(0), y + 4);
 
-      const sigStartY = y;
-      if (sig.signatureType === 'draw' && sig.signatureData?.startsWith('data:image')) {
-        try {
-          const sigW = 60;
-          const sigH = 25;
-          doc.addImage(sig.signatureData, 'PNG', 14, y, sigW, sigH);
-          y += sigH + 8;
-        } catch (e) {
-          console.warn('Signature image embed failed:', e);
-          doc.text(`서명: (이미지 로드 실패)`, 14, y);
-          y += 6;
-        }
-      } else if (sig.signatureType === 'type') {
-        doc.setFontSize(16);
-        setKoreanFont(doc, 'bold');
-        doc.setTextColor(20, 20, 20);
-        doc.text(sig.signatureData, 14, y + 8);
-        const textWidth = doc.getTextWidth(sig.signatureData);
-        doc.setDrawColor(20, 20, 20);
-        doc.line(14, y + 11, 14 + textWidth + 4, y + 11);
-        y += 18;
-      }
+      // 2열 — 회사 라벨 (회사명/직위·성명/서명)
+      doc.setFontSize(8.5);
+      doc.setTextColor(...labelColor);
+      doc.text('회사명(A)', colX(1), y + 4);
+      doc.text('직위/성명(A)', colX(1), y + 10);
+      doc.text('서명(인)', colX(1), y + 25);
 
-      // 회사 직인 — 서명 우측에 배치 (서명블록과 같은 y에)
+      // 3열 — 회사 값 + 직인
+      doc.setFontSize(9);
+      setKoreanFont(doc, 'bold');
+      doc.setTextColor(...valueColor);
+      doc.text(params.companyName || '', colX(2) + colW / 2 - 5, y + 4, { align: 'center', maxWidth: colW });
+      setKoreanFont(doc, 'normal');
+      // 대표자 — 옵션. companyInfo.representative 가 있다면 사용.
+      const rep = (params.companyInfo as { representative?: string } | undefined)?.representative;
+      doc.text(rep ? `대표 / ${rep}` : '대표 / —', colX(2) + colW / 2 - 5, y + 10, { align: 'center', maxWidth: colW });
       if (sealImg) {
         try {
-          const sealSize = 28;
-          const sealX = pageW - 14 - sealSize;
-          doc.addImage(sealImg, 'PNG', sealX, sigStartY - 2, sealSize, sealSize);
-          // 회사명 레이블
-          doc.setFontSize(8);
-          setKoreanFont(doc, 'normal');
-          doc.setTextColor(120, 120, 120);
-          doc.text(params.companyName || '회사 직인', sealX + sealSize / 2, sigStartY + sealSize, { align: 'center' });
+          const sealSize = 20;
+          doc.addImage(sealImg, 'PNG', colX(2) + colW / 2 - sealSize / 2 - 5, y + 16, sealSize, sealSize);
         } catch (e) {
-          console.warn('Seal embed in signature block failed:', e);
+          console.warn('Seal embed failed:', e);
         }
       }
 
-      doc.setFontSize(10);
-      setKoreanFont(doc, 'normal');
-      doc.setTextColor(60, 60, 60);
-      y += 6;
+      // 4열 — 사원 라벨
+      doc.setFontSize(8.5);
+      doc.setTextColor(...labelColor);
+      doc.text('생년월일(B)', colX(3), y + 4);
+      doc.text('성명(B)', colX(3), y + 10);
+      doc.text('서명(인)', colX(3), y + 25);
+
+      // 5열 — 사원 값 + 서명
+      const empBirth = params.signerBirthDate || '';
+      doc.setFontSize(9);
+      setKoreanFont(doc, 'bold');
+      doc.setTextColor(...valueColor);
+      doc.text(empBirth ? fmtDate(empBirth) : '—', colX(4) + colW - 4, y + 4, { align: 'right' });
+      doc.text(sig.signerName, colX(4) + colW - 4, y + 10, { align: 'right' });
+
+      // 서명 이미지/텍스트
+      if (sig.signatureType === 'draw' && sig.signatureData?.startsWith('data:image')) {
+        try {
+          const sigW = 32;
+          const sigH = 18;
+          doc.addImage(sig.signatureData, 'PNG', colX(4) + colW - sigW - 4, y + 16, sigW, sigH);
+        } catch (e) {
+          console.warn('Signature image embed failed:', e);
+        }
+      } else if (sig.signatureType === 'type') {
+        doc.setFontSize(14);
+        setKoreanFont(doc, 'bold');
+        doc.setTextColor(...valueColor);
+        doc.text(sig.signatureData, colX(4) + colW - 4, y + 30, { align: 'right' });
+      }
+
+      y += 44;
     }
   }
 
