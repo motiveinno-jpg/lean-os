@@ -372,7 +372,7 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
 export async function getLeaveRequests(companyId: string, status?: string) {
   let query = db
     .from('leave_requests')
-    .select('*, employees(name, department)')
+    .select('*, employees(name, department), requested_approver:requested_approver_id(name, email)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
@@ -417,6 +417,7 @@ export async function createLeaveRequest(params: {
   leaveUnit?: LeaveUnit;
   startTime?: string; // "09:00" (2시간 단위용)
   endTime?: string;   // "11:00"
+  requestedApproverId?: string | null; // 직원이 직접 지정한 승인자 (owner/admin user)
 }) {
   // Auto-calculate days based on leave unit
   const unit = params.leaveUnit || 'full_day';
@@ -459,10 +460,46 @@ export async function createLeaveRequest(params: {
       leave_unit: unit,
       start_time: params.startTime || null,
       end_time: params.endTime || null,
+      requested_approver_id: params.requestedApproverId || null,
     })
     .select()
     .single();
   if (error) throw error;
+
+  // 승인자 + 회사 owner/admin 전원에게 알림 (지정 승인자 우선)
+  try {
+    const [{ data: emp }, { data: admins }] = await Promise.all([
+      db.from('employees').select('name').eq('id', params.employeeId).maybeSingle(),
+      db.from('users').select('id').eq('company_id', params.companyId).in('role', ['owner', 'admin']),
+    ]);
+    const empName = emp?.name || '직원';
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === params.leaveType)?.label || params.leaveType;
+    const period = params.startDate === params.endDate
+      ? params.startDate
+      : `${params.startDate} ~ ${params.endDate}`;
+
+    const recipientIds = new Set<string>();
+    if (params.requestedApproverId) recipientIds.add(params.requestedApproverId);
+    (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
+
+    const rows = Array.from(recipientIds).map((uid) => ({
+      company_id: params.companyId,
+      user_id: uid,
+      type: 'approval',
+      title: `${empName} - ${leaveLabel} 신청 (${days}일)`,
+      message: `${period}${params.reason ? ` · ${params.reason}` : ''}`,
+      entity_type: 'leave_request',
+      entity_id: data.id,
+      is_read: false,
+    }));
+    if (rows.length > 0) {
+      await db.from('notifications').insert(rows);
+    }
+  } catch (e) {
+    console.error('[createLeaveRequest] 알림 발송 실패:', e);
+    // 알림 실패는 신청 자체를 막지 않음
+  }
+
   return data;
 }
 
@@ -471,7 +508,7 @@ export async function approveLeaveRequest(id: string, approverId: string) {
   // Get the request first
   const { data: request } = await db
     .from('leave_requests')
-    .select('*')
+    .select('*, employees(name, user_id)')
     .eq('id', id)
     .single();
 
@@ -504,10 +541,20 @@ export async function approveLeaveRequest(id: string, approverId: string) {
       .update({ used_days: newUsed })
       .eq('id', balance.id);
   }
+
+  // 신청자에게 승인 알림
+  await notifyLeaveDecision(request, 'approved');
 }
 
 // ── Leave: Reject ──
 export async function rejectLeaveRequest(id: string, approverId: string) {
+  const { data: request } = await db
+    .from('leave_requests')
+    .select('*, employees(name, user_id)')
+    .eq('id', id)
+    .single();
+  if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
+
   const { error } = await db
     .from('leave_requests')
     .update({
@@ -517,6 +564,34 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
     })
     .eq('id', id);
   if (error) throw error;
+
+  await notifyLeaveDecision(request, 'rejected');
+}
+
+// 휴가 결재 결과 알림 — 신청자(직원 계정) 에게.
+async function notifyLeaveDecision(request: any, decision: 'approved' | 'rejected') {
+  try {
+    const requesterUserId = request?.employees?.user_id;
+    if (!requesterUserId) return; // 직원이 user 계정과 연결돼 있지 않으면 알림 못 보냄
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+    const period = request.start_date === request.end_date
+      ? request.start_date
+      : `${request.start_date} ~ ${request.end_date}`;
+    await db.from('notifications').insert({
+      company_id: request.company_id,
+      user_id: requesterUserId,
+      type: decision === 'approved' ? 'approval' : 'approval',
+      title: decision === 'approved'
+        ? `휴가 신청 승인 — ${leaveLabel} (${Number(request.days)}일)`
+        : `휴가 신청 반려 — ${leaveLabel} (${Number(request.days)}일)`,
+      message: period,
+      entity_type: 'leave_request',
+      entity_id: request.id,
+      is_read: false,
+    });
+  } catch (e) {
+    console.error('[notifyLeaveDecision] 알림 발송 실패:', e);
+  }
 }
 
 // ── Leave: Get balances ──

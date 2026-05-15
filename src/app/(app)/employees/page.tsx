@@ -4028,8 +4028,24 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     startTime: "",
     endTime: "",
     reason: "",
+    requestedApproverId: "",
   });
   const [showPromotion, setShowPromotion] = useState(false);
+
+  // 승인 가능한 사용자(owner/admin) 목록 — 신청자가 승인자 선택용
+  const { data: approvers = [] } = useQuery({
+    queryKey: ["leave-approvers", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("users")
+        .select("id, name, email, role")
+        .eq("company_id", companyId!)
+        .in("role", ["owner", "admin"])
+        .order("role", { ascending: true });
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
 
   // Auto-select employee for employee role
   useEffect(() => {
@@ -4094,13 +4110,14 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
         leaveUnit: unit as any,
         startTime: form.startTime || undefined,
         endTime: form.endTime || undefined,
+        requestedApproverId: form.requestedApproverId || null,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       setShowForm(false);
-      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", requestedApproverId: "" });
     },
     onError: (err: any) => toast(err.message, "error"),
   });
@@ -4357,6 +4374,21 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
               <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">승인자</label>
+              <select
+                value={form.requestedApproverId}
+                onChange={(e) => setForm({ ...form, requestedApproverId: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              >
+                <option value="">대표·관리자 전원에게 알림</option>
+                {approvers.map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name || u.email} ({u.role === "owner" ? "대표" : "관리자"})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <button
             onClick={() => form.employeeId && form.startDate && createLeave.mutate()}
@@ -4376,7 +4408,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
             <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">직원</th>
@@ -4384,6 +4416,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
                 <th className="text-left px-5 py-3 font-medium">기간</th>
                 <th className="text-center px-5 py-3 font-medium">일수</th>
                 <th className="text-left px-5 py-3 font-medium">사유</th>
+                <th className="text-left px-5 py-3 font-medium">승인자</th>
                 <th className="text-center px-5 py-3 font-medium">상태</th>
                 <th className="text-center px-5 py-3 font-medium">액션</th>
               </tr>
@@ -4411,6 +4444,11 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
                       )}
                     </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.reason || "—"}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
+                      {r.requested_approver?.name || r.requested_approver?.email || (
+                        <span className="text-[var(--text-dim)]">전체</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>

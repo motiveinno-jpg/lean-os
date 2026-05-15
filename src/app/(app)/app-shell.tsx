@@ -88,6 +88,7 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
     "/deals",          // 프로젝트
     "/partners",       // 거래처 관리
     "/employees",      // 구성원
+    "/team",           // 팀 디렉토리 (직원용 read-only)
     "/attendance",     // 근태 (→ employees redirect)
     "/documents",      // 서류 / 계약서 / 서명
     "/signatures",     // 전자계약 (서명 진행)
