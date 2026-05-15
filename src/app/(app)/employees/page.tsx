@@ -13,6 +13,7 @@ import {
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
+  autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
@@ -4650,13 +4651,34 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     onError: (err: any) => toast("휴가 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
-  // Init balance mutation
+  // Init balance mutation (수동 부여 일수)
   const initBalance = useMutation({
     mutationFn: (params: { employeeId: string; totalDays: number }) =>
       initLeaveBalance(companyId!, params.employeeId, currentYear, params.totalDays),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
-    onError: (err: any) => toast("휴가 잔여일 초기화 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("휴가 잔여일 설정 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
+
+  // 입사일 기준 자동 부여 (1년 미만 = 월 1일 만근, 1년+ = 근로기준법 기본)
+  const autoInitMut = useMutation({
+    mutationFn: (params: { employeeId: string; hireDate: string }) =>
+      autoInitLeaveBalance(companyId!, params.employeeId, params.hireDate, currentYear),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
+    onError: (err: any) => toast("자동 부여 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+  });
+
+  const bulkAutoMut = useMutation({
+    mutationFn: () => bulkAutoInitLeaveBalances(companyId!, currentYear),
+    onSuccess: (r: any) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      toast(`입사일 기준 자동 부여 완료 (${r?.updated ?? 0}명)`, "success");
+    },
+    onError: (err: any) => toast("일괄 자동 부여 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+  });
+
+  // 연차 일수 인라인 편집 상태
+  const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
+  const [editingBalanceVal, setEditingBalanceVal] = useState<string>("");
 
   // Build leave calendar: who's on leave on which dates
   const leaveCalendar = useMemo(() => {
@@ -4725,42 +4747,116 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
 
       {/* Leave Balance Cards */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 잔여</h3>
-          {employeesWithoutBalance.length > 0 && !isEmployee && (
-            <button
-              onClick={() => {
-                // Auto-init 15 days for all employees without balance
-                employeesWithoutBalance.forEach((e: any) => {
-                  initBalance.mutate({ employeeId: e.id, totalDays: 15 });
-                });
-              }}
-              className="text-xs px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition"
-            >
-              미설정 직원 일괄 부여 (15일)
-            </button>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
+          {!isEmployee && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => bulkAutoMut.mutate()}
+                disabled={bulkAutoMut.isPending}
+                className="text-xs px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
+                title="1년 미만: 1개월 만근당 1일(최대 11) · 1년 이상: 근로기준법 기본(15일+)"
+              >
+                {bulkAutoMut.isPending ? "처리 중..." : "입사일 기준 자동 부여"}
+              </button>
+            </div>
           )}
         </div>
+        <p className="text-[11px] text-[var(--text-dim)] mb-3">
+          ※ 1년 미만 근무자는 입사 후 <strong>1개월 만근 시 1일</strong>씩 자동 부여 (최대 11일). 1년 이상은 자동 부여 후 일수를 직접 수정할 수 있습니다.
+        </p>
+
+        {/* 아직 연차 미설정 직원 — 자동 부여 안내 */}
+        {!isEmployee && employeesWithoutBalance.length > 0 && (
+          <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+            <div className="text-xs text-amber-600 font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
+            <div className="flex flex-wrap gap-2">
+              {employeesWithoutBalance.map((e: any) => {
+                const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => {
+                      if (e.hire_date) autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date });
+                      else initBalance.mutate({ employeeId: e.id, totalDays: 15 });
+                    }}
+                    className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-amber-500/50 transition"
+                    title={calc ? calc.formula : "입사일 미등록 — 기본 15일"}
+                  >
+                    {e.name} <span className="text-amber-600 font-semibold">{calc ? `${calc.totalDays}일` : "15일"}</span> 부여
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {balances.length === 0 ? (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">
-            연차 잔여 데이터가 없습니다. 직원별 휴가일수를 설정해주세요.
+            연차 데이터가 없습니다. 위 &quot;입사일 기준 자동 부여&quot; 를 눌러주세요.
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {balances.map((b: any) => {
               const remaining = b.remaining_days ?? (b.total_days - b.used_days);
               const percent = b.total_days > 0 ? (remaining / b.total_days) * 100 : 0;
+              const empRec = employees.find((e: any) => e.id === b.employee_id);
+              const calc = empRec?.hire_date ? calculateAnnualLeave(empRec.hire_date, `${currentYear}-12-31`) : null;
+              const underOneYear = calc ? calc.yearsWorked < 1 : false;
+              const isEditing = editingBalanceId === b.id;
               return (
                 <div key={b.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
                   <div className="text-sm font-medium mb-1">{b.employees?.name || "—"}</div>
-                  <div className="text-xs text-[var(--text-dim)] mb-2">{b.employees?.department || "미배정"}</div>
+                  <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
+                    {b.employees?.department || "미배정"}
+                    {calc && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${underOneYear ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-500"}`}>
+                        {underOneYear ? `1년미만 ${calc.monthsWorked}개월` : `${calc.yearsWorked}년차`}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-end gap-1 mb-2">
                     <span className={`text-xl font-bold ${
                       remaining <= 0 ? "text-red-400" : remaining <= 3 ? "text-yellow-400" : "text-green-400"
                     }`}>
                       {remaining}
                     </span>
-                    <span className="text-xs text-[var(--text-dim)] mb-0.5">/ {b.total_days}일</span>
+                    {isEditing ? (
+                      <span className="flex items-center gap-1 mb-0.5">
+                        <span className="text-xs text-[var(--text-dim)]">/</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={editingBalanceVal}
+                          autoFocus
+                          onChange={(e) => setEditingBalanceVal(e.target.value.replace(/[^0-9.]/g, ""))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const v = Number(editingBalanceVal);
+                              if (v >= 0) initBalance.mutate({ employeeId: b.employee_id, totalDays: v });
+                              setEditingBalanceId(null);
+                            } else if (e.key === "Escape") setEditingBalanceId(null);
+                          }}
+                          className="w-12 px-1 py-0.5 text-xs text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded"
+                        />
+                        <button
+                          onClick={() => {
+                            const v = Number(editingBalanceVal);
+                            if (v >= 0) initBalance.mutate({ employeeId: b.employee_id, totalDays: v });
+                            setEditingBalanceId(null);
+                          }}
+                          className="text-[10px] text-[var(--primary)] font-semibold"
+                        >저장</button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => { if (!isEmployee) { setEditingBalanceId(b.id); setEditingBalanceVal(String(b.total_days)); } }}
+                        className={`text-xs text-[var(--text-dim)] mb-0.5 ${!isEmployee ? "hover:text-[var(--primary)] hover:underline" : ""}`}
+                        title={!isEmployee ? "클릭하여 총 부여일수 수정" : ""}
+                      >
+                        / {b.total_days}일 {!isEmployee && <span className="text-[9px]">✏</span>}
+                      </button>
+                    )}
                   </div>
                   <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
                     <div
@@ -4770,6 +4866,15 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
                       style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
                     />
                   </div>
+                  {!isEmployee && calc && (
+                    <button
+                      onClick={() => empRec?.hire_date && autoInitMut.mutate({ employeeId: b.employee_id, hireDate: empRec.hire_date })}
+                      className="mt-2 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition"
+                      title={calc.formula}
+                    >
+                      ↻ 입사일 기준 재계산 (권장 {calc.totalDays}일)
+                    </button>
+                  )}
                 </div>
               );
             })}
