@@ -429,19 +429,33 @@ function SignContent() {
         const { saveSignature } = await import("@/lib/signatures");
         await saveSignature((pkg as any)._signatureRequestId, sigData);
       } else {
-        // HR contract package: update hr_contract_package_items
-        await db
-          .from("hr_contract_package_items")
-          .update({
-            status: "signed",
-            signed_at: new Date().toISOString(),
-            signature_data: sigData,
-          })
-          .eq("id", item.id);
+        // HR contract package — Edge Function 으로 처리 (익명 이메일 링크도 동일 경로)
+        // service role 이 RLS 우회하여 item 업데이트 + 전체 완료 시 알림까지 한 번에 수행.
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const res = await fetch(`${supabaseUrl}/functions/v1/complete-signing`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anonKey,
+          },
+          body: JSON.stringify({
+            signToken: token,
+            itemId: item.id,
+            signatureData: sigData,
+            saveAsDefault: saveAsDefault && signMode !== "saved",
+          }),
+        });
+        const respJson = await res.json().catch(() => ({}));
+        if (!res.ok || respJson?.success === false || respJson?.error) {
+          throw new Error(respJson?.error || `HTTP ${res.status}`);
+        }
       }
 
-      // Save signature as default for this employee if requested
-      if (saveAsDefault && signMode !== "saved" && (pkg as any).employee_id) {
+      // saved_signature 는 Edge Function 에서 처리 (HR 계약). 일반 문서는 별도 처리 불필요.
+      if (!isGeneralDoc && saveAsDefault && signMode !== "saved") {
+        setSavedSignature(sigData);
+      } else if (isGeneralDoc && saveAsDefault && signMode !== "saved" && (pkg as any).employee_id) {
         try {
           await db
             .from("employees")
@@ -465,8 +479,9 @@ function SignContent() {
         console.error('Audit log error:', e);
       }
 
-      // Lock associated document
-      if (item.documents && !isGeneralDoc) {
+      // HR 계약은 Edge Function 에서 이미 documents lock + 패키지 상태 + 알림까지 처리.
+      // 일반 문서만 별도 lock 필요.
+      if (item.documents && isGeneralDoc) {
         await db
           .from("documents")
           .update({ status: "locked", locked_at: new Date().toISOString() })
@@ -481,20 +496,16 @@ function SignContent() {
         i === activeItem ? { ...it, status: "signed" as const, signed_at: new Date().toISOString() } : it
       );
       const allSigned = updatedItems.every((it) => it.status === "signed");
-      const someSigned = updatedItems.some((it) => it.status === "signed");
 
       if (allSigned && isGeneralDoc) {
         // General document: show completed screen
         setPkg({ ...pkg, items: updatedItems });
         setCompleted(true);
       } else if (allSigned && !isGeneralDoc) {
-        await db
-          .from("hr_contract_packages")
-          .update({ status: "completed", completed_at: new Date().toISOString() })
-          .eq("id", pkg.id);
+        // HR 계약 — Edge Function 이 패키지 상태 + 알림 처리 완료. UI 만 갱신.
         setCompleted(true);
 
-        // Generate and store document hash
+        // Generate and store document hash (best-effort, anon 환경에선 실패 가능)
         try {
           const packageHash = await generatePackageHash(pkg.id);
           await storeDocumentHash(pkg.id, packageHash);
@@ -502,53 +513,7 @@ function SignContent() {
           console.error('Hash generation error:', e);
         }
 
-        // Audit: document_completed
-        try {
-          await logAuditTrail(pkg.id, {
-            action: 'document_completed',
-            timestamp: new Date().toISOString(),
-            actor: pkg.employees?.name || 'unknown',
-            details: `전체 ${updatedItems.length}건 서명 완료`,
-          });
-        } catch (e) {
-          console.error('Audit log error:', e);
-        }
-
-        // 발송자(created_by) + 회사 owner/admin 에게 서명 완료 인앱 알림
-        try {
-          // pkg 에는 created_by 필드가 select 'p.*' 에 포함됨
-          const createdBy = (pkg as any).created_by as string | null | undefined;
-          const companyId = (pkg as any).company_id as string | undefined;
-          const recipientIds = new Set<string>();
-          if (createdBy && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(createdBy)) {
-            recipientIds.add(createdBy);
-          }
-          if (companyId) {
-            const { data: admins } = await db
-              .from('users')
-              .select('id')
-              .eq('company_id', companyId)
-              .in('role', ['owner', 'admin']);
-            (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
-          }
-          if (recipientIds.size > 0 && companyId) {
-            const rows = Array.from(recipientIds).map((uid) => ({
-              company_id: companyId,
-              user_id: uid,
-              type: 'signature_request',
-              title: `서명 완료 — ${pkg.title}`,
-              message: `${pkg.employees?.name || '직원'} 이(가) 계약서에 서명을 완료했습니다.`,
-              entity_type: 'hr_contract_package',
-              entity_id: pkg.id,
-              is_read: false,
-            }));
-            await db.from('notifications').insert(rows);
-          }
-        } catch (e) {
-          console.error('[sign] 발송자 알림 인서트 실패:', e);
-        }
-
-        // Send completion notification email
+        // Send completion notification email (best-effort)
         try {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
           const signerEmail = pkg.employees?.email || '';
@@ -575,12 +540,8 @@ function SignContent() {
         } catch (e) {
           console.error('Completion email failed:', e);
         }
-      } else if (someSigned) {
-        await db
-          .from("hr_contract_packages")
-          .update({ status: "partially_signed" })
-          .eq("id", pkg.id);
       }
+      // partially_signed 상태는 Edge Function 이 이미 처리.
 
       // Move to next unsigned item
       setPkg({ ...pkg, items: updatedItems });

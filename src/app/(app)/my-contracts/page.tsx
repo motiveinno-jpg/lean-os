@@ -33,7 +33,7 @@ export default function MyContractsPage() {
   const companyId = user?.company_id ?? null;
   const [filter, setFilter] = useState<"pending" | "completed" | "all">("pending");
 
-  const { data: packages = [], isLoading, refetch } = useQuery({
+  const { data: packages = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["my-contracts", userId, companyId],
     queryFn: async () => {
       const db = supabase as any;
@@ -92,9 +92,14 @@ export default function MyContractsPage() {
         </div>
         <button
           onClick={() => refetch()}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition"
+          disabled={isFetching}
+          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition disabled:opacity-50 flex items-center gap-1.5"
         >
-          🔄 새로고침
+          <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {isFetching ? '갱신 중...' : '새로고침'}
         </button>
       </div>
 
