@@ -2179,7 +2179,35 @@ const HR_TEMPLATES = [
   { key: "personal_info_consent", label: "개인정보이용동의서", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
 ];
 
-// ── Contract Tab (전자계약 — 플렉스 스타일) ──
+// ── Contract Tab — 플렉스 스타일 계약 입력 필드 ──
+type ContractFieldType = "text" | "date" | "number" | "select";
+interface ContractField {
+  key: string;          // 템플릿 변수 키 (영문 가능)
+  label: string;        // 표시 + {{label}} 변수
+  type: ContractFieldType;
+  value: string;
+  included: boolean;
+  options?: string[];   // type=select 용
+  custom?: boolean;     // 사용자 추가 필드
+}
+
+function buildDefaultContractFields(emp: any | null): ContractField[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const year = new Date().getFullYear();
+  return [
+    { key: "직원명", label: "구성원 이름", type: "text", value: emp?.name || "", included: true },
+    { key: "계약일", label: "계약일", type: "date", value: today, included: true },
+    { key: "생년월일", label: "생년월일", type: "date", value: emp?.birth_date || "", included: true },
+    { key: "수습시작일", label: "수습기간 시작일", type: "date", value: "", included: true },
+    { key: "수습종료일", label: "수습기간 종료일", type: "date", value: "", included: true },
+    { key: "수습급여율", label: "수습기간 급여지급률", type: "text", value: "90%", included: true },
+    { key: "직무", label: "직무", type: "text", value: emp?.position || emp?.department || "", included: true },
+    { key: "계약시작일", label: "임금계약 시작일", type: "date", value: `${year}-01-01`, included: true },
+    { key: "급여기준", label: "급여기준", type: "select", value: "연봉", included: true, options: ["연봉", "월급", "시급"] },
+    { key: "계약금액", label: "계약 금액", type: "number", value: emp?.salary ? String(Number(emp.salary) * 12) : "", included: true },
+  ];
+}
+
 function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const { toast } = useToast();
   const { user } = useUser();
@@ -2208,6 +2236,10 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [newVarName, setNewVarName] = useState("");
   const [newVarDesc, setNewVarDesc] = useState("");
   const editorRef = useRef<RichEditorRef>(null);
+  // Flex 스타일 계약 입력 테이블 필드
+  const [contractFields, setContractFields] = useState<ContractField[]>(() => buildDefaultContractFields(null));
+  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldType, setNewFieldType] = useState<ContractFieldType>("text");
 
   // 회사 직인 URL 로드 (계약완료 시 PDF/화면에 표시)
   const { data: companySeal } = useQuery({
@@ -2275,18 +2307,29 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const createContract = useMutation({
     mutationFn: async () => {
       const emp = employees.find((e: any) => e.id === reqForm.employeeId);
+      // 계약 필드 값 → variableOverrides 매핑 (체크된 필드만)
+      const overrides: Record<string, string> = {};
+      for (const f of contractFields) {
+        if (f.included && f.value) {
+          // key 와 한글 라벨 둘 다 등록 — 템플릿에서 {{key}} 또는 {{label}} 모두 동작하게.
+          overrides[f.label] = String(f.value);
+          if (f.key && f.key !== f.label) overrides[f.key] = String(f.value);
+        }
+      }
       return createContractPackage({
         companyId: companyId!,
         employeeId: reqForm.employeeId,
         title: reqForm.title || `${emp?.name || ""} ${new Date().getFullYear()}년 계약`,
         templateIds: reqForm.templateIds,
         createdBy: user?.id ?? null,
+        variableOverrides: overrides,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
       setShowCreate(false);
       setReqForm({ employeeId: "", title: "", templateIds: [] });
+      setContractFields(buildDefaultContractFields(null));
     },
     onError: (err: any) => toast(err.message, "error"),
   });
@@ -2365,6 +2408,26 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
   // 선택된 직원 데이터로 템플릿 미리보기 자동 채움
   const selectedEmployee = employees.find((e: any) => e.id === reqForm.employeeId);
+
+  // 직원 선택이 바뀌면 기본 필드값을 직원 정보로 자동 채움 (사용자가 직접 수정/추가한 건 유지)
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    setContractFields((prev) => {
+      const defaults = buildDefaultContractFields(selectedEmployee);
+      // 기존 사용자 추가 필드 보존
+      const customs = prev.filter((f) => f.custom);
+      // 기존 included 상태 + 사용자가 이미 수정한 값 우선
+      const merged = defaults.map((d) => {
+        const old = prev.find((p) => p.key === d.key);
+        if (!old) return d;
+        // 직원 자동 채움 필드(생년월일, 직원명, 직무, 계약금액)는 새 직원 값 우선
+        const autoFillKeys = ["직원명", "생년월일", "직무", "계약금액"];
+        if (autoFillKeys.includes(d.key)) return { ...d, included: old.included };
+        return { ...d, value: old.value || d.value, included: old.included };
+      });
+      return [...merged, ...customs];
+    });
+  }, [selectedEmployee?.id]);
 
   // 직인 적용 핸들러 — 패키지 단위로 적용 (notes JSON 에 seal_applied 표시 + 회사 seal_url 스냅샷)
   async function handleApplySeal(contractId: string) {
@@ -2948,29 +3011,163 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
             </div>
           )}
 
-          {/* Step 3: 확인 및 발송 */}
+          {/* Step 3: 필수 입력 정보 (플렉스 스타일 테이블) */}
           {wizardStep === 3 && (
             <div>
-              <h4 className="text-sm font-bold mb-4">Step 3: 확인 및 발송</h4>
-              <div className="bg-[var(--bg-surface)] rounded-xl p-5 mb-4 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--text-muted)]">대상</span>
-                  <span className="font-semibold">{selectedEmployee?.name || "—"} ({selectedEmployee?.department || "미배정"})</span>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold">Step 3: 필수 입력 정보</h4>
+                <span className="text-[10px] text-[var(--text-dim)]">서식의 {"{{변수명}}"} 자리에 자동 치환됨</span>
+              </div>
+
+              {/* 발송 요약 */}
+              <div className="bg-[var(--bg-surface)] rounded-xl p-3 mb-3 flex items-center justify-between text-xs">
+                <div className="flex gap-4">
+                  <span className="text-[var(--text-muted)]">대상 <strong className="text-[var(--text)] ml-1">{selectedEmployee?.name || "—"}</strong></span>
+                  <span className="text-[var(--text-muted)]">서식 <strong className="text-[var(--text)] ml-1">{reqForm.templateIds.length}건</strong></span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--text-muted)]">제목</span>
-                  <span className="font-semibold">{reqForm.title || `${selectedEmployee?.name || ""} ${new Date().getFullYear()}년 계약`}</span>
+                <button onClick={() => setContractFields(buildDefaultContractFields(selectedEmployee))} className="text-[var(--primary)] hover:underline">기본값으로 초기화</button>
+              </div>
+
+              {/* 필수 입력 정보 테이블 */}
+              <div className="border border-[var(--border)] rounded-xl overflow-hidden mb-3">
+                <div className="bg-[var(--bg-surface)] px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text)]">필수 입력 정보</span>
+                  <span className="text-[10px] text-[var(--text-dim)]">체크 해제 시 해당 필드 미사용</span>
                 </div>
-                <div className="text-sm">
-                  <span className="text-[var(--text-muted)]">선택된 서식 ({reqForm.templateIds.length}건)</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {reqForm.templateIds.map(tid => {
-                      const t = templates.find((tt: any) => tt.id === tid);
-                      return <span key={tid} className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-medium">{t?.name || tid}</span>;
-                    })}
-                  </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs" style={{ minWidth: contractFields.length * 130 }}>
+                    {/* 컬럼 헤더 — 필드명 + 포함 체크박스 */}
+                    <thead>
+                      <tr className="border-b border-[var(--border)] bg-[var(--bg-surface)]/30">
+                        {contractFields.map((f, i) => (
+                          <th key={f.key + i} className="px-3 py-2 text-left font-semibold text-[var(--text)] whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                checked={f.included}
+                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, included: e.target.checked } : p))}
+                                className="rounded"
+                              />
+                              <span>{f.label}</span>
+                              {f.custom && (
+                                <button
+                                  onClick={() => setContractFields(prev => prev.filter((_, idx) => idx !== i))}
+                                  className="text-red-400 hover:text-red-500 text-[10px] ml-0.5"
+                                  title="삭제"
+                                >×</button>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                      {/* 변수 키 표시 행 */}
+                      <tr className="border-b border-[var(--border)] bg-[var(--bg)]">
+                        {contractFields.map((f, i) => (
+                          <th key={f.key + i + 'k'} className="px-3 py-1.5 text-left font-normal text-[10px] text-[var(--text-dim)] whitespace-nowrap font-mono">
+                            {`{{${f.key}}}`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* 값 입력 행 */}
+                      <tr>
+                        {contractFields.map((f, i) => (
+                          <td key={f.key + i + 'v'} className={`px-2 py-2 ${f.included ? '' : 'opacity-40'}`}>
+                            {f.type === "date" ? (
+                              <input
+                                type="date"
+                                value={f.value}
+                                disabled={!f.included}
+                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                              />
+                            ) : f.type === "number" ? (
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={f.value ? Number(f.value.replace(/[^0-9]/g, '') || 0).toLocaleString('ko-KR') : ''}
+                                disabled={!f.included}
+                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value.replace(/[^0-9]/g, '') } : p))}
+                                placeholder="0"
+                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs text-right focus:outline-none focus:border-[var(--primary)]"
+                              />
+                            ) : f.type === "select" ? (
+                              <select
+                                value={f.value}
+                                disabled={!f.included}
+                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                              >
+                                {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={f.value}
+                                disabled={!f.included}
+                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                                placeholder="입력"
+                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                              />
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
+
+              {/* 필드 추가 */}
+              <div className="bg-[var(--bg-card)] border border-dashed border-[var(--border)] rounded-xl p-3 mb-3">
+                <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">+ 필드 추가</div>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">필드 이름</label>
+                    <input
+                      value={newFieldLabel}
+                      onChange={(e) => setNewFieldLabel(e.target.value)}
+                      placeholder="예: 인센티브, 직책수당"
+                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">타입</label>
+                    <select
+                      value={newFieldType}
+                      onChange={(e) => setNewFieldType(e.target.value as ContractFieldType)}
+                      className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="text">텍스트</option>
+                      <option value="date">날짜</option>
+                      <option value="number">숫자</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const label = newFieldLabel.trim();
+                      if (!label) return;
+                      if (contractFields.some(f => f.label === label)) {
+                        toast("같은 이름의 필드가 이미 있습니다.", "error");
+                        return;
+                      }
+                      setContractFields(prev => [...prev, {
+                        key: label, label, type: newFieldType, value: "", included: true, custom: true,
+                      }]);
+                      setNewFieldLabel("");
+                    }}
+                    disabled={!newFieldLabel.trim()}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                  >
+                    + 추가
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)] mt-2">
+                  추가한 필드는 서식에서 {"{{필드이름}}"} 변수로 사용 가능 (예: 인센티브 필드 → 서식에 {`{{인센티브}}`} 작성)
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <button onClick={() => setWizardStep(2)} className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl">이전</button>
                 <button onClick={() => { createContract.mutate(); setWizardStep(1); }} disabled={createContract.isPending} className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition">
