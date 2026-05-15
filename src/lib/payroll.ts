@@ -74,6 +74,22 @@ export async function previewPayroll(
 
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [] };
 
+  // 해당 월 명세서 수정값(override) — employees.salary 와 무관하게 월별로 다르게 적용
+  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number }> = {};
+  if (monthKey) {
+    const { data: overrides } = await db
+      .from('payslip_overrides')
+      .select('employee_id, base_salary, non_taxable_amount')
+      .eq('company_id', companyId)
+      .eq('period_month', monthKey);
+    (overrides || []).forEach((o: any) => {
+      overrideMap[o.employee_id] = {
+        base_salary: Number(o.base_salary),
+        non_taxable_amount: Number(o.non_taxable_amount),
+      };
+    });
+  }
+
   // 해당월 말일 — 입사일 필터용
   let monthEnd: string | null = null;
   if (monthKey) {
@@ -89,16 +105,20 @@ export async function previewPayroll(
   let totalNet = 0;
 
   for (const emp of employees as any[]) {
-    const salary = Number(emp.salary || 0);
+    const ov = overrideMap[emp.id];
+    // 월별 override 가 있으면 그 값 사용, 없으면 employees.salary(연봉 ÷ 12 = 월급) 사용
+    const salary = ov ? ov.base_salary : Number(emp.salary || 0);
     if (salary <= 0) continue;
 
     // 입사일 이후 월만 — 해당 월 말일까지 입사한 직원
     if (monthEnd && emp.hire_date && emp.hire_date > monthEnd) continue;
 
-    // 비과세 — non_taxable_amount 우선, 없으면 meal_allowance 20만원 기본
-    const nonTaxable = emp.non_taxable_amount != null
-      ? Number(emp.non_taxable_amount)
-      : (emp.meal_allowance_included ? 200_000 : 0);
+    // 비과세 — override 우선, 그 다음 non_taxable_amount, 없으면 meal_allowance 20만원 기본
+    const nonTaxable = ov
+      ? ov.non_taxable_amount
+      : (emp.non_taxable_amount != null
+          ? Number(emp.non_taxable_amount)
+          : (emp.meal_allowance_included ? 200_000 : 0));
 
     const item = calculatePayroll(salary, emp.name, emp.id, {
       nonTaxableAmount: nonTaxable,

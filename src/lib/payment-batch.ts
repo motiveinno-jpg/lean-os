@@ -454,6 +454,26 @@ export async function sendPayslipEmails(
   // Extract month label from batch name (e.g. "2026년 3월 급여" → "2026년 3월")
   const monthLabel = batchName.replace(/\s*급여\s*$/, '') || batchName;
 
+  // 월별 명세서 수정값(override) — "YYYY년 M월" → "YYYY-MM" 로 변환 후 조회
+  const monthMatch = monthLabel.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
+  const monthKey = monthMatch
+    ? `${monthMatch[1]}-${String(Number(monthMatch[2])).padStart(2, '0')}`
+    : null;
+  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number }> = {};
+  if (monthKey) {
+    const { data: overrides } = await db
+      .from('payslip_overrides')
+      .select('employee_id, base_salary, non_taxable_amount')
+      .eq('company_id', companyId)
+      .eq('period_month', monthKey);
+    (overrides || []).forEach((o: any) => {
+      overrideMap[o.employee_id] = {
+        base_salary: Number(o.base_salary),
+        non_taxable_amount: Number(o.non_taxable_amount),
+      };
+    });
+  }
+
   // Get auth session for EF call
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { sent: 0, failed: 0 };
@@ -469,11 +489,14 @@ export async function sendPayslipEmails(
   for (const emp of employees as any[]) {
     if (!emp.email) { failed++; errors.push(`${emp.name}: 이메일 없음`); continue; }
 
-    const salary = Number(emp.salary || 0);
+    const ov = overrideMap[emp.id];
+    const salary = ov ? ov.base_salary : Number(emp.salary || 0);
     if (salary <= 0) { failed++; errors.push(`${emp.name}: 급여 0`); continue; }
 
     const payroll = calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      nonTaxableAmount: ov
+        ? ov.non_taxable_amount
+        : (emp.meal_allowance_included ? 200_000 : 0),
       dependents: 1,
     });
 

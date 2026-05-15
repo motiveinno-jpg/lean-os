@@ -939,16 +939,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
     enabled: !!employeeId && detailTab === "contracts",
   });
 
-  // Fetch signature requests for this employee's contracts
-  const { data: empSignatures = [] } = useQuery({
-    queryKey: ["emp-signatures", employeeId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("signature_requests").select("*").eq("signer_email", emp?.email).order("created_at", { ascending: false });
-      return data || [];
-    },
-    enabled: !!employeeId && !!emp?.email && detailTab === "contracts",
-  });
-
   // Fetch HR contract packages (전자서명 패키지) for this employee
   const { data: empPackages = [] } = useQuery({
     queryKey: ["emp-hr-packages", employeeId],
@@ -1352,7 +1342,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         {/* Contracts Tab — Flex-style 계약서 목록 */}
         {detailTab === "contracts" && (
           <div className="space-y-2">
-            {empContracts.length === 0 && empSignatures.length === 0 && empPackages.length === 0 ? (
+            {empContracts.length === 0 && empPackages.length === 0 ? (
               <div className="text-center py-8 text-sm text-[var(--text-dim)]">계약서가 없습니다</div>
             ) : (
               <>
@@ -1415,39 +1405,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                           </span>
                         </div>
                       ))}
-                    </div>
-                  </div>
-                )}
-                {empSignatures.length > 0 && (
-                  <div className="mt-3">
-                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5 flex items-center gap-1.5">
-                      전자서명 요청
-                      <span className="text-[10px] font-normal text-[var(--text-dim)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded-full">{empSignatures.length}</span>
-                    </div>
-                    <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] overflow-hidden max-h-[220px] overflow-y-auto">
-                      {empSignatures.map((s: any) => {
-                        const SIG_STATUS: Record<string, { label: string; color: string }> = {
-                          pending: { label: "대기", color: "text-amber-500 bg-amber-500/10" },
-                          sent: { label: "발송", color: "text-blue-400 bg-blue-500/10" },
-                          viewed: { label: "열람", color: "text-blue-400 bg-blue-500/10" },
-                          signed: { label: "서명완료", color: "text-green-400 bg-green-500/10" },
-                          rejected: { label: "거절", color: "text-red-400 bg-red-500/10" },
-                          expired: { label: "만료", color: "text-gray-400 bg-gray-500/10" },
-                        };
-                        const st = SIG_STATUS[s.status] || SIG_STATUS.pending;
-                        return (
-                          <div key={s.id} className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[var(--bg-card)]">
-                            <div className="min-w-0">
-                              <div className="text-xs font-medium truncate">{s.title || "서명 요청"}</div>
-                              <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">
-                                {s.created_at ? new Date(s.created_at).toLocaleDateString("ko-KR") : ""}
-                                {s.signed_at ? ` · 서명: ${new Date(s.signed_at).toLocaleDateString("ko-KR")}` : ""}
-                              </div>
-                            </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.label}</span>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 )}
@@ -4315,23 +4272,30 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setLoading(false);
   };
 
-  // 편집 모드에서 저장 — employees DB 의 salary / non_taxable_amount 업데이트
+  // 편집 모드에서 저장 — 해당 월(periodMonth) payslip_overrides 에만 저장.
+  // employees.salary(연봉) 는 건드리지 않음 → 인력관리 연봉 유지 + 월별 독립.
   const saveEdits = async () => {
     if (!companyId || !preview) return;
     setSavingEdit(true);
     try {
-      const updates = Object.entries(editValues).map(([id, v]) =>
-        (supabase as any).from('employees').update({
-          salary: v.baseSalary,
-          non_taxable_amount: v.nonTaxable,
-        }).eq('id', id)
-      );
-      await Promise.all(updates);
-      toast(`${Object.keys(editValues).length}명 급여 정보 저장 완료`, 'success');
+      const rows = Object.entries(editValues).map(([id, v]) => ({
+        company_id: companyId,
+        employee_id: id,
+        period_month: periodMonth, // 'YYYY-MM' — 이 달 명세서에만 적용
+        base_salary: v.baseSalary,
+        non_taxable_amount: v.nonTaxable,
+        updated_at: new Date().toISOString(),
+      }));
+      const { error } = await (supabase as any)
+        .from('payslip_overrides')
+        .upsert(rows, { onConflict: 'employee_id,period_month' });
+      if (error) throw error;
+      toast(`${rows.length}명 ${periodLabel} 급여명세서 저장 완료 (연봉은 유지됨)`, 'success');
       setEditMode(false);
       await generate();
     } catch (err: any) {
-      toast('저장 실패: ' + (err.message || ''), 'error');
+      toast('저장 실패: ' + (err.message || err.code || ''), 'error');
+      console.error('[saveEdits] error:', err);
     }
     setSavingEdit(false);
   };
