@@ -533,11 +533,18 @@ export async function createContractPackage(params: {
   // Build variables
   const variables = await buildContractVariables(companyId, employeeId, variableOverrides);
 
-  // Save salary metadata for reliable extraction on signing
+  // Save metadata (salary + Step 3 입력값) for reliable extraction on signing
   const annualSalary = Number(variables.연봉?.replace(/,/g, '') || 0);
-  if (annualSalary > 0) {
+  const meta: Record<string, unknown> = {};
+  if (notes) meta.text = notes;
+  if (annualSalary > 0) meta.salary = annualSalary;
+  // Step 3 필수 입력 정보 — 서명본 푸터에서 사용
+  if (variableOverrides && Object.keys(variableOverrides).length > 0) {
+    meta.contract_meta = variableOverrides;
+  }
+  if (Object.keys(meta).length > 0) {
     await db.from('hr_contract_packages').update({
-      notes: JSON.stringify({ ...(notes ? { text: notes } : {}), salary: annualSalary }),
+      notes: JSON.stringify(meta),
     }).eq('id', pkg.id);
   }
 

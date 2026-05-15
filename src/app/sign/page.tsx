@@ -114,6 +114,8 @@ type PackageData = {
   seal_url?: string | null;
   seal_applied_at?: string | null;
   seal_company_name?: string | null;
+  // Step 3 에서 입력한 필수 정보 (생년월일, 계약일 등)
+  contract_meta?: Record<string, string> | null;
   items: {
     id: string;
     title: string;
@@ -333,10 +335,11 @@ function SignContent() {
         .eq("package_id", p.id)
         .order("sort_order");
 
-      // notes JSON 파싱 — seal_applied_at, seal_url 추출
+      // notes JSON 파싱 — seal_applied_at, seal_url, contract_meta(Step 3 입력값) 추출
       let sealUrl: string | null = null;
       let sealAppliedAt: string | null = null;
       let sealCompanyName: string | null = null;
+      let contractMeta: Record<string, string> | null = null;
       if (p.notes) {
         try {
           const parsed = JSON.parse(p.notes);
@@ -344,10 +347,13 @@ function SignContent() {
             sealUrl = parsed.seal_url || null;
             sealAppliedAt = parsed.seal_applied_at || null;
             sealCompanyName = parsed.seal_company_name || null;
+            if (parsed.contract_meta && typeof parsed.contract_meta === 'object') {
+              contractMeta = parsed.contract_meta as Record<string, string>;
+            }
           }
         } catch { /* notes not JSON */ }
       }
-      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName });
+      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta });
 
       // Load saved signature from employee
       if (p.employee_id) {
@@ -794,7 +800,10 @@ function SignContent() {
         content: allSections.join('\n'),
         companyName: pkg.companies?.name || '',
         companyInfo: { representative: pkg.companies?.representative || undefined },
-        signerBirthDate: (pkg.employees as any)?.birth_date,
+        signerBirthDate:
+          pkg.contract_meta?.["생년월일"]
+          || pkg.contract_meta?.["birth_date"]
+          || (pkg.employees as any)?.birth_date,
         signatures,
         // 직인이 적용된 패키지면 PDF 우측 하단에 도장 오버레이
         sealUrl: pkg.seal_applied_at && pkg.seal_url ? pkg.seal_url : undefined,
@@ -894,13 +903,13 @@ function SignContent() {
                 {/* Flex 스타일 서명/직인 푸터 */}
                 {sig && signedAt && (
                   <ContractSignatureFooter
-                    contractDate={signedAt}
+                    contractDate={pkg.contract_meta?.["계약일"] || pkg.contract_meta?.["contract_date"] || signedAt}
                     companyName={pkg.seal_company_name || pkg.companies?.name || ''}
                     representative={pkg.companies?.representative || ''}
                     sealUrl={pkg.seal_url}
                     sealAppliedAt={pkg.seal_applied_at}
-                    employeeName={pkg.employees?.name}
-                    birthDate={(pkg.employees as any)?.birth_date}
+                    employeeName={pkg.contract_meta?.["구성원 이름"] || pkg.contract_meta?.["직원명"] || pkg.employees?.name}
+                    birthDate={pkg.contract_meta?.["생년월일"] || pkg.contract_meta?.["birth_date"] || (pkg.employees as any)?.birth_date}
                     signature={sig as { type: 'draw' | 'type'; data: string }}
                   />
                 )}
@@ -1071,13 +1080,13 @@ function SignContent() {
             {/* Flex 스타일 서명 푸터 */}
             {(currentItem as any).signature_data && (
               <ContractSignatureFooter
-                contractDate={(currentItem as any).signed_at}
+                contractDate={pkg.contract_meta?.["계약일"] || pkg.contract_meta?.["contract_date"] || (currentItem as any).signed_at}
                 companyName={pkg.seal_company_name || pkg.companies?.name || ''}
                 representative={pkg.companies?.representative || ''}
                 sealUrl={pkg.seal_url}
                 sealAppliedAt={pkg.seal_applied_at}
-                employeeName={pkg.employees?.name}
-                birthDate={(pkg.employees as any)?.birth_date}
+                employeeName={pkg.contract_meta?.["구성원 이름"] || pkg.contract_meta?.["직원명"] || pkg.employees?.name}
+                birthDate={pkg.contract_meta?.["생년월일"] || pkg.contract_meta?.["birth_date"] || (pkg.employees as any)?.birth_date}
                 signature={(currentItem as any).signature_data}
               />
             )}
