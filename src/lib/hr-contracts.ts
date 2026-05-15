@@ -546,15 +546,20 @@ export async function createContractPackage(params: {
 
   for (let i = 0; i < templateIds.length; i++) {
     const templateId = templateIds[i];
+    // built-in 템플릿 ID 는 "builtin-..." 같은 문자열이라 UUID 컬럼에 못 넣음.
+    const isUuidTemplate = isUuid(templateId);
+    const dbTemplateId: string | null = isUuidTemplate ? templateId : null;
 
-    // Get template from DB first, then fall back to built-in templates
-    const { data: dbTemplate } = await db
-      .from('doc_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single();
-
-    let template = dbTemplate;
+    // Get template from DB first (only if UUID), then fall back to built-in templates
+    let template: any = null;
+    if (isUuidTemplate) {
+      const { data: dbTemplate } = await db
+        .from('doc_templates')
+        .select('*')
+        .eq('id', templateId)
+        .maybeSingle();
+      template = dbTemplate;
+    }
 
     if (!template) {
       // Check built-in templates as fallback
@@ -581,7 +586,7 @@ export async function createContractPackage(params: {
       .from('documents')
       .insert({
         company_id: companyId,
-        template_id: templateId,
+        template_id: dbTemplateId,
         name: `${variables.직원명} - ${template.name}`,
         status: 'draft',
         content_json: filledContent,
@@ -599,7 +604,7 @@ export async function createContractPackage(params: {
       .insert({
         package_id: pkg.id,
         document_id: doc.id,
-        template_id: templateId,
+        template_id: dbTemplateId,
         title: template.name,
         sort_order: i,
         status: 'pending',
