@@ -48,14 +48,36 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
   });
 
   const top = useMemo(() => {
-    return [...(rows as any[])]
+    // 중복 제거 — 같은 날짜+거래처+금액 은 동일 거래로 간주 (CSV 중복 업로드 / 재동기화 대비)
+    const seen = new Set<string>();
+    const deduped: any[] = [];
+    for (const r of rows as any[]) {
+      const key = `${r.transaction_date || ''}|${(r.counterparty || '').trim()}|${Math.abs(Number(r.amount || 0))}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(r);
+    }
+    return deduped
       .sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
       .slice(0, topN);
   }, [rows, topN]);
 
-  const totalThisMonth = useMemo(() => {
-    return (rows as any[]).reduce((s, r) => s + Math.abs(Number(r.amount || 0)), 0);
+  // 중복 제거된 이번달 지출 (총액·건수 표시용)
+  const dedupedRows = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const r of rows as any[]) {
+      const key = `${r.transaction_date || ''}|${(r.counterparty || '').trim()}|${Math.abs(Number(r.amount || 0))}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+    return out;
   }, [rows]);
+
+  const totalThisMonth = useMemo(() => {
+    return dedupedRows.reduce((s, r) => s + Math.abs(Number(r.amount || 0)), 0);
+  }, [dedupedRows]);
 
   const handleExcel = () => {
     if (!monthAll.length) return;
@@ -82,7 +104,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
 
       {top.length > 0 && (
         <div className="text-[10px] text-[var(--text-dim)] mb-2 flex justify-between">
-          <span>총 지출 {(rows as any[]).length}건</span>
+          <span>총 지출 {dedupedRows.length}건</span>
           <span className="mono-number text-[var(--danger)] font-semibold">₩{fmtKRW(totalThisMonth)}</span>
         </div>
       )}

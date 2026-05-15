@@ -13,8 +13,9 @@ import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
+import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { CardBillingSummary } from "@/components/card-billing-summary";
-import { TopCardExpensesThisMonth, CardMonthlyUsage } from "@/components/card-insights";
+import { TopCardExpensesThisMonth, CardMonthlyUsage, CardAutoTransferHistory } from "@/components/card-insights";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -1169,6 +1170,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <UpcomingAutoTransfersCard companyId={companyId} />
               <TopExpensesThisMonth companyId={companyId} />
+              <AutoTransferHistoryCard companyId={companyId} />
             </div>
           )}
 
@@ -1491,6 +1493,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <TopCardExpensesThisMonth companyId={companyId} />
             </div>
           )}
+
+          {/* 카드 자동이체·정기결제 내역 */}
+          {companyId && <CardAutoTransferHistory companyId={companyId} />}
 
           {/* 카드 월별 사용금액 (카드별/합계) */}
           {companyId && <CardMonthlyUsage companyId={companyId} />}

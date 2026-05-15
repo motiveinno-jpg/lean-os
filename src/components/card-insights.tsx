@@ -135,6 +135,97 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
 }
 
 // ─────────────────────────────────────────
+// 1-b) 카드 자동이체(정기결제) 내역 — is_fixed_cost=true, 이번달
+// ─────────────────────────────────────────
+export function CardAutoTransferHistory({ companyId }: Props) {
+  const now = new Date();
+  const monthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const dateFrom = startOfMonth(now);
+  const dateTo = endOfMonth(now);
+
+  const { data: rows = [] } = useQuery({
+    queryKey: ['card-auto-transfer', companyId, monthLabel],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('card_transactions')
+        .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification, is_fixed_cost')
+        .eq('company_id', companyId)
+        .eq('is_fixed_cost', true)
+        .gte('transaction_date', dateFrom)
+        .lte('transaction_date', dateTo)
+        .gt('amount', 0)
+        .order('transaction_date', { ascending: false });
+      return data || [];
+    },
+    enabled: !!companyId,
+    staleTime: 30_000,
+  });
+
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const r of rows as any[]) {
+      const key = `${r.transaction_date || ''}|${(r.merchant_name || '').trim()}|${Number(r.amount || 0)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+    return out;
+  }, [rows]);
+
+  const total = useMemo(() => items.reduce((s, r) => s + Number(r.amount || 0), 0), [items]);
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔁</span>
+          <h2 className="text-sm font-bold text-[var(--text)]">카드 자동이체·정기결제 내역</h2>
+          <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
+        </div>
+        {items.length > 0 && (
+          <div className="text-right">
+            <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">이번달 결제</div>
+            <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(total)}</div>
+          </div>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <div className="text-center py-6 text-xs text-[var(--text-dim)]">
+          이번달 카드 자동이체·정기결제 내역이 없습니다.
+          <div className="text-[10px] mt-1">카드 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map((t: any) => {
+            const amount = Number(t.amount || 0);
+            const dStr = t.transaction_date || '';
+            const d = new Date(dStr);
+            const dateDisplay = isNaN(d.getTime()) ? dStr : `${d.getMonth() + 1}/${d.getDate()}`;
+            return (
+              <div key={t.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+                <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{dateDisplay}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-[var(--text)] truncate">{t.merchant_name || '(가맹점 미상)'}</span>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">고정지출</span>
+                  </div>
+                  <div className="text-[10px] text-[var(--text-dim)] truncate">
+                    {t.card_name || '카드 미지정'}
+                    {t.category ? ` · ${t.category}` : t.merchant_category ? ` · ${t.merchant_category}` : ''}
+                  </div>
+                </div>
+                <div className="text-sm font-bold mono-number text-[var(--danger)] shrink-0">₩{fmtKRW(amount)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
 // 2) 카드 월별 사용금액 (최근 6개월, 카드별 + 합계)
 // ─────────────────────────────────────────
 export function CardMonthlyUsage({ companyId }: Props) {
