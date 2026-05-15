@@ -3823,9 +3823,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { data: empMap = {} } = useQuery({
     queryKey: ["payroll-emp-meta", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, department, position").eq("company_id", companyId!);
-      const m: Record<string, { department: string | null; position: string | null }> = {};
-      (data || []).forEach((e: any) => { m[e.id] = { department: e.department, position: e.position }; });
+      const { data } = await supabase.from("employees").select("id, department, position, birth_date").eq("company_id", companyId!);
+      const m: Record<string, { department: string | null; position: string | null; birthDate: string | null }> = {};
+      (data || []).forEach((e: any) => { m[e.id] = { department: e.department, position: e.position, birthDate: e.birth_date }; });
       return m;
     },
     enabled: !!companyId,
@@ -3834,7 +3834,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const downloadOne = async (item: PayrollItem) => {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
-      const meta = (empMap as Record<string, { department: string | null; position: string | null }>)[item.employeeId] || {};
+      const meta = (empMap as Record<string, { department: string | null; position: string | null; birthDate: string | null }>)[item.employeeId] || {} as any;
+      // 사원코드 — employee.id 의 끝 4자리(UUID 접미)를 사용
+      const employeeCode = item.employeeId ? item.employeeId.slice(-4).toUpperCase() : undefined;
       await downloadPayslipPDF({
         item,
         companyName: companyMeta?.name || "회사",
@@ -3842,6 +3844,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         periodLabel,
         department: meta.department || undefined,
         position: meta.position || undefined,
+        employeeCode,
+        birthDate: meta.birthDate || undefined,
       });
       toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
     } catch (err: any) {
