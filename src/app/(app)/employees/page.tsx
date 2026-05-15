@@ -1358,83 +1358,97 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               <>
                 {/* 전자계약 패키지 (구성원 > 계약서 탭에서 발송된 것) */}
                 {empPackages.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1">전자계약</div>
-                    {empPackages.map((p: any) => {
-                      const PKG_STATUS: Record<string, { label: string; color: string }> = {
-                        draft: { label: "임시저장", color: "text-gray-400 bg-gray-500/10" },
-                        sent: { label: "발송됨", color: "text-blue-400 bg-blue-500/10" },
-                        partially_signed: { label: "일부 서명", color: "text-amber-500 bg-amber-500/10" },
-                        completed: { label: "서명 완료", color: "text-green-400 bg-green-500/10" },
-                        cancelled: { label: "취소", color: "text-gray-400 bg-gray-500/10" },
-                      };
-                      const st = PKG_STATUS[p.status] || PKG_STATUS.draft;
-                      const items = p.hr_contract_package_items || [];
-                      const signedCount = items.filter((it: any) => it.status === "signed").length;
-                      return (
-                        <div
-                          key={p.id}
-                          className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] hover:border-[var(--primary)]/30 transition cursor-pointer"
-                          onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")}
-                          title="클릭하여 계약서 열기"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-medium truncate">{p.title}</div>
-                            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                              {p.created_at ? new Date(p.created_at).toLocaleDateString("ko-KR") : ""}
-                              {items.length > 0 ? ` · 문서 ${signedCount}/${items.length} 서명` : ""}
-                              {p.sent_at ? ` · 발송 ${new Date(p.sent_at).toLocaleDateString("ko-KR")}` : ""}
-                              {p.completed_at ? ` · 완료 ${new Date(p.completed_at).toLocaleDateString("ko-KR")}` : ""}
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5 flex items-center gap-1.5">
+                      전자계약
+                      <span className="text-[10px] font-normal text-[var(--text-dim)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded-full">{empPackages.length}</span>
+                    </div>
+                    <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] overflow-hidden max-h-[300px] overflow-y-auto">
+                      {empPackages.map((p: any) => {
+                        const PKG_STATUS: Record<string, { label: string; color: string }> = {
+                          draft: { label: "임시저장", color: "text-gray-400 bg-gray-500/10" },
+                          sent: { label: "발송됨", color: "text-blue-400 bg-blue-500/10" },
+                          partially_signed: { label: "일부 서명", color: "text-amber-500 bg-amber-500/10" },
+                          completed: { label: "서명 완료", color: "text-green-400 bg-green-500/10" },
+                          cancelled: { label: "취소", color: "text-gray-400 bg-gray-500/10" },
+                        };
+                        const st = PKG_STATUS[p.status] || PKG_STATUS.draft;
+                        const items = p.hr_contract_package_items || [];
+                        const signedCount = items.filter((it: any) => it.status === "signed").length;
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] transition cursor-pointer"
+                            onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")}
+                            title="클릭하여 계약서 열기"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium truncate">{p.title}</div>
+                              <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">
+                                {p.created_at ? new Date(p.created_at).toLocaleDateString("ko-KR") : ""}
+                                {items.length > 0 ? ` · ${signedCount}/${items.length} 서명` : ""}
+                                {p.completed_at ? ` · 완료 ${new Date(p.completed_at).toLocaleDateString("ko-KR")}` : p.sent_at ? ` · 발송 ${new Date(p.sent_at).toLocaleDateString("ko-KR")}` : ""}
+                              </div>
                             </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.label}</span>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ml-2 ${st.color}`}>{st.label}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {empContracts.length > 0 && (
-                  <div className="space-y-2 mt-3">
-                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1">근로 계약 (이력)</div>
-                    {empContracts.map((c: any) => (
-                      <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium">{c.contract_type === "regular" ? "정규직 근로계약서" : c.contract_type === "contract" ? "계약직 근로계약서" : c.contract_type || "근로계약서"}</div>
-                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.start_date}{c.end_date ? ` ~ ${c.end_date}` : " ~ 현재"}</div>
+                  <div className="mt-3">
+                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5 flex items-center gap-1.5">
+                      근로 계약 (이력)
+                      <span className="text-[10px] font-normal text-[var(--text-dim)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded-full">{empContracts.length}</span>
+                    </div>
+                    <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] overflow-hidden max-h-[220px] overflow-y-auto">
+                      {empContracts.map((c: any) => (
+                        <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[var(--bg-card)]">
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate">{c.contract_type === "regular" ? "정규직 근로계약서" : c.contract_type === "contract" ? "계약직 근로계약서" : c.contract_type || "근로계약서"}</div>
+                            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.start_date}{c.end_date ? ` ~ ${c.end_date}` : " ~ 현재"}</div>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c.status === "active" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"}`}>
+                            {c.status === "active" ? "유효" : "종료"}
+                          </span>
                         </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === "active" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"}`}>
-                          {c.status === "active" ? "유효" : "종료"}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
                 {empSignatures.length > 0 && (
-                  <div className="space-y-2 mt-3">
-                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1">전자서명 요청</div>
-                    {empSignatures.map((s: any) => {
-                      const SIG_STATUS: Record<string, { label: string; color: string }> = {
-                        pending: { label: "대기", color: "text-amber-500 bg-amber-500/10" },
-                        sent: { label: "발송", color: "text-blue-400 bg-blue-500/10" },
-                        viewed: { label: "열람", color: "text-blue-400 bg-blue-500/10" },
-                        signed: { label: "서명완료", color: "text-green-400 bg-green-500/10" },
-                        rejected: { label: "거절", color: "text-red-400 bg-red-500/10" },
-                        expired: { label: "만료", color: "text-gray-400 bg-gray-500/10" },
-                      };
-                      const st = SIG_STATUS[s.status] || SIG_STATUS.pending;
-                      return (
-                        <div key={s.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
-                          <div className="min-w-0">
-                            <div className="text-xs font-medium truncate">{s.title || "서명 요청"}</div>
-                            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                              {s.created_at ? new Date(s.created_at).toLocaleDateString("ko-KR") : ""}
-                              {s.signed_at ? ` · 서명: ${new Date(s.signed_at).toLocaleDateString("ko-KR")}` : ""}
+                  <div className="mt-3">
+                    <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5 flex items-center gap-1.5">
+                      전자서명 요청
+                      <span className="text-[10px] font-normal text-[var(--text-dim)] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded-full">{empSignatures.length}</span>
+                    </div>
+                    <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] overflow-hidden max-h-[220px] overflow-y-auto">
+                      {empSignatures.map((s: any) => {
+                        const SIG_STATUS: Record<string, { label: string; color: string }> = {
+                          pending: { label: "대기", color: "text-amber-500 bg-amber-500/10" },
+                          sent: { label: "발송", color: "text-blue-400 bg-blue-500/10" },
+                          viewed: { label: "열람", color: "text-blue-400 bg-blue-500/10" },
+                          signed: { label: "서명완료", color: "text-green-400 bg-green-500/10" },
+                          rejected: { label: "거절", color: "text-red-400 bg-red-500/10" },
+                          expired: { label: "만료", color: "text-gray-400 bg-gray-500/10" },
+                        };
+                        const st = SIG_STATUS[s.status] || SIG_STATUS.pending;
+                        return (
+                          <div key={s.id} className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[var(--bg-card)]">
+                            <div className="min-w-0">
+                              <div className="text-xs font-medium truncate">{s.title || "서명 요청"}</div>
+                              <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">
+                                {s.created_at ? new Date(s.created_at).toLocaleDateString("ko-KR") : ""}
+                                {s.signed_at ? ` · 서명: ${new Date(s.signed_at).toLocaleDateString("ko-KR")}` : ""}
+                              </div>
                             </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.label}</span>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </>
