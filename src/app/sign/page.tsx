@@ -18,8 +18,12 @@ type PackageData = {
   expired: boolean;
   company_id?: string;
   employees: { name: string; email?: string; department?: string; position?: string };
-  companies?: { name: string } | null;
+  companies?: { name: string; seal_url?: string | null } | null;
   notes?: string;
+  // notes JSON 파싱 결과 — seal_applied_at 있으면 직인 표시
+  seal_url?: string | null;
+  seal_applied_at?: string | null;
+  seal_company_name?: string | null;
   items: {
     id: string;
     title: string;
@@ -184,7 +188,7 @@ function SignContent() {
       // Get package by sign_token
       const { data: p } = await db
         .from("hr_contract_packages")
-        .select("*, employees(name, email, department, position), companies(name)")
+        .select("*, employees(name, email, department, position), companies(name, seal_url)")
         .eq("sign_token", token)
         .maybeSingle();
 
@@ -239,7 +243,21 @@ function SignContent() {
         .eq("package_id", p.id)
         .order("sort_order");
 
-      setPkg({ ...p, expired, items: items || [] });
+      // notes JSON 파싱 — seal_applied_at, seal_url 추출
+      let sealUrl: string | null = null;
+      let sealAppliedAt: string | null = null;
+      let sealCompanyName: string | null = null;
+      if (p.notes) {
+        try {
+          const parsed = JSON.parse(p.notes);
+          if (typeof parsed === 'object' && parsed) {
+            sealUrl = parsed.seal_url || null;
+            sealAppliedAt = parsed.seal_applied_at || null;
+            sealCompanyName = parsed.seal_company_name || null;
+          }
+        } catch { /* notes not JSON */ }
+      }
+      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName });
 
       // Load saved signature from employee
       if (p.employee_id) {
@@ -723,6 +741,9 @@ function SignContent() {
         content: allSections.join('\n'),
         companyName: pkg.companies?.name || '',
         signatures,
+        // 직인이 적용된 패키지면 PDF 우측 하단에 도장 오버레이
+        sealUrl: pkg.seal_applied_at && pkg.seal_url ? pkg.seal_url : undefined,
+        applyStamp: !!(pkg.seal_applied_at && pkg.seal_url),
       });
 
       // Trigger download
@@ -825,15 +846,26 @@ function SignContent() {
                           서명일시: <span className="text-gray-700">{new Date(signedAt).toLocaleString('ko-KR')}</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        {sig.type === 'draw' && typeof sig.data === 'string' ? (
-                          <img src={sig.data} alt="서명" className="h-16 inline-block" />
-                        ) : sig.type === 'type' ? (
-                          <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
-                            {sig.data}
-                          </span>
-                        ) : null}
-                        <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
+                      <div className="flex items-end gap-6">
+                        {/* 회사 직인 (있을 때만) */}
+                        {pkg.seal_url && pkg.seal_applied_at && (
+                          <div className="text-center">
+                            <div className="text-[10px] text-gray-500 mb-1">{pkg.seal_company_name || pkg.companies?.name || '회사'}</div>
+                            <img src={pkg.seal_url} alt="회사 직인" className="h-16 inline-block" />
+                          </div>
+                        )}
+                        {/* 직원 서명 */}
+                        <div className="text-right">
+                          <div className="text-[10px] text-gray-500 mb-1">{pkg.employees?.name}</div>
+                          {sig.type === 'draw' && typeof sig.data === 'string' ? (
+                            <img src={sig.data} alt="서명" className="h-16 inline-block" />
+                          ) : sig.type === 'type' ? (
+                            <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
+                              {sig.data}
+                            </span>
+                          ) : null}
+                          <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
+                        </div>
                       </div>
                     </div>
                   </div>

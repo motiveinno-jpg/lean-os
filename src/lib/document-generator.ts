@@ -185,6 +185,11 @@ export async function generateDocumentPDF(params: {
 
   // ── 서명 블록 ──
   if (params.signatures && params.signatures.length > 0) {
+    // 직인 이미지를 한 번만 로드해서 모든 서명 블록에 사용
+    let sealImg: string | null = null;
+    if (params.sealUrl) {
+      try { sealImg = await loadImage(params.sealUrl); } catch { sealImg = null; }
+    }
     for (const sig of params.signatures) {
       // 페이지 하단이면 새 페이지 추가
       if (y > pageH - 60) {
@@ -206,10 +211,9 @@ export async function generateDocumentPDF(params: {
       doc.text(`서명일시: ${new Date(sig.signedAt).toLocaleString('ko-KR')}`, 14, y);
       y += 6;
 
+      const sigStartY = y;
       if (sig.signatureType === 'draw' && sig.signatureData?.startsWith('data:image')) {
-        // 그린 서명 이미지 삽입
         try {
-          // 60x25mm 영역에 서명 이미지
           const sigW = 60;
           const sigH = 25;
           doc.addImage(sig.signatureData, 'PNG', 14, y, sigW, sigH);
@@ -220,7 +224,6 @@ export async function generateDocumentPDF(params: {
           y += 6;
         }
       } else if (sig.signatureType === 'type') {
-        // 타이핑된 서명 — 큰 글씨 + 밑줄
         doc.setFontSize(16);
         setKoreanFont(doc, 'bold');
         doc.setTextColor(20, 20, 20);
@@ -230,6 +233,23 @@ export async function generateDocumentPDF(params: {
         doc.line(14, y + 11, 14 + textWidth + 4, y + 11);
         y += 18;
       }
+
+      // 회사 직인 — 서명 우측에 배치 (서명블록과 같은 y에)
+      if (sealImg) {
+        try {
+          const sealSize = 28;
+          const sealX = pageW - 14 - sealSize;
+          doc.addImage(sealImg, 'PNG', sealX, sigStartY - 2, sealSize, sealSize);
+          // 회사명 레이블
+          doc.setFontSize(8);
+          setKoreanFont(doc, 'normal');
+          doc.setTextColor(120, 120, 120);
+          doc.text(params.companyName || '회사 직인', sealX + sealSize / 2, sigStartY + sealSize, { align: 'center' });
+        } catch (e) {
+          console.warn('Seal embed in signature block failed:', e);
+        }
+      }
+
       doc.setFontSize(10);
       setKoreanFont(doc, 'normal');
       doc.setTextColor(60, 60, 60);

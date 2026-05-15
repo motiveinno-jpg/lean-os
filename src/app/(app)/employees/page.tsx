@@ -21,7 +21,6 @@ import {
   getContractPackages, createContractPackage, sendContractPackage,
   getContractTemplates, cancelContractPackage, PACKAGE_STATUS,
 } from "@/lib/hr-contracts";
-import { applyCompanySeal } from "@/lib/signatures";
 import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
@@ -2205,7 +2204,21 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [newTemplateBody, setNewTemplateBody] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [customVariables, setCustomVariables] = useState<{ v: string; desc: string }[]>([]);
+  const [newVarName, setNewVarName] = useState("");
+  const [newVarDesc, setNewVarDesc] = useState("");
   const editorRef = useRef<RichEditorRef>(null);
+
+  // 회사 직인 URL 로드 (계약완료 시 PDF/화면에 표시)
+  const { data: companySeal } = useQuery({
+    queryKey: ["company-seal", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("companies").select("seal_url, name, representative").eq("id", companyId!).maybeSingle();
+      return data || null;
+    },
+    enabled: !!companyId,
+  });
+  void companySeal; // ContractTab 자체엔 직접 표시 안 함, sign 페이지에서 사용
 
   function startEditTemplate(t: any) {
     setEditingTemplateId(t.is_builtin ? null : t.id); // 내장은 신규 저장으로 떨어짐 (복제 편집)
@@ -2223,6 +2236,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     try {
       await (supabase as any).from("doc_templates").update({ is_active: false }).eq("id", id);
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
       toast("서식이 삭제되었습니다.", "success");
     } catch (err: any) {
       toast("삭제 실패: " + (err.message || ""), "error");
@@ -2236,10 +2250,24 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
     enabled: !!companyId,
   });
 
-  // 계약서 서식
+  // 계약서 서식 (활성만 — 발송 마법사용)
   const { data: templates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
     queryFn: () => getContractTemplates(companyId!),
+    enabled: !!companyId,
+  });
+
+  // 모든 서식 (임시저장 포함 — 에디터 목록용)
+  const { data: allTemplates = [] } = useQuery({
+    queryKey: ["contract-templates-all", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("doc_templates")
+        .select("*")
+        .or(`company_id.eq.${companyId},company_id.is.null`)
+        .order("name");
+      return data || [];
+    },
     enabled: !!companyId,
   });
 
@@ -2338,14 +2366,38 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   // 선택된 직원 데이터로 템플릿 미리보기 자동 채움
   const selectedEmployee = employees.find((e: any) => e.id === reqForm.employeeId);
 
-  // 직인 적용 핸들러
+  // 직인 적용 핸들러 — 패키지 단위로 적용 (notes JSON 에 seal_applied 표시 + 회사 seal_url 스냅샷)
   async function handleApplySeal(contractId: string) {
     if (!companyId) return;
     setSealApplying(contractId);
     try {
-      await applyCompanySeal({ documentId: contractId, companyId, appliedBy: "system" });
+      // 회사 seal_url 조회
+      const { data: company } = await (supabase as any)
+        .from("companies").select("seal_url, name").eq("id", companyId).maybeSingle();
+      if (!company?.seal_url) {
+        toast("직인 이미지가 등록돼 있지 않습니다. 회사 설정에서 먼저 등록하세요.", "error");
+        setSealApplying(null);
+        return;
+      }
+      // 기존 notes 파싱
+      const { data: pkg } = await (supabase as any)
+        .from("hr_contract_packages").select("notes").eq("id", contractId).maybeSingle();
+      let notesObj: Record<string, any> = {};
+      if (pkg?.notes) {
+        try {
+          const parsed = JSON.parse(pkg.notes);
+          if (typeof parsed === 'object' && parsed && !Array.isArray(parsed)) notesObj = parsed;
+        } catch { /* keep empty */ }
+      }
+      notesObj.seal_applied_at = new Date().toISOString();
+      notesObj.seal_url = company.seal_url;
+      notesObj.seal_company_name = company.name || '';
+      await (supabase as any)
+        .from("hr_contract_packages")
+        .update({ notes: JSON.stringify(notesObj) })
+        .eq("id", contractId);
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
-      toast("직인이 적용되었습니다.", "success");
+      toast("직인이 적용되었습니다 (서명본/PDF에 반영됨)", "success");
     } catch (err: any) {
       toast("직인 적용 실패: " + (err.message || "알 수 없는 오류"), "error");
     } finally {
@@ -2404,7 +2456,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
 
       {/* 서식 에디터 (WYSIWYG) */}
       {showTemplateEditor && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 mb-6 flex flex-col" style={{ maxHeight: "80vh" }}>
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 mb-6 flex flex-col" style={{ height: "80vh" }}>
           <div className="p-6 pb-3 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -2416,52 +2468,115 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
               </div>
               <button onClick={() => setShowTemplateEditor(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
             </div>
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
               <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-6">
-            <div className="flex gap-4 mb-4">
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 내용 *</label>
+          <div className="flex-1 flex gap-4 px-6 min-h-0">
+            {/* 서식 내용 — 자체 스크롤 */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">서식 내용 *</label>
+              <div className="flex-1 overflow-y-auto bg-[var(--bg)] border border-[var(--border)] rounded-xl">
                 <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
               </div>
-              <div className="w-40 shrink-0">
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">변수 삽입</label>
-                <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 space-y-1.5 sticky top-0">
-                  <p className="text-[9px] text-[var(--text-dim)] mb-2">클릭하면 커서 위치에 삽입됩니다</p>
-                  {[
-                    { v: "{{직원명}}", desc: "직원 이름" },
-                    { v: "{{부서}}", desc: "소속 부서" },
-                    { v: "{{직위}}", desc: "직급/직위" },
-                    { v: "{{연봉}}", desc: "연봉 금액" },
-                    { v: "{{입사일}}", desc: "입사 일자" },
-                    { v: "{{회사명}}", desc: "회사 이름" },
-                    { v: "{{대표자}}", desc: "대표자명" },
-                    { v: "{{계약시작일}}", desc: "계약 시작일" },
-                    { v: "{{계약종료일}}", desc: "계약 종료일" },
-                    { v: "{{근무시간}}", desc: "근무 시간" },
-                  ].map(({ v, desc }) => (
-                    <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
-                      className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group">
-                      <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
-                      <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
+            </div>
+            {/* 변수 삽입 — 자체 스크롤 */}
+            <div className="w-52 shrink-0 flex flex-col min-h-0">
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">변수 삽입</label>
+              <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 flex-1 overflow-y-auto flex flex-col gap-1.5">
+                <p className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">클릭하면 커서 위치에 삽입됩니다</p>
+                {/* 기본 변수 */}
+                {[
+                  { v: "{{직원명}}", desc: "직원 이름" },
+                  { v: "{{부서}}", desc: "소속 부서" },
+                  { v: "{{직위}}", desc: "직급/직위" },
+                  { v: "{{연봉}}", desc: "연봉 금액" },
+                  { v: "{{입사일}}", desc: "입사 일자" },
+                  { v: "{{회사명}}", desc: "회사 이름" },
+                  { v: "{{대표자}}", desc: "대표자명" },
+                  { v: "{{계약시작일}}", desc: "계약 시작일" },
+                  { v: "{{계약종료일}}", desc: "계약 종료일" },
+                  { v: "{{근무시간}}", desc: "근무 시간" },
+                ].map(({ v, desc }) => (
+                  <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group shrink-0">
+                    <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
+                    <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
+                  </button>
+                ))}
+                {/* 사용자 추가 변수 */}
+                {customVariables.length > 0 && (
+                  <div className="border-t border-[var(--border)] my-1 pt-2 shrink-0">
+                    <p className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">사용자 추가</p>
+                  </div>
+                )}
+                {customVariables.map((cv, i) => (
+                  <div key={cv.v + i} className="flex items-stretch gap-1 shrink-0">
+                    <button type="button" onClick={() => editorRef.current?.insertText(cv.v)}
+                      className="flex-1 text-left px-2.5 py-2 rounded-lg bg-amber-500/5 hover:bg-amber-500/15 transition group">
+                      <div className="text-xs font-mono font-semibold text-amber-600 group-hover:text-amber-500">{cv.v}</div>
+                      <div className="text-[9px] text-[var(--text-dim)]">{cv.desc}</div>
                     </button>
-                  ))}
+                    <button type="button" onClick={() => setCustomVariables(prev => prev.filter((_, idx) => idx !== i))}
+                      className="px-1.5 text-[var(--text-dim)] hover:text-red-500 transition text-xs">×</button>
+                  </div>
+                ))}
+                {/* 새 변수 추가 폼 */}
+                <div className="border-t border-[var(--border)] mt-2 pt-2 shrink-0">
+                  <p className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1.5">+ 새 변수 추가</p>
+                  <input
+                    value={newVarName}
+                    onChange={(e) => setNewVarName(e.target.value.replace(/[{}]/g, ""))}
+                    placeholder="예: 직책수당"
+                    className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[10px] mb-1 focus:outline-none focus:border-amber-500"
+                  />
+                  <input
+                    value={newVarDesc}
+                    onChange={(e) => setNewVarDesc(e.target.value)}
+                    placeholder="설명 (선택)"
+                    className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-md text-[10px] mb-1 focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = newVarName.trim();
+                      if (!name) return;
+                      const formatted = `{{${name}}}`;
+                      if (customVariables.some(cv => cv.v === formatted)) {
+                        toast("이미 추가된 변수입니다.", "error");
+                        return;
+                      }
+                      setCustomVariables(prev => [...prev, { v: formatted, desc: newVarDesc.trim() || name }]);
+                      setNewVarName("");
+                      setNewVarDesc("");
+                    }}
+                    disabled={!newVarName.trim()}
+                    className="w-full px-2 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-md text-[10px] font-semibold transition disabled:opacity-50"
+                  >
+                    + 추가
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-          {/* 기존 서식 목록 (수정/삭제) */}
-          {templates.length > 0 && (
-            <div className="px-6 pb-3">
-              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">기존 서식 ({templates.length}건)</div>
-              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {templates.map((t: any) => (
-                  <div key={t.id} className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-2 py-1">
-                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-emerald-600 transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : "수정"}>
+          {/* 기존 서식 목록 (수정/삭제) — 활성+임시저장 모두 */}
+          {(allTemplates.length > 0 || templates.some((t: any) => t.is_builtin)) && (
+            <div className="px-6 pb-3 shrink-0">
+              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">기존 서식</div>
+              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                {[
+                  ...templates.filter((t: any) => t.is_builtin),
+                  ...allTemplates,
+                ].map((t: any) => (
+                  <div key={t.id} className={`flex items-center gap-1 border rounded-lg px-2 py-1 ${
+                    t.is_active === false
+                      ? 'bg-amber-500/5 border-amber-500/30'
+                      : 'bg-[var(--bg-surface)] border-[var(--border)]'
+                  }`}>
+                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-emerald-600 transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
                       {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1">🔒</span>}
+                      {t.is_active === false && <span className="text-[9px] text-amber-500 mr-1">📝</span>}
                       {t.name}
                     </button>
                     {!t.is_builtin && (
@@ -2470,7 +2585,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">🔒 내장 서식은 직접 편집 불가 — 복제 후 편집해주세요.</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">🔒 내장 · 📝 임시저장 · 클릭하면 에디터에 로드</p>
             </div>
           )}
           <div className="shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
@@ -2482,20 +2597,57 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
             </button>
             <button
               onClick={async () => {
+                // 임시저장 — 이름만 있으면 가능. is_active=false 로 비활성 상태로 저장.
+                if (!newTemplateName.trim() || !companyId) return;
+                setSavingTemplate(true);
+                try {
+                  const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
+                  if (editingTemplateId) {
+                    await (supabase as any).from("doc_templates").update({
+                      name: `[임시] ${newTemplateName.trim().replace(/^\[임시\]\s*/, '')}`,
+                      content_json: { body: newTemplateBody || '' },
+                      variables,
+                      is_active: false,
+                    }).eq("id", editingTemplateId);
+                  } else {
+                    const { data: ins } = await (supabase as any).from("doc_templates").insert({
+                      company_id: companyId,
+                      name: `[임시] ${newTemplateName.trim()}`,
+                      content_json: { body: newTemplateBody || '' },
+                      variables,
+                      category: "comprehensive_labor",
+                      is_active: false,
+                      is_custom: true,
+                    }).select('id').maybeSingle();
+                    if (ins?.id) setEditingTemplateId(ins.id);
+                  }
+                  queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
+                  toast("임시 저장되었습니다.", "success");
+                } catch (err: any) { toast("임시 저장 실패: " + (err.message || ""), "error"); }
+                setSavingTemplate(false);
+              }}
+              disabled={!newTemplateName.trim() || savingTemplate}
+              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+            >
+              임시저장
+            </button>
+            <button
+              onClick={async () => {
                 if (!newTemplateName.trim() || !newTemplateBody.trim() || !companyId) return;
                 setSavingTemplate(true);
                 try {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
-                    // UPDATE 기존 서식
+                    // UPDATE 기존 서식 — 임시저장 prefix 제거
                     await (supabase as any).from("doc_templates").update({
-                      name: newTemplateName.trim(),
+                      name: newTemplateName.trim().replace(/^\[임시\]\s*/, ''),
                       content_json: { body: newTemplateBody },
                       variables,
+                      is_active: true,
                     }).eq("id", editingTemplateId);
                     toast("서식이 수정되었습니다.", "success");
                   } else {
-                    // INSERT 신규
                     await (supabase as any).from("doc_templates").insert({
                       company_id: companyId,
                       name: newTemplateName.trim(),
@@ -2508,9 +2660,11 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
                     toast("서식이 저장되었습니다.", "success");
                   }
                   queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
                   setNewTemplateName("");
                   setNewTemplateBody("");
                   setEditingTemplateId(null);
+                  setCustomVariables([]);
                   setShowTemplateEditor(false);
                 } catch (err: any) { toast("저장 실패: " + (err.message || ""), "error"); }
                 setSavingTemplate(false);
