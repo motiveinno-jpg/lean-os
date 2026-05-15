@@ -1390,6 +1390,9 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState<"seal" | "logo" | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [generatingSeal, setGeneratingSeal] = useState(false);
+  const [sealPreview, setSealPreview] = useState<string | null>(null);
+  const [sealVariant, setSealVariant] = useState<"double" | "single" | "square">("double");
   const sealInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -1526,6 +1529,56 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     else setLogoUrl(null);
     queryClient.invalidateQueries({ queryKey: ["company-info"] });
   }, [companyId, queryClient]);
+
+  // 자동 직인 생성 — Canvas 로 PNG 만든 후 storage 업로드
+  async function regenerateSealPreview(variant?: "double" | "single" | "square") {
+    if (!form.name?.trim()) {
+      setUploadError("회사명을 먼저 입력하세요.");
+      return;
+    }
+    setUploadError("");
+    try {
+      const { generateCompanySealDataUrl } = await import("@/lib/seal-generator");
+      const dataUrl = await generateCompanySealDataUrl(form.name, { variant: variant || sealVariant });
+      setSealPreview(dataUrl);
+    } catch (err: any) {
+      setUploadError("직인 생성 실패: " + (err?.message || ""));
+    }
+  }
+
+  async function handleAutoGenerateSeal() {
+    if (!companyId || !form.name?.trim()) {
+      setUploadError("회사명을 먼저 입력하세요.");
+      return;
+    }
+    setUploadError("");
+    setGeneratingSeal(true);
+    try {
+      const { generateCompanySeal } = await import("@/lib/seal-generator");
+      const blob = await generateCompanySeal(form.name, { variant: sealVariant });
+      const filePath = `${companyId}/seal_auto_${Date.now()}.png`;
+      const { error: uploadErr } = await supabase.storage
+        .from("company-assets")
+        .upload(filePath, blob, { upsert: true, contentType: "image/png" });
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage
+        .from("company-assets")
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+      const { error: dbErr } = await db
+        .from("companies")
+        .update({ seal_url: publicUrl })
+        .eq("id", companyId);
+      if (dbErr) throw dbErr;
+      setSealUrl(publicUrl);
+      setSealPreview(null);
+      queryClient.invalidateQueries({ queryKey: ["company-info"] });
+    } catch (err: any) {
+      setUploadError(err.message || "직인 자동 생성 실패");
+    } finally {
+      setGeneratingSeal(false);
+    }
+  }
 
   if (!companyId) {
     return (
@@ -1678,12 +1731,20 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                     alt="직인"
                     className="max-w-[120px] max-h-[120px] object-contain rounded-lg"
                   />
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap justify-center">
                     <button
                       onClick={() => sealInputRef.current?.click()}
                       className="text-xs text-[var(--primary)] hover:underline"
                     >
                       변경
+                    </button>
+                    <button
+                      onClick={() => regenerateSealPreview()}
+                      disabled={!form.name?.trim()}
+                      className="text-xs text-emerald-500 hover:underline disabled:opacity-50"
+                      title={!form.name?.trim() ? "회사명을 먼저 입력하세요" : ""}
+                    >
+                      🪄 자동 재생성
                     </button>
                     <button
                       onClick={() => handleRemoveFile("seal")}
@@ -1702,14 +1763,25 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                   </div>
-                  <button
-                    onClick={() => sealInputRef.current?.click()}
-                    disabled={uploading === "seal"}
-                    className="text-xs text-[var(--primary)] font-semibold hover:underline disabled:opacity-50"
-                  >
-                    {uploading === "seal" ? "업로드 중..." : "직인 업로드"}
-                  </button>
-                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB)</p>
+                  <div className="flex gap-2 flex-wrap justify-center">
+                    <button
+                      onClick={() => sealInputRef.current?.click()}
+                      disabled={uploading === "seal" || generatingSeal}
+                      className="text-xs text-[var(--primary)] font-semibold hover:underline disabled:opacity-50"
+                    >
+                      {uploading === "seal" ? "업로드 중..." : "직접 업로드"}
+                    </button>
+                    <span className="text-[var(--text-dim)] text-xs">·</span>
+                    <button
+                      onClick={() => regenerateSealPreview()}
+                      disabled={uploading === "seal" || generatingSeal || !form.name?.trim()}
+                      className="text-xs text-emerald-500 font-semibold hover:underline disabled:opacity-50"
+                      title={!form.name?.trim() ? "회사명을 먼저 입력하세요" : ""}
+                    >
+                      🪄 자동 생성
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB) · 또는 회사명으로 자동 생성</p>
                 </>
               )}
             </div>
@@ -1724,6 +1796,52 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                 e.target.value = "";
               }}
             />
+
+            {/* 자동 생성 미리보기 + 스타일 선택 */}
+            {sealPreview && (
+              <div className="mt-3 p-4 bg-[var(--bg-card)] border border-emerald-500/30 rounded-xl">
+                <div className="flex items-start gap-4">
+                  <img src={sealPreview} alt="직인 미리보기" className="w-32 h-32 object-contain bg-white rounded-lg p-2" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-[var(--text)] mb-2">직인 스타일</p>
+                    <div className="flex gap-1.5 flex-wrap mb-3">
+                      {[
+                        { v: "double" as const, label: "이중 원형" },
+                        { v: "single" as const, label: "단일 원형" },
+                        { v: "square" as const, label: "사각형" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.v}
+                          onClick={() => { setSealVariant(opt.v); regenerateSealPreview(opt.v); }}
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
+                            sealVariant === opt.v
+                              ? "bg-emerald-500 text-white"
+                              : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAutoGenerateSeal}
+                        disabled={generatingSeal}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+                      >
+                        {generatingSeal ? "저장 중..." : "이 직인 사용"}
+                      </button>
+                      <button
+                        onClick={() => setSealPreview(null)}
+                        className="px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs hover:text-[var(--text)] transition"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Logo Upload */}
