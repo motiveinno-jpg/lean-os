@@ -994,21 +994,19 @@ export async function getContractTemplates(companyId: string) {
     .eq('is_active', true)
     .order('name');
 
-  // Fall back to built-in templates when DB has no templates
-  if (!data || data.length === 0) {
-    return getBuiltInHRTemplates().map((t) => ({
-      id: t.id,
-      name: t.name,
-      category: t.category,
-      content_json: { body: t.body },
-      required_variables: t.required_variables,
-      is_active: true,
-      is_builtin: true,
-      company_id: null,
-    }));
-  }
+  // 사용자/회사 서식 + 내장 서식 항상 함께 노출 (커스텀 추가해도 기본 서식 사라지지 않게).
+  const builtins = getBuiltInHRTemplates().map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    content_json: { body: t.body },
+    required_variables: t.required_variables,
+    is_active: true,
+    is_builtin: true,
+    company_id: null,
+  }));
 
-  return data;
+  return [...(data || []), ...builtins];
 }
 
 // ── Resend Contract Email ──
