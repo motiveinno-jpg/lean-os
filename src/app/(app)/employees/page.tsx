@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -48,11 +49,20 @@ export default function EmployeesPage() {
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
-  const [tab, setTab] = useState<Tab>("employees");
+  const sp = useSearchParams();
+  const urlTab = sp?.get('tab') as Tab | null;
+  const isValidTab = (t: string | null): t is Tab =>
+    !!t && (['employees','salary','payroll','contracts','expenses','attendance','leave','certificates'] as const).includes(t as Tab);
+  const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? urlTab : "employees");
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isEmployee = role === "employee";
+
+  // URL ?tab=... 바뀌면 동기화 (사이드바 / 대시보드에서 이동 시)
+  useEffect(() => {
+    if (isValidTab(urlTab)) setTab(urlTab);
+  }, [urlTab]);
 
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
@@ -2236,18 +2246,24 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
       const result = await sendContractPackage(contractId);
       if (!result.success) {
         const msg = result.error || "알 수 없는 오류";
-        const isDomainErr = /from.*not.*verif|verify.*domain|owner-view\.com|domain.*verif/i.test(msg);
-        if (isDomainErr) {
-          toast(`발송 실패 — Resend 도메인 인증 필요: owner-view.com 도메인을 Resend 대시보드에서 verify 해주세요. (계약 패키지는 'sent' 로 저장됨, 서명 URL 직접 전달 가능)`, "error");
+        console.error('[handleSendSignRequest] 실패:', msg);
+        // 메시지 종류별 안내
+        if (/RESEND_API_KEY/i.test(msg)) {
+          toast("Supabase secrets 에 RESEND_API_KEY 미등록 — Edge Function Secrets 페이지에서 등록하세요.", "error");
+        } else if (/verify|verif|domain|not\s*verified/i.test(msg)) {
+          toast("Resend 도메인 인증 필요 — owner-view.com 을 Resend dashboard 에서 verify 후 재시도.", "error");
+        } else if (/invalid.*api.*key|unauthor/i.test(msg)) {
+          toast("Resend API 키 오류 — Supabase secrets 의 RESEND_API_KEY 값 확인 필요.", "error");
         } else {
-          toast("발송 실패: " + msg, "error");
+          toast("발송 실패: " + msg.slice(0, 200), "error");
         }
       } else {
         toast("계약 서명 요청 메일 발송 완료", "success");
       }
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
-      toast("발송 실패: " + (err.message || "오류"), "error");
+      console.error('[handleSendSignRequest] catch:', err);
+      toast("발송 실패: " + (err.message || "오류").slice(0, 200), "error");
     } finally {
       setSending(null);
     }

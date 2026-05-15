@@ -682,7 +682,18 @@ export async function sendContractPackage(
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(`이메일 발송 실패: ${err}`);
+      console.error('[sendContractPackage] edge function failed', { status: res.status, body: err });
+      throw new Error(`HTTP ${res.status}: ${err.slice(0, 300)}`);
+    }
+    // 성공 응답이라도 body 에 success:false 있을 수 있음 — fallback 모드 검사
+    const okBody = await res.json().catch(() => ({}));
+    if (okBody?.success === false) {
+      console.error('[sendContractPackage] Resend 거부', okBody);
+      throw new Error(`Resend 발송 거부: ${okBody.error || JSON.stringify(okBody).slice(0, 300)}`);
+    }
+    if (okBody?.fallback) {
+      console.warn('[sendContractPackage] RESEND_API_KEY 미설정 — fallback 모드, 실제 메일 미발송');
+      throw new Error('RESEND_API_KEY 가 Supabase secrets 에 등록 안 됨 — 실제 메일 발송 안 됨. signUrl 직접 전달 가능: ' + signUrl);
     }
   } catch (e: any) {
     // Update status but note the email failure
