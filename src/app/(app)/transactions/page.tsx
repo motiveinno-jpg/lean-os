@@ -1167,10 +1167,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
           {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 (엑셀 다운로드) */}
           {companyId && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <UpcomingAutoTransfersCard companyId={companyId} />
-              <TopExpensesThisMonth companyId={companyId} />
               <AutoTransferHistoryCard companyId={companyId} />
+              <TopExpensesThisMonth companyId={companyId} />
             </div>
           )}
 
