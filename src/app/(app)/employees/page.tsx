@@ -2204,7 +2204,30 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateBody, setNewTemplateBody] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const editorRef = useRef<RichEditorRef>(null);
+
+  function startEditTemplate(t: any) {
+    setEditingTemplateId(t.is_builtin ? null : t.id); // 내장은 신규 저장으로 떨어짐 (복제 편집)
+    setNewTemplateName(t.is_builtin ? `${t.name} (복사본)` : t.name);
+    const body = typeof t.content_json === 'object' && t.content_json
+      ? (t.content_json.body || JSON.stringify(t.content_json))
+      : (t.body || '');
+    setNewTemplateBody(String(body));
+    setShowTemplateEditor(true);
+    setTimeout(() => editorRef.current?.setContent(String(body)), 50);
+  }
+
+  async function deleteTemplate(id: string) {
+    if (!confirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.")) return;
+    try {
+      await (supabase as any).from("doc_templates").update({ is_active: false }).eq("id", id);
+      queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      toast("서식이 삭제되었습니다.", "success");
+    } catch (err: any) {
+      toast("삭제 실패: " + (err.message || ""), "error");
+    }
+  }
 
   // 계약 내역
   const { data: contractList = [] } = useQuery({
@@ -2430,50 +2453,64 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
               </div>
             </div>
           </div>
+          {/* 기존 서식 목록 (수정/삭제) */}
+          {templates.length > 0 && (
+            <div className="px-6 pb-3">
+              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">기존 서식 ({templates.length}건)</div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                {templates.map((t: any) => (
+                  <div key={t.id} className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-2 py-1">
+                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-emerald-600 transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : "수정"}>
+                      {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1">🔒</span>}
+                      {t.name}
+                    </button>
+                    {!t.is_builtin && (
+                      <button onClick={() => deleteTemplate(t.id)} className="text-xs text-red-400 hover:text-red-500 px-1" title="삭제">×</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">🔒 내장 서식은 직접 편집 불가 — 복제 후 편집해주세요.</p>
+            </div>
+          )}
           <div className="shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
             <button
-              onClick={() => { setShowTemplateEditor(false); setNewTemplateName(""); setNewTemplateBody(""); }}
+              onClick={() => { setShowTemplateEditor(false); setNewTemplateName(""); setNewTemplateBody(""); setEditingTemplateId(null); }}
               className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-semibold transition"
             >
               취소
             </button>
             <button
               onClick={async () => {
-                if (!newTemplateName.trim() || !companyId) return;
-                setSavingTemplate(true);
-                try {
-                  await (supabase as any).from("doc_templates").insert({
-                    company_id: companyId,
-                    name: `[임시] ${newTemplateName.trim()}`,
-                    body: newTemplateBody || "",
-                    variables: (newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, "")),
-                    status: "draft",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
-                  toast("임시 저장되었습니다.", "success");
-                } catch (err: any) { toast("임시 저장 실패: " + (err.message || ""), "error"); }
-                setSavingTemplate(false);
-              }}
-              disabled={!newTemplateName.trim() || savingTemplate}
-              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-xl text-sm font-semibold disabled:opacity-50 transition"
-            >
-              임시저장
-            </button>
-            <button
-              onClick={async () => {
                 if (!newTemplateName.trim() || !newTemplateBody.trim() || !companyId) return;
                 setSavingTemplate(true);
                 try {
-                  await (supabase as any).from("doc_templates").insert({
-                    company_id: companyId,
-                    name: newTemplateName.trim(),
-                    body: newTemplateBody,
-                    variables: (newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, "")),
-                  });
+                  const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
+                  if (editingTemplateId) {
+                    // UPDATE 기존 서식
+                    await (supabase as any).from("doc_templates").update({
+                      name: newTemplateName.trim(),
+                      content_json: { body: newTemplateBody },
+                      variables,
+                    }).eq("id", editingTemplateId);
+                    toast("서식이 수정되었습니다.", "success");
+                  } else {
+                    // INSERT 신규
+                    await (supabase as any).from("doc_templates").insert({
+                      company_id: companyId,
+                      name: newTemplateName.trim(),
+                      content_json: { body: newTemplateBody },
+                      variables,
+                      category: "comprehensive_labor",
+                      is_active: true,
+                      is_custom: true,
+                    });
+                    toast("서식이 저장되었습니다.", "success");
+                  }
                   queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
-                  toast("서식이 저장되었습니다.", "success");
                   setNewTemplateName("");
                   setNewTemplateBody("");
+                  setEditingTemplateId(null);
                   setShowTemplateEditor(false);
                 } catch (err: any) { toast("저장 실패: " + (err.message || ""), "error"); }
                 setSavingTemplate(false);
@@ -2481,7 +2518,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
               disabled={!newTemplateName.trim() || !newTemplateBody.trim() || savingTemplate}
               className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
             >
-              {savingTemplate ? "저장 중..." : "서식 저장"}
+              {savingTemplate ? "저장 중..." : editingTemplateId ? "수정 저장" : "서식 저장"}
             </button>
           </div>
         </div>

@@ -120,6 +120,14 @@ export async function generateDocumentPDF(params: {
   applyStamp?: boolean;
   documentNumber?: string;
   issueDate?: string;
+  // 서명 정보 — 본문 끝에 서명자명 + 서명 이미지(또는 타이핑된 이름) 렌더
+  signatures?: Array<{
+    signerName: string;
+    signatureType: 'draw' | 'type';
+    signatureData: string; // 'draw' 면 base64 PNG dataURL, 'type' 면 이름 문자열
+    signedAt: string;
+    documentTitle?: string;
+  }>;
 }): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
   await loadKoreanFont(doc);
@@ -174,6 +182,60 @@ export async function generateDocumentPDF(params: {
   });
 
   y = (doc as any).lastAutoTable.finalY + 15;
+
+  // ── 서명 블록 ──
+  if (params.signatures && params.signatures.length > 0) {
+    for (const sig of params.signatures) {
+      // 페이지 하단이면 새 페이지 추가
+      if (y > pageH - 60) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFontSize(11);
+      setKoreanFont(doc, 'bold');
+      doc.setTextColor(30, 30, 30);
+      if (sig.documentTitle) {
+        doc.text(`[${sig.documentTitle}] 서명`, 14, y);
+        y += 7;
+      }
+      doc.setFontSize(10);
+      setKoreanFont(doc, 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(`서명자: ${sig.signerName}`, 14, y);
+      y += 6;
+      doc.text(`서명일시: ${new Date(sig.signedAt).toLocaleString('ko-KR')}`, 14, y);
+      y += 6;
+
+      if (sig.signatureType === 'draw' && sig.signatureData?.startsWith('data:image')) {
+        // 그린 서명 이미지 삽입
+        try {
+          // 60x25mm 영역에 서명 이미지
+          const sigW = 60;
+          const sigH = 25;
+          doc.addImage(sig.signatureData, 'PNG', 14, y, sigW, sigH);
+          y += sigH + 8;
+        } catch (e) {
+          console.warn('Signature image embed failed:', e);
+          doc.text(`서명: (이미지 로드 실패)`, 14, y);
+          y += 6;
+        }
+      } else if (sig.signatureType === 'type') {
+        // 타이핑된 서명 — 큰 글씨 + 밑줄
+        doc.setFontSize(16);
+        setKoreanFont(doc, 'bold');
+        doc.setTextColor(20, 20, 20);
+        doc.text(sig.signatureData, 14, y + 8);
+        const textWidth = doc.getTextWidth(sig.signatureData);
+        doc.setDrawColor(20, 20, 20);
+        doc.line(14, y + 11, 14 + textWidth + 4, y + 11);
+        y += 18;
+      }
+      doc.setFontSize(10);
+      setKoreanFont(doc, 'normal');
+      doc.setTextColor(60, 60, 60);
+      y += 6;
+    }
+  }
 
   // ── 발행일 + 회사 정보 ──
   const issueDate = params.issueDate || new Date().toLocaleDateString('ko-KR');

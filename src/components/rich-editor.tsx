@@ -9,6 +9,7 @@ import { forwardRef, useImperativeHandle } from "react";
 
 export interface RichEditorRef {
   insertText: (text: string) => void;
+  setContent: (content: string) => void;
 }
 
 interface RichEditorProps {
@@ -40,6 +41,10 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     insertText(text: string) {
       if (!editor) return;
       editor.chain().focus().insertContent(text).run();
+    },
+    setContent(c: string) {
+      if (!editor) return;
+      editor.commands.setContent(c || '');
     },
   }), [editor]);
 

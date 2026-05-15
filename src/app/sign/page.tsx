@@ -672,6 +672,14 @@ function SignContent() {
     try {
       // Gather all document sections into a single text content
       const allSections: string[] = [];
+      const signatures: Array<{
+        signerName: string;
+        signatureType: 'draw' | 'type';
+        signatureData: string;
+        signedAt: string;
+        documentTitle?: string;
+      }> = [];
+
       for (const item of pkg.items) {
         const doc = item.documents;
         if (!doc?.content_json) continue;
@@ -683,17 +691,38 @@ function SignContent() {
             if (sec.body) allSections.push(sec.body);
           }
         } else if (cj.body) {
-          // Built-in 템플릿은 sections 가 없고 단일 body 텍스트
+          // Built-in/사용자 편집 템플릿: 단일 body — HTML 이면 plain text 로 변환
           allSections.push(`\n${item.title || ''}`);
-          allSections.push(String(cj.body));
+          let bodyText = String(cj.body);
+          if (/^\s*</.test(bodyText)) {
+            // HTML → text (브라우저 DOM 으로 안전하게 변환)
+            const tmp = document.createElement('div');
+            tmp.innerHTML = bodyText;
+            bodyText = tmp.textContent || tmp.innerText || '';
+          }
+          allSections.push(bodyText);
         }
         allSections.push(''); // blank line between documents
+
+        // 서명 정보 수집
+        const sig: any = (item as any).signature_data;
+        const signedAt = (item as any).signed_at;
+        if (sig && signedAt && (sig.type === 'draw' || sig.type === 'type')) {
+          signatures.push({
+            signerName: pkg.employees?.name || '',
+            signatureType: sig.type,
+            signatureData: sig.data,
+            signedAt,
+            documentTitle: item.title,
+          });
+        }
       }
 
       const blob = await generateDocumentPDF({
         title: pkg.title,
         content: allSections.join('\n'),
         companyName: pkg.companies?.name || '',
+        signatures,
       });
 
       // Trigger download
@@ -728,31 +757,90 @@ function SignContent() {
   // ── Completed ──
   if (completed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Success message */}
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                {pkg.title}
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">
+                  서명 완료
+                </span>
+              </h1>
+              <p className="text-xs text-gray-500 mt-0.5">
+                서명자: {pkg.employees?.name} · 문서 {pkg.items.length}건
+              </p>
             </div>
-            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">서명 완료</h1>
-            <p className="text-gray-600 text-sm">
-              모든 문서에 서명이 완료되었습니다
-            </p>
-            <p className="text-gray-400 text-xs mt-1">
-              서명 완료 문서와 감사추적인증서가 이메일로 발송됩니다
-            </p>
           </div>
+        </header>
 
-          {/* Package info */}
-          <div className="mt-6 p-4 bg-white rounded-xl border border-gray-200">
-            <p className="text-sm text-gray-600">{pkg.title}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              서명자: {pkg.employees?.name} | 문서: {pkg.items.length}건
-            </p>
-          </div>
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          {/* Signed documents — inline render */}
+          {pkg.items.map((item, idx) => {
+            const cj: any = item.documents?.content_json;
+            const sig: any = (item as any).signature_data;
+            const signedAt = (item as any).signed_at;
+            return (
+              <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-800">
+                    문서 {idx + 1} · {item.title}
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold">
+                    ✓ 서명완료
+                  </span>
+                </div>
+                {cj?.title && (
+                  <h2 className="text-xl font-bold text-center text-gray-900 mb-6 pb-4 border-b border-gray-100">
+                    {cj.title}
+                  </h2>
+                )}
+                {cj?.sections?.map((section: any, i: number) => (
+                  <div key={i} className="mb-5">
+                    {section.heading && (
+                      <h4 className="text-sm font-bold text-gray-800 mb-2">{section.heading}</h4>
+                    )}
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {section.body}
+                    </p>
+                  </div>
+                ))}
+                {!cj?.sections && cj?.body && (
+                  /^\s*</.test(String(cj.body)) ? (
+                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(cj.body) }} />
+                  ) : (
+                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {cj.body}
+                    </div>
+                  )
+                )}
+                {/* Signature block */}
+                {sig && signedAt && (
+                  <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="text-xs text-gray-500">
+                        <div>서명자: <span className="font-semibold text-gray-800">{pkg.employees?.name}</span></div>
+                        <div className="mt-0.5">
+                          서명일시: <span className="text-gray-700">{new Date(signedAt).toLocaleString('ko-KR')}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {sig.type === 'draw' && typeof sig.data === 'string' ? (
+                          <img src={sig.data} alt="서명" className="h-16 inline-block" />
+                        ) : sig.type === 'type' ? (
+                          <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
+                            {sig.data}
+                          </span>
+                        ) : null}
+                        <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* Audit trail certificate button */}
           <button
@@ -878,16 +966,62 @@ function SignContent() {
       {/* Document Content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
         {currentItem?.status === "signed" ? (
-          <div className="bg-white rounded-2xl border border-green-200 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+          <div className="bg-white rounded-2xl border border-green-200 p-6 md:p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-green-700">서명 완료</span>
+              <span className="text-[10px] text-gray-400 ml-auto">
+                {currentItem.signed_at ? new Date(currentItem.signed_at).toLocaleString("ko-KR") : "-"}
+              </span>
             </div>
-            <p className="text-green-700 font-semibold">이 문서는 서명 완료되었습니다</p>
-            <p className="text-xs text-gray-400 mt-1">
-              서명 시각: {currentItem.signed_at ? new Date(currentItem.signed_at).toLocaleString("ko-KR") : "-"}
-            </p>
+            {content?.title && (
+              <h2 className="text-xl font-bold text-center text-gray-900 mb-6 pb-4 border-b border-gray-100">
+                {content.title}
+              </h2>
+            )}
+            {content?.sections?.map((section: any, i: number) => (
+              <div key={i} className="mb-5">
+                {section.heading && (
+                  <h3 className="text-sm font-bold text-gray-800 mb-2">{section.heading}</h3>
+                )}
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {section.body}
+                </p>
+              </div>
+            ))}
+            {!content?.sections && content?.body && (
+              /^\s*</.test(String(content.body)) ? (
+                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(content.body) }} />
+              ) : (
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {content.body}
+                </div>
+              )
+            )}
+            {/* Inline signature for this item */}
+            {(currentItem as any).signature_data && (
+              <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                <div className="flex items-end justify-between gap-4">
+                  <div className="text-xs text-gray-500">
+                    <div>서명자: <span className="font-semibold text-gray-800">{pkg.employees?.name}</span></div>
+                  </div>
+                  <div className="text-right">
+                    {(currentItem as any).signature_data?.type === 'draw' && typeof (currentItem as any).signature_data?.data === 'string' ? (
+                      <img src={(currentItem as any).signature_data.data} alt="서명" className="h-16 inline-block" />
+                    ) : (currentItem as any).signature_data?.type === 'type' ? (
+                      <span className="text-3xl italic text-gray-900" style={{ fontFamily: 'cursive, serif' }}>
+                        {(currentItem as any).signature_data.data}
+                      </span>
+                    ) : null}
+                    <div className="border-t border-gray-400 mt-1 w-40 inline-block" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -910,9 +1044,13 @@ function SignContent() {
               ))}
               {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더 */}
               {!content?.sections && content?.body && (
-                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {content.body}
-                </div>
+                /^\s*</.test(String(content.body)) ? (
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: String(content.body) }} />
+                ) : (
+                  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {content.body}
+                  </div>
+                )
               )}
               {!content?.sections && !content?.body && (
                 <div className="text-center text-gray-400 text-sm py-8">
