@@ -15,6 +15,7 @@ import {
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
   autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
   cancelLeaveRequest,
+  getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
@@ -4688,6 +4689,25 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     onError: (err: any) => toast("일괄 자동 부여 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
+  // 연차 부여 방식 (자동부여 / 직접입력) — company_settings.settings JSONB
+  const { data: grantMethod = "auto" } = useQuery<LeaveGrantMethod>({
+    queryKey: ["leave-grant-method", companyId],
+    queryFn: () => getLeaveGrantMethod(companyId!),
+    enabled: !!companyId,
+  });
+
+  const setGrantMethodMut = useMutation({
+    mutationFn: (m: LeaveGrantMethod) => setLeaveGrantMethod(companyId!, m),
+    onSuccess: (_d, m) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-grant-method", companyId] });
+      toast(
+        m === "auto" ? "연차 부여 방식: 자동부여(입사일 기준)" : "연차 부여 방식: 직접입력",
+        "success",
+      );
+    },
+    onError: (err: any) => toast("부여 방식 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+  });
+
   // 연차 일수 인라인 편집 상태
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editingBalanceVal, setEditingBalanceVal] = useState<string>("");
@@ -4757,11 +4777,47 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
         </div>
       </div>
 
+      {/* 연차 부여 방식 선택 (자동부여 / 직접입력) */}
+      {!isEmployee && (
+        <div className="mb-5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="text-sm font-bold mb-1">연차 부여 방식</div>
+          <p className="text-[11px] text-[var(--text-dim)] mb-3">
+            회사 정책에 맞게 연차 부여 방식을 선택하세요. 선택 후 아래 UI가 그에 맞게 표시됩니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {([
+              { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
+              { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
+            ]).map((opt) => {
+              const active = grantMethod === opt.v;
+              return (
+                <button
+                  key={opt.v}
+                  onClick={() => { if (!active && !setGrantMethodMut.isPending) setGrantMethodMut.mutate(opt.v); }}
+                  disabled={setGrantMethodMut.isPending}
+                  className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition disabled:opacity-50 ${
+                    active
+                      ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                      : "border-[var(--border)] hover:border-[var(--primary)]/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
+                    <span className="text-sm font-semibold">{opt.label}</span>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Leave Balance Cards */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
-          {!isEmployee && (
+          {!isEmployee && grantMethod === "auto" && (
             <div className="flex gap-2">
               <button
                 onClick={() => bulkAutoMut.mutate()}
@@ -4775,11 +4831,15 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
           )}
         </div>
         <p className="text-[11px] text-[var(--text-dim)] mb-3">
-          ※ 1년 미만 근무자는 입사 후 <strong>1개월 만근 시 1일</strong>씩 자동 부여 (최대 11일). 1년 이상은 자동 부여 후 일수를 직접 수정할 수 있습니다.
+          {grantMethod === "auto" ? (
+            <>※ 1년 미만 근무자는 입사 후 <strong>1개월 만근 시 1일</strong>씩 자동 부여 (최대 11일). 1년 이상은 자동 부여 후 일수를 직접 수정할 수 있습니다.</>
+          ) : (
+            <>※ 직접입력 모드입니다. 아래 카드의 <strong>총 부여일수(/숫자)</strong>를 클릭해 직원별 연차를 직접 입력하세요.</>
+          )}
         </p>
 
-        {/* 아직 연차 미설정 직원 — 자동 부여 안내 */}
-        {!isEmployee && employeesWithoutBalance.length > 0 && (
+        {/* 아직 연차 미설정 직원 — 자동 부여 안내 (자동부여 모드 전용) */}
+        {!isEmployee && grantMethod === "auto" && employeesWithoutBalance.length > 0 && (
           <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
             <div className="text-xs text-amber-600 font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
             <div className="flex flex-wrap gap-2">
@@ -4878,7 +4938,7 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
                       style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
                     />
                   </div>
-                  {!isEmployee && calc && (
+                  {!isEmployee && grantMethod === "auto" && calc && (
                     <button
                       onClick={() => empRec?.hire_date && autoInitMut.mutate({ employeeId: b.employee_id, hireDate: empRec.hire_date })}
                       className="mt-2 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition"

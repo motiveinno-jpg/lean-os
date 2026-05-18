@@ -937,3 +937,38 @@ export async function initLeaveBalance(companyId: string, employeeId: string, ye
     return data;
   }
 }
+
+// ── Leave: 부여 방식 (자동부여 / 직접입력) ──
+// company_settings.settings JSONB 에 저장 (스키마 변경 아님)
+
+export type LeaveGrantMethod = 'auto' | 'manual';
+
+/** 회사의 연차 부여 방식 조회. 미설정 시 'auto'(입사일 기준) 기본값. */
+export async function getLeaveGrantMethod(companyId: string): Promise<LeaveGrantMethod> {
+  const { data } = await db
+    .from('company_settings')
+    .select('settings')
+    .eq('company_id', companyId)
+    .maybeSingle();
+  const m = data?.settings?.leave_grant_method;
+  return m === 'manual' ? 'manual' : 'auto';
+}
+
+/** 연차 부여 방식 저장 (기존 settings JSONB 의 다른 키 보존). */
+export async function setLeaveGrantMethod(companyId: string, method: LeaveGrantMethod): Promise<void> {
+  const { data: existing } = await db
+    .from('company_settings')
+    .select('settings')
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  const nextSettings = { ...(existing?.settings || {}), leave_grant_method: method };
+
+  const { error } = await db
+    .from('company_settings')
+    .upsert(
+      { company_id: companyId, settings: nextSettings },
+      { onConflict: 'company_id' },
+    );
+  if (error) throw error;
+}
