@@ -21,6 +21,7 @@ import {
   type ScheduleEvent,
   type ScheduleTodo,
   type EventColor,
+  type ScheduleScope,
 } from "@/lib/schedule";
 import { useToast } from "@/components/toast";
 
@@ -80,12 +81,13 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   const queryClient = useQueryClient();
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
+  const [scope, setScope] = useState<ScheduleScope>("shared");
   const [editingEvent, setEditingEvent] = useState<Partial<ScheduleEvent> | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["schedule-events", companyId, view.year, view.monthIdx0],
-    queryFn: () => getMonthEvents(companyId, view.year, view.monthIdx0),
+    queryKey: ["schedule-events", companyId, view.year, view.monthIdx0, scope, userId],
+    queryFn: () => getMonthEvents(companyId, view.year, view.monthIdx0, { scope, userId }),
     enabled: !!companyId,
   });
 
@@ -161,7 +163,8 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       end_at: null,
       all_day: true,
       color: "blue",
-      is_shared: false,
+      // 현재 보고 있는 탭 기준으로 기본 공유범위 결정 (전체공유 탭 → 공유, 개인 탭 → 개인)
+      is_shared: scope === "shared",
     });
   };
 
@@ -177,11 +180,44 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           <button onClick={nextMonth} className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)]">›</button>
           <button onClick={goToday} className="ml-1 px-2 py-1.5 text-[10px] bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)] text-[var(--text-muted)]">오늘</button>
         </div>
-        <button
-          onClick={() => openAdd(toLocalDateStr(today))}
-          className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition"
-        >+ 일정 추가</button>
+        <div className="flex items-center gap-2">
+          {/* 전체공유 / 개인 보기 전환 */}
+          <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl">
+            {([
+              ["shared", "🏢 전체공유"],
+              ["personal", "🙋 개인"],
+            ] as [ScheduleScope, string][]).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setScope(k)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition ${
+                  scope === k
+                    ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+                title={
+                  k === "shared"
+                    ? "회사 전 구성원이 함께 보는 일정"
+                    : "나만 보이는 개인 일정"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => openAdd(toLocalDateStr(today))}
+            className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition"
+          >+ 일정 추가</button>
+        </div>
       </div>
+
+      {/* 현재 보기 안내 */}
+      <p className="text-[10px] text-[var(--text-dim)]">
+        {scope === "shared"
+          ? "🏢 전체공유 일정 — 회사 모든 구성원에게 보입니다."
+          : "🙋 개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."}
+      </p>
 
       {/* Calendar Grid */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">

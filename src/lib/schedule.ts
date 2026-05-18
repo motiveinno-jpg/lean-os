@@ -31,20 +31,45 @@ export async function toggleEventCompleted(id: string, completed: boolean): Prom
   if (error) throw error;
 }
 
-export async function getMonthEvents(companyId: string, year: number, monthIdx0: number): Promise<ScheduleEvent[]> {
+/**
+ * 일정 조회 범위.
+ * - "shared"   : 회사 전체 공유 일정만 (is_shared = true). 회사 전 구성원 공통.
+ * - "personal" : 본인이 만든 개인 일정만 (user_id = 본인 && is_shared = false).
+ *
+ * 주의: DB RLS("view shared or own events")가 이미
+ *   company_id 일치 AND (is_shared = true OR user_id = 본인)
+ * 으로 강제하므로, 타인의 개인 일정은 어떤 scope에서도 절대 조회되지 않는다.
+ * 아래 필터는 "보기 전환"용 추가 좁히기일 뿐 보안 경계가 아니다(경계는 RLS).
+ */
+export type ScheduleScope = "shared" | "personal";
+
+export async function getMonthEvents(
+  companyId: string,
+  year: number,
+  monthIdx0: number,
+  opts?: { scope?: ScheduleScope; userId?: string },
+): Promise<ScheduleEvent[]> {
   // monthIdx0 = 0~11 (JS Date convention)
   const start = new Date(year, monthIdx0, 1).toISOString();
   const end = new Date(year, monthIdx0 + 1, 1).toISOString();
+  const scope: ScheduleScope = opts?.scope ?? "shared";
   // 기간 일정(end_at 있음)은 시작이 이전 달이어도 이번 달에 걸칠 수 있으므로
   // "start_at < 다음 달 1일" 인 행을 모두 가져온 뒤,
   // end_at(있으면) 또는 start_at 이 이번 달과 겹치는지 클라이언트에서 필터한다.
   // (단일 일정은 end_at = null → 기존과 동일하게 start_at 기준으로만 표시)
-  const { data, error } = await db
+  let q = db
     .from("schedule_events")
     .select("*")
     .eq("company_id", companyId)
-    .lt("start_at", end)
-    .order("start_at");
+    .lt("start_at", end);
+  if (scope === "shared") {
+    // 전체공유: 회사 전 구성원에게 노출되는 일정만
+    q = q.eq("is_shared", true);
+  } else {
+    // 개인: 본인이 만든 비공유 일정만. userId 없으면 결과 없음(빈 배열 보장).
+    q = q.eq("is_shared", false).eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
+  }
+  const { data, error } = await q.order("start_at");
   if (error) throw error;
   const rows: ScheduleEvent[] = data || [];
   return rows.filter((e) => {
