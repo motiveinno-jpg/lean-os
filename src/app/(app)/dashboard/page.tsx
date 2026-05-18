@@ -10,6 +10,7 @@ import { generateSampleData } from "@/lib/sample-data";
 import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export";
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
+import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
@@ -366,6 +367,13 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* 내 출퇴근 — 관리자도 직원처럼 출퇴근 기록 */}
+        {companyId && userId && (
+          <div className="mb-5">
+            <MyAttendanceCard companyId={companyId} userId={userId} />
+          </div>
+        )}
+
         {/* 승인센터 */}
         {companyId && userId && (
           <ApprovalCenterWidget companyId={companyId} userId={userId} />
@@ -405,9 +413,6 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
-
-        {/* 월 마감 체크리스트 */}
-        <ClosingChecklistWidget companyId={companyId} userId={userId} />
 
         {/* 자동화 엔진 */}
         <AutomationWidget companyId={companyId} />
@@ -849,8 +854,6 @@ export default function DashboardPage() {
       )}
 
       {isWidgetVisible('financial_overview') && <div id="widget-financial_overview"><FinancialOverview companyId={companyId} /></div>}
-
-      {isWidgetVisible('closing_checklist') && <ClosingChecklistWidget companyId={companyId} userId={userId} />}
 
       {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
 
