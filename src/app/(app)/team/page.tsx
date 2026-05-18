@@ -14,14 +14,17 @@ export default function TeamPage() {
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["team-directory", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("employees")
-        .select("id, name, department, position, email, phone, status, hire_date")
-        .eq("company_id", companyId!)
-        .in("status", ["active", "joined"])
-        .order("department", { ascending: true })
-        .order("name", { ascending: true });
-      return data || [];
+      // 회사 격리는 서버(RPC 내부 get_my_company_id())가 강제 — 클라이언트에서 company_id 전달 안 함.
+      // RPC는 salary 등 민감 컬럼을 일절 반환하지 않는 안전 디렉토리 뷰.
+      const { data, error } = await supabase.rpc("get_company_directory");
+      if (error) throw error;
+      return (data ?? [])
+        .filter((e) => e.status === "active" || e.status === "joined")
+        .sort(
+          (a, b) =>
+            (a.department || "").localeCompare(b.department || "") ||
+            (a.name || "").localeCompare(b.name || ""),
+        );
     },
     enabled: !!companyId,
   });
@@ -29,16 +32,16 @@ export default function TeamPage() {
   const filtered = useMemo(() => {
     if (!search.trim()) return employees;
     const q = search.trim().toLowerCase();
-    return employees.filter((e: any) =>
-      [e.name, e.department, e.position, e.email].some((v: string) =>
+    return employees.filter((e) =>
+      [e.name, e.department, e.position, e.email].some((v) =>
         (v || "").toLowerCase().includes(q),
       ),
     );
   }, [employees, search]);
 
   const byDept = useMemo(() => {
-    const groups: Record<string, any[]> = {};
-    filtered.forEach((e: any) => {
+    const groups: Record<string, typeof filtered> = {};
+    filtered.forEach((e) => {
       const key = e.department || "미배정";
       if (!groups[key]) groups[key] = [];
       groups[key].push(e);
@@ -83,7 +86,7 @@ export default function TeamPage() {
                 {dept} <span className="text-[var(--text-muted)] font-normal">· {list.length}명</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {list.map((e: any) => (
+                {list.map((e) => (
                   <div
                     key={e.id}
                     className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 transition"

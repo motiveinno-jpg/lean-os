@@ -6079,6 +6079,19 @@ export type Database = {
     }
     Functions: {
       fn_process_invoice_queue: { Args: never; Returns: number }
+      get_company_directory: {
+        Args: never
+        Returns: {
+          department: string | null
+          email: string | null
+          hire_date: string | null
+          id: string
+          name: string
+          phone: string | null
+          position: string | null
+          status: string | null
+        }[]
+      }
       get_company_plan_slug: { Args: never; Returns: string }
       get_my_company_id: { Args: never; Returns: string }
       has_min_plan: { Args: { min_plan: string }; Returns: boolean }
