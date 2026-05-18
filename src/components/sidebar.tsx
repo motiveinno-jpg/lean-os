@@ -12,7 +12,7 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
 
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[] };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 — 3개 큰 카테고리(홈/인사관리/회계관리) + 시스템
@@ -64,17 +64,20 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/mypage", label: "내 계정", icon: "user" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
+      { href: "/error-logs", label: "에러 모니터링", icon: "alert-triangle", operatorOnly: true },
+      { href: "/operator-users", label: "유저 계정 관리", icon: "user-cog", operatorOnly: true },
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
 ];
 
-function filterNavForRole(role: UserRole, companyName?: string): NavGroup[] {
-  const SUPER_ADMIN_COMPANY = "모티브이노베이션";
+function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boolean): NavGroup[] {
+  void companyName;
   return NAV_GROUPS
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
+        if (item.operatorOnly && !isOperator) return false;
         return !item.roles || item.roles.includes(role);
       }),
     }))
@@ -114,6 +117,8 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "edit-3": return <svg {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
     case "bell": return <svg {...props}><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
     case "megaphone": return <svg {...props}><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>;
+    case "alert-triangle": return <svg {...props}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    case "user-cog": return <svg {...props}><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="19" cy="11" r="2"/><path d="M19 8v1M19 13v1M22 11h-1M17 11h-1"/></svg>;
     case "receipt": return <svg {...props}><path d="M20 2v20l-3-2-3 2-3-2-3 2-3-2-3 2V2l3 2 3-2 3 2 3-2 3 2 3-2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></svg>;
     case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
@@ -158,7 +163,8 @@ export function Sidebar() {
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
-  const filteredNav = filterNavForRole(role, user?.companies?.name || undefined);
+  const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
+  const filteredNav = filterNavForRole(role, user?.companies?.name || undefined, isOperator);
 
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items);

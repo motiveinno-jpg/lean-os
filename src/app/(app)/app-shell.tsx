@@ -79,12 +79,14 @@ function MobileBottomNav() {
 
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
-  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements"],
+  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/error-logs", "/operator-users"],
   // 직원이 사이드바에서 보이는 모든 페이지를 허용 (홈 + 인사관리 + 시스템)
   employee: [
     "/dashboard",
     "/schedule",       // 일정 / 할 일
     "/announcements",  // 공지사항 (전체 공개, 운영자만 작성)
+    "/error-logs",     // 에러 모니터링 (운영자 전용 — 페이지 내 이메일 게이트)
+    "/operator-users", // 유저 계정 관리 (운영자 전용 — 페이지 내 이메일 게이트)
     "/notifications",  // 알림
     "/deals",          // 프로젝트
     "/partners",       // 거래처 관리
@@ -168,6 +170,36 @@ function AppContent({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener("ownerview:mutation-error", handler);
     return () => window.removeEventListener("ownerview:mutation-error", handler);
+  }, []);
+
+  // 전역 JS 에러 / 미처리 Promise 거부 → 운영자 조회용 DB 적재
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      import("@/lib/error-logger").then(({ logError }) => {
+        logError({
+          source: "window",
+          message: e?.message || "window error",
+          stack: e?.error?.stack,
+          context: { filename: e?.filename, lineno: e?.lineno, colno: e?.colno },
+        });
+      }).catch(() => {});
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const reason: any = e?.reason;
+      import("@/lib/error-logger").then(({ logError }) => {
+        logError({
+          source: "promise",
+          message: reason?.message || String(reason || "unhandled rejection"),
+          stack: reason?.stack,
+        });
+      }).catch(() => {});
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   return (
