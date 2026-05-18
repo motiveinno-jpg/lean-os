@@ -25,6 +25,7 @@ import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
+import { getTodos, toggleTodoDone, PRIORITY_LABEL, type ScheduleTodo } from "@/lib/schedule";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
@@ -758,6 +759,18 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ═══ 요약 위젯: 승인대기 · 통장잔고 · 미수금 · 월고정비 ═══ */}
+      {isWidgetVisible('summary_kpis') && companyId && (
+        <div id="widget-summary_kpis">
+          <SummaryKpisWidget
+            companyId={companyId}
+            approvalsPending={approvalsPending}
+            cashBalance={cashPulse?.currentBalance ?? null}
+            monthlyFixed={realBurnData ?? null}
+          />
+        </div>
+      )}
+
       {/* ═══ [Grid 2열] 좌: 승인+액션 | 우: 펄스+위험 ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* ── 좌측 칼럼: 즉시 행동 영역 ── */}
@@ -850,6 +863,9 @@ export default function DashboardPage() {
       {isWidgetVisible('scenario_simulator') && cashPulse && (
         <div id="widget-scenario_simulator"><ScenarioSimulator pulse={cashPulse} /></div>
       )}
+      {isWidgetVisible('my_todos') && userId && (
+        <div id="widget-my_todos"><MyTodosWidget userId={userId} /></div>
+      )}
       {isWidgetVisible('overdue_receivables') && companyId && (
         <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
       )}
@@ -877,6 +893,181 @@ export default function DashboardPage() {
 }
 
 // ═══ Sub-components ═══
+
+// ── 요약 위젯: 승인대기 / 통장잔고 / 미수금 / 월고정비 ──
+function SummaryKpisWidget({
+  companyId, approvalsPending, cashBalance, monthlyFixed,
+}: {
+  companyId: string;
+  approvalsPending: number;
+  cashBalance: number | null;
+  monthlyFixed: number | null;
+}) {
+  // 통장잔고 — bank_accounts.balance 합계 (queries.ts 패턴 재사용)
+  const { data: bankBalance = null } = useQuery({
+    queryKey: ["summary-bank-balance", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('bank_accounts').select('balance').eq('company_id', companyId);
+      if (!data) return null;
+      return (data as any[]).reduce((s, b) => s + Number(b.balance || 0), 0);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
+  // 미수금 — 발행/미수 상태 세금계산서 합계 (OverdueReceivablesWidget 동일 소스)
+  const { data: receivable = 0 } = useQuery({
+    queryKey: ["summary-receivable", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('tax_invoices')
+        .select('total_amount, status')
+        .eq('company_id', companyId)
+        .in('status', ['issued', 'sent', 'pending', 'overdue']);
+      if (!data) return 0;
+      return (data as any[]).reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
+
+  // 통장잔고: cash-pulse 우선, 없으면 bank_accounts 합계
+  const balance = cashBalance ?? bankBalance;
+
+  const cells: { label: string; value: string; sub?: string; color: string; href: string }[] = [
+    {
+      label: '승인 대기',
+      value: `${approvalsPending}건`,
+      sub: approvalsPending > 0 ? '확인 필요' : undefined,
+      color: approvalsPending > 0 ? 'var(--warning)' : 'var(--text)',
+      href: '/approvals',
+    },
+    {
+      label: '통장 잔고',
+      value: balance === null ? '—' : `₩${fmtW(balance)}`,
+      color: balance !== null && balance <= 0 ? 'var(--danger)' : 'var(--text)',
+      href: '/bank',
+    },
+    {
+      label: '미수금',
+      value: `₩${fmtW(receivable)}`,
+      sub: receivable > 0 ? '회수 예정' : undefined,
+      color: receivable > 0 ? 'var(--primary)' : 'var(--text)',
+      href: '/transactions',
+    },
+    {
+      label: '월 고정비',
+      value: monthlyFixed === null ? '—' : `₩${fmtW(monthlyFixed)}`,
+      color: 'var(--text)',
+      href: '/transactions',
+    },
+  ];
+
+  return (
+    <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">요약</h2>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {cells.map((c) => (
+          <Link
+            key={c.label}
+            href={c.href}
+            className="px-3 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)]/40 hover:bg-[var(--bg-elevated)] transition"
+          >
+            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">{c.label}</div>
+            <div className="text-sm font-black mono-number truncate" style={{ color: c.color }}>{c.value}</div>
+            {c.sub && <div className="text-[9px] text-[var(--text-muted)] font-semibold mt-0.5">{c.sub}</div>}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── 내 할일 위젯: schedule_todos 를 사용자별로 read (RLS: manage own todos) ──
+function MyTodosWidget({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const { data: todos = [] } = useQuery({
+    queryKey: ["dashboard-my-todos", userId],
+    queryFn: () => getTodos(userId, { includeDone: false }),
+    enabled: !!userId,
+    refetchInterval: 60_000,
+  });
+
+  const handleToggle = async (t: ScheduleTodo) => {
+    setToggling(t.id);
+    try {
+      await toggleTodoDone(t.id, true);
+      queryClient.invalidateQueries({ queryKey: ["dashboard-my-todos"] });
+      toast("할일 완료 처리", "success");
+    } catch (err: any) {
+      toast(err?.message || "처리에 실패했습니다", "error");
+    }
+    setToggling(null);
+  };
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  return (
+    <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">내 할일</h2>
+          {todos.length > 0 && (
+            <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-[10px] font-bold px-1.5">
+              {todos.length}
+            </span>
+          )}
+        </div>
+        <Link href="/schedule" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">
+          전체 보기 →
+        </Link>
+      </div>
+      {todos.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)] text-center py-4">등록된 할일이 없습니다.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {todos.slice(0, 6).map((t) => {
+            const due = t.due_date ? new Date(t.due_date) : null;
+            const overdue = due ? due < today : false;
+            const pr = PRIORITY_LABEL[t.priority];
+            return (
+              <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+                <button
+                  onClick={() => handleToggle(t)}
+                  disabled={toggling === t.id}
+                  className="w-4 h-4 rounded border border-[var(--border)] flex-shrink-0 hover:border-[var(--primary)] transition disabled:opacity-50"
+                  aria-label="완료 처리"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-[var(--text)] truncate">{t.title}</div>
+                  {due && (
+                    <div className={`text-[10px] ${overdue ? 'text-red-400 font-bold' : 'text-[var(--text-dim)]'}`}>
+                      {overdue ? '기한 지남 · ' : ''}{due.toLocaleDateString("ko-KR")}
+                    </div>
+                  )}
+                </div>
+                <span className={`text-[9px] font-semibold ${pr.color} flex-shrink-0`}>{pr.label}</span>
+              </div>
+            );
+          })}
+          {todos.length > 6 && (
+            <div className="text-[10px] text-[var(--text-dim)] text-center pt-1">
+              외 {todos.length - 6}건 더
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SixPackCell({ label, value, sub, color, highlight }: {
   label: string; value: string; sub?: string; color: string; highlight?: boolean;
