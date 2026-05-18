@@ -24,7 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
       { href: "/deals", label: "프로젝트", icon: "briefcase" },
-      { href: "/announcements", label: "공지사항", icon: "megaphone" },
+      { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
@@ -66,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/error-logs", label: "에러 모니터링", icon: "alert-triangle", operatorOnly: true },
       { href: "/operator-users", label: "유저 계정 관리", icon: "user-cog", operatorOnly: true },
+      { href: "/announcements", label: "공지사항", icon: "megaphone" },
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
@@ -104,6 +105,7 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "folder": return <svg {...props}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>;
     case "clipboard-check": return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>;
     case "message-circle": return <svg {...props}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>;
+    case "message-square": return <svg {...props}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "user": return <svg {...props}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
     case "user-check": return <svg {...props}><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>;
     case "shield": return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;

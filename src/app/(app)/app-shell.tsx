@@ -79,12 +79,13 @@ function MobileBottomNav() {
 
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
-  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/error-logs", "/operator-users"],
+  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/board", "/error-logs", "/operator-users"],
   // 직원이 사이드바에서 보이는 모든 페이지를 허용 (홈 + 인사관리 + 시스템)
   employee: [
     "/dashboard",
     "/schedule",       // 일정 / 할 일
     "/announcements",  // 공지사항 (전체 공개, 운영자만 작성)
+    "/board",          // 회사 게시판 (구성원 글·댓글)
     "/error-logs",     // 에러 모니터링 (운영자 전용 — 페이지 내 이메일 게이트)
     "/operator-users", // 유저 계정 관리 (운영자 전용 — 페이지 내 이메일 게이트)
     "/notifications",  // 알림
