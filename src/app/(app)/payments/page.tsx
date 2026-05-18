@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
 import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
-import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
+import { createPayrollBatch, createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, getPrevMonthPayrollSnapshot, type BatchSummary, type PayrollItem } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
@@ -589,6 +589,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [lastResult, setLastResult] = useState<{ items: PayrollItem[] } | null>(null);
+  const [copyPrompt, setCopyPrompt] = useState<{ monthLabel: string; itemCount: number } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: batches = [] } = useQuery({
@@ -612,13 +613,36 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
     onError: (err: Error) => { toast("실행 실패: " + (err?.message || ""), "error"); },
   });
 
+  // 1단계: 직전월 명세 존재 여부 확인 → 있으면 복사 모달, 없으면 바로 생성
   async function handleGenerate() {
     setGenerating(true);
     try {
-      const result = await createPayrollBatch(companyId);
+      const snap = await getPrevMonthPayrollSnapshot(companyId);
+      if (snap?.exists) {
+        setCopyPrompt({ monthLabel: snap.monthLabel, itemCount: snap.itemCount });
+        setGenerating(false);
+        return;
+      }
+      await runGenerate(false);
+    } catch (err: any) {
+      toast(err.message || '급여 배치 생성 실패', "error");
+      setGenerating(false);
+    }
+  }
+
+  // 2단계: 실제 배치 생성 (copy=true 면 직전월 명세 프리필, false 면 자동산정)
+  async function runGenerate(copyFromPrevMonth: boolean) {
+    setCopyPrompt(null);
+    setGenerating(true);
+    try {
+      const result = await createPayrollBatch(companyId, undefined, { copyFromPrevMonth });
       setLastResult(result);
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
       invalidate();
+      toast(
+        copyFromPrevMonth ? "지난달 명세를 복사해 배치를 생성했습니다" : "급여 배치를 생성했습니다",
+        "success",
+      );
     } catch (err: any) {
       toast(err.message || '급여 배치 생성 실패', "error");
     }
@@ -636,6 +660,39 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
 
   return (
     <>
+      {/* 직전월 명세 복사 여부 모달 */}
+      {copyPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCopyPrompt(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="text-lg font-bold mb-2">지난달 명세를 복사할까요?</div>
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">
+              <strong className="text-[var(--text)]">{copyPrompt.monthLabel}</strong> 급여 명세가 있습니다
+              {copyPrompt.itemCount > 0 && <span> ({copyPrompt.itemCount}건)</span>}.
+            </p>
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
+              · <strong>예</strong>: 지난달 기본급·비과세 입력값을 그대로 가져와 이번 달 명세에 반영합니다 (4대보험·세금은 동일 기준으로 재산정).<br />
+              · <strong>아니오</strong>: 직원 등록 급여 기준으로 새로 자동 산정합니다.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => runGenerate(false)}
+                disabled={generating}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg)] transition disabled:opacity-50"
+              >
+                아니오 — 새로 산정
+              </button>
+              <button
+                onClick={() => runGenerate(true)}
+                disabled={generating}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+              >
+                예 — 그대로 복사
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold">급여 일괄 이체</h2>

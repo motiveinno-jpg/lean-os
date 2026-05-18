@@ -236,7 +236,11 @@ export function calculateRetirementPay(params: {
 
 // ── Create payroll batch for all active employees ──
 
-export async function createPayrollBatch(companyId: string, monthLabel?: string): Promise<{ batchId: string; items: PayrollItem[] }> {
+export async function createPayrollBatch(
+  companyId: string,
+  monthLabel?: string,
+  options?: { copyFromPrevMonth?: boolean },
+): Promise<{ batchId: string; items: PayrollItem[] }> {
   const label = monthLabel || `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
   // Get active employees with salary, 비과세금액/부양가족 수 포함
@@ -248,12 +252,36 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
 
   if (!employees?.length) throw new Error('활성 직원이 없습니다');
 
+  // 직전월 명세 복사 모드: 직전월 payslip_overrides → 없으면 직원 기본 salary 로 폴백.
+  // 4대보험/소득세는 동일 calculatePayroll 로 재산정(공식 불변)하되, 복사 시
+  // 기본급/비과세 입력값을 직전월 값으로 프리필 → 당월 payslip_overrides 에 별도 기록(월간 독립).
+  let prevOverrideMap: Record<string, { base_salary: number; non_taxable_amount: number }> = {};
+  if (options?.copyFromPrevMonth) {
+    const now = new Date();
+    const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
+    const { data: prevOverrides } = await db
+      .from('payslip_overrides')
+      .select('employee_id, base_salary, non_taxable_amount')
+      .eq('company_id', companyId)
+      .eq('period_month', prevKey);
+    (prevOverrides || []).forEach((o: any) => {
+      prevOverrideMap[o.employee_id] = {
+        base_salary: Number(o.base_salary),
+        non_taxable_amount: Number(o.non_taxable_amount),
+      };
+    });
+  }
+
   // Calculate payroll for each (비과세/부양가족 반영)
   const items: PayrollItem[] = employees.map((emp: any) => {
-    const salary = Number(emp.salary || 0);
+    const prev = prevOverrideMap[emp.id];
+    const salary = prev ? prev.base_salary : Number(emp.salary || 0);
     if (salary <= 0) return null;
     return calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: emp.meal_allowance_included ? 200_000 : 0,
+      nonTaxableAmount: prev
+        ? prev.non_taxable_amount
+        : (emp.meal_allowance_included ? 200_000 : 0),
       dependents: 1,
     });
   }).filter(Boolean) as PayrollItem[];
@@ -301,7 +329,94 @@ export async function createPayrollBatch(companyId: string, monthLabel?: string)
     });
   }
 
+  // 복사 모드: 당월 명세서 override 를 직전월 값으로 프리필(월간 독립 — 당월 키에만 기록).
+  // 기존 당월 override 가 있으면 덮어쓰지 않음(사용자 수정 보존).
+  if (options?.copyFromPrevMonth && Object.keys(prevOverrideMap).length > 0) {
+    const cd = new Date();
+    const curKey = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}`;
+    for (const item of items) {
+      const prev = prevOverrideMap[item.employeeId];
+      if (!prev) continue;
+      const { data: existingCur } = await db
+        .from('payslip_overrides')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('employee_id', item.employeeId)
+        .eq('period_month', curKey)
+        .maybeSingle();
+      if (existingCur) continue; // 당월 사용자 수정값 보존
+      await db.from('payslip_overrides').insert({
+        company_id: companyId,
+        employee_id: item.employeeId,
+        period_month: curKey,
+        base_salary: prev.base_salary,
+        non_taxable_amount: prev.non_taxable_amount,
+      });
+    }
+  }
+
   return { batchId: batch.id, items };
+}
+
+// ── Previous-month payroll batch lookup / copy ──
+
+/** "YYYY년 M월" 라벨에서 직전월 라벨/키 산출 */
+function prevMonthLabels(): { label: string; nameLike: string } {
+  const now = new Date();
+  // 직전월
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const label = `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+  return { label, nameLike: `${label} 급여` };
+}
+
+/**
+ * 직전월 급여 배치가 존재하는지 확인 (복사 모달 노출 여부 판단용).
+ * 직전월 batch 또는 직전월 payslip_overrides 둘 중 하나라도 있으면 true.
+ */
+export async function getPrevMonthPayrollSnapshot(companyId: string): Promise<{
+  exists: boolean;
+  monthLabel: string;
+  batchId?: string;
+  itemCount: number;
+} | null> {
+  const { label, nameLike } = prevMonthLabels();
+
+  const { data: batch } = await db
+    .from('payment_batches')
+    .select('id, item_count')
+    .eq('company_id', companyId)
+    .eq('batch_type', 'payroll')
+    .eq('name', nameLike)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (batch) {
+    return {
+      exists: true,
+      monthLabel: label,
+      batchId: batch.id,
+      itemCount: batch.item_count || 0,
+    };
+  }
+
+  // batch 가 없어도 직전월 명세 override 가 있으면 복사 대상으로 인정
+  const monthMatch = label.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
+  const monthKey = monthMatch
+    ? `${monthMatch[1]}-${String(Number(monthMatch[2])).padStart(2, '0')}`
+    : null;
+  if (monthKey) {
+    const { count } = await db
+      .from('payslip_overrides')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+      .eq('period_month', monthKey);
+    if ((count || 0) > 0) {
+      return { exists: true, monthLabel: label, itemCount: count || 0 };
+    }
+  }
+
+  return { exists: false, monthLabel: label, itemCount: 0 };
 }
 
 // ── Create fixed cost batch from recurring payments ──
