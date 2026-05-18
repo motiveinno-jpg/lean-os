@@ -180,7 +180,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">🔁</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">카드 자동이체·정기결제 내역</h2>
+          <h2 className="text-sm font-bold text-[var(--text)]">정기결제내역</h2>
           <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
         </div>
         {items.length > 0 && (
@@ -192,7 +192,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
       </div>
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
-          이번달 카드 자동이체·정기결제 내역이 없습니다.
+          이번달 정기결제내역이 없습니다.
           <div className="text-[10px] mt-1">카드 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
         </div>
       ) : (
