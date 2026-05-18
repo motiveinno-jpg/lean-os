@@ -158,9 +158,60 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
 function AppContent({ children }: { children: React.ReactNode }) {
   const { collapsed, setMobileOpen } = useSidebar();
-  const { role } = useUser();
+  const { role, user } = useUser();
   const isLimitedRole = role === "partner" || role === "employee";
   const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // 앱 진입 시 전역 자동 동기화 — CODEF 한 번이라도 연결된 회사면
+  // 페이지 무관하게 오너뷰를 켜면 통장+카드 자동 동기화 (10분 주기 유지).
+  const companyId = user?.company_id ?? null;
+  useEffect(() => {
+    if (!companyId) return;
+    let stopped = false;
+
+    const connectedKey = `codef-connected-${companyId}`;
+    const isConnected = async (): Promise<boolean> => {
+      if (typeof window !== "undefined" && localStorage.getItem(connectedKey) === "1") return true;
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        const sb = supabase as any;
+        const [{ count: bankCnt }, { count: cardCnt }] = await Promise.all([
+          sb.from("bank_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("source", "codef_bank"),
+          sb.from("card_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        ]);
+        if ((bankCnt ?? 0) > 0 || (cardCnt ?? 0) > 0) {
+          localStorage.setItem(connectedKey, "1");
+          return true;
+        }
+      } catch { /* ignore */ }
+      return false;
+    };
+
+    const runOne = async (syncType: "bank" | "card") => {
+      const tKey = `codef-autosync-${companyId}-${syncType}`;
+      const last = Number(localStorage.getItem(tKey) || 0);
+      if (Date.now() - last < 5 * 60 * 1000) return; // 5분 throttle
+      localStorage.setItem(tKey, String(Date.now()));
+      try {
+        const { syncCodefData } = await import("@/lib/data-sync");
+        const result = await syncCodefData(companyId, syncType);
+        if (result?.success && !stopped) {
+          localStorage.setItem(connectedKey, "1");
+          window.dispatchEvent(new Event("ownerview:codef-synced"));
+        }
+      } catch { /* 자동 동기화 실패는 조용히 무시 */ }
+    };
+
+    const runAll = async () => {
+      if (stopped || !(await isConnected())) return;
+      await runOne("bank");
+      await runOne("card");
+    };
+
+    runAll(); // 앱 켜면 1회
+    const iv = setInterval(runAll, 10 * 60 * 1000); // 10분마다
+    return () => { stopped = true; clearInterval(iv); };
+  }, [companyId]);
 
   // 글로벌 mutation 에러 토스트 (providers.tsx MutationCache에서 발생)
   useEffect(() => {

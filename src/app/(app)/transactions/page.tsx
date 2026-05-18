@@ -111,54 +111,18 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       });
   }, []);
 
-  // 자동 동기화 — "한 번 동기화한 적이 있는(=CODEF 연결된) 회사" 면
-  // 이후부터 버튼 안 눌러도 진입 시 + 10분마다 자동 동기화.
+  // 전역 자동 동기화(app-shell)가 완료되면 거래 목록 즉시 갱신
   useEffect(() => {
-    if (!companyId) return;
-    const syncType: 'bank' | 'card' = (visibleTabs.length === 1 && visibleTabs[0] === 'cards') ? 'card' : 'bank';
-    const throttleKey = `codef-autosync-${companyId}-${syncType}`;
-    const connectedKey = `codef-connected-${companyId}`;
-    let stopped = false;
-
-    const isConnected = async (): Promise<boolean> => {
-      // 1) 이전에 수동/자동 동기화 성공 플래그가 있으면 연결된 것으로 간주
-      if (localStorage.getItem(connectedKey) === '1') return true;
-      // 2) 없으면 codef 로 들어온 거래가 이미 있는지 1회 확인 (코드 배포 전 동기화한 경우 커버)
-      try {
-        const tbl = syncType === 'card' ? 'card_transactions' : 'bank_transactions';
-        const q = (supabase as any).from(tbl).select('id', { count: 'exact', head: true }).eq('company_id', companyId);
-        const { count } = syncType === 'card'
-          ? await q
-          : await q.eq('source', 'codef_bank');
-        if ((count ?? 0) > 0) { localStorage.setItem(connectedKey, '1'); return true; }
-      } catch { /* ignore */ }
-      return false;
+    const onSynced = () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
     };
-
-    const runSync = async (force = false) => {
-      if (stopped) return;
-      const last = Number(localStorage.getItem(throttleKey) || 0);
-      if (!force && Date.now() - last < 5 * 60 * 1000) return; // 5분 throttle
-      if (!(await isConnected())) return; // 연결 안 된 회사는 자동 동기화 안 함
-      localStorage.setItem(throttleKey, String(Date.now()));
-      try {
-        const { syncCodefData } = await import('@/lib/data-sync');
-        const result = await syncCodefData(companyId, syncType);
-        if (result?.success) {
-          localStorage.setItem(connectedKey, '1');
-          queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
-          queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
-          queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
-          queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
-          queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
-        }
-      } catch { /* 자동 동기화 실패는 조용히 무시 */ }
-    };
-
-    runSync(); // 진입 시 1회
-    const iv = setInterval(() => runSync(), 10 * 60 * 1000); // 10분마다 자동
-    return () => { stopped = true; clearInterval(iv); };
-  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
+    window.addEventListener('ownerview:codef-synced', onSynced);
+    return () => window.removeEventListener('ownerview:codef-synced', onSynced);
+  }, [queryClient]);
 
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ['bank-transactions', companyId, filterStatus, filterType, bankDateFrom, bankDateTo],
