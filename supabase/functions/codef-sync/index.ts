@@ -409,18 +409,28 @@ async function syncBankTransactions(
         const counterparty = tx.resAccountDesc1 || tx.resAccountDesc3 || tx.resAccountDesc || "";
         const memo = [tx.resAccountDesc2, tx.resAccountDesc4].filter(Boolean).join(" / ");
 
-        const { error } = await supabase.from("bank_transactions").insert({
+        const _amt = inAmt > 0 ? inAmt : outAmt;
+        const _type = inAmt > 0 ? "income" : "expense";
+        const _bal = Number(tx.resAfterTranBalance || 0);
+        const _trTime = tx.resAccountTrTime || "";
+        // 결정적 dedup 키 — 같은 거래 재동기화 시 중복 삽입 방지 (DB UPDATE 백필과 동일 규칙)
+        const externalId = [
+          companyId, accountNo, tStr, _trTime, String(_amt), _type, String(_bal), counterparty,
+        ].join("|");
+
+        const { error } = await supabase.from("bank_transactions").upsert({
           company_id: companyId,
           transaction_date: formattedDate,
-          amount: inAmt > 0 ? inAmt : outAmt,
-          balance_after: Number(tx.resAfterTranBalance || 0),
-          type: inAmt > 0 ? "income" : "expense",
+          amount: _amt,
+          balance_after: _bal,
+          type: _type,
           counterparty,
           description: memo,
           source: "codef_bank",
           mapping_status: "unmapped",
-          raw_data: { accountNo, organization: org, trDate: tStr, trTime: tx.resAccountTrTime || "", counterAccount: tx.resCounterAccount || "" },
-        });
+          external_id: externalId,
+          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: tx.resCounterAccount || "" },
+        }, { onConflict: "external_id", ignoreDuplicates: true });
 
         if (!error) totalSynced++;
         else {
