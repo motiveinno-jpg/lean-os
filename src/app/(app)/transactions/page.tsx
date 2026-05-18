@@ -111,6 +111,29 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       });
   }, []);
 
+  // 통장 페이지 진입 시 자동 동기화 (5분 throttle) — 최근 거래를 바로바로 불러옴
+  useEffect(() => {
+    if (!companyId) return;
+    const syncType: 'bank' | 'card' = (visibleTabs.length === 1 && visibleTabs[0] === 'cards') ? 'card' : 'bank';
+    const key = `codef-autosync-${companyId}-${syncType}`;
+    const last = Number(localStorage.getItem(key) || 0);
+    if (Date.now() - last < 5 * 60 * 1000) return; // 5분 내 이미 동기화했으면 skip
+    localStorage.setItem(key, String(Date.now()));
+    (async () => {
+      try {
+        const { syncCodefData } = await import('@/lib/data-sync');
+        const result = await syncCodefData(companyId, syncType);
+        if (result?.success) {
+          queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+          queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
+        }
+      } catch { /* 자동 동기화 실패는 조용히 무시 — 수동 버튼으로 재시도 가능 */ }
+    })();
+  }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ['bank-transactions', companyId, filterStatus, filterType, bankDateFrom, bankDateTo],
     queryFn: () => getBankTransactions(companyId!, {

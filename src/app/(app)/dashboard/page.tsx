@@ -11,6 +11,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
+import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
@@ -367,10 +368,11 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* 내 출퇴근 — 관리자도 직원처럼 출퇴근 기록 */}
+        {/* 내 출퇴근 + 전자결재 — 관리자도 직원과 동일 (2열) */}
         {companyId && userId && (
-          <div className="mb-5">
+          <div className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <MyAttendanceCard companyId={companyId} userId={userId} />
+            <QuickApprovalCard companyId={companyId} userId={userId} />
           </div>
         )}
 

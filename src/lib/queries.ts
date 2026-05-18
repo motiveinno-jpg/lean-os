@@ -1547,6 +1547,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .eq('company_id', companyId)
       .eq('source', 'codef_bank')
       .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(5000),
     supabase
       .from('bank_accounts')
@@ -1581,10 +1582,13 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   return Array.from(allAccountNos)
     .map((accountNo) => {
       const info = acctInfo.get(accountNo);
+      // 최신 거래의 balance_after 우선 — bank_accounts.balance 는 잔액전용 sync
+      // 시점에 고정된 스냅샷이라 거래내역과 불일치할 수 있음. 거래가 있으면 그게 정답.
+      const latestTxBal = latestBalanceByAcct.get(accountNo);
       return {
         accountNo,
         count: countByAcct.get(accountNo) || 0,
-        balance: info?.balance ?? latestBalanceByAcct.get(accountNo) ?? 0,
+        balance: latestTxBal !== undefined ? latestTxBal : (info?.balance ?? 0),
         alias: info?.alias,
         bankName: info?.bankName,
       };
