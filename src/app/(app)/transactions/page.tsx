@@ -81,6 +81,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const receiptFileRef = useRef<HTMLInputElement>(null);
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
   const [codefSyncing, setCodefSyncing] = useState(false);
+  const [bankFetching, setBankFetching] = useState(false);
   const [aiClassifying, setAiClassifying] = useState(false);
   // Manual entry state
   const [manualForm, setManualForm] = useState({
@@ -815,6 +816,60 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+          {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
+            <button
+              onClick={async () => {
+                if (!companyId) return;
+                setBankFetching(true);
+                try {
+                  const { syncCodefData, syncBankBalances } = await import('@/lib/data-sync');
+                  // 1) 은행 거래 sync (CODEF 은행 분기만 — 홈택스/카드 미포함)
+                  const result = await syncCodefData(companyId, 'bank');
+                  if (!result.success && result.status !== 'partial') {
+                    toast(result.error || '통장 거래 불러오기 실패', 'error');
+                    return;
+                  }
+                  try { localStorage.setItem(`codef-connected-${companyId}`, '1'); } catch { /* ignore */ }
+                  const synced = result.bankSynced ?? 0;
+                  // 2) sync 완료 후 bank_accounts.balance 재계산 (잔액 즉시 반영)
+                  const balResult = await syncBankBalances(companyId);
+                  // 3) 거래목록 + 잔액 + 통장목록 즉시 갱신
+                  queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+                  // 다른 페이지(대시보드 등) 도 잔액 갱신하도록 전역 이벤트 발행
+                  try { window.dispatchEvent(new CustomEvent('ownerview:codef-synced')); } catch { /* ignore */ }
+                  const balMsg = balResult.status === 'success' ? ` · ${balResult.message}` : '';
+                  const allNotes = [...(result.errors || []), ...(result.notes || [])];
+                  const blockerNote = allNotes.find(n =>
+                    n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
+                  );
+                  if (synced > 0) {
+                    toast(`통장 최근 거래 ${synced}건 불러옴${balMsg}`, 'success');
+                  } else if (blockerNote) {
+                    toast(`통장 불러오기 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
+                  } else {
+                    toast(`통장 불러오기 완료 — 새 거래 없음${balMsg}`, 'info');
+                  }
+                } catch (e: any) {
+                  toast(e.message || '통장 거래 불러오기 오류', 'error');
+                } finally {
+                  setBankFetching(false);
+                }
+              }}
+              disabled={bankFetching || codefSyncing || !companyId}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+              title="CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"
+            >
+              {bankFetching ? (
+                <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 불러오는 중...</>
+              ) : (
+                '🏦 최근 거래 불러오기'
+              )}
+            </button>
+          )}
           <button
             onClick={async () => {
               setCodefSyncing(true);
