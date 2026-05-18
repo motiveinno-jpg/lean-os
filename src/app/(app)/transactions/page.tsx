@@ -204,6 +204,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     enabled: !!companyId,
   });
 
+  // 자동이체(반복결제) 등록내역 — 거래의 "자동" 판정 기준
+  const { data: recurringPayments = [] } = useQuery({
+    queryKey: ['recurring-payments', companyId],
+    queryFn: async () => {
+      const { getRecurringPayments } = await import('@/lib/approval-center');
+      return getRecurringPayments(companyId!);
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+
   // ── Card Queries ──
   const { data: corpCards = [] } = useQuery({
     queryKey: ['corporate-cards', companyId],
@@ -575,7 +586,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
       setMapModal(null);
       // 분류 완료된 거래는 inbox 에서 사라지고 '전체' 탭에 남음 — 사용자 혼란 방지 안내
-      const fixedNote = vars.isFixedCost ? " · 고정지출 표시됨" : "";
+      const fixedNote = vars.isFixedCost ? " · 자동이체 표시됨" : "";
       if (tab === 'inbox') {
         toast(`분류 완료${fixedNote} — '전체' 탭에서 확인할 수 있습니다`, "success");
       } else {
@@ -722,13 +733,46 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     else { setCardSortBy(key); setCardSortDir(key === 'amount' || key === 'transaction_date' ? 'desc' : 'asc'); }
   };
   const [showRefunds, setShowRefunds] = useState(false);
+
+  // 자동이체 매칭 휴리스틱: 활성 반복결제와 거래처/수취인명이 겹치고 금액이 ±5% 이내면 "자동(자동이체)" 로 본다.
+  // is_fixed_cost(수동 체크) 가 켜져 있으면 항상 "자동" 으로 표시(라벨/의미 통일).
+  const activeRecurring = (() => {
+    const list: { keys: string[]; amount: number }[] = [];
+    for (const r of (recurringPayments as any[])) {
+      if (r.is_active === false) continue;
+      const keys = [r.name, r.recipient_name, r.payee_name]
+        .filter(Boolean)
+        .map((s: string) => String(s).trim().toLowerCase())
+        .filter((s: string) => s.length >= 2);
+      if (keys.length === 0) continue;
+      list.push({ keys, amount: Number(r.amount || 0) });
+    }
+    return list;
+  })();
+  const isAutoTransferTx = (tx: any): boolean => {
+    if (tx?.is_fixed_cost === true) return true;
+    if (tx?.type !== 'expense') return false;
+    const cp = String(tx?.counterparty || '').trim().toLowerCase();
+    const desc = String(tx?.description || '').trim().toLowerCase();
+    if (!cp && !desc) return false;
+    const amt = Math.abs(Number(tx?.amount || 0));
+    for (const rp of activeRecurring) {
+      const nameHit = rp.keys.some((k) => (cp && (cp.includes(k) || k.includes(cp))) || (desc && desc.includes(k)));
+      if (!nameHit) continue;
+      if (rp.amount <= 0) return true; // 금액 미등록 반복결제는 이름만으로 자동 판정
+      const tol = Math.max(1000, rp.amount * 0.05);
+      if (Math.abs(amt - rp.amount) <= tol) return true;
+    }
+    return false;
+  };
+
   const filteredBankTx = (() => {
     let xs = bankTx as any[];
     if (selectedAccountNo) {
       xs = xs.filter((tx: any) => tx.raw_data?.accountNo === selectedAccountNo);
     }
     if (showFixedOnly) {
-      xs = xs.filter((tx: any) => tx.is_fixed_cost === true);
+      xs = xs.filter((tx: any) => isAutoTransferTx(tx));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -1227,7 +1271,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                 <input type="checkbox" checked={ruleForm.is_fixed_cost} onChange={e => setRuleForm({ ...ruleForm, is_fixed_cost: e.target.checked })} />
-                고정비로 표시
+                자동이체로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 이 규칙에 매칭되는 거래를 자동이체로 표시</span>
               </label>
               <div className="flex gap-2">
                 <button onClick={() => ruleForm.rule_name && ruleForm.match_value && addRuleMut.mutate()}
@@ -1247,7 +1291,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{r.rule_name}</span>
-                      {r.is_fixed_cost && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">고정비</span>}
+                      {r.is_fixed_cost && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">자동이체</span>}
                       {r.assign_category && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">{r.assign_category}</span>}
                     </div>
                     <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
@@ -1348,7 +1392,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 aria-label="종료일"
               />
               <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2"
-                title="고정지출로 표시된 거래만 표시 (inbox 는 미분류만 보이므로 자동으로 '전체' 탭 전환)">
+                title="자동이체(반복결제 등록)와 연결된 거래만 표시 (inbox 는 미분류만 보이므로 자동으로 '전체' 탭 전환)">
                 <input
                   type="checkbox"
                   checked={showFixedOnly}
@@ -1362,7 +1406,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   }}
                   className="accent-[var(--primary)]"
                 />
-                고정지출만
+                자동이체만
               </label>
               {(selectedAccountNo || bankDateFrom || bankDateTo || showFixedOnly) && (
                 <button
@@ -1372,8 +1416,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               )}
               <span className="ml-auto text-[10px] text-[var(--text-dim)]">
                 {filteredBankTx.length}건 표시 / 전체 {bankTx.length}건
-                {showFixedOnly || filteredBankTx.some((t: any) => t.is_fixed_cost) ? (
-                  <> · 고정지출 합계 ₩{filteredBankTx.filter((t: any) => t.is_fixed_cost && t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0).toLocaleString()}</>
+                {showFixedOnly || filteredBankTx.some((t: any) => isAutoTransferTx(t)) ? (
+                  <> · 자동이체 합계 ₩{filteredBankTx.filter((t: any) => isAutoTransferTx(t) && t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0).toLocaleString()}</>
                 ) : null}
               </span>
             </div>
@@ -1445,7 +1489,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
                     <th className="text-right px-4 py-3 font-medium hidden md:table-cell">잔액</th>
-                    <th className="text-center px-4 py-3 font-medium" title="고정지출">고정</th>
+                    <th className="text-center px-4 py-3 font-medium" title="자동이체(반복결제 연결) — 체크 시 수동으로 자동이체 표시">자동</th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
                   </tr>
@@ -1484,14 +1528,24 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         ₩{Number(tx.balance_after || 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={!!tx.is_fixed_cost}
-                          onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
-                          disabled={toggleFixedMut.isPending}
-                          className="accent-orange-500 cursor-pointer"
-                          title={tx.is_fixed_cost ? '고정지출 — 클릭해서 해제' : '고정지출로 표시'}
-                        />
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={!!tx.is_fixed_cost}
+                            onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
+                            disabled={toggleFixedMut.isPending}
+                            className="accent-orange-500 cursor-pointer"
+                            title={tx.is_fixed_cost ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(자동이체)로 표시'}
+                          />
+                          {!tx.is_fixed_cost && isAutoTransferTx(tx) && (
+                            <span
+                              className="text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 whitespace-nowrap"
+                              title="등록된 자동이체(반복결제)와 거래처·금액이 일치 — 자동 감지됨"
+                            >
+                              자동
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -2255,7 +2309,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
           <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-            고정비로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
+            자동이체로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 자동이체(반복결제) 거래면 체크</span>
           </label>
         </div>
 
