@@ -14,6 +14,10 @@ import {
   deleteTodo,
   EVENT_COLOR_BG,
   PRIORITY_LABEL,
+  eventDateKeys,
+  isMultiDayEvent,
+  segmentRole,
+  formatEventRange,
   type ScheduleEvent,
   type ScheduleTodo,
   type EventColor,
@@ -88,11 +92,13 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
 
   const eventsByDate = useMemo(() => {
+    // 기간 일정은 시작~종료 사이 모든 날짜 칸에 노출 (단일 일정은 시작일 1칸).
     const map = new Map<string, ScheduleEvent[]>();
     for (const e of events) {
-      const dateKey = e.start_at.slice(0, 10);
-      if (!map.has(dateKey)) map.set(dateKey, []);
-      map.get(dateKey)!.push(e);
+      for (const dateKey of eventDateKeys(e)) {
+        if (!map.has(dateKey)) map.set(dateKey, []);
+        map.get(dateKey)!.push(e);
+      }
     }
     return map;
   }, [events]);
@@ -211,23 +217,53 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                   {cell.date.getDate()}
                 </div>
                 <div className="mt-1 space-y-0.5">
-                  {cellEvents.slice(0, 3).map((e) => (
-                    <div
-                      key={e.id}
-                      onClick={(ev) => { ev.stopPropagation(); toggleDoneMut.mutate({ id: e.id, completed: !e.completed }); }}
-                      className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""}`}
-                      title={e.completed ? "클릭하면 완료 취소" : "클릭하면 완료 처리"}
-                    >
-                      <span className={`flex-1 truncate ${e.completed ? "line-through" : ""}`}>{e.title}</span>
-                      <button
-                        onClick={(ev) => { ev.stopPropagation(); setEditingEvent(e); }}
-                        className="opacity-0 group-hover/ev:opacity-100 shrink-0 px-0.5 text-[var(--text-dim)] hover:text-[var(--text)] transition"
-                        title="수정"
+                  {cellEvents.slice(0, 3).map((e) => {
+                    const role = segmentRole(e, dateStr);
+                    const multi = role !== "single";
+                    // 기간 일정 막대: 시작칸은 좌측 둥글게+라벨, 중간은 직각+제목생략, 끝칸은 우측 둥글게
+                    const barShape = !multi
+                      ? "rounded"
+                      : role === "start"
+                        ? "rounded-l rounded-r-none -mr-1.5"
+                        : role === "end"
+                          ? "rounded-r rounded-l-none -ml-1.5"
+                          : "rounded-none -mx-1.5";
+                    // 막대 본문에 표시할 텍스트: 시작칸/단일은 제목, 중간·끝칸은 비움(연속 막대 느낌)
+                    const showLabel = role === "single" || role === "start";
+                    return (
+                      <div
+                        key={`${e.id}-${dateStr}`}
+                        onClick={(ev) => { ev.stopPropagation(); toggleDoneMut.mutate({ id: e.id, completed: !e.completed }); }}
+                        className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 border ${barShape} ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""}`}
+                        title={
+                          multi
+                            ? `${e.title} (${formatEventRange(e)})${e.completed ? " · 클릭하면 완료 취소" : " · 클릭하면 완료 처리"}`
+                            : e.completed ? "클릭하면 완료 취소" : "클릭하면 완료 처리"
+                        }
                       >
-                        ✎
-                      </button>
-                    </div>
-                  ))}
+                        {showLabel ? (
+                          <span className={`flex-1 truncate ${e.completed ? "line-through" : ""}`}>
+                            {e.title}
+                            {multi && (
+                              <span className="ml-1 opacity-70 font-normal">{formatEventRange(e)}</span>
+                            )}
+                          </span>
+                        ) : (
+                          // 중간/끝 칸: 막대만 이어지도록 빈 공간 유지
+                          <span className="flex-1 truncate opacity-0">·</span>
+                        )}
+                        {showLabel && (
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); setEditingEvent(e); }}
+                            className="opacity-0 group-hover/ev:opacity-100 shrink-0 px-0.5 text-[var(--text-dim)] hover:text-[var(--text)] transition"
+                            title="수정"
+                          >
+                            ✎
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {cellEvents.length > 3 && (
                     <div className="text-[9px] text-[var(--text-dim)] px-1.5">+{cellEvents.length - 3}</div>
                   )}
@@ -281,8 +317,31 @@ function EventModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // 종료가 시작보다 빠르면 막는다 (기간 일정 오입력 방지). 종료 비우면 단일 일정.
+  const dateError = (() => {
+    if (!form.endAt) return null;
+    const s = form.startAt.slice(0, 16);
+    const e = form.endAt.slice(0, 16);
+    if (!s || !e) return null;
+    return e < s ? "종료가 시작보다 빠릅니다" : null;
+  })();
+
+  // 라이브 미리보기: "5/12~5/13" 또는 단일 "5/12"
+  const rangePreview = (() => {
+    if (!form.startAt) return "";
+    const fmt = (k: string) => {
+      const [, m, d] = k.split("-");
+      return m && d ? `${Number(m)}/${Number(d)}` : "";
+    };
+    const sKey = form.startAt.slice(0, 10);
+    if (!form.endAt) return fmt(sKey);
+    const eKey = form.endAt.slice(0, 10);
+    if (eKey <= sKey) return fmt(sKey);
+    return `${fmt(sKey)}~${fmt(eKey)}`;
+  })();
+
   const submit = () => {
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || dateError) return;
     onSave({
       id: form.id || undefined,
       title: form.title.trim(),
@@ -329,25 +388,50 @@ function EventModal({
             <input type="checkbox" checked={form.allDay} onChange={(e) => setForm({ ...form, allDay: e.target.checked })} className="accent-[var(--primary)]" />
             <span className="text-[var(--text-muted)]">하루 종일</span>
           </label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[10px] text-[var(--text-muted)] mb-1">시작</label>
-              <input
-                type={form.allDay ? "date" : "datetime-local"}
-                value={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
-                onChange={(e) => setForm({ ...form, startAt: e.target.value + (form.allDay ? "T00:00" : "") })}
-                className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-              />
+          <div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] text-[var(--text-muted)] mb-1">시작일</label>
+                <input
+                  type={form.allDay ? "date" : "datetime-local"}
+                  value={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
+                  onChange={(e) => setForm({ ...form, startAt: e.target.value + (form.allDay ? "T00:00" : "") })}
+                  className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-[var(--text-muted)] mb-1">종료일 (기간일정만)</label>
+                <input
+                  type={form.allDay ? "date" : "datetime-local"}
+                  min={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
+                  value={form.endAt ? (form.allDay ? form.endAt.slice(0, 10) : form.endAt) : ""}
+                  onChange={(e) => setForm({ ...form, endAt: e.target.value + (form.allDay && e.target.value ? "T23:59" : "") })}
+                  className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-muted)] mb-1">종료 (선택)</label>
-              <input
-                type={form.allDay ? "date" : "datetime-local"}
-                value={form.endAt ? (form.allDay ? form.endAt.slice(0, 10) : form.endAt) : ""}
-                onChange={(e) => setForm({ ...form, endAt: e.target.value + (form.allDay && e.target.value ? "T23:59" : "") })}
-                className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-              />
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[9px] text-[var(--text-dim)]">
+                여러 날 일정은 종료일을 지정하세요 (예: 12~13일 예비군). 비우면 하루 일정.
+              </p>
+              {form.endAt && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, endAt: "" })}
+                  className="text-[9px] text-[var(--text-muted)] hover:text-[var(--text)] shrink-0 ml-2"
+                >
+                  종료일 지우기
+                </button>
+              )}
             </div>
+            {dateError ? (
+              <p className="text-[10px] text-red-400 mt-1">⚠ {dateError}</p>
+            ) : rangePreview ? (
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                일정 기간: <span className="font-semibold text-[var(--text)]">{rangePreview}</span>
+                {form.endAt && form.endAt.slice(0, 10) > form.startAt.slice(0, 10) ? " (기간 일정)" : " (하루 일정)"}
+              </p>
+            ) : null}
           </div>
           <div>
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">색상</label>
@@ -373,7 +457,7 @@ function EventModal({
           ) : <div />}
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-lg">취소</button>
-            <button onClick={submit} disabled={!form.title.trim() || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+            <button onClick={submit} disabled={!form.title.trim() || !!dateError || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
               {saving ? "저장 중..." : (form.id ? "수정" : "추가")}
             </button>
           </div>
