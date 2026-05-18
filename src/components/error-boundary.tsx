@@ -22,6 +22,14 @@ export class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, errorInfo);
+    import("@/lib/error-logger").then(({ logError }) => {
+      logError({
+        source: "boundary",
+        message: error?.message || String(error),
+        stack: error?.stack,
+        context: { componentStack: errorInfo?.componentStack?.slice(0, 1500) },
+      });
+    }).catch(() => {});
   }
 
   render() {
