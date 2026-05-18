@@ -7406,6 +7406,19 @@ export type Database = {
       }
       fn_process_invoice_queue: { Args: never; Returns: number }
       get_company_plan_slug: { Args: never; Returns: string }
+      get_company_directory: {
+        Args: never
+        Returns: {
+          department: string | null
+          email: string | null
+          hire_date: string | null
+          id: string
+          name: string
+          phone: string | null
+          position: string | null
+          status: string | null
+        }[]
+      }
       get_credential_key: { Args: never; Returns: string }
       get_my_company_id: { Args: never; Returns: string }
       get_my_email: { Args: never; Returns: string }
@@ -7414,6 +7427,7 @@ export type Database = {
         Args: { share_id_param: string }
         Returns: undefined
       }
+      is_company_admin: { Args: never; Returns: boolean }
       is_company_owner: { Args: never; Returns: boolean }
       is_partner_user: { Args: never; Returns: boolean }
       mark_dormant_deals: { Args: never; Returns: number }
