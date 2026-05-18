@@ -24,6 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
       { href: "/deals", label: "프로젝트", icon: "briefcase" },
+      { href: "/announcements", label: "공지사항", icon: "megaphone" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
@@ -112,6 +113,7 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "bar-chart": return <svg {...props}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
     case "edit-3": return <svg {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
     case "bell": return <svg {...props}><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>;
+    case "megaphone": return <svg {...props}><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>;
     case "receipt": return <svg {...props}><path d="M20 2v20l-3-2-3 2-3-2-3 2-3-2-3 2V2l3 2 3-2 3 2 3-2 3 2 3-2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></svg>;
     case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
