@@ -1392,7 +1392,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const [uploadError, setUploadError] = useState("");
   const [generatingSeal, setGeneratingSeal] = useState(false);
   const [sealPreview, setSealPreview] = useState<string | null>(null);
-  const [sealVariant, setSealVariant] = useState<"double" | "single" | "square">("double");
+  const [sealVariant, setSealVariant] = useState<"corporate" | "double" | "single" | "square">("corporate");
   const sealInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -1531,7 +1531,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   }, [companyId, queryClient]);
 
   // 자동 직인 생성 — Canvas 로 PNG 만든 후 storage 업로드
-  async function regenerateSealPreview(variant?: "double" | "single" | "square") {
+  async function regenerateSealPreview(variant?: "corporate" | "double" | "single" | "square") {
     if (!form.name?.trim()) {
       setUploadError("회사명을 먼저 입력하세요.");
       return;
@@ -1539,7 +1539,10 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     setUploadError("");
     try {
       const { generateCompanySealDataUrl } = await import("@/lib/seal-generator");
-      const dataUrl = await generateCompanySealDataUrl(form.name, { variant: variant || sealVariant });
+      const dataUrl = await generateCompanySealDataUrl(form.name, {
+        variant: variant || sealVariant,
+        title: "대표이사",
+      });
       setSealPreview(dataUrl);
     } catch (err: any) {
       setUploadError("직인 생성 실패: " + (err?.message || ""));
@@ -1555,7 +1558,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     setGeneratingSeal(true);
     try {
       const { generateCompanySeal } = await import("@/lib/seal-generator");
-      const blob = await generateCompanySeal(form.name, { variant: sealVariant });
+      const blob = await generateCompanySeal(form.name, { variant: sealVariant, title: "대표이사" });
       const filePath = `${companyId}/seal_auto_${Date.now()}.png`;
       const { error: uploadErr } = await supabase.storage
         .from("company-assets")
@@ -1781,7 +1784,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       🪄 자동 생성
                     </button>
                   </div>
-                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB) · 또는 회사명으로 자동 생성</p>
+                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB) · 또는 회사명으로 법인인감 자동 생성</p>
                 </>
               )}
             </div>
@@ -1806,6 +1809,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                     <p className="text-xs font-semibold text-[var(--text)] mb-2">직인 스타일</p>
                     <div className="flex gap-1.5 flex-wrap mb-3">
                       {[
+                        { v: "corporate" as const, label: "법인인감" },
                         { v: "double" as const, label: "이중 원형" },
                         { v: "single" as const, label: "단일 원형" },
                         { v: "square" as const, label: "사각형" },
