@@ -17,6 +17,9 @@ export type WidgetId =
   | 'burn_rate_trend'
   | 'summary_kpis'
   | 'my_todos'
+  | 'my_attendance'
+  | 'my_approvals'
+  | 'quick_nav'
 ;
 
 export interface WidgetDef {
@@ -42,6 +45,9 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   { id: 'burn_rate_trend', name: '번레이트 추이', description: '월별 지출 추이와 런웨이 변화', category: 'cash', defaultVisible: false, defaultOrder: 10 },
   { id: 'summary_kpis', name: '요약 위젯', description: '승인대기·통장잔고·미수금·월고정비 한눈에', category: 'ops', defaultVisible: true, defaultOrder: 11 },
   { id: 'my_todos', name: '내 할일', description: '할일에 추가한 항목 (마감 임박 우선)', category: 'ops', defaultVisible: true, defaultOrder: 12 },
+  { id: 'my_attendance', name: '출/퇴근', description: '오늘 출근/퇴근 상태와 원클릭 처리', category: 'ops', defaultVisible: true, defaultOrder: 13 },
+  { id: 'my_approvals', name: '전자결재', description: '내 결재 대기/진행 건수와 빠른 작성', category: 'ops', defaultVisible: true, defaultOrder: 14 },
+  { id: 'quick_nav', name: '빠른 이동', description: '자주 가는 메뉴 바로가기', category: 'ops', defaultVisible: true, defaultOrder: 15 },
 ];
 
 // ── Widget config per view ──
@@ -71,7 +77,8 @@ export const PRESET_VIEWS: PresetView[] = [
     id: 'default',
     name: '기본 뷰',
     widgets: makeConfigs([
-      'summary_kpis', 'cash_pulse', 'approval_center', 'today_actions',
+      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
+      'cash_pulse', 'approval_center', 'today_actions',
       'risk_zone', 'growth_tracking', 'my_todos',
     ]),
   },
@@ -118,7 +125,8 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     description: '대표이사, 경영자 — 핵심 KPI와 현금흐름 중심',
     icon: '👔',
     defaultWidgets: [
-      'summary_kpis', 'cash_pulse', 'approval_center', 'today_actions',
+      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
+      'cash_pulse', 'approval_center', 'today_actions',
       'risk_zone', 'growth_tracking', 'my_todos',
     ],
   },
@@ -138,7 +146,8 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     description: '인사담당자, 총무 — 승인과 일정 중심',
     icon: '📋',
     defaultWidgets: [
-      'summary_kpis', 'approval_center', 'today_actions', 'my_todos',
+      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
+      'approval_center', 'today_actions', 'my_todos',
     ],
   },
   {
