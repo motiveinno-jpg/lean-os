@@ -568,6 +568,64 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
   await notifyLeaveDecision(request, 'rejected');
 }
 
+// ── Leave: Cancel (취소) ──
+// 승인된(used_days 반영된) 휴가를 취소하면 잔여일을 되돌린다.
+export async function cancelLeaveRequest(id: string) {
+  const { data: request } = await db
+    .from('leave_requests')
+    .select('*, employees(name, user_id)')
+    .eq('id', id)
+    .single();
+  if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
+  if (request.status === 'cancelled') return;
+
+  const wasApproved = request.status === 'approved';
+
+  const { error } = await db
+    .from('leave_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', id);
+  if (error) throw error;
+
+  // 승인 상태였다면 차감했던 used_days 복구
+  if (wasApproved) {
+    const year = new Date(request.start_date).getFullYear();
+    const { data: balance } = await db
+      .from('leave_balances')
+      .select('*')
+      .eq('employee_id', request.employee_id)
+      .eq('year', year)
+      .maybeSingle();
+    if (balance) {
+      const restored = Math.max(0, Number(balance.used_days) - Number(request.days));
+      await db.from('leave_balances').update({ used_days: restored }).eq('id', balance.id);
+    }
+  }
+
+  // 신청자에게 취소 알림
+  try {
+    const requesterUserId = request?.employees?.user_id;
+    if (requesterUserId) {
+      const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+      const period = request.start_date === request.end_date
+        ? request.start_date
+        : `${request.start_date} ~ ${request.end_date}`;
+      await db.from('notifications').insert({
+        company_id: request.company_id,
+        user_id: requesterUserId,
+        type: 'approval',
+        title: `휴가 취소 — ${leaveLabel} (${Number(request.days)}일)`,
+        message: `${period} 휴가가 취소되었습니다.${wasApproved ? ' 연차 잔여가 복구되었습니다.' : ''}`,
+        entity_type: 'leave_request',
+        entity_id: request.id,
+        is_read: false,
+      });
+    }
+  } catch (e) {
+    console.error('[cancelLeaveRequest] 알림 실패:', e);
+  }
+}
+
 // 휴가 결재 결과 알림 — 신청자(직원 계정) 에게.
 async function notifyLeaveDecision(request: any, decision: 'approved' | 'rejected') {
   try {

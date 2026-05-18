@@ -14,6 +14,7 @@ import {
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
   autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
+  cancelLeaveRequest,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
@@ -4651,6 +4652,17 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
     onError: (err: any) => toast("휴가 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
+  // Cancel mutation — 승인된 휴가 취소 시 잔여 복구
+  const cancelMut = useMutation({
+    mutationFn: (id: string) => cancelLeaveRequest(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      toast("휴가가 취소되었습니다 (잔여 복구됨).", "success");
+    },
+    onError: (err: any) => toast("휴가 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+  });
+
   // Init balance mutation (수동 부여 일수)
   const initBalance = useMutation({
     mutationFn: (params: { employeeId: string; totalDays: number }) =>
@@ -5058,22 +5070,34 @@ function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      {r.status === "pending" && !isEmployee && (
-                        <div className="flex gap-1 justify-center">
+                      <div className="flex gap-1 justify-center">
+                        {r.status === "pending" && !isEmployee && (
+                          <>
+                            <button
+                              onClick={() => approveMut.mutate(r.id)}
+                              className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                            >
+                              승인
+                            </button>
+                            <button
+                              onClick={() => rejectMut.mutate(r.id)}
+                              className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                            >
+                              반려
+                            </button>
+                          </>
+                        )}
+                        {/* 취소 — 대기/승인 상태에서 가능. 승인 취소 시 잔여 복구. */}
+                        {(r.status === "pending" || r.status === "approved") && !isEmployee && (
                           <button
-                            onClick={() => approveMut.mutate(r.id)}
-                            className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                            onClick={() => { if (confirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }}
+                            disabled={cancelMut.isPending}
+                            className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] disabled:opacity-50"
                           >
-                            승인
+                            취소
                           </button>
-                          <button
-                            onClick={() => rejectMut.mutate(r.id)}
-                            className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                          >
-                            반려
-                          </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
