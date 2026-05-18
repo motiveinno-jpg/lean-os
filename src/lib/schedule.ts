@@ -17,8 +17,18 @@ export interface ScheduleEvent {
   all_day: boolean;
   color: EventColor;
   is_shared: boolean;
+  completed: boolean;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export async function toggleEventCompleted(id: string, completed: boolean): Promise<void> {
+  const { error } = await db
+    .from("schedule_events")
+    .update({ completed, completed_at: completed ? new Date().toISOString() : null })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function getMonthEvents(companyId: string, year: number, monthIdx0: number): Promise<ScheduleEvent[]> {

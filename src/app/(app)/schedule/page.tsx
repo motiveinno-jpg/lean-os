@@ -7,6 +7,7 @@ import {
   getMonthEvents,
   upsertEvent,
   deleteEvent,
+  toggleEventCompleted,
   getTodos,
   upsertTodo,
   toggleTodoDone,
@@ -119,6 +120,12 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
     onError: (e: any) => toast(`저장 실패: ${e.message}`, "error"),
   });
 
+  const toggleDoneMut = useMutation({
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedule-events"] }),
+    onError: (e: any) => toast(`완료 처리 실패: ${e.message}`, "error"),
+  });
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteEvent(id),
     onSuccess: () => {
@@ -207,11 +214,18 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                   {cellEvents.slice(0, 3).map((e) => (
                     <div
                       key={e.id}
-                      onClick={(ev) => { ev.stopPropagation(); setEditingEvent(e); }}
-                      className={`text-[9px] px-1.5 py-0.5 rounded truncate border ${EVENT_COLOR_BG[e.color]} cursor-pointer`}
-                      title={e.title}
+                      onClick={(ev) => { ev.stopPropagation(); toggleDoneMut.mutate({ id: e.id, completed: !e.completed }); }}
+                      className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""}`}
+                      title={e.completed ? "클릭하면 완료 취소" : "클릭하면 완료 처리"}
                     >
-                      {e.title}
+                      <span className={`flex-1 truncate ${e.completed ? "line-through" : ""}`}>{e.title}</span>
+                      <button
+                        onClick={(ev) => { ev.stopPropagation(); setEditingEvent(e); }}
+                        className="opacity-0 group-hover/ev:opacity-100 shrink-0 px-0.5 text-[var(--text-dim)] hover:text-[var(--text)] transition"
+                        title="수정"
+                      >
+                        ✎
+                      </button>
                     </div>
                   ))}
                   {cellEvents.length > 3 && (
