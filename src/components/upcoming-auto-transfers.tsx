@@ -126,7 +126,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">⏰</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">다가오는 자동이체</h2>
+          <h2 className="text-sm font-bold text-[var(--text)]">고정비 지출예정</h2>
           <span className="text-[10px] text-[var(--text-dim)]">{windowDays}일 안 · {items.length}건</span>
         </div>
         {items.length > 0 && (
@@ -139,7 +139,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
 
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
-          예정된 자동이체가 없습니다.
+          예정된 고정비 지출이 없습니다.
           <div className="text-[10px] mt-1">결재 센터 → 자동이체 관리에서 등록하세요.</div>
         </div>
       ) : (
