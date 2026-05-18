@@ -40,3 +40,7 @@ supabase/.temp/
 
 # Local rollback snapshot
 codef-sync-rollback.ts
+
+# Notion 연동 임시/로컬 스크립트 (토큰 하드코딩 가능 — 절대 커밋 금지)
+_notion-*.mjs
+notion-token.txt
