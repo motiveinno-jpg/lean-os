@@ -128,6 +128,7 @@ export default function PartnersPage() {
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"name" | "type" | "tag">("name");
   const [classFilter, setClassFilter] = useState<string>("");
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("");
@@ -231,7 +232,7 @@ export default function PartnersPage() {
   });
 
   // 클라이언트측 필터: 산업/지역/거래규모
-  const partners = (rawPartners as any[]).filter((p: any) => {
+  const filteredPartners = (rawPartners as any[]).filter((p: any) => {
     if (classFilter && (p.classification || "").trim() !== classFilter) return false;
     if (regionFilter && parseRegion(p.address) !== regionFilter) return false;
     if (sizeFilter) {
@@ -347,7 +348,27 @@ export default function PartnersPage() {
   };
 
   // 태그 목록 수집 (필터용)
-  const allTags = Array.from(new Set(partners.flatMap((p: any) => p.tags || []))) as string[];
+  const allTags = Array.from(new Set(filteredPartners.flatMap((p: any) => p.tags || []))) as string[];
+
+  // 정렬: 이름순 / 구분(거래처 유형)순 / 태그순 (한글 로케일 비교)
+  const partners = [...filteredPartners].sort((a: any, b: any) => {
+    if (sortBy === "type") {
+      const la = TYPE_BADGE[a.type]?.label || a.type || "";
+      const lb = TYPE_BADGE[b.type]?.label || b.type || "";
+      const c = la.localeCompare(lb, "ko");
+      if (c !== 0) return c;
+    } else if (sortBy === "tag") {
+      const ta = ((a.tags || [])[0] || "").toString();
+      const tb = ((b.tags || [])[0] || "").toString();
+      // 태그 없는 거래처는 뒤로
+      if (!ta && tb) return 1;
+      if (ta && !tb) return -1;
+      const c = ta.localeCompare(tb, "ko");
+      if (c !== 0) return c;
+    }
+    // 동률 또는 이름순: 이름으로 정렬
+    return (a.name || "").localeCompare(b.name || "", "ko");
+  });
 
   const saveMutation = useMutation({
     mutationFn: () => upsertPartner({
@@ -544,8 +565,16 @@ export default function PartnersPage() {
         <span className="text-xs text-[var(--text-dim)]">{partners.length}건{partners.length !== (rawPartners as any[]).length && `/${(rawPartners as any[]).length}`}</span>
       </div>
 
-      {/* 고급 필터 바 — 산업/지역/거래규모 */}
+      {/* 정렬 + 고급 필터 바 — 산업/지역/거래규모 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-xs text-[var(--text-dim)]">정렬:</span>
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "name" | "type" | "tag")}
+          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
+          <option value="name">이름순</option>
+          <option value="type">구분순</option>
+          <option value="tag">태그순</option>
+        </select>
+        <span className="w-px h-4 bg-[var(--border)] mx-1" />
         <span className="text-xs text-[var(--text-dim)]">필터:</span>
         <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
           className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
