@@ -882,6 +882,9 @@ export default function DashboardPage() {
       {isWidgetVisible('my_todos') && userId && (
         <div id="widget-my_todos"><MyTodosWidget userId={userId} /></div>
       )}
+      {isWidgetVisible('quick_nav') && (
+        <div id="widget-quick_nav"><QuickNavWidget /></div>
+      )}
       {isWidgetVisible('overdue_receivables') && companyId && (
         <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
       )}
@@ -909,6 +912,43 @@ export default function DashboardPage() {
 }
 
 // ═══ Sub-components ═══
+
+// ── 빠른 이동 위젯: 자주 가는 메뉴 정적 바로가기 (새 테이블 없음) ──
+const QUICK_NAV_LINKS: { icon: string; label: string; href: string }[] = [
+  { icon: '🏦', label: '통장',     href: '/bank' },
+  { icon: '💳', label: '카드',     href: '/cards' },
+  { icon: '📊', label: '거래내역', href: '/transactions' },
+  { icon: '🧾', label: '전자결재', href: '/approvals' },
+  { icon: '👥', label: '구성원',   href: '/employees' },
+  { icon: '🗓', label: '근태',     href: '/attendance' },
+  { icon: '📅', label: '일정',     href: '/schedule' },
+  { icon: '✍️', label: '서명',     href: '/signatures' },
+  { icon: '📈', label: '리포트',   href: '/reports' },
+  { icon: '📢', label: '공지',     href: '/announcements' },
+];
+
+function QuickNavWidget() {
+  return (
+    <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">빠른 이동</h2>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {QUICK_NAV_LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)]/40 hover:bg-[var(--bg-elevated)] transition"
+          >
+            <span className="text-xl leading-none">{l.icon}</span>
+            <span className="text-[10px] font-semibold text-[var(--text)] truncate w-full text-center">{l.label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── 요약 위젯: 승인대기 / 통장잔고 / 미수금 / 월고정비 ──
 function SummaryKpisWidget({
