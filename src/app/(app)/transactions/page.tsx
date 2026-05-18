@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { subscribeToBankTransactions, subscribeToCardTransactions } from "@/lib/realtime";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule, getDistinctBankAccountNos } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
 import { getCorporateCards, upsertCorporateCard, deleteCorporateCard, getCardTransactions, getCardTransactionStats, mapCardTransaction, ignoreCardTransaction, uploadReceiptToCard, getDistinctCardNames, restoreCardTransaction, upsertCardAlias } from "@/lib/card-transactions";
@@ -123,6 +124,25 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     window.addEventListener('ownerview:codef-synced', onSynced);
     return () => window.removeEventListener('ownerview:codef-synced', onSynced);
   }, [queryClient]);
+
+  // Supabase Realtime — 통장/카드 거래 즉시 반영 (페이지 머무는 동안)
+  // 10분 sync interval / 진입 시 sync 는 별도 유지(백업 + 초기 로드).
+  useEffect(() => {
+    if (!companyId) return;
+    const bankCh = subscribeToBankTransactions(companyId, () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts-distinct'] });
+    });
+    const cardCh = subscribeToCardTransactions(companyId, () => {
+      queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
+    });
+    return () => {
+      supabase.removeChannel(bankCh);
+      supabase.removeChannel(cardCh);
+    };
+  }, [companyId, queryClient]);
 
   const { data: bankTx = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ['bank-transactions', companyId, filterStatus, filterType, bankDateFrom, bankDateTo],

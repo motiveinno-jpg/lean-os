@@ -19,6 +19,7 @@ import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { supabase } from "@/lib/supabase";
+import { subscribeToBankAccounts } from "@/lib/realtime";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
@@ -129,6 +130,18 @@ export default function DashboardPage() {
       }
     })();
     return () => { cancelled = true; };
+  }, [companyId, queryClient]);
+
+  // Supabase Realtime — bank_accounts 잔액(balance) 변경 즉시 cash-pulse 카드 갱신
+  // refreshBankBalances(5분 throttle) 와 함께 동작: throttle 차단된 갱신도 실시간 반영.
+  useEffect(() => {
+    if (!companyId) return;
+    const ch = subscribeToBankAccounts(companyId, () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
+    });
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [companyId, queryClient]);
 
   // Fetch data from DB
