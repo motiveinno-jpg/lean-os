@@ -264,42 +264,88 @@ export function CardMonthlyUsage({ companyId }: Props) {
     staleTime: 60_000,
   });
 
-  // 카드별/월별 합계 (양수만)
+  // 카드별/월별 합계 (양수만) — 끝 4자리가 같은 카드는 표시 레벨에서 하나로 병합(원본 데이터는 보존).
   const { perCard, totals, monthMax } = useMemo(() => {
     const tx = (txAll as any[]).filter((t: any) => Number(t.amount || 0) > 0);
 
-    // card key: card_id 우선, 없으면 card_name
-    const cardKeys = new Map<string, { key: string; label: string; cardType: string | null }>();
+    // 문자열에서 마지막 연속 숫자 4자리 추출 (카드번호 끝 4자리 식별용)
+    const last4Of = (s: string | null | undefined): string | null => {
+      if (!s) return null;
+      const matches = String(s).match(/\d{4}/g);
+      return matches && matches.length > 0 ? matches[matches.length - 1] : null;
+    };
+
+    // 등록 카드: id → {label, cardType, last4}
+    const regCard = new Map<string, { label: string; cardType: string | null; last4: string | null }>();
     (cards as any[]).forEach((c: any) => {
-      cardKeys.set(c.id, { key: c.id, label: c.card_name, cardType: c.card_type || null });
+      regCard.set(c.id, {
+        label: c.card_name,
+        cardType: c.card_type || null,
+        last4: last4Of(c.card_number) || last4Of(c.card_name),
+      });
     });
-    // CODEF 사용된 card_name 도 별도 키 (등록 안 된 카드)
-    for (const t of tx) {
-      if (t.card_id && cardKeys.has(t.card_id)) continue;
-      const key = t.card_id || t.card_name || '미지정';
-      if (!cardKeys.has(key)) {
-        cardKeys.set(key, { key, label: t.card_name || '미지정 카드', cardType: null });
-      }
-    }
 
-    const perCard = new Map<string, { label: string; cardType: string | null; byMonth: Record<string, number>; total: number }>();
-    for (const [k, v] of cardKeys.entries()) {
-      perCard.set(k, { label: v.label, cardType: v.cardType, byMonth: Object.fromEntries(months.map(m => [m, 0])), total: 0 });
-    }
-
+    // 거래마다 병합 그룹 키 결정:
+    //   1) 끝 4자리가 있으면 'l4:<숫자4>' — 카드사·card_id 달라도 같은 물리 카드로 병합
+    //   2) 없으면 기존 방식(card_id 우선, 없으면 card_name)
+    type Group = {
+      label: string;
+      cardType: string | null;
+      byMonth: Record<string, number>;
+      total: number;
+      variants: Set<string>;     // 병합된 원본 라벨들
+      hasRegistered: boolean;    // 등록 카드명 우선 표기용
+    };
+    const perCard = new Map<string, Group>();
     const totals: Record<string, number> = Object.fromEntries(months.map(m => [m, 0]));
+
+    const ensureGroup = (key: string): Group => {
+      let g = perCard.get(key);
+      if (!g) {
+        g = { label: '', cardType: null, byMonth: Object.fromEntries(months.map(m => [m, 0])), total: 0, variants: new Set(), hasRegistered: false };
+        perCard.set(key, g);
+      }
+      return g;
+    };
+
     for (const t of tx) {
       const month = String(t.transaction_date || '').slice(0, 7);
       if (!months.includes(month)) continue;
-      const key = t.card_id && cardKeys.has(t.card_id) ? t.card_id : (t.card_id || t.card_name || '미지정');
       const amt = Number(t.amount || 0);
-      const card = perCard.get(key);
-      if (card) {
-        card.byMonth[month] = (card.byMonth[month] || 0) + amt;
-        card.total += amt;
-      }
       totals[month] = (totals[month] || 0) + amt;
+
+      const reg = t.card_id ? regCard.get(t.card_id) : undefined;
+      const baseLabel = reg?.label || t.card_name || '미지정 카드';
+      const cardType = reg?.cardType ?? null;
+      const last4 = (reg?.last4) || last4Of(t.card_name);
+      const groupKey = last4 ? `l4:${last4}` : (t.card_id || t.card_name || '미지정');
+
+      const g = ensureGroup(groupKey);
+      g.byMonth[month] = (g.byMonth[month] || 0) + amt;
+      g.total += amt;
+      g.variants.add(baseLabel);
+      if (reg) {
+        g.hasRegistered = true;
+        // 등록 카드명을 대표 라벨로 우선
+        if (!g.label || !g.label.startsWith('★')) g.label = reg.label;
+        if (cardType) g.cardType = cardType;
+      } else if (!g.label) {
+        g.label = baseLabel;
+      }
     }
+
+    // 거래는 없지만 등록된 카드도 0원 행으로 노출 (기존 동작 유지)
+    (cards as any[]).forEach((c: any) => {
+      const last4 = regCard.get(c.id)?.last4;
+      const groupKey = last4 ? `l4:${last4}` : c.id;
+      if (!perCard.has(groupKey)) {
+        const g = ensureGroup(groupKey);
+        g.label = c.card_name;
+        g.cardType = c.card_type || null;
+        g.hasRegistered = true;
+        g.variants.add(c.card_name);
+      }
+    });
 
     const monthMax = Math.max(1, ...months.map(m => totals[m] || 0));
     return { perCard, totals, monthMax };
@@ -369,15 +415,28 @@ export function CardMonthlyUsage({ companyId }: Props) {
               <tbody>
                 {sortedCards.map(c => {
                   const meta = c.cardType ? CARD_TYPE_META[c.cardType] : null;
+                  const variantCount = c.variants ? c.variants.size : 1;
+                  const last4 = c.key.startsWith('l4:') ? c.key.slice(3) : null;
                   return (
                   <tr key={c.key} className="border-b border-[var(--border)]/40">
-                    <td className="px-2 py-1.5 truncate max-w-[160px]">
+                    <td className="px-2 py-1.5 truncate max-w-[180px]">
                       {meta && (
                         <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold mr-1 align-middle" style={{ background: meta.bg, color: meta.color }}>
                           {meta.label}
                         </span>
                       )}
                       <span className="text-[var(--text)]">{c.label}</span>
+                      {last4 && (
+                        <span className="ml-1 text-[9px] text-[var(--text-dim)] mono-number">··{last4}</span>
+                      )}
+                      {variantCount > 1 && (
+                        <span
+                          className="ml-1 inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold bg-[var(--primary)]/10 text-[var(--primary)] align-middle"
+                          title={`끝 4자리(${last4 || '동일'})가 같은 ${variantCount}개 카드 표기를 합산 표시: ${Array.from(c.variants).join(', ')}`}
+                        >
+                          병합 {variantCount}
+                        </span>
+                      )}
                     </td>
                     {months.map(m => {
                       const v = c.byMonth[m] || 0;
