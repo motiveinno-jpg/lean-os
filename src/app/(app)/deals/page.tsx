@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getDeals, getPartnerDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, getMilestones, getSubDeals, getAssignments, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal } from "@/lib/queries";
+import { getCurrentUser, getDeals, getPartnerDeals, getDealClassifications, getDealMatchingStatuses, getDealWithNodes, getMilestones, getSubDeals, getAssignments, getChannelByDeal, getMessages, getDormantDeals, reactivateDeal, getCompanyUsers } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { sendMessage, createChannel } from "@/lib/chat";
 import { ClassificationBadge } from "@/components/classification-badge";
@@ -253,9 +253,136 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
       {(data?.costs || []).length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">비용 내역</h2><span className="text-xs text-red-400 font-bold">₩{totalCost.toLocaleString()}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-4 py-2 font-medium">항목</th><th className="text-left px-4 py-2 font-medium">카테고리</th><th className="text-right px-4 py-2 font-medium">금액</th><th className="text-center px-4 py-2 font-medium">상태</th><th className="text-left px-4 py-2 font-medium">예정일</th></tr></thead><tbody>{(data?.costs || []).map((c: any) => (<tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"><td className="px-4 py-2.5 font-medium">{c.label || c.category || '비용'}</td><td className="px-4 py-2.5 text-[var(--text-muted)]">{c.category || '—'}</td><td className="px-4 py-2.5 text-right font-bold text-red-400">₩{Number(c.amount || 0).toLocaleString()}</td><td className="px-4 py-2.5 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.status === 'paid' ? 'bg-green-500/10 text-green-400' : c.status === 'confirmed' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>{c.status === 'paid' ? '지급완료' : c.status === 'confirmed' ? '확정' : '예정'}</span></td><td className="px-4 py-2.5 text-[var(--text-dim)]">{c.due_date || '—'}</td></tr>))}</tbody></table></div></div>)}
       {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">서브딜 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
-      {assignments.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">담당자</h2></div><div className="divide-y divide-[var(--border)]/50">{assignments.map((a: any) => (<div key={a.id} className="flex items-center justify-between px-5 py-3"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">{(a.users?.name || a.users?.email || '?')[0]}</div><span className="text-sm">{a.users?.name || a.users?.email}</span></div><span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.role === 'manager' ? '담당자' : a.role === 'reviewer' ? '검토자' : '참여자'}</span></div>))}</div></div>)}
+      <DealAssigneesPanel dealId={dealId} companyId={companyId} assignments={assignments} canEdit={!isPartnerView} />
       <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
       <DealChatWithFiles dealId={dealId} companyId={companyId} userId={userId} dealChannel={dealChannel} createChannelMut={createChannelMut} recentMessages={recentMessages} chatMsg={chatMsg} setChatMsg={setChatMsg} sendChatMut={sendChatMut} />
+    </div>
+  );
+}
+
+// ── Deal Assignees (deal_assignments add/remove UI) ──
+
+const ASSIGNEE_ROLE_LABEL: Record<string, string> = { manager: '담당자', reviewer: '검토자', participant: '참여자' };
+
+function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealId: string; companyId: string | null; assignments: any[]; canEdit: boolean }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch] = useState('');
+  const [pendingRole, setPendingRole] = useState<'manager' | 'reviewer' | 'participant'>('manager');
+
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ['company-users', companyId],
+    queryFn: () => getCompanyUsers(companyId!),
+    enabled: !!companyId && showAdd,
+  });
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ['assignments', dealId] });
+    queryClient.invalidateQueries({ queryKey: ['all-deal-assignments', companyId] });
+  }
+
+  const addMut = useMutation({
+    mutationFn: async (userId: string) => {
+      const db2 = supabase as any;
+      const { error } = await db2.from('deal_assignments').insert({
+        deal_id: dealId,
+        user_id: userId,
+        role: pendingRole,
+        is_active: true,
+        assigned_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidate(); setShowAdd(false); setSearch(''); toast('담당자가 추가되었습니다', 'success'); },
+    onError: (err: any) => toast(`담당자 추가 실패: ${err?.message || '알 수 없는 오류'}`, 'error'),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const db2 = supabase as any;
+      const { error } = await db2.from('deal_assignments')
+        .update({ is_active: false, removed_at: new Date().toISOString() })
+        .eq('id', assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidate(); toast('담당자가 제거되었습니다', 'success'); },
+    onError: (err: any) => toast(`담당자 제거 실패: ${err?.message || '알 수 없는 오류'}`, 'error'),
+  });
+
+  const assignedUserIds = new Set(assignments.map((a: any) => a.user_id));
+  const filteredUsers = companyUsers.filter((u: any) => {
+    if (assignedUserIds.has(u.id)) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6">
+      <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <h2 className="text-sm font-bold">담당자 {assignments.length > 0 && <span className="text-xs text-[var(--text-dim)] font-normal">({assignments.length})</span>}</h2>
+        {canEdit && (
+          <button onClick={() => setShowAdd(true)} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition">+ 담당자 추가</button>
+        )}
+      </div>
+      {assignments.length === 0 ? (
+        <div className="px-5 py-6 text-center text-xs text-[var(--text-dim)]">지정된 담당자가 없습니다{canEdit ? ' — 담당자 추가 버튼으로 지정하세요' : ''}</div>
+      ) : (
+        <div className="divide-y divide-[var(--border)]/50">
+          {assignments.map((a: any) => (
+            <div key={a.id} className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">{(a.users?.name || a.users?.email || '?')[0]}</div>
+                <span className="text-sm">{a.users?.name || a.users?.email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{ASSIGNEE_ROLE_LABEL[a.role] || a.role}</span>
+                {canEdit && (
+                  <button onClick={() => { if (confirm(`${a.users?.name || a.users?.email || '담당자'}을(를) 이 딜에서 제거하시겠습니까?`)) removeMut.mutate(a.id); }} disabled={removeMut.isPending} className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded transition disabled:opacity-50" title="담당자 제거">제거</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setSearch(''); }}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 className="text-sm font-bold">담당자 추가</h3>
+              <button onClick={() => { setShowAdd(false); setSearch(''); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">역할</label>
+                <div className="flex gap-2">
+                  {(['manager', 'reviewer', 'participant'] as const).map((r) => (
+                    <button key={r} onClick={() => setPendingRole(r)} className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${pendingRole === r ? 'bg-[var(--primary)]/10 border-[var(--primary)]/50 text-[var(--primary)]' : 'bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]'}`}>{ASSIGNEE_ROLE_LABEL[r]}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5">직원/유저 선택</label>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="이름 또는 이메일로 검색..." className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+                <div className="mt-2 max-h-60 overflow-y-auto border border-[var(--border)] rounded-lg divide-y divide-[var(--border)]/50">
+                  {filteredUsers.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-[var(--text-dim)]">선택 가능한 유저가 없습니다</div>
+                  ) : filteredUsers.map((u: any) => (
+                    <button key={u.id} onClick={() => addMut.mutate(u.id)} disabled={addMut.isPending} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--bg-surface)] transition disabled:opacity-50">
+                      <div className="w-7 h-7 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">{(u.name || u.email || '?')[0]}</div>
+                      <div className="min-w-0">
+                        <div className="text-sm truncate">{u.name || u.email}</div>
+                        {u.name && <div className="text-[10px] text-[var(--text-dim)] truncate">{u.email}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
