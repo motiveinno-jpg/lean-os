@@ -1518,7 +1518,11 @@ export async function getBankTransactions(companyId: string, filters?: {
     .from('bank_transactions')
     .select('*, deals(name), bank_accounts(alias, bank_name)')
     .eq('company_id', companyId)
-    .order('transaction_date', { ascending: false });
+    // 같은 날짜는 은행 거래시각(trTime, HHMMSS) → 입력시각 순. created_at(DB 입력시각)은
+    // CODEF sync 가 임의 순서로 넣어 신뢰 불가 → 잔액 컬럼이 뒤죽박죽 보이던 원인.
+    .order('transaction_date', { ascending: false })
+    .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false });
 
   if (filters?.status) q = q.eq('mapping_status', filters.status);
   if (filters?.type) q = q.eq('type', filters.type);
@@ -1546,7 +1550,9 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .select('raw_data, balance_after, transaction_date, created_at')
       .eq('company_id', companyId)
       .eq('source', 'codef_bank')
+      // 최신 잔액 = (날짜, 은행 거래시각 trTime, 입력시각) 가 가장 큰 거래의 balance_after
       .order('transaction_date', { ascending: false })
+      .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(5000),
     supabase
@@ -1554,14 +1560,26 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .select('account_number, alias, bank_name, balance')
       .eq('company_id', companyId),
   ]);
-  // tx 별 count + 최신 잔액 계산
+  // tx 별 count + 최신 잔액 계산.
+  // 최신 = (transaction_date, raw_data.trTime, created_at) 가 가장 큰 거래의 balance_after.
+  // PostgREST jsonb 정렬에 의존하지 않고 JS 에서 명시적으로 max 계산 (정확성 보장).
   const countByAcct = new Map<string, number>();
   const latestBalanceByAcct = new Map<string, number>();
+  const latestKeyByAcct = new Map<string, string>();
   for (const row of (txs || []) as any[]) {
     const acct = row.raw_data?.accountNo;
     if (!acct) continue;
     countByAcct.set(acct, (countByAcct.get(acct) || 0) + 1);
-    if (!latestBalanceByAcct.has(acct)) latestBalanceByAcct.set(acct, Number(row.balance_after || 0));
+    const sortKey = [
+      String(row.transaction_date || ''),
+      String(row.raw_data?.trTime || ''),
+      String(row.created_at || ''),
+    ].join('|');
+    const prev = latestKeyByAcct.get(acct);
+    if (prev === undefined || sortKey > prev) {
+      latestKeyByAcct.set(acct, sortKey);
+      latestBalanceByAcct.set(acct, Number(row.balance_after || 0));
+    }
   }
   // bank_accounts 정보 매핑 — 통장 list 의 source. 거래 0건이어도 표시하기 위해.
   const acctInfo = new Map<string, { alias?: string; bankName?: string; balance: number }>();

@@ -721,7 +721,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     const dir = bankSortDir === 'asc' ? 1 : -1;
     xs = [...xs].sort((a, b) => {
       if (bankSortBy === 'transaction_date') {
-        return String(a.transaction_date || '').localeCompare(String(b.transaction_date || '')) * dir;
+        // 날짜 동일 시 은행 거래시각(trTime) → 입력시각 순으로 tiebreak (잔액 순서 정확)
+        const dCmp = String(a.transaction_date || '').localeCompare(String(b.transaction_date || ''));
+        if (dCmp !== 0) return dCmp * dir;
+        const tCmp = String(a.raw_data?.trTime || '').localeCompare(String(b.raw_data?.trTime || ''));
+        if (tCmp !== 0) return tCmp * dir;
+        return String(a.created_at || '').localeCompare(String(b.created_at || '')) * dir;
       }
       return String(a.counterparty || '').localeCompare(String(b.counterparty || ''), 'ko') * dir;
     });
@@ -737,7 +742,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     const dir = cardSortDir === 'asc' ? 1 : -1;
     xs = [...xs].sort((a: any, b: any) => {
       if (cardSortBy === 'transaction_date') {
-        return String(a.transaction_date || '').localeCompare(String(b.transaction_date || '')) * dir;
+        const dCmp = String(a.transaction_date || '').localeCompare(String(b.transaction_date || ''));
+        if (dCmp !== 0) return dCmp * dir;
+        return String(a.created_at || '').localeCompare(String(b.created_at || '')) * dir;
       }
       if (cardSortBy === 'amount') {
         return (Math.abs(Number(a.amount || 0)) - Math.abs(Number(b.amount || 0))) * dir;
