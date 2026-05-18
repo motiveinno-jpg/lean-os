@@ -771,6 +771,22 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ═══ 출/퇴근 · 전자결재 위젯 (기존 카드 컴포넌트 재사용) ═══ */}
+      {((isWidgetVisible('my_attendance') || isWidgetVisible('my_approvals')) && companyId && userId) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          {isWidgetVisible('my_attendance') && (
+            <div id="widget-my_attendance">
+              <MyAttendanceCard companyId={companyId} userId={userId} />
+            </div>
+          )}
+          {isWidgetVisible('my_approvals') && (
+            <div id="widget-my_approvals">
+              <QuickApprovalCard companyId={companyId} userId={userId} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ═══ [Grid 2열] 좌: 승인+액션 | 우: 펄스+위험 ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* ── 좌측 칼럼: 즉시 행동 영역 ── */}
