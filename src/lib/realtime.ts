@@ -134,6 +134,82 @@ export function subscribeToMentions(
   return channel;
 }
 
+// ── Subscribe to bank_transactions changes for a company ──
+// 통장 거래 INSERT/UPDATE/DELETE 실시간 구독. CODEF sync 가 새 거래를 적재하면
+// 페이지가 즉시 반영. 호출자는 반환된 channel 을 supabase.removeChannel 로 정리할 것.
+export function subscribeToBankTransactions(
+  companyId: string,
+  onChange: (payload: any) => void
+): RealtimeChannel {
+  const channel = supabase
+    .channel(`bank-tx-${companyId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bank_transactions',
+        filter: `company_id=eq.${companyId}`,
+      },
+      (payload) => {
+        onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return channel;
+}
+
+// ── Subscribe to bank_accounts changes for a company ──
+// 통장 잔액(balance) UPDATE 가 발생하면 대시보드 cash-pulse 등 잔액 위젯 즉시 갱신.
+export function subscribeToBankAccounts(
+  companyId: string,
+  onChange: (payload: any) => void
+): RealtimeChannel {
+  const channel = supabase
+    .channel(`bank-acc-${companyId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bank_accounts',
+        filter: `company_id=eq.${companyId}`,
+      },
+      (payload) => {
+        onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return channel;
+}
+
+// ── Subscribe to card_transactions changes for a company ──
+// 카드 거래 INSERT/UPDATE/DELETE 실시간 구독. CODEF 카드 sync 결과 즉시 반영.
+export function subscribeToCardTransactions(
+  companyId: string,
+  onChange: (payload: any) => void
+): RealtimeChannel {
+  const channel = supabase
+    .channel(`card-tx-${companyId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'card_transactions',
+        filter: `company_id=eq.${companyId}`,
+      },
+      (payload) => {
+        onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return channel;
+}
+
 // ── Unsubscribe from a channel ──
 export function unsubscribe(channel: RealtimeChannel) {
   supabase.removeChannel(channel);
