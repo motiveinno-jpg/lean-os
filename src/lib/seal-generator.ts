@@ -1,16 +1,16 @@
 // 회사 직인 자동 생성기 — Canvas 로 한국식 도장 PNG 생성.
-// 기본(corporate)은 실제 한국 법인인감도장 형식:
-//  - 인주 빨강 "정사각형" 이중 테두리 (법인인감은 둥근 직인이 아니라 사각 도장)
-//  - 세로쓰기 글자를 오른쪽→왼쪽 열로 배치(전통 인장 판독 방향)
-//  - 오른쪽 열: 회사명(세로), 왼쪽 열: "代表理事之印" 등 직책+之印
-//  - 열 사이 칸 구분선(전각 인장의 새김 칸)
+// 기본(corporate)은 실제 한국 법인 대표이사 인감도장 형식 (직원 예시 이미지
+// 직인예시-2-카드재첨부.png 기준):
+//  - 인주 빨강 "이중 원형" 테두리 (원형 — 사각 아님)
+//  - 회사명(주식회사 포함 전체)을 바깥 링을 따라 원호(arc)로 빙 둘러 배열
+//  - 중앙 소원(小圓) 안에 직책 한자 「代表理事」 2x2 세로쓰기(우→좌)
 // 기존 variant(double/single/square) 는 그대로 유지 — 기존 데이터/옵션 보존.
 
 export interface SealOptions {
   size?: number; // PX, 정사각형 (default 400)
   color?: string; // hex (default 인주 빨강 #C0392B)
   /**
-   * - corporate: 실제 한국 법인인감도장 (정사각 이중테두리 + 세로쓰기 열) — 기본값
+   * - corporate: 한국 법인 대표이사 인감 (이중 원형 + 회사명 원호 + 중앙 代表理事) — 기본값
    * - double:    이중 원형 + 중앙 회사명
    * - single:    단일 원형 + 중앙 회사명
    * - square:    사각 테두리 + 중앙 회사명
@@ -69,7 +69,9 @@ export async function generateCompanySeal(
   const cleaned = cleanCompanyName(companyName) || companyName?.trim() || "회사";
 
   if (variant === "corporate") {
-    drawCorporateSeal(ctx, { size, cx, cy, color, name: cleaned, title });
+    // corporate 는 링에 회사명 전체(주식회사 포함)를 두름 — prefix 제거 안 함.
+    const fullName = (companyName || "").trim().replace(/\s+/g, "") || cleaned;
+    drawCorporateSeal(ctx, { size, cx, cy, color, name: fullName, title });
   } else if (variant === "square") {
     drawSquareSeal(ctx, { size, cx, cy, color, name: cleaned });
   } else {
@@ -98,98 +100,104 @@ interface DrawCtx {
   double?: boolean;
 }
 
-/** 직책 → 법인인감 좌측 열 문구 (전통 한자 표기 우선, 미매핑 직책은 한글+印) */
-function sealPhrase(title: string): string {
+/** 직책 → 중앙 한자 (代表理事 등). 미매핑 직책은 한글 원문 그대로 세로. */
+function titleHanja(title: string): string {
   const t = (title || "대표이사").replace(/\s+/g, "");
   switch (t) {
     case "대표이사":
     case "代表理事":
-      return "代表理事之印";
+      return "代表理事";
     case "이사장":
-      return "理事長之印";
+      return "理事長";
     case "대표":
-      return "代表之印";
+      return "代表";
     case "사장":
-      return "社長之印";
+      return "社長";
     case "회장":
-      return "會長之印";
+      return "會長";
     default:
-      return t + "印";
+      return t;
   }
 }
 
 /**
- * 실제 한국 법인인감도장 — 정사각 이중 테두리 + 세로쓰기 열(오른→왼).
- *  · 오른쪽 열: 회사명(길면 2열로 분할), 세로 1자씩
- *  · 가장 왼쪽 열: "代表理事之印" 등 직책+之印
- *  · 열 사이 칸 구분선 — 전각 인장의 새김 칸 느낌
- * 법인등기소 인감(사각 도장)과 동일한 판독 방향/레이아웃.
+ * 한국 법인 대표이사 인감 (직원 예시 직인예시-2-카드재첨부.png 기준):
+ *  ① 이중 원형 테두리(원형 — 사각 아님)
+ *  ② 회사명(주식회사 포함 전체)을 바깥 링 따라 원호로 빙 둘러 배열
+ *  ③ 중앙 소원 안 직책 한자 「代表理事」 2x2 세로쓰기(우→좌)
  */
 function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
-  const { size, color, name } = d;
-  const title = d.title || "대표이사";
+  const { size, cx, cy, color } = d;
+  const name = (d.name || "회사").replace(/\s+/g, "");
+  const center = titleHanja(d.title || "대표이사");
 
-  // ── 정사각 이중 테두리 (법인인감은 원형 아닌 사각 도장) ──
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
-  ctx.lineJoin = "miter";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
-  const pad = size * 0.055;
-  ctx.lineWidth = size * 0.05;
-  ctx.strokeRect(pad, pad, size - pad * 2, size - pad * 2);
+  // ── ① 이중 원형 테두리 ──
+  const outerR = size * 0.47;
+  const innerR = size * 0.40;
+  ctx.lineWidth = size * 0.022;
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = size * 0.011;
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  ctx.stroke();
 
-  const ip = size * 0.105;
-  ctx.lineWidth = size * 0.013;
-  ctx.strokeRect(ip, ip, size - ip * 2, size - ip * 2);
-
-  // ── 열 구성 (오른쪽이 첫 열) ──
-  const nameChars = Array.from((name || "회사").replace(/\s+/g, ""));
-  const phraseChars = Array.from(sealPhrase(title));
-  const columns: string[][] = [];
-  if (nameChars.length > 5) {
-    const mid = Math.ceil(nameChars.length / 2);
-    columns.push(nameChars.slice(0, mid)); // 오른쪽 첫 열
-    columns.push(nameChars.slice(mid));    // 그 왼쪽 열
-  } else {
-    columns.push(nameChars);
+  // ── ② 회사명 — 바깥 링 따라 원호 배열 (12시에서 시계방향, 글자머리 바깥) ──
+  const chars = Array.from(name);
+  if (chars.length > 0) {
+    const textR = (outerR + innerR) / 2;
+    // 글자가 링을 꽉 채우되 과밀하지 않게: 최대 가독 글자수 기준 폰트 산정.
+    const anglePer = (Math.PI * 2) / Math.max(chars.length, 8);
+    const fontSize = Math.min(size * 0.13, textR * anglePer * 1.5);
+    ctx.font = `900 ${Math.round(fontSize)}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    chars.forEach((ch, i) => {
+      // 12시(-π/2) 시작, 시계방향. 글자머리가 바깥(반경 방향)을 향하게 회전.
+      const ang = -Math.PI / 2 + i * anglePer;
+      const x = cx + Math.cos(ang) * textR;
+      const y = cy + Math.sin(ang) * textR;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang + Math.PI / 2);
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+    });
   }
-  columns.push(phraseChars); // 가장 왼쪽: 직책 + 之印
 
-  const innerLeft = ip + size * 0.028;
-  const innerRight = size - ip - size * 0.028;
-  const innerTop = ip + size * 0.04;
-  const innerBottom = size - ip - size * 0.04;
-  const usableW = innerRight - innerLeft;
-  const usableH = innerBottom - innerTop;
-  const colCount = columns.length;
-  const colW = usableW / colCount;
+  // ── ③ 중앙 소원 + 직책 한자 세로쓰기(우→좌) ──
+  const centerR = size * 0.165;
+  ctx.lineWidth = size * 0.011;
+  ctx.beginPath();
+  ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+  ctx.stroke();
 
+  const cc = Array.from(center);
   ctx.fillStyle = color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
-  columns.forEach((colChars, ci) => {
-    // 오른쪽(ci=0)부터 왼쪽으로
-    const colCenterX = innerRight - colW * (ci + 0.5);
-    const n = Math.max(colChars.length, 1);
-    const cellH = usableH / n;
-    const fs = Math.min(colW * 0.84, cellH * 0.86);
-    ctx.font = `900 ${Math.round(fs)}px ${FONT_STACK}`;
-    colChars.forEach((ch, ri) => {
-      const y = innerTop + cellH * (ri + 0.5);
-      ctx.fillText(ch, colCenterX, y);
-    });
-  });
-
-  // ── 열 구분 세로선 (인장 새김 칸) ──
-  ctx.strokeStyle = color;
-  ctx.lineWidth = size * 0.007;
-  for (let i = 1; i < colCount; i++) {
-    const lx = innerRight - colW * i;
-    ctx.beginPath();
-    ctx.moveTo(lx, innerTop);
-    ctx.lineTo(lx, innerBottom);
-    ctx.stroke();
+  if (cc.length === 4) {
+    // 2x2 — 우열(代,表) 상→하, 좌열(理,事) 상→하  ⇒ 代表理事 (우→좌 판독)
+    const fs = Math.round(centerR * 0.62);
+    ctx.font = `900 ${fs}px ${FONT_STACK}`;
+    const dx = centerR * 0.42, dy = centerR * 0.42;
+    ctx.fillText(cc[0], cx + dx, cy - dy);
+    ctx.fillText(cc[1], cx + dx, cy + dy);
+    ctx.fillText(cc[2], cx - dx, cy - dy);
+    ctx.fillText(cc[3], cx - dx, cy + dy);
+  } else {
+    // 그 외: 단일 세로열 중앙 정렬
+    const fs = Math.round(Math.min(centerR * 0.7, (centerR * 1.7) / Math.max(cc.length, 1)));
+    ctx.font = `900 ${fs}px ${FONT_STACK}`;
+    const lh = fs * 1.05;
+    const startY = cy - (lh * (cc.length - 1)) / 2;
+    cc.forEach((ch, i) => ctx.fillText(ch, cx, startY + i * lh));
   }
 }
 
