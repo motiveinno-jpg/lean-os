@@ -13,12 +13,19 @@ export default function AttendancePage() {
   const userEmail = user?.email ?? null;
   const queryClient = useQueryClient();
 
+  // P1 데이터 노출 차단(/leave a9e7b09 와 동일 패턴): 직원 역할이 select("*")
+  //   로 전 직원 급여·계좌·생년월일을 캐시로 끌어오던 문제. 근태 화면에 필요한
+  //   컬럼만(민감 PII 제외) + 캐시키를 /attendance 전용으로 분리해 타 화면
+  //   employees 캐시와 공유되지 않게 한다. AttendanceTab/QuickAttendanceButtons
+  //   이 읽는 컬럼: id·name·status·user_id·email (+department/position 비민감).
+  const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
+  const isEmployee = role === "employee";
   const { data: employees = [] } = useQuery({
-    queryKey: ["employees", companyId],
+    queryKey: ["attendance-employees", companyId, isEmployee ? "emp" : "mgr"],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("employees")
-        .select("*")
+        .select(isEmployee ? ATT_EMP_COLS : "*")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false });
       return data || [];
