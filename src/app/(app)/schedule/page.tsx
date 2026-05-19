@@ -83,6 +83,8 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
   const [scope, setScope] = useState<ScheduleScope>("shared");
   const [editingEvent, setEditingEvent] = useState<Partial<ScheduleEvent> | null>(null);
+  // R5: 일정 클릭 시 즉시 완료 토글 ❌ → 수정/완료 선택 팝업
+  const [actionEvent, setActionEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { data: events = [], isLoading } = useQuery({
@@ -269,12 +271,12 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                     return (
                       <div
                         key={`${e.id}-${dateStr}`}
-                        onClick={(ev) => { ev.stopPropagation(); toggleDoneMut.mutate({ id: e.id, completed: !e.completed }); }}
+                        onClick={(ev) => { ev.stopPropagation(); setActionEvent(e); }}
                         className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 border ${barShape} ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""}`}
                         title={
                           multi
-                            ? `${e.title} (${formatEventRange(e)})${e.completed ? " · 클릭하면 완료 취소" : " · 클릭하면 완료 처리"}`
-                            : e.completed ? "클릭하면 완료 취소" : "클릭하면 완료 처리"
+                            ? `${e.title} (${formatEventRange(e)}) · 클릭하면 수정/완료 선택`
+                            : "클릭하면 수정/완료 선택"
                         }
                       >
                         {showLabel ? (
@@ -322,6 +324,43 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           } : undefined}
           saving={saveMut.isPending}
         />
+      )}
+
+      {/* R5: 일정 클릭 → 수정/완료 선택 팝업 (즉시 완료 토글 방지) */}
+      {actionEvent && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setActionEvent(null)}
+        >
+          <div
+            className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-xs shadow-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-bold mb-1 truncate">{actionEvent.title}</div>
+            <div className="text-[11px] text-[var(--text-muted)] mb-4">{formatEventRange(actionEvent)}</div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { const ev = actionEvent; setActionEvent(null); setEditingEvent(ev); }}
+                className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition"
+              >
+                ✎ 수정
+              </button>
+              <button
+                onClick={() => { toggleDoneMut.mutate({ id: actionEvent.id, completed: !actionEvent.completed }); setActionEvent(null); }}
+                disabled={toggleDoneMut.isPending}
+                className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+              >
+                {actionEvent.completed ? "↩ 완료 취소" : "✓ 완료 처리"}
+              </button>
+              <button
+                onClick={() => setActionEvent(null)}
+                className="w-full px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] transition"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
