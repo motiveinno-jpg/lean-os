@@ -63,7 +63,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
             <div className="text-[10px] text-[var(--text-dim)]">자금 집행 결재</div>
           </div>
         </Link>
-        <Link href="/employees?tab=leave&new=1"
+        <Link href="/leave?new=1"
           className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition">
           <span className="text-lg">🏖</span>
           <div className="flex-1 min-w-0">

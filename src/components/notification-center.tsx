@@ -322,7 +322,7 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
       case "expense":
       case "expense_request": return "/approvals?tab=expense";
       case "leave":
-      case "leave_request": return "/employees?tab=leave";
+      case "leave_request": return "/leave";
       case "tax_invoice": return "/tax-invoices";
       case "cash_receipt": return "/cash-receipts";
       case "bank_transaction": return "/transactions";

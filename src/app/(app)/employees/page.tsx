@@ -4513,11 +4513,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 }
 
 // ── Leave Tab ──
-function LeaveTab({ employees, companyId, userId, queryClient, isEmployee }: any) {
+export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee, autoNew }: any) {
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(!!autoNew);
 
   // Auto-detect current user's employee record
   const myEmployee = isEmployee ? employees.find((e: any) => e.user_id === userId) : null;
