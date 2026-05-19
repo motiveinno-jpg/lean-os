@@ -3340,6 +3340,14 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       </div>
 
+      {/* R6: 내 할일 — 직원 대시보드엔 그동안 미노출(직원 "어디에서 확인???")
+          → 오늘 할 일 카드 바로 아래에 노출해 발견성 확보 */}
+      {userId && (
+        <div className="mb-4">
+          <MyTodosWidget userId={userId} />
+        </div>
+      )}
+
       {/* 전자결재 — 자주 쓰는 결재 빠른 작성 */}
       <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
         <div className="flex items-center justify-between mb-3">
