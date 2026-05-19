@@ -3000,20 +3000,6 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     enabled: !!employeeId,
   });
 
-  // 내 프로젝트 수
-  const { data: myDealCount = 0 } = useQuery({
-    queryKey: ["emp-deals", companyId],
-    queryFn: async () => {
-      const { count } = await db
-        .from("deals")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId!)
-        .in("status", ["active", "in_progress", "proposal", "negotiation"]);
-      return count ?? 0;
-    },
-    enabled: !!companyId,
-  });
-
   // 휴가 잔여
   const { data: leaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
@@ -3077,6 +3063,22 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       return data || [];
     },
     enabled: !!userId,
+  });
+
+  // 내게 온 서명 요청 대기 건수 (모두사인 스타일 inbox)
+  const { data: signPending = 0 } = useQuery({
+    queryKey: ["emp-sign-pending", employeeId],
+    queryFn: async () => {
+      if (!employeeId) return 0;
+      const { count } = await db
+        .from("hr_contract_packages")
+        .select("id", { count: "exact", head: true })
+        .eq("employee_id", employeeId)
+        .in("status", ["sent", "partially_signed"]);
+      return count ?? 0;
+    },
+    enabled: !!employeeId,
+    refetchInterval: 60_000,
   });
 
   // 출근/퇴근 처리
@@ -3169,111 +3171,153 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       </div>
 
-      {/* 출퇴근 + 전자결재 — 2열 grid */}
-      <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-      {/* 출퇴근 카드 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
-        <div className="flex items-center justify-between mb-3">
+      {/* ─ 오늘 할 일 — 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
+      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
-            <span className="text-sm font-bold text-[var(--text)]">
-              {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
-            </span>
+            <span className="text-base">✅</span>
+            <span className="text-sm font-bold text-[var(--text)]">오늘 할 일</span>
           </div>
-          {isCheckedIn && !isCheckedOut && (
-            <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in)}</span>
-          )}
+          <span className="text-xs text-[var(--text-dim)]">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</span>
         </div>
 
-        {/* 출근/퇴근 시간 표시 */}
-        <div className="flex items-center gap-6 mb-4">
-          <div>
-            <div className="text-[10px] text-[var(--text-dim)] mb-0.5">출근</div>
-            <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in)}</div>
+        {/* 출퇴근 — 빠른 기록 (상세 관리는 근태 페이지 한 곳에서) */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
+              <span className="text-sm font-bold text-[var(--text)]">
+                {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
+              </span>
+              {isCheckedIn && !isCheckedOut && (
+                <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in)}</span>
+              )}
+            </div>
+            <Link href="/attendance" className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition">근태 상세 →</Link>
           </div>
-          <div className="text-[var(--text-dim)]">→</div>
-          <div>
-            <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴근</div>
-            <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out)}</div>
-          </div>
-          {todayAttendance?.work_hours > 0 && (
-            <>
-              <div className="text-[var(--border)]">|</div>
-              <div>
-                <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근무시간</div>
-                <div className="text-lg font-black">{todayAttendance.work_hours}h</div>
-              </div>
-            </>
-          )}
-        </div>
 
-        {/* 근무 형태 선택 + 출근/퇴근 버튼 */}
-        {!isCheckedIn && (
-          <div className="flex gap-2 mb-3">
-            {([
-              { value: "present", label: "출근", activeClass: "bg-green-500/20 text-green-400 border border-green-500/40" },
-              { value: "remote", label: "재택", activeClass: "bg-blue-500/20 text-blue-400 border border-blue-500/40" },
-              { value: "half_day", label: "반차", activeClass: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40" },
-              { value: "absent", label: "결근", activeClass: "bg-red-500/20 text-red-400 border border-red-500/40" },
-            ] as const).map(({ value, label, activeClass }) => (
-              <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  attendanceStatus === value
-                    ? activeClass
-                    : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
-                }`}>
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-6 mb-3">
+            <div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">출근</div>
+              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in)}</div>
+            </div>
+            <div className="text-[var(--text-dim)]">→</div>
+            <div>
+              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴근</div>
+              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out)}</div>
+            </div>
+            {todayAttendance?.work_hours > 0 && (
+              <>
+                <div className="text-[var(--border)]">|</div>
+                <div>
+                  <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근무시간</div>
+                  <div className="text-lg font-black">{todayAttendance.work_hours}h</div>
+                </div>
+              </>
+            )}
           </div>
-        )}
-        <div className="flex gap-3">
-          {!isCheckedIn ? (
-            <button
-              onClick={handleCheckIn}
-              disabled={checkingIn}
-              className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
-            >
-              {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
-            </button>
-          ) : !isCheckedOut ? (
-            <button
-              onClick={handleCheckOut}
-              disabled={checkingOut}
-              className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
-            >
-              {checkingOut ? "처리 중..." : "퇴근하기"}
-            </button>
-          ) : (
-            <div className="flex gap-2 flex-1">
-              <div className="flex-1 py-3 rounded-xl bg-[var(--bg-surface)] text-center text-sm font-semibold text-[var(--text-muted)]">
-                오늘 근무 완료
-              </div>
+
+          {!isCheckedIn && (
+            <div className="flex gap-2 mb-3">
+              {([
+                { value: "present", label: "출근", activeClass: "bg-green-500/20 text-green-400 border border-green-500/40" },
+                { value: "remote", label: "재택", activeClass: "bg-blue-500/20 text-blue-400 border border-blue-500/40" },
+                { value: "half_day", label: "반차", activeClass: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40" },
+                { value: "absent", label: "결근", activeClass: "bg-red-500/20 text-red-400 border border-red-500/40" },
+              ] as const).map(({ value, label, activeClass }) => (
+                <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    attendanceStatus === value
+                      ? activeClass
+                      : "bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)]"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3">
+            {!isCheckedIn ? (
               <button
-                onClick={handleCancelCheckOut}
-                className="px-4 py-3 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold transition"
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
               >
-                퇴근 취소
+                {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
               </button>
+            ) : !isCheckedOut ? (
+              <button
+                onClick={handleCheckOut}
+                disabled={checkingOut}
+                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
+              >
+                {checkingOut ? "처리 중..." : "퇴근하기"}
+              </button>
+            ) : (
+              <div className="flex gap-2 flex-1">
+                <div className="flex-1 py-3 rounded-xl bg-[var(--bg-card)] text-center text-sm font-semibold text-[var(--text-muted)]">
+                  오늘 근무 완료
+                </div>
+                <button
+                  onClick={handleCancelCheckOut}
+                  className="px-4 py-3 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold transition"
+                >
+                  퇴근 취소
+                </button>
+              </div>
+            )}
+          </div>
+
+          {monthSummary && (
+            <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
+              <span>이번 달: 출근 <b className="text-[var(--text)]">{monthSummary.totalDays}일</b></span>
+              <span>근무 <b className="text-[var(--text)]">{monthSummary.totalHours}h</b></span>
+              {monthSummary.overtimeHours > 0 && (
+                <span>초과 <b className="text-orange-500">{monthSummary.overtimeHours}h</b></span>
+              )}
             </div>
           )}
         </div>
 
-        {/* 이번 달 요약 */}
-        {monthSummary && (
-          <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
-            <span>이번 달: 출근 <b className="text-[var(--text)]">{monthSummary.totalDays}일</b></span>
-            <span>근무 <b className="text-[var(--text)]">{monthSummary.totalHours}h</b></span>
-            {monthSummary.overtimeHours > 0 && (
-              <span>초과 <b className="text-orange-500">{monthSummary.overtimeHours}h</b></span>
-            )}
-          </div>
-        )}
+        {/* 처리 대기 4종 — 승인/서명/휴가/경비 한눈에 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <Link href="/approvals" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
+            <div className="flex items-center justify-between">
+              <span className="text-base">📝</span>
+              {pendingCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-orange-500 text-white text-[9px] font-bold rounded-full">{pendingCount}</span>}
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">승인 대기</div>
+            <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: pendingCount > 0 ? "var(--warning)" : undefined }}>{pendingCount}건</div>
+          </Link>
+          <Link href="/my-contracts" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
+            <div className="flex items-center justify-between">
+              <span className="text-base">✍️</span>
+              {signPending > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{signPending}</span>}
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">서명 요청</div>
+            <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: signPending > 0 ? "var(--primary)" : undefined }}>{signPending}건</div>
+          </Link>
+          <Link href="/leave" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
+            <div className="flex items-center justify-between">
+              <span className="text-base">🏖️</span>
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">휴가 잔여</div>
+            <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{leaveBalance ? `${leaveBalance.remaining}일` : "—"}</div>
+            {leaveBalance && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>}
+          </Link>
+          <Link href="/approvals?new=expense" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
+            <div className="flex items-center justify-between">
+              <span className="text-base">🧾</span>
+              {expenseCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{expenseCount}</span>}
+            </div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">경비 청구</div>
+            <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{expenseCount}건</div>
+          </Link>
+        </div>
       </div>
 
-      {/* 전자결재 카드 — 출퇴근 카드 옆 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+      {/* 전자결재 — 자주 쓰는 결재 빠른 작성 */}
+      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
@@ -3308,7 +3352,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               <div className="text-[10px] text-[var(--text-dim)]">자금 집행 결재</div>
             </div>
           </Link>
-          <Link href="/employees?tab=leave&new=1"
+          <Link href="/leave?new=1"
             className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition group">
             <span className="text-lg">🏖</span>
             <div className="flex-1 min-w-0">
@@ -3331,49 +3375,6 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       </div>
 
-      {/* 출퇴근 + 전자결재 grid 닫기 */}
-      </div>
-
-      {/* 핵심 지표 2x2 — 동적 데이터 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
-        <Link href="/deals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-          <div className="text-xl md:text-2xl mb-1.5">📋</div>
-          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">내 프로젝트</div>
-          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{myDealCount}건</div>
-        </Link>
-        <Link href="/employees" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-          <div className="text-xl md:text-2xl mb-1.5">🏖️</div>
-          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">휴가 잔여</div>
-          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">
-            {leaveBalance ? `${leaveBalance.remaining}일` : "—"}
-          </div>
-          {leaveBalance && (
-            <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>
-          )}
-          <div className="text-[8px] text-[var(--text-dim)] mt-1 opacity-70">인력관리 → 휴가 탭에서 신청</div>
-        </Link>
-        <Link href="/approvals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-          <div className="text-xl md:text-2xl mb-1.5 relative">
-            🧾
-            {expenseCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--primary)] text-white text-[8px] font-bold rounded-full px-0.5">{expenseCount}</span>
-            )}
-          </div>
-          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">경비 청구</div>
-          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition">{expenseCount}건</div>
-        </Link>
-        <Link href="/approvals" className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-          <div className="text-xl md:text-2xl mb-1.5 relative">
-            📝
-            {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center bg-orange-500 text-white text-[8px] font-bold rounded-full px-0.5">{pendingCount}</span>
-            )}
-          </div>
-          <div className="text-[10px] md:text-xs text-[var(--text-dim)]">승인 대기</div>
-          <div className="text-base md:text-lg font-bold mt-0.5 group-hover:text-[var(--primary)] transition" style={{ color: pendingCount > 0 ? "var(--warning)" : undefined }}>{pendingCount}건</div>
-        </Link>
-      </div>
-
       {/* 이번 달 급여 */}
       <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5">
         <div className="flex items-center justify-between mb-2">
@@ -3381,7 +3382,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             <span className="text-base">💰</span>
             <span className="text-xs font-bold text-[var(--text)]">이번 달 급여</span>
           </div>
-          <Link href="/employees" className="text-[10px] text-[var(--primary)] font-semibold hover:underline">상세 보기 →</Link>
+          <Link href="/payslip" className="text-[10px] text-[var(--primary)] font-semibold hover:underline">명세서 / PDF →</Link>
         </div>
         {myPayroll ? (
           <div className="flex items-end gap-6">
@@ -3442,7 +3443,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화" },
             { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명" },
             { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리" },
-            { href: "/employees", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
+            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
           ].map(card => (
             <Link key={card.href} href={card.href}
               className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
