@@ -301,10 +301,12 @@ function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealI
           const { data: deal } = await db2.from('deals').select('name').eq('id', dealId).maybeSingle();
           const dealName = deal?.name || '프로젝트';
           const roleLabel = ASSIGNEE_ROLE_LABEL[pendingRole] || '담당자';
+          // V2: 'deal' 은 notifications_type_check 비허용 → INSERT 23514 실패가
+          //   catch 로 삼켜져 알림이 안 떴음. 허용 타입 'deal_update' 사용.
           await createNotification({
             companyId,
             userId,
-            type: 'deal',
+            type: 'deal_update',
             title: `${dealName} ${roleLabel}로 지정되었습니다`,
             message: `${dealName} 프로젝트의 ${roleLabel}로 지정되었습니다.`,
             entityType: 'deal',
