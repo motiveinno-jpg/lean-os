@@ -94,7 +94,6 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
     "/team",           // 팀 디렉토리 (직원용 read-only)
     "/attendance",     // 근태 / 출퇴근
     "/leave",          // 휴가 신청 (전용 라우트 — '인력관리>휴가 탭' 동선 미로 해소)
-    "/payslip",        // 급여명세서 열람·PDF 다운로드
     "/employees",      // 경비청구·증명서 딥링크 fallback (사이드바 미노출)
     "/documents",      // 서류 / 계약서 / 서명
     "/signatures",     // 전자계약 (서명 진행)

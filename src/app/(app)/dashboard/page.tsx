@@ -3416,7 +3416,6 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             <span className="text-base">💰</span>
             <span className="text-xs font-bold text-[var(--text)]">이번 달 급여</span>
           </div>
-          <Link href="/payslip" className="text-[10px] text-[var(--primary)] font-semibold hover:underline">명세서 / PDF →</Link>
         </div>
         {myPayroll ? (
           <div className="flex items-end gap-6">

@@ -89,7 +89,6 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "근태 / 출퇴근", icon: "clock" },
       { href: "/leave", label: "휴가 신청", icon: "umbrella" },
       { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
-      { href: "/payslip", label: "급여명세서", icon: "file-text" },
       { href: "/approvals", label: "결재함", icon: "clipboard-check", badgeKey: "approvals" },
       { href: "/documents", label: "서류", icon: "folder" },
     ],
