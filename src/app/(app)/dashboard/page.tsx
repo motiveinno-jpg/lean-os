@@ -395,6 +395,11 @@ export default function DashboardPage() {
           <ApprovalCenterWidget companyId={companyId} userId={userId} />
         )}
 
+        {/* V4: 내 할일 — 관리자 모드에도 노출(직원만 되던 것 보강) */}
+        {userId && (
+          <div className="mb-5"><MyTodosWidget userId={userId} /></div>
+        )}
+
         {/* 오늘의 액션 */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-3">
