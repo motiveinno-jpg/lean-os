@@ -57,22 +57,18 @@ export default function EmployeesPage() {
   const urlTab = sp?.get('tab') as Tab | null;
   const isValidTab = (t: string | null): t is Tab =>
     !!t && (['employees','salary','payroll','contracts','expenses','leave','certificates'] as const).includes(t as Tab);
-  // P1-3: 급여이력+급여명세를 단일 '급여' 탭으로 통합. 'payroll' 키는 기존
-  //   딥링크(?tab=payroll) 호환용으로만 유지하고 내부적으로는 salary 탭 +
-  //   salarySub('history'|'payslip') 서브뷰로 정규화한다.
+  // V1: '급여이력' 완전 제거. '급여' 탭 = 급여 명세(PayrollPreviewTab)만.
+  //   ?tab=salary / ?tab=payroll 딥링크 모두 '급여' 탭(명세)으로 정규화.
   const normalizeTab = (t: Tab): Tab => (t === "payroll" ? "salary" : t);
   const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? normalizeTab(urlTab) : "employees");
-  const [salarySub, setSalarySub] = useState<"history" | "payslip">(urlTab === "payroll" ? "payslip" : "history");
   const [showForm, setShowForm] = useState(false);
-  const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isEmployee = role === "employee";
 
-  // URL ?tab=... 동기화. ?tab=payroll → 급여 탭 + 명세 서브뷰, ?tab=salary → 이력.
+  // URL ?tab=... 동기화. payroll/salary → '급여' 탭(명세).
   useEffect(() => {
     if (!isValidTab(urlTab)) return;
-    if (urlTab === "payroll") { setTab("salary"); setSalarySub("payslip"); }
-    else { setTab(urlTab); if (urlTab === "salary") setSalarySub("history"); }
+    setTab(normalizeTab(urlTab));
   }, [urlTab]);
 
   // S-1(보안): 직원 비허용 탭 차단은 아래 effectiveTab 렌더 가드가 본 경계다.
@@ -107,12 +103,7 @@ export default function EmployeesPage() {
     enabled: !!companyId,
   });
 
-  // ── Salary History ──
-  const { data: salaryHistory = [] } = useQuery({
-    queryKey: ["salary-history", selectedEmpId],
-    queryFn: () => getSalaryHistory(selectedEmpId!),
-    enabled: !!selectedEmpId && tab === "salary" && salarySub === "history",
-  });
+  // V1: 급여이력(SalaryTab/salary-history) 제거 — '급여' 탭은 명세만.
 
   // ── Contracts ──
   const { data: contracts = [] } = useQuery({
@@ -210,28 +201,8 @@ export default function EmployeesPage() {
       {effectiveTab === "employees" && <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
 
       {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
-      {effectiveTab === "salary" && (
-        <div>
-          <div className="flex gap-1 mb-5 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)] w-fit">
-            {([["history", "급여 이력"], ["payslip", "급여 명세"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => setSalarySub(k)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                  salarySub === k ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {salarySub === "history" ? (
-            <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />
-          ) : (
-            <PayrollPreviewTab companyId={companyId} />
-          )}
-        </div>
-      )}
+      {/* V1: '급여이력' 세그먼트 제거 — 급여 탭은 명세만 (이력 진입 0) */}
+      {effectiveTab === "salary" && <PayrollPreviewTab companyId={companyId} />}
 
       {effectiveTab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
       {effectiveTab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
