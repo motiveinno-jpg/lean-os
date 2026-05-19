@@ -1535,8 +1535,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                             onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
                             disabled={toggleFixedMut.isPending}
                             className="accent-orange-500 cursor-pointer"
-                            title={tx.is_fixed_cost ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(자동이체)로 표시'}
+                            title={tx.is_fixed_cost ? '고정비/자동이체로 표시됨 — 클릭해서 해제' : '고정비(자동이체)로 표시'}
                           />
+                          {/* V5: 체크 시 '고정비' 라벨이 안 보이던 문제 — 명시 배지 */}
+                          {tx.is_fixed_cost && (
+                            <span
+                              className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap"
+                              title="고정비/자동이체로 표시됨 · 정기결제내역에 반영"
+                            >
+                              고정비
+                            </span>
+                          )}
                           {!tx.is_fixed_cost && isAutoTransferTx(tx) && (
                             <span
                               className="text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 whitespace-nowrap"

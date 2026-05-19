@@ -143,19 +143,47 @@ export function CardAutoTransferHistory({ companyId }: Props) {
   const dateFrom = startOfMonth(now);
   const dateTo = endOfMonth(now);
 
+  // V5: 정기결제내역 = 카드 + "통장" 고정비 둘 다. 직원이 통장 거래를
+  //   고정비 체크해도 여기 안 뜨던 것은 card_transactions 만 읽었기 때문.
   const { data: rows = [] } = useQuery({
     queryKey: ['card-auto-transfer', companyId, monthLabel],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from('card_transactions')
-        .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification, is_fixed_cost')
-        .eq('company_id', companyId)
-        .eq('is_fixed_cost', true)
-        .gte('transaction_date', dateFrom)
-        .lte('transaction_date', dateTo)
-        .gt('amount', 0)
-        .order('transaction_date', { ascending: false });
-      return data || [];
+      const [cardRes, bankRes] = await Promise.all([
+        (supabase as any)
+          .from('card_transactions')
+          .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification, is_fixed_cost')
+          .eq('company_id', companyId)
+          .eq('is_fixed_cost', true)
+          .gte('transaction_date', dateFrom)
+          .lte('transaction_date', dateTo)
+          .gt('amount', 0)
+          .order('transaction_date', { ascending: false }),
+        (supabase as any)
+          .from('bank_transactions')
+          .select('id, transaction_date, amount, counterparty, description, category, classification, is_fixed_cost')
+          .eq('company_id', companyId)
+          .eq('is_fixed_cost', true)
+          .gte('transaction_date', dateFrom)
+          .lte('transaction_date', dateTo)
+          .order('transaction_date', { ascending: false }),
+      ]);
+      const cardRows = cardRes.data || [];
+      // 통장 고정비를 카드행 동일 스키마로 정규화 (지출=양수만 표시)
+      const bankRows = (bankRes.data || [])
+        .filter((b: any) => Math.abs(Number(b.amount || 0)) > 0)
+        .map((b: any) => ({
+          id: `bank:${b.id}`,
+          transaction_date: b.transaction_date,
+          amount: Math.abs(Number(b.amount || 0)),
+          merchant_name: b.counterparty || b.description || '통장 자동이체',
+          merchant_category: null,
+          card_name: '통장(자동이체)',
+          category: b.category,
+          classification: b.classification,
+          is_fixed_cost: true,
+        }));
+      return [...cardRows, ...bankRows].sort((a: any, b: any) =>
+        String(b.transaction_date || '').localeCompare(String(a.transaction_date || '')));
     },
     enabled: !!companyId,
     staleTime: 30_000,
