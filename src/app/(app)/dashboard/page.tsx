@@ -2937,6 +2937,68 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   );
 }
 
+// ── 내 프로젝트 위젯 (직원) — 본인 담당/참여 딜만, 읽기전용 ──
+//   보안: deals RLS 는 회사단위뿐이라 직접 select 시 전사 재무 누출.
+//   반드시 SECURITY DEFINER RPC get_my_assigned_deals() 경유(비재무 컬럼만).
+//   /deals·/partners 라우트는 직원 차단 유지 → 클릭 이동 없음(읽기전용).
+const DEAL_ROLE_LABEL: Record<string, string> = {
+  manager: "담당", reviewer: "검토", participant: "참여",
+};
+function EmployeeProjectsWidget() {
+  const { data: deals = [], isLoading } = useQuery({
+    queryKey: ["emp-assigned-deals"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_my_assigned_deals");
+      if (error) throw error;
+      return (data || []) as Array<{ id: string; name: string; status: string | null; my_role: string | null; created_at: string | null }>;
+    },
+    refetchInterval: 60_000,
+  });
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+        <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">내 프로젝트</h2>
+        {deals.length > 0 && (
+          <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 (담당·참여)</span>
+        )}
+      </div>
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        {isLoading ? (
+          <div className="p-6 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
+        ) : deals.length === 0 ? (
+          <div className="p-6 text-center text-xs text-[var(--text-muted)]">
+            담당·참여 중인 프로젝트가 없습니다.
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {deals.map((d) => (
+              <div key={d.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-base shrink-0">📋</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-[var(--text)] truncate">{d.name}</div>
+                  {d.status && (
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{d.status}</div>
+                  )}
+                </div>
+                {d.my_role && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0">
+                    {DEAL_ROLE_LABEL[d.my_role] || d.my_role}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <p className="text-[10px] text-[var(--text-dim)] mt-1.5">
+        ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용).
+      </p>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════
 // Employee Dashboard — 출퇴근/프로젝트/휴가/급여/공지
 // ═══════════════════════════════════════════
@@ -3464,6 +3526,9 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           </div>
         </div>
       )}
+
+      {/* 핸드오프 B-2: 내 프로젝트 (본인 담당/참여만, SECURITY DEFINER RPC) */}
+      <EmployeeProjectsWidget />
 
       {/* 빠른 이동 */}
       <div className="mb-4">
