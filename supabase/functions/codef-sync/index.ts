@@ -1132,7 +1132,7 @@ serve(async (req) => {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step"]);
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one"]);
       if (!allowedInternalActions.has(action)) {
         return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -1177,6 +1177,44 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // --- Action: bank-cron-tick (글로벌, companyId 없이) ---
+    //   은행 거래 자동 동기화 스케줄러. codef_connected_id 보유 회사를 enumerate 해
+    //   회사별로 bank-cron-one 을 fire-and-forget 자가호출(타임아웃 격리).
+    //   ⚠️ 은행 분기 전용 — 홈택스/현금영수증/카드 미접촉. dedup(20260518130000)으로
+    //      중복 안전. hometax-cron-tick 과 동일한 fan-out 패턴.
+    if (action === "bank-cron-tick") {
+      const { data: companies } = await supabase
+        .from("company_settings")
+        .select("company_id, codef_connected_id, codef_client_id")
+        .not("codef_connected_id", "is", null)
+        .neq("codef_connected_id", "")
+        .limit(50);
+      const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+      const cronSecretForChain = CRON_SECRET;
+      const triggers = (companies || []).map((c: any) =>
+        fetch(selfUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader as string,
+            "X-Cron-Secret": cronSecretForChain,
+          },
+          body: JSON.stringify({ companyId: c.company_id, action: "bank-cron-one" }),
+        }).catch(() => {})
+      );
+      // @ts-expect-error EdgeRuntime
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-expect-error EdgeRuntime
+        EdgeRuntime.waitUntil(Promise.all(triggers));
+      } else {
+        Promise.all(triggers).catch(() => {});
+      }
+      return new Response(JSON.stringify({ ok: true, triggered: companies?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Get CODEF credentials from company settings
@@ -1191,6 +1229,38 @@ serve(async (req) => {
     }
 
     const token = await getCodefToken(clientId, clientSecret);
+
+    // --- Action: bank-cron-one (회사별 은행 자동 동기화 — bank-cron-tick 가 호출) ---
+    //   은행 거래만 동기화(롤링 14일 윈도우 → dedup 으로 중복 안전) 후
+    //   recompute_bank_balances RPC(e39b351 동일 산식)로 잔액 재계산.
+    //   ⚠️ 은행 분기 전용. 홈택스/현금영수증/카드 미접촉.
+    if (action === "bank-cron-one") {
+      if (!cid) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      let bankRes: any = null;
+      try {
+        bankRes = await syncBankTransactions(supabase, token, companyId, cid, startC, endC);
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // e39b351 동일 산식 잔액 재계산 (서버측 RPC — 마이그레이션 미적용 시 graceful skip)
+      try { await supabase.rpc("recompute_bank_balances", { p_company: companyId }); } catch { /* RPC 미배포 — 다음 syncBankBalances 가 보정 */ }
+      try {
+        await supabase.from("sync_logs").insert({
+          company_id: companyId,
+          sync_type: "codef_bank_cron",
+          status: (bankRes?.errors?.length ?? 0) === 0 ? "success" : ((bankRes?.synced ?? 0) > 0 ? "partial" : "error"),
+          details: { bank: bankRes, cron: true },
+          synced_by: null,
+        });
+      } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
+      return new Response(JSON.stringify({ ok: true, synced: bankRes?.synced ?? 0, errors: bankRes?.errors ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // --- Action: hometax-job-step (production-grade: atomic lock + retry + chain) ---
     // A. Atomic CAS lock 으로 동시 호출 차단 (CF-00016 회피).
