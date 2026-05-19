@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -57,17 +57,28 @@ export default function EmployeesPage() {
   const urlTab = sp?.get('tab') as Tab | null;
   const isValidTab = (t: string | null): t is Tab =>
     !!t && (['employees','salary','payroll','contracts','expenses','leave','certificates'] as const).includes(t as Tab);
-  const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? urlTab : "employees");
+  // P1-3: 급여이력+급여명세를 단일 '급여' 탭으로 통합. 'payroll' 키는 기존
+  //   딥링크(?tab=payroll) 호환용으로만 유지하고 내부적으로는 salary 탭 +
+  //   salarySub('history'|'payslip') 서브뷰로 정규화한다.
+  const normalizeTab = (t: Tab): Tab => (t === "payroll" ? "salary" : t);
+  const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? normalizeTab(urlTab) : "employees");
+  const [salarySub, setSalarySub] = useState<"history" | "payslip">(urlTab === "payroll" ? "payslip" : "history");
   const [showForm, setShowForm] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isEmployee = role === "employee";
 
-  // URL ?tab=... 바뀌면 동기화 (사이드바 / 대시보드에서 이동 시)
+  // URL ?tab=... 동기화. ?tab=payroll → 급여 탭 + 명세 서브뷰, ?tab=salary → 이력.
   useEffect(() => {
-    if (isValidTab(urlTab)) setTab(urlTab);
+    if (!isValidTab(urlTab)) return;
+    if (urlTab === "payroll") { setTab("salary"); setSalarySub("payslip"); }
+    else { setTab(urlTab); if (urlTab === "salary") setSalarySub("history"); }
   }, [urlTab]);
 
+  // S-1(보안): 직원 비허용 탭 차단은 아래 effectiveTab 렌더 가드가 본 경계다.
+  //   이 useEffect 단독(사후 setTab)이면 한 프레임 SalaryTab/PayrollPreviewTab
+  //   가 마운트돼 회사 전체 급여 쿼리가 발사될 수 있어, 상태/하이라이트 동기화
+  //   보조용으로만 둔다(/employees 는 직원 딥링크 fallback 허용 라우트).
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
       setTab("leave");
@@ -100,7 +111,7 @@ export default function EmployeesPage() {
   const { data: salaryHistory = [] } = useQuery({
     queryKey: ["salary-history", selectedEmpId],
     queryFn: () => getSalaryHistory(selectedEmpId!),
-    enabled: !!selectedEmpId && tab === "salary",
+    enabled: !!selectedEmpId && tab === "salary" && salarySub === "history",
   });
 
   // ── Contracts ──
@@ -121,42 +132,32 @@ export default function EmployeesPage() {
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
+  // P1-3: salary/payroll 두 키 → '급여' 단일. 명세는 탭 내부 서브뷰.
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
-    { key: "salary", label: "급여이력" },
-    { key: "payroll", label: "급여 명세" },
+    { key: "salary", label: "급여" },
     { key: "contracts", label: "계약서" },
     { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
     { key: "leave", label: "휴가" },
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
+  // S-1: 렌더 경계 — 직원 비허용 탭은 어떤 경로(딥링크 초기 state 포함)로도
+  //   해당 Tab 컴포넌트를 마운트하지 않는다(useEffect 사후 리셋 이전 프레임 차단).
+  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "leave" : tab;
 
   if (userLoading || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">회사 정보를 불러올 수 없습니다. 새로고침 해주세요.</div>;
 
+  // P2: 페이지-국소 인쇄 CSS 제거 → globals.css 공통 .print-area 유틸 사용.
+  //     폭은 공통 토큰(--content-max-wide)으로 통일.
   return (
-    <div className="max-w-[1000px]" id="employees-print-area">
-      <style>{`
-        @media print {
-          body { background: white !important; color: black !important; }
-          body * { visibility: hidden; }
-          #employees-print-area, #employees-print-area * { visibility: visible; color: black !important; }
-          #employees-print-area {
-            position: absolute; left: 0; top: 0; width: 100%;
-            background: white !important;
-          }
-          nav, .sidebar, .no-print, button, [role="tablist"] { display: none !important; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #ddd; padding: 4px 8px; }
-          @page { margin: 15mm; }
-        }
-      `}</style>
+    <div className="max-w-[var(--content-max-wide)] print-area" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">{isEmployee ? "근태 / 급여" : "인력 / 비용"}</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">{isEmployee ? "출퇴근 + 휴가 + 경비 + 증명서" : "직원관리 + 급여이력 + 계약서 + 경비청구 + 근태 + 휴가"}</p>
+          <h1 className="text-2xl font-extrabold">{isEmployee ? "근태 / 급여" : "인사관리"}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{isEmployee ? "출퇴근 + 휴가 + 경비 + 증명서" : "직원관리 · 급여 · 계약서 · 경비 · 휴가 · 증명서"}</p>
         </div>
       </div>
 
@@ -192,7 +193,7 @@ export default function EmployeesPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`whitespace-nowrap px-3 py-2.5 rounded-lg text-sm font-semibold transition shrink-0 ${
-              tab === t.key
+              effectiveTab === t.key
                 ? "bg-[var(--primary)] text-white"
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
@@ -205,17 +206,49 @@ export default function EmployeesPage() {
         ))}
       </div>
 
-      {/* Tab Content */}
-      {tab === "employees" && <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
-      {tab === "salary" && <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />}
-      {tab === "payroll" && <PayrollPreviewTab companyId={companyId} />}
-      {tab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
-      {tab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
-      {/* 근태 관리는 /attendance 별도 페이지로 이동됨 */}
-      {tab === "leave" && <LeaveTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
-      {tab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
+      {effectiveTab === "employees" && <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+
+      {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
+      {effectiveTab === "salary" && (
+        <div>
+          <div className="flex gap-1 mb-5 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)] w-fit">
+            {([["history", "급여 이력"], ["payslip", "급여 명세"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setSalarySub(k)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                  salarySub === k ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {salarySub === "history" ? (
+            <SalaryTab employees={employees} selectedEmpId={selectedEmpId} setSelectedEmpId={setSelectedEmpId} salaryHistory={salaryHistory} companyId={companyId} userId={userId} queryClient={queryClient} />
+          ) : (
+            <PayrollPreviewTab companyId={companyId} />
+          )}
+        </div>
+      )}
+
+      {effectiveTab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
+      {effectiveTab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
+      {/* 근태 관리는 /attendance, 휴가는 /leave 단일 진입(P1-4) — 여기선 수렴만 */}
+      {effectiveTab === "leave" && <LeaveTabRedirect />}
+      {effectiveTab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
     </div>
   );
+}
+
+// P1-4: 휴가 진입 단일화 — /leave·employees탭·employee fallback 셋이 같은
+//   LeaveTab 을 쓰던 이중화를, employees 페이지에서 /leave 로 수렴시켜 제거.
+//   (LeaveTab 자체는 /leave 페이지가 역할별로 렌더 — 관리자도 동일 관리뷰)
+function LeaveTabRedirect() {
+  const router = useRouter();
+  useEffect(() => { router.replace("/leave"); }, [router]);
+  return <div className="p-10 text-center text-sm text-[var(--text-muted)]">휴가 페이지로 이동 중…</div>;
 }
 
 // ── Employee Tab (초대 기반 통합) ──
