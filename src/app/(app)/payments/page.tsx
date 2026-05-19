@@ -32,7 +32,12 @@ export default function PaymentsPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('queue');
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === 'undefined') return 'queue';
+    const t = new URLSearchParams(window.location.search).get('tab');
+    const valid: Tab[] = ['queue', 'payroll', 'fixed', 'recurring', 'expenses'];
+    return (valid as string[]).includes(t || '') ? (t as Tab) : 'queue';
+  });
   const [filter, setFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ amount: "", description: "" });

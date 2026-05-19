@@ -362,7 +362,7 @@ export default function DashboardPage() {
               {sp.pendingApprovals}건
             </div>
           </Link>
-          <Link href="/settings" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/transactions" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">통장 잔고</div>
             <div className="text-lg font-black">₩{fmtW(sp.cashBalance)}</div>
           </Link>
@@ -372,7 +372,7 @@ export default function DashboardPage() {
               ₩{fmtW(sp.arTotal)}
             </div>
           </Link>
-          <Link href="/settings" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/payments?tab=fixed" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
             {sp.monthlyBurn > 0 ? (
               <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
@@ -3211,23 +3211,18 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         {/* 근무 형태 선택 + 출근/퇴근 버튼 */}
         {!isCheckedIn && (
           <div className="flex gap-2 mb-3">
-            {[
-              { value: "present", label: "출근", color: "green" },
-              { value: "remote", label: "재택", color: "blue" },
-              { value: "half_day", label: "반차", color: "yellow" },
-              { value: "absent", label: "결근", color: "red" },
-            ].map(({ value, label, color }) => (
+            {([
+              { value: "present", label: "출근", activeClass: "bg-green-500/20 text-green-400 border border-green-500/40" },
+              { value: "remote", label: "재택", activeClass: "bg-blue-500/20 text-blue-400 border border-blue-500/40" },
+              { value: "half_day", label: "반차", activeClass: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40" },
+              { value: "absent", label: "결근", activeClass: "bg-red-500/20 text-red-400 border border-red-500/40" },
+            ] as const).map(({ value, label, activeClass }) => (
               <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                   attendanceStatus === value
-                    ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/40`
+                    ? activeClass
                     : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
-                }`}
-                style={attendanceStatus === value ? {
-                  backgroundColor: color === "green" ? "rgba(34,197,94,0.2)" : color === "blue" ? "rgba(59,130,246,0.2)" : color === "yellow" ? "rgba(234,179,8,0.2)" : "rgba(239,68,68,0.2)",
-                  color: color === "green" ? "#4ade80" : color === "blue" ? "#60a5fa" : color === "yellow" ? "#facc15" : "#f87171",
-                  borderColor: color === "green" ? "rgba(34,197,94,0.4)" : color === "blue" ? "rgba(59,130,246,0.4)" : color === "yellow" ? "rgba(234,179,8,0.4)" : "rgba(239,68,68,0.4)",
-                } : {}}>
+                }`}>
                 {label}
               </button>
             ))}
