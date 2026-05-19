@@ -1139,7 +1139,8 @@ serve(async (req) => {
     }
 
     // cron-tick 은 companyId 없이 글로벌 처리. 그 외 action 은 companyId 필수.
-    if (!companyId && action !== "hometax-cron-tick") {
+    //   (bank-cron-tick 도 글로벌 — companyId 없이 회사 enumerate 후 fan-out)
+    if (!companyId && action !== "hometax-cron-tick" && action !== "bank-cron-tick") {
       return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (action === "hometax-cron-tick") {
