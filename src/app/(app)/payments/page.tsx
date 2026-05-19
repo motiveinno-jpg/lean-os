@@ -638,16 +638,18 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
   }
 
   // 2단계: 실제 배치 생성 (copy=true 면 직전월 명세 프리필, false 면 자동산정)
-  async function runGenerate(copyFromPrevMonth: boolean) {
+  // V6: 예=지난달 복사(현행) / 아니요=빈칸 배치(직접 입력). blank 시 0원 행 생성.
+  async function runGenerate(copyFromPrevMonth: boolean, blank = false) {
     setCopyPrompt(null);
     setGenerating(true);
     try {
-      const result = await createPayrollBatch(companyId, undefined, { copyFromPrevMonth });
+      const result = await createPayrollBatch(companyId, undefined, { copyFromPrevMonth, blank });
       setLastResult(result);
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
       invalidate();
       toast(
-        copyFromPrevMonth ? "지난달 명세를 복사해 배치를 생성했습니다" : "급여 배치를 생성했습니다",
+        blank ? "빈 급여 배치를 생성했습니다 — 명세에서 직접 입력하세요"
+          : copyFromPrevMonth ? "지난달 명세를 복사해 배치를 생성했습니다" : "급여 배치를 생성했습니다",
         "success",
       );
     } catch (err: any) {
@@ -680,15 +682,15 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
                 </p>
                 <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
                   · <strong>예</strong>: 지난달 기본급·비과세 입력값을 그대로 가져와 이번 달 명세에 반영합니다 (4대보험·세금은 동일 기준으로 재산정).<br />
-                  · <strong>아니오</strong>: 직원 등록 급여 기준으로 새로 자동 산정합니다.
+                  · <strong>아니오</strong>: 빈 명세(공란)로 생성합니다. 명세에서 직접 입력하세요.
                 </p>
                 <div className="flex gap-2 justify-end">
                   <button
-                    onClick={() => runGenerate(false)}
+                    onClick={() => runGenerate(false, true)}
                     disabled={generating}
                     className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg)] transition disabled:opacity-50"
                   >
-                    아니오 — 새로 산정
+                    아니오 — 빈칸 생성
                   </button>
                   <button
                     onClick={() => runGenerate(true)}
@@ -707,8 +709,8 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
                     : <>복사할 지난달 급여 명세가 없습니다.</>}
                 </p>
                 <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
-                  직원 등록 급여 기준으로 이번 달 명세를 <strong>새로 자동 산정</strong>합니다.
-                  (다음 달부터는 이번 달 명세를 복사해 올 수 있습니다.)
+                  복사할 지난달 명세가 없어 <strong>빈 명세(공란)</strong>로 생성합니다.
+                  명세에서 직접 입력하세요. (다음 달부터는 이번 달 명세를 복사해 올 수 있습니다.)
                 </p>
                 <div className="flex gap-2 justify-end">
                   <button
@@ -719,11 +721,11 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
                     취소
                   </button>
                   <button
-                    onClick={() => runGenerate(false)}
+                    onClick={() => runGenerate(false, true)}
                     disabled={generating}
                     className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
                   >
-                    확인 — 새로 산정
+                    확인 — 빈칸 생성
                   </button>
                 </div>
               </>

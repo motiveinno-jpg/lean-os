@@ -239,7 +239,7 @@ export function calculateRetirementPay(params: {
 export async function createPayrollBatch(
   companyId: string,
   monthLabel?: string,
-  options?: { copyFromPrevMonth?: boolean },
+  options?: { copyFromPrevMonth?: boolean; blank?: boolean },
 ): Promise<{ batchId: string; items: PayrollItem[] }> {
   const label = monthLabel || `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
@@ -274,7 +274,12 @@ export async function createPayrollBatch(
   }
 
   // Calculate payroll for each (비과세/부양가족 반영)
+  // V6: blank 모드 — '아니요(빈칸)' 선택 시 전 활성직원을 0원 행으로 생성해
+  //   사용자가 직접 입력. (calculatePayroll(0) → 전 항목 0 = 공란 명세)
   const items: PayrollItem[] = employees.map((emp: any) => {
+    if (options?.blank) {
+      return calculatePayroll(0, emp.name, emp.id, { dependents: 1 });
+    }
     const prev = prevOverrideMap[emp.id];
     const salary = prev ? prev.base_salary : Number(emp.salary || 0);
     if (salary <= 0) return null;
@@ -286,7 +291,7 @@ export async function createPayrollBatch(
     });
   }).filter(Boolean) as PayrollItem[];
 
-  if (items.length === 0) throw new Error('급여가 설정된 직원이 없습니다');
+  if (!options?.blank && items.length === 0) throw new Error('급여가 설정된 직원이 없습니다');
 
   const totalAmount = items.reduce((s, i) => s + i.netPay, 0);
 
