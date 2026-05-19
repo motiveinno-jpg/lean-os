@@ -377,7 +377,7 @@ export default function DashboardPage() {
             {sp.monthlyBurn > 0 ? (
               <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
             ) : (
-              <div className="text-xs text-[var(--text-dim)] mt-1">설정 &gt; 고정비 또는 엑셀 업로드</div>
+              <div className="text-xs font-semibold text-[var(--primary)] mt-1">결제 → 고정비 등록 →</div>
             )}
           </Link>
         </div>
@@ -419,6 +419,30 @@ export default function DashboardPage() {
               { href: "/approvals", label: "결재함", icon: "📋", desc: "결재 요청 처리" },
               { href: "/payments", label: "결제 관리", icon: "💳", desc: "결제 큐 및 배치" },
               { href: "/documents", label: "문서/계약", icon: "📄", desc: "문서 승인 및 서명" },
+            ].map(card => (
+              <Link key={card.href} href={card.href}
+                className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+                <div className="text-xl mb-1.5">{card.icon}</div>
+                <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
+                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* P1-1: 회계 바로가기 — 관리자는 회계관리 풀권한인데 대시보드 진입로가
+            인사·결재·결제·문서뿐이라 회계 진입 0이던 갭 해소 */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
+            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">회계 바로가기</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { href: "/cards", label: "법인카드", icon: "💳", desc: "카드 사용·승인 내역" },
+              { href: "/tax-invoices", label: "세금계산서", icon: "🧾", desc: "매출·매입 세금계산서" },
+              { href: "/reports", label: "분석", icon: "📊", desc: "손익·비용 리포트" },
+              { href: "/partners/ledger", label: "거래처원장", icon: "📒", desc: "거래처별 채권·채무" },
             ].map(card => (
               <Link key={card.href} href={card.href}
                 className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
