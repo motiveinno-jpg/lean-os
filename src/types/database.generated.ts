@@ -1010,6 +1010,8 @@ export type Database = {
           event_date: string | null
           id: string
           pinned: boolean
+          poll_anonymous: boolean
+          poll_multi: boolean
           poll_options: Json
           poll_question: string | null
           title: string
@@ -1026,6 +1028,8 @@ export type Database = {
           event_date?: string | null
           id?: string
           pinned?: boolean
+          poll_anonymous?: boolean
+          poll_multi?: boolean
           poll_options?: Json
           poll_question?: string | null
           title: string
@@ -1042,6 +1046,8 @@ export type Database = {
           event_date?: string | null
           id?: string
           pinned?: boolean
+          poll_anonymous?: boolean
+          poll_multi?: boolean
           poll_options?: Json
           poll_question?: string | null
           title?: string
@@ -7422,6 +7428,15 @@ export type Database = {
       get_credential_key: { Args: never; Returns: string }
       get_my_company_id: { Args: never; Returns: string }
       get_my_email: { Args: never; Returns: string }
+      get_poll_results: {
+        Args: { p_post_id: string }
+        Returns: {
+          option_index: number
+          vote_count: number
+          is_anonymous: boolean
+          voter_user_ids: string[] | null
+        }[]
+      }
       has_min_plan: { Args: { min_plan: string }; Returns: boolean }
       increment_share_view_count: {
         Args: { share_id_param: string }
