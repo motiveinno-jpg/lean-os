@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
@@ -74,6 +75,9 @@ export default function CostsPage() {
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
+      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
+        ← 분석 허브
+      </Link>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
@@ -584,6 +585,9 @@ export default function PnlPage() {
   return (
     <div id="pnl-printable" style={{ padding: "24px 28px", maxWidth: 1400 }}>
       <style>{PRINT_CSS}</style>
+      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
+        ← 분석 허브
+      </Link>
       {/* Header */}
       <div
         style={{
