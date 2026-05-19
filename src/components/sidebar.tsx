@@ -71,8 +71,49 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// ── 직원(employee) 전용 사이드바 — "직원은 단순해야" 원칙.
+//   홈 / 나의 업무 / 소통·도움말 3개 그룹으로 압축. 거래처·프로젝트·회계 미노출.
+const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
+  {
+    label: "홈",
+    items: [
+      { href: "/dashboard", label: "홈", icon: "grid" },
+      { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
+      { href: "/board", label: "게시판", icon: "message-square" },
+      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
+    ],
+  },
+  {
+    label: "나의 업무",
+    items: [
+      { href: "/attendance", label: "근태 / 출퇴근", icon: "clock" },
+      { href: "/leave", label: "휴가 신청", icon: "umbrella" },
+      { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
+      { href: "/payslip", label: "급여명세서", icon: "file-text" },
+      { href: "/approvals", label: "결재함", icon: "clipboard-check", badgeKey: "approvals" },
+      { href: "/documents", label: "서류", icon: "folder" },
+    ],
+  },
+  {
+    label: "소통 · 도움말",
+    items: [
+      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
+      { href: "/team", label: "팀 디렉토리", icon: "users" },
+      { href: "/announcements", label: "공지사항", icon: "megaphone" },
+      { href: "/mypage", label: "내 계정", icon: "user" },
+      { href: "/guide", label: "사용 가이드", icon: "help-circle" },
+    ],
+  },
+];
+
 function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boolean): NavGroup[] {
   void companyName;
+  // 직원은 전용 압축 메뉴 사용 (operator 게이트 무관 — 직원 화면은 운영자 페이지 노출 안 함)
+  if (role === "employee") {
+    return EMPLOYEE_NAV_GROUPS
+      .map((group) => ({ ...group, items: group.items.filter(Boolean) }))
+      .filter((group) => group.items.length > 0);
+  }
   return NAV_GROUPS
     .map((group) => ({
       ...group,
@@ -122,6 +163,8 @@ function NavIcon({ name, className = "" }: { name: string; className?: string })
     case "user-cog": return <svg {...props}><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="19" cy="11" r="2"/><path d="M19 8v1M19 13v1M22 11h-1M17 11h-1"/></svg>;
     case "receipt": return <svg {...props}><path d="M20 2v20l-3-2-3 2-3-2-3 2-3-2-3 2V2l3 2 3-2 3 2 3-2 3 2 3-2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></svg>;
     case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
+    case "clock": return <svg {...props}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>;
+    case "umbrella": return <svg {...props}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }

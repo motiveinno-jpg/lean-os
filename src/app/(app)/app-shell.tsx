@@ -23,8 +23,8 @@ const PARTNER_TABS = [
 ];
 const EMPLOYEE_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
-  { href: "/deals", label: "프로젝트", icon: "briefcase" },
-  { href: "/employees", label: "근태/급여", icon: "clock" },
+  { href: "/attendance", label: "근태", icon: "clock" },
+  { href: "/leave", label: "휴가", icon: "umbrella" },
   { href: "/chat", label: "채팅", icon: "chat" },
   { href: "/documents", label: "서류", icon: "file" },
 ];
@@ -44,6 +44,7 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
     case "file": return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
     case "chat": return <svg {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "clock": return <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+    case "umbrella": return <svg {...p}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
     case "book": return <svg {...p}><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
     case "card": return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
     default: return null;
@@ -80,7 +81,8 @@ function MobileBottomNav() {
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/board", "/error-logs", "/operator-users"],
-  // 직원이 사이드바에서 보이는 모든 페이지를 허용 (홈 + 인사관리 + 시스템)
+  // 직원 화면 — 홈 / 나의 업무 / 소통·도움말 로 압축. 거래처·프로젝트·회계 미노출.
+  //   /employees 는 사이드바에서 제거됐지만 경비·증명서 딥링크 fallback 으로 접근 허용.
   employee: [
     "/dashboard",
     "/schedule",       // 일정 / 할 일
@@ -89,15 +91,15 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
     "/error-logs",     // 에러 모니터링 (운영자 전용 — 페이지 내 이메일 게이트)
     "/operator-users", // 유저 계정 관리 (운영자 전용 — 페이지 내 이메일 게이트)
     "/notifications",  // 알림
-    "/deals",          // 프로젝트
-    "/partners",       // 거래처 관리
-    "/employees",      // 구성원
     "/team",           // 팀 디렉토리 (직원용 read-only)
-    "/attendance",     // 근태 (→ employees redirect)
+    "/attendance",     // 근태 / 출퇴근
+    "/leave",          // 휴가 신청 (전용 라우트 — '인력관리>휴가 탭' 동선 미로 해소)
+    "/payslip",        // 급여명세서 열람·PDF 다운로드
+    "/employees",      // 경비청구·증명서 딥링크 fallback (사이드바 미노출)
     "/documents",      // 서류 / 계약서 / 서명
     "/signatures",     // 전자계약 (서명 진행)
     "/my-contracts",   // 내 서명 요청 (모두사인 스타일 인앱 inbox)
-    "/approvals",      // 승인 요청
+    "/approvals",      // 결재함
     "/chat",           // 팀 채팅
     "/mypage",         // 내 계정
     "/guide",          // 사용 가이드
