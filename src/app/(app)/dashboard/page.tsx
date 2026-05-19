@@ -811,6 +811,11 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* R8: '빠른 이동' 위젯을 출퇴근·전자결재 바로 아래로 이동 (직원 요청) */}
+      {isWidgetVisible('quick_nav') && (
+        <div id="widget-quick_nav" className="mb-4"><QuickNavWidget /></div>
+      )}
+
       {/* ═══ [Grid 2열] 좌: 승인+액션 | 우: 펄스+위험 ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* ── 좌측 칼럼: 즉시 행동 영역 ── */}
@@ -905,9 +910,6 @@ export default function DashboardPage() {
       )}
       {isWidgetVisible('my_todos') && userId && (
         <div id="widget-my_todos"><MyTodosWidget userId={userId} /></div>
-      )}
-      {isWidgetVisible('quick_nav') && (
-        <div id="widget-quick_nav"><QuickNavWidget /></div>
       )}
       {isWidgetVisible('overdue_receivables') && companyId && (
         <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
