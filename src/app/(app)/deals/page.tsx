@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useToast } from "@/components/toast";
 import ProjectBoard from "@/components/project-board";
 import { ProgramCards, ProgramDashboard, CreateProgramModal } from "@/components/program-dashboard";
+import { createNotification } from "@/lib/notifications";
 
 const DEFAULT_COLORS: Record<string, string> = { B2B: '#3b82f6', B2C: '#22c55e', B2G: '#f59e0b' };
 
@@ -293,6 +294,24 @@ function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealI
         assigned_at: new Date().toISOString(),
       });
       if (error) throw error;
+      // R11: 담당자로 지정되면 해당 사용자에게 알림 (지정 시에만 — 해제 알림 미포함).
+      //   알림 실패가 지정 자체를 막지 않도록 best-effort.
+      try {
+        if (companyId) {
+          const { data: deal } = await db2.from('deals').select('name').eq('id', dealId).maybeSingle();
+          const dealName = deal?.name || '프로젝트';
+          const roleLabel = ASSIGNEE_ROLE_LABEL[pendingRole] || '담당자';
+          await createNotification({
+            companyId,
+            userId,
+            type: 'deal',
+            title: `${dealName} ${roleLabel}로 지정되었습니다`,
+            message: `${dealName} 프로젝트의 ${roleLabel}로 지정되었습니다.`,
+            entityType: 'deal',
+            entityId: dealId,
+          });
+        }
+      } catch { /* 알림 실패는 무시 (지정은 성공) */ }
     },
     onSuccess: () => { invalidate(); setShowAdd(false); setSearch(''); toast('담당자가 추가되었습니다', 'success'); },
     onError: (err: any) => toast(`담당자 추가 실패: ${err?.message || '알 수 없는 오류'}`, 'error'),
