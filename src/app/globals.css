@@ -5,8 +5,10 @@
 :root, [data-theme="light"] {
   /* OwnerView — Granter-inspired (clean B2B SaaS, neutral + accent yellow) */
   /* 페이지 콘텐츠 공통 최대폭 토큰 — 페이지 이동 시 좌우 점프 방지.
-     직원 동선(대시보드 900 ↔ 휴가 ↔ 급여명세서)에 맞춤. */
+     --content-max: 좁은 콘텐츠/폼/명세(직원 동선 대시보드 900 기준).
+     --content-max-wide: 표·관리 화면(인력/급여/대시보드 등). */
   --content-max: 900px;
+  --content-max-wide: 1100px;
   --bg: #FAFAFA;                /* near-white neutral */
   --bg-card: #FFFFFF;
   --bg-surface: #F4F4F5;        /* zinc-100 */
@@ -214,7 +216,18 @@ input, textarea, [contenteditable="true"] {
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* 인쇄 방지 */
+/* 공통 인쇄 유틸 — 기본은 인쇄 방지(전 화면 일관). 단, .print-area 가 있는
+   화면은 그 영역만 깔끔히 인쇄(기존 employees 페이지 국소 CSS 를 공통화). */
 @media print {
-  body { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; color: #000 !important; }
+  .print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: #fff !important;
+  }
+  nav, .sidebar, .no-print, button, [role="tablist"] { display: none !important; }
+  .print-area table { border-collapse: collapse; width: 100%; }
+  .print-area th, .print-area td { border: 1px solid #ddd; padding: 4px 8px; }
+  @page { margin: 15mm; }
 }
