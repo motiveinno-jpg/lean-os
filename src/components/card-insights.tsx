@@ -190,6 +190,11 @@ export function CardAutoTransferHistory({ companyId }: Props) {
           </div>
         )}
       </div>
+      {/* R15: 사용법 안내 (직원 "어떻게 사용하는것?") — 기능 변경 없이 설명만 */}
+      <p className="text-[11px] text-[var(--text-dim)] mb-3 leading-relaxed bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+        💡 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 카드 거래 목록에서 해당 거래를
+        <strong className="text-[var(--text-muted)]"> &quot;고정지출&quot;</strong>로 표시하면 이번 달 분이 자동 집계됩니다.
+      </p>
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
           이번달 정기결제내역이 없습니다.
@@ -414,17 +419,18 @@ export function CardMonthlyUsage({ companyId }: Props) {
               </thead>
               <tbody>
                 {sortedCards.map(c => {
-                  const meta = c.cardType ? CARD_TYPE_META[c.cardType] : null;
+                  // R9: 체크/신용 표기 통일 — 구분 불명(미등록·미매칭) 카드는
+                  //   '기타'로 일관 표기해 누락 0 (어떤 카드는 적히고 어떤 카드는
+                  //   안 적히던 불일치 해소).
+                  const meta = (c.cardType && CARD_TYPE_META[c.cardType]) || CARD_TYPE_META.other;
                   const variantCount = c.variants ? c.variants.size : 1;
                   const last4 = c.key.startsWith('l4:') ? c.key.slice(3) : null;
                   return (
                   <tr key={c.key} className="border-b border-[var(--border)]/40">
                     <td className="px-2 py-1.5 truncate max-w-[180px]">
-                      {meta && (
-                        <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold mr-1 align-middle" style={{ background: meta.bg, color: meta.color }}>
-                          {meta.label}
-                        </span>
-                      )}
+                      <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold mr-1 align-middle" style={{ background: meta.bg, color: meta.color }}>
+                        {meta.label}
+                      </span>
                       <span className="text-[var(--text)]">{c.label}</span>
                       {last4 && (
                         <span className="ml-1 text-[9px] text-[var(--text-dim)] mono-number">··{last4}</span>
