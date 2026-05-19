@@ -18,12 +18,18 @@ function LeavePageInner() {
   const autoNew = sp?.get("new") === "1";
   const isEmployee = role === "employee";
 
+  // P1 데이터 노출 차단: 직원 역할이 select("*") 로 전 직원 급여·계좌·생년월일을
+  //   캐시로 끌어오던 문제. 휴가 화면에 필요한 컬럼만 선택하고(민감 PII 제외),
+  //   캐시키도 /leave 전용으로 분리해 타 화면 employees 캐시와 공유되지 않게 한다.
+  //   LeaveTab 이 실제 읽는 컬럼: id·name·status·user_id·hire_date (+department/
+  //   position/email 은 비민감 메타). 잔여연차는 leave_balances 별도 쿼리라 무관.
+  const LEAVE_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
   const { data: employees = [] } = useQuery({
-    queryKey: ["employees", companyId],
+    queryKey: ["leave-employees", companyId, isEmployee ? "emp" : "mgr"],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("employees")
-        .select("*")
+        .select(isEmployee ? LEAVE_EMP_COLS : "*")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false });
       return data || [];
@@ -36,7 +42,7 @@ function LeavePageInner() {
   }
 
   return (
-    <div>
+    <div className="max-w-[var(--content-max)]">
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold">휴가 신청</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
