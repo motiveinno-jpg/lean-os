@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
@@ -65,7 +66,7 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
       .select("source_card_name, alias")
       .eq("company_id", companyId),
     db.from("employees")
-      .select("id, name, salary, status")
+      .select("id, name, salary, status, hire_date, contract_end_date")
       .eq("company_id", companyId)
       .in("status", ["active", "joined", "invited"]),
     db.from("payslip_overrides")
@@ -90,10 +91,14 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
   };
 
   // 직원: id → name, 그리고 name 기준 정규화 맵 (카드 소유자명과 매칭)
-  const empById = new Map<string, { name: string; salary: number }>();
+  // R1: 재직 기간 밖(입사 전·계약종료 후) 월에 급여가 추정 합산되던 버그 →
+  //   hireMonth/endMonth 를 함께 보관해 추정 루프에서 기간 필터.
+  const empById = new Map<string, { name: string; salary: number; hireMonth: string | null; endMonth: string | null }>();
   const empNames = new Set<string>();
   for (const e of empRes.data || []) {
-    empById.set(e.id, { name: String(e.name || "").trim(), salary: Number(e.salary || 0) });
+    const hireMonth = e.hire_date ? String(e.hire_date).slice(0, 7) : null;
+    const endMonth = e.contract_end_date ? String(e.contract_end_date).slice(0, 7) : null;
+    empById.set(e.id, { name: String(e.name || "").trim(), salary: Number(e.salary || 0), hireMonth, endMonth });
     if (e.name) empNames.add(String(e.name).trim());
   }
 
@@ -144,6 +149,10 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
     for (const m of months) {
       if (m > nowYM) continue;
       if (overrideKey.has(`${empId}|${m}`)) continue;
+      // R1: 입사월 이전 / 계약종료월 이후는 재직 안 한 달 → 급여 산입 제외.
+      //   (hire_date·contract_end_date 미설정 시 종전 동작 유지 — 회귀 방지)
+      if (emp.hireMonth && m < emp.hireMonth) continue;
+      if (emp.endMonth && m > emp.endMonth) continue;
       const r = ensure(emp.name);
       r.hasEmployee = true;
       r.payroll += emp.salary;
@@ -206,6 +215,9 @@ export default function ByPersonPage() {
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
+      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
+        ← 분석 허브
+      </Link>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
