@@ -65,68 +65,79 @@ function monthRange(month?: string): { start: string; end: string } {
 // ── 1. Bank Balances ──
 
 export async function syncBankBalances(companyId: string): Promise<SyncResult> {
+  // R2: 통장 잔액 불일치 수정.
+  //  · 기존 구현은 (a) 비어 있는 레거시 `transactions` 테이블을 읽고
+  //    (b) 존재하지 않는 `updated_at` 컬럼을 update payload 에 넣어
+  //    bank_accounts.balance 가 사실상 영영 갱신되지 않았음 → 대시보드
+  //    통장 잔고 KPI 등 bank_accounts.balance 를 읽는 화면이 stale.
+  //  · 정답 잔액 = CODEF 가 거래마다 내려주는 `balance_after`(거래 후 잔액)
+  //    중 "가장 최근" 값. getDistinctBankAccountNos 의 검증된 산식과 동일하게
+  //    (transaction_date, raw_data.trTime, created_at) 최대 거래의 balance_after
+  //    를 계좌별로 골라 bank_accounts.balance 에 반영한다.
+  //  · 계좌 매칭은 raw_data.accountNo = bank_accounts.account_number 로 수행
+  //    (CODEF 신규 거래가 bank_account_id 미설정으로 들어와도 견고).
   try {
-    // Fetch all bank accounts for this company
     const { data: accounts, error: accErr } = await db
       .from('bank_accounts')
-      .select('id, alias, bank_name, balance')
+      .select('id, account_number, balance')
       .eq('company_id', companyId);
 
     if (accErr) return resultErr('bank_balances', `계좌 조회 실패: ${accErr.message}`);
     if (!accounts || accounts.length === 0) return resultSkip('bank_balances', '등록된 계좌 없음');
 
+    const { data: txs, error: txErr } = await db
+      .from('bank_transactions')
+      .select('raw_data, balance_after, transaction_date, created_at')
+      .eq('company_id', companyId)
+      .eq('source', 'codef_bank')
+      .not('balance_after', 'is', null)
+      .order('transaction_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20000);
+
+    if (txErr) return resultErr('bank_balances', `거래 조회 실패: ${txErr.message}`);
+
+    // 계좌번호별 "가장 최근" 거래의 balance_after (PostgREST jsonb 정렬에
+    // 의존하지 않고 JS 에서 명시적으로 최대 키 계산 — 정확성 보장)
+    const latestBalByAcct = new Map<string, number>();
+    const latestKeyByAcct = new Map<string, string>();
+    for (const row of (txs || []) as any[]) {
+      const acct = row.raw_data?.accountNo;
+      if (!acct) continue;
+      const sortKey = [
+        String(row.transaction_date || ''),
+        String(row.raw_data?.trTime || ''),
+        String(row.created_at || ''),
+      ].join('|');
+      const prev = latestKeyByAcct.get(acct);
+      if (prev === undefined || sortKey > prev) {
+        latestKeyByAcct.set(acct, sortKey);
+        latestBalByAcct.set(acct, Number(row.balance_after || 0));
+      }
+    }
+
     let updatedCount = 0;
-
     for (const account of accounts) {
-      // Calculate running balance from transactions for this account
-      const { data: txns, error: txErr } = await db
-        .from('transactions')
-        .select('amount, type')
-        .eq('company_id', companyId)
-        .eq('bank_account_id', account.id)
-        .order('created_at', { ascending: false });
-
-      if (txErr) continue;
-
-      if (txns && txns.length > 0) {
-        // Sum transaction amounts: income positive, expense negative
-        const calculatedBalance = txns.reduce((sum: number, tx: any) => {
-          const amt = Number(tx.amount) || 0;
-          return sum + (tx.type === 'expense' ? -Math.abs(amt) : Math.abs(amt));
-        }, 0);
-
-        // Also check card transactions linked to this account
-        const { data: cardTxns } = await db
-          .from('card_transactions')
-          .select('amount')
-          .eq('company_id', companyId)
-          .eq('bank_account_id', account.id)
-          .eq('status', 'approved');
-
-        const cardTotal = (cardTxns || []).reduce(
-          (sum: number, ct: any) => sum + (Number(ct.amount) || 0), 0
-        );
-
-        const finalBalance = calculatedBalance - cardTotal;
-
-        // Update if balance has changed
-        if (Math.abs(finalBalance - (account.balance || 0)) > 0.01) {
-          const { error: upErr } = await db
-            .from('bank_accounts')
-            .update({ balance: finalBalance, updated_at: now() })
-            .eq('id', account.id);
-
-          if (!upErr) updatedCount++;
-        } else {
-          updatedCount++; // Already up to date
-        }
+      const target = account.account_number
+        ? latestBalByAcct.get(account.account_number)
+        : undefined;
+      // 거래(=CODEF 잔액)가 없는 계좌는 기존 잔액 보존 (0 으로 덮어쓰지 않음)
+      if (target === undefined) continue;
+      if (Math.abs(target - Number(account.balance || 0)) > 0.01) {
+        const { error: upErr } = await db
+          .from('bank_accounts')
+          .update({ balance: target })
+          .eq('id', account.id);
+        if (!upErr) updatedCount++;
+      } else {
+        updatedCount++; // 이미 최신
       }
     }
 
     return resultOk(
       'bank_balances',
       updatedCount,
-      `${accounts.length}개 계좌 중 ${updatedCount}개 잔액 갱신 완료`
+      `${accounts.length}개 계좌 중 ${updatedCount}개 잔액 최신화 완료`
     );
   } catch (err: any) {
     return resultErr('bank_balances', `계좌 잔액 동기화 오류: ${err.message}`);
