@@ -4741,6 +4741,10 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     onError: (err: any) => toast("부여 방식 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
   });
 
+  // R12: 연차 부여 방식 — 선택+저장 후 작은 요약으로 접힘 (변경 시 펼침)
+  const [grantEditing, setGrantEditing] = useState(false);
+  const [pendingGrant, setPendingGrant] = useState<LeaveGrantMethod | null>(null);
+
   // 연차 일수 인라인 편집 상태
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editingBalanceVal, setEditingBalanceVal] = useState<string>("");
@@ -4810,39 +4814,76 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         </div>
       </div>
 
-      {/* 연차 부여 방식 선택 (자동부여 / 직접입력) */}
+      {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
       {!isEmployee && (
         <div className="mb-5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-          <div className="text-sm font-bold mb-1">연차 부여 방식</div>
-          <p className="text-[11px] text-[var(--text-dim)] mb-3">
-            회사 정책에 맞게 연차 부여 방식을 선택하세요. 선택 후 아래 UI가 그에 맞게 표시됩니다.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {([
-              { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
-              { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
-            ]).map((opt) => {
-              const active = grantMethod === opt.v;
-              return (
+          {!grantEditing ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-[var(--text-muted)]">
+                연차 부여 방식 ·{" "}
+                <strong className="text-[var(--text)]">
+                  {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
+                </strong>
+              </div>
+              <button
+                onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
+                className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
+              >
+                변경
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="text-sm font-bold mb-1">연차 부여 방식</div>
+              <p className="text-[11px] text-[var(--text-dim)] mb-3">
+                회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
+                  { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
+                ]).map((opt) => {
+                  const active = (pendingGrant ?? grantMethod) === opt.v;
+                  return (
+                    <button
+                      key={opt.v}
+                      onClick={() => setPendingGrant(opt.v)}
+                      className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition ${
+                        active
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                          : "border-[var(--border)] hover:border-[var(--primary)]/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
+                        <span className="text-sm font-semibold">{opt.label}</span>
+                      </div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 justify-end mt-3">
                 <button
-                  key={opt.v}
-                  onClick={() => { if (!active && !setGrantMethodMut.isPending) setGrantMethodMut.mutate(opt.v); }}
+                  onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
                   disabled={setGrantMethodMut.isPending}
-                  className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition disabled:opacity-50 ${
-                    active
-                      ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                      : "border-[var(--border)] hover:border-[var(--primary)]/40"
-                  }`}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
-                    <span className="text-sm font-semibold">{opt.label}</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
+                  취소
                 </button>
-              );
-            })}
-          </div>
+                <button
+                  onClick={() => {
+                    const sel = pendingGrant ?? grantMethod;
+                    setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
+                  }}
+                  disabled={setGrantMethodMut.isPending}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                >
+                  {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
