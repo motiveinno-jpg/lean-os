@@ -218,7 +218,8 @@ export default function ByPersonPage() {
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+      {/* V3: 스크롤해도 제목 상단 고정 (sticky) */}
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, paddingTop: 8, paddingBottom: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
             인원별 지출

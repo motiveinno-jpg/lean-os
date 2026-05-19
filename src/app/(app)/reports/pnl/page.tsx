@@ -588,13 +588,21 @@ export default function PnlPage() {
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      {/* Header */}
+      {/* Header — V3: 스크롤해도 제목 상단 고정 (sticky) */}
       <div
+        className="no-print-sticky"
         style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          background: "var(--bg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 24,
+          paddingTop: 8,
+          paddingBottom: 12,
+          borderBottom: "1px solid var(--border)",
           flexWrap: "wrap",
           gap: 12,
         }}
