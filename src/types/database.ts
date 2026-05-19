@@ -6093,6 +6093,16 @@ export type Database = {
         }[]
       }
       get_company_plan_slug: { Args: never; Returns: string }
+      get_my_assigned_deals: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          status: string | null
+          my_role: string | null
+          created_at: string | null
+        }[]
+      }
       get_my_company_id: { Args: never; Returns: string }
       get_poll_results: {
         Args: { p_post_id: string }

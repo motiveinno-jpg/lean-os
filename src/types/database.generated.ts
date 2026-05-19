@@ -7426,6 +7426,16 @@ export type Database = {
         }[]
       }
       get_credential_key: { Args: never; Returns: string }
+      get_my_assigned_deals: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          status: string | null
+          my_role: string | null
+          created_at: string | null
+        }[]
+      }
       get_my_company_id: { Args: never; Returns: string }
       get_my_email: { Args: never; Returns: string }
       get_poll_results: {
