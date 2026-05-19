@@ -9,7 +9,14 @@ import { calculatePayroll, type PayrollItem } from "@/lib/payment-batch";
 
 // 직원 본인 급여명세서 — 월별 이력 열람 + 더존 Smart-A 양식 PDF 다운로드.
 //   대시보드 급여 카드가 요약만 보여주고 PDF 진입이 없던 문제를 해소한다.
-//   본인 employees 레코드 범위 내에서만 조회 (RLS 회사·본인 격리).
+//
+// 데이터 스코프 (거짓 안심 금지 — 정확히 기술):
+//   · employees / payslip_overrides: RLS 본인격리 적용됨
+//     (migration 20260519040000 RESTRICTIVE select_role_or_self).
+//   · payroll_items: 테이블 RLS 는 회사격리만 → 본인 스코프는 쿼리
+//     (.eq("employee_id", 본인 emp.id))에 의존. emp.id 는 본인 employees
+//     레코드(user_id/email 매칭)에서만 해석되므로 UI 경로상 타인 명세
+//     노출은 없으나, payroll_items 자체는 RLS 단독으로 본인격리되지 않음.
 
 type Row = {
   id: string;
@@ -40,8 +47,11 @@ function periodFromRow(r: Row): { ym: string; label: string } {
 }
 
 export default function PayslipPage() {
-  const { user } = useUser();
+  const { user, role } = useUser();
   const { toast } = useToast();
+  // 이 화면은 직원 본인 셀프서비스 전용. owner/admin/partner 가 URL 로 들어와도
+  //   데이터 누출은 없으나(쿼리 본인 스코프) 빈 화면으로 오해할 수 있어 안내.
+  const isEmployee = role === "employee";
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
@@ -138,11 +148,32 @@ export default function PayslipPage() {
   const latest = rows[0];
 
   return (
-    <div className="max-w-[860px]">
+    <div className="max-w-[var(--content-max)]">
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold">급여명세서</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">월별 급여 내역 열람 및 PDF 다운로드 (PDF 비밀번호 = 생년월일 8자리)</p>
+        <p className="text-sm text-[var(--text-muted)] mt-1">월별 급여 내역 열람 및 PDF 다운로드</p>
       </div>
+
+      {!isEmployee && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+          <span className="text-base shrink-0">ℹ️</span>
+          <div className="text-xs text-[var(--text-muted)]">
+            이 화면은 <b className="text-[var(--text)]">직원 본인</b>의 급여명세서 셀프 열람 전용입니다.
+            관리자는 <span className="font-semibold">인력 / 비용 → 급여 명세</span> 탭에서 전 직원 명세를 관리하세요.
+          </div>
+        </div>
+      )}
+
+      {/* PDF 비밀번호 안내 — 강조 callout (보안 안내가 본문 괄호에 묻히던 문제) */}
+      <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+        <span className="text-base shrink-0">🔐</span>
+        <div className="text-xs text-[var(--text)]">
+          다운로드한 PDF 는 <b>비밀번호로 보호</b>됩니다 — 비밀번호는 본인 <b>생년월일 8자리(YYYYMMDD)</b> 입니다.
+          <span className="block text-[var(--text-dim)] mt-0.5">예) 1990년 3월 5일생 → <span className="font-mono">19900305</span></span>
+        </div>
+      </div>
+      {/* TODO(backlog): PDF 비밀번호 사용자 지정 옵션 (생년월일 미등록자·보안 강화 수요).
+          별도 설정 UI + payslip-pdf params.password 주입 경로 확장 필요. */}
 
       {!emp ? (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8 text-center">
@@ -164,6 +195,11 @@ export default function PayslipPage() {
                   }`}>
                     {latest.status === "paid" ? "지급 완료" : "처리 중"}
                   </span>
+                  {latest.status !== "paid" && (
+                    <span title="확정 전 — 등록 급여·요율 기준 예상 산출치" className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/10 text-amber-600">
+                      예상
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => download(latest)}
@@ -220,6 +256,11 @@ export default function PayslipPage() {
                           <span className="font-bold text-[var(--primary)]">{fmtW(r.net_pay)}</span>
                         </div>
                       </div>
+                      {r.status !== "paid" && (
+                        <span title="확정 전 — 등록 급여·요율 기준 예상 산출치" className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-amber-500/10 text-amber-600">
+                          예상
+                        </span>
+                      )}
                       <span className={`hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${
                         r.status === "paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
                       }`}>
@@ -239,7 +280,8 @@ export default function PayslipPage() {
             )}
           </div>
           <p className="text-[11px] text-[var(--text-dim)] mt-3">
-            ※ 명세서 금액은 등록된 급여·4대보험 요율 기준으로 산출됩니다. 실제 지급액과 차이가 있으면 인사 담당자에게 문의하세요.
+            ※ <b className="text-amber-600">예상</b> 표시 행은 급여 확정(지급) 전이라 등록 급여·4대보험 요율 기준 <b>추정치</b>입니다 —
+            지급 완료 시 실제 공제액으로 갱신됩니다. 차이가 있으면 인사 담당자에게 문의하세요.
           </p>
         </>
       )}

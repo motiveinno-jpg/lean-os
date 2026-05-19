@@ -4,6 +4,9 @@
 
 :root, [data-theme="light"] {
   /* OwnerView — Granter-inspired (clean B2B SaaS, neutral + accent yellow) */
+  /* 페이지 콘텐츠 공통 최대폭 토큰 — 페이지 이동 시 좌우 점프 방지.
+     직원 동선(대시보드 900 ↔ 휴가 ↔ 급여명세서)에 맞춤. */
+  --content-max: 900px;
   --bg: #FAFAFA;                /* near-white neutral */
   --bg-card: #FFFFFF;
   --bg-surface: #F4F4F5;        /* zinc-100 */
