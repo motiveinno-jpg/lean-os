@@ -594,7 +594,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [lastResult, setLastResult] = useState<{ items: PayrollItem[] } | null>(null);
-  const [copyPrompt, setCopyPrompt] = useState<{ monthLabel: string; itemCount: number } | null>(null);
+  const [copyPrompt, setCopyPrompt] = useState<{ monthLabel: string; itemCount: number; exists: boolean } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: batches = [] } = useQuery({
@@ -618,21 +618,23 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
     onError: (err: Error) => { toast("실행 실패: " + (err?.message || ""), "error"); },
   });
 
-  // 1단계: 직전월 명세 존재 여부 확인 → 있으면 복사 모달, 없으면 바로 생성
+  // 1단계: 배치 생성 진입 시 "지난달 명세 복사?" 프롬프트를 **항상** 노출한다.
+  //   (R4: 기존엔 직전월 데이터가 자동 감지될 때만 모달을 띄우고 없으면 조용히
+  //    새로 산정 → 직원이 "안 물어보는데…"로 인지. 복사 로직은 그대로 두고
+  //    노출만 보강: 직전월 데이터가 없으면 모달에서 그 사실을 알리고 새로 산정.)
   async function handleGenerate() {
     setGenerating(true);
     try {
       const snap = await getPrevMonthPayrollSnapshot(companyId);
-      if (snap?.exists) {
-        setCopyPrompt({ monthLabel: snap.monthLabel, itemCount: snap.itemCount });
-        setGenerating(false);
-        return;
-      }
-      await runGenerate(false);
+      setCopyPrompt({
+        monthLabel: snap?.monthLabel ?? "",
+        itemCount: snap?.itemCount ?? 0,
+        exists: !!snap?.exists,
+      });
     } catch (err: any) {
       toast(err.message || '급여 배치 생성 실패', "error");
-      setGenerating(false);
     }
+    setGenerating(false);
   }
 
   // 2단계: 실제 배치 생성 (copy=true 면 직전월 명세 프리필, false 면 자동산정)
@@ -669,31 +671,63 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
       {copyPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCopyPrompt(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="text-lg font-bold mb-2">지난달 명세를 복사할까요?</div>
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">
-              <strong className="text-[var(--text)]">{copyPrompt.monthLabel}</strong> 급여 명세가 있습니다
-              {copyPrompt.itemCount > 0 && <span> ({copyPrompt.itemCount}건)</span>}.
-            </p>
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
-              · <strong>예</strong>: 지난달 기본급·비과세 입력값을 그대로 가져와 이번 달 명세에 반영합니다 (4대보험·세금은 동일 기준으로 재산정).<br />
-              · <strong>아니오</strong>: 직원 등록 급여 기준으로 새로 자동 산정합니다.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => runGenerate(false)}
-                disabled={generating}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg)] transition disabled:opacity-50"
-              >
-                아니오 — 새로 산정
-              </button>
-              <button
-                onClick={() => runGenerate(true)}
-                disabled={generating}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
-              >
-                예 — 그대로 복사
-              </button>
-            </div>
+            <div className="text-lg font-bold mb-2">지난달 명세를 그대로 복사할까요?</div>
+            {copyPrompt.exists ? (
+              <>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">
+                  <strong className="text-[var(--text)]">{copyPrompt.monthLabel}</strong> 급여 명세가 있습니다
+                  {copyPrompt.itemCount > 0 && <span> ({copyPrompt.itemCount}건)</span>}.
+                </p>
+                <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
+                  · <strong>예</strong>: 지난달 기본급·비과세 입력값을 그대로 가져와 이번 달 명세에 반영합니다 (4대보험·세금은 동일 기준으로 재산정).<br />
+                  · <strong>아니오</strong>: 직원 등록 급여 기준으로 새로 자동 산정합니다.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => runGenerate(false)}
+                    disabled={generating}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg)] transition disabled:opacity-50"
+                  >
+                    아니오 — 새로 산정
+                  </button>
+                  <button
+                    onClick={() => runGenerate(true)}
+                    disabled={generating}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                  >
+                    예 — 그대로 복사
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">
+                  {copyPrompt.monthLabel
+                    ? <><strong className="text-[var(--text)]">{copyPrompt.monthLabel}</strong> 급여 명세가 없어 복사할 항목이 없습니다.</>
+                    : <>복사할 지난달 급여 명세가 없습니다.</>}
+                </p>
+                <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
+                  직원 등록 급여 기준으로 이번 달 명세를 <strong>새로 자동 산정</strong>합니다.
+                  (다음 달부터는 이번 달 명세를 복사해 올 수 있습니다.)
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setCopyPrompt(null)}
+                    disabled={generating}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg)] transition disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => runGenerate(false)}
+                    disabled={generating}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                  >
+                    확인 — 새로 산정
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
