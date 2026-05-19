@@ -31,6 +31,8 @@ type Post = {
   event_date?: string | null;
   poll_question?: string | null;
   poll_options?: string[] | null;
+  poll_multi?: boolean | null;
+  poll_anonymous?: boolean | null;
   attachments?: Attachment[] | null;
 };
 type Comment = {
@@ -40,12 +42,6 @@ type Comment = {
   author_name: string | null;
   content: string;
   created_at: string;
-};
-type PollVote = {
-  id: string;
-  post_id: string;
-  user_id: string;
-  option_index: number;
 };
 
 const IMAGE_TYPES = "image/jpeg,image/png,image/gif,image/webp";
@@ -75,6 +71,8 @@ export default function BoardPage() {
   const [eventDate, setEventDate] = useState<string>("");
   const [pollQuestion, setPollQuestion] = useState<string>("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [pollMulti, setPollMulti] = useState<boolean>(false);       // R13: 복수 선택 허용
+  const [pollAnonymous, setPollAnonymous] = useState<boolean>(false); // R14: 익명 투표
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -106,17 +104,52 @@ export default function BoardPage() {
     enabled: !!openId,
   });
 
-  // 투표 집계 — board_poll_votes (DB 미적용 시 빈 배열)
-  const { data: pollVotes = [] } = useQuery({
-    queryKey: ["board-poll-votes", openId],
+  // R13/R14: 투표 집계는 SECURITY DEFINER RPC get_poll_results 우선
+  //   (익명 폴은 투표자 신원 비노출 — 클라이언트가 user_id 를 직접 못 읽음).
+  //   마이그레이션 미적용 환경에서는 RPC 부재 → 레거시 select 집계로 폴백.
+  const { data: pollAgg } = useQuery({
+    queryKey: ["board-poll-results", openId],
     queryFn: async () => {
-      const { data } = await db
-        .from("board_poll_votes")
-        .select("*")
-        .eq("post_id", openId!);
-      return (data || []) as PollVote[];
+      const counts: Record<number, number> = {};
+      try {
+        const { data, error } = await db.rpc("get_poll_results", { p_post_id: openId });
+        if (error) throw error;
+        let total = 0;
+        for (const r of (data || []) as any[]) {
+          counts[Number(r.option_index)] = Number(r.vote_count || 0);
+          total += Number(r.vote_count || 0);
+        }
+        return { counts, total };
+      } catch {
+        const { data } = await db
+          .from("board_poll_votes")
+          .select("option_index")
+          .eq("post_id", openId!);
+        for (const v of (data || []) as any[]) {
+          const k = Number(v.option_index);
+          counts[k] = (counts[k] || 0) + 1;
+        }
+        return { counts, total: (data || []).length };
+      }
     },
     enabled: !!openId,
+  });
+  const voteCounts: Record<number, number> = pollAgg?.counts ?? {};
+  const totalVotes = pollAgg?.total ?? 0;
+
+  // 내 표 — 본인 행만 조회(익명이어도 본인 선택 표시는 가능, RLS 본인범위).
+  const { data: myVotes = [] } = useQuery({
+    queryKey: ["board-my-poll-votes", openId, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as number[];
+      const { data } = await db
+        .from("board_poll_votes")
+        .select("option_index")
+        .eq("post_id", openId!)
+        .eq("user_id", user.id);
+      return ((data || []) as any[]).map((v) => Number(v.option_index));
+    },
+    enabled: !!openId && !!user?.id,
   });
 
   const resetForm = () => {
@@ -126,6 +159,8 @@ export default function BoardPage() {
     setEventDate("");
     setPollQuestion("");
     setPollOptions(["", ""]);
+    setPollMulti(false);
+    setPollAnonymous(false);
     setPhotoFiles([]);
     setDocFiles([]);
   };
@@ -180,6 +215,8 @@ export default function BoardPage() {
         event_date: eventDate || null,
         poll_question: pollQuestion.trim() || null,
         poll_options: pollQuestion.trim() ? cleanPollOptions : [],
+        poll_multi: pollQuestion.trim() ? pollMulti : false,
+        poll_anonymous: pollQuestion.trim() ? pollAnonymous : false,
         attachments,
       };
 
@@ -274,25 +311,44 @@ export default function BoardPage() {
       toast("댓글 삭제 실패: " + (e?.message || ""), "error"),
   });
 
-  // 투표 — 사용자당 1표 (upsert), board_poll_votes
+  // 투표 — onConflict 미사용(구 (post_id,user_id) / 신 (post_id,user_id,
+  //   option_index) UNIQUE 양쪽에서 안전). 단일=기존 표 교체, 복수=옵션 토글.
   const castVote = useMutation({
-    mutationFn: async ({ postId, optionIndex }: { postId: string; optionIndex: number }) => {
+    mutationFn: async ({ postId, optionIndex, multi }: { postId: string; optionIndex: number; multi: boolean }) => {
       if (!user?.id) throw new Error("로그인이 필요합니다.");
-      const { error } = await db
-        .from("board_poll_votes")
-        .upsert(
-          {
-            post_id: postId,
-            company_id: companyId,
-            user_id: user.id,
-            option_index: optionIndex,
-          },
-          { onConflict: "post_id,user_id" }
-        );
-      if (error) throw error;
+      if (multi) {
+        const { data: existing } = await db
+          .from("board_poll_votes")
+          .select("id")
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+          .eq("option_index", optionIndex)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          const { error } = await db
+            .from("board_poll_votes")
+            .delete()
+            .eq("post_id", postId)
+            .eq("user_id", user.id)
+            .eq("option_index", optionIndex);
+          if (error) throw error;
+        } else {
+          const { error } = await db
+            .from("board_poll_votes")
+            .insert({ post_id: postId, company_id: companyId, user_id: user.id, option_index: optionIndex });
+          if (error) throw error;
+        }
+      } else {
+        await db.from("board_poll_votes").delete().eq("post_id", postId).eq("user_id", user.id);
+        const { error } = await db
+          .from("board_poll_votes")
+          .insert({ post_id: postId, company_id: companyId, user_id: user.id, option_index: optionIndex });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["board-poll-votes"] });
+      qc.invalidateQueries({ queryKey: ["board-poll-results"] });
+      qc.invalidateQueries({ queryKey: ["board-my-poll-votes"] });
       toast("투표 완료", "success");
     },
     onError: (e: any) => toast("투표 실패: " + (e?.message || ""), "error"),
@@ -400,6 +456,26 @@ export default function BoardPage() {
                 >
                   + 선택지 추가
                 </button>
+                <div className="flex flex-wrap gap-4 pt-2 mt-1 border-t border-[var(--border)]">
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pollMulti}
+                      onChange={(e) => setPollMulti(e.target.checked)}
+                      className="accent-[var(--primary)]"
+                    />
+                    복수 선택 허용
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pollAnonymous}
+                      onChange={(e) => setPollAnonymous(e.target.checked)}
+                      className="accent-[var(--primary)]"
+                    />
+                    익명 투표 (투표자 비공개)
+                  </label>
+                </div>
               </div>
             )}
           </div>
@@ -480,8 +556,7 @@ export default function BoardPage() {
             const open = openId === p.id;
             const isMine = mine(p.author_id);
             const opts = p.poll_options || [];
-            const myVote = pollVotes.find((v) => v.user_id === user?.id);
-            const totalVotes = pollVotes.length;
+            const isMulti = !!p.poll_multi;
             return (
               <div
                 key={p.id}
@@ -563,14 +638,12 @@ export default function BoardPage() {
                         </div>
                         <div className="space-y-2">
                           {opts.map((opt, idx) => {
-                            const count = pollVotes.filter(
-                              (v) => v.option_index === idx
-                            ).length;
+                            const count = voteCounts[idx] || 0;
                             const pct =
                               totalVotes > 0
                                 ? Math.round((count / totalVotes) * 100)
                                 : 0;
-                            const voted = myVote?.option_index === idx;
+                            const voted = myVotes.includes(idx);
                             return (
                               <button
                                 key={idx}
@@ -578,6 +651,7 @@ export default function BoardPage() {
                                   castVote.mutate({
                                     postId: p.id,
                                     optionIndex: idx,
+                                    multi: isMulti,
                                   })
                                 }
                                 disabled={castVote.isPending}
@@ -605,7 +679,8 @@ export default function BoardPage() {
                           })}
                         </div>
                         <div className="text-[10px] text-[var(--text-dim)] mt-2">
-                          총 {totalVotes}표 · 1인 1표 (변경 가능)
+                          총 {totalVotes}표 · {isMulti ? "복수 선택 가능" : "1인 1표 (변경 가능)"}
+                          {p.poll_anonymous && " · 🔒 익명"}
                         </div>
                       </div>
                     )}
@@ -674,6 +749,8 @@ export default function BoardPage() {
                                   ? p.poll_options
                                   : ["", ""]
                               );
+                              setPollMulti(!!p.poll_multi);
+                              setPollAnonymous(!!p.poll_anonymous);
                               setPhotoFiles([]);
                               setDocFiles([]);
                               setShowForm(true);
