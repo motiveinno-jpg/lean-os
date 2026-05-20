@@ -5467,6 +5467,98 @@ export type Database = {
           },
         ]
       }
+      quote_approvals: {
+        Row: {
+          approval_token: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          decided_at: string | null
+          decision_note: string | null
+          expires_at: string | null
+          id: string
+          partner_id: string | null
+          payload: Json
+          recipient_email: string | null
+          recipient_name: string | null
+          sent_at: string | null
+          stage: string
+          status: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          approval_token: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          decided_at?: string | null
+          decision_note?: string | null
+          expires_at?: string | null
+          id?: string
+          partner_id?: string | null
+          payload?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          stage: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          approval_token?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          expires_at?: string | null
+          id?: string
+          partner_id?: string | null
+          payload?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          stage?: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_approvals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_deals: {
         Row: {
           bank_account_id: string | null
@@ -6419,6 +6511,30 @@ export type Database = {
       }
     }
     Functions: {
+      generate_approval_token: { Args: never; Returns: string }
+      get_quote_approval_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          id: string
+          stage: string
+          status: string
+          payload: Json
+          recipient_name: string | null
+          recipient_email: string | null
+          sent_at: string | null
+          expires_at: string | null
+          decided_at: string | null
+          decision_note: string | null
+          deal_id: string
+          deal_name: string
+          contract_total: number | null
+          company_name: string
+          company_representative: string | null
+        }[]
+      }
+      mark_quote_approval_viewed: { Args: { p_token: string }; Returns: boolean }
+      resend_quote_approval: { Args: { p_prev_id: string; p_payload?: Json }; Returns: string }
+      submit_quote_decision: { Args: { p_token: string; p_decision: string; p_note?: string }; Returns: Json }
       fn_process_invoice_queue: { Args: never; Returns: number }
       get_company_directory: {
         Args: never
