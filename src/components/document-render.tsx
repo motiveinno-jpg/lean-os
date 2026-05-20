@@ -166,13 +166,17 @@ export function DocumentRender({
       {/* Payment Schedule (both quote and contract) */}
       {(isContract || isQuote) && paymentSchedule.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-sm font-bold text-gray-900 mb-3">결제조건</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900">결제조건</h2>
+            {/* v4 D3: 부가세 별도 표기 — 표 상단 캡션 */}
+            <span className="text-[10px] text-gray-500 font-medium">금액·총액은 모두 <span className="text-gray-700">부가세(VAT) 별도</span></span>
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 text-gray-600">
                 <th className="px-3 py-2 text-left">구분</th>
                 <th className="px-3 py-2 text-right">비율</th>
-                <th className="px-3 py-2 text-right">금액</th>
+                <th className="px-3 py-2 text-right">금액 <span className="text-[9px] font-normal text-gray-400">(VAT 별도)</span></th>
                 <th className="px-3 py-2 text-left">지급조건</th>
               </tr>
             </thead>
@@ -188,7 +192,7 @@ export function DocumentRender({
             </tbody>
           </table>
           <div className="mt-3 pt-3 border-t text-right text-xs font-bold text-gray-900">
-            계약 총액: ₩{contractTotal.toLocaleString()}
+            계약 총액: ₩{contractTotal.toLocaleString()} <span className="text-[10px] text-gray-500 font-normal">(부가세 별도)</span>
           </div>
         </div>
       )}

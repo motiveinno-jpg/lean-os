@@ -1675,6 +1675,18 @@ function DealsPageInner() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [dealPartnerResults, setDealPartnerResults] = useState<any[]>([]);
   const [dealPartnerFocused, setDealPartnerFocused] = useState(false);
+  // v4 D1: 생성 폼 F2 → 전체 거래처 모달
+  const [showCreateAllPartners, setShowCreateAllPartners] = useState(false);
+  const [createAllPartnersList, setCreateAllPartnersList] = useState<{ id: string; name: string; business_number?: string }[]>([]);
+  const [createAllPartnersSearch, setCreateAllPartnersSearch] = useState('');
+  async function openCreateAllPartners() {
+    if (!companyId) return;
+    setShowCreateAllPartners(true);
+    setCreateAllPartnersSearch('');
+    const db2 = supabase as any;
+    const { data } = await db2.from('partners').select('id, name, business_number').eq('company_id', companyId).order('name', { ascending: true }).limit(500);
+    setCreateAllPartnersList(data || []);
+  }
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [showCreateProgram, setShowCreateProgram] = useState(false);
   const queryClient = useQueryClient();
@@ -1833,7 +1845,7 @@ function DealsPageInner() {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => { setForm({ ...form, start_date: e.target.value }); if (e.target.value) { const endInput = document.getElementById('deal-end-date'); endInput?.focus(); } }} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input id="deal-end-date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} min={form.start_date || undefined} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
-            <div className="relative"><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => { setForm({ ...form, counterparty: e.target.value }); searchDealPartners(e.target.value); }} onFocus={() => setDealPartnerFocused(true)} onBlur={() => setTimeout(() => setDealPartnerFocused(false), 200)} placeholder="예: (주)ABC컴퍼니 (기존 거래처 검색)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{dealPartnerFocused && dealPartnerResults.length > 0 && (<div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">{dealPartnerResults.map((p: any) => (<button key={p.id} type="button" onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, counterparty: p.name }); setDealPartnerResults([]); setDealPartnerFocused(false); }} className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"><span className="font-medium">{p.name}</span>{p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}</button>))}</div>)}</div>
+            <div className="relative"><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명 <span className="text-[10px] text-[var(--text-dim)] ml-1">(F2 키로 전체 목록)</span></label><input value={form.counterparty} onChange={(e) => { setForm({ ...form, counterparty: e.target.value }); searchDealPartners(e.target.value); }} onKeyDown={(e) => { if (e.key === 'F2') { e.preventDefault(); openCreateAllPartners(); } }} onFocus={() => setDealPartnerFocused(true)} onBlur={() => setTimeout(() => setDealPartnerFocused(false), 200)} placeholder="예: (주)ABC컴퍼니 (기존 거래처 검색 / F2 전체목록)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{dealPartnerFocused && dealPartnerResults.length > 0 && (<div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">{dealPartnerResults.map((p: any) => (<button key={p.id} type="button" onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, counterparty: p.name }); setDealPartnerResults([]); setDealPartnerFocused(false); }} className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"><span className="font-medium">{p.name}</span>{p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}</button>))}</div>)}</div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => form.name && Number(form.contract_total) > 0 && createDeal.mutate()} disabled={!form.name || !form.contract_total || Number(form.contract_total) <= 0 || createDeal.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{createDeal.isPending ? "생성 중..." : "프로젝트 생성"}</button>
@@ -1908,6 +1920,37 @@ function DealsPageInner() {
               )}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* v4 D1: 생성 폼 F2 전체 거래처 모달 */}
+      {showCreateAllPartners && (
+        <div className="fixed inset-0 z-[60] bg-black/60 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowCreateAllPartners(false)}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between sticky top-0 bg-[var(--bg-card)] rounded-t-2xl">
+              <h3 className="text-sm font-bold">전체 거래처 ({createAllPartnersList.length})</h3>
+              <button onClick={() => setShowCreateAllPartners(false)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xs">닫기 (ESC)</button>
+            </div>
+            <div className="p-3">
+              <input autoFocus value={createAllPartnersSearch} onChange={(e) => setCreateAllPartnersSearch(e.target.value)}
+                placeholder="검색 (이름·사업자번호)"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] mb-2" />
+              <div className="max-h-[60vh] overflow-y-auto space-y-1">
+                {createAllPartnersList
+                  .filter((p) => { const q = createAllPartnersSearch.trim().toLowerCase(); if (!q) return true; return p.name.toLowerCase().includes(q) || (p.business_number || '').includes(q); })
+                  .map((p) => (
+                    <button key={p.id} onClick={() => { setForm({ ...form, counterparty: p.name }); setShowCreateAllPartners(false); }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-sm transition">
+                      <span className="font-medium">{p.name}</span>
+                      {p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}
+                    </button>
+                  ))}
+                {createAllPartnersList.length === 0 && (
+                  <div className="text-center text-xs text-[var(--text-dim)] py-6">등록된 거래처가 없습니다.</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
