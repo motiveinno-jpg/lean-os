@@ -211,12 +211,113 @@ async function invokeAttendance(action: string, params: Record<string, string>) 
   return json.data;
 }
 
+// ── Attendance: 회사별 출근 기준 (company_settings.settings JSONB) ──
+// 키 work_start_time (HH:MM 24h, 기본 '09:00'), late_threshold_minutes (int, 기본 30)
+// DB 스키마 변경 없이 leave_grant_method 와 동일한 패턴 사용
+
+export type AttendancePolicy = {
+  workStartTime: string;        // 'HH:MM'
+  lateThresholdMinutes: number; // grace period (분)
+};
+
+const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
+  workStartTime: '09:00',
+  lateThresholdMinutes: 30,
+};
+
+/** 회사 출근 기준 조회. 미설정 시 9:00 + 30분 grace (기존 동작 유지). */
+export async function getAttendancePolicy(companyId: string): Promise<AttendancePolicy> {
+  try {
+    const { data } = await db
+      .from('company_settings')
+      .select('settings')
+      .eq('company_id', companyId)
+      .maybeSingle();
+    const s = data?.settings || {};
+    const wst = typeof s.work_start_time === 'string' && /^\d{2}:\d{2}$/.test(s.work_start_time)
+      ? s.work_start_time
+      : DEFAULT_ATTENDANCE_POLICY.workStartTime;
+    const ltm = Number.isFinite(Number(s.late_threshold_minutes))
+      ? Math.max(0, Math.min(240, Math.trunc(Number(s.late_threshold_minutes))))
+      : DEFAULT_ATTENDANCE_POLICY.lateThresholdMinutes;
+    return { workStartTime: wst, lateThresholdMinutes: ltm };
+  } catch {
+    return { ...DEFAULT_ATTENDANCE_POLICY };
+  }
+}
+
+/** 회사 출근 기준 저장 (기존 settings JSONB 다른 키 보존). */
+export async function setAttendancePolicy(
+  companyId: string,
+  policy: Partial<AttendancePolicy>,
+): Promise<void> {
+  const { data: existing } = await db
+    .from('company_settings')
+    .select('settings')
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  const patch: Record<string, unknown> = {};
+  if (policy.workStartTime && /^\d{2}:\d{2}$/.test(policy.workStartTime)) {
+    patch.work_start_time = policy.workStartTime;
+  }
+  if (typeof policy.lateThresholdMinutes === 'number' && Number.isFinite(policy.lateThresholdMinutes)) {
+    patch.late_threshold_minutes = Math.max(0, Math.min(240, Math.trunc(policy.lateThresholdMinutes)));
+  }
+
+  const nextSettings = { ...(existing?.settings || {}), ...patch };
+
+  const { error } = await db
+    .from('company_settings')
+    .upsert(
+      { company_id: companyId, settings: nextSettings },
+      { onConflict: 'company_id' },
+    );
+  if (error) throw error;
+}
+
+/**
+ * KST(Asia/Seoul) 기준 현재 분(分) 단위 시각 (0~1439).
+ * `date` 미지정 시 호출 시점 사용. 테스트용으로 Date 주입 가능.
+ */
+export function nowKstMinutes(date: Date = new Date()): number {
+  // Intl 로 KST 의 H/m 추출 — 서버 TZ 무관하게 정확
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0');
+  const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0');
+  return h * 60 + m;
+}
+
+/** 'HH:MM' → 분. 형식 오류 시 540 (09:00) fallback. */
+function parseHhmmToMinutes(hhmm: string): number {
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return 540;
+  const [h, m] = hhmm.split(':').map(Number);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return 540;
+  return h * 60 + m;
+}
+
+/**
+ * 출근 시각이 지각인지 판정 (회사 정책 기준).
+ * 자정 직전·새벽 등 엣지: 분 단위 비교라 안전.
+ */
+export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean {
+  const start = parseHhmmToMinutes(policy.workStartTime);
+  return currentKstMin > start + policy.lateThresholdMinutes;
+}
+
 // ── Attendance: Check In ──
+// 시그니처 불변: (companyId, employeeId, status?)
+// status === 'auto' (기본) → 회사 정책 기준 KST 시각으로 present/late 자동 판정
 export async function checkIn(companyId: string, employeeId: string, status: string = "auto") {
   if (status === "auto") {
-    const hour = new Date().getHours();
-    const minute = new Date().getMinutes();
-    status = (hour > 9 || (hour === 9 && minute > 30)) ? "late" : "present";
+    const policy = await getAttendancePolicy(companyId);
+    const mins = nowKstMinutes();
+    status = isLate(mins, policy) ? "late" : "present";
   }
   return invokeAttendance("checkin", { companyId, employeeId, status });
 }
