@@ -1771,7 +1771,17 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
   const [showForm, setShowForm] = useState(false);
   const [requestType, setRequestType] = useState<'expense' | 'purchase_request'>('expense');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [form, setForm] = useState({ title: '', description: '', amount: '', category: 'general', dealId: '' });
+  // U2: 지출결의서 8필드 확장 — 사유/기안일/결제요청일/상세내역/총금액(부가세토글)/결제방법/비고/첨부파일
+  const today = new Date().toISOString().split('T')[0];
+  const [form, setForm] = useState({
+    title: '', description: '', amount: '', category: 'general', dealId: '',
+    reason: '', request_date: today, payment_due_date: '',
+    has_vat: false, payment_method: 'card' as 'card'|'bank'|'cash'|'other',
+    note: '',
+    receipt_urls: [] as string[],
+    detail_items: [] as { desc: string; qty: number; price: number }[],
+  });
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: expenses = [] } = useQuery({
@@ -1801,15 +1811,34 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       category: form.category,
     }),
     onSuccess: async (data) => {
-      // requestType 저장 (품의서인 경우)
-      if (requestType === 'purchase_request' && data?.id) {
+      // U2: 8 확장필드 + requestType 저장 (createExpenseRequest 시그니처 무수정 — 추가 update 1회)
+      if (data?.id) {
         const { supabase } = await import('@/lib/supabase');
-        await (supabase as any).from('expense_requests').update({ request_type: 'purchase_request' }).eq('id', data.id);
+        const supplyAmt = Number(form.amount) || 0;
+        const vatAmt = form.has_vat ? Math.round(supplyAmt * 0.1) : 0;
+        const patch: Record<string, unknown> = {
+          reason: form.reason || null,
+          request_date: form.request_date || null,
+          payment_due_date: form.payment_due_date || null,
+          has_vat: form.has_vat,
+          vat_amount: vatAmt,
+          payment_method: form.payment_method,
+          note: form.note || null,
+          detail_items: form.detail_items.length > 0 ? form.detail_items : null,
+          receipt_urls: form.receipt_urls.length > 0 ? form.receipt_urls : null,
+        };
+        if (requestType === 'purchase_request') patch.request_type = 'purchase_request';
+        await (supabase as any).from('expense_requests').update(patch).eq('id', data.id);
       }
       queryClient.invalidateQueries({ queryKey: ['expense-requests'] });
       invalidate();
       setShowForm(false);
-      setForm({ title: '', description: '', amount: '', category: 'general', dealId: '' });
+      setForm({
+        title: '', description: '', amount: '', category: 'general', dealId: '',
+        reason: '', request_date: today, payment_due_date: '',
+        has_vat: false, payment_method: 'card', note: '',
+        receipt_urls: [], detail_items: [],
+      });
       expToast("지출결의가 등록되었습니다", "success");
     },
     onError: (err: Error) => { expToast("등록 실패: " + (err?.message || ""), "error"); },
@@ -1930,6 +1959,134 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
               rows={3} placeholder={requestType === 'expense' ? '지출 사유 및 상세 내역' : '구매 사유, 필요성, 비교 견적 등'}
               className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
           </div>
+
+          {/* U2: 8필드 확장 — 사유/기안일/결제요청일/상세내역/부가세토글/결제방법/비고/첨부파일 */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
+              <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                placeholder="예: 거래처 회의비 / 정기 SaaS 갱신"
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">결제방법</label>
+              <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value as any })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                <option value="card">법인카드</option>
+                <option value="bank">통장 이체</option>
+                <option value="cash">현금</option>
+                <option value="other">기타</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">기안일</label>
+              <input type="date" value={form.request_date} onChange={(e) => setForm({ ...form, request_date: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">결제요청일</label>
+              <input type="date" value={form.payment_due_date} onChange={(e) => setForm({ ...form, payment_due_date: e.target.value })}
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+          </div>
+
+          {/* 부가세 토글 + 총금액 표시 */}
+          <div className="mb-4 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between flex-wrap gap-2">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.has_vat} onChange={(e) => setForm({ ...form, has_vat: e.target.checked })}
+                className="accent-[var(--primary)]" />
+              <span>부가세 10% 포함</span>
+            </label>
+            {form.amount && (
+              <div className="text-xs text-[var(--text-muted)] space-x-3">
+                <span>공급가액: ₩{Number(form.amount).toLocaleString()}</span>
+                {form.has_vat && <span>VAT: ₩{Math.round(Number(form.amount) * 0.1).toLocaleString()}</span>}
+                <span className="font-semibold text-[var(--text)]">
+                  총 ₩{(Number(form.amount) + (form.has_vat ? Math.round(Number(form.amount) * 0.1) : 0)).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 상세내역 (line items) */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-[var(--text-muted)]">상세내역 (선택)</label>
+              <button type="button" onClick={() => setForm({ ...form, detail_items: [...form.detail_items, { desc: '', qty: 1, price: 0 }] })}
+                className="text-xs text-[var(--primary)] hover:underline">+ 행 추가</button>
+            </div>
+            {form.detail_items.length > 0 && (
+              <div className="space-y-1.5">
+                {form.detail_items.map((it, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input value={it.desc} onChange={(e) => {
+                      const next = [...form.detail_items]; next[idx] = { ...it, desc: e.target.value }; setForm({ ...form, detail_items: next });
+                    }} placeholder="내역" className="flex-1 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    <input type="number" min="1" value={it.qty} onChange={(e) => {
+                      const next = [...form.detail_items]; next[idx] = { ...it, qty: Number(e.target.value) || 1 }; setForm({ ...form, detail_items: next });
+                    }} className="w-16 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    <input type="number" value={it.price} onChange={(e) => {
+                      const next = [...form.detail_items]; next[idx] = { ...it, price: Number(e.target.value) || 0 }; setForm({ ...form, detail_items: next });
+                    }} placeholder="단가" className="w-28 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                    <button type="button" onClick={() => setForm({ ...form, detail_items: form.detail_items.filter((_, i) => i !== idx) })}
+                      className="text-red-400/70 hover:text-red-400 text-xs">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 비고 */}
+          <div className="mb-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">비고</label>
+            <textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })}
+              rows={2} placeholder="추가 참고사항 (선택)"
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+          </div>
+
+          {/* 첨부파일 — receipt_urls 배열 (커밋 4346f0a 패턴: company-assets 회사격리) */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-[var(--text-muted)]">첨부파일 (영수증·견적서 등)</label>
+              <input type="file" multiple accept="image/*,application/pdf"
+                disabled={uploadingReceipt}
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+                  setUploadingReceipt(true);
+                  try {
+                    const { supabase } = await import('@/lib/supabase');
+                    const newUrls: string[] = [];
+                    for (const file of files) {
+                      const path = `${companyId}/expense-receipts/${Date.now()}-${file.name}`;
+                      const { error: upErr } = await (supabase as any).storage.from('company-assets').upload(path, file, { cacheControl: '3600', upsert: false });
+                      if (upErr) throw upErr;
+                      const { data: pub } = (supabase as any).storage.from('company-assets').getPublicUrl(path);
+                      newUrls.push(pub.publicUrl);
+                    }
+                    setForm({ ...form, receipt_urls: [...form.receipt_urls, ...newUrls] });
+                  } catch (err: any) {
+                    expToast(`첨부 실패: ${err?.message || '오류'}`, 'error');
+                  }
+                  setUploadingReceipt(false);
+                  e.target.value = '';
+                }}
+                className="text-xs text-[var(--text-muted)]" />
+            </div>
+            {uploadingReceipt && <div className="text-[10px] text-[var(--text-dim)]">업로드 중...</div>}
+            {form.receipt_urls.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1">
+                {form.receipt_urls.map((url, idx) => (
+                  <div key={idx} className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-surface)] text-[10px]">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">파일 {idx + 1}</a>
+                    <button type="button" onClick={() => setForm({ ...form, receipt_urls: form.receipt_urls.filter((_, i) => i !== idx) })}
+                      className="text-red-400/70 hover:text-red-400">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button onClick={() => form.title && form.amount && createMut.mutate()}
               disabled={!form.title || !form.amount || createMut.isPending}
