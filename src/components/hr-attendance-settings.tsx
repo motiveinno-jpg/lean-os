@@ -19,6 +19,7 @@ import {
   upsertHoliday,
   deleteHoliday,
   seedKoreanLegalHolidays,
+  recomputeAttendance,
   type AttendanceCompanySettings,
 } from "@/lib/hr";
 import HrAllowanceCatalogPanel from "@/components/hr-allowance-catalog";
@@ -51,9 +52,28 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
   const saveMut = useMutation({
     mutationFn: (patch: Partial<AttendanceCompanySettings>) =>
       setAttendanceCompanySettings(companyId, patch),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["hr-attendance-settings", companyId] });
-      toast("근태 설정 저장 완료", "success");
+      // L 근태 — 설정 변경 시 최근 30일 attendance_records 자동 재계산.
+      //   회사 출퇴근 기준·야간/휴일·포괄임금 토글이 바뀌어도 과거 행에 반영되게.
+      //   allowance_entries chain 도 recomputeAttendance 안에 내장.
+      //   실패해도 저장 자체는 성공 처리.
+      try {
+        const today = new Date();
+        const from = new Date(today);
+        from.setDate(from.getDate() - 30);
+        await recomputeAttendance({
+          companyId,
+          from: from.toISOString().slice(0, 10),
+          to: today.toISOString().slice(0, 10),
+        });
+        queryClient.invalidateQueries({ queryKey: ["attendance"] });
+        queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+        toast("근태 설정 저장 + 최근 30일 자동 재계산 완료", "success");
+      } catch (e: any) {
+        // 권한 부족 (admin only) 또는 일시 오류 — 저장은 성공
+        toast(`근태 설정 저장 완료 (자동 재계산은 실패: ${e?.message || "알 수 없음"})`, "success");
+      }
     },
     onError: (err: any) =>
       toast(friendlyError(err, "저장에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
