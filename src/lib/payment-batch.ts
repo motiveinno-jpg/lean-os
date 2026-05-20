@@ -24,6 +24,13 @@ export interface BatchSummary {
   createdAt: string;
 }
 
+// v4 H1: 임의 수당/공제 항목 — payroll_items.extras jsonb 에 저장.
+export type PayrollExtra = {
+  type: 'allowance' | 'deduction';
+  name: string;       // '식대' / '직책수당' / '사내대출' 등
+  amount: number;     // 양수
+};
+
 export interface PayrollItem {
   employeeId: string;
   employeeName: string;
@@ -38,6 +45,8 @@ export interface PayrollItem {
   localIncomeTax: number;
   deductionsTotal: number;
   netPay: number;
+  // v4 H1: 임의 수당/공제 (선택)
+  extras?: PayrollExtra[];
   employerCosts: {
     nationalPension: number;
     healthInsurance: number;
@@ -46,6 +55,18 @@ export interface PayrollItem {
     industrialAccident: number;
     total: number;
   };
+}
+
+// v4 H1: extras 합산 헬퍼 (UI/PDF 공통 사용)
+export function sumExtras(extras?: PayrollExtra[]): { allowance: number; deduction: number; net: number } {
+  if (!extras || extras.length === 0) return { allowance: 0, deduction: 0, net: 0 };
+  let allowance = 0, deduction = 0;
+  for (const e of extras) {
+    const amt = Math.max(0, Number(e.amount) || 0);
+    if (e.type === 'allowance') allowance += amt;
+    else deduction += amt;
+  }
+  return { allowance, deduction, net: allowance - deduction };
 }
 
 // ── Korean Social Insurance Rates (2026) ──
