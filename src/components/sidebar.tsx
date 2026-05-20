@@ -307,9 +307,9 @@ export function Sidebar() {
       className={`${sidebarWidth} h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col transition-all duration-200 overflow-hidden`}
       style={{ boxShadow: "var(--shadow-sm)" }}
     >
-      {/* Logo */}
+      {/* Logo — U1: 로고 클릭 → /dashboard */}
       <div className={`border-b border-[var(--border)] ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
-        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
+        <Link href="/dashboard" className={`flex items-center hover:opacity-80 transition ${collapsed ? "justify-center" : "gap-2.5"}`} aria-label="대시보드로 이동">
           <OwnerViewIcon size={28} />
           {!collapsed && (
             <div className="flex-1 min-w-0">
@@ -324,7 +324,7 @@ export function Sidebar() {
               </div>
             </div>
           )}
-        </div>
+        </Link>
       </div>
 
       {/* Search */}
@@ -564,14 +564,16 @@ export function Sidebar() {
           className="w-60 h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col overflow-hidden"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
-          {/* Mobile close button + Logo */}
+          {/* Mobile close button + Logo (U1: 로고 클릭 → /dashboard) */}
           <div className="px-5 py-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-2.5">
-              <OwnerViewIcon size={28} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
-                <div className="text-[10px] text-[var(--text-dim)]">Company Dashboard OS</div>
-              </div>
+              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition" aria-label="대시보드로 이동">
+                <OwnerViewIcon size={28} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
+                  <div className="text-[10px] text-[var(--text-dim)]">Company Dashboard OS</div>
+                </div>
+              </Link>
               <button
                 onClick={() => setMobileOpen(false)}
                 className="p-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-dim)]"

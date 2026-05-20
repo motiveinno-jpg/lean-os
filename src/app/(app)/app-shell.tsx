@@ -309,12 +309,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-        {/* Logo for limited roles on mobile */}
+        {/* Logo for limited roles on mobile — U1: 클릭 → /dashboard */}
         {isLimitedRole && (
-          <div className="md:hidden flex items-center gap-2">
+          <Link href="/dashboard" className="md:hidden flex items-center gap-2 hover:opacity-80 transition" aria-label="대시보드로 이동">
             <OwnerViewIcon size={24} />
             <span className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></span>
-          </div>
+          </Link>
         )}
         <div className="hidden md:block" />
 

@@ -432,11 +432,12 @@ export default function CashReceiptsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl w-fit">
+        {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
+            보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
         {(
           [
             ["expense", "매입 (수취)"],
             ["income", "매출 (발행)"],
-            ["register", "등록"],
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <button
@@ -663,7 +664,7 @@ export default function CashReceiptsPage() {
               </div>
               <div className="text-xs text-[var(--text-muted)] mt-1">
                 {tab === "income"
-                  ? "상단의 '홈택스 매출 가져오기' 또는 등록 탭에서 직접 등록하세요"
+                  ? "상단의 '홈택스 매출 가져오기' 로 동기화하세요"
                   : "매입은 CODEF 미지원 — 등록 탭에서 직접 등록하거나 홈택스 엑셀을 업로드하세요"}
               </div>
             </div>

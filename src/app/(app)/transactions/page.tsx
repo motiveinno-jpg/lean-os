@@ -728,6 +728,18 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     else { setCardSortBy(key); setCardSortDir(key === 'amount' || key === 'transaction_date' ? 'desc' : 'asc'); }
   };
   const [showRefunds, setShowRefunds] = useState(false);
+  // A2 체크카드 그룹 접기 토글 — localStorage 영구
+  const [checkCardCollapsed, setCheckCardCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return localStorage.getItem('cards:check-collapsed') === '1'; } catch { return false; }
+  });
+  function toggleCheckCard() {
+    setCheckCardCollapsed(v => {
+      const next = !v;
+      try { localStorage.setItem('cards:check-collapsed', next ? '1' : '0'); } catch {}
+      return next;
+    });
+  }
 
   // 자동이체 매칭 휴리스틱: 활성 반복결제와 거래처/수취인명이 겹치고 금액이 ±5% 이내면 "자동(자동이체)" 로 본다.
   // is_fixed_cost(수동 체크) 가 켜져 있으면 항상 "자동" 으로 표시(라벨/의미 통일).
@@ -953,6 +965,30 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
           >
             {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
+          </button>
+          <button
+            onClick={async () => {
+              if (!companyId) return;
+              try {
+                const { autoMarkRecurringTransactions } = await import('@/lib/recurring-auto-mark');
+                const r = await autoMarkRecurringTransactions(companyId);
+                if (r.marked > 0) {
+                  toast(`자동이체 ${r.marked}건 자동 인식 완료 (학습 패턴 ${r.learned}건)`, 'success');
+                  queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+                } else if (r.learned === 0) {
+                  toast('학습할 자동이체가 없습니다. 먼저 자동이체 거래에 고정비 체크를 1회만 해주세요.', 'info');
+                } else {
+                  toast(`새로 인식할 거래 없음 (패턴 ${r.learned}건 학습 중)`, 'info');
+                }
+              } catch (err: any) {
+                toast(`자동 인식 실패: ${err?.message || '오류'}`, 'error');
+              }
+            }}
+            disabled={!companyId}
+            title="이미 고정비 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+          >
+            🔁 자동이체 자동 인식
           </button>
           <button
             onClick={handleAIClassify}
@@ -1819,27 +1855,46 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </span>
           </div>
 
-          {/* Registered Cards List */}
-          {corpCards.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {corpCards.map((c: any) => (
-                <div key={c.id} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] text-xs">
-                  <CardTypeBadge type={c.card_type} />
-                  <span className="font-semibold">{c.card_name}</span>
-                  <span className="text-[var(--text-dim)]">{c.card_company}</span>
-                  {c.card_number && <span className="text-[var(--text-dim)]">****{c.card_number.slice(-4)}</span>}
-                  {c.holder_name && <span className="text-[var(--text-dim)]">{c.holder_name}</span>}
-                  <button onClick={() => {
-                    setEditingCard(c);
-                    setCardForm({ card_name: c.card_name, card_number: c.card_number || '', card_company: c.card_company, holder_name: c.holder_name || '', monthly_limit: c.monthly_limit ? String(c.monthly_limit) : '', payment_day: c.payment_day ? String(c.payment_day) : '', billing_day: c.billing_day ? String(c.billing_day) : '', card_type: (c.card_type as any) || 'credit' });
-                    setShowCardForm(true);
-                  }} className="text-[var(--primary)] hover:underline">수정</button>
-                  <button onClick={() => { if (confirm('이 카드를 삭제하시겠습니까?')) deleteCardMut.mutate(c.id); }}
-                    className="text-red-400/60 hover:text-red-400">삭제</button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Registered Cards List — A2: 체크카드 그룹 접기 토글 */}
+          {corpCards.length > 0 && (() => {
+            const nonCheck = corpCards.filter((c: any) => c.card_type !== 'check');
+            const checkCards = corpCards.filter((c: any) => c.card_type === 'check');
+            const renderCard = (c: any) => (
+              <div key={c.id} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] text-xs">
+                <CardTypeBadge type={c.card_type} />
+                <span className="font-semibold">{c.card_name}</span>
+                <span className="text-[var(--text-dim)]">{c.card_company}</span>
+                {c.card_number && <span className="text-[var(--text-dim)]">****{c.card_number.slice(-4)}</span>}
+                {c.holder_name && <span className="text-[var(--text-dim)]">{c.holder_name}</span>}
+                <button onClick={() => {
+                  setEditingCard(c);
+                  setCardForm({ card_name: c.card_name, card_number: c.card_number || '', card_company: c.card_company, holder_name: c.holder_name || '', monthly_limit: c.monthly_limit ? String(c.monthly_limit) : '', payment_day: c.payment_day ? String(c.payment_day) : '', billing_day: c.billing_day ? String(c.billing_day) : '', card_type: (c.card_type as any) || 'credit' });
+                  setShowCardForm(true);
+                }} className="text-[var(--primary)] hover:underline">수정</button>
+                <button onClick={() => { if (confirm('이 카드를 삭제하시겠습니까?')) deleteCardMut.mutate(c.id); }}
+                  className="text-red-400/60 hover:text-red-400">삭제</button>
+              </div>
+            );
+            return (
+              <div className="space-y-2">
+                {nonCheck.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">{nonCheck.map(renderCard)}</div>
+                )}
+                {checkCards.length > 0 && (
+                  <div className="space-y-1.5">
+                    <button onClick={toggleCheckCard}
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">
+                      <span className="inline-block w-3 text-center">{checkCardCollapsed ? '▶' : '▼'}</span>
+                      체크카드 {checkCards.length}장 {checkCardCollapsed ? '(접힘 — 클릭하면 펼침)' : ''}
+                    </button>
+                    {!checkCardCollapsed && (
+                      <div className="flex gap-2 flex-wrap">{checkCards.map(renderCard)}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Card Transactions Table */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
