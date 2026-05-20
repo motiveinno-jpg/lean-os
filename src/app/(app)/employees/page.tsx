@@ -48,6 +48,7 @@ import {
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import MyAllowanceCard from "@/components/hr-my-allowance-card";
+import AllowanceAdminTab from "@/components/hr-allowance-admin";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
@@ -3619,6 +3620,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
   const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
+  // 관리자 분기: 수당 명세 임베드 collapse 토글 (긴 영역이라 기본 접힘)
+  const [allowanceExpanded, setAllowanceExpanded] = useState(false);
 
   // Get month start/end for queries
   const monthStart = `${selectedMonth}-01`;
@@ -3807,6 +3810,35 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* L 근태 — C-3 관리자: 수정 요청 인박스 */}
       {isAdmin && reviewerUserId && companyId && (
         <EditRequestInbox companyId={companyId} reviewerId={reviewerUserId} />
+      )}
+
+      {/* L 수당 — 관리자: 직원 수당 명세 임베드 (핸드오프 (a) — collapse 기본 접힘) */}
+      {isAdmin && companyId && (
+        <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAllowanceExpanded((v) => !v)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-[var(--bg-surface)] transition text-left"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg">💰</span>
+              <div>
+                <div className="text-sm font-semibold text-[var(--text)]">직원 수당 명세 (이번 달)</div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  직원별 법정·커스텀 수당 · 월 일괄 재계산 · 엑셀 export
+                </div>
+              </div>
+            </div>
+            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+              {allowanceExpanded ? "접기 ▲" : "펼치기 ▼"}
+            </span>
+          </button>
+          {allowanceExpanded && (
+            <div className="px-5 pb-5 border-t border-[var(--border)]">
+              <AllowanceAdminTab companyId={companyId} userId={userId ?? null} />
+            </div>
+          )}
+        </div>
       )}
 
       {/* L 근태 — C-2 직원: 본인 이번 달 가산수당 요약 */}
