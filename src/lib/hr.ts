@@ -499,6 +499,7 @@ export async function recomputeAttendance(params: {
 
   let updated = 0;
   const total = (rows || []).length;
+  const touchedEmpMonths = new Set<string>(); // 'empId|YYYY-MM'
   for (const r of rows || []) {
     const result = calcDailyAttendance({
       check_in: r.check_in,
@@ -522,8 +523,31 @@ export async function recomputeAttendance(params: {
         is_holiday: result.is_holiday,
       })
       .eq('id', r.id);
-    if (!upErr) updated++;
+    if (!upErr) {
+      updated++;
+      touchedEmpMonths.add(`${r.employee_id}|${(r.date as string).slice(0, 7)}`);
+    }
   }
+
+  // L 수당: attendance_records 갱신된 직원·월별로 allowance_entries 자동 chain.
+  //   - source='auto' 행만 갱신, manual/edit 행은 보존 (force=false).
+  //   - 실패 시 silent — 근태 재계산 자체는 성공으로 처리 (UI 가 별도 안내).
+  if (touchedEmpMonths.size > 0) {
+    try {
+      const { recomputeMonthlyAllowances } = await import('./allowance-calc');
+      for (const key of touchedEmpMonths) {
+        const [empId, ym] = key.split('|');
+        try {
+          await recomputeMonthlyAllowances(empId, ym);
+        } catch {
+          // 단일 직원 실패는 다른 직원 진행을 막지 않음
+        }
+      }
+    } catch {
+      // 모듈 로드 실패 — 무시
+    }
+  }
+
   return { updated, total };
 }
 
@@ -1499,5 +1523,179 @@ export async function setLeaveGrantMethod(companyId: string, method: LeaveGrantM
       { company_id: companyId, settings: nextSettings },
       { onConflict: 'company_id' },
     );
+  if (error) throw error;
+}
+
+// ── L 수당: 카탈로그 CRUD (UI C-1 에서 사용) ──
+
+export type AllowanceTypeRow = {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  calc_mode: 'auto_time' | 'per_count' | 'manual' | 'fixed_per_month';
+  base_field: string | null;
+  rate_type: 'hourly_multiplier' | 'fixed_per_minute' | 'fixed_per_count' | 'fixed_per_month';
+  rate_amount: number;
+  is_legal_mandatory: boolean;
+  is_active: boolean;
+  applies_to: 'all' | 'employees';
+  target_employee_ids: string[];
+  display_order: number;
+};
+
+/** 회사 수당 카탈로그 조회 (display_order ASC). */
+export async function listAllowanceTypes(companyId: string): Promise<AllowanceTypeRow[]> {
+  const { data, error } = await db
+    .from('allowance_types')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('display_order', { ascending: true });
+  if (error) throw error;
+  return (data as AllowanceTypeRow[]) || [];
+}
+
+/** 수당 추가 — code 자동 생성 (slug + random4). 관리자만(RLS). */
+export async function createAllowanceType(params: {
+  companyId: string;
+  name: string;
+  calc_mode: AllowanceTypeRow['calc_mode'];
+  base_field?: string | null;
+  rate_type: AllowanceTypeRow['rate_type'];
+  rate_amount: number;
+  applies_to?: AllowanceTypeRow['applies_to'];
+  target_employee_ids?: string[];
+  display_order?: number;
+  is_active?: boolean;
+}): Promise<AllowanceTypeRow> {
+  // slug + random4
+  const baseSlug = (params.name || 'custom')
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 24) || 'custom';
+  const rand4 = Math.random().toString(36).slice(2, 6);
+  const code = `${baseSlug}_${rand4}`;
+
+  const row = {
+    company_id: params.companyId,
+    code,
+    name: params.name,
+    calc_mode: params.calc_mode,
+    base_field: params.base_field ?? null,
+    rate_type: params.rate_type,
+    rate_amount: params.rate_amount,
+    is_legal_mandatory: false,
+    is_active: params.is_active ?? true,
+    applies_to: params.applies_to || 'all',
+    target_employee_ids: params.target_employee_ids || [],
+    display_order: params.display_order ?? 100,
+  };
+  const { data, error } = await db
+    .from('allowance_types')
+    .insert(row)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as AllowanceTypeRow;
+}
+
+/** 수당 수정 — 법정행은 DB 트리거가 code/is_legal_mandatory 변경 차단. */
+export async function updateAllowanceType(
+  id: string,
+  patch: Partial<Omit<AllowanceTypeRow, 'id' | 'company_id' | 'code' | 'is_legal_mandatory'>>,
+): Promise<void> {
+  const { error } = await db
+    .from('allowance_types')
+    .update(patch)
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** 수당 삭제 — 법정행은 DB 트리거가 거부 (RAISE EXCEPTION). */
+export async function deleteAllowanceType(id: string): Promise<void> {
+  const { error } = await db.from('allowance_types').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** 회사 법정 4종 재seed (단가 바뀌어 INSERT 재실행 — ON CONFLICT DO NOTHING). */
+export async function seedLegalAllowances(companyId: string): Promise<number> {
+  const { data, error } = await db.rpc('seed_legal_allowances', { p_company_id: companyId });
+  if (error) throw error;
+  return Number(data) || 0;
+}
+
+// ── L 수당: 월별 entries 조회/편집 (UI C-2, C-3 에서 사용) ──
+
+export type AllowanceEntryRow = {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  payroll_month: string; // 'YYYY-MM'
+  allowance_type_id: string;
+  calculated_minutes: number | null;
+  count: number | null;
+  amount: number;
+  source: 'auto' | 'manual' | 'edit';
+  edited_by: string | null;
+  edited_at: string | null;
+  note: string | null;
+};
+
+/** 본인 월별 수당 — RLS 가 본인 또는 admin 만 허용. */
+export async function listMyAllowanceEntries(
+  employeeId: string,
+  yyyymm: string,
+): Promise<AllowanceEntryRow[]> {
+  const { data, error } = await db
+    .from('allowance_entries')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('payroll_month', yyyymm);
+  if (error) throw error;
+  return (data as AllowanceEntryRow[]) || [];
+}
+
+/** 회사 전체 직원의 월별 수당 — admin only(RLS). */
+export async function listCompanyAllowanceEntries(
+  companyId: string,
+  yyyymm: string,
+): Promise<AllowanceEntryRow[]> {
+  const { data, error } = await db
+    .from('allowance_entries')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('payroll_month', yyyymm);
+  if (error) throw error;
+  return (data as AllowanceEntryRow[]) || [];
+}
+
+/** 관리자 — entries 셀 인라인 수정 (source='edit', edited_by 기록). */
+export async function upsertAllowanceEntryManual(params: {
+  companyId: string;
+  employeeId: string;
+  payrollMonth: string;
+  allowanceTypeId: string;
+  amount: number;
+  editedBy: string;
+  source?: 'manual' | 'edit';
+  note?: string;
+}): Promise<void> {
+  const row = {
+    company_id: params.companyId,
+    employee_id: params.employeeId,
+    payroll_month: params.payrollMonth,
+    allowance_type_id: params.allowanceTypeId,
+    amount: Math.round(params.amount),
+    source: params.source || 'edit',
+    edited_by: params.editedBy,
+    edited_at: new Date().toISOString(),
+    note: params.note ?? null,
+  };
+  const { error } = await db
+    .from('allowance_entries')
+    .upsert(row, {
+      onConflict: 'company_id,employee_id,payroll_month,allowance_type_id',
+    });
   if (error) throw error;
 }

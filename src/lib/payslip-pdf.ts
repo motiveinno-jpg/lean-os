@@ -34,6 +34,13 @@ export interface PayslipParams {
   extraEarnings?: { label: string; amount: number }[];
   /** 추가 공제 항목 */
   extraDeductions?: { label: string; amount: number }[];
+  /**
+   * L 수당 카탈로그 — 해당 월 활성 allowance_entries (display_order ASC).
+   *   주어지면 지급내역에 동적 라인으로 자동 추가 (extraEarnings 보다 먼저).
+   *   amount<=0 인 행은 자동 제외.
+   *   law-mandatory 식별을 위해 code 도 전달 가능 (UI 가 라벨 결정).
+   */
+  allowanceEntries?: { label: string; amount: number; code?: string }[];
   /** PDF 비밀번호 (생년월일 YYYYMMDD 권장). 설정 시 PDF 열 때 입력 필요. */
   password?: string;
 }
@@ -74,7 +81,7 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
     item, companyName, periodLabel, department, position, paymentDate,
     employeeCode, birthDate, payGrade,
     overtimeHours, nightHours, holidayHours, hourlyWage,
-    extraEarnings, extraDeductions, password,
+    extraEarnings, extraDeductions, allowanceEntries, password,
   } = params;
 
   const doc = new jsPDF({
@@ -168,12 +175,19 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 5) 지급내역 / 공제내역 표 (6칸 그리드) ──
-  // 지급내역 항목 구성 — 기본급, 식대(비과세 분리) + 추가
+  // 지급내역 항목 구성 — 기본급, 식대(비과세 분리) + L 수당 카탈로그 동적 라인 + extraEarnings
   const earnings: { label: string; amount: number }[] = [];
   const taxableBase = item.baseSalary - item.nonTaxableAmount;
   earnings.push({ label: '기본급', amount: taxableBase });
   if (item.nonTaxableAmount > 0) {
     earnings.push({ label: '식대', amount: item.nonTaxableAmount });
+  }
+  // L 수당 — allowance_entries 의 display_order ASC 순서로 라인 추가 (amount > 0 만).
+  //   label 은 호출자가 allowance_types.name (법정행은 한국어 고정 라벨) 으로 미리 매핑해서 넘겨준다.
+  if (allowanceEntries) {
+    for (const a of allowanceEntries) {
+      if (a.amount > 0) earnings.push({ label: a.label, amount: a.amount });
+    }
   }
   if (extraEarnings) {
     for (const e of extraEarnings) {
@@ -278,7 +292,11 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 6) 합계 표 ──
-  const earningsTotal = item.baseSalary + (extraEarnings || []).reduce((s, e) => s + (e.amount || 0), 0);
+  //   합계 = 기본급(baseSalary, 비과세 포함) + L 수당 + extraEarnings
+  const allowanceTotal = (allowanceEntries || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const earningsTotal = item.baseSalary
+    + allowanceTotal
+    + (extraEarnings || []).reduce((s, e) => s + (e.amount || 0), 0);
   const deductionsTotal = item.deductionsTotal + (extraDeductions || []).reduce((s, d) => s + (d.amount || 0), 0);
   const netPay = earningsTotal - deductionsTotal;
 

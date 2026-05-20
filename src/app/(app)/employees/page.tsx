@@ -46,6 +46,7 @@ import {
   EditRequestInbox,
   MonthlyRecomputeButton,
 } from "@/components/hr-attendance-extras";
+import MyAllowanceCard from "@/components/hr-my-allowance-card";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
@@ -3819,6 +3820,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         </div>
       )}
 
+      {/* L 수당 — C-2 직원: 본인 이번 달 수당 (allowance_entries 카탈로그 기반) */}
+      {isEmployeeRole && myEmployeeRecord && companyId && (
+        <div className="mb-4">
+          <MyAllowanceCard
+            companyId={companyId}
+            employeeId={myEmployeeRecord.id}
+            yyyymm={selectedMonth}
+            hourly={myMonthlyBaseSalary > 0 ? Math.round(myMonthlyBaseSalary / 209) : undefined}
+          />
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
@@ -4299,6 +4312,42 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
+  // L 수당 — 한국어 고정 라벨 (PDF/명세서 표시용)
+  const legalLabelFor = (code: string): string | null => {
+    switch (code) {
+      case "overtime": return "연장수당";
+      case "night": return "야간수당";
+      case "holiday": return "휴일수당";
+      case "holiday_over_8h": return "휴일수당(8h초과)";
+      case "on_duty": return "당직비";
+      default: return null;
+    }
+  };
+
+  const fetchAllowanceLines = async (employeeId: string): Promise<{ label: string; amount: number; code: string }[]> => {
+    try {
+      const { data } = await (supabase as any)
+        .from("allowance_entries")
+        .select("amount, allowance_types!inner(name, code, display_order, is_active)")
+        .eq("company_id", companyId!)
+        .eq("employee_id", employeeId)
+        .eq("payroll_month", periodMonth);
+      const list = ((data || []) as any[])
+        .filter((r) => r.allowance_types?.is_active && Number(r.amount || 0) > 0)
+        .map((r) => ({
+          label: legalLabelFor(r.allowance_types.code) || r.allowance_types.name,
+          amount: Number(r.amount || 0),
+          code: r.allowance_types.code as string,
+          order: Number(r.allowance_types.display_order || 100),
+        }))
+        .sort((a, b) => a.order - b.order)
+        .map(({ label, amount, code }) => ({ label, amount, code }));
+      return list;
+    } catch {
+      return [];
+    }
+  };
+
   const downloadOne = async (item: PayrollItem) => {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
@@ -4309,6 +4358,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       const itemExtras = item.extras || [];
       const extraEarnings = itemExtras.filter((e) => e.type === 'allowance').map((e) => ({ label: e.name, amount: e.amount }));
       const extraDeductions = itemExtras.filter((e) => e.type === 'deduction').map((e) => ({ label: e.name, amount: e.amount }));
+      // L 수당 카탈로그 — allowance_entries 동적 라인
+      const allowanceEntries = await fetchAllowanceLines(item.employeeId);
       await downloadPayslipPDF({
         item,
         companyName: companyMeta?.name || "회사",
@@ -4320,6 +4371,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         birthDate: meta.birthDate || undefined,
         extraEarnings: extraEarnings.length > 0 ? extraEarnings : undefined,
         extraDeductions: extraDeductions.length > 0 ? extraDeductions : undefined,
+        allowanceEntries,
       });
       toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
     } catch (err: any) {

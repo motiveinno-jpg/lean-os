@@ -553,6 +553,19 @@ export async function approveBatch(batchId: string, userId: string): Promise<voi
   }
 }
 
+// L 수당 — 법정 시스템 코드 → 한국어 고정 라벨.
+//   custom 코드는 allowance_types.name 그대로 사용.
+function legalAllowanceLabel(code: string): string | null {
+  switch (code) {
+    case 'overtime': return '연장수당';
+    case 'night': return '야간수당';
+    case 'holiday': return '휴일수당';
+    case 'holiday_over_8h': return '휴일수당(8h초과)';
+    case 'on_duty': return '당직비';
+    default: return null;
+  }
+}
+
 // ── Send payslip emails to all employees in a payroll batch ──
 
 export async function sendPayslipEmails(
@@ -627,6 +640,34 @@ export async function sendPayslipEmails(
   // PDF 생성기 동적 import — 번들 분리
   const { generatePayslipPDF, birthDateToPassword } = await import('./payslip-pdf');
 
+  // L 수당: 해당 월 전 직원 allowance_entries + allowance_types (display_order)
+  //   payroll_month = 'YYYY-MM' = monthKey 와 동일.
+  const allowanceByEmp = new Map<string, Array<{ label: string; amount: number; code: string; order: number }>>();
+  if (monthKey) {
+    const { data: allowEntries } = await db
+      .from('allowance_entries')
+      .select('employee_id, amount, allowance_type_id, allowance_types!inner(name, code, display_order, is_active)')
+      .eq('company_id', companyId)
+      .eq('payroll_month', monthKey);
+    for (const e of (allowEntries || [])) {
+      const t = (e as any).allowance_types;
+      if (!t || !t.is_active) continue;
+      const amt = Number(e.amount || 0);
+      if (amt <= 0) continue;
+      const empArr = allowanceByEmp.get((e as any).employee_id) || [];
+      empArr.push({
+        label: legalAllowanceLabel(t.code) || t.name,
+        amount: amt,
+        code: t.code,
+        order: Number(t.display_order || 100),
+      });
+      allowanceByEmp.set((e as any).employee_id, empArr);
+    }
+    for (const arr of allowanceByEmp.values()) {
+      arr.sort((a, b) => a.order - b.order);
+    }
+  }
+
   for (const emp of employees as any[]) {
     if (!emp.email) { failed++; errors.push(`${emp.name}: 이메일 없음`); continue; }
 
@@ -643,6 +684,9 @@ export async function sendPayslipEmails(
 
     // PDF 생성 — 비밀번호 = 생년월일 (YYYYMMDD)
     const password = birthDateToPassword(emp.birth_date);
+    const empAllowances = (allowanceByEmp.get(emp.id) || []).map((a) => ({
+      label: a.label, amount: a.amount, code: a.code,
+    }));
     let pdfBase64: string | undefined;
     try {
       const doc = await generatePayslipPDF({
@@ -654,6 +698,7 @@ export async function sendPayslipEmails(
         position: emp.position || undefined,
         employeeCode: emp.id ? String(emp.id).slice(-4).toUpperCase() : undefined,
         birthDate: emp.birth_date || undefined,
+        allowanceEntries: empAllowances,
         password,
       });
       // jsPDF 의 base64 output

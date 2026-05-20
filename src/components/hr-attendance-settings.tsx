@@ -21,6 +21,7 @@ import {
   seedKoreanLegalHolidays,
   type AttendanceCompanySettings,
 } from "@/lib/hr";
+import HrAllowanceCatalogPanel from "@/components/hr-allowance-catalog";
 
 const DOW = [
   { bit: 1, label: "월" },
@@ -263,6 +264,9 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
       >
         {saveMut.isPending ? "저장 중…" : "근태 설정 저장"}
       </button>
+
+      {/* L 수당 카탈로그 — 법정 4종 + 회사 커스텀 */}
+      <HrAllowanceCatalogPanel companyId={companyId} />
 
       {/* 휴일 캘린더 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
