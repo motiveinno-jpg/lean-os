@@ -22,6 +22,7 @@ import {
 } from "@/lib/project-rules";
 import { formatDueLabel } from "@/lib/project-badges";
 import { ProjectQuoteStages } from "@/components/project-quote-stages";
+import { getLatestApproval, type ApprovalLite } from "@/lib/quote-approvals";
 
 // stage → 진행률 (%)
 const STAGE_PROGRESS: Record<ProjectStage, number> = {
@@ -266,6 +267,22 @@ function OverviewTab({ data, stage }: { data: PanelData; stage: ProjectStage }) 
   const deal = data.deal;
   const progress = STAGE_PROGRESS[stage] || 20;
 
+  // STEP 4 (PR-E): 견적 단계 외부 승인 latest approval — getNextAction 에 prop 전달.
+  //   estimate stage 만 의미 있음. 다른 stage 는 null 이라도 동작 동일.
+  const [latestApproval, setLatestApproval] = useState<ApprovalLite | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (deal.stage !== 'estimate') {
+        if (!cancelled) setLatestApproval(null);
+        return;
+      }
+      const a = await getLatestApproval(deal.id, 'estimate');
+      if (!cancelled) setLatestApproval(a);
+    })();
+    return () => { cancelled = true; };
+  }, [deal.id, deal.stage]);
+
   // 진척 가공
   const totalCost = useMemo(() => {
     return (data.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
@@ -299,6 +316,7 @@ function OverviewTab({ data, stage }: { data: PanelData; stage: ProjectStage }) 
     { totalCost },
     hasQuoteDoc,
     hasContractDoc,
+    latestApproval,
   );
 
   const meta = getMetaSummary({

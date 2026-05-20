@@ -12,6 +12,7 @@
 // 절대규칙: side-effect 0, DB 의존성 0, 입력만으로 출력. 단위테스트 가능.
 
 import { getProjectBadge as getProjectBadgeFromBase, type ProjectBadge, formatDueLabel } from './project-badges';
+import type { ApprovalLite } from './quote-approvals';
 
 export type ProjectStage = 'estimate' | 'contract' | 'in_progress' | 'completed' | 'settlement';
 
@@ -61,6 +62,10 @@ export function getNextAction(
   costs?: ProjectCostsLite,
   hasQuoteDoc?: boolean,
   hasContractDoc?: boolean,
+  // STEP 4 (PR-E): 견적 단계 외부 승인 latest approval (선택).
+  //   호출자(슬라이드 패널)가 getLatestApproval(dealId,'estimate') 결과를 prop 으로 전달.
+  //   본 함수는 sync 유지 — fetch 책임은 호출자에게.
+  latestApproval?: ApprovalLite | null,
 ): NextAction {
   const stage = (deal.stage || 'estimate') as ProjectStage;
   // PR3.5: 모든 CTA href 를 /projects?open=<id>&action=<key> 로 통일.
@@ -87,11 +92,43 @@ export function getNextAction(
 
   // 2) Recommended — stage 별 자연 흐름
   switch (stage) {
-    case 'estimate':
+    case 'estimate': {
+      // STEP 4 (PR-E): latestApproval 우선 매핑.
+      //   null         → 견적서 작성
+      //   draft        → 견적 발송 (CTA hasQuoteDoc 케이스와 동일)
+      //   sent         → 거래처 확인 대기 중 (optional)
+      //   viewed       → 거래처가 견적을 봤습니다 (optional)
+      //   approved     → 보통 deal.stage='contract' 로 이미 전환됨 (이 분기 도달 안 함)
+      //                  도달했다면 안전망: '계약 단계로 이동' optional
+      //   rejected     → 거절됨 — 수정 후 재발송 (recommended)
+      //   expired      → 만료 — 재발송하기 (recommended)
+      if (latestApproval) {
+        const st = latestApproval.status;
+        if (st === 'sent') {
+          return { text: '거래처 확인 대기 중', href: panelHref('quote'), icon: '⏳', reason: '발송 후 응답 대기', level: 'optional' };
+        }
+        if (st === 'viewed') {
+          return { text: '거래처가 견적을 봤습니다', href: panelHref('quote'), icon: '👁', reason: '확인됨 — 응답 대기', level: 'optional' };
+        }
+        if (st === 'rejected') {
+          return { text: '거절됨 — 수정 후 재발송 →', href: panelHref('quote'), icon: '❌', reason: '거래처 거절 — 수정 후 재발송', level: 'recommended' };
+        }
+        if (st === 'expired') {
+          return { text: '만료 — 재발송하기 →', href: panelHref('send'), icon: '⏰', reason: '응답 기한 만료 — 재발송', level: 'recommended' };
+        }
+        if (st === 'approved') {
+          return { text: '계약 단계로 이동 →', href: panelHref('move-settlement'), icon: '✅', reason: '거래처 승인 — 계약 단계로', level: 'optional' };
+        }
+        // 'draft' 면 hasQuoteDoc 분기 로직과 동일하게 발송 권장
+        if (st === 'draft') {
+          return { text: '견적 발송하기 →', href: panelHref('quote'), icon: '📤', reason: '견적 작성됨 — 거래처 발송', level: 'recommended' };
+        }
+      }
       if (!hasQuoteDoc) {
         return { text: '견적서 작성하기 →', href: panelHref('quote'), icon: '📝', reason: '견적 단계인데 견적서 없음', level: 'recommended' };
       }
       return { text: '견적 발송하기 →', href: panelHref('send'), icon: '📤', reason: '견적서 발송 → 계약 단계 진입', level: 'recommended' };
+    }
 
     case 'contract':
       if (!hasContractDoc) {
