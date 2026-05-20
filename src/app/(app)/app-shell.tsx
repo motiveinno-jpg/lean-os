@@ -58,18 +58,20 @@ function MobileBottomNav() {
   const tabs = role === "partner" ? PARTNER_TABS : role === "owner" ? OWNER_TABS : EMPLOYEE_TABS;
 
   return (
+    // P0-D: 모바일 첫진입 발견성 — 라벨 10px→12px(text-xs) 가독성 회복,
+    //   탭 높이 56→60px 로 살짝 키워 손가락 타깃 + 라벨 균형 확보.
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] safe-area-bottom" style={{ boxShadow: "0 -1px 8px rgba(0,0,0,0.06)" }}>
-      <div className="flex items-center justify-around h-14 px-1">
+      <div className="flex items-center justify-around h-[60px] px-1">
         {tabs.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 min-w-0 min-h-[44px] transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 min-w-0 min-h-[44px] transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}
             >
               <BottomTabIcon name={tab.icon} active={active} />
-              <span className={`text-[10px] font-medium truncate ${active ? "text-[var(--primary)]" : ""}`}>{tab.label}</span>
+              <span className={`text-xs font-medium truncate ${active ? "text-[var(--primary)] font-semibold" : ""}`}>{tab.label}</span>
             </Link>
           );
         })}
@@ -162,6 +164,28 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { role, user } = useUser();
   const isLimitedRole = role === "partner" || role === "employee";
   const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // P0-D: 모바일 햄버거 first-time hint — 첫 진입 한 번만 펄스 + 작은 툴팁.
+  //   localStorage 키 'hint:hamburger' 가 비어있을 때만 활성, 클릭하면 dismiss.
+  const [hamburgerHint, setHamburgerHint] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (!localStorage.getItem("hint:hamburger") && !isLimitedRole) {
+        setHamburgerHint(true);
+        // 6초 후 자동 dismiss(영구). 사용자가 그동안 봤으면 충분.
+        const t = setTimeout(() => {
+          try { localStorage.setItem("hint:hamburger", "1"); } catch {}
+          setHamburgerHint(false);
+        }, 6000);
+        return () => clearTimeout(t);
+      }
+    } catch {}
+  }, [isLimitedRole]);
+  const dismissHint = () => {
+    try { localStorage.setItem("hint:hamburger", "1"); } catch {}
+    setHamburgerHint(false);
+  };
 
   // 앱 진입 시 전역 자동 동기화 — CODEF 한 번이라도 연결된 회사면
   // 페이지 무관하게 오너뷰를 켜면 통장+카드 자동 동기화 (10분 주기 유지).
@@ -265,18 +289,26 @@ function AppContent({ children }: { children: React.ReactNode }) {
         } left-0`}
       >
         {/* Left: Mobile hamburger — hide for limited roles on mobile (they use bottom nav) */}
-        <button
-          onClick={() => setMobileOpen(true)}
-          className={`${isLimitedRole ? "hidden" : "md:hidden"} p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition`}
-          style={{ boxShadow: "var(--shadow-sm)" }}
-          aria-label="메뉴 열기"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
+        <div className={`${isLimitedRole ? "hidden" : "md:hidden"} relative`}>
+          <button
+            onClick={() => { dismissHint(); setMobileOpen(true); }}
+            className={`p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition ${hamburgerHint ? "ring-2 ring-[var(--primary)] animate-pulse" : ""}`}
+            style={{ boxShadow: "var(--shadow-sm)" }}
+            aria-label="메뉴 열기"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          {hamburgerHint && (
+            <div className="absolute top-full left-0 mt-1 px-2.5 py-1.5 rounded-lg bg-[var(--primary)] text-white text-[11px] font-medium whitespace-nowrap shadow-lg z-50 flex items-center gap-1.5">
+              <span>👆 여기를 눌러 전체 메뉴</span>
+              <button onClick={dismissHint} className="ml-1 opacity-80 hover:opacity-100" aria-label="안내 닫기">✕</button>
+            </div>
+          )}
+        </div>
         {/* Logo for limited roles on mobile */}
         {isLimitedRole && (
           <div className="md:hidden flex items-center gap-2">
