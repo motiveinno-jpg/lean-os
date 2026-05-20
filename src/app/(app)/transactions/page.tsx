@@ -1855,46 +1855,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </span>
           </div>
 
-          {/* Registered Cards List — A2: 체크카드 그룹 접기 토글 */}
-          {corpCards.length > 0 && (() => {
-            const nonCheck = corpCards.filter((c: any) => c.card_type !== 'check');
-            const checkCards = corpCards.filter((c: any) => c.card_type === 'check');
-            const renderCard = (c: any) => (
-              <div key={c.id} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] text-xs">
-                <CardTypeBadge type={c.card_type} />
-                <span className="font-semibold">{c.card_name}</span>
-                <span className="text-[var(--text-dim)]">{c.card_company}</span>
-                {c.card_number && <span className="text-[var(--text-dim)]">****{c.card_number.slice(-4)}</span>}
-                {c.holder_name && <span className="text-[var(--text-dim)]">{c.holder_name}</span>}
-                <button onClick={() => {
-                  setEditingCard(c);
-                  setCardForm({ card_name: c.card_name, card_number: c.card_number || '', card_company: c.card_company, holder_name: c.holder_name || '', monthly_limit: c.monthly_limit ? String(c.monthly_limit) : '', payment_day: c.payment_day ? String(c.payment_day) : '', billing_day: c.billing_day ? String(c.billing_day) : '', card_type: (c.card_type as any) || 'credit' });
-                  setShowCardForm(true);
-                }} className="text-[var(--primary)] hover:underline">수정</button>
-                <button onClick={() => { if (confirm('이 카드를 삭제하시겠습니까?')) deleteCardMut.mutate(c.id); }}
-                  className="text-red-400/60 hover:text-red-400">삭제</button>
-              </div>
-            );
-            return (
-              <div className="space-y-2">
-                {nonCheck.length > 0 && (
-                  <div className="flex gap-2 flex-wrap">{nonCheck.map(renderCard)}</div>
-                )}
-                {checkCards.length > 0 && (
-                  <div className="space-y-1.5">
-                    <button onClick={toggleCheckCard}
-                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition">
-                      <span className="inline-block w-3 text-center">{checkCardCollapsed ? '▶' : '▼'}</span>
-                      체크카드 {checkCards.length}장 {checkCardCollapsed ? '(접힘 — 클릭하면 펼침)' : ''}
-                    </button>
-                    {!checkCardCollapsed && (
-                      <div className="flex gap-2 flex-wrap">{checkCards.map(renderCard)}</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {/* Registered Cards List 제거 — 이용대금 청구서(CardBillingSummary)·월별 사용금액(CardMonthlyUsage)·
+              CODEF 카드별 사용액(위)에서 이미 모든 카드 정보가 노출되어 중복. 수정/삭제는 청구서 카드 상세에서. */}
 
           {/* Card Transactions Table */}
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">

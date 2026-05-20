@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
@@ -428,24 +428,70 @@ export function CardMonthlyUsage({ companyId }: Props) {
         </div>
       </div>
 
-      {/* 카드별 표 */}
+      {/* 카드별 표 — 접기 토글, 기본 접힘(localStorage) */}
       {sortedCards.length === 0 ? (
         <div className="text-center py-4 text-xs text-[var(--text-dim)]">카드 거래 없음</div>
       ) : (
-        <div>
-          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">카드별</div>
-          <div className="overflow-auto -mx-2">
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-2 py-1.5 font-medium">카드</th>
-                  {months.map(m => (
-                    <th key={m} className="text-right px-2 py-1.5 font-medium">{Number(m.slice(5, 7))}월</th>
-                  ))}
-                  <th className="text-right px-2 py-1.5 font-medium">합계</th>
-                </tr>
-              </thead>
-              <tbody>
+        <CardPerCardTable
+          sortedCards={sortedCards}
+          totals={totals}
+          months={months}
+          grandTotal={grandTotal}
+        />
+      )}
+    </div>
+  );
+}
+
+function CardPerCardTable({
+  sortedCards,
+  totals,
+  months,
+  grandTotal,
+}: {
+  sortedCards: any[];
+  totals: Record<string, number>;
+  months: string[];
+  grandTotal: number;
+}) {
+  const STORAGE_KEY = 'card_monthly_usage_percard_collapsed';
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    return v === null ? true : v === '1';
+  });
+  const toggle = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { window.localStorage.setItem(STORAGE_KEY, next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex items-center gap-1.5 mb-2 hover:opacity-80 transition"
+      >
+        <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
+        <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+          카드별 {sortedCards.length}장 {collapsed ? '(접힘 — 클릭하면 펼침)' : ''}
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="overflow-auto -mx-2">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-2 py-1.5 font-medium">카드</th>
+                {months.map(m => (
+                  <th key={m} className="text-right px-2 py-1.5 font-medium">{Number(m.slice(5, 7))}월</th>
+                ))}
+                <th className="text-right px-2 py-1.5 font-medium">합계</th>
+              </tr>
+            </thead>
+            <tbody>
                 {sortedCards.map(c => {
                   // R9: 체크/신용 표기 통일 — 구분 불명(미등록·미매칭) 카드는
                   //   '기타'로 일관 표기해 누락 0 (어떤 카드는 적히고 어떤 카드는
@@ -496,7 +542,6 @@ export function CardMonthlyUsage({ companyId }: Props) {
               </tbody>
             </table>
           </div>
-        </div>
       )}
     </div>
   );

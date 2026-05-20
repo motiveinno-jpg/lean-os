@@ -290,37 +290,77 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
         </div>
       )}
 
-      {/* 체크·직불 카드 — 청구 사이클 무관, 종류 되돌리기용 */}
+      {/* 체크·직불·기타 카드 — 청구 사이클 무관, 종류 되돌리기용. 기본 접힘(localStorage). */}
       {nonCreditCards.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[var(--border)]">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-              체크·직불·기타 {nonCreditCards.length}개
-            </div>
-            <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>
+        <NonCreditCardsSection
+          cards={nonCreditCards}
+          onChangeType={(card, type) => typeMut.mutate({ card, type })}
+          saving={typeMut.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function NonCreditCardsSection({
+  cards,
+  onChangeType,
+  saving,
+}: {
+  cards: any[];
+  onChangeType: (card: any, type: 'credit' | 'check' | 'debit' | 'other') => void;
+  saving: boolean;
+}) {
+  const STORAGE_KEY = 'card_billing_noncredit_collapsed';
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    return v === null ? true : v === '1';
+  });
+  const toggle = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { window.localStorage.setItem(STORAGE_KEY, next ? '1' : '0'); } catch {}
+      return next;
+    });
+  };
+  return (
+    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex items-center justify-between w-full mb-1.5 hover:opacity-80 transition"
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
+          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+            체크·직불·기타 {cards.length}개 {collapsed ? '(접힘 — 클릭하면 펼침)' : ''}
           </div>
-          <div className="space-y-1">
-            {nonCreditCards.map((c: any) => {
-              const curType = c.card_type as 'check' | 'debit' | 'other';
-              const typeLabel = curType === 'check' ? '체크' : curType === 'debit' ? '직불' : '기타';
-              return (
-                <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-[var(--text-muted)] truncate">{c.card_name}</span>
-                      <NonCreditTypeToggle
-                        currentType={curType}
-                        currentLabel={typeLabel}
-                        onChange={(type) => typeMut.mutate({ card: c, type })}
-                        saving={typeMut.isPending}
-                      />
-                    </div>
-                    <div className="text-[9px] text-[var(--text-dim)] truncate">{c.card_company}</div>
+        </div>
+        <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>
+      </button>
+      {!collapsed && (
+        <div className="space-y-1">
+          {cards.map((c: any) => {
+            const curType = c.card_type as 'check' | 'debit' | 'other';
+            const typeLabel = curType === 'check' ? '체크' : curType === 'debit' ? '직불' : '기타';
+            return (
+              <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-[var(--text-muted)] truncate">{c.card_name}</span>
+                    <NonCreditTypeToggle
+                      currentType={curType}
+                      currentLabel={typeLabel}
+                      onChange={(type) => onChangeType(c, type)}
+                      saving={saving}
+                    />
                   </div>
+                  <div className="text-[9px] text-[var(--text-dim)] truncate">{c.card_company}</div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
