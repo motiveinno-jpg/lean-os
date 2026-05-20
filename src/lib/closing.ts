@@ -28,7 +28,7 @@ const DEFAULT_ITEMS = [
   { title: '세금계산서 대사 완료', description: '매출/매입 세금계산서와 거래내역 매칭 확인', sort_order: 4, is_required: true },
   { title: '미수금/미지급금 확인', description: '30일 이상 미수금 독촉 여부, 미지급금 기한 확인', sort_order: 5, is_required: true },
   { title: '고정비 정합성 확인', description: '임대료/급여/보험 등 고정비가 정상 지출되었는지 확인', sort_order: 6, is_required: true },
-  { title: '딜별 매출/비용 정합성', description: '딜 계약금액 대비 실 입출금 확인', sort_order: 7, is_required: false },
+  { title: '프로젝트별 매출/비용 정합성', description: '딜 계약금액 대비 실 입출금 확인', sort_order: 7, is_required: false },
   { title: '부가세 예수금 확인', description: '당월 부가세 예수/환급 예상액 확인', sort_order: 8, is_required: false },
   { title: '증빙 누락 확인', description: '영수증/증빙 미첨부 건수 확인 및 보완', sort_order: 9, is_required: true },
   { title: '월간 손익 리포트 생성', description: 'PDF 리포트 다운로드 및 저장', sort_order: 10, is_required: false },

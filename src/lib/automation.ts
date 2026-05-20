@@ -240,7 +240,7 @@ export async function autoMatchTransactions(companyId: string) {
 }
 
 // ══════════════════════════════════════════
-// 5. 휴면 딜 자동감지 + 알림
+// 5. 휴면 프로젝트 자동감지 + 알림
 // ══════════════════════════════════════════
 export async function detectDormantDeals(companyId: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -264,7 +264,7 @@ export async function detectDormantDeals(companyId: string) {
   const notifications = candidates.map((d: any) => ({
     company_id: companyId,
     type: 'dormant_deal',
-    title: `휴면 딜 감지: ${d.name}`,
+    title: `휴면 프로젝트 감지: ${d.name}`,
     message: `30일 이상 활동이 없습니다. 확인이 필요합니다.`,
     entity_type: 'deal',
     entity_id: d.id,
@@ -392,7 +392,7 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
 }
 
 // ══════════════════════════════════════════
-// 8. 세금계산서 자동생성 (딜 완료 시)
+// 8. 세금계산서 자동생성 (프로젝트 완료 시)
 // ══════════════════════════════════════════
 export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId: string) {
   // Check if invoice already exists for this deal
@@ -412,7 +412,7 @@ export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId:
     .eq('id', dealId)
     .single();
 
-  if (!deal) return { created: false, reason: '딜을 찾을 수 없습니다' };
+  if (!deal) return { created: false, reason: '프로젝트를 찾을 수 없습니다' };
 
   const counterpartyName = deal.partners?.name || deal.counterparty || deal.name;
   const counterpartyBizno = deal.partners?.business_number || '';
@@ -443,7 +443,7 @@ export async function autoCreatePartnerFromDeal(companyId: string, dealId: strin
     .eq('id', dealId)
     .single();
 
-  if (!deal) return { created: false, reason: '딜을 찾을 수 없습니다' };
+  if (!deal) return { created: false, reason: '프로젝트를 찾을 수 없습니다' };
   if (deal.partner_id) return { created: false, reason: '이미 파트너가 연결되어 있습니다' };
 
   const partnerName = deal.counterparty || deal.name;
@@ -677,7 +677,7 @@ export async function autoCreateExpenseFromContract(companyId: string) {
     const amount = Number(sched.amount || 0);
     if (amount <= 0) continue;
 
-    const dealName = (sched as any).deal_nodes?.deals?.name || '딜';
+    const dealName = (sched as any).deal_nodes?.deals?.name || '프로젝트';
     const label = sched.condition_text || '계약금';
 
     const request = await createApprovalRequest({

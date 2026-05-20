@@ -276,7 +276,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             {(doc as any).deals?.name && (
               <>
                 <span>|</span>
-                <span>딜: {(doc as any).deals.name}</span>
+                <span>프로젝트: {(doc as any).deals.name}</span>
               </>
             )}
             {(doc as any).users?.name && (
@@ -1550,7 +1550,7 @@ function DocumentsPageInner() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 딜</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={docForm.deal_id} onChange={(e) => setDocForm({ ...docForm, deal_id: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">선택 안함</option>
@@ -1594,7 +1594,7 @@ function DocumentsPageInner() {
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 딜</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={invForm.deal_id} onChange={(e) => setInvForm({ ...invForm, deal_id: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">선택 안함</option>
@@ -1642,7 +1642,7 @@ function DocumentsPageInner() {
                   <th className="text-left px-5 py-3 font-medium">문서명</th>
                   <th className="text-left px-5 py-3 font-medium">유형</th>
                   <th className="text-left px-5 py-3 font-medium">AI 분류</th>
-                  <th className="text-left px-5 py-3 font-medium">연결 딜</th>
+                  <th className="text-left px-5 py-3 font-medium">연결 프로젝트</th>
                   <th className="text-center px-5 py-3 font-medium">상태</th>
                   <th className="text-left px-5 py-3 font-medium">생성일</th>
                 </tr>
@@ -1700,7 +1700,7 @@ function DocumentsPageInner() {
               <span className="text-xs text-[var(--text-dim)]">{contractDocuments.length}건</span>
             </div>
             {contractDocuments.length === 0 ? (
-              <div className="p-12 text-center text-sm text-[var(--text-muted)]">딜에서 생성된 계약서가 여기에 표시됩니다</div>
+              <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트에서 생성된 계약서가 여기에 표시됩니다</div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
@@ -1962,7 +1962,7 @@ function DocumentsPageInner() {
                   <th className="text-right px-5 py-3 font-medium">공급가액</th>
                   <th className="text-right px-5 py-3 font-medium">부가세</th>
                   <th className="text-right px-5 py-3 font-medium">합계</th>
-                  <th className="text-left px-5 py-3 font-medium">딜</th>
+                  <th className="text-left px-5 py-3 font-medium">프로젝트</th>
                   <th className="text-center px-5 py-3 font-medium">상태</th>
                   <th className="text-left px-5 py-3 font-medium">발행일</th>
                   <th className="text-center px-5 py-3 font-medium"></th>

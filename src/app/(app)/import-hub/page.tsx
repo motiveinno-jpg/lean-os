@@ -260,7 +260,7 @@ export default function ImportHubPage() {
         case "handover_excel": {
           const parsed: HandoverParseResult = state.previewData;
 
-          // 딜 등록
+          // 프로젝트 등록
           for (const deal of parsed.detectedDeals) {
             const { error } = await db.from("deals").insert({
               company_id: companyId,
@@ -275,7 +275,7 @@ export default function ImportHubPage() {
             });
             if (!error) inserted++;
           }
-          details.push(`딜/프로젝트 ${inserted}건 등록`);
+          details.push(`프로젝트 ${inserted}건 등록`);
 
           // 미수금 → deal_revenue_schedule
           let arCount = 0;
@@ -756,7 +756,7 @@ function CEOReportPreview({ data }: { data: ParsedExcelData }) {
 
 function HandoverPreview({ data }: { data: HandoverParseResult }) {
   const counts = [
-    data.detectedDeals.length > 0 && `딜 ${data.detectedDeals.length}건`,
+    data.detectedDeals.length > 0 && `프로젝트 ${data.detectedDeals.length}건`,
     data.detectedReceivables.length > 0 && `미수금 ${data.detectedReceivables.length}건`,
     data.detectedPayables.length > 0 && `미지급 ${data.detectedPayables.length}건`,
     data.detectedRecurring.length > 0 && `반복비용 ${data.detectedRecurring.length}건`,
@@ -771,7 +771,7 @@ function HandoverPreview({ data }: { data: HandoverParseResult }) {
 
       {data.detectedDeals.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">딜/프로젝트</p>
+          <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">프로젝트</p>
           <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
             <table className="w-full text-xs">
               <thead>

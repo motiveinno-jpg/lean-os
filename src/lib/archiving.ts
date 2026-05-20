@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 // ── Deal Archiving Engine ──
-// 완료된 딜을 아카이브하여 대시보드/목록에서 분리
+// 완료된 프로젝트를 아카이브하여 대시보드/목록에서 분리
 
 export interface ArchiveSummary {
   dealId: string;

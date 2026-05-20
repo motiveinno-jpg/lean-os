@@ -1,6 +1,6 @@
 /**
  * OwnerView Partner CRM Library
- * 거래처(파트너) 관리 — 조회, 생성/수정, 검색, 딜 연동 자동 생성
+ * 거래처(파트너) 관리 — 조회, 생성/수정, 검색, 프로젝트 연동 자동 생성
  */
 
 import { supabase } from './supabase';

@@ -566,7 +566,7 @@ interface NotifPrefs {
 
 const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string }[] = [
   { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
-  { key: "deal_status", label: "프로젝트 상태 변경", desc: "딜이 다음 단계로 이동하거나 완료될 때" },
+  { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
   { key: "payment_due", label: "결제 마감 임박", desc: "D-7 이내 결제/지급 예정" },
   { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "신규 세금계산서 발행 또는 매입 수신" },
   { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때" },
@@ -1931,7 +1931,7 @@ const DOCUMENT_TYPES = [
 const APPROVER_ROLES = [
   { value: "owner", label: "대표" },
   { value: "admin", label: "관리자" },
-  { value: "manager", label: "매니저" },
+  { value: "manager", label: "팀장" },
   { value: "member", label: "멤버" },
 ];
 
@@ -2780,7 +2780,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-bold">딜 분류 관리</h2>
+          <h2 className="text-sm font-bold">프로젝트 분류 관리</h2>
           <p className="text-xs text-[var(--text-dim)] mt-0.5">B2B/B2C/B2G + 커스텀 카테고리</p>
         </div>
         <button
@@ -2841,7 +2841,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
         ];
         return allCls.length === 0 ? (
         <div className="text-center py-6 text-sm text-[var(--text-muted)]">
-          딜 분류가 없습니다.
+          프로젝트 분류가 없습니다.
         </div>
       ) : (
         <div className="space-y-2">
@@ -3949,7 +3949,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
         <h2 className="text-sm font-bold mb-4">세금계산서 자동발행</h2>
         <div className="space-y-3">
-          <Tog label="딜 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
+          <Tog label="프로젝트 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
           <Tog label="결제 완료 시 자동발행" desc="이체 완료 시 매입 세금계산서 자동 생성" checked={settings.auto_issue_on_payment} onChange={(v) => setSettings({ ...settings, auto_issue_on_payment: v })} />
           <Tog label="자동 이메일 발송" desc="발행된 세금계산서를 거래처에 자동 전송" checked={settings.auto_email_send} onChange={(v) => setSettings({ ...settings, auto_email_send: v })} />
           <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">발행 주기</label><select value={settings.issue_schedule} onChange={(e) => setSettings({ ...settings, issue_schedule: e.target.value })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="immediate">거래 즉시</option><option value="weekly">매주 월요일</option><option value="monthly">매월 말일</option></select></div>
@@ -3959,7 +3959,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         <h2 className="text-sm font-bold mb-4">취소/수정 규칙</h2>
         <div className="space-y-3">
           <Tog label="환불 시 수정세금계산서" desc="환불 발생 시 수정본 자동 발행" checked={settings.auto_cancel_on_refund} onChange={(v) => setSettings({ ...settings, auto_cancel_on_refund: v })} />
-          <Tog label="계약 취소 시 자동 취소" desc="딜 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
+          <Tog label="계약 취소 시 자동 취소" desc="프로젝트 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
         </div>
       </div>
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
@@ -6109,7 +6109,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
             {[
               "통장 / 법인카드",
               "거래처",
-              "딜 / 프로젝트",
+              "프로젝트",
               "세금계산서",
               "은행·카드 거래내역",
               "승인정책 / 결재",

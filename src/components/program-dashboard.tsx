@@ -91,7 +91,7 @@ export function ProgramCards({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-bold text-[var(--text-muted)]">
-          프로젝트 ({programs.length}) <span className="text-[10px] font-medium text-[var(--text-dim)] ml-1">· 프로젝트 안에 딜이 들어갑니다</span>
+          프로젝트 ({programs.length}) <span className="text-[10px] font-medium text-[var(--text-dim)] ml-1">· 프로젝트 안에 프로젝트가 들어갑니다</span>
         </h2>
         <button
           onClick={onCreateProgram}
@@ -298,7 +298,7 @@ export function CreateProgramModal({
 
           <div className="border-t border-[var(--border)] pt-4">
             <h3 className="text-xs font-bold text-[var(--text-muted)] mb-3">
-              딜 템플릿 (일괄 등록 시 기본값)
+              프로젝트 템플릿 (일괄 등록 시 기본값)
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1261,7 +1261,7 @@ export function ProgramDashboard({
       <div className="flex items-center gap-1 mb-4 overflow-x-auto">
         {(
           [
-            { key: "all", label: "전체 딜" },
+            { key: "all", label: "전체 프로젝트" },
             { key: "partner", label: "파트너별" },
             { key: "status", label: "상태별" },
             { key: "billing", label: "정산현황" },
@@ -1512,7 +1512,7 @@ export function ProgramDashboard({
           <div className="text-sm font-bold mb-2">
             {search || Object.values(labelFilters).some((s) => s.size > 0)
               ? "검색/필터 결과가 없습니다"
-              : "등록된 딜이 없습니다"}
+              : "등록된 프로젝트가 없습니다"}
           </div>
           <p className="text-xs text-[var(--text-muted)] mb-4">
             CSV로 업체를 일괄 등록하세요

@@ -212,7 +212,7 @@ export default function PartnersPage() {
     staleTime: 30_000,
   });
 
-  // 파트너별 거래 규모 집계 (전체 딜 합계)
+  // 파트너별 거래 규모 집계 (전체 프로젝트 합계)
   const { data: partnerTotals = {} } = useQuery<Record<string, number>>({
     queryKey: ["partner-totals", companyId],
     queryFn: async () => {
@@ -633,7 +633,7 @@ export default function PartnersPage() {
         ) : partners.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">🏢</div>
-            <div className="text-sm font-medium text-[var(--text)]">거래처를 추가하면 딜, 세금계산서에서 바로 연결됩니다</div>
+            <div className="text-sm font-medium text-[var(--text)]">거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">매출처, 매입처, 협력사를 한곳에서 관리하세요</div>
             <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 거래처 추가</button>
           </div>
@@ -749,7 +749,7 @@ export default function PartnersPage() {
                   <h2 className="text-lg font-bold">{detailPartner.name}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     {(() => { const b = TYPE_BADGE[detailPartner.type] || TYPE_BADGE.other; return <span className={`text-[10px] px-2 py-0.5 rounded-full ${b.bg} ${b.text}`}>{b.label}</span>; })()}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${rs.bg} ${rs.color}`} title={`딜 ${dealCount}건 / 계약 ${contractTotal.toLocaleString()}원 / 최근 소통 ${lastCommDaysAgo === null ? '없음' : lastCommDaysAgo + '일전'} / 결제이행 ${(paidRatio * 100).toFixed(0)}%`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${rs.bg} ${rs.color}`} title={`프로젝트 ${dealCount}건 / 계약 ${contractTotal.toLocaleString()}원 / 최근 소통 ${lastCommDaysAgo === null ? '없음' : lastCommDaysAgo + '일전'} / 결제이행 ${(paidRatio * 100).toFixed(0)}%`}>
                       관계점수 {rs.score} · {rs.tier}
                     </span>
                     {detailPartner.business_number && (
@@ -806,7 +806,7 @@ export default function PartnersPage() {
               {([
                 { key: "info" as const, label: "기본정보" },
                 { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
-                { key: "deals" as const, label: `딜 (${partnerDeals.length})` },
+                { key: "deals" as const, label: `프로젝트 (${partnerDeals.length})` },
                 { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
                 { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
                 { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
@@ -874,7 +874,7 @@ export default function PartnersPage() {
                       <div className="space-y-4">
                         {timeline.map((t, i) => {
                           const palette = t.kind === 'deal'
-                            ? { dot: 'bg-blue-500', icon: '📋', tag: 'bg-blue-500/10 text-blue-400', label: '딜' }
+                            ? { dot: 'bg-blue-500', icon: '📋', tag: 'bg-blue-500/10 text-blue-400', label: '프로젝트' }
                             : t.kind === 'payment'
                             ? { dot: t.status === 'received' ? 'bg-green-500' : t.status === 'overdue' ? 'bg-red-500' : 'bg-yellow-500', icon: '💰', tag: 'bg-purple-500/10 text-purple-400', label: '결제' }
                             : { dot: 'bg-emerald-500', icon: '💬', tag: 'bg-emerald-500/10 text-emerald-400', label: '소통' };
@@ -905,12 +905,12 @@ export default function PartnersPage() {
               {detailTab === "deals" && (
                 <div>
                   {partnerDeals.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 딜이 없습니다</div>
+                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 프로젝트가 없습니다</div>
                   ) : (
                     <>
                       <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 flex gap-6">
                         <div>
-                          <div className="text-[10px] text-[var(--text-dim)]">총 딜</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">총 프로젝트</div>
                           <div className="text-lg font-bold">{partnerDeals.length}건</div>
                         </div>
                         <div>
@@ -923,7 +923,7 @@ export default function PartnersPage() {
                       <table className="w-full">
                         <thead>
                           <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                            <th className="text-left px-4 py-2 font-medium">딜 이름</th>
+                            <th className="text-left px-4 py-2 font-medium">프로젝트명</th>
                             <th className="text-center px-4 py-2 font-medium">상태</th>
                             <th className="text-right px-4 py-2 font-medium">금액</th>
                             <th className="text-right px-4 py-2 font-medium">생성일</th>

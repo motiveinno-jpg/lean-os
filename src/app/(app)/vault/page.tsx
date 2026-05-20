@@ -790,7 +790,7 @@ export default function VaultPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 딜</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={docForm.linkedDealId} onChange={(e) => setDocForm({ ...docForm, linkedDealId: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">선택 안함</option>
@@ -1049,7 +1049,7 @@ export default function VaultPage() {
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">카테고리</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">연결 딜</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">연결 프로젝트</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">만료일</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">태그</th>
                 </tr>

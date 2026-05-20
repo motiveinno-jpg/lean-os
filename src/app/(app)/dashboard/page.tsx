@@ -1502,14 +1502,14 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
         )}
         {label === 'LOW_MARGIN' && (
           <>
-            <ActionBtn text="딜 상태 변경" href="/deals" />
+            <ActionBtn text="프로젝트 상태 변경" href="/deals" />
             <ActionBtn text="비용 재검토" />
           </>
         )}
         {label === 'DUE_SOON' && (
           <>
             <ActionBtn text="일정 재조정" />
-            <ActionBtn text="딜 상태 변경" href="/deals" />
+            <ActionBtn text="프로젝트 상태 변경" href="/deals" />
           </>
         )}
         {label === 'OUTSOURCE_OVER_MARGIN' && (
@@ -1966,7 +1966,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
                   <th className="text-left py-1.5">날짜</th>
                   <th className="text-left py-1.5">설명</th>
                   <th className="text-left py-1.5">유형</th>
-                  <th className="text-left py-1.5">딜</th>
+                  <th className="text-left py-1.5">프로젝트</th>
                   <th className="text-right py-1.5">금액</th>
                 </tr>
               </thead>
@@ -2361,7 +2361,7 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
     actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovals}건 — 검토/승인 필요` });
   }
   if (dashboard.riskCounts.LOW_MARGIN > 0) {
-    actions.push({ priority: 'high', text: `마진위험 딜 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/deals' });
+    actions.push({ priority: 'high', text: `마진위험 프로젝트 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/deals' });
   }
   if (dashboard.riskCounts.DUE_SOON > 0) {
     actions.push({ priority: 'high', text: `마감 임박 ${dashboard.riskCounts.DUE_SOON}건 — 진행 확인` });
@@ -2716,7 +2716,7 @@ function AutomationWidget({ companyId }: { companyId: string | null }) {
         <AutoItem label="카드 자동매핑" value={result ? `${result.cardMapping.matched}/${result.cardMapping.processed}` : '-'} />
         <AutoItem label="3-Way 매칭" value={result ? `${result.threeWayMatch.autoMatched}건` : '-'} />
         <AutoItem label="거래 매칭" value={result ? `${result.transactionMatch.matched}건` : '-'} />
-        <AutoItem label="휴면 딜 감지" value={result ? `${result.dormantDeals.detected}건` : '-'} />
+        <AutoItem label="휴면 프로젝트 감지" value={result ? `${result.dormantDeals.detected}건` : '-'} />
         <AutoItem label="경비 자동승인" value={result ? `${result.expenseApproval.approved}건` : '-'} />
       </div>
 

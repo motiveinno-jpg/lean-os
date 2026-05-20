@@ -138,7 +138,7 @@ export function MorningBrief({
     actionParts.push(`승인을 기다리는 건이 ${pendingApprovals}건 있습니다`);
   }
   if (riskCount > 0) {
-    actionParts.push(`주의가 필요한 딜이 ${riskCount}건 잡혀 있습니다`);
+    actionParts.push(`주의가 필요한 프로젝트가 ${riskCount}건 잡혀 있습니다`);
   }
   if (arOver30 > 0) {
     actionParts.push(`30일 넘게 밀린 미수금 ${formatKrwWords(arOver30)}원이 남아 있습니다`);

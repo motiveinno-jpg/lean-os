@@ -118,7 +118,7 @@ function formatTelegramMessage(r: DailyReport): string {
   msg += `  ${netEmoji} 순: ${fmtKrw(r.yesterdayNet)}\n\n`;
 
   msg += `*영업 현황*\n`;
-  msg += `  진행 딜: ${r.activeDeals}건 (${fmtKrw(r.pipelineValue)})\n`;
+  msg += `  진행 프로젝트: ${r.activeDeals}건 (${fmtKrw(r.pipelineValue)})\n`;
   if (r.arOver30 > 0) {
     msg += `  ⚠️ 미수금 30일+: ${fmtKrw(r.arOver30)} (${r.arOver30Count}건)\n`;
   }

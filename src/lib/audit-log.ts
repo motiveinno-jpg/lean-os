@@ -88,7 +88,7 @@ export function formatAuditAction(action: AuditAction): string {
 
 export function formatEntityType(type: string): string {
   const map: Record<string, string> = {
-    document: '문서', employee: '직원', deal: '딜/프로젝트',
+    document: '문서', employee: '직원', deal: '프로젝트',
     transaction: '거래', payment: '결제', signature: '서명',
     tax_invoice: '세금계산서', partner: '거래처', approval: '결재',
     closing: '월마감', vault_account: '구독계정', vault_asset: '자산',

@@ -863,7 +863,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-extrabold">거래내역</h1>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 딜/분류 매핑</p>
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 프로젝트/분류 매핑</p>
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
@@ -1292,7 +1292,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">딜 연결</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트 연결</label>
                   <select value={ruleForm.assign_deal_id} onChange={e => setRuleForm({ ...ruleForm, assign_deal_id: e.target.value })}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
                     <option value="">미연결</option>
@@ -2322,7 +2322,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
 
         <div className="space-y-3 mb-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">딜 연결</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트 연결</label>
             <select value={dealId} onChange={e => setDealId(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
               <option value="">미연결</option>
@@ -2440,7 +2440,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
 
         <div className="space-y-3 mb-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">딜 연결</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트 연결</label>
             <select value={dealId} onChange={e => setDealId(e.target.value)}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
               <option value="">미연결</option>

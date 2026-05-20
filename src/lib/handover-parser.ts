@@ -69,7 +69,7 @@ export interface HandoverParseResult {
 
 // ── 키워드 기반 시트 분류 ──
 
-const DEAL_SHEET_KW = ['프로젝트', '거래처', '계약', '딜', '수주', '진행'];
+const DEAL_SHEET_KW = ['프로젝트', '거래처', '계약', '프로젝트', '수주', '진행'];
 const DEAL_HEADER_KW = ['프로젝트명', '거래처', '계약금액', '상태', '시작일', '종료일', '담당자'];
 
 const HR_SHEET_KW = ['인사', '직원', '급여', '인력', '조직'];
@@ -183,9 +183,9 @@ export function parseHandoverDoc(buffer: ArrayBuffer): HandoverParseResult {
     const headerStr = headers.join(' ').toLowerCase();
     const sheetNameLower = sheetName.toLowerCase();
 
-    // ── 딜/프로젝트 시트 ──
+    // ── 프로젝트 시트 ──
     if (matchesAny(sheetNameLower, DEAL_SHEET_KW) || matchesAny(headerStr, DEAL_HEADER_KW)) {
-      const nameCol = findCol(headers, ['프로젝트명', '프로젝트', '건명', '딜명', '거래건']);
+      const nameCol = findCol(headers, ['프로젝트명', '프로젝트', '건명', '프로젝트명', '거래건']);
       const cpCol = findCol(headers, ['거래처', '거래처명', '업체', '고객사', '발주처']);
       const amtCol = findCol(headers, ['계약금액', '금액', '수주금액', '총액', '계약액']);
       const statusCol = findCol(headers, ['상태', '진행상태', '단계', '진행']);
@@ -210,7 +210,7 @@ export function parseHandoverDoc(buffer: ArrayBuffer): HandoverParseResult {
             _row: i + 1,
           });
         }
-        log.push(`  [${sheetName}] 딜/프로젝트 ${detectedDeals.length}건 감지`);
+        log.push(`  [${sheetName}] 프로젝트 ${detectedDeals.length}건 감지`);
       }
     }
 
@@ -359,7 +359,7 @@ export function parseHandoverDoc(buffer: ArrayBuffer): HandoverParseResult {
   }
 
   log.push('');
-  log.push(`총 감지: 딜 ${detectedDeals.length}건, 미수금 ${detectedReceivables.length}건, 미지급 ${detectedPayables.length}건, 반복비용 ${detectedRecurring.length}건, 직원 ${detectedEmployees.length}명`);
+  log.push(`총 감지: 프로젝트 ${detectedDeals.length}건, 미수금 ${detectedReceivables.length}건, 미지급 ${detectedPayables.length}건, 반복비용 ${detectedRecurring.length}건, 직원 ${detectedEmployees.length}명`);
 
   return {
     excelData,

@@ -1,6 +1,6 @@
 /**
  * OwnerView Business Event Dispatcher
- * 비즈니스 이벤트 → 딜 채팅에 자동 시스템 메시지 + 액션카드 생성
+ * 비즈니스 이벤트 → 프로젝트 채팅에 자동 시스템 메시지 + 액션카드 생성
  */
 
 import { supabase } from './supabase';
@@ -36,7 +36,7 @@ const EVENT_MESSAGES: Record<BusinessEventType, (summary: Record<string, any>) =
   milestone_completed: (s) => `🎯 마일스톤 완료: ${s.title || s.name || ''}`,
   document_approved: (s) => `✅ 문서가 승인되었습니다: ${s.title || ''}`,
   document_locked: (s) => `🔒 문서가 잠금되었습니다: ${s.title || ''}`,
-  deal_status_changed: (s) => `📊 딜 상태 변경: ${s.from || ''} → ${s.to || ''}`,
+  deal_status_changed: (s) => `📊 프로젝트 상태 변경: ${s.from || ''} → ${s.to || ''}`,
   cost_approved: (s) => `💳 비용이 승인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
   invoice_issued: (s) => `📋 세금계산서가 발행되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
   quote_approved: (s) => `📄 견적서가 승인되었습니다 → 계약서 자동 생성. ${s.title || ''}`,

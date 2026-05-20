@@ -416,7 +416,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">💳</div>
             <div className="text-lg font-bold mb-2">결제 큐가 비어있습니다</div>
-            <div className="text-sm text-[var(--text-muted)]">딜 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
+            <div className="text-sm text-[var(--text-muted)]">프로젝트 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
@@ -1712,7 +1712,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
             {result.dormantDeals.detected > 0 && (
               <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
                 <div className="font-bold">{result.dormantDeals.detected}건</div>
-                <div className="text-[var(--text-dim)]">휴면딜 감지</div>
+                <div className="text-[var(--text-dim)]">휴면 프로젝트 감지</div>
               </div>
             )}
           </div>
@@ -1945,7 +1945,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트/딜</label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={form.dealId} onChange={(e) => setForm({ ...form, dealId: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">없음 (독립 지출)</option>

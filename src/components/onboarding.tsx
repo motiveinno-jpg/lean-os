@@ -724,7 +724,7 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
         title="첫 프로젝트(거래) 만들기"
         desc="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
         icon="sparkles"
-        whyItMatters="거래(딜)는 OwnerView의 핵심 단위입니다. 매출/비용 추적, 문서 관리가 모두 딜 기반으로 동작합니다."
+        whyItMatters="프로젝트는 OwnerView의 핵심 단위입니다. 매출/비용 추적, 문서 관리가 모두 프로젝트 기반으로 동작합니다."
       />
       {isCompleted && (
         <CompletedBadge message="거래가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />

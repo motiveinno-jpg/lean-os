@@ -630,7 +630,7 @@ export default function MatchingPage() {
               <div className="text-4xl mb-4">🔗</div>
               <div className="text-sm font-medium text-[var(--text)]">{transactions.length === 0 ? "거래내역이 등록되면 자동 매칭이 시작됩니다" : "매칭을 실행하세요"}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1">
-                {transactions.length === 0 ? "거래내역 페이지에서 은행/카드 내역을 먼저 업로드해주세요" : "거래내역과 딜 스케줄을 비교하여 자동으로 매칭합니다"}
+                {transactions.length === 0 ? "거래내역 페이지에서 은행/카드 내역을 먼저 업로드해주세요" : "거래내역과 프로젝트 스케줄을 비교하여 자동으로 매칭합니다"}
               </div>
             </div>
           ) : (
@@ -1015,7 +1015,7 @@ export default function MatchingPage() {
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">딜</th>
+                    <th className="text-left px-5 py-3 font-medium">프로젝트</th>
                     <th className="text-right px-5 py-3 font-medium">계약금액</th>
                     <th className="text-right px-5 py-3 font-medium">세금계산서</th>
                     <th className="text-right px-5 py-3 font-medium">입금액</th>
@@ -1050,7 +1050,7 @@ export default function MatchingPage() {
                         )}
                         {r.suggestedDeal && (
                           <div className="text-[10px] text-purple-400 mt-0.5">
-                            딜 미연결 → 금액 기반 추천 매칭
+                            프로젝트 미연결 → 금액 기반 추천 매칭
                           </div>
                         )}
                       </td>

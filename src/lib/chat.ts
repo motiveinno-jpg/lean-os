@@ -1,6 +1,6 @@
 /**
  * OwnerView Chat Engine
- * 딜룸 채팅: 채널 관리, 메시지, 참가자, 이벤트
+ * 프로젝트룸 채팅: 채널 관리, 메시지, 참가자, 이벤트
  */
 
 import { supabase } from './supabase';
@@ -8,8 +8,8 @@ import type { Json } from '@/types/models';
 
 // ── Channel types ──
 export const CHANNEL_TYPES = [
-  { value: 'deal', label: '딜 채널' },
-  { value: 'subdeal', label: '서브딜 채널' },
+  { value: 'deal', label: '프로젝트 채널' },
+  { value: 'subdeal', label: '외주 채널' },
   { value: 'general', label: '일반 채널' },
 ] as const;
 

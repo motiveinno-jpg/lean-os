@@ -43,18 +43,18 @@ const FEATURES = [
     desc: "경비, 급여, 고정비 — 모든 결제가 하나의 큐에서 관리됩니다. 다단계 승인 정책, 금액별 자동승인, 배치 일괄 처리까지.",
   },
   {
-    tab: "딜 파이프라인",
+    tab: "프로젝트 파이프라인",
     sim: "pipeline",
     replaces: "먼*이",
     title: "견적 → 계약 → 세금계산서 → 입금 자동 추적",
-    desc: "프로젝트의 전체 라이프사이클이 자동으로 연결됩니다. 칸반/테이블 멀티뷰, 마일스톤, 매출 스케줄, 휴면 딜 자동 감지.",
+    desc: "프로젝트의 전체 라이프사이클이 자동으로 연결됩니다. 칸반/테이블 멀티뷰, 마일스톤, 매출 스케줄, 휴면 프로젝트 자동 감지.",
   },
   {
     tab: "전자계약",
     sim: "contract",
     replaces: "모두*인",
     title: "문서 작성 → 서명 요청 → 완료까지 원스톱",
-    desc: "딜 승인 시 계약서가 자동 생성되고 서명 요청이 발송됩니다. Draft→Review→Approved→Locked 라이프사이클, 리비전 관리.",
+    desc: "프로젝트 승인 시 계약서가 자동 생성되고 서명 요청이 발송됩니다. Draft→Review→Approved→Locked 라이프사이클, 리비전 관리.",
   },
   {
     tab: "HR & 급여",
@@ -67,15 +67,15 @@ const FEATURES = [
     tab: "팀 & 파트너 채팅",
     sim: "chat",
     replaces: "채*톡",
-    title: "딜별 채널 + 파트너 실시간 소통 + 액션카드",
-    desc: "채팅 안에서 견적서 확인, 서명 요청, 승인까지. 딜/팀/DM 채널, 멘션, 리액션. 외부 파트너도 초대 한 번으로 합류.",
+    title: "프로젝트별 채널 + 파트너 실시간 소통 + 액션카드",
+    desc: "채팅 안에서 견적서 확인, 서명 요청, 승인까지. 프로젝트/팀/DM 채널, 멘션, 리액션. 외부 파트너도 초대 한 번으로 합류.",
   },
   {
     tab: "고객 DB",
     sim: "crm",
     replaces: "리*버",
     title: "한번이라도 견적 나간 업체, 자동으로 고객 DB",
-    desc: "거래처별 딜 이력, 계약서, 매출, 커뮤니케이션 기록 자동 축적. 휴면 고객 AI 감지, 리마인더 자동 발송. 리멤버 수준의 CRM.",
+    desc: "거래처별 프로젝트 이력, 계약서, 매출, 커뮤니케이션 기록 자동 축적. 휴면 고객 AI 감지, 리마인더 자동 발송. 리멤버 수준의 CRM.",
   },
   {
     tab: "서류 자동관리",
@@ -174,12 +174,12 @@ const ENGINES = [
     icon: "⚡",
     tagline: "견적서 하나 보내면 — 계약·서명·세금계산서·입금확인까지 전자동",
     headline: "대표는 승인 버튼만. 나머지는 엔진이 알아서.",
-    desc: "딜이 성사되면? 견적서→계약서 자동생성→서명 요청 발송→세금계산서 자동발행→입금 3-Way 매칭. 수작업 12단계가 원클릭 1단계로.",
+    desc: "프로젝트가 성사되면? 견적서→계약서 자동생성→서명 요청 발송→세금계산서 자동발행→입금 3-Way 매칭. 수작업 12단계가 원클릭 1단계로.",
     replaces: "영업관리자 + 경리",
     replacesCost: "연 8,000만원",
     color: "#8B5CF6",
     metrics: [
-      { label: "진행 딜", value: "12건", sub: "활성" },
+      { label: "진행 프로젝트", value: "12건", sub: "활성" },
       { label: "자동화율", value: "94%", sub: "수동→자동" },
       { label: "평균 수금", value: "D+7", sub: "-12일 단축" },
     ],
@@ -187,12 +187,12 @@ const ENGINES = [
     steps: [
       { step: "견적→계약", detail: "견적 승인 즉시 계약서 자동 생성 + 서명 요청" },
       { step: "서명→발행", detail: "서명 완료 시 세금계산서 자동 발행 + 매출 등록" },
-      { step: "입금→매칭", detail: "입금 확인 → 3-Way 자동 매칭 + 딜 상태 갱신" },
+      { step: "입금→매칭", detail: "입금 확인 → 3-Way 자동 매칭 + 프로젝트 상태 갱신" },
     ],
     features: [
-      { icon: "📋", name: "칸반 파이프라인", desc: "드래그앤드롭 딜 관리 + 테이블 뷰" },
-      { icon: "💬", name: "딜별 전용 채팅", desc: "채팅 안에서 승인·서명·확인까지" },
-      { icon: "😴", name: "휴면 딜 AI 감지", desc: "2주 미움직임 → 자동 리마인더" },
+      { icon: "📋", name: "칸반 파이프라인", desc: "드래그앤드롭 프로젝트 관리 + 테이블 뷰" },
+      { icon: "💬", name: "프로젝트별 전용 채팅", desc: "채팅 안에서 승인·서명·확인까지" },
+      { icon: "😴", name: "휴면 프로젝트 AI 감지", desc: "2주 미움직임 → 자동 리마인더" },
       { icon: "💰", name: "매출 스케줄 추적", desc: "선금/잔금 자동 분리 + 입금 추적" },
     ],
   },
@@ -248,7 +248,7 @@ const ENGINES = [
       { step: "관계 유지", detail: "리마인더 자동 발송 + 파트너 포털로 관계 강화" },
     ],
     features: [
-      { icon: "🔄", name: "360° 뷰", desc: "딜·계약·매출·커뮤니케이션 통합 뷰" },
+      { icon: "🔄", name: "360° 뷰", desc: "프로젝트·계약·매출·커뮤니케이션 통합 뷰" },
       { icon: "🔗", name: "파트너 포털", desc: "링크 하나로 초대, 서류 확인·채팅 참여" },
       { icon: "🏢", name: "사업자 자동조회", desc: "사업자등록번호로 기업정보 자동 입력" },
       { icon: "🎯", name: "관계 스코어링", desc: "AI가 거래 건강도 자동 분석·점수화" },
@@ -353,7 +353,7 @@ function PipelineSim() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mt-3">
         {[
-          { label: "진행 딜", value: "12건" },
+          { label: "진행 프로젝트", value: "12건" },
           { label: "이번 달 매출", value: "₩4.2억" },
           { label: "평균 마진", value: "32%" },
         ].map((s) => (
@@ -940,7 +940,7 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { label: "승인 대기", count: "3건", color: "#F59E0B" },
-                  { label: "진행 딜", count: "12건", color: "#3B82F6" },
+                  { label: "진행 프로젝트", count: "12건", color: "#3B82F6" },
                   { label: "AI 알림", count: "5건", color: "#EF4444" },
                 ].map((w) => (
                   <div key={w.label} className="bg-white/5 rounded-lg p-2 flex items-center gap-2">
@@ -1047,7 +1047,7 @@ export default function LandingPage() {
               { keyword: "입금 자동 매칭", pain: "거래처가 입금했는지 통장 앱 왔다갔다 확인", solve: "세금계산서↔계약↔입금 3-Way 매칭. 빠진 건 AI가 자동 알림", icon: "🏦" },
               { keyword: "근태·경비 자동", pain: "직원 연차 몇 일 남았는지, 경비 정산 밀린 건 있는지", solve: "근태/휴가/경비 전부 자동 계산. 대표는 승인 버튼만 누르면 끝", icon: "📊" },
               { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 검색 한 번이면 3초 만에 찾기", icon: "📁" },
-              { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "딜별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
+              { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "프로젝트별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
             ].map((item) => (
               <div key={item.pain} className="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-6 hover:border-white/10 transition group">
                 <div className="flex items-start gap-4">

@@ -14,7 +14,7 @@ const SIX_PACK = [
   { label: "미수금 30일+", value: "₩1,200만", color: "var(--warning)" },
   { label: "월 매출", value: "₩4,500만", color: "var(--text)" },
   { label: "번레이트", value: "₩3,200만", color: "var(--text)" },
-  { label: "진행중 딜", value: "7건", color: "var(--primary)" },
+  { label: "진행중 프로젝트", value: "7건", color: "var(--primary)" },
 ];
 
 const PULSE_FORECAST = [
@@ -48,7 +48,7 @@ const DEALS = [
 ];
 
 const QUICK_LINKS = [
-  { href: "#", label: "프로젝트", icon: "📋", desc: "딜 파이프라인" },
+  { href: "#", label: "프로젝트", icon: "📋", desc: "프로젝트 파이프라인" },
   { href: "#", label: "결제/승인", icon: "💳", desc: "결제 큐 관리" },
   { href: "#", label: "인사/급여", icon: "👤", desc: "직원 관리" },
   { href: "#", label: "전자계약", icon: "📄", desc: "문서 서명" },
@@ -623,7 +623,7 @@ export default function DemoPage() {
                 className="text-xs font-bold uppercase tracking-wider flex-1"
                 style={{ color: "var(--text-dim)" }}
               >
-                딜 파이프라인
+                프로젝트 파이프라인
               </h2>
               <span
                 className="text-[10px] font-semibold"

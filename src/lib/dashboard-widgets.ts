@@ -47,9 +47,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { id: 'kpi_revenue', label: '월 매출', description: '이번 달 매출 현황', icon: '📈', size: 'small', module: 'dashboard' },
   { id: 'kpi_expenses', label: '월 지출', description: '이번 달 비용 현황', icon: '📉', size: 'small', module: 'dashboard' },
   { id: 'kpi_runway', label: '생존 개월', description: '현금으로 버틸 수 있는 개월 수', icon: '⏳', size: 'small', module: 'dashboard' },
-  { id: 'kpi_deals', label: '진행중 딜', description: '파이프라인 내 활성 딜 수', icon: '🤝', size: 'small', module: 'deals' },
+  { id: 'kpi_deals', label: '진행중 프로젝트', description: '파이프라인 내 활성 딜 수', icon: '🤝', size: 'small', module: 'deals' },
   { id: 'kpi_employees', label: '구성원 수', description: '재직 중 구성원 현황', icon: '👥', size: 'small', module: 'hr' },
-  { id: 'deal_pipeline', label: '딜 파이프라인', description: '단계별 딜 현황 차트', icon: '📊', size: 'large', module: 'deals' },
+  { id: 'deal_pipeline', label: '프로젝트 파이프라인', description: '단계별 딜 현황 차트', icon: '📊', size: 'large', module: 'deals' },
   { id: 'recent_transactions', label: '최근 거래내역', description: '최근 입출금 내역', icon: '💳', size: 'medium', module: 'accounting' },
   { id: 'receivables', label: '미수금 현황', description: '미수금/미지급 요약', icon: '📋', size: 'medium', module: 'accounting' },
   { id: 'invoice_unmatched', label: '세금계산서 미매칭', description: '매칭 필요한 세금계산서', icon: '📄', size: 'medium', module: 'invoices' },
@@ -96,7 +96,7 @@ export const ROLE_PRESETS: Record<RolePreset, { label: string; description: stri
   },
   sales: {
     label: '영업/프로젝트',
-    description: '영업담당자, PM — 딜과 거래처 중심',
+    description: '영업담당자, PM — 프로젝트와 거래처 중심',
     icon: '🎯',
     widgets: [
       'kpi_deals', 'kpi_revenue',

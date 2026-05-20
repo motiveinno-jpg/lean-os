@@ -95,7 +95,7 @@ export default function SystemPage() {
                   </div>
                   <div className="text-xs text-[#64748b]">
                     슬러그: {p.slug} · 좌석당 ₩{(p.per_seat_price || 0).toLocaleString()}/월
-                    {p.max_deals && ` · 최대 딜 ${p.max_deals}개`}
+                    {p.max_deals && ` · 최대 프로젝트 ${p.max_deals}개`}
                   </div>
                 </div>
               ))
@@ -172,7 +172,7 @@ const FALLBACK_RELEASES: { version: string; date: string; type: string; summary:
       { severity: "high", text: "fillVariables JSON 특수문자 이스케이프 처리" },
       { severity: "high", text: "거래처 문서 컬럼명 title→name, Vault 동적 Tailwind 수정" },
       { severity: "high", text: "회원가입 오류 시 대시보드 리다이렉트 방지" },
-      { severity: "medium", text: "거래처/딜/대출 상태 영문→한글 라벨 적용" },
+      { severity: "medium", text: "거래처/프로젝트/대출 상태 영문→한글 라벨 적용" },
       { severity: "medium", text: "일반 문서 서명 HR 테이블 오기록 수정" },
       { severity: "medium", text: "결재 단계(stages) DB 저장 누락 수정" },
       { severity: "medium", text: "사이드바 admin 역할 '관리자' 라벨 추가" },
@@ -198,7 +198,7 @@ const FALLBACK_RELEASES: { version: string; date: string; type: string; summary:
     version: "v2.2.0",
     date: "2026-03-10",
     type: "feature",
-    summary: "딜 파이프라인 자동화, 계약 갱신 알림, 견적 추적",
+    summary: "프로젝트 파이프라인 자동화, 계약 갱신 알림, 견적 추적",
     items: [
       { severity: "high", text: "견적 승인 → 계약서 자동 생성 → 직인 → 서명 요청" },
       { severity: "medium", text: "계약 갱신 D-30/14/7 자동 알림" },

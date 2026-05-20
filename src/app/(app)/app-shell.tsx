@@ -123,7 +123,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
         .eq("user_id", user.id)
         .maybeSingle();
       if (emp && !emp.onboarding_completed_at && (emp.status === "joined" || emp.status === "contract_pending")) {
-        // 직원은 회사 온보딩(사업자/계좌/딜 등록)을 할 필요 없으므로 자동 완료 처리
+        // 직원은 회사 온보딩(사업자/계좌/프로젝트 등록)을 할 필요 없으므로 자동 완료 처리
         await (supabase as any)
           .from("employees")
           .update({ onboarding_completed_at: new Date().toISOString() })

@@ -1731,21 +1731,21 @@ export default function TaxInvoicesPage() {
             )}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
-                연결 딜 (프로젝트)
+                연결 프로젝트
               </label>
               <select
                 value={form.dealId}
                 onChange={(e) => setForm({ ...form, dealId: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               >
-                <option value="">딜 선택 (선택사항)</option>
+                <option value="">프로젝트 선택 (선택사항)</option>
                 {dealsForLink.map((d: any) => (
                   <option key={d.id} value={d.id}>
                     {d.name} {d.contract_total ? `(₩${Number(d.contract_total).toLocaleString()})` : ""}
                   </option>
                 ))}
               </select>
-              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">딜을 연결하면 3-way 매칭에 자동 반영됩니다</span>
+              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">프로젝트를 연결하면 3-way 매칭에 자동 반영됩니다</span>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -1997,7 +1997,7 @@ export default function TaxInvoicesPage() {
                   <th className="text-right px-5 py-3 font-medium">공급가</th>
                   <th className="text-right px-5 py-3 font-medium">세액</th>
                   <th className="text-right px-5 py-3 font-medium">합계</th>
-                  <th className="text-left px-5 py-3 font-medium">딜</th>
+                  <th className="text-left px-5 py-3 font-medium">프로젝트</th>
                   <th className="text-left px-5 py-3 font-medium">발행일</th>
                   <th className="text-center px-5 py-3 font-medium">상태</th>
                   <th className="text-center px-5 py-3 font-medium">액션</th>
@@ -2195,7 +2195,7 @@ export default function TaxInvoicesPage() {
         <div className="space-y-4">
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mb-2">
             <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-              <strong className="text-[var(--text)]">자동발행 큐</strong>: 딜 매출 스케줄이 확정되면 세금계산서가 자동으로 큐에 등록됩니다.
+              <strong className="text-[var(--text)]">자동발행 큐</strong>: 프로젝트 매출 스케줄이 확정되면 세금계산서가 자동으로 큐에 등록됩니다.
               거래처 희망일이 설정된 경우 해당일까지 대기 후 발행됩니다. <span className="text-orange-400">승인 필요</span> 건은 확인 후 승인해주세요.
             </div>
           </div>
@@ -2206,7 +2206,7 @@ export default function TaxInvoicesPage() {
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
               <div className="text-4xl mb-4">⚡</div>
               <div className="text-lg font-bold mb-2">대기 중인 자동발행 없음</div>
-              <div className="text-sm text-[var(--text-muted)]">딜의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
+              <div className="text-sm text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
@@ -2217,7 +2217,7 @@ export default function TaxInvoicesPage() {
                     <th className="text-left px-5 py-3 font-medium">거래처</th>
                     <th className="text-right px-5 py-3 font-medium">금액</th>
                     <th className="text-left px-5 py-3 font-medium">발행일</th>
-                    <th className="text-left px-5 py-3 font-medium">딜</th>
+                    <th className="text-left px-5 py-3 font-medium">프로젝트</th>
                     <th className="text-center px-5 py-3 font-medium">상태</th>
                     <th className="text-left px-5 py-3 font-medium">비고</th>
                     <th className="text-center px-5 py-3 font-medium">승인</th>
@@ -2461,7 +2461,7 @@ export default function TaxInvoicesPage() {
               <div className="text-4xl mb-4">🔍</div>
               <div className="text-lg font-bold mb-2">매칭 대상 없음</div>
               <div className="text-sm text-[var(--text-muted)]">
-                딜에 연결된 매출 세금계산서가 없습니다
+                프로젝트에 연결된 매출 세금계산서가 없습니다
               </div>
             </div>
           ) : (
@@ -2479,7 +2479,7 @@ export default function TaxInvoicesPage() {
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">딜명</th>
+                    <th className="text-left px-5 py-3 font-medium">프로젝트명</th>
                     <th className="text-left px-5 py-3 font-medium">PO ↔ 계산서 ↔ 결제</th>
                     <th className="text-right px-5 py-3 font-medium">차액</th>
                     <th className="text-center px-5 py-3 font-medium">계약매칭</th>
@@ -2506,8 +2506,8 @@ export default function TaxInvoicesPage() {
                       <td className="px-5 py-3 text-sm font-medium">
                         <div className="flex items-center gap-2">
                           {r.dealId ? (
-                            <button onClick={() => setMatchDealPopup(r)} className="hover:text-[var(--primary)] hover:underline transition text-left">{r.dealName || "딜 없음"}</button>
-                          ) : (r.dealName || "딜 없음")}
+                            <button onClick={() => setMatchDealPopup(r)} className="hover:text-[var(--primary)] hover:underline transition text-left">{r.dealName || "프로젝트 없음"}</button>
+                          ) : (r.dealName || "프로젝트 없음")}
                           {r.suggestedDeal && (
                             <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[9px] font-bold whitespace-nowrap">AI 추천</span>
                           )}
@@ -2581,7 +2581,7 @@ export default function TaxInvoicesPage() {
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <div className="text-[10px] text-[var(--text-dim)] uppercase mb-1">딜 (프로젝트)</div>
+                <div className="text-[10px] text-[var(--text-dim)] uppercase mb-1">프로젝트</div>
                 <div className="text-sm font-semibold">{matchDealPopup.dealName || "—"}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -2618,7 +2618,7 @@ export default function TaxInvoicesPage() {
             </div>
             <div className="flex gap-2 px-5 py-3 border-t border-[var(--border)]">
               <Link href="/deals" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
-                딜 페이지로 이동
+                프로젝트 페이지로 이동
               </Link>
               <button onClick={() => setMatchDealPopup(null)} className="flex-1 px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold">
                 닫기
@@ -3050,7 +3050,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
             {/* Footer info */}
             <div className="border-t border-[var(--border)] px-4 py-2 grid grid-cols-3 text-xs">
               <div>
-                <span className="text-[var(--text-dim)]">딜: </span>
+                <span className="text-[var(--text-dim)]">프로젝트: </span>
                 <span className="font-medium">{inv.deals?.name || "—"}</span>
               </div>
               <div>

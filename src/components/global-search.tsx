@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const TYPE_LABELS: Record<string, string> = {
-  deals: "딜", documents: "문서", partners: "거래처", taxInvoices: "세금계산서",
+  deals: "프로젝트", documents: "문서", partners: "거래처", taxInvoices: "세금계산서",
   bankTransactions: "거래내역", chatMessages: "채팅", employees: "인력",
 };
 const TYPE_ROUTES: Record<string, string> = {
@@ -103,7 +103,7 @@ export function GlobalSearch() {
           <input ref={inputRef} type="text" value={query}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
-            placeholder="검색... (딜, 문서, 거래처, 세금계산서...)"
+            placeholder="검색... (프로젝트, 문서, 거래처, 세금계산서...)"
             className="flex-1 bg-transparent text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none text-sm" />
           <kbd className="hidden sm:inline-block text-[10px] text-[var(--text-dim)] border border-[var(--border)] rounded px-1.5 py-0.5">ESC</kbd>
         </div>

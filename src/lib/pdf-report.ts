@@ -96,12 +96,12 @@ export async function generateMonthlyPLReport(
     doc.setFontSize(11);
     doc.setFont('NanumGothic', 'normal');
     doc.setTextColor(30, 30, 30);
-    doc.text('딜별 손익', 14, y);
+    doc.text('프로젝트별 손익', 14, y);
     y += 4;
 
     autoTable(doc, {
       startY: y,
-      head: [['딜명', '유형', '매출', '비용', '마진율']],
+      head: [['프로젝트명', '유형', '매출', '비용', '마진율']],
       body: data.dealBreakdown.map(d => [
         d.dealName,
         d.classification,

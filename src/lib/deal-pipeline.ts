@@ -6,7 +6,7 @@
  *   1. 딜에서 "견적서 생성" → Draft (딜 데이터 자동 채움)
  *   2. 견적서 승인 → 계약서 자동 생성
  *   3. 계약서 승인 → 세금계산서 자동 발행 + 매출스케줄 자동 생성 (선금/잔금)
- *   4. 입금 확인 → 3-Way 매칭 + 딜 상태 업데이트
+ *   4. 입금 확인 → 3-Way 매칭 + 프로젝트 상태 업데이트
  */
 
 import { supabase } from './supabase';
@@ -53,7 +53,7 @@ export async function createDocumentFromDeal(params: {
     .eq('company_id', companyId)
     .single();
 
-  if (dealError || !deal) throw new Error(`딜을 찾을 수 없습니다 (id: ${dealId}, error: ${dealError?.message || 'no data'})`);
+  if (dealError || !deal) throw new Error(`프로젝트를 찾을 수 없습니다 (id: ${dealId}, error: ${dealError?.message || 'no data'})`);
 
   // Resolve partner info: deals_partner_id_fkey → partner_company_id → counterparty fallback
   let partnerName = deal.partners?.name || '';

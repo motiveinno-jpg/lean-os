@@ -12,7 +12,7 @@ const STEPS = [
   { num: 1, label: "회사 정보", icon: "building" },
   { num: 2, label: "금융 연결", icon: "bank" },
   { num: 3, label: "첫 직원", icon: "people" },
-  { num: 4, label: "첫 딜", icon: "sparkles" },
+  { num: 4, label: "첫 프로젝트", icon: "sparkles" },
   { num: 5, label: "완료", icon: "check" },
 ] as const;
 
@@ -185,7 +185,7 @@ export default function OnboardingPage() {
 
   const dealValidation = useCallback(() => {
     const errors: string[] = [];
-    if (!deal.name.trim()) errors.push("딜 이름을 입력해주세요");
+    if (!deal.name.trim()) errors.push("프로젝트명을 입력해주세요");
     return errors;
   }, [deal]);
 
@@ -396,7 +396,7 @@ export default function OnboardingPage() {
 
       if (e) throw e;
       setStatus((prev) => ({ ...prev, deal: true }));
-      toast("딜이 등록되었습니다", "success");
+      toast("프로젝트가 등록되었습니다", "success");
       setStep(5);
       return true;
     } catch (err: unknown) {
@@ -887,7 +887,7 @@ function Step3Employee({
 }
 
 // ═══════════════════════════════════════════
-// Step 4: First Deal (첫 딜 등록)
+// Step 4: First Deal (첫 프로젝트 등록)
 // ═══════════════════════════════════════════
 
 function Step4Deal({
@@ -909,11 +909,11 @@ function Step4Deal({
     <div className="space-y-5">
       <StepHeader
         icon="sparkles"
-        title="첫 딜(거래) 등록"
+        title="첫 프로젝트(거래) 등록"
         description="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
       />
       {isCompleted && (
-        <CompletedBadge message="딜이 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
+        <CompletedBadge message="프로젝트가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
       )}
 
       <div className="space-y-4">
@@ -944,7 +944,7 @@ function Step4Deal({
         </div>
 
         <FormField
-          label="딜(프로젝트)명"
+          label="프로젝트명"
           required
           value={data.name}
           onChange={(v) => onChange({ ...data, name: v })}
@@ -984,7 +984,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
     { label: "회사 정보", done: status.companyInfo },
     { label: "계좌 등록", done: status.bankAccount },
     { label: "직원 등록", done: status.employee },
-    { label: "첫 딜 등록", done: status.deal },
+    { label: "첫 프로젝트 등록", done: status.deal },
   ];
   const doneCount = items.filter((i) => i.done).length;
   const isAllDone = doneCount === items.length;
@@ -1111,7 +1111,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
       {isAllDone && (
         <div className="mt-6 flex flex-wrap gap-3 justify-center relative z-10">
           <QuickLink href="/dashboard" label="대시보드" />
-          <QuickLink href="/deals" label="딜 관리" />
+          <QuickLink href="/deals" label="프로젝트 관리" />
           <QuickLink href="/employees" label="직원 관리" />
           <QuickLink href="/settings" label="상세 설정" />
         </div>

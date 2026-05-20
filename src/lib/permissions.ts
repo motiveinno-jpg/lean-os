@@ -53,7 +53,7 @@ export interface PermissionGroupMember {
 
 export const MODULE_LABELS: Record<string, string> = {
   dashboard: '대시보드',
-  deals: '딜 파이프라인',
+  deals: '프로젝트 파이프라인',
   invoices: '세금계산서',
   hr: '구성원 관리',
   payroll: '급여',

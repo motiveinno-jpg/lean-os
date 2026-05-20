@@ -106,7 +106,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   const { data: dealChannel } = useQuery({ queryKey: ["deal-channel", dealId], queryFn: () => getChannelByDeal(dealId, companyId!), enabled: !!dealId && !!companyId });
   const { data: recentMessages = [] } = useQuery({ queryKey: ["deal-chat-messages", dealChannel?.id], queryFn: () => getMessages(dealChannel!.id, 5), enabled: !!dealChannel?.id, refetchInterval: 5000 });
-  const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '딜'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }), onError: (err: any) => toast(`채팅 생성 실패: ${err.message || err}`, "error") });
+  const createChannelMut = useMutation({ mutationFn: () => { if (!userId || !companyId) throw new Error("Not authenticated"); return createChannel({ companyId, dealId, type: 'deal', name: `${deal?.name || '프로젝트'} 채팅`, creatorUserId: userId }); }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["deal-channel", dealId] }), onError: (err: any) => toast(`채팅 생성 실패: ${err.message || err}`, "error") });
   const sendChatMut = useMutation({ mutationFn: () => { if (!userId) throw new Error("Not authenticated"); return sendMessage({ channelId: dealChannel!.id, senderId: userId, content: chatMsg }); }, onSuccess: () => { setChatMsg(""); queryClient.invalidateQueries({ queryKey: ["deal-chat-messages", dealChannel?.id] }); }, onError: (err: any) => toast(`전송 실패: ${err.message || err}`, "error") });
 
   const deal = data?.deal;
@@ -159,7 +159,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       if (Object.keys(updates).length === 0) { setEditMode(false); setEditSaving(false); return; }
       const { error } = await (supabase as any).from('deals').update(updates).eq('id', dealId);
       if (error) throw error;
-      toast('딜 정보가 수정되었습니다', 'success');
+      toast('프로젝트 정보가 수정되었습니다', 'success');
       setEditMode(false);
       refetch();
     } catch (err: any) { toast(`수정 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'); }
@@ -167,16 +167,16 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   }
 
   if (isLoading) return <div className="text-center py-20 text-[var(--text-muted)]">로딩 중...</div>;
-  if (!deal) return <div className="text-center py-20 text-[var(--text-muted)]">딜을 찾을 수 없습니다.</div>;
+  if (!deal) return <div className="text-center py-20 text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다.</div>;
 
   return (
     <div className="max-w-[1100px]">
-      <div className="text-xs text-[var(--text-dim)] mb-4"><button onClick={onBack} className="hover:text-[var(--primary)]">딜 관리</button><span className="mx-2">›</span><span className="text-[var(--text-muted)]">{deal.name}</span></div>
+      <div className="text-xs text-[var(--text-dim)] mb-4"><button onClick={onBack} className="hover:text-[var(--primary)]">프로젝트 관리</button><span className="mx-2">›</span><span className="text-[var(--text-muted)]">{deal.name}</span></div>
       {editMode ? (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/30 p-5 mb-6">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">딜 정보 수정</h3><button onClick={() => setEditMode(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">취소</button></div>
+          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">프로젝트 정보 수정</h3><button onClick={() => setEditMode(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">취소</button></div>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">딜명</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트명</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액</label><CurrencyInput value={editForm.contract_total} onValueChange={(raw) => setEditForm({ ...editForm, contract_total: raw })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input type="date" value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -199,7 +199,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         <div className="flex items-center gap-2 flex-wrap">
           {!isPartnerView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}
           <Link href={dealChannel ? `/chat?channel=${dealChannel.id}` : `/chat`} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">💬 채팅</Link>
-          {!isPartnerView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 딜을 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
+          {!isPartnerView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 프로젝트를 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
@@ -255,7 +255,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       </div>
       <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
       {(data?.costs || []).length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">비용 내역</h2><span className="text-xs text-red-400 font-bold">₩{totalCost.toLocaleString()}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-4 py-2 font-medium">항목</th><th className="text-left px-4 py-2 font-medium">카테고리</th><th className="text-right px-4 py-2 font-medium">금액</th><th className="text-center px-4 py-2 font-medium">상태</th><th className="text-left px-4 py-2 font-medium">예정일</th></tr></thead><tbody>{(data?.costs || []).map((c: any) => (<tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"><td className="px-4 py-2.5 font-medium">{c.label || c.category || '비용'}</td><td className="px-4 py-2.5 text-[var(--text-muted)]">{c.category || '—'}</td><td className="px-4 py-2.5 text-right font-bold text-red-400">₩{Number(c.amount || 0).toLocaleString()}</td><td className="px-4 py-2.5 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.status === 'paid' ? 'bg-green-500/10 text-green-400' : c.status === 'confirmed' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>{c.status === 'paid' ? '지급완료' : c.status === 'confirmed' ? '확정' : '예정'}</span></td><td className="px-4 py-2.5 text-[var(--text-dim)]">{c.due_date || '—'}</td></tr>))}</tbody></table></div></div>)}
-      {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">서브딜 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
+      {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">외주 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
       <DealAssigneesPanel dealId={dealId} companyId={companyId} assignments={assignments} canEdit={!isPartnerView} />
       <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
       <DealChatWithFiles dealId={dealId} companyId={companyId} userId={userId} dealChannel={dealChannel} createChannelMut={createChannelMut} recentMessages={recentMessages} chatMsg={chatMsg} setChatMsg={setChatMsg} sendChatMut={sendChatMut} />
@@ -362,7 +362,7 @@ function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealI
               <div className="flex items-center gap-2">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{ASSIGNEE_ROLE_LABEL[a.role] || a.role}</span>
                 {canEdit && (
-                  <button onClick={() => { if (confirm(`${a.users?.name || a.users?.email || '담당자'}을(를) 이 딜에서 제거하시겠습니까?`)) removeMut.mutate(a.id); }} disabled={removeMut.isPending} className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded transition disabled:opacity-50" title="담당자 제거">제거</button>
+                  <button onClick={() => { if (confirm(`${a.users?.name || a.users?.email || '담당자'}을(를) 이 프로젝트에서 제거하시겠습니까?`)) removeMut.mutate(a.id); }} disabled={removeMut.isPending} className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded transition disabled:opacity-50" title="담당자 제거">제거</button>
                 )}
               </div>
             </div>
@@ -456,7 +456,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
         action: 'update',
         entity_type: 'deal',
         entity_id: dealId,
-        entity_name: '딜 메모',
+        entity_name: '프로젝트 메모',
         metadata: { kind: 'note', content: newNote.trim() },
         created_at: new Date().toISOString(),
       });
@@ -495,7 +495,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
       <div className="px-5 py-3 border-b border-[var(--border)]/50 flex gap-2">
         <input value={newNote} onChange={(e) => setNewNote(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !posting && postNote()}
-          placeholder="이 딜에 대한 메모를 추가하면 로그에 기록됩니다 (예: '클라이언트 수정요청 반영 완료')"
+          placeholder="이 프로젝트에 대한 메모를 추가하면 로그에 기록됩니다 (예: '클라이언트 수정요청 반영 완료')"
           className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
         <button onClick={postNote} disabled={!newNote.trim() || posting}
           className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40">
@@ -506,7 +506,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
       {/* 로그 리스트 */}
       {filtered.length === 0 ? (
         <div className="p-10 text-center text-sm text-[var(--text-muted)]">
-          {(logs as any[]).length === 0 ? '아직 기록된 활동이 없습니다. 딜 정보를 수정하면 자동으로 쌓입니다.' : '이 필터에 해당하는 활동이 없습니다.'}
+          {(logs as any[]).length === 0 ? '아직 기록된 활동이 없습니다. 프로젝트 정보를 수정하면 자동으로 쌓입니다.' : '이 필터에 해당하는 활동이 없습니다.'}
         </div>
       ) : (
         <div className="divide-y divide-[var(--border)]/50 max-h-[500px] overflow-y-auto">
@@ -690,7 +690,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
   return (
     <div className={`bg-[var(--bg-card)] rounded-2xl border overflow-hidden mt-6 transition ${dragOver ? 'border-[var(--primary)] bg-[var(--primary)]/[0.02]' : 'border-[var(--border)]'}`} onDragOver={e => { e.preventDefault(); e.stopPropagation(); }} onDragEnter={e => { e.preventDefault(); dragCounterRef.current++; setDragOver(true); }} onDragLeave={e => { e.preventDefault(); dragCounterRef.current--; if (dragCounterRef.current === 0) setDragOver(false); }} onDrop={e => { dragCounterRef.current = 0; handleDrop(e); }}>
       <div className="px-5 py-3 flex items-center justify-between">
-        <h2 className="text-sm font-bold">💬 딜 채팅</h2>
+        <h2 className="text-sm font-bold">💬 프로젝트 채팅</h2>
         {dealChannel && <Link href={`/chat?channel=${dealChannel.id}`} className="text-[10px] text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">전체 채팅 보기 &rarr;</Link>}
       </div>
       {/* Tabs */}
@@ -703,8 +703,8 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
         <>
           {!dealChannel ? (
             <div className="p-6 text-center">
-              <div className="text-sm text-[var(--text-muted)] mb-3">이 딜에 연결된 채팅이 없습니다</div>
-              <button onClick={() => userId && companyId && createChannelMut.mutate()} disabled={createChannelMut.isPending || !userId} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{createChannelMut.isPending ? '생성 중...' : '딜 채팅 생성'}</button>
+              <div className="text-sm text-[var(--text-muted)] mb-3">이 프로젝트에 연결된 채팅이 없습니다</div>
+              <button onClick={() => userId && companyId && createChannelMut.mutate()} disabled={createChannelMut.isPending || !userId} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{createChannelMut.isPending ? '생성 중...' : '프로젝트 채팅 생성'}</button>
             </div>
           ) : (
             <div>
@@ -913,7 +913,7 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
       if (docErr || !docData) throw new Error('문서를 찾을 수 없습니다');
       if (!docData.content_json) {
         const { data: dealData } = await db2.from('deals').select('name, contract_total').eq('id', docData.deal_id).single();
-        throw new Error(`문서 내용이 비어있습니다. ${dealData ? `딜: ${dealData.name} (₩${Number(dealData.contract_total || 0).toLocaleString()})` : ''} 견적서를 다시 생성해주세요.`);
+        throw new Error(`문서 내용이 비어있습니다. ${dealData ? `프로젝트: ${dealData.name} (₩${Number(dealData.contract_total || 0).toLocaleString()})` : ''} 견적서를 다시 생성해주세요.`);
       }
       const cj = docData.content_json as any;
       const { data: comp } = await db2.from('companies').select('name, business_number, representative, address, seal_url').eq('id', companyId).single();
@@ -1260,7 +1260,7 @@ function KanbanBoard({ deals, clsColorMap, onSelectDeal, assignmentMap }: { deal
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${col.color}15`, color: col.color }}>{col.deals.length}</span>
           </div>
           <div className="flex-1 p-3 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
-            {col.deals.length === 0 ? (<div className={`text-center py-8 text-xs ${isDropTarget ? 'text-[var(--text-muted)]' : 'text-[var(--text-dim)]'}`}>{isDropTarget ? '여기에 드롭하세요' : '딜 없음'}</div>) : (col.deals.map((deal) => (<div key={deal.id} onDragEnd={handleDragEnd} style={{ opacity: draggingId === deal.id ? 0.5 : 1, transition: 'opacity 150ms' }}><KanbanCard deal={deal} clsColorMap={clsColorMap} onClick={() => onSelectDeal(deal.id)} assignees={assignmentMap[deal.id]} onDragStart={handleDragStart} /></div>)))}
+            {col.deals.length === 0 ? (<div className={`text-center py-8 text-xs ${isDropTarget ? 'text-[var(--text-muted)]' : 'text-[var(--text-dim)]'}`}>{isDropTarget ? '여기에 드롭하세요' : '프로젝트 없음'}</div>) : (col.deals.map((deal) => (<div key={deal.id} onDragEnd={handleDragEnd} style={{ opacity: draggingId === deal.id ? 0.5 : 1, transition: 'opacity 150ms' }}><KanbanCard deal={deal} clsColorMap={clsColorMap} onClick={() => onSelectDeal(deal.id)} assignees={assignmentMap[deal.id]} onDragStart={handleDragStart} /></div>)))}
           </div>
         </div>); })}
     </div>
@@ -1271,7 +1271,7 @@ function KanbanBoard({ deals, clsColorMap, onSelectDeal, assignmentMap }: { deal
 function GanttView({ deals, clsColorMap }: { deals: any[]; clsColorMap: Record<string, string> }) {
   const today = new Date();
   const allDates = deals.flatMap((d: any) => [d.start_date, d.end_date].filter(Boolean).map((s: string) => new Date(s).getTime()));
-  if (allDates.length === 0) return <div className="text-center py-16 text-[var(--text-muted)]">날짜가 있는 딜이 없습니다</div>;
+  if (allDates.length === 0) return <div className="text-center py-16 text-[var(--text-muted)]">날짜가 있는 프로젝트가 없습니다</div>;
   const minDate = new Date(Math.min(...allDates));
   const maxDate = new Date(Math.max(...allDates, today.getTime() + 30 * 86400000));
   minDate.setDate(1);
@@ -1571,9 +1571,9 @@ function DealsPageInner() {
   const clsColorMap = Object.fromEntries(classifications.map((c: any) => [c.name, c.color || DEFAULT_COLORS[c.name] || '#8b5cf6']));
 
   const createDeal = useMutation({
-    mutationFn: async () => { if (!companyId) throw new Error("회사 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."); const rawAmount = Number(form.contract_total); if (!rawAmount || rawAmount <= 0) throw new Error("계약금액은 1원 이상이어야 합니다"); const contractAmount = form.vatType === 'include' ? Math.round(rawAmount / 1.1) : rawAmount; if (!form.name.trim()) throw new Error("딜명을 입력해주세요."); const { data: newDeal, error } = await supabase.from("deals").insert({ company_id: companyId, name: form.name.trim(), classification: form.classification, contract_total: contractAmount, status: "active", start_date: form.start_date || null, end_date: form.end_date || null, priority: form.priority }).select().single(); if (error) throw error; if (form.counterparty.trim() && newDeal) { try { await autoCreatePartnerFromDeal(companyId, newDeal.id, form.counterparty.trim()); } catch (e) { console.error("거래처 자동 등록 실패:", e); } } },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); queryClient.invalidateQueries({ queryKey: ["partners"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium", vatType: "exclude" }); setFormError(""); toast("딜이 생성되었습니다", "success"); },
-    onError: (err: Error) => { setFormError(err.message); toast("딜 생성 실패: " + err.message, "error"); },
+    mutationFn: async () => { if (!companyId) throw new Error("회사 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."); const rawAmount = Number(form.contract_total); if (!rawAmount || rawAmount <= 0) throw new Error("계약금액은 1원 이상이어야 합니다"); const contractAmount = form.vatType === 'include' ? Math.round(rawAmount / 1.1) : rawAmount; if (!form.name.trim()) throw new Error("프로젝트명을 입력해주세요."); const { data: newDeal, error } = await supabase.from("deals").insert({ company_id: companyId, name: form.name.trim(), classification: form.classification, contract_total: contractAmount, status: "active", start_date: form.start_date || null, end_date: form.end_date || null, priority: form.priority }).select().single(); if (error) throw error; if (form.counterparty.trim() && newDeal) { try { await autoCreatePartnerFromDeal(companyId, newDeal.id, form.counterparty.trim()); } catch (e) { console.error("거래처 자동 등록 실패:", e); } } },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["deals"] }); queryClient.invalidateQueries({ queryKey: ["partners"] }); setShowForm(false); setForm({ classification: "B2B", name: "", contract_total: "", start_date: "", end_date: "", counterparty: "", priority: "medium", vatType: "exclude" }); setFormError(""); toast("프로젝트가 생성되었습니다", "success"); },
+    onError: (err: Error) => { setFormError(err.message); toast("프로젝트 생성 실패: " + err.message, "error"); },
   });
 
   // E-6: Filter by classification and priority — exclude program-owned deals from standalone list
@@ -1599,7 +1599,7 @@ function DealsPageInner() {
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center"><svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
             <div>
               <h1 className="text-2xl font-extrabold">파트너 포털</h1>
-              <p className="text-sm text-[var(--text-muted)]">배정된 딜의 진행상황을 확인하세요</p>
+              <p className="text-sm text-[var(--text-muted)]">배정된 프로젝트의 진행상황을 확인하세요</p>
             </div>
           </div>
         </div>
@@ -1607,7 +1607,7 @@ function DealsPageInner() {
         {/* Partner Stats Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: '전체 딜', value: deals.length, color: 'var(--primary)' },
+            { label: '전체 프로젝트', value: deals.length, color: 'var(--primary)' },
             { label: '진행중', value: deals.filter((d: any) => ['active', 'in_progress', 'contract_signed'].includes(d.status)).length, color: '#3B82F6' },
             { label: '완료', value: deals.filter((d: any) => ['completed', 'closed_won'].includes(d.status)).length, color: '#22C55E' },
             { label: '총 계약금액', value: `${(deals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0) / 10000).toLocaleString()}만원`, color: '#F59E0B' },
@@ -1624,8 +1624,8 @@ function DealsPageInner() {
           <div className="text-center py-12 text-[var(--text-muted)]">불러오는 중...</div>
         ) : deals.length === 0 ? (
           <div className="text-center py-16 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
-            <p className="text-lg font-semibold mb-2">배정된 딜이 없습니다</p>
-            <p className="text-sm text-[var(--text-muted)]">관리자가 딜을 배정하면 여기에 표시됩니다</p>
+            <p className="text-lg font-semibold mb-2">배정된 프로젝트가 없습니다</p>
+            <p className="text-sm text-[var(--text-muted)]">관리자가 프로젝트를 배정하면 여기에 표시됩니다</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1662,11 +1662,11 @@ function DealsPageInner() {
     <div className={viewMode === 'kanban' || viewMode === 'calendar' || viewMode === 'gantt' ? 'max-w-full' : 'max-w-[1000px]'}>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-        <div className="min-w-0"><h1 className="text-xl sm:text-2xl font-extrabold break-keep">딜 관리</h1><p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">모든 프로젝트/계약을 딜 단위로 관리합니다</p></div>
+        <div className="min-w-0"><h1 className="text-xl sm:text-2xl font-extrabold break-keep">프로젝트 관리</h1><p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">모든 프로젝트/계약을 프로젝트 단위로 관리합니다</p></div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto">
           <ViewToggle viewMode={viewMode} onChange={setViewMode} />
           <button onClick={() => setShowCreateProgram(true)} className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">+ 프로젝트</button>
-          <button onClick={() => setShowForm(!showForm)} className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">+ 새 딜</button>
+          <button onClick={() => setShowForm(!showForm)} className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">+ 새 프로젝트</button>
         </div>
       </div>
 
@@ -1682,10 +1682,10 @@ function DealsPageInner() {
 
       {showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">새 딜 등록</h3>
+          <h3 className="text-sm font-bold mb-4">새 프로젝트 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류 * <Link href="/settings#classifications" className="text-[var(--primary)] text-[10px] font-normal hover:underline ml-1">관리</Link></label><select value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{(() => { const defaults = ['B2B', 'B2C', 'B2G']; const customNames = classifications.map((c: any) => c.name); const merged = [...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: d, name: d, color: DEFAULT_COLORS[d] })), ...classifications]; return merged.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)); })()}</select></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">딜명 *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 수출바우처 - A기업" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트명 *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 수출바우처 - A기업" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 *</label><div className="flex gap-2 mb-1.5"><select value={form.vatType} onChange={(e) => setForm({ ...form, vatType: e.target.value as "exclude" | "include" })} className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="exclude">VAT 별도</option><option value="include">VAT 포함</option></select></div><CurrencyInput value={form.contract_total} onValueChange={(raw) => { setForm({ ...form, contract_total: raw }); setFormError(""); }} placeholder="15,000,000" className={`w-full px-3 py-2.5 bg-[var(--bg)] border rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] ${formError && (!form.contract_total || Number(form.contract_total) <= 0) ? "border-red-400" : "border-[var(--border)]"}`} />{Number(form.contract_total) > 0 && (<p className="text-[11px] text-[var(--text-muted)] mt-1">{form.vatType === 'exclude' ? (<>공급가액: {Number(form.contract_total).toLocaleString('ko-KR')}원 | VAT(10%): {Math.round(Number(form.contract_total) * 0.1).toLocaleString('ko-KR')}원 | 합계: {Math.round(Number(form.contract_total) * 1.1).toLocaleString('ko-KR')}원</>) : (<>합계(VAT포함): {Number(form.contract_total).toLocaleString('ko-KR')}원 | 공급가액: {Math.round(Number(form.contract_total) / 1.1).toLocaleString('ko-KR')}원 | VAT: {Math.round(Number(form.contract_total) - Number(form.contract_total) / 1.1).toLocaleString('ko-KR')}원</>)}</p>)}{formError && (!form.contract_total || Number(form.contract_total) <= 0) && (<p className="text-xs text-red-500 mt-1">{formError}</p>)}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label><input type="date" value={form.start_date} onChange={(e) => { setForm({ ...form, start_date: e.target.value }); if (e.target.value) { const endInput = document.getElementById('deal-end-date'); endInput?.focus(); } }} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label><input id="deal-end-date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} min={form.start_date || undefined} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -1693,7 +1693,7 @@ function DealsPageInner() {
             <div className="relative"><label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label><input value={form.counterparty} onChange={(e) => { setForm({ ...form, counterparty: e.target.value }); searchDealPartners(e.target.value); }} onFocus={() => setDealPartnerFocused(true)} onBlur={() => setTimeout(() => setDealPartnerFocused(false), 200)} placeholder="예: (주)ABC컴퍼니 (기존 거래처 검색)" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{dealPartnerFocused && dealPartnerResults.length > 0 && (<div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">{dealPartnerResults.map((p: any) => (<button key={p.id} type="button" onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, counterparty: p.name }); setDealPartnerResults([]); setDealPartnerFocused(false); }} className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"><span className="font-medium">{p.name}</span>{p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}</button>))}</div>)}</div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => form.name && Number(form.contract_total) > 0 && createDeal.mutate()} disabled={!form.name || !form.contract_total || Number(form.contract_total) <= 0 || createDeal.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{createDeal.isPending ? "생성 중..." : "딜 생성"}</button>
+            <button onClick={() => form.name && Number(form.contract_total) > 0 && createDeal.mutate()} disabled={!form.name || !form.contract_total || Number(form.contract_total) <= 0 || createDeal.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{createDeal.isPending ? "생성 중..." : "프로젝트 생성"}</button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm">취소</button>
           </div>
         </div>
@@ -1711,16 +1711,16 @@ function DealsPageInner() {
       </div>
 
       <div className="flex items-center gap-3 mb-4">
-        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={showDormant} onChange={(e) => setShowDormant(e.target.checked)} className="w-4 h-4 rounded border-[var(--border)] bg-[var(--bg)] text-[var(--primary)] focus:ring-[var(--primary)] accent-[var(--primary)]" /><span className="text-xs text-[var(--text-muted)]">휴면 딜 표시</span></label>
+        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={showDormant} onChange={(e) => setShowDormant(e.target.checked)} className="w-4 h-4 rounded border-[var(--border)] bg-[var(--bg)] text-[var(--primary)] focus:ring-[var(--primary)] accent-[var(--primary)]" /><span className="text-xs text-[var(--text-muted)]">휴면 프로젝트 표시</span></label>
         {showDormant && dormantDeals.length > 0 && (<span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-semibold">{dormantDeals.length}건 휴면</span>)}
       </div>
 
-      {showDormant && dormantDeals.length > 0 && (<div className="mb-6"><h3 className="text-xs font-bold text-orange-400 mb-2">휴면 딜 (30일 이상 활동 없음)</h3><div className="space-y-2">{dormantDeals.map((d: any) => (<div key={d.id} className="bg-[var(--bg-card)] rounded-xl border border-orange-500/20 p-4 opacity-70"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-semibold">휴면</span><div><div className="text-sm font-semibold">{d.name}</div><div className="text-xs text-[var(--text-dim)] mt-0.5">마지막 활동: {d.last_activity_at ? new Date(d.last_activity_at).toLocaleDateString('ko') : '--'}</div></div></div><div className="flex items-center gap-2"><span className="text-sm font-bold text-[var(--text-muted)]">{Number(d.contract_total || 0).toLocaleString()}원</span><button onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(d.id); }} disabled={reactivateMut.isPending} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50">활성화</button></div></div></div>))}</div></div>)}
+      {showDormant && dormantDeals.length > 0 && (<div className="mb-6"><h3 className="text-xs font-bold text-orange-400 mb-2">휴면 프로젝트 (30일 이상 활동 없음)</h3><div className="space-y-2">{dormantDeals.map((d: any) => (<div key={d.id} className="bg-[var(--bg-card)] rounded-xl border border-orange-500/20 p-4 opacity-70"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-semibold">휴면</span><div><div className="text-sm font-semibold">{d.name}</div><div className="text-xs text-[var(--text-dim)] mt-0.5">마지막 활동: {d.last_activity_at ? new Date(d.last_activity_at).toLocaleDateString('ko') : '--'}</div></div></div><div className="flex items-center gap-2"><span className="text-sm font-bold text-[var(--text-muted)]">{Number(d.contract_total || 0).toLocaleString()}원</span><button onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(d.id); }} disabled={reactivateMut.isPending} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50">활성화</button></div></div></div>))}</div></div>)}
 
       {isLoading ? (
         <div className="text-center py-20 text-[var(--text-muted)] text-sm">로딩 중...</div>
       ) : standaloneDeals.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center"><div className="text-4xl mb-4">💼</div><div className="text-lg font-bold mb-2">첫 딜을 등록하세요</div><div className="text-sm text-[var(--text-muted)] mb-6">딜 = 프로젝트 = 계약. 모든 돈은 딜에 연결됩니다.</div><button onClick={() => setShowForm(true)} className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 새 딜 등록</button></div>
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center"><div className="text-4xl mb-4">💼</div><div className="text-lg font-bold mb-2">첫 프로젝트을 등록하세요</div><div className="text-sm text-[var(--text-muted)] mb-6">프로젝트 = 계약. 모든 돈은 프로젝트에 연결됩니다.</div><button onClick={() => setShowForm(true)} className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 새 프로젝트 등록</button></div>
       ) : viewMode === 'kanban' ? (
         <KanbanBoard deals={filteredDeals} clsColorMap={clsColorMap} onSelectDeal={(id) => router.push(`/deals?id=${id}`)} assignmentMap={assignmentMap} />
       ) : viewMode === 'calendar' ? (

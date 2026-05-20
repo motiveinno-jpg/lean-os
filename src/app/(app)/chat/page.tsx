@@ -695,7 +695,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
     assignment_changed: "담당자 변경",
     document_approved: "문서 승인",
     document_locked: "문서 잠금",
-    deal_status_changed: "딜 상태 변경",
+    deal_status_changed: "프로젝트 상태 변경",
   };
 
   const pinnedMessages = messages.filter((m: any) => m.pinned);
@@ -710,7 +710,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
           <div>
             <h1 className="text-lg font-extrabold">{channel?.name || "..."}</h1>
             <div className="text-xs text-[var(--text-dim)]">
-              {(channel as any)?.deals?.name ? `딜: ${(channel as any).deals.name}` : channel?.type || ""}
+              {(channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : channel?.type || ""}
               {" · "}
               {participants.length}명 참가
             </div>
@@ -1442,7 +1442,7 @@ function ChannelItem({ ch, unreadMap, router }: { ch: any; unreadMap: any; route
               {ch.name}
             </div>
             <div className="text-xs text-[var(--text-dim)] mt-0.5">
-              {ch.deals?.name ? `딜: ${ch.deals.name}` : isDM ? 'DM' : '팀 채널'}
+              {ch.deals?.name ? `프로젝트: ${ch.deals.name}` : isDM ? 'DM' : '팀 채널'}
             </div>
           </div>
         </div>
@@ -1567,21 +1567,21 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">
-            딜룸 채팅
+            프로젝트룸 채팅
             {totalUnread > 0 && (
               <span className="ml-2 text-sm px-2 py-0.5 bg-red-500 text-white rounded-full font-bold">
                 {totalUnread}
               </span>
             )}
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">딜별 소통 + 팀 채널 + DM</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">프로젝트별 소통 + 팀 채널 + DM</p>
         </div>
       </div>
 
       {/* Section 1: Deal Channels */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-[var(--text-muted)]">딜 채널 ({dealChannels.length})</h2>
+          <h2 className="text-sm font-bold text-[var(--text-muted)]">프로젝트 채널 ({dealChannels.length})</h2>
           <button onClick={() => { setShowForm(!showForm); setShowTeamForm(false); setShowDMForm(false); }}
             className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
             +
@@ -1590,7 +1590,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
         {showForm && (
           <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
-            <h3 className="text-sm font-bold mb-4">새 딜 채널</h3>
+            <h3 className="text-sm font-bold mb-4">새 프로젝트 채널</h3>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">채널명 *</label>
@@ -1598,7 +1598,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
                   placeholder="수출바우처 A기업 채팅" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">연결 딜</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
                 <select value={form.deal_id} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, deal_id: e.target.value })}
                   className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
                   <option value="">선택 안함</option>
@@ -1609,8 +1609,8 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
                 <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
                 <select value={form.type} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, type: e.target.value })}
                   className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-                  <option value="deal">딜 채널</option>
-                  <option value="subdeal">서브딜 채널</option>
+                  <option value="deal">프로젝트 채널</option>
+                  <option value="subdeal">외주 채널</option>
                   <option value="general">일반 채널</option>
                 </select>
               </div>
@@ -1627,7 +1627,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
             <div className="text-4xl mb-3">💬</div>
             <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어 소통을 시작하세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">딜을 생성하면 자동으로 채널이 만들어집니다</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트를 생성하면 자동으로 채널이 만들어집니다</div>
           </div>
         ) : (
           <div className="space-y-2">
