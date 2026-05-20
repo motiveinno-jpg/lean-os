@@ -75,17 +75,19 @@ export async function previewPayroll(
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [] };
 
   // 해당 월 명세서 수정값(override) — employees.salary 와 무관하게 월별로 다르게 적용
-  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number }> = {};
+  // v4 H1: extras (임의 수당/공제) 도 함께 fetch
+  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number; extras?: unknown }> = {};
   if (monthKey) {
     const { data: overrides } = await db
       .from('payslip_overrides')
-      .select('employee_id, base_salary, non_taxable_amount')
+      .select('employee_id, base_salary, non_taxable_amount, extras')
       .eq('company_id', companyId)
       .eq('period_month', monthKey);
     (overrides || []).forEach((o: any) => {
       overrideMap[o.employee_id] = {
         base_salary: Number(o.base_salary),
         non_taxable_amount: Number(o.non_taxable_amount),
+        extras: o.extras,
       };
     });
   }
@@ -124,6 +126,20 @@ export async function previewPayroll(
       nonTaxableAmount: nonTaxable,
       dependents: 1,
     });
+    // v4 H1: 임의 수당/공제 반영 — extras 의 net (allowance-deduction) 만큼 netPay 가감
+    const rawExtras = Array.isArray(ov?.extras) ? ov!.extras as Array<{ type?: string; name?: string; amount?: number }> : [];
+    if (rawExtras.length > 0) {
+      const valid = rawExtras
+        .filter((e) => (e?.type === 'allowance' || e?.type === 'deduction') && typeof e?.name === 'string' && Number(e?.amount) > 0)
+        .map((e) => ({ type: e.type as 'allowance' | 'deduction', name: String(e.name), amount: Math.max(0, Math.round(Number(e.amount))) }));
+      if (valid.length > 0) {
+        item.extras = valid;
+        const allowance = valid.filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
+        const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
+        item.netPay = item.netPay + allowance - deduction;
+        item.deductionsTotal = item.deductionsTotal + deduction;
+      }
+    }
     items.push(item);
     totalGross += item.baseSalary;
     totalDeductions += item.deductionsTotal;

@@ -4265,9 +4265,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정
+  // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정 + v4 H1 임의 수당/공제
   const [editMode, setEditMode] = useState(false);
-  const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number }>>({});
+  const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[] }>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
   const [periodMonth, setPeriodMonth] = useState(() => {
@@ -4305,6 +4305,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       const meta = (empMap as Record<string, { department: string | null; position: string | null; birthDate: string | null }>)[item.employeeId] || {} as any;
       // 사원코드 — employee.id 의 끝 4자리(UUID 접미)를 사용
       const employeeCode = item.employeeId ? item.employeeId.slice(-4).toUpperCase() : undefined;
+      // v4 H1: 임의 수당/공제 항목을 PDF 의 extraEarnings/extraDeductions 로 전달
+      const itemExtras = item.extras || [];
+      const extraEarnings = itemExtras.filter((e) => e.type === 'allowance').map((e) => ({ label: e.name, amount: e.amount }));
+      const extraDeductions = itemExtras.filter((e) => e.type === 'deduction').map((e) => ({ label: e.name, amount: e.amount }));
       await downloadPayslipPDF({
         item,
         companyName: companyMeta?.name || "회사",
@@ -4314,6 +4318,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         position: meta.position || undefined,
         employeeCode,
         birthDate: meta.birthDate || undefined,
+        extraEarnings: extraEarnings.length > 0 ? extraEarnings : undefined,
+        extraDeductions: extraDeductions.length > 0 ? extraDeductions : undefined,
       });
       toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
     } catch (err: any) {
@@ -4382,10 +4388,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       // 2) (복사 반영된) 미리보기 계산
       const result = await previewPayroll(companyId, periodMonth);
       setPreview(result);
-      // 편집값 초기화 — 현재 미리보기 값으로
-      const init: Record<string, { baseSalary: number; nonTaxable: number }> = {};
+      // 편집값 초기화 — 현재 미리보기 값으로 (v4 H1: extras 포함)
+      const init: Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[] }> = {};
       result.items.forEach(it => {
-        init[it.employeeId] = { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount };
+        init[it.employeeId] = { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount, extras: it.extras ? [...it.extras] : [] };
       });
       setEditValues(init);
       // 입사일 필터 안내
@@ -4412,6 +4418,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         period_month: periodMonth, // 'YYYY-MM' — 이 달 명세서에만 적용
         base_salary: v.baseSalary,
         non_taxable_amount: v.nonTaxable,
+        // v4 H1: 임의 수당/공제 — 빈 amount/name 행은 저장 안 함
+        extras: v.extras.filter((e) => e.name.trim() && Number(e.amount) > 0),
         updated_at: new Date().toISOString(),
       }));
       const { error } = await (supabase as any)
@@ -4536,10 +4544,24 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               </tr></thead>
               <tbody>
                 {preview.items.map((item) => {
-                  const ev = editValues[item.employeeId] || { baseSalary: item.baseSalary, nonTaxable: item.nonTaxableAmount };
+                  const ev = editValues[item.employeeId] || { baseSalary: item.baseSalary, nonTaxable: item.nonTaxableAmount, extras: [] };
+                  // v4 H1: 임의 수당/공제 합산 (preview netPay 에는 이미 반영됨)
+                  const itemExtras = item.extras || [];
+                  const allowanceSum = itemExtras.filter((e) => e.type === 'allowance').reduce((s, e) => s + Number(e.amount || 0), 0);
+                  const deductionSum = itemExtras.filter((e) => e.type === 'deduction').reduce((s, e) => s + Number(e.amount || 0), 0);
                   return (
+                  <>
                   <tr key={item.employeeId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                    <td className="px-4 py-3 text-sm font-medium">{item.employeeName}</td>
+                    <td className="px-4 py-3 text-sm font-medium">
+                      {item.employeeName}
+                      {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                          {allowanceSum > 0 && <span className="text-blue-400">수당 +{allowanceSum.toLocaleString()}</span>}
+                          {allowanceSum > 0 && deductionSum > 0 && <span className="mx-1">·</span>}
+                          {deductionSum > 0 && <span className="text-red-400">공제 -{deductionSum.toLocaleString()}</span>}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-right">
                       {editMode ? (
                         <CurrencyInput value={ev.baseSalary}
@@ -4578,6 +4600,56 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                       </div>
                     </td>
                   </tr>
+                  {/* v4 H1: 편집 모드일 때 row 아래 수당/공제 라인 편집 */}
+                  {editMode && (
+                    <tr key={`${item.employeeId}-extras`} className="bg-[var(--bg-surface)]/40 border-b border-[var(--border)]/30">
+                      <td colSpan={12} className="px-4 py-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] text-[var(--text-dim)] font-semibold">임의 수당/공제 ({(ev.extras || []).length}건)</span>
+                          <button type="button"
+                            onClick={() => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: [...(ev.extras || []), { type: 'allowance', name: '', amount: 0 }] } }))}
+                            className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">+ 수당</button>
+                          <button type="button"
+                            onClick={() => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: [...(ev.extras || []), { type: 'deduction', name: '', amount: 0 }] } }))}
+                            className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20">+ 공제</button>
+                        </div>
+                        {(ev.extras || []).length > 0 && (
+                          <div className="space-y-1">
+                            {(ev.extras || []).map((ex, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <select value={ex.type} onChange={(e) => {
+                                  const next = [...(ev.extras || [])];
+                                  next[idx] = { ...ex, type: e.target.value as 'allowance' | 'deduction' };
+                                  setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
+                                }} className={`text-[10px] px-2 py-1 rounded border ${ex.type === 'allowance' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                                  <option value="allowance">수당</option>
+                                  <option value="deduction">공제</option>
+                                </select>
+                                <input value={ex.name} onChange={(e) => {
+                                  const next = [...(ev.extras || [])];
+                                  next[idx] = { ...ex, name: e.target.value };
+                                  setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
+                                }} placeholder="예: 식대 / 직책수당 / 사내대출"
+                                  className="flex-1 max-w-xs px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                                <CurrencyInput value={ex.amount}
+                                  onValueChange={(raw) => {
+                                    const next = [...(ev.extras || [])];
+                                    next[idx] = { ...ex, amount: Number(raw || 0) };
+                                    setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
+                                  }}
+                                  className="w-28 px-2 py-1 text-right bg-[var(--bg)] border border-[var(--border)] rounded text-xs" />
+                                <button type="button" onClick={() => {
+                                  const next = (ev.extras || []).filter((_, i) => i !== idx);
+                                  setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
+                                }} className="text-red-400/70 hover:text-red-400 text-xs">✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </>
                   );
                 })}
               </tbody>
