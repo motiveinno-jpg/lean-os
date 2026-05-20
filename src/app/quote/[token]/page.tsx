@@ -1,0 +1,502 @@
+"use client";
+
+// STEP 4 (PR-A) — 외부 비로그인 견적/계약 승인 페이지.
+//   URL: /quote/<token>
+//   동선:
+//     1) get_quote_approval_by_token RPC (anon+auth) — token 으로 1행 조회.
+//        토큰 자체는 응답에 포함되지 않음 (서버측 select 에서 제외).
+//     2) mark_quote_approval_viewed RPC (idempotent) — status='viewed' + viewed_at.
+//     3) 승인/거절 결정 → submit_quote_decision RPC → notifications 자동 INSERT.
+//
+// 보안 (security-reviewer I1):
+//   - referrer 0 노출: 페이지 metadata.referrer='no-referrer' (server segment).
+//   - 외부 링크 0 (페이지에 외부 링크 자체 없음). 안내 텍스트만.
+//   - 토큰은 URL 경로에만, 본문/로그/Sentry 0 노출.
+//   - reportError 호출 시도 token 인자 미포함.
+//
+// 견적 단계 payload 가정: { items, paymentStages, quoteContent }
+//   다른 stage(contract/progress_report/completion/settlement)는 다음 라운드.
+
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { friendlyError, reportError } from "@/lib/friendly-error";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+interface ApprovalRow {
+  id: string;
+  stage: string;
+  status: string;
+  payload: Record<string, unknown> | null;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  sent_at: string | null;
+  expires_at: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  deal_id: string;
+  deal_name: string;
+  contract_total: number | null;
+  company_name: string;
+  company_representative: string | null;
+}
+
+interface QuoteItem {
+  name?: string;
+  quantity?: number;
+  unitPrice?: number;
+  supplyAmount?: number;
+  taxAmount?: number;
+  totalAmount?: number;
+  note?: string;
+}
+
+interface PaymentStage {
+  label?: string;
+  ratio?: number;
+  condition?: string;
+}
+
+type LoadState = "loading" | "ok" | "not_found" | "expired" | "already_decided";
+
+export default function QuoteApprovalPage() {
+  const params = useParams<{ token: string }>();
+  const router = useRouter();
+  const token = String(params?.token || "");
+
+  const [state, setState] = useState<LoadState>("loading");
+  const [row, setRow] = useState<ApprovalRow | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [decided, setDecided] = useState<{ decision: "approved" | "rejected"; stage_after?: string | null } | null>(
+    null,
+  );
+  const [rejectNote, setRejectNote] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // 1) 토큰으로 1회 fetch + viewed 처리
+  useEffect(() => {
+    if (!token) {
+      setState("not_found");
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error } = await db.rpc("get_quote_approval_by_token", { p_token: token });
+        if (error) {
+          reportError("quote.token.fetch", { code: error.code });
+          setState("not_found");
+          return;
+        }
+        const list = Array.isArray(data) ? (data as ApprovalRow[]) : [];
+        if (list.length === 0) {
+          setState("not_found");
+          return;
+        }
+        const r = list[0];
+        setRow(r);
+
+        // 만료 / 이미 결정됨 처리 — UI 분기
+        if (r.status === "expired") {
+          setState("expired");
+          return;
+        }
+        if (r.status === "approved" || r.status === "rejected") {
+          setState("already_decided");
+          return;
+        }
+
+        setState("ok");
+
+        // 2) viewed 마킹 (idempotent — 이미 viewed 면 no-op)
+        if (r.status === "sent") {
+          db.rpc("mark_quote_approval_viewed", { p_token: token }).then(
+            ({ error: vErr }: { error: { code?: string } | null }) => {
+              if (vErr) reportError("quote.token.viewed", { code: vErr.code });
+            },
+          );
+        }
+      } catch (e: unknown) {
+        reportError("quote.token.fetch.catch", e);
+        setState("not_found");
+      }
+    })();
+    // token 변경시만 재실행 — db는 모듈 싱글톤
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  async function submit(decision: "approved" | "rejected") {
+    if (!row || submitting) return;
+    if (decision === "rejected" && !rejectNote.trim()) {
+      setErrMsg("거절 사유를 입력해 주세요");
+      return;
+    }
+    setSubmitting(true);
+    setErrMsg(null);
+    try {
+      const { data, error } = await db.rpc("submit_quote_decision", {
+        p_token: token,
+        p_decision: decision,
+        p_note: decision === "rejected" ? rejectNote.trim() : null,
+      });
+      if (error) {
+        reportError("quote.token.submit", { code: error.code });
+        setErrMsg(friendlyError(error, "결정 접수에 실패했습니다. 잠시 후 다시 시도해 주세요."));
+        setSubmitting(false);
+        return;
+      }
+      const res = (data || {}) as { ok?: boolean; code?: string; deal_stage_after?: string };
+      if (!res.ok) {
+        const codeMap: Record<string, string> = {
+          expired: "이 링크는 만료되었습니다. 발송자에게 재발송을 요청해 주세요.",
+          already_decided: "이미 결정이 접수된 요청입니다.",
+          invalid: "유효하지 않은 요청입니다. 발송자에게 문의해 주세요.",
+        };
+        const msg = (res.code && codeMap[res.code]) || "결정 접수에 실패했습니다.";
+        setErrMsg(msg);
+        // 만료/이미결정 → 상태 갱신
+        if (res.code === "expired") setState("expired");
+        if (res.code === "already_decided") setState("already_decided");
+        setSubmitting(false);
+        return;
+      }
+      setDecided({ decision, stage_after: res.deal_stage_after ?? null });
+      setSubmitting(false);
+    } catch (e: unknown) {
+      reportError("quote.token.submit.catch", e);
+      setErrMsg(friendlyError(e, "결정 접수에 실패했습니다."));
+      setSubmitting(false);
+    }
+  }
+
+  // 만료일 계산
+  const expiresLabel = useMemo(() => {
+    if (!row?.expires_at) return null;
+    try {
+      const d = new Date(row.expires_at);
+      return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+    } catch {
+      return null;
+    }
+  }, [row?.expires_at]);
+
+  // 견적 payload 파싱 (stage='estimate' 기준)
+  const items = useMemo<QuoteItem[]>(() => {
+    const p = (row?.payload || {}) as { items?: QuoteItem[]; quoteItems?: QuoteItem[] };
+    return Array.isArray(p.items) ? p.items : Array.isArray(p.quoteItems) ? p.quoteItems : [];
+  }, [row?.payload]);
+
+  const stages = useMemo<PaymentStage[]>(() => {
+    const p = (row?.payload || {}) as { paymentStages?: PaymentStage[]; paymentSchedule?: PaymentStage[] };
+    return Array.isArray(p.paymentStages)
+      ? p.paymentStages
+      : Array.isArray(p.paymentSchedule)
+      ? p.paymentSchedule
+      : [];
+  }, [row?.payload]);
+
+  const quoteContent = useMemo(() => {
+    const p = (row?.payload || {}) as { quoteContent?: string };
+    return typeof p.quoteContent === "string" ? p.quoteContent : "";
+  }, [row?.payload]);
+
+  const grandTotal = items.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+
+  // ──────────────────────────────────────────────────────────
+  // 렌더
+  // ──────────────────────────────────────────────────────────
+
+  if (state === "loading") {
+    return (
+      <Shell>
+        <div className="text-center text-sm text-gray-500 py-20">불러오는 중…</div>
+      </Shell>
+    );
+  }
+
+  if (state === "not_found") {
+    return (
+      <Shell>
+        <Notice
+          icon="🔒"
+          title="요청을 찾을 수 없습니다"
+          message="이 링크는 만료되었거나 유효하지 않습니다. 발송자에게 문의해 주세요."
+        />
+      </Shell>
+    );
+  }
+
+  if (state === "expired") {
+    return (
+      <Shell>
+        <Notice
+          icon="⏰"
+          title="링크가 만료되었습니다"
+          message="발송자에게 재발송을 요청해 주세요. 보안을 위해 만료된 링크는 재사용할 수 없습니다."
+        />
+      </Shell>
+    );
+  }
+
+  if (state === "already_decided") {
+    return (
+      <Shell>
+        <Notice
+          icon="✓"
+          title="이미 결정이 접수된 요청입니다"
+          message={
+            row?.status === "approved"
+              ? "승인 결정이 이미 접수되어 발송자에게 전달되었습니다."
+              : "거절 결정이 이미 접수되어 발송자에게 전달되었습니다."
+          }
+        />
+      </Shell>
+    );
+  }
+
+  // 결정 완료 화면
+  if (decided) {
+    return (
+      <Shell>
+        <Notice
+          icon={decided.decision === "approved" ? "✅" : "❌"}
+          title={decided.decision === "approved" ? "승인이 접수되었습니다" : "거절이 접수되었습니다"}
+          message={
+            decided.decision === "approved"
+              ? "발송자에게 결과가 전달되었습니다. 다음 단계(계약)로 자동 진행됩니다."
+              : "발송자에게 사유와 함께 결과가 전달되었습니다."
+          }
+        />
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="text-xs text-gray-400 hover:text-gray-600"
+          >
+            화면 새로고침
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
+  // 메인 카드 — 결정 대기 상태
+  if (!row) return null;
+  return (
+    <Shell>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* 헤더 */}
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-6 py-6">
+          <div className="text-xs opacity-80 mb-1">{row.company_name} 발송</div>
+          <h1 className="text-xl font-bold">견적서 확인 요청</h1>
+          {row.recipient_name && (
+            <p className="text-xs opacity-90 mt-1">{row.recipient_name}님께</p>
+          )}
+        </div>
+
+        {/* 본문 */}
+        <div className="p-6 space-y-5">
+          {/* 회사 정보 */}
+          <section>
+            <Label>발송 회사</Label>
+            <div className="text-sm font-semibold text-gray-900">{row.company_name}</div>
+            {row.company_representative && (
+              <div className="text-xs text-gray-500 mt-0.5">대표 {row.company_representative}</div>
+            )}
+          </section>
+
+          {/* 프로젝트 명 */}
+          <section>
+            <Label>프로젝트</Label>
+            <div className="text-sm font-semibold text-gray-900">{row.deal_name}</div>
+          </section>
+
+          {/* 품목 표 */}
+          {items.length > 0 && (
+            <section>
+              <Label>견적 품목 ({items.length}건)</Label>
+              <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50">
+                    <tr className="text-gray-600">
+                      <th className="text-left px-3 py-2 font-medium">품명</th>
+                      <th className="text-right px-3 py-2 font-medium w-14">수량</th>
+                      <th className="text-right px-3 py-2 font-medium w-20">단가</th>
+                      <th className="text-right px-3 py-2 font-medium w-20">공급</th>
+                      <th className="text-right px-3 py-2 font-medium w-16">세액</th>
+                      <th className="text-right px-3 py-2 font-medium w-24">합계</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, idx) => (
+                      <tr key={idx} className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-gray-900">{it.name || "—"}</td>
+                        <td className="px-3 py-2 text-right text-gray-700">{Number(it.quantity || 0)}</td>
+                        <td className="px-3 py-2 text-right text-gray-700">
+                          {Number(it.unitPrice || 0).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-700">
+                          {Number(it.supplyAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-700">
+                          {Number(it.taxAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-gray-900">
+                          {Number(it.totalAmount || 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t border-gray-200">
+                    <tr>
+                      <td colSpan={5} className="px-3 py-2 text-xs font-bold text-gray-700">
+                        총액 (VAT 포함)
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-black text-indigo-700">
+                        ₩{grandTotal.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* 결제 단계 */}
+          {stages.length > 0 && (
+            <section>
+              <Label>결제 단계 ({stages.length}단계)</Label>
+              <div className="border border-gray-200 rounded-lg p-3 space-y-1.5">
+                {stages.map((st, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-gray-800">
+                      {st.label || `${idx + 1}차`} · {Number(st.ratio || 0)}%
+                    </span>
+                    <span className="text-gray-500">{st.condition || "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 견적 내용 / 비고 */}
+          {quoteContent && (
+            <section>
+              <Label>비고</Label>
+              <div className="border border-gray-200 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap">
+                {quoteContent}
+              </div>
+            </section>
+          )}
+
+          {/* 메타 */}
+          <section className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <Label>발송일</Label>
+              <div className="text-gray-800">
+                {row.sent_at ? new Date(row.sent_at).toLocaleDateString("ko-KR") : "—"}
+              </div>
+            </div>
+            <div>
+              <Label>응답 기한</Label>
+              <div className="text-gray-800">{expiresLabel || "—"}</div>
+            </div>
+          </section>
+
+          {/* 결정 영역 */}
+          <section className="pt-4 border-t border-gray-200">
+            {errMsg && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                {errMsg}
+              </div>
+            )}
+            {!showRejectInput ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => submit("approved")}
+                  disabled={submitting}
+                  className="flex-1 py-3 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 transition"
+                >
+                  {submitting ? "처리 중…" : "승인하기"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRejectInput(true)}
+                  disabled={submitting}
+                  className="flex-1 py-3 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 active:bg-gray-300 disabled:opacity-50 transition"
+                >
+                  거절하기
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>거절 사유 (필수)</Label>
+                <textarea
+                  value={rejectNote}
+                  onChange={(e) => setRejectNote(e.target.value)}
+                  rows={4}
+                  placeholder="수정이 필요한 항목, 가격 협상 의견 등을 적어주세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 resize-none"
+                  maxLength={500}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectInput(false)}
+                    disabled={submitting}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 disabled:opacity-50 transition"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => submit("rejected")}
+                    disabled={submitting || !rejectNote.trim()}
+                    className="flex-1 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-50 transition"
+                  >
+                    {submitting ? "처리 중…" : "거절 사유 보내기"}
+                  </button>
+                </div>
+              </div>
+            )}
+            <p className="mt-3 text-[10px] text-gray-400 text-center">
+              결정은 즉시 발송자에게 전달되며, 이후 변경할 수 없습니다.
+            </p>
+          </section>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+// UI Helpers
+// ──────────────────────────────────────────────────────────
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-2xl mx-auto">{children}</div>
+      <p className="text-[10px] text-gray-400 text-center mt-8">
+        Powered by OwnerView · 본 페이지는 안전한 1회용 링크로 보호됩니다
+      </p>
+    </main>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">{children}</div>;
+}
+
+function Notice({ icon, title, message }: { icon: string; title: string; message: string }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-10 text-center">
+      <div className="text-4xl mb-3">{icon}</div>
+      <h1 className="text-lg font-bold text-gray-900 mb-2">{title}</h1>
+      <p className="text-sm text-gray-600">{message}</p>
+    </div>
+  );
+}
