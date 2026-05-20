@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getDeals, getCompanyUsers } from "@/lib/queries";
@@ -18,7 +18,17 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
-import { getProjectBadge, formatDueLabel, type ProjectBadge } from "@/lib/project-badges";
+// PR4 lib 사용 (PR2 의 project-badges 는 lib 안에서 재export 됨)
+import {
+  getProjectBadge,
+  getNextAction,
+  formatDueLabel,
+  STAGE_LABEL as STAGE_LABEL_LIB,
+  STAGE_ORDER,
+  type ProjectBadge,
+  type ProjectStage,
+} from "@/lib/project-rules";
+import { ProjectSlideOver } from "@/components/project-slide-over";
 
 // ── 5-stage enum ──
 type Stage = "estimate" | "contract" | "in_progress" | "completed" | "settlement";
@@ -31,13 +41,8 @@ const STAGES: { key: Stage; label: string; color: string }[] = [
   { key: "settlement",  label: "정산", color: "#F59E0B" },
 ];
 
-const STAGE_LABEL: Record<Stage, string> = {
-  estimate: "견적",
-  contract: "계약",
-  in_progress: "진행",
-  completed: "완료",
-  settlement: "정산",
-};
+// stage 라벨은 lib (project-rules) 에서 import — STAGE_LABEL_LIB
+const STAGE_LABEL: Record<Stage, string> = STAGE_LABEL_LIB as Record<Stage, string>;
 
 // ── 타입 (deals row + 가공) ──
 interface DealRow {
@@ -75,11 +80,26 @@ export default function ProjectsPage() {
 
 function ProjectsInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
+
+  // ── URL ?deal=<id> → 슬라이드 패널 ──
+  const dealParam = searchParams.get("deal");
+  function openSlide(dealId: string) {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("deal", dealId);
+    router.push(`/projects?${sp.toString()}`, { scroll: false });
+  }
+  function closeSlide() {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete("deal");
+    const qs = sp.toString();
+    router.push(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+  }
 
   // ── 데이터 ──
   const { data: deals = [], isLoading: dealsLoading } = useQuery({
@@ -210,10 +230,12 @@ function ProjectsInner() {
         .eq("id", dealId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       toast("단계가 변경되었습니다", "success");
       setStageModal(null);
       queryClient.invalidateQueries({ queryKey: ["projects-deals", companyId] });
+      // 슬라이드 패널 detail 캐시도 invalidate (열려 있으면 갱신)
+      queryClient.invalidateQueries({ queryKey: ["project-detail", vars.dealId] });
     },
     onError: (err) => {
       reportError("projects.updateStage", err);
@@ -343,7 +365,8 @@ function ProjectsInner() {
       {!dealsLoading && filteredCards.length > 0 && view === "kanban" && (
         <KanbanView
           byStage={byStage}
-          onCardClick={openStageModal}
+          onCardClick={(c) => openSlide(c.id)}
+          onStageMenu={openStageModal}
           onDetail={(id) => router.push(`/deals?detail=${id}`)}
         />
       )}
@@ -351,7 +374,7 @@ function ProjectsInner() {
       {!dealsLoading && filteredCards.length > 0 && view === "list" && (
         <ListView
           cards={filteredCards}
-          onRowClick={openStageModal}
+          onRowClick={(c) => openSlide(c.id)}
           onInlineStageChange={(dealId, newStage) => updateStageMut.mutate({ dealId, newStage })}
         />
       )}
@@ -365,6 +388,19 @@ function ProjectsInner() {
           onClose={() => setStageModal(null)}
           onConfirm={() => updateStageMut.mutate({ dealId: stageModal.deal.id, newStage: stageDraft })}
           submitting={updateStageMut.isPending}
+        />
+      )}
+
+      {/* 슬라이드 패널 — URL ?deal=<id> */}
+      {dealParam && companyId && (
+        <ProjectSlideOver
+          dealId={dealParam}
+          companyId={companyId}
+          onClose={closeSlide}
+          onOpenStageModal={() => {
+            const card = cards.find((c) => c.id === dealParam);
+            if (card) openStageModal(card);
+          }}
         />
       )}
     </div>
@@ -392,10 +428,12 @@ function EmptyState() {
 function KanbanView({
   byStage,
   onCardClick,
+  onStageMenu,
   onDetail,
 }: {
   byStage: Record<Stage, ProjectCard[]>;
   onCardClick: (c: ProjectCard) => void;
+  onStageMenu: (c: ProjectCard) => void;
   onDetail: (id: string) => void;
 }) {
   return (
@@ -422,6 +460,7 @@ function KanbanView({
                   key={c.id}
                   card={c}
                   onClick={() => onCardClick(c)}
+                  onStageMenu={() => onStageMenu(c)}
                   onDetail={() => onDetail(c.id)}
                 />
               ))}
@@ -437,17 +476,33 @@ function KanbanView({
 function ProjectCardView({
   card,
   onClick,
+  onStageMenu,
   onDetail,
 }: {
   card: ProjectCard;
   onClick: () => void;
+  onStageMenu: () => void;
   onDetail: () => void;
 }) {
+  // PR4 lib: critical 다음액션이면 본문에 1줄 표시 (recommended/optional 은 패널에서만)
+  const action = useMemo(
+    () =>
+      getNextAction({
+        id: card.id,
+        name: card.name,
+        stage: card.stage,
+        end_date: card.end_date,
+        contract_total: card.contract_total,
+      }),
+    [card],
+  );
+  const showCriticalAction = action.level === "critical";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-left bg-[var(--bg-card)] hover:bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)]/40 rounded-xl p-3 transition active:scale-[0.99]"
+      className="text-left bg-[var(--bg-card)] hover:bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)]/40 rounded-xl p-3 transition active:scale-[0.99] w-full"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
@@ -464,6 +519,18 @@ function ProjectCardView({
           </div>
           <h4 className="text-sm font-semibold text-[var(--text)] truncate">{card.name}</h4>
         </div>
+        {/* 단계 변경 빠른 버튼 (⋮) */}
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label="단계 변경"
+          onClick={(e) => { e.stopPropagation(); onStageMenu(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onStageMenu(); } }}
+          className="text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] rounded px-1 cursor-pointer text-xs leading-none select-none"
+          title="단계 변경"
+        >
+          ⋮
+        </span>
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)]">
         <div className="flex items-center gap-1.5 truncate">
@@ -483,8 +550,17 @@ function ProjectCardView({
           <span className="truncate">{card.managerName}</span>
         </div>
       </div>
+      {showCriticalAction && (
+        <div
+          className="mt-2 px-2 py-1 rounded-md bg-red-500/10 text-red-400 text-[10px] flex items-center gap-1 truncate"
+          title={action.reason}
+        >
+          <span>{action.icon}</span>
+          <span className="truncate">{action.text}</span>
+        </div>
+      )}
       <div className="mt-2 pt-2 border-t border-[var(--border)] flex items-center justify-between">
-        <span className="text-[10px] text-[var(--text-dim)]">클릭 → 단계 변경</span>
+        <span className="text-[10px] text-[var(--text-dim)]">클릭 → 상세 패널</span>
         <span
           role="link"
           tabIndex={0}
@@ -492,7 +568,7 @@ function ProjectCardView({
           onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onDetail(); } }}
           className="text-[10px] text-[var(--primary)] hover:underline cursor-pointer"
         >
-          상세 →
+          편집 →
         </span>
       </div>
     </button>

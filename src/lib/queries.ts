@@ -2161,3 +2161,59 @@ export async function getArchivedDeals(companyId: string) {
     .order('archived_at', { ascending: false });
   return data || [];
 }
+
+// ── PR3: 슬라이드 패널 상세 (1회 fetch) ──
+//   /projects?deal=<id> 슬라이드 패널 마운트 시 호출. 7개 쿼리 병렬.
+//   기존 RPC 무수정 — 각 테이블 RLS(company_id) 그대로 사용.
+export async function getProjectDetail(dealId: string, companyId: string) {
+  const db = supabase as any;
+  const [deal, partner, revenue, costs, subs, assignments, files, audits] = await Promise.all([
+    supabase.from('deals').select('*').eq('id', dealId).maybeSingle(),
+    // partner는 deal 가져온 후 별도로 부르고 싶지만 round-trip 1회 줄이려고 deal 안에서 join 도 가능.
+    // 여기는 deal.partner_id 가 있을 수도/없을 수도 있어 후처리에서 처리.
+    Promise.resolve({ data: null }),
+    supabase.from('deal_revenue_schedule').select('*').eq('deal_id', dealId).order('due_date', { ascending: true }),
+    // deal_cost_schedule 은 deal_nodes 경유 — !inner join 사용
+    db.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date', { ascending: true }),
+    db.from('sub_deals').select('*, vendors(id,name)').eq('parent_deal_id', dealId).order('created_at', { ascending: false }),
+    db.from('deal_assignments')
+      .select('deal_id, user_id, role, is_active, users:user_id(id, name, email)')
+      .eq('deal_id', dealId)
+      .eq('is_active', true),
+    // documents: deal_id 매칭 (deal_files 컬럼 미존재 → documents 사용)
+    db.from('documents')
+      .select('id, name, status, created_at, content_json')
+      .eq('deal_id', dealId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    db.from('audit_logs')
+      .select('id, action, entity_type, entity_id, entity_name, user_id, created_at, metadata')
+      .eq('company_id', companyId)
+      .eq('entity_type', 'deal')
+      .eq('entity_id', dealId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]);
+
+  // partner 후처리: deal.partner_id 있으면 1회 추가 조회 (slowpath, 사용자 수 적음)
+  let partnerRow: { id: string; name: string } | null = null;
+  if (deal.data?.partner_id) {
+    const { data: p } = await supabase
+      .from('partners')
+      .select('id, name')
+      .eq('id', deal.data.partner_id)
+      .maybeSingle();
+    if (p) partnerRow = { id: p.id, name: p.name };
+  }
+
+  return {
+    deal: deal.data || null,
+    partner: partnerRow,
+    revenue: revenue.data || [],
+    costs: costs.data || [],
+    subDeals: subs.data || [],
+    assignments: assignments.data || [],
+    documents: files.data || [],
+    auditLogs: audits.data || [],
+  };
+}
