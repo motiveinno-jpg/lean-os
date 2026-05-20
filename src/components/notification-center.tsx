@@ -338,6 +338,9 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
       case "loan":
       case "loan_payment": return "/loans";
       case "hometax_sync_job": return "/tax-invoices";
+      // v4 B1: 게시판 멘션 알림 → 해당 글로 이동 (post id 는 entity_id)
+      case "board_post":
+      case "board_comment": return entityId ? `/board?id=${entityId}` : "/board";
     }
   }
   // 2) notification type prefix 로 추정
@@ -358,6 +361,7 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
   if (t.includes("doc") || t.includes("문서") || t.includes("contract")) return entityId ? `/documents?id=${entityId}` : "/documents";
   if (t.includes("vault") || t.includes("자산")) return "/vault";
   if (t.includes("loan") || t.includes("대출")) return "/loans";
+  if (t.includes("board") || t.includes("게시판") || t.includes("멘션")) return "/board";
   // 3) fallback — 알림 클릭 시 무조건 어디든 이동
   return "/dashboard";
 }

@@ -1010,6 +1010,8 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          mentioned_user_ids: string[] | null
+          parent_comment_id: string | null
           post_id: string
         }
         Insert: {
@@ -1019,6 +1021,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          mentioned_user_ids?: string[] | null
+          parent_comment_id?: string | null
           post_id: string
         }
         Update: {
@@ -1028,6 +1032,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          mentioned_user_ids?: string[] | null
+          parent_comment_id?: string | null
           post_id?: string
         }
         Relationships: [
@@ -1116,6 +1122,7 @@ export type Database = {
           id: string
           pinned: boolean
           poll_anonymous: boolean
+          poll_deadline: string | null
           poll_multi: boolean
           poll_options: Json
           poll_question: string | null
@@ -1134,6 +1141,7 @@ export type Database = {
           id?: string
           pinned?: boolean
           poll_anonymous?: boolean
+          poll_deadline?: string | null
           poll_multi?: boolean
           poll_options?: Json
           poll_question?: string | null
@@ -1152,6 +1160,7 @@ export type Database = {
           id?: string
           pinned?: boolean
           poll_anonymous?: boolean
+          poll_deadline?: string | null
           poll_multi?: boolean
           poll_options?: Json
           poll_question?: string | null
