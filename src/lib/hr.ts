@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { getCurrentUser } from './queries';
 import {
   calcDailyAttendance,
   calcOvertimePay,
@@ -433,6 +434,30 @@ export async function recomputeAttendance(params: {
   from: string;            // 'YYYY-MM-DD'
   to: string;              // 'YYYY-MM-DD'
 }): Promise<{ updated: number; total: number }> {
+  // sec-reviewer 권장: silent fail 방지 — UPDATE RLS 가 admin only 라
+  //   직원이 본인 employeeId 한정 호출은 허용하되, 그 외(전체 또는 타인)는
+  //   클라이언트 단에서 명시 차단해 update 0 rows silent fail 회피.
+  //   서버 권한은 RLS 가 최종 가드 — 클라이언트 체크는 UX 만.
+  try {
+    const me = await getCurrentUser();
+    const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+    if (!isAdmin) {
+      const myEmpId = await db
+        .from('employees')
+        .select('id')
+        .eq('user_id', me?.id)
+        .eq('company_id', params.companyId)
+        .maybeSingle();
+      const selfId = (myEmpId.data as { id: string } | null)?.id;
+      if (!params.employeeId || params.employeeId !== selfId) {
+        throw new Error('근태 재계산 권한이 없습니다. 본인 기록만 재계산할 수 있습니다.');
+      }
+    }
+  } catch (e) {
+    if ((e as Error)?.message?.startsWith('근태 재계산 권한')) throw e;
+    // 사용자 조회 실패 등은 RLS 에 위임 (silent fallback)
+  }
+
   const settings = await getAttendanceCompanySettings(params.companyId);
 
   // 휴일 set
@@ -557,7 +582,8 @@ export async function createAttendanceEditRequest(params: {
   companyId: string;
   attendanceRecordId: string;
   requestedBy: string;          // user id
-  requestedChanges: { check_in?: string; check_out?: string; status?: string; attendance_type?: string };
+  // sec-reviewer 권장: note 추가(핸드오프 명세). 화이트리스트 키만 허용.
+  requestedChanges: { check_in?: string; check_out?: string; status?: string; attendance_type?: string; note?: string };
   reason?: string;
 }) {
   const { data, error } = await db
@@ -630,10 +656,12 @@ export async function reviewAttendanceEditRequest(params: {
   if (params.decision === 'approved' && params.applyChanges) {
     const changes = (req.requested_changes || {}) as Record<string, unknown>;
     const updatePayload: Record<string, unknown> = { edited_by: params.reviewerId, edited_at: new Date().toISOString() };
+    // 화이트리스트 적용 — 임의 jsonb 키 차단 (sec-reviewer 권장)
     if (changes.check_in) updatePayload.check_in = changes.check_in;
     if (changes.check_out) updatePayload.check_out = changes.check_out;
     if (changes.status) updatePayload.status = changes.status;
     if (changes.attendance_type) updatePayload.attendance_type = changes.attendance_type;
+    if (changes.note !== undefined) updatePayload.note = changes.note;
     const { error: uErr } = await db
       .from('attendance_records')
       .update(updatePayload)
