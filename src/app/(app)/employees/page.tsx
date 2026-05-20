@@ -3620,8 +3620,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
   const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
-  // 관리자 분기: 수당 명세 임베드 collapse 토글 (긴 영역이라 기본 접힘)
-  const [allowanceExpanded, setAllowanceExpanded] = useState(false);
+  // 관리자 분기: 수당 명세 임베드 collapse 토글.
+  //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
+  //   필요시 사용자가 접을 수 있게 토글은 유지.
+  const [allowanceExpanded, setAllowanceExpanded] = useState(true);
 
   // Get month start/end for queries
   const monthStart = `${selectedMonth}-01`;
