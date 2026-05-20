@@ -30,7 +30,8 @@ const EMPLOYEE_TABS = [
 ];
 const OWNER_TABS = [
   { href: "/dashboard", label: "대시보드", icon: "home" },
-  { href: "/deals", label: "프로젝트", icon: "briefcase" },
+  // PR5: owner 의 모바일 진입도 /projects 칸반으로
+  { href: "/projects", label: "프로젝트", icon: "briefcase" },
   { href: "/payments", label: "결제", icon: "card" },
   { href: "/chat", label: "채팅", icon: "chat" },
 ];

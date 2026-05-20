@@ -1502,14 +1502,14 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
         )}
         {label === 'LOW_MARGIN' && (
           <>
-            <ActionBtn text="프로젝트 상태 변경" href="/deals" />
+            <ActionBtn text="프로젝트 상태 변경" href="/projects" />
             <ActionBtn text="비용 재검토" />
           </>
         )}
         {label === 'DUE_SOON' && (
           <>
             <ActionBtn text="일정 재조정" />
-            <ActionBtn text="프로젝트 상태 변경" href="/deals" />
+            <ActionBtn text="프로젝트 상태 변경" href="/projects" />
           </>
         )}
         {label === 'OUTSOURCE_OVER_MARGIN' && (
@@ -1827,7 +1827,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[var(--text)]">프로젝트 진행 현황</span>
-              <Link href="/deals" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">전체 보기 →</Link>
+              <Link href="/projects" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">전체 보기 →</Link>
             </div>
             <DealFunnel companyId={companyId} />
           </div>
@@ -2299,11 +2299,11 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
         <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 진행중</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/projects" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">진행 현황 총액</div>
           <div className="text-sm font-bold text-blue-400 mt-0.5">{totalPipeline > 0 ? `₩${totalPipeline.toLocaleString()}` : '—'}</div>
         </Link>
-        <Link href="/deals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/projects" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">미수금 예정</div>
           <div className={`text-sm font-bold mt-0.5 ${overdue.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{pendingAmount > 0 ? `₩${pendingAmount.toLocaleString()}` : '—'}</div>
           {overdue.length > 0 && <div className="text-[9px] text-red-400 mt-0.5">{overdue.length}건 연체</div>}
@@ -2326,7 +2326,7 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
             const hasContract = dealDocs.some((doc: any) => doc.type === 'contract');
             const hasTaxInvoice = dealDocs.some((doc: any) => doc.type === 'tax_invoice');
             return (
-              <Link key={d.id} href={`/deals?deal=${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
+              <Link key={d.id} href={`/projects?deal=${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold truncate">{d.name}</div>
                   <div className="text-[10px] text-[var(--text-dim)]">{d.counterparty || '거래처 미등록'} | ₩{Number(d.contract_total || 0).toLocaleString()}</div>

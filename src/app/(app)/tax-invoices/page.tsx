@@ -2617,7 +2617,7 @@ export default function TaxInvoicesPage() {
               </div>
             </div>
             <div className="flex gap-2 px-5 py-3 border-t border-[var(--border)]">
-              <Link href="/deals" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
+              <Link href="/projects" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
                 프로젝트 페이지로 이동
               </Link>
               <button onClick={() => setMatchDealPopup(null)} className="flex-1 px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold">

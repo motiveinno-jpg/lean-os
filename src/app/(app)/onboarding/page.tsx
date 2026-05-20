@@ -1111,7 +1111,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
       {isAllDone && (
         <div className="mt-6 flex flex-wrap gap-3 justify-center relative z-10">
           <QuickLink href="/dashboard" label="대시보드" />
-          <QuickLink href="/deals" label="프로젝트 관리" />
+          <QuickLink href="/projects" label="프로젝트 관리" />
           <QuickLink href="/employees" label="직원 관리" />
           <QuickLink href="/settings" label="상세 설정" />
         </div>

@@ -23,9 +23,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
-      { href: "/deals", label: "프로젝트", icon: "briefcase" },
-      // PR2 — 신규 칸반/리스트 라우트 병행. PR5 에서 /deals deprecate.
-      { href: "/projects", label: "프로젝트(신규)", icon: "kanban", roles: ["owner", "admin"] },
+      // PR5: /projects 가 owner/admin 의 기본 프로젝트 진입점.
+      //   /deals 는 편집·생성·외주 상세 진입로로 보존 (slide panel "편집" 버튼이 사용).
+      //   partner/employee 는 /deals 자기 담당 프로젝트 view (RLS 가 격리).
+      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin"] },
+      { href: "/deals", label: "프로젝트", icon: "briefcase", roles: ["partner", "employee"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
