@@ -30,6 +30,11 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   leave_request: () => `/employees?tab=leave`,
   attendance_edit_request: () => `/employees?tab=attendance`,
   expense_request: () => `/payments?tab=expenses`,
+  // STEP 4 (PR-F): 외부 견적 승인 결정 알림 (submit_quote_decision RPC 가 서버측 INSERT).
+  //   entity_id 는 quote_approvals.id — 직접 deal_id 매핑 없이 fallback /projects.
+  //   다음 라운드: notifications 페이로드에 deal_id 추가하거나 quote_approvals→deal_id JOIN 후
+  //   /projects?deal=<dealId> 로 점프하도록 개선 (메인 후속).
+  quote_approval: () => `/projects`,
 };
 
 // v4 D4: type 기반 fallback — entity_type=null 인 경우 (피드백 알림 등).
@@ -45,6 +50,9 @@ const TYPE_HREF: Record<string, (id: string | null) => string> = {
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
   chat: () => `/chat`,
+  // STEP 4 (PR-F): 견적 승인 결정 알림 (entity_type=null 인 경우의 보조 fallback).
+  //   type='approval' + entity_type='quote_approval' 이면 ENTITY_HREF 우선이라
+  //   여기 안 옴 — 안전망용.
 };
 
 export default function NotificationsPage() {
