@@ -7,8 +7,9 @@ if (IS_PRODUCTION && DSN) {
   Sentry.init({
     dsn: DSN,
 
-    // Error tracking only — no performance monitoring
-    tracesSampleRate: 0,
+    // P0-1: 전 에러 100% + 성능 트레이스 10%. (서버측은 replay 비대상.)
+    //   알림 라우팅은 Sentry Dashboard > Alerts > Webhook → telegram-notify 엣지.
+    tracesSampleRate: 0.1,
 
     // Capture all errors in production
     sampleRate: 1.0,
