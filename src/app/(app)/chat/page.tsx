@@ -1210,6 +1210,13 @@ function GuestChatView({ token }: { token: string }) {
           });
         }
 
+        // 게스트도 RLS SELECT 통과를 위해 chat_members 동시 등록 (멱등 upsert).
+        const dbAny = supabase as any;
+        await dbAny.from('chat_members').upsert(
+          { channel_id: channel.id, user_id: dbUser.id, role: 'GUEST' },
+          { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
+        );
+
         setSession({
           channelId: channel.id,
           channelName: channel.name,
@@ -1521,10 +1528,14 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
   });
 
   const createTeamMut = useMutation({
-    mutationFn: () => createTeamChannel({
-      companyId: companyId!,
-      name: teamName.trim(),
-    }),
+    mutationFn: () => {
+      if (!userId || !companyId) throw new Error("Not authenticated");
+      return createTeamChannel({
+        companyId,
+        name: teamName.trim(),
+        creatorUserId: userId,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
       setShowTeamForm(false);

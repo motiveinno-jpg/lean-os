@@ -950,6 +950,8 @@ export async function getTaxInvoices(companyId: string) {
 // ═══════════════════════════════════════════════
 
 // ── Chat Channels ──
+// 2026-05-20: RLS 가 chat_members 기반으로 RESTRICTIVE SELECT 격리 후, DM 필터도 chat_members 기준으로 통일.
+// chat_participants 는 read tracking·role 메타 보존 용도이지 멤버십의 진실의 원천이 아님.
 export async function getChannels(companyId: string, userId?: string) {
   const { data } = await supabase
     .from('chat_channels')
@@ -958,11 +960,12 @@ export async function getChannels(companyId: string, userId?: string) {
     .eq('is_archived', false)
     .order('created_at', { ascending: false });
   if (!data || !userId) return data || [];
-  const { data: myParticipations } = await supabase
-    .from('chat_participants')
+  const db = supabase as any;
+  const { data: myMemberships } = await db
+    .from('chat_members')
     .select('channel_id')
     .eq('user_id', userId);
-  const myChannelIds = new Set((myParticipations || []).map((p: any) => p.channel_id));
+  const myChannelIds = new Set((myMemberships || []).map((p: any) => p.channel_id));
   return data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
 }
 

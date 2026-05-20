@@ -44,7 +44,14 @@ export async function createChannel(params: {
 
   if (error) throw error;
 
-  // Auto-add creator as OWNER
+  // Auto-add creator. chat_members = RLS 의 진실(SELECT 정책이 is_channel_member 로 chat_members lookup),
+  // chat_participants = read tracking·role 메타. 둘 다 채워야 본인이 채널을 보고 메시지 last_read_at 이 동작.
+  const db = supabase as any;
+  await db.from('chat_members').insert({
+    channel_id: data.id,
+    user_id: params.creatorUserId,
+    role: 'OWNER',
+  });
   await supabase.from('chat_participants').insert({
     channel_id: data.id,
     user_id: params.creatorUserId,
@@ -117,6 +124,18 @@ export async function inviteParticipant(params: {
     .single();
 
   if (error) throw error;
+
+  // RLS SELECT 는 chat_members 기반 — 초대된 사용자가 채널/메시지를 보려면 chat_members 도 채워야 함.
+  // 이미 존재하면 unique 위반 무시(legacy 채널 호환).
+  const db = supabase as any;
+  await db.from('chat_members').upsert(
+    {
+      channel_id: params.channelId,
+      user_id: params.userId,
+      role: params.role || 'member',
+    },
+    { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
+  );
 
   await logEvent(params.channelId, 'user_joined', {
     user_id: params.userId,
@@ -347,6 +366,7 @@ export async function createTeamChannel(params: {
   companyId: string;
   name: string;
   description?: string;
+  creatorUserId: string;
 }) {
   const db = supabase as any;
   const { data, error } = await db
@@ -360,6 +380,20 @@ export async function createTeamChannel(params: {
     .select()
     .single();
   if (error) throw error;
+
+  // 만든 사람을 chat_members + chat_participants 양쪽 등록 — RLS 통과 + read tracking.
+  await db.from('chat_members').insert({
+    channel_id: data.id,
+    user_id: params.creatorUserId,
+    role: 'OWNER',
+  });
+  await db.from('chat_participants').insert({
+    channel_id: data.id,
+    user_id: params.creatorUserId,
+    role: 'OWNER',
+  });
+  await logEvent(data.id, 'channel_created', { created_by: params.creatorUserId });
+
   return data;
 }
 
@@ -381,12 +415,29 @@ export async function createDMChannel(params: {
     .single();
   if (error) throw error;
 
-  // Add participants
+  // 참여자 양쪽 테이블 동기 등록 — chat_members(RLS 게이트) + chat_participants(read tracking, getChannels DM 필터).
+  // chat_participants 는 UNIQUE 제약이 없어 onConflict 불가 → 존재체크 후 insert.
+  const seen = new Set<string>();
   for (const uid of params.participantIds) {
-    await db.from('chat_members').insert({
-      channel_id: data.id,
-      user_id: uid,
-    });
+    if (!uid || seen.has(uid)) continue;
+    seen.add(uid);
+    await db.from('chat_members').upsert(
+      { channel_id: data.id, user_id: uid },
+      { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
+    );
+    const { data: existing } = await db
+      .from('chat_participants')
+      .select('id')
+      .eq('channel_id', data.id)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (!existing) {
+      await db.from('chat_participants').insert({
+        channel_id: data.id,
+        user_id: uid,
+        role: 'member',
+      });
+    }
   }
   return data;
 }

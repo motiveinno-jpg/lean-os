@@ -1462,6 +1462,7 @@ export type Database = {
           allow_guests: boolean | null
           company_id: string
           created_at: string | null
+          created_by: string | null
           deal_id: string | null
           description: string | null
           id: string
@@ -1478,6 +1479,7 @@ export type Database = {
           allow_guests?: boolean | null
           company_id: string
           created_at?: string | null
+          created_by?: string | null
           deal_id?: string | null
           description?: string | null
           id?: string
@@ -1494,6 +1496,7 @@ export type Database = {
           allow_guests?: boolean | null
           company_id?: string
           created_at?: string | null
+          created_by?: string | null
           deal_id?: string | null
           description?: string | null
           id?: string
@@ -3870,16 +3873,24 @@ export type Database = {
           created_at: string | null
           deal_id: string | null
           description: string | null
+          detail_items: Json | null
           employee_id: string | null
+          has_vat: boolean | null
           id: string
+          note: string | null
           paid_at: string | null
+          payment_due_date: string | null
+          payment_method: string | null
+          reason: string | null
           receipt_urls: string[] | null
+          request_date: string | null
           request_type: string | null
           requester_id: string
           status: string | null
           tax_invoice_id: string | null
           title: string
           updated_at: string | null
+          vat_amount: number | null
         }
         Insert: {
           amount: number
@@ -3890,16 +3901,24 @@ export type Database = {
           created_at?: string | null
           deal_id?: string | null
           description?: string | null
+          detail_items?: Json | null
           employee_id?: string | null
+          has_vat?: boolean | null
           id?: string
+          note?: string | null
           paid_at?: string | null
+          payment_due_date?: string | null
+          payment_method?: string | null
+          reason?: string | null
           receipt_urls?: string[] | null
+          request_date?: string | null
           request_type?: string | null
           requester_id: string
           status?: string | null
           tax_invoice_id?: string | null
           title: string
           updated_at?: string | null
+          vat_amount?: number | null
         }
         Update: {
           amount?: number
@@ -3910,16 +3929,24 @@ export type Database = {
           created_at?: string | null
           deal_id?: string | null
           description?: string | null
+          detail_items?: Json | null
           employee_id?: string | null
+          has_vat?: boolean | null
           id?: string
+          note?: string | null
           paid_at?: string | null
+          payment_due_date?: string | null
+          payment_method?: string | null
+          reason?: string | null
           receipt_urls?: string[] | null
+          request_date?: string | null
           request_type?: string | null
           requester_id?: string
           status?: string | null
           tax_invoice_id?: string | null
           title?: string
           updated_at?: string | null
+          vat_amount?: number | null
         }
         Relationships: [
           {
@@ -7454,6 +7481,25 @@ export type Database = {
       }
       get_my_company_id: { Args: never; Returns: string }
       get_my_email: { Args: never; Returns: string }
+      get_partner_ledger: {
+        Args: { p_partner_name: string; p_from?: string; p_to?: string }
+        Returns: {
+          entry_date: string
+          source: string
+          source_id: string
+          description: string
+          receivable: number
+          payable: number
+          inflow: number
+          outflow: number
+          running_balance: number
+          sort_order: number
+        }[]
+      }
+      is_channel_member: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
       get_poll_results: {
         Args: { p_post_id: string }
         Returns: {
