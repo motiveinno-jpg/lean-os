@@ -755,7 +755,26 @@ export async function checkIn(companyId: string, employeeId: string, status: str
 
 // ── Attendance: Check Out ──
 export async function checkOut(employeeId: string, companyId: string, date?: string) {
-  return invokeAttendance("checkout", { companyId, employeeId, ...(date ? { date } : {}) });
+  const result = await invokeAttendance("checkout", { companyId, employeeId, ...(date ? { date } : {}) });
+  // L 근태 — checkOut 직후 해당 일자의 attendance_records 즉시 재계산.
+  //   · is_late / late_minutes / regular_minutes / overtime_minutes / night_minutes / holiday_minutes 채움
+  //   · recomputeAttendance 안에서 allowance_entries chain 자동 (회사 분기 룰 반영)
+  //   · 실패해도 checkOut 자체는 성공 처리 (회귀 방지) — 백그라운드 silent
+  try {
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    await recomputeAttendance({
+      companyId,
+      employeeId,
+      from: targetDate,
+      to: targetDate,
+    });
+  } catch (e) {
+    if (typeof window !== 'undefined') {
+      // 클라이언트만 — 서버 console.log 금지
+      console.warn('[checkOut] recompute chain 실패 (체크아웃은 성공):', e);
+    }
+  }
+  return result;
 }
 
 // ── Attendance: Cancel Check Out ──
