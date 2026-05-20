@@ -90,8 +90,10 @@ export async function sendSignatureEmail(signatureRequestId: string): Promise<{ 
   const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || 'https://ownerview.co');
   const signUrl = `${origin}/sign?token=${req.sign_token}`;
 
-  try {
-    const { data, error } = await db.functions.invoke('send-signature-email', {
+  // 1회 자동 재시도 — Resend/SendGrid 의 일시적 rate-limit 또는 외부 timeout 흡수.
+  // 일괄발송에서 동일 도메인 다건 동시 호출 시 1~2건이 일시 거부되는 패턴 대응.
+  const invoke = async () =>
+    db.functions.invoke('send-signature-email', {
       body: {
         to: req.signer_email,
         signerName: req.signer_name,
@@ -101,16 +103,24 @@ export async function sendSignatureEmail(signatureRequestId: string): Promise<{ 
       },
     });
 
-    if (error) throw error;
-
-    // Update status to sent
-    await updateSignatureStatus(signatureRequestId, 'sent');
-    return { success: true };
-  } catch (err: any) {
-    // Even if email fails, update status so the link is still usable
-    await updateSignatureStatus(signatureRequestId, 'sent');
-    return { success: false, error: `이메일 발송 실패 (서명 링크는 생성됨): ${err.message}` };
+  let lastErr: any = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const { error } = await invoke();
+      if (error) throw error;
+      await updateSignatureStatus(signatureRequestId, 'sent');
+      return { success: true };
+    } catch (err: any) {
+      lastErr = err;
+      if (attempt < 2) {
+        // 짧은 백오프 (rate limit 해소 시간)
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+    }
   }
+  // 끝까지 실패 — 링크는 생성됐으므로 status='sent' 로 유지(기존 정책)
+  await updateSignatureStatus(signatureRequestId, 'sent');
+  return { success: false, error: `이메일 발송 실패 (서명 링크는 생성됨, 재시도 필요): ${lastErr?.message || lastErr || '알 수 없는 오류'}` };
 }
 
 // ── Get Signature Requests ──
@@ -439,10 +449,17 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     }
   };
 
-  const CHUNK = 5;
+  // CHUNK 3 — Resend/SendGrid 무료/저tier rate-limit(초당 2~3건) 안전선.
+  //   직전엔 5였는데 같은 도메인 동시 5건 호출 시 1건이 일시 거부되어 발송실패 1건 케이스 잦음.
+  //   sendSignatureEmail 자체에 1회 백오프 재시도가 더해져 실패율은 추가 감소.
+  const CHUNK = 3;
   for (let i = 0; i < eligible.length; i += CHUNK) {
     const slice = eligible.slice(i, i + CHUNK);
     await Promise.allSettled(slice.map(runOne));
+    // chunk 사이 짧은 간격 — rate-limit 윈도 회피
+    if (i + CHUNK < eligible.length) {
+      await new Promise((r) => setTimeout(r, 250));
+    }
   }
 
   return {
