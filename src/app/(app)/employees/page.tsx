@@ -5265,16 +5265,28 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                             </button>
                           </>
                         )}
-                        {/* 취소 — 대기/승인 상태에서 가능. 승인 취소 시 잔여 복구. */}
-                        {(r.status === "pending" || r.status === "approved") && !isEmployee && (
-                          <button
-                            onClick={() => { if (confirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }}
-                            disabled={cancelMut.isPending}
-                            className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] disabled:opacity-50"
-                          >
-                            취소
-                          </button>
-                        )}
+                        {/* 취소 — 대기/승인 상태 + 시작일 미래일 때만. v4 H2: 본인 직원도 취소 가능. */}
+                        {(r.status === "pending" || r.status === "approved") && (() => {
+                          const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+                          const isFuture = r.start_date > todayKst;
+                          const isMine = (employees as any[])?.find((emp: any) => emp.id === r.employee_id)?.user_id === userId;
+                          if (isEmployee && !isMine) return null;
+                          return (
+                            <button
+                              onClick={() => {
+                                if (!isFuture) return;
+                                if (confirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) {
+                                  cancelMut.mutate(r.id);
+                                }
+                              }}
+                              disabled={cancelMut.isPending || !isFuture}
+                              title={isFuture ? "휴가 취소" : "이미 시작된(또는 오늘) 휴가는 취소 불가"}
+                              className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              취소
+                            </button>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
