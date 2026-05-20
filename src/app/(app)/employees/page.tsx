@@ -46,6 +46,7 @@ import {
   EditRequestInbox,
   MonthlyRecomputeButton,
 } from "@/components/hr-attendance-extras";
+import { AttendanceBadges } from "@/components/attendance-badges";
 import MyAllowanceCard from "@/components/hr-my-allowance-card";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
@@ -4168,40 +4169,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
                           {statusLabel(r.status)}
                         </span>
-                        {/* L 근태 — 지각 분 표시 (status='late' 도 함께면 분 명시) */}
-                        {r.is_late && Number(r.late_minutes || 0) > 0 && (
-                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-semibold" title="지각 분">
-                            🔴 지각 {Number(r.late_minutes)}분
-                          </span>
-                        )}
-                        {/* 연장근로 — overtime_minutes 가 있으면 시·분 표시 */}
-                        {Number(r.overtime_minutes || 0) > 0 && (
-                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-semibold" title="연장근로 분">
-                            🟠 연장 {Math.floor(Number(r.overtime_minutes) / 60)}h{Number(r.overtime_minutes) % 60 > 0 ? ` ${Number(r.overtime_minutes) % 60}m` : ''}
-                          </span>
-                        )}
-                        {/* 야간근로 (22:00~06:00) */}
-                        {Number(r.night_minutes || 0) > 0 && (
-                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 font-semibold" title="야간근로 분 (가산 0.5)">
-                            🟣 야간 {Math.floor(Number(r.night_minutes) / 60)}h{Number(r.night_minutes) % 60 > 0 ? ` ${Number(r.night_minutes) % 60}m` : ''}
-                          </span>
-                        )}
-                        {/* 휴일 근무 */}
-                        {Number(r.holiday_minutes || 0) > 0 && (
-                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-semibold" title="휴일 근무">
-                            🟢 휴일 근무
-                          </span>
-                        )}
-                        {/* attendance_type 배지 (normal 제외) */}
-                        {r.attendance_type && r.attendance_type !== 'normal' && (
-                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 font-semibold" title="근무 형태">
-                            {r.attendance_type === 'field_work' ? '외근'
-                              : r.attendance_type === 'on_duty' ? '당직'
-                              : r.attendance_type === 'remote' ? '원격'
-                              : r.attendance_type === 'business_trip' ? '출장'
-                              : r.attendance_type}
-                          </span>
-                        )}
+                        {/* 갭①-B: 인라인 배지 매핑 → AttendanceBadges 컴포넌트로 통합.
+                            관리자·직원 본인 뷰가 동일 출력 (MyAttendanceCard 도 같은 컴포넌트 사용). */}
+                        <AttendanceBadges record={r} compact />
                       </div>
                     </td>
                     {isAdmin && (

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { useToast } from "@/components/toast";
+import { AttendanceBadges } from "@/components/attendance-badges";
 
 const db = supabase as any;
 
@@ -159,6 +160,17 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
           </>
         )}
       </div>
+
+      {/* 갭①-B: 오늘 배지 (지각/연장/야간/휴일/외근·당직). 갭④: 출근 직후
+          checkIn 함수가 is_late·late_minutes 즉시 채움 → 퇴근 전에도 표시. */}
+      {todayAtt && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <AttendanceBadges record={todayAtt} compact />
+          {isCheckedIn && !isCheckedOut && Number(todayAtt.overtime_minutes || 0) === 0 && (
+            <span className="text-[10px] text-[var(--text-dim)] italic">연장은 퇴근 시 산정</span>
+          )}
+        </div>
+      )}
 
       {!isCheckedIn && (
         <div className="flex gap-2 mb-3 flex-wrap">
