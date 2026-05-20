@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -552,7 +553,16 @@ export default function TaxInvoicesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">("sales");
+  // 사용자 핸드오프: ?tab=matching deep-link 지원 (분석 허브 → 3-Way 매칭 카드 진입).
+  //   허용 키 화이트리스트 검증. lazy initializer 로 mount 시 1회만 파싱.
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">(() => {
+    const t = searchParams?.get("tab");
+    if (t === "sales" || t === "purchase" || t === "matching" || t === "vat" || t === "summary" || t === "queue" || t === "sync") {
+      return t;
+    }
+    return "sales";
+  });
   // 보기 범위 — localStorage 에 저장해 새로고침해도 유지. default 는 1년 전 ~ 현재 월.
   const [viewFromMonth, setViewFromMonth] = useState(() => {
     if (typeof window !== "undefined") {
