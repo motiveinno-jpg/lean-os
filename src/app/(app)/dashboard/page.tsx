@@ -1119,7 +1119,12 @@ function MyTodosWidget({ userId }: { userId: string }) {
         </Link>
       </div>
       {todos.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)] text-center py-4">등록된 할일이 없습니다.</p>
+        <div className="text-center py-4">
+          <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일이 없습니다.</p>
+          <Link href="/schedule" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] transition">
+            + 할일 추가
+          </Link>
+        </div>
       ) : (
         <div className="space-y-1.5">
           {todos.slice(0, 6).map((t) => {
@@ -1381,7 +1386,9 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
           })}
         </div>
       )}
-      {invoices.length === 0 && <p className="text-xs text-[var(--text-muted)] text-center py-3">미수금 데이터 없음</p>}
+      {invoices.length === 0 && (
+        <p className="text-xs text-center py-3 text-green-400/90 font-medium">미수금 없음 ✅</p>
+      )}
     </div>
   );
 }
@@ -1440,7 +1447,12 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
           </div>
         </div>
       ) : (
-        <p className="text-xs text-[var(--text-muted)] text-center py-3">거래 데이터 없음</p>
+        <div className="text-center py-4">
+          <p className="text-xs text-[var(--text-muted)] mb-2">아직 거래 내역이 없어요</p>
+          <Link href="/settings?tab=bank" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
+            통장 연결하기 →
+          </Link>
+        </div>
       )}
     </div>
   );

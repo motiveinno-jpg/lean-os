@@ -138,9 +138,11 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       </div>
 
       {items.length === 0 ? (
-        <div className="text-center py-6 text-xs text-[var(--text-dim)]">
-          예정된 고정비 지출이 없습니다.
-          <div className="text-[10px] mt-1">결재 센터 → 자동이체 관리에서 등록하세요.</div>
+        <div className="text-center py-5">
+          <div className="text-xs text-[var(--text-dim)] mb-2">예정된 고정비 지출이 없습니다.</div>
+          <a href="/payments?tab=recurring" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
+            + 자동이체 등록
+          </a>
         </div>
       ) : (
         <div className="space-y-1.5">
