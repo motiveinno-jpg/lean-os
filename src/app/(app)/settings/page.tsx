@@ -3269,6 +3269,67 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   );
 }
 
+// P0-C: CODEF 동기화 에러 1건을 사용자 친화적으로 surface.
+//   - 큼지막한 사용자 언어 hint 우선 노출 (codef-sync 의 codefErrorHint()
+//     결과를 작은 회색 한 줄이 아니라 박스 내 강조 영역으로)
+//   - code 별 다음 액션 버튼: 인증서 재등록 / 카드 비밀번호 재등록 / 다시 시도
+function codefAction(code?: string): { label: string; tab?: string; retry?: boolean } | null {
+  if (!code) return { label: "다시 시도", retry: true };
+  if (code === "CF-00401") return { label: "🔑 인증서 다시 등록", tab: "certificate" };
+  if (code === "CF-12838" || code === "CF-12839") return { label: "🔁 ConnectedID 재등록", tab: "bank" };
+  if (code === "CF-13021") return { label: "다시 시도", retry: true }; // 외부(은행) 처리 필요 — UI에서 할 일 없음
+  if (code === "NO_DEMAND_DEPOSIT") return { label: "🔁 다시 시도", retry: true };
+  if (code === "CHUNK_FAIL") return { label: "🔁 다시 시도", retry: true };
+  return { label: "🔁 다시 시도", retry: true };
+}
+
+function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () => void; retrying: boolean }) {
+  const code: string | undefined = item.code;
+  const action = codefAction(code);
+  const heading = item.accountNo || item.organization || "기관";
+  // codef-sync 가 만들어준 hint 가 사용자 친화 텍스트 — 큰 글씨로 surface.
+  const friendlyMain = item.hint || item.message || "동기화에 실패했습니다.";
+
+  return (
+    <li className="p-3 rounded-xl bg-red-500/8 border border-red-500/15">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-red-500/70 font-mono mb-0.5">
+            {code || "ERROR"} · {heading}
+          </div>
+          <div className="text-sm text-red-600 dark:text-red-300 font-semibold leading-snug">
+            {friendlyMain}
+          </div>
+          {item.hint && item.message && item.hint !== item.message && (
+            <div className="text-[11px] text-[var(--text-muted)] mt-1">상세: {item.message}</div>
+          )}
+        </div>
+        {action && (
+          <div className="flex flex-col gap-1 shrink-0">
+            {action.retry && (
+              <button
+                onClick={onRetry}
+                disabled={retrying}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white transition whitespace-nowrap"
+              >
+                {retrying ? "처리 중…" : action.label}
+              </button>
+            )}
+            {action.tab && (
+              <a
+                href={`/settings?tab=${action.tab}`}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition whitespace-nowrap text-center"
+              >
+                {action.label}
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
 // ═══════════════════════════════════════════
 // Bank Integration Tab — 사용자 친화적 금융 연결
 // CODEF API 키는 서버 환경변수로만 관리 (사용자 노출 X)
@@ -3696,32 +3757,32 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
             )}
 
             {syncResult && (
+              // P0-C: CODEF 연결 에러 친절도 — code 별로 사용자 언어 안내 + 다음
+              //   액션 버튼. 작은 회색 hint 한 줄에 묻혀 사용자가 "무엇을 하면 되는지"
+              //   모르던 문제 해소. codefErrorHint() 가 만든 메시지를 큰 박스로 노출.
               <div className={`p-3 rounded-xl text-xs font-medium ${syncResult.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
                 <div>{syncResult.msg}</div>
                 {syncResult.errors && syncResult.errors.length > 0 && (
-                  <ul className="mt-2 space-y-1.5 text-[11px] font-normal text-red-600">
+                  <ul className="mt-3 space-y-2 text-xs font-normal">
                     {syncResult.errors.map((e: any, idx: number) => (
-                      <li key={idx} className="p-2 rounded-lg bg-red-500/5">
-                        <div className="font-semibold">{e.code} · {e.accountNo || e.organization}</div>
-                        <div className="text-red-500/80">{e.message}</div>
-                        {e.hint && <div className="mt-1 text-[var(--text-muted)]">→ {e.hint}</div>}
-                      </li>
+                      <CodefErrorCard key={idx} item={e} onRetry={handleSync} retrying={syncing} />
                     ))}
                   </ul>
                 )}
                 {syncResult.notes && syncResult.notes.length > 0 && (
-                  <details className="mt-2 text-[11px] font-normal text-[var(--text-muted)]">
-                    <summary className="cursor-pointer hover:text-[var(--text)]">CODEF 설정 안내 {syncResult.notes.length}건 (클릭해서 펼치기)</summary>
-                    <ul className="mt-2 space-y-1.5">
+                  <div className="mt-3 p-2.5 rounded-xl bg-blue-500/8 border border-blue-500/15">
+                    <div className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1.5">
+                      💡 CODEF 설정 안내 {syncResult.notes.length}건
+                    </div>
+                    <ul className="space-y-1.5 text-[11px] font-normal text-[var(--text-muted)]">
                       {syncResult.notes.map((n: any, idx: number) => (
                         <li key={idx} className="p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
-                          <div className="font-semibold text-[var(--text)]">{n.code} · {n.accountNo || n.organization}</div>
-                          <div>{n.message}</div>
-                          {n.hint && <div className="mt-1">→ {n.hint}</div>}
+                          <div className="font-semibold text-[var(--text)] text-xs">{n.accountNo || n.organization}</div>
+                          <div className="mt-0.5">{n.hint || n.message}</div>
                         </li>
                       ))}
                     </ul>
-                  </details>
+                  </div>
                 )}
               </div>
             )}
