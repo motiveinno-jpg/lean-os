@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+/* 직인 자동생성용 — 한글 명조/고딕 + 한자 글자 깨짐 방지 (Noto Serif KR / Noto Sans KR 900 weight) */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@700;900&family=Nanum+Myeongjo:wght@700;800&display=swap');
 @import "tailwindcss";
 
 :root, [data-theme="light"] {
