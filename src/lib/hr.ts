@@ -750,7 +750,46 @@ export async function checkIn(companyId: string, employeeId: string, status: str
     const mins = nowKstMinutes();
     status = isLate(mins, policy) ? "late" : "present";
   }
-  return invokeAttendance("checkin", { companyId, employeeId, status });
+  const result = await invokeAttendance("checkin", { companyId, employeeId, status });
+  // 갭④: 출근 즉시 is_late·late_minutes 채움 (퇴근 전에도 직원 본인 화면에서 배지 노출).
+  //   recomputeAttendance 는 check_out 있을 때만 분 컬럼 풀 산정 — 본 chain 은 퇴근 전
+  //   late 만 즉시 갱신. 연장/야간/휴일은 퇴근 시 recomputeAttendance(checkOut chain) 처리.
+  //   실패해도 checkIn 자체는 성공 처리 (회귀 방지).
+  try {
+    const targetDate = new Date().toISOString().slice(0, 10);
+    const settings = await getAttendanceCompanySettings(companyId);
+    const { data: row } = await db
+      .from('attendance_records')
+      .select('id, check_in, date')
+      .eq('company_id', companyId)
+      .eq('employee_id', employeeId)
+      .eq('date', targetDate)
+      .maybeSingle();
+    if (row?.check_in) {
+      // 휴일 set 도 같이 (그 날 휴일이면 is_late=false)
+      const { data: holidays } = await db
+        .from('holidays')
+        .select('date')
+        .eq('company_id', companyId)
+        .eq('date', targetDate);
+      const holidaySet = new Set<string>((holidays || []).map((h: { date: string }) => h.date));
+      const { calcLateOnCheckIn } = await import('./attendance-calc');
+      const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet);
+      await db
+        .from('attendance_records')
+        .update({
+          is_late: lateResult.is_late,
+          late_minutes: lateResult.late_minutes,
+          is_holiday: lateResult.is_holiday,
+        })
+        .eq('id', row.id);
+    }
+  } catch (e) {
+    if (typeof window !== 'undefined') {
+      console.warn('[checkIn] 즉시 지각 판정 실패 (체크인은 성공):', e);
+    }
+  }
+  return result;
 }
 
 // ── Attendance: Check Out ──

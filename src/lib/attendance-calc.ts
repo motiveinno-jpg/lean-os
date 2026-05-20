@@ -331,4 +331,36 @@ export function calcOvertimePay(input: MonthlyPayInput): MonthlyPayResult {
 }
 
 // ── 내부 헬퍼 export (단위테스트용) ──
+// ── 갭④: 출근 즉시 지각 판정 (퇴근 안 한 상태) ──
+//   calcDailyAttendance 는 check_out 없으면 early return 으로 모든 분 0 반환.
+//   사용자가 11:30 출근(9:30 정책)했는데도 퇴근 전엔 "지각" 표시 영영 못 봄 → 갭④.
+//   본 헬퍼는 check_out 없이도 is_late·late_minutes 즉시 계산. checkIn() 함수가
+//   INSERT/UPDATE 직후 호출해 attendance_records.is_late/late_minutes 채움.
+//   연장/야간/휴일은 퇴근 시 recomputeAttendance 가 풀 산정 (그대로 유지).
+//
+// 입력:
+//   - checkInIso: ISO 시각 또는 Date (KST 환산)
+//   - date: 'YYYY-MM-DD' (KST 기준일)
+//   - settings: AttendanceCompanySettings (work_start_time / late_grace_minutes / workdays_mask)
+//   - holidays?: 휴일 set/array — 휴일이면 is_late=false (지각 개념 없음)
+export function calcLateOnCheckIn(
+  checkInIso: Date | string,
+  date: string,
+  settings: Pick<AttendanceCompanySettings, 'work_start_time' | 'late_grace_minutes' | 'workdays_mask'>,
+  holidays?: Set<string> | string[],
+): { is_late: boolean; late_minutes: number; is_holiday: boolean } {
+  const holidaySet = holidays instanceof Set ? holidays : new Set(holidays || []);
+  const is_holiday = holidaySet.has(date) || !isWorkday(date, settings.workdays_mask);
+  if (is_holiday) {
+    return { is_late: false, late_minutes: 0, is_holiday: true };
+  }
+  const ciMin = toKstAbsMinutes(checkInIso, date);
+  const workStartTarget = parseHhmm(settings.work_start_time, 9 * 60);
+  const lateThreshold = workStartTarget + Math.max(0, settings.late_grace_minutes || 0);
+  const ciDayMin = ciMin - Math.floor(ciMin / 1440) * 1440;
+  const is_late = ciDayMin > lateThreshold;
+  const late_minutes = is_late ? ciDayMin - workStartTarget : 0;
+  return { is_late, late_minutes, is_holiday: false };
+}
+
 export const __internal = { parseHhmm, dayOfWeekKst, isWorkday, calcNightMinutes, toKstAbsMinutes };
