@@ -7,7 +7,10 @@ import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 
-// 거래처원장 — 거래처별 매출/매입 세금계산서 합계 + 클릭 시 세부 내역
+// A4 거래처원장 재설계 — 거래처별 합계 + 펼치면 분개식 ledger (세금계산서·통장·카드 통합 + 누적잔액).
+//   직원 원문: "거래처별로 볼수있어야하고 외상매출금/미지급금/입금/출금별로 볼수있어야함...
+//             결국 잔액이 0이 될수있게 관리하는 장부".
+//   소스: 합계 표는 tax_invoices (빠른 list), 분개는 RPC get_partner_ledger (통합).
 interface Row {
   vendor: string;
   bizno: string | null;
@@ -18,7 +21,21 @@ interface Row {
   net: number; // sales - purchase
 }
 
+interface LedgerRow {
+  entry_date: string;
+  source: 'tax_invoice' | 'bank' | 'card';
+  source_id: string;
+  description: string;
+  receivable: number;
+  payable: number;
+  inflow: number;
+  outflow: number;
+  running_balance: number;
+  sort_order: number;
+}
+
 function fmt(n: number) { return n.toLocaleString('ko-KR'); }
+function fmtSigned(n: number) { return (n >= 0 ? '' : '−') + Math.abs(n).toLocaleString('ko-KR'); }
 
 export default function PartnerLedgerPage() {
   const { role } = useUser();
@@ -32,6 +49,29 @@ export default function PartnerLedgerPage() {
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // A4: 거래처별 분개 ledger (RPC 캐시), 펼칠 때 1회 fetch
+  const [ledgers, setLedgers] = useState<Record<string, LedgerRow[]>>({});
+  const [ledgerLoading, setLedgerLoading] = useState<string | null>(null);
+
+  // 날짜 필터 변경 시 ledger 캐시 무효화
+  useEffect(() => { setLedgers({}); }, [dateFrom, dateTo]);
+
+  async function fetchLedger(vendor: string) {
+    const cacheKey = vendor;
+    if (ledgers[cacheKey]) return; // 캐시 사용
+    setLedgerLoading(cacheKey);
+    try {
+      const args: any = { p_partner_name: vendor };
+      if (dateFrom) args.p_from = dateFrom;
+      if (dateTo) args.p_to = dateTo;
+      const { data, error } = await (supabase as any).rpc('get_partner_ledger', args);
+      if (error) throw error;
+      setLedgers(prev => ({ ...prev, [cacheKey]: (data || []) as LedgerRow[] }));
+    } catch {
+      setLedgers(prev => ({ ...prev, [cacheKey]: [] }));
+    }
+    setLedgerLoading(null);
+  }
 
   useEffect(() => {
     (async () => {
@@ -155,10 +195,16 @@ export default function PartnerLedgerPage() {
                 const key = r.vendor + '|' + (r.bizno || '');
                 const isExpanded = expanded === key;
                 const invs = details[key] || [];
+                const ledger = ledgers[r.vendor] || [];
+                const isLedgerLoading = ledgerLoading === r.vendor;
                 return (
                   <>
                     <tr key={key}
-                      onClick={() => setExpanded(isExpanded ? null : key)}
+                      onClick={() => {
+                        const next = isExpanded ? null : key;
+                        setExpanded(next);
+                        if (next) fetchLedger(r.vendor);
+                      }}
                       className="cursor-pointer hover:bg-[var(--bg-surface)] border-b border-[var(--border)]/50 transition">
                       <td className="px-4 py-2.5 text-sm">
                         <span className="text-[var(--text-dim)] inline-block w-3">{isExpanded ? '▾' : '▸'}</span>
@@ -175,26 +221,73 @@ export default function PartnerLedgerPage() {
                         ₩{fmt(r.net)}
                       </td>
                     </tr>
-                    {isExpanded && invs.map((inv: any) => (
-                      <tr key={inv.id} className="bg-[var(--bg-surface)]/40 border-b border-[var(--border)]/40">
-                        <td className="px-4 py-1.5 pl-12 text-[11px] text-[var(--text-muted)]">
-                          <span className="mono-number">{inv.issue_date}</span>
-                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[9px]"
-                            style={{ background: (inv.type === 'sales' || inv.type === '매출') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                                     color: (inv.type === 'sales' || inv.type === '매출') ? '#10b981' : '#ef4444' }}>
-                            {inv.type === 'sales' || inv.type === '매출' ? '매출' : '매입'}
-                          </span>
-                          {inv.item_name && <span className="ml-2 text-[var(--text-dim)]">{inv.item_name}</span>}
-                          {inv.nts_confirm_no && <span className="ml-2 text-[9px] text-[var(--text-dim)]">{inv.nts_confirm_no}</span>}
-                        </td>
-                        <td colSpan={2} className="px-4 py-1.5 text-[10px] text-[var(--text-dim)]">
-                          <span className="px-1.5 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)]">{inv.status}</span>
-                        </td>
-                        <td className="px-4 py-1.5 text-right text-[11px] font-semibold mono-number text-[var(--text)]">
-                          ₩{fmt(Number(inv.total_amount || 0))}
+                    {isExpanded && (
+                      <tr className="bg-[var(--bg-surface)]/40 border-b border-[var(--border)]/40">
+                        <td colSpan={4} className="px-4 py-3">
+                          <div className="text-[10px] text-[var(--text-dim)] mb-2 flex items-center gap-2">
+                            <span className="font-semibold">📒 분개식 거래처원장</span>
+                            <span>· 세금계산서 + 통장 입출금 + 카드결제 통합</span>
+                            {isLedgerLoading && <span className="ml-2 text-[var(--primary)]">불러오는 중…</span>}
+                          </div>
+                          {!isLedgerLoading && ledger.length === 0 && (
+                            <div className="text-[11px] text-[var(--text-dim)] py-4 text-center">기간 내 거래 없음</div>
+                          )}
+                          {ledger.length > 0 && (
+                            <table className="w-full text-[11px]">
+                              <thead>
+                                <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]/60">
+                                  <th className="text-left py-1.5 w-20">일자</th>
+                                  <th className="text-left py-1.5">적요</th>
+                                  <th className="text-right py-1.5 w-24" title="매출 세금계산서">외상매출금</th>
+                                  <th className="text-right py-1.5 w-24" title="매입 세금계산서">미지급금</th>
+                                  <th className="text-right py-1.5 w-24" title="통장 입금">입금</th>
+                                  <th className="text-right py-1.5 w-24" title="통장 출금 + 카드결제">출금</th>
+                                  <th className="text-right py-1.5 w-28">누적잔액</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ledger.map((row) => (
+                                  <tr key={row.source + row.source_id} className="border-b border-[var(--border)]/30">
+                                    <td className="py-1.5 mono-number text-[var(--text-muted)]">{row.entry_date}</td>
+                                    <td className="py-1.5">
+                                      <span className="text-[var(--text-muted)]">{row.description}</span>
+                                    </td>
+                                    <td className="py-1.5 text-right mono-number text-[#10b981]/90">{Number(row.receivable) > 0 ? `₩${fmt(Number(row.receivable))}` : ''}</td>
+                                    <td className="py-1.5 text-right mono-number text-[var(--danger)]/90">{Number(row.payable) > 0 ? `₩${fmt(Number(row.payable))}` : ''}</td>
+                                    <td className="py-1.5 text-right mono-number text-[#10b981]">{Number(row.inflow) > 0 ? `₩${fmt(Number(row.inflow))}` : ''}</td>
+                                    <td className="py-1.5 text-right mono-number text-[var(--danger)]">{Number(row.outflow) > 0 ? `₩${fmt(Number(row.outflow))}` : ''}</td>
+                                    <td className={`py-1.5 text-right font-semibold mono-number ${Number(row.running_balance) === 0 ? 'text-[var(--text-dim)]' : Number(row.running_balance) > 0 ? 'text-[#10b981]' : 'text-[var(--danger)]'}`}>
+                                      ₩{fmtSigned(Number(row.running_balance))}
+                                      {Number(row.running_balance) === 0 && <span className="ml-1 text-[9px] text-[#10b981]">✓ 잔액 0</span>}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                          {/* 세금계산서 단건 표시(기존 보존, 폴드된 채로) */}
+                          {invs.length > 0 && (
+                            <details className="mt-3">
+                              <summary className="text-[10px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-muted)]">📄 세금계산서 단건 {invs.length}건 (펼치기)</summary>
+                              <div className="mt-2 space-y-1">
+                                {invs.map((inv: any) => (
+                                  <div key={inv.id} className="text-[10px] text-[var(--text-muted)] flex items-center gap-2">
+                                    <span className="mono-number">{inv.issue_date}</span>
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px]"
+                                      style={{ background: (inv.type === 'sales' || inv.type === '매출') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                                               color: (inv.type === 'sales' || inv.type === '매출') ? '#10b981' : '#ef4444' }}>
+                                      {inv.type === 'sales' || inv.type === '매출' ? '매출' : '매입'}
+                                    </span>
+                                    {inv.item_name && <span className="text-[var(--text-dim)]">{inv.item_name}</span>}
+                                    <span className="ml-auto mono-number font-semibold text-[var(--text)]">₩{fmt(Number(inv.total_amount || 0))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </>
                 );
               })}
