@@ -186,11 +186,14 @@ function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  // ── ① 이중 원형 테두리 ──
-  // 사용자 예시 이미지: 굵은 외곽 + 가는 안쪽 원
-  const outerR = size * 0.475;
-  const innerR = size * 0.395;
-  ctx.lineWidth = size * 0.026;
+  // ── ① 이중 원형 테두리 (사용자 예시 비례) ──
+  //   외곽 굵은 원 ~ 반경 0.48
+  //   안쪽 가는 원 ~ 반경 0.31 (외곽과 안쪽 사이 띠 = 반경의 17% — 회사명이 크게 들어감)
+  //   가운데 작은 원 ~ 반경 0.21 (한자 2x2 만 감쌈)
+  const outerR = size * 0.480;
+  const innerR = size * 0.310;
+  const centerR = size * 0.210;
+  ctx.lineWidth = size * 0.028;
   ctx.beginPath();
   ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
   ctx.stroke();
@@ -199,44 +202,43 @@ function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
   ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
   ctx.stroke();
 
-  // ── ② 회사명 — 바깥 링 따라 원호 배열 ──
+  // ── ② 회사명 — 외곽 띠를 꽉 채우는 큰 글씨로 한 바퀴 배치 ──
+  //   짧은 이름(6자 미만)도 호 전체 균등 배치 (사용자 예시 이미지와 동일).
+  //   글자 머리가 원 바깥(반경 방향) 향함.
   const chars = Array.from(name);
   if (chars.length > 0) {
-    const textR = (outerR + innerR) / 2;
-    // 글자 수에 따라 문자당 각도 결정.
-    //   짧으면(8자 미만) 좀 띄어서, 길면(13자 이상) 빽빽하게.
-    //   최대 한 글자 60도 이상 차지 안 하도록 cap.
-    const minCharsForFullCircle = Math.max(chars.length, 10);
-    const anglePer = (Math.PI * 2) / minCharsForFullCircle;
-    // 폰트 크기: 링 두께(outerR-innerR)와 호 1글자 너비(textR*anglePer) 둘 다 고려.
-    //   너무 크면 링 밖으로 삐죽, 너무 작으면 빈약. 사용자 예시 비율: 글자 head-to-toe ≈ 링 두께의 0.85
+    const textR = (outerR + innerR) / 2; // 띠 중앙 반지름
+    // 항상 한 바퀴 균등 (글자 수가 적으면 글자 사이 간격이 넓어짐 — 도장 표준).
+    const denom = Math.max(chars.length, 6);
+    const anglePer = (Math.PI * 2) / denom;
     const ringThickness = outerR - innerR;
     const arcCharWidth = textR * anglePer;
+    // 폰트 크기 — 띠 두께를 거의 꽉 채우되 인접 글자 충돌은 회피.
     const fontSize = Math.min(
-      ringThickness * 0.95,            // 링 두께 한도
-      arcCharWidth * 1.5,              // 인접 글자 충돌 방지
-      size * 0.115,                    // 절대 상한 (글자가 너무 굵어지지 않게)
+      ringThickness * 0.85,          // 띠 두께의 85% (외곽·안쪽 원에 약간 여백)
+      arcCharWidth * 1.6,            // 인접 글자 충돌 방지
+      size * 0.18,                   // 절대 상한 (너무 굵어지지 않게)
     );
     ctx.font = `900 ${Math.round(fontSize)}px ${FONT_STACK}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // 회사명 전체가 차지할 호 각도. 짧은 이름은 위쪽 호에만 모이게, 긴 이름은 거의 한 바퀴.
-    const totalArc = anglePer * chars.length;
-    // 시계방향 12시 시작 — chars[0] 가 정확히 12시에 오도록 startAng 조정.
-    //   글자가 정확히 12시 정상에 위치 (한국 인감 표준).
-    //   원의 좌상단부터 시계방향(=각도 증가)으로 진행.
-    //   중심 정렬: 회사명을 12시 기준 균등 양쪽으로 배치하려면 startAng = -π/2 - (totalArc - anglePer) / 2
-    //   하지만 사용자 예시 이미지는 12시 정상에서 시계방향 진행 → 첫 글자가 12시에. 단순화.
-    const startAng = -Math.PI / 2 - (totalArc - anglePer) / 2;
-
+    // 12시 정상에 첫 글자 — 글자 수에 무관하게 첫 글자가 시계 정상에 위치.
+    //   chars.length < 6 면 6칸 균등 배치 중 앞쪽 N칸만 사용 → 윗쪽에 모임(짧은 이름 도장 표준).
+    //   chars.length ≥ 6 면 한 바퀴 가득.
+    const startAng = -Math.PI / 2;
+    // 글자 수가 적을 때만 중심 정렬(위쪽 중심), 6 이상이면 시계방향 균등 배치.
+    const centered = chars.length < 6;
     chars.forEach((ch, i) => {
-      const ang = startAng + i * anglePer;
+      const angOffset = centered
+        ? (i - (chars.length - 1) / 2) * anglePer  // 위쪽 중심으로 양 옆 펼침
+        : i * anglePer;                            // 12시 시작 시계방향
+      const ang = startAng + angOffset;
       const x = cx + Math.cos(ang) * textR;
       const y = cy + Math.sin(ang) * textR;
       ctx.save();
       ctx.translate(x, y);
-      // 글자 머리가 원 바깥(반경 방향)을 향함 — 12시 글자는 똑바로 위쪽, 6시 글자는 거꾸로.
+      // 글자 머리가 원 바깥 향함 — 12시 글자는 똑바로 위쪽, 6시 글자는 거꾸로.
       ctx.rotate(ang + Math.PI / 2);
       ctx.fillText(ch, 0, 0);
       ctx.restore();
@@ -244,8 +246,8 @@ function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
   }
 
   // ── ③ 중앙 소원 + 직책 한자 세로쓰기(우→좌) ──
-  const centerR = size * 0.168;
-  ctx.lineWidth = size * 0.010;
+  //   가운데 작은 원이 한자만 감쌈 — 회사명은 위 ②에서 큰 외곽 띠에 이미 그려졌음.
+  ctx.lineWidth = size * 0.011;
   ctx.beginPath();
   ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
   ctx.stroke();
@@ -256,7 +258,7 @@ function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
   ctx.textBaseline = "middle";
   if (cc.length === 4) {
     // 2x2 — 우열(代,表) 상→하, 좌열(理,事) 상→하  ⇒ 代表理事 (우→좌 판독)
-    const fs = Math.round(centerR * 0.66);
+    const fs = Math.round(centerR * 0.62);
     ctx.font = `900 ${fs}px ${FONT_STACK}`;
     const dx = centerR * 0.43, dy = centerR * 0.42;
     ctx.fillText(cc[0], cx + dx, cy - dy);
@@ -265,7 +267,7 @@ function drawCorporateSeal(ctx: CanvasRenderingContext2D, d: DrawCtx) {
     ctx.fillText(cc[3], cx - dx, cy + dy);
   } else {
     // 그 외: 단일 세로열 중앙 정렬
-    const fs = Math.round(Math.min(centerR * 0.72, (centerR * 1.7) / Math.max(cc.length, 1)));
+    const fs = Math.round(Math.min(centerR * 0.68, (centerR * 1.7) / Math.max(cc.length, 1)));
     ctx.font = `900 ${fs}px ${FONT_STACK}`;
     const lh = fs * 1.05;
     const startY = cy - (lh * (cc.length - 1)) / 2;
