@@ -63,8 +63,11 @@ export function getNextAction(
   hasContractDoc?: boolean,
 ): NextAction {
   const stage = (deal.stage || 'estimate') as ProjectStage;
-  const dealHref = `/deals?detail=${deal.id}`;
-  const today = new Date();
+  // PR3.5: 모든 CTA href 를 /projects?open=<id>&action=<key> 로 통일.
+  //   기존 /deals?detail= 는 멘탈모델 깨짐(패널 안에서 완결) — 패널이 action 쿼리
+  //   읽어 해당 탭/섹션으로 자동 점프 후 URL 클리어.
+  const panelHref = (action?: string) =>
+    action ? `/projects?deal=${deal.id}&action=${action}` : `/projects?deal=${deal.id}`;
 
   // 1) Critical — 자동 배지 활성 시 그쪽 액션 우선
   const badge = getProjectBadgeFromBase(
@@ -73,45 +76,45 @@ export function getNextAction(
     costs,
   );
   if (badge.key === 'margin_risk') {
-    return { text: '비용 구조 재검토 →', href: dealHref, icon: '🔴', reason: '비용 합계가 계약가를 초과', level: 'critical' };
+    return { text: '비용 구조 재검토 →', href: panelHref('cost-review'), icon: '🔴', reason: '비용 합계가 계약가를 초과', level: 'critical' };
   }
   if (badge.key === 'danger') {
-    return { text: '기한 만료 처리 →', href: dealHref, icon: '⚠', reason: '기한 초과', level: 'critical' };
+    return { text: '기한 만료 처리 →', href: panelHref('recover'), icon: '⚠', reason: '기한 초과', level: 'critical' };
   }
   if (badge.key === 'pending') {
-    return { text: '미수금 회수 알림 보내기 →', href: dealHref, icon: '📋', reason: '미수금 입금 일정 초과', level: 'critical' };
+    return { text: '미수금 회수 알림 보내기 →', href: panelHref('recover'), icon: '📋', reason: '미수금 입금 일정 초과', level: 'critical' };
   }
 
   // 2) Recommended — stage 별 자연 흐름
   switch (stage) {
     case 'estimate':
       if (!hasQuoteDoc) {
-        return { text: '견적서 작성하기 →', href: dealHref, icon: '📝', reason: '견적 단계인데 견적서 없음', level: 'recommended' };
+        return { text: '견적서 작성하기 →', href: panelHref('quote'), icon: '📝', reason: '견적 단계인데 견적서 없음', level: 'recommended' };
       }
-      return { text: '견적 발송하기 →', href: dealHref, icon: '📤', reason: '견적서 발송 → 계약 단계 진입', level: 'recommended' };
+      return { text: '견적 발송하기 →', href: panelHref('send'), icon: '📤', reason: '견적서 발송 → 계약 단계 진입', level: 'recommended' };
 
     case 'contract':
       if (!hasContractDoc) {
-        return { text: '계약서 작성하기 →', href: dealHref, icon: '📄', reason: '계약 단계인데 계약서 없음', level: 'recommended' };
+        return { text: '계약서 작성하기 →', href: panelHref('contract'), icon: '📄', reason: '계약 단계인데 계약서 없음', level: 'recommended' };
       }
-      return { text: '서명 요청 보내기 →', href: dealHref, icon: '✍️', reason: '계약서 서명 진행', level: 'recommended' };
+      return { text: '서명 요청 보내기 →', href: panelHref('send'), icon: '✍️', reason: '계약서 서명 진행', level: 'recommended' };
 
     case 'in_progress': {
       // 기한 임박이면 진척 점검
       if (badge.key === 'urgent') {
-        return { text: '진척 점검 / 마감 준비 →', href: dealHref, icon: '⏰', reason: '기한 7일 이내', level: 'recommended' };
+        return { text: '진척 점검 / 마감 준비 →', href: panelHref('progress'), icon: '⏰', reason: '기한 7일 이내', level: 'recommended' };
       }
-      return { text: '진행상황 업데이트 →', href: dealHref, icon: '🚀', reason: '진행중 — 정기 점검', level: 'optional' };
+      return { text: '진행상황 업데이트 →', href: panelHref('progress'), icon: '🚀', reason: '진행중 — 정기 점검', level: 'optional' };
     }
 
     case 'completed':
-      return { text: '정산 단계로 이동 →', href: `/projects?move=${deal.id}`, icon: '💰', reason: '완료 — 세금계산서·수금 마무리', level: 'recommended' };
+      return { text: '정산 단계로 이동 →', href: panelHref('move-settlement'), icon: '💰', reason: '완료 — 세금계산서·수금 마무리', level: 'recommended' };
 
     case 'settlement':
-      return { text: '아카이브 →', href: dealHref, icon: '📦', reason: '정산 완료 — 보관', level: 'optional' };
+      return { text: '아카이브 →', href: panelHref('archive'), icon: '📦', reason: '정산 완료 — 보관', level: 'optional' };
 
     default:
-      return { text: '상세 보기 →', href: dealHref, icon: '🔍', reason: '', level: 'optional' };
+      return { text: '상세 보기 →', href: panelHref(), icon: '🔍', reason: '', level: 'optional' };
   }
 }
 

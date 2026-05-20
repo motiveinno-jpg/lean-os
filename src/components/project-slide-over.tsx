@@ -21,6 +21,7 @@ import {
   type ProjectStage,
 } from "@/lib/project-rules";
 import { formatDueLabel } from "@/lib/project-badges";
+import { ProjectQuoteStages } from "@/components/project-quote-stages";
 
 // stage → 진행률 (%)
 const STAGE_PROGRESS: Record<ProjectStage, number> = {
@@ -38,9 +39,27 @@ interface ProjectSlideOverProps {
   companyId: string;
   onClose: () => void;
   onOpenStageModal?: () => void; // 단계 변경 모달 (부모가 관리)
+  // PR3.5: 다음액션 CTA 가 ?action=<key> 로 진입 시 패널이 해당 탭/섹션으로 점프.
+  //   적용 직후 부모에게 onActionConsumed 콜백으로 알려 URL 클리어.
+  pendingAction?: string | null;
+  onActionConsumed?: () => void;
 }
 
-export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal }: ProjectSlideOverProps) {
+// PR3.5: action key → 어느 탭의 어느 섹션으로 점프할지.
+//   quote/contract/send/cost-review → money 탭, recover → money 탭(받을돈),
+//   progress → activity 탭, move-settlement/archive → overview 탭.
+const ACTION_TAB: Record<string, { tab: Tab; scroll?: string }> = {
+  'quote':           { tab: 'money',    scroll: 'sec-quote' },
+  'contract':        { tab: 'money',    scroll: 'sec-quote' },
+  'send':            { tab: 'money',    scroll: 'sec-quote' },
+  'cost-review':     { tab: 'money',    scroll: 'sec-cost' },
+  'recover':         { tab: 'money',    scroll: 'sec-revenue' },
+  'progress':        { tab: 'activity', scroll: 'sec-activity' },
+  'move-settlement': { tab: 'overview', scroll: 'sec-stage' },
+  'archive':         { tab: 'overview', scroll: 'sec-stage' },
+};
+
+export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed }: ProjectSlideOverProps) {
   const [tab, setTab] = useState<Tab>("overview");
 
   // ESC 닫기
@@ -51,6 +70,28 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // PR3.5: pendingAction 1회 적용 — 탭 전환 + 섹션 스크롤. 직후 onActionConsumed.
+  useEffect(() => {
+    if (!pendingAction) return;
+    const map = ACTION_TAB[pendingAction];
+    if (map) {
+      setTab(map.tab);
+      // 탭 렌더 후 scrollIntoView
+      if (map.scroll) {
+        setTimeout(() => {
+          const el = document.getElementById(map.scroll!);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            el.classList.add("ring-2", "ring-[var(--primary)]");
+            setTimeout(() => el.classList.remove("ring-2", "ring-[var(--primary)]"), 1500);
+          }
+        }, 50);
+      }
+    }
+    onActionConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["project-detail", dealId],
@@ -89,6 +130,8 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal 
             onTabChange={setTab}
             onClose={onClose}
             onOpenStageModal={onOpenStageModal}
+            dealId={dealId}
+            companyId={companyId}
           />
         )}
         {data && !data.deal && (
@@ -125,12 +168,16 @@ function PanelBody({
   onTabChange,
   onClose,
   onOpenStageModal,
+  dealId,
+  companyId,
 }: {
   data: PanelData;
   tab: Tab;
   onTabChange: (t: Tab) => void;
   onClose: () => void;
   onOpenStageModal?: () => void;
+  dealId: string;
+  companyId: string;
 }) {
   const deal = data.deal;
   const stage = (deal.stage || "estimate") as ProjectStage;
@@ -204,7 +251,7 @@ function PanelBody({
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-5">
         {tab === "overview" && <OverviewTab data={data} stage={stage} />}
-        {tab === "money" && <MoneyTab data={data} />}
+        {tab === "money" && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
         {tab === "activity" && <ActivityTab data={data} />}
       </div>
     </>
@@ -316,8 +363,8 @@ function OverviewTab({ data, stage }: { data: PanelData; stage: ProjectStage }) 
         </div>
       )}
 
-      {/* 진행률 바 */}
-      <div className="bg-[var(--bg-surface)] rounded-xl p-4">
+      {/* 진행률 바 + stage 컨트롤 영역 (PR3.5 action='move-settlement'/'archive' 점프 대상) */}
+      <div id="sec-stage" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-[var(--text-muted)]">진행률</span>
           <span className="text-xs text-[var(--text)] font-bold">{progress}%</span>
@@ -437,7 +484,7 @@ function formatRange(start?: string | null, end?: string | null) {
 // 돈 탭
 // ────────────────────────────────────────────────
 
-function MoneyTab({ data }: { data: PanelData }) {
+function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string; companyId: string }) {
   const contract = Number(data.deal.contract_total || 0);
 
   const expected = (data.revenue || []).filter((r: any) => r.status === "expected");
@@ -454,10 +501,14 @@ function MoneyTab({ data }: { data: PanelData }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* PR3.5: 견적 품목 / 결제 단계 — 패널 안에서 직접 편집·저장 */}
+      <div id="sec-quote" className="transition-shadow">
+        <ProjectQuoteStages dealId={dealId} companyId={companyId} />
+      </div>
       {/* 받을 돈 */}
-      <div className="bg-[var(--bg-surface)] rounded-xl p-4">
+      <div id="sec-revenue" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold text-[var(--text-muted)]">받을 돈</h3>
+          <h3 className="text-xs font-bold text-[var(--text-muted)]">받을 돈 (수금)</h3>
           <Link href={`/deals?detail=${data.deal.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
             편집 →
           </Link>
@@ -497,7 +548,7 @@ function MoneyTab({ data }: { data: PanelData }) {
       </div>
 
       {/* 줄 돈 */}
-      <div className="bg-[var(--bg-surface)] rounded-xl p-4">
+      <div id="sec-cost" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-[var(--text-muted)]">줄 돈 (비용 + 외주)</h3>
           <Link href={`/deals?detail=${data.deal.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
@@ -591,7 +642,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 function ActivityTab({ data }: { data: PanelData }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div id="sec-activity" className="flex flex-col gap-4 transition-shadow">
       {/* 담당자 목록 */}
       <Section title={`담당자 (${data.assignments.length})`}>
         {data.assignments.length === 0 ? (

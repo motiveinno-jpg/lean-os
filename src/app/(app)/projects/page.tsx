@@ -87,19 +87,37 @@ function ProjectsInner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
-  // ── URL ?deal=<id> → 슬라이드 패널 ──
+  // ── URL ?deal=<id>&action=<key> → 슬라이드 패널 (PR3.5) ──
+  //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
   const dealParam = searchParams.get("deal");
-  function openSlide(dealId: string) {
+  const actionParam = searchParams.get("action");
+  function openSlide(dealId: string, action?: string) {
     const sp = new URLSearchParams(searchParams.toString());
     sp.set("deal", dealId);
+    if (action) sp.set("action", action);
+    else sp.delete("action");
     router.push(`/projects?${sp.toString()}`, { scroll: false });
   }
   function closeSlide() {
     const sp = new URLSearchParams(searchParams.toString());
     sp.delete("deal");
+    sp.delete("action");
     const qs = sp.toString();
     router.push(qs ? `/projects?${qs}` : "/projects", { scroll: false });
   }
+  // PR3.5: action 1회 적용 후 URL 클리어 (open 은 유지).
+  //   pendingAction 상태로 전달 후, useEffect 가 action 만 URL 에서 제거.
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  useEffect(() => {
+    if (actionParam) {
+      setPendingAction(actionParam);
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("action");
+      const qs = sp.toString();
+      router.replace(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionParam]);
 
   // ── 데이터 ──
   const { data: deals = [], isLoading: dealsLoading } = useQuery({
@@ -367,7 +385,7 @@ function ProjectsInner() {
           byStage={byStage}
           onCardClick={(c) => openSlide(c.id)}
           onStageMenu={openStageModal}
-          onDetail={(id) => router.push(`/deals?detail=${id}`)}
+          onDetail={(id) => openSlide(id)}
         />
       )}
 
@@ -391,7 +409,7 @@ function ProjectsInner() {
         />
       )}
 
-      {/* 슬라이드 패널 — URL ?deal=<id> */}
+      {/* 슬라이드 패널 — URL ?deal=<id>&action=<key> (PR3.5) */}
       {dealParam && companyId && (
         <ProjectSlideOver
           dealId={dealParam}
@@ -401,6 +419,8 @@ function ProjectsInner() {
             const card = cards.find((c) => c.id === dealParam);
             if (card) openStageModal(card);
           }}
+          pendingAction={pendingAction}
+          onActionConsumed={() => setPendingAction(null)}
         />
       )}
     </div>
