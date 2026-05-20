@@ -511,18 +511,18 @@ export async function recomputeAttendance(params: {
       attendance_type: (r.attendance_type as any) || 'normal',
     });
 
-    const { error: upErr } = await db
-      .from('attendance_records')
-      .update({
-        is_late: result.is_late,
-        late_minutes: result.late_minutes,
-        regular_minutes: result.regular_minutes,
-        overtime_minutes: result.overtime_minutes,
-        night_minutes: result.night_minutes,
-        holiday_minutes: result.holiday_minutes,
-        is_holiday: result.is_holiday,
-      })
-      .eq('id', r.id);
+    // 회귀픽스: attendance_records UPDATE 가 admin only RLS → employee 본인
+    //   행 갱신도 거부. SECURITY DEFINER RPC 로 분 컬럼만 위임.
+    const { error: upErr } = await db.rpc('set_attendance_minutes', {
+      p_record_id: r.id,
+      p_is_late: result.is_late,
+      p_late_minutes: result.late_minutes,
+      p_regular_minutes: result.regular_minutes,
+      p_overtime_minutes: result.overtime_minutes,
+      p_night_minutes: result.night_minutes,
+      p_holiday_minutes: result.holiday_minutes,
+      p_is_holiday: result.is_holiday,
+    });
     if (!upErr) {
       updated++;
       touchedEmpMonths.add(`${r.employee_id}|${(r.date as string).slice(0, 7)}`);
@@ -775,14 +775,16 @@ export async function checkIn(companyId: string, employeeId: string, status: str
       const holidaySet = new Set<string>((holidays || []).map((h: { date: string }) => h.date));
       const { calcLateOnCheckIn } = await import('./attendance-calc');
       const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet);
-      await db
-        .from('attendance_records')
-        .update({
-          is_late: lateResult.is_late,
-          late_minutes: lateResult.late_minutes,
-          is_holiday: lateResult.is_holiday,
-        })
-        .eq('id', row.id);
+      // 회귀픽스: attendance_records UPDATE RLS 가 admin only → employee 컨텍스트에서
+      //   42501 거부. SECURITY DEFINER RPC 로 본인 행 late 컬럼만 UPDATE.
+      const { error: rpcErr } = await db.rpc('mark_attendance_late', {
+        p_employee_id: employeeId,
+        p_date: row.date || targetDate,
+        p_is_late: lateResult.is_late,
+        p_late_minutes: lateResult.late_minutes,
+        p_is_holiday: lateResult.is_holiday,
+      });
+      if (rpcErr) throw rpcErr;
     }
   } catch (e) {
     if (typeof window !== 'undefined') {
