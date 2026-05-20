@@ -1,0 +1,49 @@
+name: preflight (DB applied + RLS smoke)
+
+# P0-3 + P0-5 게이트.
+#   - check:migrations — supabase/migrations/*.sql ↔ applied_migrations ledger diff
+#     → 미적용 1건이라도 있으면 fail
+#   - smoke:rls — authenticated 컨텍스트 부트스트랩 sim (lessons.md 검증 기법)
+#     재귀/timeout/hung 감지 시 fail
+#
+# 활성화 조건: 레포 Secrets 에 SUPABASE_ACCESS_TOKEN 추가 후 자동 동작.
+#   토큰 없으면 step 이 skip(or fail-soft) — main 머지 차단은 branch protection
+#   에서 본 워크플로를 "required check" 로 설정해 강제.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: check migrations applied
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/check-migrations.mjs
+
+      - name: RLS regression smoke
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/rls-smoke.mjs
+
+      - name: warn if secret missing
+        if: ${{ env.SUPABASE_ACCESS_TOKEN == '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "::warning::SUPABASE_ACCESS_TOKEN secret not set — preflight gates skipped. Add it in repo Settings > Secrets to activate."
