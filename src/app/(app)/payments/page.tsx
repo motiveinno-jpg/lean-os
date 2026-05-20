@@ -13,6 +13,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 import { supabase } from "@/lib/supabase";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
@@ -20,14 +21,7 @@ type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
 export default function PaymentsPage() {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="자금/결제는 대표·관리자 전용입니다." />;
   }
 
   const [companyId, setCompanyId] = useState<string | null>(null);

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { QueryErrorBanner } from "@/components/query-status";
+import { AccessDenied } from "@/components/access-denied";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase as any;
@@ -29,14 +30,7 @@ function fmtW(n: number): string {
 export default function BillingPage() {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="요금제 / 결제는 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("plan");

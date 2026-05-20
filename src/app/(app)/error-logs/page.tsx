@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { explainError } from "@/lib/error-logger";
+import { AccessDenied } from "@/components/access-denied";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -140,14 +141,7 @@ export default function ErrorLogsPage() {
     return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
   if (!isOperator) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">서비스 운영자 전용 페이지입니다.</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied title="서비스 운영자 전용 페이지" detail="에러 로그 열람은 OwnerView 운영자만 가능합니다." />;
   }
 
   return (

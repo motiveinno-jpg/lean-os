@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import CostsChart from "./costs-chart";
 
@@ -63,14 +64,7 @@ export default function CostsPage() {
   }, [rows]);
 
   if (blocked) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="비용 리포트는 대표·관리자 전용입니다." />;
   }
 
   return (

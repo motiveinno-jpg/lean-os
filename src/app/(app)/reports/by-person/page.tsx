@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 import ByPersonChart from "./by-person-chart";
 
 /* ------------------------------------------------------------------ */
@@ -203,14 +204,7 @@ export default function ByPersonPage() {
   }, [rows]);
 
   if (blocked) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="인별 리포트는 대표·관리자 전용입니다." />;
   }
 
   return (

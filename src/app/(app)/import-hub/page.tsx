@@ -13,6 +13,7 @@ import { setupRecurringFromExcel } from "@/lib/smart-setup";
 import { runAllAutomation } from "@/lib/automation";
 import { useQuery } from "@tanstack/react-query";
 import { QueryErrorBanner } from "@/components/query-status";
+import { AccessDenied } from "@/components/access-denied";
 import * as XLSX from "xlsx";
 
 const db = supabase as any;
@@ -402,12 +403,7 @@ export default function ImportHubPage() {
 
   // ── 접근 제어 ──
   if (role !== "owner" && role !== "admin") {
-    return (
-      <div className="p-8 text-center text-[var(--text-muted)]">
-        <p className="text-lg font-semibold">접근 권한이 없습니다</p>
-        <p className="text-sm mt-1">대표 또는 관리자만 사용할 수 있습니다.</p>
-      </div>
-    );
+    return <AccessDenied detail="데이터 통합 가져오기는 대표·관리자 전용입니다." />;
   }
 
   return (

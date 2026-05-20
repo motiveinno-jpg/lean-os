@@ -17,6 +17,7 @@ import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardMonthlyUsage, CardAutoTransferHistory } from "@/components/card-insights";
+import { AccessDenied } from "@/components/access-denied";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -37,14 +38,7 @@ export default function TransactionsPage() {
 export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: TransactionsViewProps = {}) {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="통장 거래 내역은 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { AccessDenied } from "@/components/access-denied";
 
 function isPlatformOperator(email?: string | null): boolean {
   return !!email && /@mo-tive\.com$/i.test(email.trim());
@@ -49,14 +50,7 @@ export default function OperatorUsersPage() {
 
   if (loading) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (!isOperator) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">서비스 운영자 전용 페이지입니다.</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied title="서비스 운영자 전용 페이지" detail="사용자 관리는 OwnerView 운영자만 가능합니다." />;
   }
 
   const doLookup = async (q?: string) => {

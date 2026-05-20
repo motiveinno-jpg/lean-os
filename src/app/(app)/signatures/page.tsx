@@ -24,20 +24,14 @@ import {
 } from "@/lib/signatures";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 
 type Signer = { name: string; email: string; phone: string };
 
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">관리자에게 문의하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="전자서명 대시보드는 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();
   const qc = useQueryClient();

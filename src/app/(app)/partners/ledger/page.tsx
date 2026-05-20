@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 
 // 거래처원장 — 거래처별 매출/매입 세금계산서 합계 + 클릭 시 세부 내역
 interface Row {
@@ -22,7 +23,7 @@ function fmt(n: number) { return n.toLocaleString('ko-KR'); }
 export default function PartnerLedgerPage() {
   const { role } = useUser();
   if (role === 'employee' || role === 'partner') {
-    return <div className="p-8 text-center text-sm text-[var(--text-muted)]">접근 권한이 없습니다.</div>;
+    return <AccessDenied detail="거래처 원장은 대표·관리자 전용입니다." />;
   }
   const [rows, setRows] = useState<Row[]>([]);
   const [details, setDetails] = useState<Record<string, any[]>>({});

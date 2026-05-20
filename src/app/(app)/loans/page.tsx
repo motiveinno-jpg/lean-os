@@ -21,6 +21,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 
 type Tab = "list" | "payments" | "register" | "match";
 
@@ -171,14 +172,7 @@ const LOAN_TYPES: Record<string, string> = {
 export default function LoansPage() {
   const { role } = useUser();
   if (role !== "owner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">대표 계정으로 로그인하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="대출 관리는 대표 계정 전용입니다." />;
   }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);

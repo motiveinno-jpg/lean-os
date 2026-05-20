@@ -22,6 +22,7 @@ import { useToast } from "@/components/toast";
 import { CurrencyInput } from "@/components/currency-input";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useUser } from "@/components/user-context";
+import { AccessDenied } from "@/components/access-denied";
 
 type Tab = "accounts" | "assets" | "docs" | "discovery";
 
@@ -54,14 +55,7 @@ const DOC_CATEGORIES: Record<string, string> = {
 export default function VaultPage() {
   const { role } = useUser();
   if (role !== "owner") {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-[var(--text-muted)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">접근 권한이 없습니다</p>
-          <p className="text-sm mt-1">대표 계정으로 로그인하세요</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
   }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
