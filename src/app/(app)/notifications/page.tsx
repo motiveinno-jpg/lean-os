@@ -16,15 +16,35 @@ interface NotificationRow {
   created_at: string;
 }
 
+// v4 D4: entity_type 기반 1차 라우팅. entity_id 가 있으면 상세 진입.
 const ENTITY_HREF: Record<string, (id: string) => string> = {
-  deal: (id) => `/deals?id=${id}`,
+  deal: (id) => `/projects?deal=${id}`,
   approval: () => `/approvals`,
   invoice: () => `/tax-invoices`,
   payment: () => `/payments`,
   chat: () => `/chat`,
-  document: () => `/documents`,
+  document: (id) => `/documents?id=${id}`,           // 견적서/계약서 상세
+  document_share: (id) => `/documents?id=${id}`,     // 공유 피드백 → 문서 상세
+  signature_request: () => `/signatures`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/employees?tab=leave`,
+  attendance_edit_request: () => `/employees?tab=attendance`,
+  expense_request: () => `/payments?tab=expenses`,
+};
+
+// v4 D4: type 기반 fallback — entity_type=null 인 경우 (피드백 알림 등).
+//   직원 보고 캡처: type='document', entity_type=null, entity_id=<doc_id> 였음 →
+//   기존 코드는 entity_type 매핑 실패 후 /dashboard 로 가버림 (버그).
+const TYPE_HREF: Record<string, (id: string | null) => string> = {
+  document: (id) => id ? `/documents?id=${id}` : `/documents`,
+  document_feedback: (id) => id ? `/documents?id=${id}` : `/documents`,
+  signature_request: (id) => id ? `/sign?id=${id}` : `/signatures`,
+  deal_update: (id) => id ? `/projects?deal=${id}` : `/projects`,
+  payment_due: () => `/payments`,
+  expense_request: () => `/payments?tab=expenses`,
+  contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
+  approval: () => `/approvals`,
+  chat: () => `/chat`,
 };
 
 export default function NotificationsPage() {
@@ -91,9 +111,13 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-2">
           {rows.map(n => {
-            const href = n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]
+            // v4 D4: 1) entity_type 매핑 우선, 2) entity_type=null 이면 type 기반 fallback,
+            //          3) 둘 다 실패 시에만 /dashboard.
+            const href = (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type])
               ? ENTITY_HREF[n.entity_type](n.entity_id)
-              : '/dashboard';
+              : (TYPE_HREF[n.type]
+                  ? TYPE_HREF[n.type](n.entity_id)
+                  : '/dashboard');
             const date = n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '';
             return (
               <Link key={n.id} href={href}

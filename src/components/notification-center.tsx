@@ -353,8 +353,9 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
   if (t.includes("deal") || t.includes("프로젝트")) return "/deals";
   if (t.includes("partner") || t.includes("거래처")) return "/partners";
   if (t.includes("employee") || t.includes("직원") || t.includes("급여")) return "/employees";
-  if (t.includes("signature") || t.includes("서명")) return "/documents?tab=signatures";
-  if (t.includes("doc") || t.includes("문서") || t.includes("contract")) return "/documents";
+  if (t.includes("signature") || t.includes("서명")) return entityId ? `/documents?id=${entityId}` : "/documents?tab=signatures";
+  // v4 D4: type='document' + entity_id 있으면 견적서/계약서 상세로 (피드백 알림 라우팅 버그 수정)
+  if (t.includes("doc") || t.includes("문서") || t.includes("contract")) return entityId ? `/documents?id=${entityId}` : "/documents";
   if (t.includes("vault") || t.includes("자산")) return "/vault";
   if (t.includes("loan") || t.includes("대출")) return "/loans";
   // 3) fallback — 알림 클릭 시 무조건 어디든 이동
