@@ -240,7 +240,7 @@ export async function bulkCreateDeals(params: {
     .single();
 
   if (programError || !program) {
-    throw new Error("프로그램 접근 권한이 없습니다");
+    throw new Error("프로젝트 접근 권한이 없습니다");
   }
 
   let success = 0;
@@ -436,7 +436,7 @@ export async function addProgramColumn(
   column: Omit<ColumnConfig, "id">,
 ): Promise<ColumnConfig> {
   const program = await getProgram(programId);
-  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+  if (!program) throw new Error("프로젝트를 찾을 수 없습니다");
 
   const template = (program.deal_template as DealTemplate) || {};
   const columns = template.columns || [];
@@ -455,7 +455,7 @@ export async function removeProgramColumn(
   columnId: string,
 ): Promise<void> {
   const program = await getProgram(programId);
-  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+  if (!program) throw new Error("프로젝트를 찾을 수 없습니다");
 
   const template = (program.deal_template as DealTemplate) || {};
   const columns = (template.columns || []).filter((c) => c.id !== columnId);
@@ -470,7 +470,7 @@ export async function updateProgramColumns(
   columns: ColumnConfig[],
 ): Promise<void> {
   const program = await getProgram(programId);
-  if (!program) throw new Error("프로그램을 찾을 수 없습니다");
+  if (!program) throw new Error("프로젝트를 찾을 수 없습니다");
 
   const template = (program.deal_template as DealTemplate) || {};
   await updateProgram(programId, {

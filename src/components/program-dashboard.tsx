@@ -91,13 +91,13 @@ export function ProgramCards({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-bold text-[var(--text-muted)]">
-          프로그램 ({programs.length})
+          프로젝트 ({programs.length}) <span className="text-[10px] font-medium text-[var(--text-dim)] ml-1">· 프로젝트 안에 딜이 들어갑니다</span>
         </h2>
         <button
           onClick={onCreateProgram}
           className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
         >
-          + 새 프로그램
+          + 새 프로젝트
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -219,7 +219,7 @@ export function CreateProgramModal({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("프로그램명을 입력하세요");
+      if (!form.name.trim()) throw new Error("프로젝트명을 입력하세요");
       return createProgram({
         companyId,
         name: form.name.trim(),
@@ -234,7 +234,7 @@ export function CreateProgramModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
-      toast("프로그램이 생성되었습니다", "success");
+      toast("프로젝트가 생성되었습니다", "success");
       onClose();
     },
     onError: (err: Error) => toast(friendlyError(err, "처리에 실패했습니다."), "error"),
@@ -243,12 +243,12 @@ export function CreateProgramModal({
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold mb-4">새 프로그램 생성</h2>
+        <h2 className="text-lg font-bold mb-4">새 프로젝트 생성</h2>
 
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">
-              프로그램명 *
+              프로젝트명 *
             </label>
             <input
               value={form.name}
@@ -263,7 +263,7 @@ export function CreateProgramModal({
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="프로그램 설명 (선택)"
+              placeholder="프로젝트 설명 (선택)"
               rows={2}
               className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
             />
@@ -339,7 +339,7 @@ export function CreateProgramModal({
             disabled={!form.name.trim() || mutation.isPending}
             className="flex-1 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
           >
-            {mutation.isPending ? "생성 중..." : "프로그램 생성"}
+            {mutation.isPending ? "생성 중..." : "프로젝트 생성"}
           </button>
           <button
             onClick={onClose}
@@ -1157,7 +1157,7 @@ export function ProgramDashboard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["program"] });
       queryClient.invalidateQueries({ queryKey: ["programs"] });
-      toast("프로그램 정보가 수정되었습니다", "success");
+      toast("프로젝트 정보가 수정되었습니다", "success");
       setShowSettings(false);
     },
     onError: (err: Error) => toast(friendlyError(err, "처리에 실패했습니다."), "error"),
@@ -1665,10 +1665,10 @@ function ProgramSettings({
 
   return (
     <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-6">
-      <h3 className="text-sm font-bold mb-4">프로그램 설정</h3>
+      <h3 className="text-sm font-bold mb-4">프로젝트 설정</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">프로그램명</label>
+          <label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트명</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
