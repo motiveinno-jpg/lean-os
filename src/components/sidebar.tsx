@@ -15,7 +15,9 @@ import { useUser, type UserRole } from "@/components/user-context";
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
-// ── 사이드바 구조 — 3개 큰 카테고리(홈/인사관리/회계관리) + 시스템
+// ── 사이드바 구조 — 6 그룹 (2026-05-20 시스템 그룹 폐지, 일상 작업→운영 도구→설정 흐름)
+//   홈 → 소통·결재 → 인사관리 → 회계관리 → 자금·결제 → 설정·도움말.
+//   라우트/role/icon 무변경. operatorOnly 항목은 filterNavForRole 가 자동 숨김.
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
@@ -30,6 +32,14 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/deals", label: "프로젝트", icon: "briefcase", roles: ["partner", "employee"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
+    ],
+  },
+  {
+    label: "소통·결재",
+    items: [
+      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
+      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
+      { href: "/announcements", label: "공지사항", icon: "megaphone" },
     ],
   },
   {
@@ -55,22 +65,24 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "시스템",
+    label: "자금·결제",
     items: [
-      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
-      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
       { href: "/payments", label: "결제 / 고정비", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
       { href: "/matching", label: "입금 자동매칭", icon: "link", roles: ["owner"] },
       { href: "/vault", label: "자산 / 구독", icon: "shield", roles: ["owner"] },
       { href: "/import-hub", label: "엑셀 가져오기", icon: "upload", roles: ["owner", "admin"] },
+    ],
+  },
+  {
+    label: "설정·도움말",
+    items: [
+      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/mypage", label: "내 계정", icon: "user" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/error-logs", label: "에러 모니터링", icon: "alert-triangle", operatorOnly: true },
       { href: "/operator-users", label: "유저 계정 관리", icon: "user-cog", operatorOnly: true },
-      { href: "/announcements", label: "공지사항", icon: "megaphone" },
-      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
     ],
   },
 ];
