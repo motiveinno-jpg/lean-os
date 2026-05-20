@@ -5049,6 +5049,8 @@ export type Database = {
       }
       signature_requests: {
         Row: {
+          batch_id: string | null
+          batch_seq: number | null
           company_id: string
           created_at: string | null
           created_by: string | null
@@ -5056,6 +5058,7 @@ export type Database = {
           expires_at: string | null
           id: string
           ip_address: string | null
+          partner_id: string | null
           sent_at: string | null
           signature_data: Json | null
           signed_at: string | null
@@ -5067,6 +5070,8 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          batch_id?: string | null
+          batch_seq?: number | null
           company_id: string
           created_at?: string | null
           created_by?: string | null
@@ -5074,6 +5079,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           ip_address?: string | null
+          partner_id?: string | null
           sent_at?: string | null
           signature_data?: Json | null
           signed_at?: string | null
@@ -5085,6 +5091,8 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          batch_id?: string | null
+          batch_seq?: number | null
           company_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -5092,6 +5100,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           ip_address?: string | null
+          partner_id?: string | null
           sent_at?: string | null
           signature_data?: Json | null
           signed_at?: string | null
@@ -5122,6 +5131,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_requests_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]

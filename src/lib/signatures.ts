@@ -295,6 +295,210 @@ export async function createBulkSignatureRequests(params: {
   return { created: ids.length, sent, failed, ids };
 }
 
+// ── 거래처(미가입 단체) 일괄 서명요청 ──
+//   기존 단건 createSignatureRequest 코드경로를 그대로 호출(회귀 0)하고
+//   partner_id / batch_id / batch_seq 만 추가로 채워 묶음을 식별한다.
+//   변수 치환은 documents.fillVariables 재사용. send-signature-email 엣지는
+//   sendSignatureEmail 한 곳에서만 호출 (엣지 무수정).
+export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_email'|'business_number'|'address';
+
+export async function createBulkSignatureRequestsToOrgs(params: {
+  companyId: string;
+  createdBy: string;
+  documentId: string;
+  titleTemplate: string;
+  expiresInDays?: number;
+  partnerIds: string[];
+  variableMap: Record<string, PartnerVarColumn>;
+  commonVariables?: Record<string, string>;
+  perPartnerOverrides?: Record<string /*partnerId*/, Record<string /*varName*/, string>>;
+  sendEmails?: boolean;
+}): Promise<{
+  batchId: string;
+  created: number;
+  sent: number;
+  failed: number;
+  skipped: { partnerId: string; reason: string }[];
+  errors: { partnerId: string; reason: string }[];
+}> {
+  const {
+    companyId,
+    createdBy,
+    documentId,
+    titleTemplate,
+    partnerIds,
+    variableMap,
+    commonVariables = {},
+    perPartnerOverrides = {},
+    sendEmails = true,
+  } = params;
+
+  const batchId = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+    ? (crypto as any).randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const skipped: { partnerId: string; reason: string }[] = [];
+  const errors: { partnerId: string; reason: string }[] = [];
+  let createdCount = 0;
+  let sentCount = 0;
+  let failedCount = 0;
+
+  if (!partnerIds || partnerIds.length === 0) {
+    return { batchId, created: 0, sent: 0, failed: 0, skipped, errors };
+  }
+
+  // documents.fillVariables 동적 import — 순환 방지
+  const { fillVariables } = await import('./documents');
+
+  // 1) 회사 격리 가드 + 데이터 한 번에 조회
+  const { data: partners, error: pErr } = await db
+    .from('partners')
+    .select('id, name, representative, contact_name, contact_email, business_number, address')
+    .eq('company_id', companyId)
+    .in('id', partnerIds);
+
+  if (pErr) throw pErr;
+
+  const partnerMap = new Map<string, any>();
+  for (const p of (partners || [])) partnerMap.set(p.id, p);
+
+  // 2) 사전 차단: 조회 실패 / contact_email 누락
+  const eligible: any[] = [];
+  for (const pid of partnerIds) {
+    const p = partnerMap.get(pid);
+    if (!p) {
+      skipped.push({ partnerId: pid, reason: '거래처를 찾을 수 없거나 회사에 속하지 않습니다.' });
+      continue;
+    }
+    if (!p.contact_email || !String(p.contact_email).trim()) {
+      skipped.push({ partnerId: pid, reason: '담당자 이메일이 등록되어 있지 않습니다.' });
+      continue;
+    }
+    eligible.push(p);
+  }
+
+  // 3) chunk 5 동시성으로 처리 (RLS·이메일 한도 고려)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + (params.expiresInDays ?? 14));
+  const expiresIso = expiresAt.toISOString();
+
+  const buildVars = (p: any): Record<string, string> => {
+    const mapped: Record<string, string> = {};
+    for (const [varName, col] of Object.entries(variableMap)) {
+      if (!varName) continue;
+      const v = p?.[col];
+      mapped[varName] = v == null ? '' : String(v);
+    }
+    return { ...commonVariables, ...mapped, ...(perPartnerOverrides[p.id] || {}) };
+  };
+
+  // batch_seq 1-base (원 partnerIds 순서 보존)
+  const seqMap = new Map<string, number>();
+  partnerIds.forEach((id, idx) => seqMap.set(id, idx + 1));
+
+  const runOne = async (p: any) => {
+    try {
+      const vars = buildVars(p);
+      const renderedTitle = fillVariables({ t: titleTemplate } as any, vars).t as string;
+      const created = await createSignatureRequest({
+        companyId,
+        documentId,
+        title: renderedTitle || titleTemplate,
+        signerName: p.contact_name || p.representative || p.name,
+        signerEmail: String(p.contact_email).trim(),
+        createdBy,
+      });
+      // partner_id/batch_id/batch_seq + 만료(요청한 expiresInDays) 보정
+      const { error: upErr } = await db
+        .from('signature_requests')
+        .update({
+          partner_id: p.id,
+          batch_id: batchId,
+          batch_seq: seqMap.get(p.id) ?? null,
+          expires_at: expiresIso,
+        })
+        .eq('id', created.id);
+      if (upErr) {
+        // 23505 = 같은 batch 안 partner 중복 (uq_signature_requests_batch_partner)
+        // 원행은 이미 생성됐으니 단건은 살려두고 errors 로 보고
+        errors.push({ partnerId: p.id, reason: upErr.message || '배치 메타 업데이트 실패' });
+        return;
+      }
+      createdCount += 1;
+
+      if (sendEmails) {
+        const r = await sendSignatureEmail(created.id);
+        if (r.success) sentCount += 1;
+        else {
+          failedCount += 1;
+          errors.push({ partnerId: p.id, reason: r.error || '이메일 발송 실패' });
+        }
+      }
+    } catch (e: any) {
+      errors.push({ partnerId: p.id, reason: e?.message || '서명 요청 생성 실패' });
+    }
+  };
+
+  const CHUNK = 5;
+  for (let i = 0; i < eligible.length; i += CHUNK) {
+    const slice = eligible.slice(i, i + CHUNK);
+    await Promise.allSettled(slice.map(runOne));
+  }
+
+  return {
+    batchId,
+    created: createdCount,
+    sent: sentCount,
+    failed: failedCount,
+    skipped,
+    errors,
+  };
+}
+
+// 일괄 발송 진행도 (목록 뱃지·재시도 UI 용)
+export async function getBatchProgress(batchId: string): Promise<{
+  total: number;
+  created: number;
+  sent: number;
+  viewed: number;
+  signed: number;
+  rejected: number;
+  expired: number;
+}> {
+  const { data, error } = await db
+    .from('signature_requests')
+    .select('status')
+    .eq('batch_id', batchId);
+  if (error) throw error;
+  const rows = (data || []) as { status: string }[];
+  const total = rows.length;
+  const c = { created: total, sent: 0, viewed: 0, signed: 0, rejected: 0, expired: 0 };
+  for (const r of rows) {
+    if (r.status === 'sent') c.sent += 1;
+    else if (r.status === 'viewed') c.viewed += 1;
+    else if (r.status === 'signed') c.signed += 1;
+    else if (r.status === 'rejected') c.rejected += 1;
+    else if (r.status === 'expired') c.expired += 1;
+  }
+  return { total, ...c };
+}
+
+// 같은 batch_id 안에서 실패한(미발송) partner_id 목록 (재시도 진입용)
+export async function getFailedPartnersInBatch(batchId: string): Promise<{
+  partnerIds: string[];
+}> {
+  const { data, error } = await db
+    .from('signature_requests')
+    .select('partner_id, status')
+    .eq('batch_id', batchId)
+    .in('status', ['pending']);
+  if (error) throw error;
+  const partnerIds = ((data || []) as { partner_id: string|null }[])
+    .map((r) => r.partner_id)
+    .filter((x): x is string => !!x);
+  return { partnerIds };
+}
+
 // ── Send Signature Reminder (리마인더 발송) ──
 export async function sendSignatureReminder(signatureRequestId: string): Promise<{ success: boolean; error?: string }> {
   const req = await getSignatureRequest(signatureRequestId);
