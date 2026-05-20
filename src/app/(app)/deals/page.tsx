@@ -86,8 +86,18 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '', classification: '', vat_type: 'inclusive' });
+  // v4 D2: editForm 에 partner_id + counterparty 추가 — 거래처 변경 가능하게.
+  const [editForm, setEditForm] = useState({ name: '', contract_total: '', start_date: '', end_date: '', status: '', priority: '', classification: '', vat_type: 'inclusive', partner_id: '' as string, counterparty: '' });
+  const [editPartnerSearch, setEditPartnerSearch] = useState('');
+  const [editPartnerResults, setEditPartnerResults] = useState<{ id: string; name: string; business_number?: string }[]>([]);
+  const [editPartnerFocused, setEditPartnerFocused] = useState(false);
+  // v4 D1: F2 키로 전체 거래처 목록 모달 + 검색
+  const [showAllPartnersModal, setShowAllPartnersModal] = useState(false);
+  const [allPartnersList, setAllPartnersList] = useState<{ id: string; name: string; business_number?: string }[]>([]);
+  const [allPartnersSearch, setAllPartnersSearch] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db2 = supabase as any;
   const { toast } = useToast();
   const [quoteItems, setQuoteItems] = useState<any[]>([]);
   const [quoteContent, setQuoteContent] = useState('');
@@ -138,8 +148,47 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
 
   function startEdit() {
     if (!deal) return;
-    setEditForm({ name: deal.name || '', contract_total: String(deal.contract_total || ''), start_date: deal.start_date || '', end_date: deal.end_date || '', status: deal.status || 'active', priority: deal.priority || 'medium', classification: deal.classification || 'B2B', vat_type: deal.vat_type || 'inclusive' });
+    // v4 D2: 거래처 정보도 폼에 채움 — partner_id 우선, fallback counterparty 텍스트
+    setEditForm({
+      name: deal.name || '',
+      contract_total: String(deal.contract_total || ''),
+      start_date: deal.start_date || '',
+      end_date: deal.end_date || '',
+      status: deal.status || 'active',
+      priority: deal.priority || 'medium',
+      classification: deal.classification || 'B2B',
+      vat_type: deal.vat_type || 'inclusive',
+      partner_id: (deal as { partner_id?: string }).partner_id || '',
+      counterparty: (deal as { counterparty?: string; partners?: { name?: string } }).partners?.name || (deal as { counterparty?: string }).counterparty || '',
+    });
     setEditMode(true);
+  }
+
+  // v4 D2: 거래처 검색 (수정 폼)
+  async function searchEditPartners(q: string) {
+    setEditPartnerSearch(q);
+    if (!companyId || !q.trim()) { setEditPartnerResults([]); return; }
+    const { data } = await db2
+      .from('partners')
+      .select('id, name, business_number')
+      .eq('company_id', companyId)
+      .ilike('name', `%${q.trim()}%`)
+      .limit(10);
+    setEditPartnerResults(data || []);
+  }
+
+  // v4 D1: F2 키 → 전체 거래처 목록 모달 (수정·생성 폼 공통 사용)
+  async function openAllPartnersModal() {
+    if (!companyId) return;
+    setShowAllPartnersModal(true);
+    setAllPartnersSearch('');
+    const { data } = await db2
+      .from('partners')
+      .select('id, name, business_number')
+      .eq('company_id', companyId)
+      .order('name', { ascending: true })
+      .limit(500);
+    setAllPartnersList(data || []);
   }
 
   async function saveEdit() {
@@ -156,6 +205,17 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       if (editForm.priority !== (deal.priority || 'medium')) updates.priority = editForm.priority;
       if (editForm.classification !== (deal.classification || 'B2B')) updates.classification = editForm.classification;
       if (editForm.vat_type !== (deal.vat_type || 'inclusive')) updates.vat_type = editForm.vat_type;
+      // v4 D2: 거래처 변경 detect
+      const currentPartnerId = (deal as { partner_id?: string }).partner_id || '';
+      const currentCounterparty = (deal as { counterparty?: string }).counterparty || '';
+      if (editForm.partner_id && editForm.partner_id !== currentPartnerId) {
+        (updates as { partner_id?: string }).partner_id = editForm.partner_id;
+        (updates as { counterparty?: string }).counterparty = editForm.counterparty || null as unknown as string;
+      } else if (!editForm.partner_id && editForm.counterparty !== currentCounterparty) {
+        // partner_id 없이 텍스트만 변경 (자유 입력 케이스)
+        (updates as { counterparty?: string }).counterparty = editForm.counterparty || null as unknown as string;
+        if (currentPartnerId) (updates as { partner_id?: string | null }).partner_id = null;
+      }
       if (Object.keys(updates).length === 0) { setEditMode(false); setEditSaving(false); return; }
       const { error } = await (supabase as any).from('deals').update(updates).eq('id', dealId);
       if (error) throw error;
@@ -184,6 +244,44 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label><select value={editForm.priority} onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option><option value="urgent">긴급</option></select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label><select value={editForm.classification} onChange={(e) => setEditForm({ ...editForm, classification: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">{(() => { const defaults = ['B2B', 'B2C', 'B2G']; const customNames = editClassifications.map((c: any) => c.name); const merged = [...defaults.filter(d => !customNames.includes(d)).map(d => ({ id: d, name: d })), ...editClassifications]; return merged.map((c: any) => (<option key={c.id} value={c.name}>{c.name}</option>)); })()}</select></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">VAT 구분</label><select value={editForm.vat_type} onChange={(e) => setEditForm({ ...editForm, vat_type: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="inclusive">VAT 포함</option><option value="exclusive">VAT 별도</option><option value="zero">영세율</option></select></div>
+            {/* v4 D2: 거래처 변경 — 검색 자동완성 + F2 키 전체목록 */}
+            <div className="col-span-2 relative">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">거래처 <span className="text-[10px] text-[var(--text-dim)] ml-1">(F2 키로 전체 목록)</span></label>
+              <input
+                value={editForm.counterparty}
+                onChange={(e) => {
+                  setEditForm({ ...editForm, counterparty: e.target.value, partner_id: '' });
+                  searchEditPartners(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'F2') { e.preventDefault(); openAllPartnersModal(); }
+                }}
+                onFocus={() => setEditPartnerFocused(true)}
+                onBlur={() => setTimeout(() => setEditPartnerFocused(false), 200)}
+                placeholder="거래처명 검색 (또는 F2)"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+              {editPartnerFocused && editPartnerResults.length > 0 && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                  {editPartnerResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setEditForm({ ...editForm, partner_id: p.id, counterparty: p.name });
+                        setEditPartnerResults([]);
+                        setEditPartnerFocused(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition"
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      {p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <button onClick={saveEdit} disabled={editSaving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editSaving ? '저장 중...' : '저장'}</button>
         </div>
@@ -259,6 +357,51 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       <DealAssigneesPanel dealId={dealId} companyId={companyId} assignments={assignments} canEdit={!isPartnerView} />
       <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
       <DealChatWithFiles dealId={dealId} companyId={companyId} userId={userId} dealChannel={dealChannel} createChannelMut={createChannelMut} recentMessages={recentMessages} chatMsg={chatMsg} setChatMsg={setChatMsg} sendChatMut={sendChatMut} />
+
+      {/* v4 D1: F2 키 → 전체 거래처 목록 모달 (수정 폼 사용) */}
+      {showAllPartnersModal && (
+        <div className="fixed inset-0 z-[60] bg-black/60 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowAllPartnersModal(false)}>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between sticky top-0 bg-[var(--bg-card)] rounded-t-2xl">
+              <h3 className="text-sm font-bold">전체 거래처 ({allPartnersList.length})</h3>
+              <button onClick={() => setShowAllPartnersModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xs">닫기 (ESC)</button>
+            </div>
+            <div className="p-3">
+              <input
+                autoFocus
+                value={allPartnersSearch}
+                onChange={(e) => setAllPartnersSearch(e.target.value)}
+                placeholder="검색 (이름·사업자번호)"
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] mb-2"
+              />
+              <div className="max-h-[60vh] overflow-y-auto space-y-1">
+                {allPartnersList
+                  .filter((p) => {
+                    const q = allPartnersSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return p.name.toLowerCase().includes(q) || (p.business_number || '').includes(q);
+                  })
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setEditForm({ ...editForm, partner_id: p.id, counterparty: p.name });
+                        setShowAllPartnersModal(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-sm transition"
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      {p.business_number && <span className="text-xs text-[var(--text-muted)] ml-2">{p.business_number}</span>}
+                    </button>
+                  ))}
+                {allPartnersList.length === 0 && (
+                  <div className="text-center text-xs text-[var(--text-dim)] py-6">등록된 거래처가 없습니다.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
