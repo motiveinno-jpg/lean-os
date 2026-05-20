@@ -185,9 +185,11 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
         <div className="flex items-center gap-2">
           {/* 전체공유 / 개인 보기 전환 */}
           <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl">
+            {/* v4 S1: 3 모드 — 전체공유 / 개인 / 통합(both) */}
             {([
               ["shared", "🏢 전체공유"],
               ["personal", "🙋 개인"],
+              ["both", "🪟 통합"],
             ] as [ScheduleScope, string][]).map(([k, label]) => (
               <button
                 key={k}
@@ -200,7 +202,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                 title={
                   k === "shared"
                     ? "회사 전 구성원이 함께 보는 일정"
-                    : "나만 보이는 개인 일정"
+                    : k === "personal"
+                      ? "나만 보이는 개인 일정"
+                      : "전체공유 + 본인 개인 일정 함께 보기"
                 }
               >
                 {label}
@@ -218,7 +222,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       <p className="text-[10px] text-[var(--text-dim)]">
         {scope === "shared"
           ? "🏢 전체공유 일정 — 회사 모든 구성원에게 보입니다."
-          : "🙋 개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."}
+          : scope === "personal"
+            ? "🙋 개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."
+            : "🪟 통합 보기 — 🏢 전체공유와 🙋 본인 개인 일정을 함께 표시합니다 (이벤트 좌측 아이콘으로 구분)."}
       </p>
 
       {/* Calendar Grid */}
@@ -281,6 +287,10 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                       >
                         {showLabel ? (
                           <span className={`flex-1 truncate ${e.completed ? "line-through" : ""}`}>
+                            {/* v4 S1: 통합 모드일 때 공유/개인 구분 아이콘 prefix */}
+                            {scope === "both" && (
+                              <span className="mr-0.5 opacity-70">{e.is_shared ? "🏢" : "🙋"}</span>
+                            )}
                             {e.title}
                             {multi && (
                               <span className="ml-1 opacity-70 font-normal">{formatEventRange(e)}</span>

@@ -41,7 +41,9 @@ export async function toggleEventCompleted(id: string, completed: boolean): Prom
  * 으로 강제하므로, 타인의 개인 일정은 어떤 scope에서도 절대 조회되지 않는다.
  * 아래 필터는 "보기 전환"용 추가 좁히기일 뿐 보안 경계가 아니다(경계는 RLS).
  */
-export type ScheduleScope = "shared" | "personal";
+// v4 S1: 'both' 모드 추가 — 전체공유 + 본인 개인 일정 통합 표시.
+//   RLS 가 타인 개인 일정 자동 차단(보안경계). both 는 그저 두 종류 모두 노출.
+export type ScheduleScope = "shared" | "personal" | "both";
 
 export async function getMonthEvents(
   companyId: string,
@@ -65,9 +67,14 @@ export async function getMonthEvents(
   if (scope === "shared") {
     // 전체공유: 회사 전 구성원에게 노출되는 일정만
     q = q.eq("is_shared", true);
-  } else {
+  } else if (scope === "personal") {
     // 개인: 본인이 만든 비공유 일정만. userId 없으면 결과 없음(빈 배열 보장).
     q = q.eq("is_shared", false).eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
+  } else {
+    // both — 전체공유 OR 본인 개인. RLS 가 타인 개인은 차단.
+    //   필터: is_shared=true OR (is_shared=false AND user_id=본인)
+    const uid = opts?.userId ?? "00000000-0000-0000-0000-000000000000";
+    q = q.or(`is_shared.eq.true,and(is_shared.eq.false,user_id.eq.${uid})`);
   }
   const { data, error } = await q.order("start_at");
   if (error) throw error;
