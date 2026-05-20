@@ -132,6 +132,148 @@ export type Database = {
           },
         ]
       }
+      allowance_entries: {
+        Row: {
+          allowance_type_id: string
+          amount: number
+          calculated_minutes: number | null
+          company_id: string
+          count: number | null
+          created_at: string
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          id: string
+          note: string | null
+          payroll_month: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          allowance_type_id: string
+          amount?: number
+          calculated_minutes?: number | null
+          company_id: string
+          count?: number | null
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id: string
+          id?: string
+          note?: string | null
+          payroll_month: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          allowance_type_id?: string
+          amount?: number
+          calculated_minutes?: number | null
+          company_id?: string
+          count?: number | null
+          created_at?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id?: string
+          id?: string
+          note?: string | null
+          payroll_month?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allowance_entries_allowance_type_id_fkey"
+            columns: ["allowance_type_id"]
+            isOneToOne: false
+            referencedRelation: "allowance_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allowance_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allowance_entries_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allowance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      allowance_types: {
+        Row: {
+          applies_to: string
+          base_field: string | null
+          calc_mode: string
+          code: string
+          company_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_legal_mandatory: boolean
+          name: string
+          rate_amount: number
+          rate_type: string
+          target_employee_ids: string[]
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: string
+          base_field?: string | null
+          calc_mode: string
+          code: string
+          company_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_legal_mandatory?: boolean
+          name: string
+          rate_amount?: number
+          rate_type: string
+          target_employee_ids?: string[]
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string
+          base_field?: string | null
+          calc_mode?: string
+          code?: string
+          company_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_legal_mandatory?: boolean
+          name?: string
+          rate_amount?: number
+          rate_type?: string
+          target_employee_ids?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allowance_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_policies: {
         Row: {
           auto_approve: boolean | null
