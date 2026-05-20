@@ -26,6 +26,7 @@ import {
   type ColumnType,
 } from "@/lib/programs";
 import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 
 // ─── Status Config ───────────────────────────────────────
 
@@ -236,7 +237,7 @@ export function CreateProgramModal({
       toast("프로그램이 생성되었습니다", "success");
       onClose();
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => toast(friendlyError(err, "처리에 실패했습니다."), "error"),
   });
 
   return (
@@ -1056,7 +1057,7 @@ export function ProgramDashboard({
       queryClient.invalidateQueries({ queryKey: ["program-stats"] });
       queryClient.invalidateQueries({ queryKey: ["deals"] });
     } catch (err: any) {
-      toast(err.message, "error");
+      toast(friendlyError(err, "일괄 등록에 실패했습니다."), "error");
     }
     setIsBulkCreating(false);
   };
@@ -1159,7 +1160,7 @@ export function ProgramDashboard({
       toast("프로그램 정보가 수정되었습니다", "success");
       setShowSettings(false);
     },
-    onError: (err: Error) => toast(err.message, "error"),
+    onError: (err: Error) => toast(friendlyError(err, "처리에 실패했습니다."), "error"),
   });
 
   if (!program) {

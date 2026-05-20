@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -85,7 +86,7 @@ export default function SettingsPage() {
       setShowBankForm(false);
       setBankForm({ bank_name: "", account_number: "", alias: "", role: "OPERATING", balance: "", is_primary: false });
     },
-    onError: (err: any) => toast("계좌 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("계좌 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteBankMut = useMutation({
@@ -1446,7 +1447,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       setTimeout(() => setSaved(false), 2000);
     },
     onError: (err: any) => {
-      toast(`저장 실패: ${err.message || "알 수 없는 오류"}`, "error");
+      toast(`저장 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     },
   });
 
@@ -1999,7 +2000,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
       queryClient.invalidateQueries({ queryKey: ["approval-policies"] });
       resetForm();
     },
-    onError: (err: any) => toast("결재 정책 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("결재 정책 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteMut = useMutation({
@@ -2760,7 +2761,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
       setEditId(null);
       setForm({ name: '', color: '#3b82f6' });
     },
-    onError: (err: any) => toast("분류 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("분류 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteMut = useMutation({
@@ -4277,7 +4278,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       toast("인증서 파일이 업로드되었습니다.", "success");
     } catch (err: any) {
       console.error("cert upload error:", err);
-      toast(err.message || "업로드 실패", "error");
+      toast(friendlyError(err, "업로드 실패"), "error");
     } finally { setCertUploading(false); }
   }
 
@@ -4452,7 +4453,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
       console.error("credential save error:", err);
-      toast("저장 실패: " + (err.message || "알 수 없는 오류"), "error");
+      toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
     } finally { setSaving(false); }
   }
 
@@ -4922,7 +4923,7 @@ function MemberInviteTab({ companyId }: { companyId: string }) {
       return result;
     },
     onSuccess: (r) => {
-      toast(r.message || "변경되었습니다", "success");
+      toast(friendlyError(r, "변경되었습니다"), "success");
       refetchMembers();
     },
     onError: (e: any) => toast(`실패: ${e.message}`, "error"),
@@ -4956,7 +4957,7 @@ function MemberInviteTab({ companyId }: { companyId: string }) {
           const q = await qRes.json();
           if (qRes.ok) {
             if (q.status === "auto_added") {
-              toast(q.message || "이미 가입된 사용자라서 자동으로 등록했습니다.", "success");
+              toast(friendlyError(q, "이미 가입된 사용자라서 자동으로 등록했습니다."), "success");
               setInviteForm({ email: "", name: "", role: "employee" });
               refetchEmp();
               refetchPartner();
@@ -4968,7 +4969,7 @@ function MemberInviteTab({ companyId }: { companyId: string }) {
             }
             // needs_invitation — 일반 invitation 흐름으로 계속 진행
           } else if (qRes.status === 409 && q.status === "conflict") {
-            toast(q.message || "이미 다른 회사에 소속된 이메일입니다.", "error");
+            toast(friendlyError(q, "이미 다른 회사에 소속된 이메일입니다."), "error");
             return;
           } else {
             // quick-add 실패 — 일반 invitation 으로 fallback (조용히)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -246,7 +247,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       setComment("");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
-    onError: (err: any) => toast("승인 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("승인 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const rejectMut = useMutation({
@@ -258,7 +259,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       setComment("");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
-    onError: (err: any) => toast("반려 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("반려 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   if (isLoading) {
@@ -404,7 +405,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const resubmitMut = useMutation({
     mutationFn: (requestId: string) => resubmitRequest(requestId),
     onSuccess: invalidate,
-    onError: (err: any) => toast("재제출 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("재제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   if (isLoading) {
@@ -857,7 +858,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       localStorage.removeItem(`ov-approval-draft-${companyId}`);
       onComplete();
     },
-    onError: (err: any) => toast("결재 요청 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("결재 요청 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   return (
@@ -1272,13 +1273,13 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       invalidate();
       resetForm();
     },
-    onError: (err: any) => toast("정책 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("정책 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteApprovalPolicy(id),
     onSuccess: invalidate,
-    onError: (err: any) => toast("정책 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("정책 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   function resetForm() {

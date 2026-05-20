@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
 import { getCurrentUser, getDeals } from "@/lib/queries";
@@ -388,13 +389,13 @@ export default function PartnersPage() {
       businessItem: form.businessItem || undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast(editingId ? "거래처가 수정되었습니다" : "거래처가 등록되었습니다", "success"); },
-    onError: (err: Error) => { toast("저장 실패: " + (err?.message || "알 수 없는 오류"), "error"); },
+    onError: (err: Error) => { toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deletePartner(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast("거래처가 삭제되었습니다", "success"); },
-    onError: (err: Error) => { toast("삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"); },
+    onError: (err: Error) => { toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
   });
 
   const toggleActiveMutation = useMutation({

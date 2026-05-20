@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+import { friendlyError } from "@/lib/friendly-error";
 import { getCurrentUser, getDocuments, getDocTemplates, getDeals, getTaxInvoices, getDocument, getDocRevisions, getDocApprovals } from "@/lib/queries";
 import { createBlankDocument, createFromTemplate, DOC_TYPES, DOC_STATUS } from "@/lib/documents";
 import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/lib/documents";
@@ -112,7 +113,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       setBulkSigners([{ name: "", email: "", phone: "" }]);
       toast(`서명 요청 ${r.created}건 생성 · 메일 발송 ${r.sent}건${r.failed ? ` (실패 ${r.failed})` : ""}`, r.failed > 0 ? "error" : "success");
     },
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "서명 요청 처리에 실패했습니다."), "error"),
   });
 
   const { data: signAudit = [] } = useQuery({
@@ -977,7 +978,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       await applyCompanySeal({ documentId: id, companyId, appliedBy: userId });
                       invalidate();
                     } catch (err: any) {
-                      toast(err?.message || '직인 적용 실패', "error");
+                      toast(friendlyError(err, '직인 적용 실패'), "error");
                     } finally {
                       setSealApplying(false);
                     }
@@ -1019,7 +1020,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         setShowSelfSign(false);
                         setSelfSignName('');
                       } catch (err: any) {
-                        toast(err.message || '서명 처리 중 오류가 발생했습니다', 'error');
+                        toast(friendlyError(err, '서명 처리 중 오류가 발생했습니다'), 'error');
                       }
                     }}
                     disabled={!selfSignName.trim()}
@@ -1325,14 +1326,14 @@ function DocumentsPageInner() {
       setShowSignForm(false);
       setSignFormData({ documentId: "", signerName: "", signerEmail: "", signerPhone: "" });
     },
-    onError: (err: any) => toast("서명 요청 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("서명 요청 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Cancel signature mutation
   const cancelSignMut = useMutation({
     mutationFn: (id: string) => cancelSignature(id),
     onSuccess: () => invalidate(),
-    onError: (err: any) => toast("서명 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("서명 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Sign (complete) mutation — 서명하기
@@ -1344,7 +1345,7 @@ function DocumentsPageInner() {
       await saveSignature(id, { type: 'type', data: name });
     },
     onSuccess: () => { invalidate(); setSigningId(null); setSignTypeName(""); },
-    onError: (err: any) => toast("서명 완료 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("서명 완료 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const createDocMut = useMutation({
@@ -2401,7 +2402,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       setShowNewFolderForm(false);
       setNewFolderName("");
     },
-    onError: (err: any) => toast("폴더 생성 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("폴더 생성 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Delete folder mutation
@@ -2411,7 +2412,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       queryClient.invalidateQueries({ queryKey: ["document-folders"] });
       if (selectedFolderId) setSelectedFolderId(null);
     },
-    onError: (err: any) => toast("폴더 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("폴더 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Upload files

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4, getCashPulseData } from "@/lib/queries";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
@@ -1094,7 +1095,7 @@ function MyTodosWidget({ userId }: { userId: string }) {
       queryClient.invalidateQueries({ queryKey: ["dashboard-my-todos"] });
       toast("할일 완료 처리", "success");
     } catch (err: any) {
-      toast(err?.message || "처리에 실패했습니다", "error");
+      toast(friendlyError(err, "처리에 실패했습니다"), "error");
     }
     setToggling(null);
   };
@@ -2783,7 +2784,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       }
       toast("승인 처리 완료", "success");
     } catch (err: any) {
-      toast(err?.message || "승인 처리에 실패했습니다", "error");
+      toast(friendlyError(err, "승인 처리에 실패했습니다"), "error");
     }
     setApproving(null);
   };
@@ -2803,7 +2804,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
       toast(`${actions.length}건 전체 승인 완료`, "success");
     } catch (err: any) {
-      toast(err?.message || "전체 승인 처리에 실패했습니다", "error");
+      toast(friendlyError(err, "전체 승인 처리에 실패했습니다"), "error");
     }
     setBulkApproving(false);
   };
@@ -3189,7 +3190,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       toast("출근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
     } catch (err: any) {
-      toast(`출근 처리 실패: ${err.message || "알 수 없는 오류"}`, "error");
+      toast(`출근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     }
     setCheckingIn(false);
   };
@@ -3203,7 +3204,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
     } catch (err: any) {
-      toast(`퇴근 처리 실패: ${err.message || "알 수 없는 오류"}`, "error");
+      toast(`퇴근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     }
     setCheckingOut(false);
   };

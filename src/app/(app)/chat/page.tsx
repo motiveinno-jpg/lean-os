@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -1516,7 +1517,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowForm(false);
       setForm({ name: "", deal_id: "", type: "deal" });
     },
-    onError: (err: any) => toast(err?.message || "채널 생성 실패", "error"),
+    onError: (err: any) => toast(friendlyError(err, "채널 생성 실패"), "error"),
   });
 
   const createTeamMut = useMutation({
@@ -1529,7 +1530,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowTeamForm(false);
       setTeamName("");
     },
-    onError: (err: any) => toast(err?.message || "팀 채널 생성 실패", "error"),
+    onError: (err: any) => toast(friendlyError(err, "팀 채널 생성 실패"), "error"),
   });
 
   const createDMMut = useMutation({
@@ -1545,7 +1546,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
       setShowDMForm(false);
       setDmUserId("");
     },
-    onError: (err: any) => toast(err?.message || "DM 채널 생성 실패", "error"),
+    onError: (err: any) => toast(friendlyError(err, "DM 채널 생성 실패"), "error"),
   });
 
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;

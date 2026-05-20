@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -1108,13 +1109,13 @@ export default function TaxInvoicesPage() {
       });
       setPartnerSearch("");
     },
-    onError: (err: any) => toast("세금계산서 등록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("세금계산서 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const markMatchedMut = useMutation({
     mutationFn: (id: string) => markInvoiceMatched(id),
     onSuccess: invalidate,
-    onError: (err: any) => toast("매칭 처리 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("매칭 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Derived data
@@ -2183,7 +2184,7 @@ export default function TaxInvoicesPage() {
               setModifyTarget(null);
               setModifyAmount("");
             } catch (err: any) {
-              toast(`오류: ${err.message || '수정세금계산서 발행 실패'}`, "error");
+              toast(`오류: ${friendlyError(err, '수정세금계산서 발행 실패')}`, "error");
             }
           }}
         />

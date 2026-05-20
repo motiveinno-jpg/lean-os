@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import {
@@ -244,20 +245,20 @@ export default function LoansPage() {
       setTab("list");
       setForm({ name: "", lender: "", loanType: "term", originalAmount: "", remainingBalance: "", interestRate: "", startDate: "", maturityDate: "", paymentDay: "", interestDay: "", notes: "" });
     },
-    onError: (err: any) => toast("대출 등록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("대출 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const updateMut = useMutation({
     mutationFn: (params: { id: string; data: Parameters<typeof updateLoan>[1] }) =>
       updateLoan(params.id, params.data),
     onSuccess: () => { invalidate(); setEditingLoan(null); },
-    onError: (err: any) => toast("대출 수정 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("대출 수정 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteLoan,
     onSuccess: invalidate,
-    onError: (err: any) => toast("대출 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("대출 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const payMut = useMutation({
@@ -274,7 +275,7 @@ export default function LoansPage() {
       setShowPayForm(false);
       setPayForm({ loanId: "", paymentDate: "", principalAmount: "", interestAmount: "", paymentNumber: "", notes: "" });
     },
-    onError: (err: any) => toast("상환 기록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("상환 기록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const loans = summary?.loans || [];

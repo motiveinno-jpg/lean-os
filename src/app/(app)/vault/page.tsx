@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getCurrentUser,
@@ -248,7 +249,7 @@ export default function VaultPage() {
       });
       setDocForm((prev) => ({ ...prev, fileUrl: result.fileUrl }));
     } catch (err: any) {
-      toast("파일 업로드 실패: " + (err?.message || "알 수 없는 오류"), "error");
+      toast("파일 업로드 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
     } finally {
       setFileUploading(false);
     }
@@ -261,25 +262,25 @@ export default function VaultPage() {
       return patterns;
     },
     onSuccess: () => invalidate(),
-    onError: (err: any) => toast("패턴 분석 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("패턴 분석 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const acceptMut = useMutation({
     mutationFn: (id: string) => acceptDiscovery(id, companyId!),
     onSuccess: () => invalidate(),
-    onError: (err: any) => toast("발견 항목 수락 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("발견 항목 수락 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const ignoreMut = useMutation({
     mutationFn: (id: string) => dismissDiscovery(id),
     onSuccess: () => invalidate(),
-    onError: (err: any) => toast("발견 항목 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("발견 항목 무시 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const cancelAccMut = useMutation({
     mutationFn: (id: string) => updateVaultAccount(id, { status: "cancelled" }),
     onSuccess: () => invalidate(),
-    onError: (err: any) => toast("계정 해지 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("계정 해지 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const stats = vault?.stats || {

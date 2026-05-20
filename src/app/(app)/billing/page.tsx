@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -141,7 +142,7 @@ export default function BillingPage() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["referral"] }),
-    onError: (err: any) => toast("추천 코드 생성 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("추천 코드 생성 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 피드백 제출
@@ -167,7 +168,7 @@ export default function BillingPage() {
       setFbTitle("");
       setFbDesc("");
     },
-    onError: (err: any) => toast("피드백 제출 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("피드백 제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   useEffect(() => {
@@ -220,7 +221,7 @@ export default function BillingPage() {
       }
       window.location.href = result.data.url;
     } catch (err: any) {
-      toast(err.message || "결제 처리 중 오류가 발생했습니다.", "error");
+      toast(friendlyError(err, "결제 처리 중 오류가 발생했습니다."), "error");
       setIsPaymentLoading(false);
     }
   }
@@ -244,7 +245,7 @@ export default function BillingPage() {
       }
       window.location.href = result.data.url;
     } catch (err: any) {
-      toast(err.message || "구독 관리 페이지를 열 수 없습니다.", "error");
+      toast(friendlyError(err, "구독 관리 페이지를 열 수 없습니다."), "error");
       setIsPaymentLoading(false);
     }
   }

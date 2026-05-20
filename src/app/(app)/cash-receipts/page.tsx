@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
@@ -178,7 +179,7 @@ export default function CashReceiptsPage() {
             }
           } else {
             const e = payload.new.errors?.[0];
-            toast(`동기화 실패: ${e?.hint || e?.message || "알 수 없는 오류"}`, "error");
+            toast(`동기화 실패: ${e?.hint || friendlyError(e, "알 수 없는 오류")}`, "error");
           }
         }
       })

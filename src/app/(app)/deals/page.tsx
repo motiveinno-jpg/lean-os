@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -130,7 +131,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       if (error) throw error;
       toast('품목/결제 단계가 저장되었습니다', 'success');
       refetch();
-    } catch (err: any) { toast(`저장 실패: ${err?.message || '알 수 없는 오류'}`, 'error'); }
+    } catch (err: any) { toast(`저장 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'); }
     setItemsSaving(false);
   }
 
@@ -160,7 +161,7 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
       toast('딜 정보가 수정되었습니다', 'success');
       setEditMode(false);
       refetch();
-    } catch (err: any) { toast(`수정 실패: ${err?.message || '알 수 없는 오류'}`, 'error'); }
+    } catch (err: any) { toast(`수정 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'); }
     setEditSaving(false);
   }
 
@@ -316,7 +317,7 @@ function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealI
       } catch { /* 알림 실패는 무시 (지정은 성공) */ }
     },
     onSuccess: () => { invalidate(); setShowAdd(false); setSearch(''); toast('담당자가 추가되었습니다', 'success'); },
-    onError: (err: any) => toast(`담당자 추가 실패: ${err?.message || '알 수 없는 오류'}`, 'error'),
+    onError: (err: any) => toast(`담당자 추가 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'),
   });
 
   const removeMut = useMutation({
@@ -328,7 +329,7 @@ function DealAssigneesPanel({ dealId, companyId, assignments, canEdit }: { dealI
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast('담당자가 제거되었습니다', 'success'); },
-    onError: (err: any) => toast(`담당자 제거 실패: ${err?.message || '알 수 없는 오류'}`, 'error'),
+    onError: (err: any) => toast(`담당자 제거 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'),
   });
 
   const assignedUserIds = new Set(assignments.map((a: any) => a.user_id));
@@ -669,7 +670,7 @@ function DealChatWithFiles({ dealId, companyId, userId, dealChannel, createChann
           if (insertErr) { toast(`파일 기록 실패: ${insertErr.message}`, 'error'); continue; }
           successCount++;
         }
-      } catch (err: any) { toast(`파일 업로드 오류: ${err?.message || '알 수 없는 오류'}`, 'error'); }
+      } catch (err: any) { toast(`파일 업로드 오류: ${friendlyError(err, '알 수 없는 오류')}`, 'error'); }
     }
     if (successCount > 0) toast(`${successCount}개 파일 업로드 완료`, 'success');
     queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] });

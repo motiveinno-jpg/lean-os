@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
@@ -92,7 +93,7 @@ export default function SignaturesDashboardPage() {
       else toast(r.error || "리마인더 실패", "error");
       qc.invalidateQueries({ queryKey: ["signature-requests"] });
     },
-    onError: (err: any) => toast("리마인더 발송 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("리마인더 발송 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const bulkRemindMut = useMutation({
@@ -102,7 +103,7 @@ export default function SignaturesDashboardPage() {
       qc.invalidateQueries({ queryKey: ["signature-requests"] });
       setSelectedIds(new Set());
     },
-    onError: (err: any) => toast("일괄 리마인더 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("일괄 리마인더 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const cancelMut = useMutation({
@@ -111,7 +112,7 @@ export default function SignaturesDashboardPage() {
       toast("취소되었습니다", "success");
       qc.invalidateQueries({ queryKey: ["signature-requests"] });
     },
-    onError: (err: any) => toast("서명 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("서명 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const toggleSel = (id: string) => {
@@ -401,7 +402,7 @@ function InviteModal({
       );
       onCreated();
     } catch (e: any) {
-      toast(e.message || "요청 실패", "error");
+      toast(friendlyError(e, "요청 실패"), "error");
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
@@ -626,7 +627,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
         exists: !!snap?.exists,
       });
     } catch (err: any) {
-      toast(err.message || '급여 배치 생성 실패', "error");
+      toast(friendlyError(err, '급여 배치 생성 실패'), "error");
     }
     setGenerating(false);
   }
@@ -647,7 +648,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
         "success",
       );
     } catch (err: any) {
-      toast(err.message || '급여 배치 생성 실패', "error");
+      toast(friendlyError(err, '급여 배치 생성 실패'), "error");
     }
     setGenerating(false);
   }
@@ -855,7 +856,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });
       invalidate();
     } catch (err: any) {
-      toast(err.message || '고정비 배치 생성 실패', "error");
+      toast(friendlyError(err, '고정비 배치 생성 실패'), "error");
     }
     setGenerating(false);
   }

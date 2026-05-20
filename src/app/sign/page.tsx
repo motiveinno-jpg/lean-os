@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ToastProvider, useToast } from "@/components/toast";
@@ -649,7 +650,7 @@ function SignContent() {
         setTypedName("");
       }
     } catch (err: any) {
-      toast("서명 처리 중 오류: " + (err.message || "알 수 없는 오류"), "error");
+      toast("서명 처리 중 오류: " + (friendlyError(err, "알 수 없는 오류")), "error");
     } finally {
       setSigning(false);
     }

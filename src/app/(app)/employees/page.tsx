@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { friendlyError } from "@/lib/friendly-error";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts, createContract,
   CONTRACT_TYPES, updateEmployee,
@@ -367,7 +368,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const cancelMut = useMutation({
     mutationFn: (id: string) => cancelEmployeeInvitation(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
-    onError: (err: any) => toast("초대 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("초대 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 직원 삭제 (중복/초대 정리용)
@@ -1062,7 +1063,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 <span className="text-xs font-semibold text-blue-400">정보 수정 중</span>
                 <div className="flex gap-2">
                   <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
-                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(e.message || "저장 실패", "error"); } }} className="px-3 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="px-3 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
                 </div>
               </div>
             )}
@@ -1266,7 +1267,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                       queryClient.invalidateQueries({ queryKey: ["employee-files", employeeId] });
                       toast("파일이 업로드되었습니다", "success");
                     } catch (err: any) {
-                      toast(err.message || "업로드 실패", "error");
+                      toast(friendlyError(err, "업로드 실패"), "error");
                     }
                     e.target.value = "";
                   }}
@@ -1557,7 +1558,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
             toast("퇴사 처리가 완료되었습니다", "success");
             setTimeout(() => onClose(), 300);
           } catch (err: any) {
-            toast("퇴사 처리 실패: " + (err?.message || "알 수 없는 오류"), "error");
+            toast("퇴사 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
           } finally {
             setTerminating(false);
           }
@@ -1767,7 +1768,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
       });
       toast("파일이 업로드되었습니다", "success");
     } catch (err: any) {
-      toast(err.message || "업로드 실패", "error");
+      toast(friendlyError(err, "업로드 실패"), "error");
     } finally {
       setUploading(null);
     }
@@ -2113,7 +2114,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       }
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
     } catch (err: any) {
-      toast(err.message || "증명서 생성 실패", "error");
+      toast(friendlyError(err, "증명서 생성 실패"), "error");
     } finally {
       setIssuing(false);
     }
@@ -2137,7 +2138,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       salary: Number(form.salary), changeReason: form.reason, approvedBy: userId,
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-history"] }); setShowForm(false); setForm({ effectiveDate: "", salary: "", reason: "" }); },
-    onError: (err: any) => toast("급여 기록 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("급여 기록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   return (
@@ -2361,7 +2362,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
       setReqForm({ employeeId: "", title: "", templateIds: [] });
       setContractFields(buildDefaultContractFields(null));
     },
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   // 서명 요청 발송
@@ -2396,7 +2397,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
       console.error('[handleSendSignRequest] catch:', err);
-      toast("발송 실패: " + (err.message || "오류").slice(0, 200), "error");
+      toast("발송 실패: " + (friendlyError(err, "오류")).slice(0, 200), "error");
     } finally {
       setSending(null);
     }
@@ -2406,7 +2407,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
   const cancelContract = useMutation({
     mutationFn: cancelContractPackage,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contract-packages"] }),
-    onError: (err: any) => toast("계약 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("계약 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 일괄 발송
@@ -2492,7 +2493,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
       toast("직인이 적용되었습니다 (서명본/PDF에 반영됨)", "success");
     } catch (err: any) {
-      toast("직인 적용 실패: " + (err.message || "알 수 없는 오류"), "error");
+      toast("직인 적용 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
     } finally {
       setSealApplying(null);
     }
@@ -3479,19 +3480,19 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
       setForm({ title: "", amount: "", category: "general", description: "" });
       setReceiptFiles([]);
     },
-    onError: (err: any) => toast(err.message || "청구 실패", "error"),
+    onError: (err: any) => toast(friendlyError(err, "청구 실패"), "error"),
   });
 
   const approve = useMutation({
     mutationFn: (expenseId: string) => approveExpense({ companyId: companyId!, expenseId, approverId: userId! }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["payment-queue"] }); },
-    onError: (err: any) => toast("비용 승인 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("비용 승인 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const reject = useMutation({
     mutationFn: (expenseId: string) => rejectExpense({ companyId: companyId!, expenseId, approverId: userId! }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
-    onError: (err: any) => toast("비용 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("비용 반려 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   return (
@@ -3634,14 +3635,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const doCheckIn = useMutation({
     mutationFn: (employeeId: string) => checkIn(companyId!, employeeId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   // Check-out mutation
   const doCheckOut = useMutation({
     mutationFn: (employeeId: string) => checkOut(employeeId, companyId!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   // Cancel check-out mutation
@@ -3652,7 +3653,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       toast("퇴근 취소 완료", "success");
     },
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   // Admin attendance correction
@@ -3668,7 +3669,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       setEditingRecordId(null);
     },
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   const startEditing = (record: any) => {
@@ -4626,7 +4627,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       setShowForm(false);
       setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", requestedApproverId: "" });
     },
-    onError: (err: any) => toast(err.message, "error"),
+    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
   // Send promotion notice
@@ -4637,7 +4638,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] });
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-candidates"] });
     },
-    onError: (err: any) => toast("촉진 알림 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("촉진 알림 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Approve mutation
@@ -4647,14 +4648,14 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
     },
-    onError: (err: any) => toast("휴가 승인 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("휴가 승인 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Reject mutation
   const rejectMut = useMutation({
     mutationFn: (id: string) => rejectLeaveRequest(id, userId!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-requests"] }),
-    onError: (err: any) => toast("휴가 반려 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("휴가 반려 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Cancel mutation — 승인된 휴가 취소 시 잔여 복구
@@ -4665,7 +4666,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       toast("휴가가 취소되었습니다 (잔여 복구됨).", "success");
     },
-    onError: (err: any) => toast("휴가 취소 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("휴가 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Init balance mutation (수동 부여 일수)
@@ -4673,7 +4674,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     mutationFn: (params: { employeeId: string; totalDays: number }) =>
       initLeaveBalance(companyId!, params.employeeId, currentYear, params.totalDays),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
-    onError: (err: any) => toast("휴가 잔여일 설정 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("휴가 잔여일 설정 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 입사일 기준 자동 부여 (1년 미만 = 월 1일 만근, 1년+ = 근로기준법 기본)
@@ -4681,7 +4682,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     mutationFn: (params: { employeeId: string; hireDate: string }) =>
       autoInitLeaveBalance(companyId!, params.employeeId, params.hireDate, currentYear),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
-    onError: (err: any) => toast("자동 부여 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("자동 부여 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const bulkAutoMut = useMutation({
@@ -4690,7 +4691,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       toast(`입사일 기준 자동 부여 완료 (${r?.updated ?? 0}명)`, "success");
     },
-    onError: (err: any) => toast("일괄 자동 부여 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("일괄 자동 부여 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 연차 부여 방식 (자동부여 / 직접입력) — company_settings.settings JSONB
@@ -4709,7 +4710,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         "success",
       );
     },
-    onError: (err: any) => toast("부여 방식 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("부여 방식 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // R12: 연차 부여 방식 — 선택+저장 후 작은 요약으로 접힘 (변경 시 펼침)

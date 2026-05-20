@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { subscribeToBankTransactions, subscribeToCardTransactions } from "@/lib/realtime";
@@ -525,7 +526,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
       setSelectedIds(new Set());
     } catch (err: any) {
-      toast(err.message || "AI 분류 실패", "error");
+      toast(friendlyError(err, "AI 분류 실패"), "error");
     } finally {
       setAiClassifying(false);
     }
@@ -587,7 +588,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         toast(`분류 완료${fixedNote}`, "success");
       }
     },
-    onError: (err: any) => toast("거래 매핑 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("거래 매핑 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const ignoreMut = useMutation({
@@ -596,7 +597,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
     },
-    onError: (err: any) => toast("거래 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("거래 무시 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const addRuleMut = useMutation({
@@ -616,13 +617,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       setShowRuleForm(false);
       setRuleForm({ rule_name: '', match_type: 'contains', match_field: 'counterparty', match_value: '', assign_category: '', assign_classification: '', assign_deal_id: '', is_fixed_cost: false });
     },
-    onError: (err: any) => toast("분류 규칙 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("분류 규칙 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteRuleMut = useMutation({
     mutationFn: (id: string) => deleteClassificationRule(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["classification-rules"] }),
-    onError: (err: any) => toast("분류 규칙 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("분류 규칙 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // ── Card Mutations ──
@@ -634,7 +635,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
       setCardMapModal(null);
     },
-    onError: (err: any) => toast("카드 거래 매핑 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("카드 거래 매핑 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const cardIgnoreMut = useMutation({
@@ -643,7 +644,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
     },
-    onError: (err: any) => toast("카드 거래 무시 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("카드 거래 무시 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const cardRestoreMut = useMutation({
@@ -652,7 +653,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["card-tx-stats"] });
     },
-    onError: (err: any) => toast("카드 거래 복원 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("카드 거래 복원 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const upsertCardMut = useMutation({
@@ -674,13 +675,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       setEditingCard(null);
       setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '', card_type: 'credit' });
     },
-    onError: (err: any) => toast("법인카드 저장 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("법인카드 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const deleteCardMut = useMutation({
     mutationFn: (id: string) => deleteCorporateCard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }),
-    onError: (err: any) => toast("법인카드 삭제 실패: " + (err?.message || "알 수 없는 오류"), "error"),
+    onError: (err: any) => toast("법인카드 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const aliasMut = useMutation({
@@ -892,7 +893,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     toast(`통장 불러오기 완료 — 새 거래 없음${balMsg}`, 'info');
                   }
                 } catch (e: any) {
-                  toast(e.message || '통장 거래 불러오기 오류', 'error');
+                  toast(friendlyError(e, '통장 거래 불러오기 오류'), 'error');
                 } finally {
                   setBankFetching(false);
                 }
@@ -943,7 +944,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   toast(result.error || 'CODEF 동기화 실패', 'error');
                 }
               } catch (e: any) {
-                toast(e.message || '오류', 'error');
+                toast(friendlyError(e, '오류'), 'error');
               } finally {
                 setCodefSyncing(false);
               }
