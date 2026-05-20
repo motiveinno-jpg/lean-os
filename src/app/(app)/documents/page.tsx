@@ -1167,6 +1167,10 @@ function DocumentsPageInner() {
   const [invForm, setInvForm] = useState({ type: "sales" as "sales" | "purchase", counterparty_name: "", supply_amount: "", issue_date: "", deal_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  // U5 페이지네이션 — 10/25/50/all. 필터 변경 시 1페이지 리셋.
+  const [docPageSize, setDocPageSize] = useState<number>(10);
+  const [docPage, setDocPage] = useState<number>(1);
+  useEffect(() => { setDocPage(1); }, [searchTerm, typeFilter, docPageSize]);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -1644,7 +1648,7 @@ function DocumentsPageInner() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDocuments.map((doc: any) => {
+                {filteredDocuments.slice((docPage - 1) * docPageSize, docPage * docPageSize).map((doc: any) => {
                   const contentType = (doc.content_json as any)?.type || 'contract';
                   const typeLabel = DOC_TYPES.find(t => t.value === contentType)?.label || contentType;
                   const sc = (DOC_STATUS as any)[doc.status] || DOC_STATUS.draft;
@@ -1739,7 +1743,38 @@ function DocumentsPageInner() {
                     );
                   })}
                 </tbody>
-              </table></div>
+              </table>
+              {/* U5 페이지네이션 푸터 */}
+              {filteredDocuments.length > docPageSize && (() => {
+                const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / docPageSize));
+                const curPage = Math.min(docPage, totalPages);
+                return (
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)] text-xs">
+                    <div className="text-[var(--text-muted)]">
+                      전체 {filteredDocuments.length}건 중 {(curPage - 1) * docPageSize + 1}–{Math.min(curPage * docPageSize, filteredDocuments.length)}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                        페이지당
+                        <select value={docPageSize} onChange={(e) => setDocPageSize(Number(e.target.value))}
+                          className="px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]">
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                        </select>
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <button disabled={curPage === 1} onClick={() => setDocPage(curPage - 1)}
+                          className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">←</button>
+                        <span className="px-2 font-semibold">{curPage} / {totalPages}</span>
+                        <button disabled={curPage === totalPages} onClick={() => setDocPage(curPage + 1)}
+                          className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">→</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
             )}
           </div>
 

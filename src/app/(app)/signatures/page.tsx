@@ -46,6 +46,10 @@ export default function SignaturesDashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showOrgBulkWizard, setShowOrgBulkWizard] = useState(false);
+  // U4 페이지네이션 — 한 페이지 10/25/50건. 필터/검색 변경 시 1페이지 리셋.
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
+  useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -251,7 +255,7 @@ export default function SignaturesDashboardPage() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={8} className="p-12 text-center"><div className="text-4xl mb-3">✍️</div><div className="text-sm font-medium text-[var(--text)]">문서에 서명을 요청해보세요</div><div className="text-xs text-[var(--text-muted)] mt-1">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div><button onClick={() => setShowInviteModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button></td></tr>
             ) : (
-              filtered.map((r: any) => {
+              filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
                 const info = getSignatureStatusInfo(r.status);
                 const expired = r.expires_at && new Date(r.expires_at) < new Date();
                 const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
@@ -343,6 +347,36 @@ export default function SignaturesDashboardPage() {
             )}
           </tbody>
         </table>
+        {/* U4 페이지네이션 푸터 */}
+        {filtered.length > 0 && (() => {
+          const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+          const curPage = Math.min(page, totalPages);
+          return (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs">
+              <div className="text-[var(--text-muted)]">
+                전체 {filtered.length}건 중 {(curPage - 1) * pageSize + 1}–{Math.min(curPage * pageSize, filtered.length)}
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                  페이지당
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]">
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </label>
+                <div className="flex items-center gap-1">
+                  <button disabled={curPage === 1} onClick={() => setPage(curPage - 1)}
+                    className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">←</button>
+                  <span className="px-2 font-semibold">{curPage} / {totalPages}</span>
+                  <button disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)}
+                    className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">→</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {showInviteModal && companyId && userId && (
