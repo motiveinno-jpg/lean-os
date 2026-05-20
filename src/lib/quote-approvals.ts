@@ -193,6 +193,12 @@ export function subscribeApprovalStatus(
   stage: QuoteApprovalStage,
   cb: (row: ApprovalLite | null) => void,
 ): () => void {
+  // 영구 실패(publication 누락 / RLS 거부) 감지용 — 같은 채널이 무한 retry 로
+  //   다른 supabase 호출(auth.getUser 등)의 리퀘스트큐를 점거하지 못하게
+  //   2회 연속 CHANNEL_ERROR 면 채널 해제 + reportError 1회.
+  let errorCount = 0;
+  let disabled = false;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channel = (supabase as any)
     .channel(`quote_approvals_${dealId}_${stage}`)
@@ -221,7 +227,29 @@ export function subscribeApprovalStatus(
         });
       },
     )
-    .subscribe();
+    .subscribe((status: string, err?: unknown) => {
+      // status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
+      if (status === 'SUBSCRIBED') {
+        errorCount = 0;
+        return;
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        errorCount += 1;
+        // 2회 연속 실패 → 영구 실패로 간주, 채널 해제 (retry 폭증 차단).
+        //   publication 미등록·RLS 거부 같은 영구 원인은 retry 무의미하고
+        //   리퀘스트큐만 점거 — auth.getUser 504 hang 의 직접 원인.
+        if (errorCount >= 2 && !disabled) {
+          disabled = true;
+          reportError('quote-approvals.subscribeApprovalStatus.channelError', err ?? status);
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (supabase as any).removeChannel(channel);
+          } catch {
+            /* noop */
+          }
+        }
+      }
+    });
 
   return () => {
     try {
