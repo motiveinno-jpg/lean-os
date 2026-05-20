@@ -134,7 +134,12 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
     <div className="space-y-4">
       {/* 근무시간 */}
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
-        <h2 className="text-sm font-bold mb-4">근무시간</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold">근무시간</h2>
+          <span className="text-[10px] text-[var(--text-dim)]">
+            저장 후 다음 출근부터 즉시 반영 · 지각 임계 = 출근시각 + 유예분
+          </span>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각</label>
