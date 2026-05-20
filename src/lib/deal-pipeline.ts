@@ -208,33 +208,23 @@ export async function createDocumentFromDeal(params: {
   const cj = contentJson as any;
   const itemsArr: any[] = cj.items || [];
 
-  function buildItemsTable(items: any[]) {
-    let t = '\n┌──────┬──────────────────────┬──────────┬──────────┬──────────────┬────────────────┐\n';
-    t += '│  No  │ 품명                 │ 수량     │ 단가     │ 공급가액     │ 비고           │\n';
-    t += '├──────┼──────────────────────┼──────────┼──────────┼──────────────┼────────────────┤\n';
-    items.forEach((it: any, idx: number) => {
-      const n = String(idx + 1).padStart(4);
-      const nm = (it.name || '').slice(0, 18).padEnd(18);
-      const q = String(it.quantity || 1).padStart(6);
-      const u = fmt(Number(it.unitPrice || 0)).padStart(8);
-      const a = fmt(Number(it.supplyAmount || it.amount || 0)).padStart(12);
-      const note = (it.note || '').slice(0, 12).padEnd(12);
-      t += `│ ${n} │ ${nm} │ ${q} │ ${u} │ ${a} │ ${note} │\n`;
-    });
-    t += '└──────┴──────────────────────┴──────────┴──────────┴──────────────┴────────────────┘\n';
-    return t;
-  }
+  // buildItemsTable() ASCII 표 생성기는 제거 — share/page.tsx 의 HTML 표가
+  // contentJson.items 배열을 직접 렌더하므로 본문 중복 표 불필요. ASCII 박스
+  // 드로잉이 사용자 환경에서 깨져 보이던 회귀 원인.
 
   if (docType === 'invoice') {
     const validUntil = cj.validUntil || '';
+    // 본문 텍스트만 — 품목 표는 share/page.tsx 의 HTML 표(품목 내역)가
+    // contentJson.items 배열로 렌더링하므로 본문에 중복으로 박지 않는다
+    // (ASCII 박스 드로잉이 사용자 환경에서 깨져 보이던 이슈 해결).
     contentJson.body = `견 적 서
 
 수 신: ${partnerName} 귀하
 발 신: ${companyName}
 견적일자: ${today}
 
-아래와 같이 견적합니다.
-${buildItemsTable(itemsArr)}
+아래와 같이 견적합니다 (품목 내역 표 참조).
+
   공급가액:  ₩${fmt(supplyAmt)}
   부가세(10%): ₩${fmt(taxAmt)}
   ─────────────────────
@@ -267,8 +257,7 @@ ${companyName}
 본 계약은 "${deal.name}"에 관하여 갑과 을 사이의 권리·의무를 규정함을 목적으로 한다.
 
 제2조 (용역의 범위)
-을은 갑이 의뢰한 아래 용역을 성실히 수행한다.
-${buildItemsTable(itemsArr)}
+을은 갑이 의뢰한 아래 용역을 성실히 수행한다 (품목 내역 표 참조).
 
 제3조 (계약금액 및 부가가치세)
   공급가액:  ₩${fmt(supplyAmt)}

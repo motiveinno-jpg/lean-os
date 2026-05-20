@@ -15,6 +15,7 @@ import { getDealPipelineStatus, createDocumentFromDeal, onRevenueReceived, force
 import { autoCreatePartnerFromDeal } from "@/lib/partners";
 import { applyCompanySeal } from "@/lib/signatures";
 import { createDocumentShare, sendShareEmail } from "@/lib/document-sharing";
+import { DocumentRender } from "@/components/document-render";
 import { uploadFile } from "@/lib/file-storage";
 import { generateQuotePDF, generateContractPDF } from "@/lib/document-generator";
 import type { DealMilestone } from "@/types/models";
@@ -784,6 +785,11 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   const [emailSending, setEmailSending] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  // 발송 미리보기 — 실제 거래처가 받게 될 공유링크(share/page.tsx) 와 동일한
+  // HTML 레이아웃으로 미리 확인. PDF iframe 과는 별도 채널 (사용자가 보던
+  // 깨진 화면이 PDF 가 아닌 공유 페이지였음).
+  const [sharePreview, setSharePreview] = useState<{ doc: any; company: any } | null>(null);
+  const [sharePreviewLoading, setSharePreviewLoading] = useState(false);
   const [emailModal, setEmailModal] = useState<{ documentId: string } | null>(null);
   const [emailTab, setEmailTab] = useState<'existing' | 'new'>('existing');
   const [partnerSearch, setPartnerSearch] = useState('');
@@ -802,12 +808,37 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      if (sharePreview) { setSharePreview(null); return; }
       if (emailModal) { setEmailModal(null); return; }
       if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); return; }
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [emailModal, previewUrl]);
+  }, [emailModal, previewUrl, sharePreview]);
+
+  // 발송 전 공유링크 미리보기 — 거래처에게 실제 보이는 share/page.tsx 와 같은
+  // 레이아웃(DocumentRender 컴포넌트). PDF 미리보기와는 다른 채널.
+  async function handleSharePreview(documentId: string) {
+    if (sharePreviewLoading) return;
+    setSharePreviewLoading(true); setPipelineError(null);
+    try {
+      const { data: docData, error: docErr } = await db2
+        .from('documents')
+        .select('id, name, content_json, document_number, created_at, content_type, contract_amount, content')
+        .eq('id', documentId)
+        .single();
+      if (docErr || !docData) throw new Error('문서를 찾을 수 없습니다');
+      const { data: comp } = await db2
+        .from('companies')
+        .select('name, representative, business_number, phone, address')
+        .eq('id', companyId)
+        .single();
+      setSharePreview({ doc: docData, company: comp || null });
+    } catch (err: any) {
+      setPipelineError(`미리보기 실패: ${err?.message || '알 수 없는 오류'}`);
+    }
+    setSharePreviewLoading(false);
+  }
 
   async function handleCreateQuote() { if (!companyId || !userId || creating) return; if (paymentSchedule && paymentSchedule.length > 0) { const ratioSum = paymentSchedule.reduce((s, p) => s + (p.ratio || 0), 0); if (ratioSum !== 100) { setPipelineError(`결제 비율 합계가 ${ratioSum}%입니다. 100%로 맞춰주세요.`); return; } } setCreating(true); setPipelineError(null); try { await createDocumentFromDeal({ companyId, dealId, docType: 'invoice', createdBy: userId, items: quoteItems && quoteItems.length > 0 ? quoteItems : undefined, paymentRatio, paymentSchedule, content: quoteContent || undefined }); queryClient.invalidateQueries({ queryKey: ['deal-pipeline', dealId] }); onRefresh(); } catch (err: any) { setPipelineError(`견적서 생성 실패: ${err?.message || '알 수 없는 오류'}`); } setCreating(false); }
 
@@ -990,7 +1021,8 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
           </select>
           {!hasQuote && companyId && userId && (<button onClick={handleCreateQuote} disabled={creating} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition">{creating ? '생성 중...' : '+ 견적서 생성'}</button>)}
           {forceApproveTarget && companyId && userId && (<button onClick={handleForceApprove} disabled={forceApproving} className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-amber-700 transition">{forceApproving ? '처리 중...' : `임의 승인 (${activeQuote ? '견적서' : '계약서'})`}</button>)}
-          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handlePreview((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-cyan-700 transition">{previewLoading ? '로딩...' : '미리보기'}</button>)}
+          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleSharePreview((activeQuote?.documentId || activeContract?.documentId)!)} disabled={sharePreviewLoading} className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-blue-600 transition" title="거래처가 받게 될 공유링크 미리보기">{sharePreviewLoading ? '로딩...' : '👁 발송 미리보기'}</button>)}
+          {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handlePreview((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-cyan-700 transition" title="PDF 미리보기">{previewLoading ? '로딩...' : 'PDF 미리보기'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleDownload((activeQuote?.documentId || activeContract?.documentId)!)} disabled={previewLoading} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-emerald-700 transition" title="견적서/계약서 PDF 직접 다운로드">{previewLoading ? '...' : '⬇ 다운로드'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleApplySeal((activeQuote?.documentId || activeContract?.documentId)!)} disabled={sealApplying} className="px-3 py-1.5 bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-800 transition">{sealApplying ? '적용 중...' : '직인 적용'}</button>)}
           {(activeQuote?.documentId || activeContract?.documentId) && companyId && (<button onClick={() => handleSendEmail((activeQuote?.documentId || activeContract?.documentId)!)} disabled={emailSending} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-indigo-700 transition">{emailSending ? '발송 중...' : '📧 이메일 발송'}</button>)}
@@ -1034,6 +1066,36 @@ function DealPipelineWidget({ dealId, companyId, userId, onRefresh, quoteItems, 
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 발송 미리보기 — 실제 거래처 공유 페이지(share/page.tsx) 동일 레이아웃 */}
+      {sharePreview && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setSharePreview(null)}>
+          <div className="bg-gray-50 rounded-2xl w-full max-w-3xl my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-white rounded-t-2xl sticky top-0">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">👁 발송 미리보기</h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">거래처가 공유링크로 받게 될 화면입니다 (피드백·서명 영역 제외).</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!sharePreview?.doc?.id) return;
+                    setSharePreview(null);
+                    openEmailModal(sharePreview.doc.id);
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
+                >
+                  📧 이대로 발송
+                </button>
+                <button onClick={() => setSharePreview(null)} className="px-3 py-1.5 text-gray-500 hover:text-gray-900 text-xs">닫기</button>
+              </div>
+            </div>
+            <div className="p-4">
+              <DocumentRender doc={sharePreview.doc} company={sharePreview.company} />
             </div>
           </div>
         </div>

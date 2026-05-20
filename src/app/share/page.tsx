@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getShareByToken, recordShareView, submitShareFeedback } from "@/lib/document-sharing";
 import { ToastProvider, useToast } from "@/components/toast";
+import { DocumentRender } from "@/components/document-render";
 
 export default function SharePage() {
   return (
@@ -71,13 +72,6 @@ function ShareContent() {
 
   const doc = share.documents;
   const company = doc?.companies;
-  const contentJson = doc?.content_json || {};
-  const items = contentJson.items || [];
-  const paymentSchedule = contentJson.paymentSchedule || [];
-  const contentType = doc?.content_type || contentJson?.type || '';
-  const isQuote = contentType === 'invoice' || contentType === 'quote';
-  const isContract = contentType === 'contract';
-  const contractTotal = Number(contentJson.contractTotal || doc?.contract_amount || 0);
 
   const handleFeedback = async () => {
     if (!decision) return;
@@ -101,111 +95,9 @@ function ShareContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-xs text-gray-400 mb-1">{company?.name || ''}</div>
-              <h1 className="text-xl font-bold text-gray-900">{doc?.name || '문서'}</h1>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-gray-400">{doc?.document_number || ''}</div>
-              <div className="text-xs text-gray-400 mt-1">{doc?.created_at ? new Date(doc.created_at).toLocaleDateString('ko-KR') : ''}</div>
-            </div>
-          </div>
+        <DocumentRender doc={doc} company={company} />
 
-          {/* Company info */}
-          {company && (
-            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 bg-gray-50 rounded-xl p-4">
-              <div><span className="font-semibold text-gray-500">발신:</span> {company.name}</div>
-              <div><span className="font-semibold text-gray-500">대표:</span> {company.representative || '-'}</div>
-              <div><span className="font-semibold text-gray-500">사업자번호:</span> {company.business_number || '-'}</div>
-              <div><span className="font-semibold text-gray-500">연락처:</span> {company.phone || '-'}</div>
-              {company.address && <div className="col-span-2"><span className="font-semibold text-gray-500">주소:</span> {company.address}</div>}
-            </div>
-          )}
-        </div>
-
-        {/* Quote Items */}
-        {isQuote && items.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">품목 내역</h2>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-blue-50 text-blue-700">
-                  <th className="px-3 py-2 text-left">No</th>
-                  <th className="px-3 py-2 text-left">품목명</th>
-                  <th className="px-3 py-2 text-right">수량</th>
-                  <th className="px-3 py-2 text-right">단가</th>
-                  <th className="px-3 py-2 text-right">공급가액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item: any, i: number) => (
-                  <tr key={i} className="border-b border-gray-100">
-                    <td className="px-3 py-2">{i + 1}</td>
-                    <td className="px-3 py-2">{item.name}</td>
-                    <td className="px-3 py-2 text-right">{Number(item.quantity || item.qty || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">₩{Number(item.unitPrice || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">₩{Number(item.supplyAmount || item.amount || 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end gap-6 text-xs">
-              <span className="text-gray-500">공급가액: <span className="font-semibold text-gray-900">₩{items.reduce((s: number, it: any) => s + Number(it.supplyAmount || it.amount || 0), 0).toLocaleString()}</span></span>
-              <span className="text-gray-500">VAT: <span className="font-semibold text-gray-900">₩{items.reduce((s: number, it: any) => s + Number(it.taxAmount || 0), 0).toLocaleString()}</span></span>
-              <span className="text-blue-600 font-bold">합계: ₩{items.reduce((s: number, it: any) => s + Number(it.totalAmount || (Number(it.supplyAmount || it.amount || 0) + Number(it.taxAmount || 0))), 0).toLocaleString()}</span>
-            </div>
-            {isQuote && contentJson.validUntil && (
-              <div className="mt-2 text-[11px] text-gray-400 text-right">견적 유효기한: {new Date(contentJson.validUntil).toLocaleDateString('ko-KR')}</div>
-            )}
-          </div>
-        )}
-
-        {/* Payment Schedule (both quote and contract) */}
-        {(isContract || isQuote) && paymentSchedule.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">결제조건</h2>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600">
-                  <th className="px-3 py-2 text-left">구분</th>
-                  <th className="px-3 py-2 text-right">비율</th>
-                  <th className="px-3 py-2 text-right">금액</th>
-                  <th className="px-3 py-2 text-left">지급조건</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentSchedule.map((t: any, i: number) => (
-                  <tr key={i} className="border-b border-gray-100">
-                    <td className="px-3 py-2 font-semibold">{t.label || '-'}</td>
-                    <td className="px-3 py-2 text-right">{t.ratio ?? 0}%</td>
-                    <td className="px-3 py-2 text-right">₩{Number(t.amount || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2">{t.condition}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 pt-3 border-t text-right text-xs font-bold text-gray-900">
-              계약 총액: ₩{contractTotal.toLocaleString()}
-            </div>
-          </div>
-        )}
-
-        {/* Document Content */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
-          <h2 className="text-sm font-bold text-gray-900 mb-3">내용</h2>
-          <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-            {doc?.content || contentJson.body || contentJson.content || '(내용 없음)'}
-          </div>
-          {contentJson.notes && (
-            <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-xs text-yellow-800">
-              <span className="font-semibold">비고:</span> {contentJson.notes}
-            </div>
-          )}
-        </div>
-
+        <div className="h-4" />
         {/* Feedback Section */}
         {share.allow_feedback && !feedbackSent && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
