@@ -4142,20 +4142,67 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     </td>
                     <td className="px-5 py-3 text-sm text-right">{r.work_hours ? `${Number(r.work_hours).toFixed(1)}h` : "—"}</td>
                     <td className="px-5 py-3 text-sm text-right text-orange-400">
-                      {r.overtime_hours > 0 ? `+${Number(r.overtime_hours).toFixed(1)}h` : "—"}
+                      {(() => {
+                        // L 근태 — overtime_minutes 우선, 없으면 overtime_hours fallback
+                        const om = Number(r.overtime_minutes || 0);
+                        if (om > 0) {
+                          const h = Math.floor(om / 60);
+                          const m = om % 60;
+                          return `+${h}h${m > 0 ? ` ${m}m` : ''}`;
+                        }
+                        const oh = Number(r.overtime_hours || 0);
+                        return oh > 0 ? `+${oh.toFixed(1)}h` : "—";
+                      })()}
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                        r.status === "present" ? "bg-green-500/10 text-green-400"
-                        : r.status === "late" ? "bg-yellow-500/10 text-yellow-400"
-                        : r.status === "absent" ? "bg-red-500/10 text-red-400"
-                        : r.status === "half_day" ? "bg-orange-500/10 text-orange-400"
-                        : r.status === "remote" ? "bg-blue-500/10 text-blue-400"
-                        : "bg-gray-500/10 text-gray-400"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
-                        {statusLabel(r.status)}
-                      </span>
+                      <div className="flex flex-wrap items-center justify-center gap-1">
+                        {/* 기본 상태 배지 */}
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                          r.status === "present" ? "bg-green-500/10 text-green-400"
+                          : r.status === "late" ? "bg-yellow-500/10 text-yellow-400"
+                          : r.status === "absent" ? "bg-red-500/10 text-red-400"
+                          : r.status === "half_day" ? "bg-orange-500/10 text-orange-400"
+                          : r.status === "remote" ? "bg-blue-500/10 text-blue-400"
+                          : "bg-gray-500/10 text-gray-400"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
+                          {statusLabel(r.status)}
+                        </span>
+                        {/* L 근태 — 지각 분 표시 (status='late' 도 함께면 분 명시) */}
+                        {r.is_late && Number(r.late_minutes || 0) > 0 && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-semibold" title="지각 분">
+                            🔴 지각 {Number(r.late_minutes)}분
+                          </span>
+                        )}
+                        {/* 연장근로 — overtime_minutes 가 있으면 시·분 표시 */}
+                        {Number(r.overtime_minutes || 0) > 0 && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-semibold" title="연장근로 분">
+                            🟠 연장 {Math.floor(Number(r.overtime_minutes) / 60)}h{Number(r.overtime_minutes) % 60 > 0 ? ` ${Number(r.overtime_minutes) % 60}m` : ''}
+                          </span>
+                        )}
+                        {/* 야간근로 (22:00~06:00) */}
+                        {Number(r.night_minutes || 0) > 0 && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 font-semibold" title="야간근로 분 (가산 0.5)">
+                            🟣 야간 {Math.floor(Number(r.night_minutes) / 60)}h{Number(r.night_minutes) % 60 > 0 ? ` ${Number(r.night_minutes) % 60}m` : ''}
+                          </span>
+                        )}
+                        {/* 휴일 근무 */}
+                        {Number(r.holiday_minutes || 0) > 0 && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-semibold" title="휴일 근무">
+                            🟢 휴일 근무
+                          </span>
+                        )}
+                        {/* attendance_type 배지 (normal 제외) */}
+                        {r.attendance_type && r.attendance_type !== 'normal' && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 font-semibold" title="근무 형태">
+                            {r.attendance_type === 'field_work' ? '외근'
+                              : r.attendance_type === 'on_duty' ? '당직'
+                              : r.attendance_type === 'remote' ? '원격'
+                              : r.attendance_type === 'business_trip' ? '출장'
+                              : r.attendance_type}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {isAdmin && (
                       <td className="px-5 py-3 text-center">
