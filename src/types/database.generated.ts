@@ -2883,8 +2883,10 @@ export type Database = {
           partner_company_id: string | null
           partner_id: string | null
           priority: string | null
+          next_action_text: string | null
           program_id: string | null
           risk_level: string | null
+          stage: string
           start_date: string | null
           status: string | null
           vat_type: string
@@ -2906,11 +2908,13 @@ export type Database = {
           is_dormant?: boolean | null
           last_activity_at?: string | null
           name: string
+          next_action_text?: string | null
           partner_company_id?: string | null
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
           risk_level?: string | null
+          stage?: string
           start_date?: string | null
           status?: string | null
           vat_type?: string
@@ -2932,11 +2936,13 @@ export type Database = {
           is_dormant?: boolean | null
           last_activity_at?: string | null
           name?: string
+          next_action_text?: string | null
           partner_company_id?: string | null
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
           risk_level?: string | null
+          stage?: string
           start_date?: string | null
           status?: string | null
           vat_type?: string

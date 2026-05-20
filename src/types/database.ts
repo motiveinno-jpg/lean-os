@@ -2394,6 +2394,8 @@ export type Database = {
           custom_scope: Json | null
           counterparty: string | null
           vat_type: string
+          stage: string
+          next_action_text: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -2420,6 +2422,8 @@ export type Database = {
           custom_scope?: Json | null
           counterparty?: string | null
           vat_type?: string
+          stage?: string
+          next_action_text?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -2446,6 +2450,8 @@ export type Database = {
           custom_scope?: Json | null
           counterparty?: string | null
           vat_type?: string
+          stage?: string
+          next_action_text?: string | null
         }
         Relationships: [
           {
