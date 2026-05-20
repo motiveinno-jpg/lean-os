@@ -40,6 +40,12 @@ import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail } from "@/lib/invitations";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
+import {
+  ExtraPaySummaryCard,
+  AttendanceEditRequestDialog,
+  EditRequestInbox,
+  MonthlyRecomputeButton,
+} from "@/components/hr-attendance-extras";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
@@ -3661,6 +3667,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ check_in: "", check_out: "", status: "" });
 
+  // L 근태 — C-2 직원 수정요청 다이얼로그 상태
+  const [editReqOpen, setEditReqOpen] = useState(false);
+  const [editReqRecord, setEditReqRecord] = useState<{ id: string; check_in?: string; check_out?: string; status?: string } | null>(null);
+
   const doCorrectAttendance = useMutation({
     mutationFn: ({ recordId, updates }: { recordId: string; updates: { check_in?: string; check_out?: string; status?: string } }) =>
       correctAttendanceRecord(recordId, updates),
@@ -3782,8 +3792,33 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     ? employees.find((e: any) => e.user_id === userId) || employees.find((e: any) => e.email === userEmail)
     : null;
 
+  // L 근태 — C-3 관리자 수정요청 인박스용 reviewerId (현재 user.id 가 admin 일 때만 의미 있음)
+  // employees 배열의 직원 row 는 user_id 보유 — admin 본인의 user.id 는 props 로 받은 userId 가 가장 정확
+  const reviewerUserId = userId || null;
+
+  // L 근태 — C-2 직원 본인의 monthly base salary (selectedMonth 의 월급)
+  // myEmployeeRecord.salary 가 연봉이면 /12, 월급이면 그대로 — 기존 정책 모호하므로 일단 보수적으로 salary 그대로 전달 (정책 통일 시 일괄 수정).
+  const myMonthlyBaseSalary = (myEmployeeRecord && Number(myEmployeeRecord.salary)) || 0;
+
   return (
     <div>
+      {/* L 근태 — C-3 관리자: 수정 요청 인박스 */}
+      {isAdmin && reviewerUserId && companyId && (
+        <EditRequestInbox companyId={companyId} reviewerId={reviewerUserId} />
+      )}
+
+      {/* L 근태 — C-2 직원: 본인 이번 달 가산수당 요약 */}
+      {isEmployeeRole && myEmployeeRecord && companyId && myMonthlyBaseSalary > 0 && (
+        <div className="mb-4">
+          <ExtraPaySummaryCard
+            companyId={companyId}
+            employeeId={myEmployeeRecord.id}
+            monthlyBaseSalary={myMonthlyBaseSalary}
+            yearMonth={selectedMonth}
+          />
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
@@ -3862,6 +3897,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               테이블
             </button>
           </div>
+          {/* L 근태 — C-3 관리자: 가산수당 재계산 (월 일괄) */}
+          {isAdmin && companyId && (
+            <MonthlyRecomputeButton companyId={companyId} from={monthStart} to={monthEnd} />
+          )}
         </div>
         <div className="flex gap-2">
           {isEmployeeRole && myEmployeeRecord ? (
@@ -3897,6 +3936,23 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       className="px-3 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition"
                     >
                       퇴근 취소
+                    </button>
+                  )}
+                  {/* L 근태 — C-2: 수정 요청 (오늘 기록이 있을 때만) */}
+                  {todayRecord && (
+                    <button
+                      onClick={() => {
+                        setEditReqRecord({
+                          id: todayRecord.id,
+                          check_in: todayRecord.check_in,
+                          check_out: todayRecord.check_out,
+                          status: todayRecord.status,
+                        });
+                        setEditReqOpen(true);
+                      }}
+                      className="px-3 py-2 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold transition"
+                    >
+                      수정 요청
                     </button>
                   )}
                 </>
@@ -4140,6 +4196,22 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </table></div>
           </div>
         </div>
+      )}
+
+      {/* L 근태 — C-2 직원: 수정요청 다이얼로그 */}
+      {editReqOpen && editReqRecord && companyId && userId && (
+        <AttendanceEditRequestDialog
+          open={editReqOpen}
+          onClose={() => { setEditReqOpen(false); setEditReqRecord(null); }}
+          companyId={companyId}
+          attendanceRecordId={editReqRecord.id}
+          userId={userId}
+          initial={{
+            check_in: editReqRecord.check_in,
+            check_out: editReqRecord.check_out,
+            status: editReqRecord.status,
+          }}
+        />
       )}
     </div>
   );

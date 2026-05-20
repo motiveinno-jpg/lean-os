@@ -15,8 +15,9 @@ import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 import BulkInvite from "@/components/bulk-invite";
 import { AccessDenied } from "@/components/access-denied";
+import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions" | "danger";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions" | "danger" | "hr_attendance";
 
 export default function SettingsPage() {
   const { role } = useUser();
@@ -25,7 +26,7 @@ export default function SettingsPage() {
   }
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "invite", "notifications", "permissions", "danger"];
+  const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "invite", "notifications", "permissions", "danger", "hr_attendance"];
   const initialTab = (() => {
     const t = searchParams?.get("tab");
     return t && (VALID_TABS as string[]).includes(t) ? (t as MainTab) : "general";
@@ -147,6 +148,7 @@ export default function SettingsPage() {
     { key: "account", label: "계정" },
     { key: "company", label: "회사정보" },
     { key: "approval", label: "승인정책" },
+    { key: "hr_attendance", label: "근태/가산수당" },
     { key: "bank", label: "은행연동" },
     { key: "tax", label: "세무자동화" },
     { key: "certificate", label: "인증서" },
@@ -536,6 +538,8 @@ export default function SettingsPage() {
 
       {/* ═══ Data Management (Danger Zone) ═══ */}
       {mainTab === "danger" && companyId && <DataResetTab companyId={companyId} />}
+
+      {mainTab === "hr_attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
     </div>
   );
 }

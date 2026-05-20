@@ -4,6 +4,13 @@
  */
 
 import { supabase } from './supabase';
+import {
+  calcDailyAttendance,
+  calcOvertimePay,
+  type AttendanceCompanySettings,
+  type DailyResult,
+  type MonthlyPayResult,
+} from './attendance-calc';
 
 // Use `any` cast for tables not yet in the generated DB types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,56 +232,428 @@ const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
   lateThresholdMinutes: 30,
 };
 
-/** 회사 출근 기준 조회. 미설정 시 9:00 + 30분 grace (기존 동작 유지). */
+/** 회사 출근 기준 조회. 미설정 시 9:00 + 30분 grace (기존 동작 유지).
+ *  컬럼 우선(work_start_time/late_grace_minutes) → JSONB settings fallback → 기본값.
+ *  F2 호환: 시그니처/반환타입 무변동. checkIn 호출처 영향 없음.
+ */
 export async function getAttendancePolicy(companyId: string): Promise<AttendancePolicy> {
   try {
     const { data } = await db
       .from('company_settings')
-      .select('settings')
+      .select('work_start_time, late_grace_minutes, settings')
       .eq('company_id', companyId)
       .maybeSingle();
     const s = data?.settings || {};
-    const wst = typeof s.work_start_time === 'string' && /^\d{2}:\d{2}$/.test(s.work_start_time)
-      ? s.work_start_time
-      : DEFAULT_ATTENDANCE_POLICY.workStartTime;
-    const ltm = Number.isFinite(Number(s.late_threshold_minutes))
-      ? Math.max(0, Math.min(240, Math.trunc(Number(s.late_threshold_minutes))))
-      : DEFAULT_ATTENDANCE_POLICY.lateThresholdMinutes;
-    return { workStartTime: wst, lateThresholdMinutes: ltm };
+    // 1) 신규 컬럼 우선
+    let wst: string | null = null;
+    if (typeof data?.work_start_time === 'string' && /^\d{2}:\d{2}/.test(data.work_start_time)) {
+      wst = data.work_start_time.slice(0, 5);
+    } else if (typeof s.work_start_time === 'string' && /^\d{2}:\d{2}$/.test(s.work_start_time)) {
+      wst = s.work_start_time;
+    }
+    let ltm: number | null = null;
+    if (Number.isFinite(Number(data?.late_grace_minutes))) {
+      ltm = Math.max(0, Math.min(240, Math.trunc(Number(data.late_grace_minutes))));
+    } else if (Number.isFinite(Number(s.late_threshold_minutes))) {
+      ltm = Math.max(0, Math.min(240, Math.trunc(Number(s.late_threshold_minutes))));
+    }
+    return {
+      workStartTime: wst ?? DEFAULT_ATTENDANCE_POLICY.workStartTime,
+      lateThresholdMinutes: ltm ?? DEFAULT_ATTENDANCE_POLICY.lateThresholdMinutes,
+    };
   } catch {
     return { ...DEFAULT_ATTENDANCE_POLICY };
   }
 }
 
-/** 회사 출근 기준 저장 (기존 settings JSONB 다른 키 보존). */
+/** 회사 출근 기준 저장. 신규 컬럼에 직접 upsert (JSONB 키는 더 이상 안 씀).
+ *  기존 settings JSONB 의 다른 키는 보존(다른 모듈이 leave_grant_method 등 사용).
+ */
 export async function setAttendancePolicy(
   companyId: string,
   policy: Partial<AttendancePolicy>,
 ): Promise<void> {
-  const { data: existing } = await db
-    .from('company_settings')
-    .select('settings')
-    .eq('company_id', companyId)
-    .maybeSingle();
-
-  const patch: Record<string, unknown> = {};
+  const patch: Record<string, unknown> = { company_id: companyId };
   if (policy.workStartTime && /^\d{2}:\d{2}$/.test(policy.workStartTime)) {
     patch.work_start_time = policy.workStartTime;
   }
   if (typeof policy.lateThresholdMinutes === 'number' && Number.isFinite(policy.lateThresholdMinutes)) {
-    patch.late_threshold_minutes = Math.max(0, Math.min(240, Math.trunc(policy.lateThresholdMinutes)));
+    patch.late_grace_minutes = Math.max(0, Math.min(240, Math.trunc(policy.lateThresholdMinutes)));
   }
-
-  const nextSettings = { ...(existing?.settings || {}), ...patch };
 
   const { error } = await db
     .from('company_settings')
-    .upsert(
-      { company_id: companyId, settings: nextSettings },
-      { onConflict: 'company_id' },
-    );
+    .upsert(patch, { onConflict: 'company_id' });
   if (error) throw error;
 }
+
+// ── L 근태: 전체 회사 설정 (가산수당 계산 엔진 입력 타입) ──
+
+const DEFAULT_ATTENDANCE_COMPANY_SETTINGS: AttendanceCompanySettings = {
+  work_start_time: '09:00',
+  work_end_time: '18:00',
+  lunch_minutes: 60,
+  late_grace_minutes: 0,
+  night_start_time: '22:00',
+  night_end_time: '06:00',
+  weekly_work_hours: 40,
+  is_under_5_employees: false,
+  is_inclusive_wage: false,
+  monthly_standard_hours: 209,
+  on_duty_pay_per_shift: 0,
+  workdays_mask: 31, // 월~금 (1+2+4+8+16)
+};
+
+function hhmm(v: unknown, fallback: string): string {
+  if (typeof v === 'string') {
+    const m = v.match(/^(\d{2}):(\d{2})/);
+    if (m) return `${m[1]}:${m[2]}`;
+  }
+  return fallback;
+}
+
+function num(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+/** L 근태 — 회사 전체 설정 조회 (calcDailyAttendance/calcOvertimePay 입력용).
+ *  컬럼 우선·JSONB fallback·기본값 3단 우선순위.
+ */
+export async function getAttendanceCompanySettings(companyId: string): Promise<AttendanceCompanySettings> {
+  const D = DEFAULT_ATTENDANCE_COMPANY_SETTINGS;
+  try {
+    const { data } = await db
+      .from('company_settings')
+      .select(
+        'work_start_time, work_end_time, lunch_minutes, late_grace_minutes, ' +
+        'night_start_time, night_end_time, weekly_work_hours, ' +
+        'is_under_5_employees, is_inclusive_wage, monthly_standard_hours, ' +
+        'on_duty_pay_per_shift, workdays_mask, settings'
+      )
+      .eq('company_id', companyId)
+      .maybeSingle();
+    const s = (data?.settings as Record<string, unknown> | null) || {};
+    const pick = (col: unknown, jsonKey: string) =>
+      col !== null && col !== undefined ? col : s[jsonKey];
+
+    return {
+      work_start_time: hhmm(pick(data?.work_start_time, 'work_start_time'), D.work_start_time),
+      work_end_time: hhmm(pick(data?.work_end_time, 'work_end_time'), D.work_end_time),
+      lunch_minutes: num(pick(data?.lunch_minutes, 'lunch_minutes'), D.lunch_minutes, 0, 480),
+      late_grace_minutes: num(pick(data?.late_grace_minutes, 'late_grace_minutes'),
+        num(s.late_threshold_minutes, D.late_grace_minutes, 0, 240), 0, 240),
+      night_start_time: hhmm(pick(data?.night_start_time, 'night_start_time'), D.night_start_time),
+      night_end_time: hhmm(pick(data?.night_end_time, 'night_end_time'), D.night_end_time),
+      weekly_work_hours: num(pick(data?.weekly_work_hours, 'weekly_work_hours'), D.weekly_work_hours, 1, 80),
+      is_under_5_employees: Boolean(pick(data?.is_under_5_employees, 'is_under_5_employees')) || false,
+      is_inclusive_wage: Boolean(pick(data?.is_inclusive_wage, 'is_inclusive_wage')) || false,
+      monthly_standard_hours: num(pick(data?.monthly_standard_hours, 'monthly_standard_hours'), D.monthly_standard_hours, 1, 400),
+      on_duty_pay_per_shift: num(pick(data?.on_duty_pay_per_shift, 'on_duty_pay_per_shift'), D.on_duty_pay_per_shift, 0, 10_000_000),
+      workdays_mask: num(pick(data?.workdays_mask, 'workdays_mask'), D.workdays_mask, 0, 127),
+    };
+  } catch {
+    return { ...D };
+  }
+}
+
+/** L 근태 — 회사 전체 설정 저장 (신규 컬럼 upsert). */
+export async function setAttendanceCompanySettings(
+  companyId: string,
+  patch: Partial<AttendanceCompanySettings>,
+): Promise<void> {
+  const row: Record<string, unknown> = { company_id: companyId };
+  for (const k of [
+    'work_start_time', 'work_end_time', 'lunch_minutes', 'late_grace_minutes',
+    'night_start_time', 'night_end_time', 'weekly_work_hours',
+    'is_under_5_employees', 'is_inclusive_wage', 'monthly_standard_hours',
+    'on_duty_pay_per_shift', 'workdays_mask',
+  ] as const) {
+    if (patch[k] !== undefined) row[k] = patch[k];
+  }
+  const { error } = await db
+    .from('company_settings')
+    .upsert(row, { onConflict: 'company_id' });
+  if (error) throw error;
+}
+
+// ── L 근태: 휴일 ──
+
+export type Holiday = {
+  id?: string;
+  company_id: string;
+  date: string;        // 'YYYY-MM-DD'
+  name: string;
+  type: 'legal' | 'company' | 'substitute';
+};
+
+export async function listHolidays(companyId: string, year?: number): Promise<Holiday[]> {
+  let q = db.from('holidays').select('*').eq('company_id', companyId).order('date');
+  if (year) {
+    q = q.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
+  }
+  const { data } = await q;
+  return (data as Holiday[]) || [];
+}
+
+export async function upsertHoliday(h: Omit<Holiday, 'id'>): Promise<Holiday> {
+  const { data, error } = await db
+    .from('holidays')
+    .upsert(h, { onConflict: 'company_id,date' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Holiday;
+}
+
+export async function deleteHoliday(id: string): Promise<void> {
+  const { error } = await db.from('holidays').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** 한국 법정공휴일 1년치 일괄 추가 (DB RPC). */
+export async function seedKoreanLegalHolidays(year: number): Promise<number> {
+  const { data, error } = await db.rpc('seed_korean_legal_holidays', { p_year: year });
+  if (error) throw error;
+  return Number(data) || 0;
+}
+
+// ── L 근태: 재계산 (클라이언트 라운드트립 — SQL 의존 X) ──
+
+/**
+ * 기간 내 attendance_records 를 회사 설정·휴일 기반으로 재계산해 분 컬럼을 갱신.
+ *   - read → calcDailyAttendance → 변경된 행만 update
+ *   - RLS: 호출자가 본인 또는 admin 만 통과 (DB 정책이 자동 차단)
+ *   - 반환: { updated, total }
+ */
+export async function recomputeAttendance(params: {
+  companyId: string;
+  employeeId?: string;     // 미지정 시 회사 전체
+  from: string;            // 'YYYY-MM-DD'
+  to: string;              // 'YYYY-MM-DD'
+}): Promise<{ updated: number; total: number }> {
+  const settings = await getAttendanceCompanySettings(params.companyId);
+
+  // 휴일 set
+  const fromYear = Number(params.from.slice(0, 4));
+  const toYear = Number(params.to.slice(0, 4));
+  const holidaySet = new Set<string>();
+  for (let y = fromYear; y <= toYear; y++) {
+    const hs = await listHolidays(params.companyId, y);
+    hs.forEach((h) => holidaySet.add(h.date));
+  }
+
+  // 근태 행
+  let q = db
+    .from('attendance_records')
+    .select('id, employee_id, date, check_in, check_out, attendance_type, status')
+    .eq('company_id', params.companyId)
+    .gte('date', params.from)
+    .lte('date', params.to);
+  if (params.employeeId) q = q.eq('employee_id', params.employeeId);
+  const { data: rows, error } = await q;
+  if (error) throw error;
+
+  // 휴가 행 (on_leave 판단)
+  const { data: leaves } = await db
+    .from('leave_requests')
+    .select('employee_id, start_date, end_date, status')
+    .eq('company_id', params.companyId)
+    .eq('status', 'approved')
+    .lte('start_date', params.to)
+    .gte('end_date', params.from);
+  const leaveByEmpDate = new Set<string>();
+  (leaves || []).forEach((l: any) => {
+    const s = new Date(l.start_date);
+    const e = new Date(l.end_date);
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      leaveByEmpDate.add(`${l.employee_id}|${d.toISOString().slice(0, 10)}`);
+    }
+  });
+
+  let updated = 0;
+  const total = (rows || []).length;
+  for (const r of rows || []) {
+    const result = calcDailyAttendance({
+      check_in: r.check_in,
+      check_out: r.check_out,
+      date: r.date,
+      settings,
+      holidays: holidaySet,
+      on_leave: leaveByEmpDate.has(`${r.employee_id}|${r.date}`),
+      attendance_type: (r.attendance_type as any) || 'normal',
+    });
+
+    const { error: upErr } = await db
+      .from('attendance_records')
+      .update({
+        is_late: result.is_late,
+        late_minutes: result.late_minutes,
+        regular_minutes: result.regular_minutes,
+        overtime_minutes: result.overtime_minutes,
+        night_minutes: result.night_minutes,
+        holiday_minutes: result.holiday_minutes,
+        is_holiday: result.is_holiday,
+      })
+      .eq('id', r.id);
+    if (!upErr) updated++;
+  }
+  return { updated, total };
+}
+
+/**
+ * 월간 가산수당 산정 (UI 표시·payroll 주입 준비용).
+ *  - attendance_records 의 분 컬럼이 이미 채워져 있어야 정확. (recomputeAttendance 선행 권장)
+ *  - on_duty_count: 별도 입력 (당직 횟수 — UI 에서 받아 전달)
+ *  - 반환: MonthlyPayResult (overtime_pay/night_pay/holiday_pay/on_duty_pay/total_extra_pay/cap_exceeded/notes)
+ */
+export async function recomputeMonthlyExtraPay(params: {
+  companyId: string;
+  employeeId: string;
+  year: number;
+  month: number; // 1~12
+  monthlyBaseSalary: number;
+  onDutyCount?: number;
+}): Promise<MonthlyPayResult> {
+  const settings = await getAttendanceCompanySettings(params.companyId);
+
+  const ym = `${params.year}-${String(params.month).padStart(2, '0')}`;
+  const startDate = `${ym}-01`;
+  const lastDay = new Date(params.year, params.month, 0).getDate();
+  const endDate = `${ym}-${String(lastDay).padStart(2, '0')}`;
+
+  const { data: rows } = await db
+    .from('attendance_records')
+    .select('regular_minutes, overtime_minutes, night_minutes, holiday_minutes, is_holiday, is_late, late_minutes, attendance_type')
+    .eq('company_id', params.companyId)
+    .eq('employee_id', params.employeeId)
+    .gte('date', startDate)
+    .lte('date', endDate);
+
+  const daily_records: DailyResult[] = (rows || []).map((r: any) => ({
+    is_late: !!r.is_late,
+    late_minutes: Number(r.late_minutes || 0),
+    regular_minutes: Number(r.regular_minutes || 0),
+    overtime_minutes: Number(r.overtime_minutes || 0),
+    night_minutes: Number(r.night_minutes || 0),
+    holiday_minutes: Number(r.holiday_minutes || 0),
+    is_holiday: !!r.is_holiday,
+    work_minutes: Number(r.regular_minutes || 0) + Number(r.overtime_minutes || 0),
+    attendance_type: (r.attendance_type as any) || 'normal',
+  }));
+
+  return calcOvertimePay({
+    daily_records,
+    settings,
+    monthly_base_salary: params.monthlyBaseSalary,
+    on_duty_count: params.onDutyCount || 0,
+  });
+}
+
+// ── L 근태: 수정 요청 (직원 → 관리자) ──
+
+export async function createAttendanceEditRequest(params: {
+  companyId: string;
+  attendanceRecordId: string;
+  requestedBy: string;          // user id
+  requestedChanges: { check_in?: string; check_out?: string; status?: string; attendance_type?: string };
+  reason?: string;
+}) {
+  const { data, error } = await db
+    .from('attendance_edit_requests')
+    .insert({
+      company_id: params.companyId,
+      attendance_record_id: params.attendanceRecordId,
+      requested_by: params.requestedBy,
+      requested_changes: params.requestedChanges,
+      reason: params.reason || null,
+      status: 'pending',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // 관리자(owner/admin) 에게 알림 (notifications_type_check 안전: 'system' 사용)
+  try {
+    const { data: admins } = await db
+      .from('users')
+      .select('id')
+      .eq('company_id', params.companyId)
+      .in('role', ['owner', 'admin']);
+    const rows = (admins || []).map((a: { id: string }) => ({
+      company_id: params.companyId,
+      user_id: a.id,
+      type: 'system',
+      title: '근태 수정 요청',
+      message: params.reason || '직원이 근태 기록 수정을 요청했습니다.',
+      entity_type: 'attendance_edit_request',
+      entity_id: data.id,
+      is_read: false,
+    }));
+    if (rows.length) await db.from('notifications').insert(rows);
+  } catch (e) {
+    // 알림 실패는 요청 자체를 막지 않음
+    if (typeof window !== 'undefined') {
+      // 클라이언트만 — 서버 console.log 금지
+      console.warn('[createAttendanceEditRequest] 알림 실패:', e);
+    }
+  }
+  return data;
+}
+
+export async function listAttendanceEditRequests(companyId: string, status?: 'pending' | 'approved' | 'rejected') {
+  let q = db
+    .from('attendance_edit_requests')
+    .select('*, attendance_records!inner(id, date, employee_id, check_in, check_out, status, employees(name))')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+  if (status) q = q.eq('status', status);
+  const { data } = await q;
+  return data || [];
+}
+
+export async function reviewAttendanceEditRequest(params: {
+  requestId: string;
+  reviewerId: string;
+  decision: 'approved' | 'rejected';
+  applyChanges?: boolean; // 승인 시 attendance_records 에 적용
+}) {
+  const { data: req, error: rErr } = await db
+    .from('attendance_edit_requests')
+    .select('*')
+    .eq('id', params.requestId)
+    .single();
+  if (rErr) throw rErr;
+
+  // 승인 + applyChanges 면 attendance_records 갱신
+  if (params.decision === 'approved' && params.applyChanges) {
+    const changes = (req.requested_changes || {}) as Record<string, unknown>;
+    const updatePayload: Record<string, unknown> = { edited_by: params.reviewerId, edited_at: new Date().toISOString() };
+    if (changes.check_in) updatePayload.check_in = changes.check_in;
+    if (changes.check_out) updatePayload.check_out = changes.check_out;
+    if (changes.status) updatePayload.status = changes.status;
+    if (changes.attendance_type) updatePayload.attendance_type = changes.attendance_type;
+    const { error: uErr } = await db
+      .from('attendance_records')
+      .update(updatePayload)
+      .eq('id', req.attendance_record_id);
+    if (uErr) throw uErr;
+  }
+
+  const { error } = await db
+    .from('attendance_edit_requests')
+    .update({
+      status: params.decision,
+      reviewed_by: params.reviewerId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', params.requestId);
+  if (error) throw error;
+}
+
+// re-export 타입 (UI 가 attendance-calc 직접 임포트 안 해도 되게)
+export type { AttendanceCompanySettings, MonthlyPayResult } from './attendance-calc';
 
 /**
  * KST(Asia/Seoul) 기준 현재 분(分) 단위 시각 (0~1439).

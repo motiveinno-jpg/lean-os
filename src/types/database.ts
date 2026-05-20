@@ -305,41 +305,71 @@ export type Database = {
       }
       attendance_records: {
         Row: {
+          attendance_type: string | null
           check_in: string | null
           check_out: string | null
           company_id: string
           created_at: string | null
           date: string
+          edited_at: string | null
+          edited_by: string | null
           employee_id: string
+          holiday_minutes: number | null
           id: string
+          is_holiday: boolean | null
+          is_late: boolean | null
+          late_minutes: number | null
+          night_minutes: number | null
           note: string | null
           overtime_hours: number | null
+          overtime_minutes: number | null
+          regular_minutes: number | null
           status: string | null
           work_hours: number | null
         }
         Insert: {
+          attendance_type?: string | null
           check_in?: string | null
           check_out?: string | null
           company_id: string
           created_at?: string | null
           date: string
+          edited_at?: string | null
+          edited_by?: string | null
           employee_id: string
+          holiday_minutes?: number | null
           id?: string
+          is_holiday?: boolean | null
+          is_late?: boolean | null
+          late_minutes?: number | null
+          night_minutes?: number | null
           note?: string | null
           overtime_hours?: number | null
+          overtime_minutes?: number | null
+          regular_minutes?: number | null
           status?: string | null
           work_hours?: number | null
         }
         Update: {
+          attendance_type?: string | null
           check_in?: string | null
           check_out?: string | null
           company_id?: string
           created_at?: string | null
           date?: string
+          edited_at?: string | null
+          edited_by?: string | null
           employee_id?: string
+          holiday_minutes?: number | null
           id?: string
+          is_holiday?: boolean | null
+          is_late?: boolean | null
+          late_minutes?: number | null
+          night_minutes?: number | null
           note?: string | null
           overtime_hours?: number | null
+          overtime_minutes?: number | null
+          regular_minutes?: number | null
           status?: string | null
           work_hours?: number | null
         }
@@ -352,10 +382,85 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "attendance_records_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "attendance_records_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_edit_requests: {
+        Row: {
+          attendance_record_id: string
+          company_id: string
+          created_at: string | null
+          id: string
+          reason: string | null
+          requested_by: string
+          requested_changes: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          attendance_record_id: string
+          company_id: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          requested_by: string
+          requested_changes: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          attendance_record_id?: string
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          requested_changes?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_edit_requests_attendance_record_id_fkey"
+            columns: ["attendance_record_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_edit_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_edit_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_edit_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -3592,6 +3697,51 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          date: string
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          id?: string
+          name: string
+          type?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holidays_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_contract_package_items: {
         Row: {
           created_at: string | null
@@ -6183,6 +6333,7 @@ export type Database = {
       is_company_owner: { Args: never; Returns: boolean }
       mark_dormant_deals: { Args: never; Returns: number }
       plan_rank: { Args: { slug: string }; Returns: number }
+      seed_korean_legal_holidays: { Args: { p_year?: number }; Returns: number }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
