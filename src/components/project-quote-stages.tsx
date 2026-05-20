@@ -22,6 +22,7 @@ import {
   subscribeApprovalStatus,
   STATUS_LABEL,
   type ApprovalLite,
+  type QuoteApprovalStage,
 } from "@/lib/quote-approvals";
 
 type QuoteItem = {
@@ -35,15 +36,41 @@ type QuoteItem = {
 };
 type PaymentStage = { label: string; ratio: number; condition: string; milestone_id?: string };
 
+// 단계별 라벨·이메일 제목 매핑 — UI 텍스트 일관화
+const STAGE_LABEL: Record<QuoteApprovalStage, string> = {
+  estimate: "견적서",
+  contract: "계약서",
+  progress_report: "진척 보고서",
+  completion: "완료 확인서",
+  settlement: "정산 확인",
+};
+
+const STAGE_NEXT_HINT: Record<QuoteApprovalStage, string> = {
+  estimate: "거래처가 승인하면 자동으로 계약 단계로 진행됩니다",
+  contract: "거래처가 승인하면 자동으로 진행 중 단계로 전환됩니다",
+  progress_report: "거래처 확인 후 완료 단계로 안내됩니다",
+  completion: "거래처가 확인하면 정산 단계로 진행됩니다",
+  settlement: "거래처가 정산을 확인하면 프로젝트가 완료됩니다",
+};
+
 interface Props {
   dealId: string;
   companyId: string;
   readonly?: boolean;
+  /** deal.stage 값. 미지정 시 'estimate'. project-slide-over 가 deal.stage 그대로 전달. */
+  stage?: QuoteApprovalStage;
 }
 
 type Mode = "edit" | "preview";
 
-export function ProjectQuoteStages({ dealId, readonly }: Props) {
+// progress_report / completion / settlement 는 우선 stub — 견적·계약 본 흐름과 분리
+const STUB_STAGES: ReadonlySet<QuoteApprovalStage> = new Set<QuoteApprovalStage>([
+  "progress_report",
+  "completion",
+  "settlement",
+]);
+
+export function ProjectQuoteStages({ dealId, readonly, stage = "estimate" }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
@@ -96,8 +123,8 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
         if (hasQuoteItems) setMode("preview");
       }
 
-      // 최신 approval 조회 (estimate stage)
-      const latest = await getLatestApproval(dealId, "estimate");
+      // 최신 approval 조회 (현재 stage)
+      const latest = await getLatestApproval(dealId, stage);
       if (cancelled) return;
       if (latest) {
         setApproval(latest);
@@ -107,22 +134,22 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
       setLoading(false);
     })();
 
-    // Realtime 구독
-    const unsub = subscribeApprovalStatus(dealId, "estimate", (row) => {
+    // Realtime 구독 — 현재 stage
+    const unsub = subscribeApprovalStatus(dealId, stage, (row) => {
       if (cancelled) return;
       if (row) {
         setApproval(row);
         // 외부 결정/뷰 들어오면 패널 갱신
         if (row.status === "approved") {
-          toast("거래처가 승인했습니다!", "success");
-          // 계약 단계로 자동 전환된 deal 도 invalidate
+          toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 승인했습니다!`, "success");
+          // 다음 단계로 자동 전환된 deal 도 invalidate
           queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
           queryClient.invalidateQueries({ queryKey: ["deal-detail", dealId] });
           queryClient.invalidateQueries({ queryKey: ["deals"] });
         } else if (row.status === "rejected") {
-          toast("거래처가 거절했습니다 — 사유 확인", "error");
+          toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 거절했습니다 — 사유 확인`, "error");
         } else if (row.status === "viewed") {
-          toast("거래처가 견적을 봤습니다", "info");
+          toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 봤습니다`, "info");
         }
       }
     });
@@ -132,7 +159,7 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
       try { unsub(); } catch { /* ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
+  }, [dealId, stage]);
 
   async function save() {
     if (readonly) return;
@@ -178,7 +205,7 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
         // approval 없거나 이미 sent/viewed/decided 상태면 새로 생성
         const created = await createApproval({
           dealId,
-          stage: "estimate",
+          stage,
           payload,
           partnerId,
         });
@@ -202,7 +229,7 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
             type: "quote",
             to: email,
             signerName: partnerName || undefined,
-            title: dealName || "견적서 확인 요청",
+            title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청` : `${STAGE_LABEL[stage]} 확인 요청`,
             // 절대 URL: PR-D 엣지가 받아서 본문에 노출. 환경변수 SITE_URL 폴백.
             signUrl: _token ? buildQuoteUrl(_token) : null,
             companyName: undefined, // 엣지가 발신자 회사명 조회 (간단 fallback)
@@ -214,7 +241,7 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
       }
 
       // 4) approval 상태 재조회
-      const latest = await getLatestApproval(dealId, "estimate");
+      const latest = await getLatestApproval(dealId, stage);
       if (latest) setApproval(latest);
       toast(`거래처에 발송되었습니다 (${email})`, "success");
     } catch (e: unknown) {
@@ -247,14 +274,14 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
             type: "quote",
             to: email,
             signerName: partnerName || undefined,
-            title: dealName || "견적서 확인 요청 (재발송)",
+            title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청 (재발송)` : `${STAGE_LABEL[stage]} 확인 요청 (재발송)`,
             signUrl: buildQuoteUrl(token),
           },
         });
       } catch (e) {
         reportError("quote-approvals.resend.edge", e);
       }
-      const latest = await getLatestApproval(dealId, "estimate");
+      const latest = await getLatestApproval(dealId, stage);
       if (latest) setApproval(latest);
       toast(`거래처에 재발송되었습니다 (${email})`, "success");
     } catch (e: unknown) {
@@ -306,10 +333,20 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
     return <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-[11px] text-[var(--text-dim)] text-center">불러오는 중…</div>;
   }
 
+  // 진척 보고서 / 완료 확인서 / 정산 확인 — 우선 stub, 다음 라운드에서 본 폼 추가
+  if (STUB_STAGES.has(stage)) {
+    return <StageStubCard stage={stage} approval={approval} />;
+  }
+
+  // estimate / contract 본 폼 — payload schema 동일(items/paymentStages/quoteContent)
+  // contract 도 estimate payload inherit 이라 같은 UI 그대로 사용 (다음 라운드에서
+  // 계약기간·특약사항 입력 필드 추가). saveQuoteAndPayment 와 호환.
+  const sectionLabel = stage === "estimate" ? "견적 품목 / 결제 단계" : `${STAGE_LABEL[stage]} 항목 / 결제 단계`;
+
   return (
     <div className="bg-[var(--bg-surface)] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3 gap-2">
-        <h3 className="text-xs font-bold text-[var(--text-muted)]">견적 품목 / 결제 단계</h3>
+        <h3 className="text-xs font-bold text-[var(--text-muted)]">{sectionLabel}</h3>
         <div className="flex items-center gap-2">
           {/* STEP 4: StatusBadge — approval 존재 시 상태 노출 */}
           {approval && mode === "preview" && <StatusBadge approval={approval} />}
@@ -363,6 +400,7 @@ export function ProjectQuoteStages({ dealId, readonly }: Props) {
           sending={sending}
           partnerName={partnerName}
           itemsCount={items.length}
+          stage={stage}
         />
       )}
 
@@ -694,6 +732,7 @@ function SendBar({
   sending,
   partnerName,
   itemsCount,
+  stage,
 }: {
   email: string;
   onEmailChange: (v: string) => void;
@@ -701,11 +740,13 @@ function SendBar({
   sending: boolean;
   partnerName: string;
   itemsCount: number;
+  stage: QuoteApprovalStage;
 }) {
+  const stageLabel = STAGE_LABEL[stage];
   return (
     <div className="mb-3 pt-3 border-t border-[var(--border)]/40">
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
-        거래처에 발송 {partnerName ? `· ${partnerName}` : ""}
+        거래처에 {stageLabel} 발송 {partnerName ? `· ${partnerName}` : ""}
       </div>
       <div className="flex flex-col sm:flex-row gap-1.5">
         <input
@@ -721,14 +762,30 @@ function SendBar({
           disabled={sending || itemsCount === 0}
           className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
         >
-          {sending ? "발송 중…" : "📤 거래처에 발송"}
+          {sending ? "발송 중…" : `📤 거래처에 ${stageLabel} 발송`}
         </button>
       </div>
       {itemsCount === 0 && (
         <div className="mt-1.5 text-[10px] text-amber-400">품목을 1개 이상 추가한 뒤 발송할 수 있습니다</div>
       )}
       <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">
-        만료: 14일 · 거래처가 승인하면 자동으로 계약 단계로 진행됩니다
+        만료: 14일 · {STAGE_NEXT_HINT[stage]}
+      </div>
+    </div>
+  );
+}
+
+function StageStubCard({ stage, approval }: { stage: QuoteApprovalStage; approval: ApprovalLite | null }) {
+  const label = STAGE_LABEL[stage];
+  return (
+    <div className="bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h3 className="text-xs font-bold text-[var(--text-muted)]">{label}</h3>
+        {approval && <StatusBadge approval={approval} />}
+      </div>
+      <div className="text-[11px] text-[var(--text-dim)] py-6 text-center leading-relaxed">
+        {label} 단계 본 폼은 다음 라운드에 추가됩니다.<br/>
+        <span className="text-[10px] text-[var(--text-dim)]">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
       </div>
     </div>
   );
