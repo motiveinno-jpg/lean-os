@@ -16,6 +16,10 @@ type HubCard = {
   desc: string;
   accent: string;
   icon: React.ReactNode;
+  // 사용자 핸드오프: 입금 자동매칭 = owner 만, 3-Way = owner/admin.
+  //   employee/partner 는 페이지 진입 자체가 AccessDenied 차단 (line 80) 이지만
+  //   미래 안전망으로 카드 레벨에서도 한 번 더 필터.
+  roles?: ("owner" | "admin")[];
 };
 
 const CARDS: HubCard[] = [
@@ -72,6 +76,38 @@ const CARDS: HubCard[] = [
       </svg>
     ),
   },
+  // 사용자 핸드오프: /matching 사이드바 제거 → 분석 허브에서만 진입.
+  {
+    href: "/matching",
+    title: "입금 자동매칭",
+    desc: "통장 입금 ↔ 매출 일정·세금계산서를 자동 매칭. 미수금 회수 관리.",
+    accent: "#06b6d4",
+    roles: ["owner"],
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+      </svg>
+    ),
+  },
+  // 사용자 핸드오프: 세금계산서 3-Way 매칭을 관리자 분석 카드로 노출.
+  //   ?tab=matching deep-link 로 세금계산서 페이지의 매칭 탭 직접 진입.
+  {
+    href: "/tax-invoices?tab=matching",
+    title: "3-Way 매칭",
+    desc: "계약 ↔ 세금계산서 ↔ 입금을 자동 검증. 누락·과다·금액 불일치 즉시 발견.",
+    accent: "#ec4899",
+    roles: ["owner", "admin"],
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 3 21 3 21 8" />
+        <line x1="4" y1="20" x2="21" y2="3" />
+        <polyline points="21 16 21 21 16 21" />
+        <line x1="15" y1="15" x2="21" y2="21" />
+        <line x1="4" y1="4" x2="9" y2="9" />
+      </svg>
+    ),
+  },
 ];
 
 export default function ReportsHubPage() {
@@ -101,7 +137,7 @@ export default function ReportsHubPage() {
           gap: 16,
         }}
       >
-        {CARDS.map((c) => (
+        {CARDS.filter((c) => !c.roles || c.roles.includes(role as "owner" | "admin")).map((c) => (
           <Link
             key={c.href}
             href={c.href}
