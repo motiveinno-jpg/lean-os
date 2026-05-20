@@ -52,6 +52,20 @@ export async function createApproval(params: {
   payload: Record<string, unknown>;
   partnerId?: string | null;
 }): Promise<{ id: string; token: string }> {
+  // 0) 현재 사용자 — RLS RESTRICTIVE INSERT WITH CHECK 가 created_by =
+  //    current_app_user_id() 또는 is_company_admin() 요구. created_by 누락 시
+  //    admin 이 아니면 42501. owner/admin 도 일관성 위해 명시.
+  const { data: userRes } = await db.auth.getUser();
+  const authId = userRes?.user?.id;
+  if (!authId) throw new Error('로그인이 필요합니다');
+  const { data: userRow, error: userErr } = await db
+    .from('users')
+    .select('id')
+    .eq('auth_id', authId)
+    .maybeSingle();
+  if (userErr) throw userErr;
+  if (!userRow) throw new Error('사용자 매핑을 찾을 수 없습니다');
+
   // 1) 회사 격리: deal 에서 company_id 조회 (RLS 가 어차피 차단하지만 INSERT 에 company_id 필수)
   const { data: deal, error: dealErr } = await db
     .from('deals')
@@ -76,6 +90,7 @@ export async function createApproval(params: {
     status: 'draft' as QuoteApprovalStatus,
     payload: params.payload as unknown,
     approval_token: token,
+    created_by: userRow.id,  // RLS RESTRICTIVE WITH CHECK 통과용
   };
   const { data: inserted, error: insertErr } = await db
     .from('quote_approvals')
