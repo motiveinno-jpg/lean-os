@@ -562,9 +562,10 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       if (nodes && nodes.length > 0) {
         nodeId = nodes[0].id;
       } else {
+        // deal_nodes 컬럼: name(NOT NULL) 필수. node_type 같은 컬럼 없음.
         const { data: newNode, error: nodeErr } = await db2
           .from("deal_nodes")
-          .insert({ deal_id: dealId, name: "기본 비용", node_type: "cost" })
+          .insert({ deal_id: dealId, name: "기본 비용" })
           .select("id")
           .single();
         if (nodeErr) throw nodeErr;
