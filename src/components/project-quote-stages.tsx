@@ -213,6 +213,19 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
         approvalId = created.id;
         _token = created.token;
       }
+      // 안전망 (2026-05-21): 기존 draft 재사용 분기에서 _token 미할당 → 메일 링크 깨짐 회귀.
+      //   어느 경로든 _token 확보. approval_token 컬럼은 RLS 상 작성자/회사구성원 select 허용.
+      if (!_token && approvalId) {
+        const { data: row } = await (supabase as any)
+          .from('quote_approvals')
+          .select('approval_token')
+          .eq('id', approvalId)
+          .maybeSingle();
+        _token = row?.approval_token ?? null;
+      }
+      if (!_token) {
+        throw new Error('서명 링크 생성 실패 — 잠시 후 다시 시도해 주세요');
+      }
 
       // 2) status='sent' + sent_at + expires_at + recipient_*
       await sendApproval({
@@ -233,7 +246,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             signerName: partnerName || undefined,
             title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청` : `${STAGE_LABEL[stage]} 확인 요청`,
             // 절대 URL: PR-D 엣지가 받아서 본문에 노출. 환경변수 SITE_URL 폴백.
-            signUrl: _token ? buildQuoteUrl(_token) : null,
+            signUrl: buildQuoteUrl(_token),
             companyName: undefined, // 엣지가 발신자 회사명 조회 (간단 fallback)
             amount: contractTotal || undefined,
             items: items.length > 0 ? items : undefined,
