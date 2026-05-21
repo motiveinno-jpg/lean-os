@@ -165,7 +165,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 
   return (
     <div>
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">📊 프로젝트 현황 — 5단계 분포</h2>
+      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">📊 프로젝트 현황 </h2>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {STAGES.map((s) => {
           const d = map.get(s);
@@ -194,7 +194,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 function TopActorsSection({ partners, managers, qLabel }: { partners: TopPartner[]; managers: TopManager[]; qLabel: string }) {
   return (
     <div>
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">🏢 누구랑 했나 — {qLabel} TOP 5</h2>
+      {/* <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">🏢 누구랑 했나 — {qLabel} TOP 5</h2> */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
           <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">거래처</div>
