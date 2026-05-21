@@ -431,7 +431,7 @@ function todayMs() {
 }
 
 function GanttView({ milestones }: { milestones: Milestone[] }) {
-  // 범위 = 마일스톤들의 (start_date|due_date) min ~ max. 비어있으면 today ± 30일.
+  // 범위 = 마일스톤들의 (start_date|due_date) min ~ max. 비어있으면 today ± 14일.
   const { rangeStart, rangeEnd, span } = useMemo(() => {
     const dates: number[] = [];
     milestones.forEach((m) => {
@@ -440,12 +440,12 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
     });
     const today = todayMs();
     if (dates.length === 0) {
-      return { rangeStart: today - 30 * 864e5, rangeEnd: today + 30 * 864e5, span: 60 * 864e5 };
+      return { rangeStart: today - 14 * 864e5, rangeEnd: today + 14 * 864e5, span: 28 * 864e5 };
     }
     const minD = Math.min(...dates);
     const maxD = Math.max(...dates);
-    // 여유 패딩 — 최소 3일, 최대 5%
-    const pad = Math.max(864e5 * 3, (maxD - minD) * 0.05);
+    // 여유 패딩 — 최소 2일, 최대 7%
+    const pad = Math.max(864e5 * 2, (maxD - minD) * 0.07);
     const s = minD - pad;
     const e = maxD + pad;
     return { rangeStart: s, rangeEnd: e, span: Math.max(e - s, 864e5) };
@@ -454,21 +454,25 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
   const today = todayMs();
   const todayPct = ((today - rangeStart) / span) * 100;
   const todayInRange = todayPct >= 0 && todayPct <= 100;
+  const spanDays = Math.max(1, Math.round(span / 864e5));
 
-  // 월 눈금
-  const ticks = useMemo(() => {
-    const arr: { pct: number; label: string }[] = [];
+  // 매일 일자 tick + 라벨. (라벨은 매일 표시 — 사용자 요청)
+  const dayTicks = useMemo(() => {
+    const arr: { pct: number; label: string; sub: string; isMonthStart: boolean; isWeekend: boolean; weekday: number }[] = [];
     const start = new Date(rangeStart);
-    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    let cursor = new Date(start);
     while (cursor.getTime() <= rangeEnd) {
       const pct = ((cursor.getTime() - rangeStart) / span) * 100;
-      if (pct >= 0 && pct <= 100) {
-        arr.push({
-          pct,
-          label: `${cursor.getFullYear().toString().slice(2)}.${String(cursor.getMonth() + 1).padStart(2, "0")}`,
-        });
-      }
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      arr.push({
+        pct,
+        label: `${cursor.getMonth() + 1}/${cursor.getDate()}`,
+        sub: ["일", "월", "화", "수", "목", "금", "토"][cursor.getDay()],
+        isMonthStart: cursor.getDate() === 1,
+        isWeekend: cursor.getDay() === 0 || cursor.getDay() === 6,
+        weekday: cursor.getDay(),
+      });
+      cursor = new Date(cursor.getTime() + 864e5);
     }
     return arr;
   }, [rangeStart, rangeEnd, span]);
@@ -481,146 +485,228 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
     );
   }
 
-  const ROW_H = 36; // px — 좌·우 컬럼 행 높이 일치
+  const ROW_H = 48; // 행 높이 (큰 막대 + 라벨 가독)
+  const HEADER_H = 56; // 일자 + 요일 2-row
+  const LABEL_W = 128; // 좌측 라벨 컬럼 px
+  // 매일 라벨 가독성 위한 timeline 최소 폭 (32px/day). 슬라이드보다 넓으면 가로 스크롤.
+  const TIMELINE_MIN_W = Math.max(spanDays * 32, 480);
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-sm">
-      <div className="flex">
-        {/* ─── 좌측: 마일스톤 라벨 컬럼 ─── */}
-        <div className="w-36 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/20">
-          {/* 헤더 */}
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-sm w-full">
+      {/* 가로 스크롤 컨테이너 — 좌측 라벨도 함께 스크롤 */}
+      <div className="overflow-x-auto">
+        <div className="flex" style={{ minWidth: LABEL_W + TIMELINE_MIN_W }}>
+          {/* ─── 좌측: 마일스톤 라벨 컬럼 (sticky) ─── */}
           <div
-            className="px-3 flex items-center border-b border-[var(--border)] text-[10px] font-bold uppercase text-[var(--text-muted)] tracking-wider"
-            style={{ height: ROW_H }}
+            className="shrink-0 border-r border-[var(--border)] bg-[var(--bg-card)] sticky left-0 z-30"
+            style={{ width: LABEL_W }}
           >
-            마일스톤
-          </div>
-          {/* 데이터 행 */}
-          {milestones.map((m) => {
-            const done = !!m.completed_at;
-            const overdue = !done && m.due_date && dateOnlyMs(m.due_date) < today;
-            return (
-              <div
-                key={m.id}
-                className="px-3 flex items-center gap-2 border-b border-[var(--border)]/60 last:border-b-0"
-                style={{ height: ROW_H }}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    done ? "bg-emerald-500" : overdue ? "bg-red-500" : "bg-cyan-500"
-                  }`}
-                />
-                <span
-                  className={`text-xs truncate ${
-                    done ? "text-[var(--text-dim)] line-through" : "text-[var(--text)]"
-                  }`}
-                  title={m.name}
-                >
-                  {m.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ─── 우측: 타임라인 컬럼 ─── */}
-        <div className="relative flex-1 min-w-0 overflow-x-auto">
-          {/* 헤더 */}
-          <div
-            className="relative border-b border-[var(--border)] bg-gradient-to-b from-[var(--bg-surface)]/40 to-transparent"
-            style={{ height: ROW_H }}
-          >
-            {ticks.map((t, i) => (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0 border-l border-dashed border-[var(--border)]"
-                style={{ left: `${t.pct}%` }}
-              >
-                <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold text-[var(--text-muted)] whitespace-nowrap">
-                  {t.label}
-                </span>
-              </div>
-            ))}
-            {/* 오늘 라벨 pill */}
-            {todayInRange && (
-              <div
-                className="absolute z-20 -translate-x-1/2 px-1.5 py-0.5 rounded-md bg-[var(--primary)] text-white text-[9px] font-bold shadow-md whitespace-nowrap"
-                style={{ left: `${todayPct}%`, top: 4 }}
-              >
-                오늘
-              </div>
-            )}
-          </div>
-
-          {/* 막대 행들 — today 라인은 이 영역 전체를 가로지름 */}
-          <div className="relative">
-            {todayInRange && (
-              <div
-                className="absolute top-0 bottom-0 z-10 pointer-events-none"
-                style={{ left: `${todayPct}%`, transform: "translateX(-50%)", width: 2 }}
-                aria-hidden
-              >
-                <div className="w-full h-full bg-gradient-to-b from-[var(--primary)] via-[var(--primary)]/70 to-[var(--primary)]/30" />
-              </div>
-            )}
+            {/* 헤더 */}
+            <div
+              className="px-3 flex items-center border-b border-[var(--border)] bg-[var(--bg-surface)]/30 text-[10px] font-bold uppercase text-[var(--text-muted)] tracking-wider"
+              style={{ height: HEADER_H }}
+            >
+              마일스톤
+            </div>
+            {/* 데이터 행 */}
             {milestones.map((m, idx) => {
-              const startT = m.start_date ? dateOnlyMs(m.start_date) : null;
-              const dueT = m.due_date ? dateOnlyMs(m.due_date) : null;
-              const sT = startT ?? dueT;
-              const eT = dueT ?? startT;
               const done = !!m.completed_at;
-              const overdue = !done && dueT && dueT < today;
-              const gradient = done
-                ? "from-emerald-500 to-emerald-400"
-                : overdue
-                ? "from-red-500 to-red-400"
-                : "from-cyan-500 to-cyan-400";
-              const tip = `${m.name}\n${m.start_date || "?"} → ${m.due_date || "?"}${
-                done ? " · 완료" : overdue ? " · 지연" : ""
-              }`;
+              const overdue = !done && m.due_date && dateOnlyMs(m.due_date) < today;
               return (
                 <div
                   key={m.id}
-                  className={`relative border-b border-[var(--border)]/60 last:border-b-0 ${
+                  className={`px-3 flex items-center gap-2 border-b border-[var(--border)]/60 last:border-b-0 ${
                     idx % 2 === 1 ? "bg-[var(--bg-surface)]/15" : ""
                   }`}
                   style={{ height: ROW_H }}
                 >
-                  {/* tick guideline (희미하게) */}
-                  {ticks.map((t, i) => (
-                    <div
-                      key={i}
-                      className="absolute top-0 bottom-0 border-l border-dashed border-[var(--border)]/40 pointer-events-none"
-                      style={{ left: `${t.pct}%` }}
-                      aria-hidden
-                    />
-                  ))}
-                  {/* 막대 */}
-                  {sT && eT && (() => {
-                    const left = Math.max(0, ((sT - rangeStart) / span) * 100);
-                    const widthRaw = Math.max(((eT - sT) / span) * 100, 0.6);
-                    const width = Math.min(widthRaw, 100 - left);
-                    return (
-                      <div
-                        className={`absolute top-1.5 bottom-1.5 rounded-md bg-gradient-to-r ${gradient} shadow-sm hover:shadow-lg hover:brightness-110 transition-all flex items-center px-2 overflow-hidden cursor-default ring-1 ring-white/10`}
-                        style={{ left: `${left}%`, width: `${width}%`, minWidth: 6 }}
-                        title={tip}
-                      >
-                        <span className="text-[10px] font-semibold text-white truncate drop-shadow">
-                          {m.name}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      done ? "bg-emerald-500" : overdue ? "bg-red-500" : "bg-cyan-500"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs truncate ${
+                      done ? "text-[var(--text-dim)] line-through" : "text-[var(--text)] font-medium"
+                    }`}
+                    title={m.name}
+                  >
+                    {m.name}
+                  </span>
                 </div>
               );
             })}
+          </div>
+
+          {/* ─── 우측: 타임라인 컬럼 ─── */}
+          <div className="relative flex-1 min-w-0" style={{ minWidth: TIMELINE_MIN_W }}>
+            {/* 헤더 — 일자 + 요일 */}
+            <div
+              className="relative border-b border-[var(--border)] bg-gradient-to-b from-[var(--bg-surface)]/40 to-transparent"
+              style={{ height: HEADER_H }}
+            >
+              {dayTicks.map((t, i) => (
+                <div
+                  key={i}
+                  className={`absolute top-0 bottom-0 ${
+                    t.isMonthStart
+                      ? "border-l border-[var(--border)]"
+                      : t.weekday === 1
+                      ? "border-l border-[var(--border)]/60"
+                      : "border-l border-dashed border-[var(--border)]/25"
+                  }`}
+                  style={{ left: `${t.pct}%` }}
+                >
+                  <div className="absolute top-1 left-1 flex flex-col leading-tight">
+                    <span
+                      className={`text-[10px] font-semibold whitespace-nowrap ${
+                        t.isMonthStart
+                          ? "text-[var(--text)]"
+                          : t.isWeekend
+                          ? t.weekday === 0
+                            ? "text-red-500/80"
+                            : "text-cyan-500/80"
+                          : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {t.label}
+                    </span>
+                    <span
+                      className={`text-[9px] font-medium ${
+                        t.weekday === 0 ? "text-red-500/60" : t.weekday === 6 ? "text-cyan-500/60" : "text-[var(--text-dim)]"
+                      }`}
+                    >
+                      {t.sub}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {/* 오늘 pill */}
+              {todayInRange && (
+                <div
+                  className="absolute z-20 -translate-x-1/2 px-2 py-0.5 rounded-md bg-[var(--primary)] text-white text-[10px] font-bold shadow-md whitespace-nowrap"
+                  style={{ left: `${todayPct}%`, top: 4 }}
+                >
+                  오늘
+                </div>
+              )}
+            </div>
+
+            {/* 막대 행들 */}
+            <div className="relative">
+              {/* 주말 컬럼 음영 (선택) — 가독성 보조 */}
+              {dayTicks.map((t, i) =>
+                t.isWeekend ? (
+                  <div
+                    key={`we-${i}`}
+                    className={`absolute top-0 bottom-0 pointer-events-none ${
+                      t.weekday === 0 ? "bg-red-500/[0.03]" : "bg-cyan-500/[0.03]"
+                    }`}
+                    style={{ left: `${t.pct}%`, width: `${100 / spanDays}%` }}
+                    aria-hidden
+                  />
+                ) : null
+              )}
+
+              {/* today 수직선 */}
+              {todayInRange && (
+                <div
+                  className="absolute top-0 bottom-0 z-10 pointer-events-none"
+                  style={{ left: `${todayPct}%`, transform: "translateX(-50%)", width: 2 }}
+                  aria-hidden
+                >
+                  <div className="w-full h-full bg-gradient-to-b from-[var(--primary)] via-[var(--primary)]/70 to-[var(--primary)]/30" />
+                </div>
+              )}
+
+              {milestones.map((m, idx) => {
+                const startT = m.start_date ? dateOnlyMs(m.start_date) : null;
+                const dueT = m.due_date ? dateOnlyMs(m.due_date) : null;
+                const sT = startT ?? dueT;
+                const eT = dueT ?? startT;
+                const done = !!m.completed_at;
+                const overdue = !done && dueT !== null && dueT < today;
+                const gradient = done
+                  ? "from-emerald-500 to-emerald-400"
+                  : overdue
+                  ? "from-red-500 to-red-400"
+                  : "from-cyan-500 to-cyan-400";
+                const lineColor = done ? "bg-emerald-500" : overdue ? "bg-red-500" : "bg-cyan-500";
+                const pillBg = done ? "bg-emerald-500" : overdue ? "bg-red-500" : "bg-cyan-500";
+
+                // D-day
+                const dDay = dueT !== null ? Math.round((dueT - today) / 864e5) : null;
+                const dDayText =
+                  dDay === null
+                    ? null
+                    : dDay === 0
+                    ? "D-Day"
+                    : dDay > 0
+                    ? `D-${dDay}`
+                    : `D+${-dDay}`;
+                const dueDatePct = dueT !== null ? ((dueT - rangeStart) / span) * 100 : null;
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`relative border-b border-[var(--border)]/60 last:border-b-0 group/bar ${
+                      idx % 2 === 1 ? "bg-[var(--bg-surface)]/15" : ""
+                    }`}
+                    style={{ height: ROW_H }}
+                  >
+                    {/* 마감일 수직선 — 항상 옅게, 호버 시 진하게 */}
+                    {dueDatePct !== null && dueDatePct >= 0 && dueDatePct <= 100 && (
+                      <div
+                        className={`absolute top-0 bottom-0 w-0.5 ${lineColor} opacity-30 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-[5]`}
+                        style={{ left: `${dueDatePct}%`, transform: "translateX(-50%)" }}
+                        aria-hidden
+                      />
+                    )}
+
+                    {/* 막대 */}
+                    {sT !== null && eT !== null && (() => {
+                      const left = Math.max(0, ((sT - rangeStart) / span) * 100);
+                      const widthRaw = Math.max(((eT - sT) / span) * 100, 0.6);
+                      const width = Math.min(widthRaw, 100 - left);
+                      return (
+                        <div
+                          className={`absolute top-2 bottom-2 rounded-lg bg-gradient-to-r ${gradient} shadow-sm group-hover/bar:shadow-xl group-hover/bar:brightness-110 group-hover/bar:scale-y-110 transition-all flex items-center px-2.5 overflow-hidden cursor-default ring-1 ring-white/10 z-[6]`}
+                          style={{ left: `${left}%`, width: `${width}%`, minWidth: 8 }}
+                        >
+                          <span className="text-[11px] font-bold text-white truncate drop-shadow">
+                            {m.name}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 호버 D-day pill — 마감일 수직선 위에 떠오름 */}
+                    {dDayText && dueDatePct !== null && dueDatePct >= 0 && dueDatePct <= 100 && (
+                      <div
+                        className={`absolute z-40 px-2 py-1 rounded-md text-[10px] font-bold shadow-xl whitespace-nowrap opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none ${pillBg} text-white`}
+                        style={{
+                          left: `${dueDatePct}%`,
+                          top: -6,
+                          transform: "translate(-50%, -100%)",
+                        }}
+                      >
+                        <div className="text-center">{dDayText}</div>
+                        <div className="text-[9px] font-medium opacity-90 text-center">
+                          마감 {m.due_date}
+                          {done ? " · 완료" : overdue ? ` · 지연 ${-dDay!}일` : ""}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
       {/* 범례 */}
-      <div className="flex items-center gap-3 px-3 py-2 border-t border-[var(--border)] bg-[var(--bg-surface)]/20 text-[10px] text-[var(--text-muted)]">
+      <div className="flex items-center gap-3 px-3 py-2 border-t border-[var(--border)] bg-[var(--bg-surface)]/20 text-[10px] text-[var(--text-muted)] flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-2 rounded-sm bg-gradient-to-r from-cyan-500 to-cyan-400" /> 진행중
         </span>
@@ -630,9 +716,13 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-2 rounded-sm bg-gradient-to-r from-red-500 to-red-400" /> 지연
         </span>
-        <span className="flex items-center gap-1.5 ml-auto">
+        <span className="flex items-center gap-1.5">
           <span className="w-0.5 h-3 bg-[var(--primary)]" /> 오늘
         </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-0.5 h-3 bg-cyan-500/60" /> 마감
+        </span>
+        <span className="ml-auto text-[var(--text-dim)] italic">막대 hover → D-day 표시</span>
       </div>
     </div>
   );
