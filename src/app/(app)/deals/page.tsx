@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
-import { friendlyError } from "@/lib/friendly-error";
+import { friendlyError, reportError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -80,8 +80,12 @@ function RiskBadge({ risk }: { risk?: string | null }) {
 
 function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { role } = useUser();
   const isPartnerView = role === "partner";
+  // 직원도 partner 와 동일하게 재무 가림·편집 차단 (보안). 본인 담당 deal 만 진입 (B-3 검증).
+  const isEmployeeLimited = role === "employee";
+  const isLimitedView = isPartnerView || isEmployeeLimited;
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [chatMsg, setChatMsg] = useState("");
@@ -107,6 +111,27 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
   ]);
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setUserId(u.id); setCompanyId(u.company_id); } }); }, []);
+
+  // B-3: 직원 권한 검증 — get_my_assigned_deals RPC 결과에 본인 deal 이 없으면 redirect.
+  //   owner/admin/partner 는 검증 불필요 (다른 RLS 가 회사격리 처리).
+  const { data: myAssignedDealIds } = useQuery<Set<string> | null>({
+    queryKey: ["my-assigned-deal-ids", userId],
+    queryFn: async () => {
+      if (!isEmployeeLimited) return null;
+      const { data, error } = await (supabase as any).rpc("get_my_assigned_deals");
+      if (error) { reportError("deals.detail.my_assigned", error); return new Set<string>(); }
+      return new Set<string>(((data || []) as { id: string }[]).map((d) => d.id));
+    },
+    enabled: !!userId && isEmployeeLimited,
+  });
+  useEffect(() => {
+    if (!isEmployeeLimited) return;
+    if (!myAssignedDealIds) return;  // 로딩 중
+    if (dealId && !myAssignedDealIds.has(dealId)) {
+      toast("본인이 담당·참여하는 프로젝트만 조회할 수 있습니다.", "error");
+      router.replace("/dashboard");
+    }
+  }, [isEmployeeLimited, myAssignedDealIds, dealId, router, toast]);
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ["deal-detail", dealId], queryFn: () => getDealWithNodes(dealId), enabled: !!dealId });
   const { data: milestones = [], refetch: refetchMs } = useQuery({ queryKey: ["milestones", dealId], queryFn: () => getMilestones(dealId), enabled: !!dealId });
@@ -292,24 +317,38 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
             {deal.deal_number && <span className="text-xs px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] font-mono">{deal.deal_number}</span>}
             <h1 className="text-2xl font-extrabold">{deal.name}</h1>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]"><span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}{Number(deal.contract_total || 0) >= 10000 ? ` (${(Number(deal.contract_total) / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만원)` : ""}{deal.vat_type === 'exclusive' ? ' VAT별도' : deal.vat_type === 'zero' ? ' 영세율' : ' VAT포함'}</span>{deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}</div>
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 text-xs text-[var(--text-muted)]">
+            {!isLimitedView && <span>계약금: ₩{Number(deal.contract_total || 0).toLocaleString()}{Number(deal.contract_total || 0) >= 10000 ? ` (${(Number(deal.contract_total) / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만원)` : ""}{deal.vat_type === 'exclusive' ? ' VAT별도' : deal.vat_type === 'zero' ? ' 영세율' : ' VAT포함'}</span>}
+            {deal.start_date && <span>{deal.start_date} ~ {deal.end_date || "진행중"}</span>}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {!isPartnerView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}
+          {!isLimitedView && <button onClick={startEdit} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">수정</button>}
           <Link href={dealChannel ? `/chat?channel=${dealChannel.id}` : `/chat`} className="px-3 py-2 min-h-[44px] flex items-center rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">💬 채팅</Link>
-          {!isPartnerView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 프로젝트를 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
+          {!isLimitedView && deal.status !== 'archived' && (<button onClick={async () => { if (!confirm('이 프로젝트를 아카이브하시겠습니까?\n대시보드/목록에서 숨겨집니다.')) return; const { archiveDeal } = await import('@/lib/archiving'); await archiveDeal(dealId); queryClient.invalidateQueries({ queryKey: ['deal'] }); }} className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition">아카이브</button>)}
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${deal.status === 'active' ? 'bg-green-500/10 text-green-400' : deal.status === 'archived' ? 'bg-orange-500/10 text-orange-400' : 'bg-gray-500/10 text-gray-400'}`}>{DEAL_STATUS_LABEL[deal.status || ''] || deal.status || '대기'}</span>
         </div>
       </div>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 매출</div><div className="text-lg font-bold text-green-400 mt-1">₩{totalRevenue.toLocaleString()}</div></div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 비용</div><div className="text-lg font-bold text-red-400 mt-1">₩{totalCost.toLocaleString()}</div></div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">마진</div><div className={`text-lg font-bold mt-1 ${dealMargin < 20 ? 'text-red-400' : dealMargin < 35 ? 'text-yellow-400' : 'text-green-400'}`}>{dealMargin.toFixed(1)}%</div></div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">작업 단계</div><div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div></div>
-      </div>
-      <DealPipelineWidget dealId={dealId} companyId={companyId} userId={userId} onRefresh={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["deal-detail"] }); }} quoteItems={quoteItems} quoteContent={quoteContent} paymentRatio={{ advance: paymentStages[0]?.ratio ?? 30, balance: paymentStages.slice(1).reduce((s, st) => s + st.ratio, 0) }} paymentSchedule={paymentStages} />
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
+      {!isLimitedView && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 매출</div><div className="text-lg font-bold text-green-400 mt-1">₩{totalRevenue.toLocaleString()}</div></div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">총 비용</div><div className="text-lg font-bold text-red-400 mt-1">₩{totalCost.toLocaleString()}</div></div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">마진</div><div className={`text-lg font-bold mt-1 ${dealMargin < 20 ? 'text-red-400' : dealMargin < 35 ? 'text-yellow-400' : 'text-green-400'}`}>{dealMargin.toFixed(1)}%</div></div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4"><div className="text-xs text-[var(--text-dim)]">작업 단계</div><div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div></div>
+        </div>
+      )}
+      {/* 직원 한정 — 작업 단계만 단독 표시 (비재무) */}
+      {isLimitedView && (
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6 inline-block">
+          <div className="text-xs text-[var(--text-dim)]">작업 단계</div>
+          <div className="text-lg font-bold mt-1">{data?.nodes.length || 0}</div>
+        </div>
+      )}
+      {!isLimitedView && (
+        <DealPipelineWidget dealId={dealId} companyId={companyId} userId={userId} onRefresh={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["deal-detail"] }); }} quoteItems={quoteItems} quoteContent={quoteContent} paymentRatio={{ advance: paymentStages[0]?.ratio ?? 30, balance: paymentStages.slice(1).reduce((s, st) => s + st.ratio, 0) }} paymentSchedule={paymentStages} />
+      )}
+      {!isLimitedView && <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">견적 품목 / 결제 비율</h2><button onClick={() => setQuoteItems(prev => prev.length === 0 ? [{ name: deal?.name || '', quantity: 1, unitPrice: Number(deal?.contract_total || 0), supplyAmount: Number(deal?.contract_total || 0), taxAmount: Math.round(Number(deal?.contract_total || 0) * 0.1), totalAmount: Math.round(Number(deal?.contract_total || 0) * 1.1), note: '' }] : prev)} className="text-xs text-[var(--primary)] hover:text-[var(--text)] transition font-semibold">{quoteItems.length === 0 ? '+ 품목 추가' : `${quoteItems.length}건`}</button></div>
         <div className="px-5 py-3 border-b border-[var(--border)]/50">
           <div className="flex items-center justify-between mb-2">
@@ -350,11 +389,11 @@ function DealDetailView({ dealId, onBack }: { dealId: string; onBack: () => void
         </div>
         {quoteItems.length === 0 && (<div className="px-5 py-4 text-center text-xs text-[var(--text-dim)]">품목을 추가하면 견적서 생성 시 자동으로 반영됩니다</div>)}
         {(quoteItems.length > 0 || paymentStages.length > 0 || quoteContent) && !quoteItems.length && (<div className="px-5 py-2 border-t border-[var(--border)]/50 flex justify-end"><button onClick={saveQuoteAndPayment} disabled={itemsSaving} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">{itemsSaving ? '저장 중...' : '저장'}</button></div>)}
-      </div>
+      </div>}
       <ProjectBoard dealId={dealId} nodes={data?.nodes || []} revenue={data?.revenue || []} milestones={milestones} assignments={assignments} onRefresh={() => { refetch(); refetchMs(); }} />
-      {(data?.costs || []).length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">비용 내역</h2><span className="text-xs text-red-400 font-bold">₩{totalCost.toLocaleString()}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-4 py-2 font-medium">항목</th><th className="text-left px-4 py-2 font-medium">카테고리</th><th className="text-right px-4 py-2 font-medium">금액</th><th className="text-center px-4 py-2 font-medium">상태</th><th className="text-left px-4 py-2 font-medium">예정일</th></tr></thead><tbody>{(data?.costs || []).map((c: any) => (<tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"><td className="px-4 py-2.5 font-medium">{c.label || c.category || '비용'}</td><td className="px-4 py-2.5 text-[var(--text-muted)]">{c.category || '—'}</td><td className="px-4 py-2.5 text-right font-bold text-red-400">₩{Number(c.amount || 0).toLocaleString()}</td><td className="px-4 py-2.5 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.status === 'paid' ? 'bg-green-500/10 text-green-400' : c.status === 'confirmed' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>{c.status === 'paid' ? '지급완료' : c.status === 'confirmed' ? '확정' : '예정'}</span></td><td className="px-4 py-2.5 text-[var(--text-dim)]">{c.due_date || '—'}</td></tr>))}</tbody></table></div></div>)}
-      {subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">외주 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
-      <DealAssigneesPanel dealId={dealId} companyId={companyId} assignments={assignments} canEdit={!isPartnerView} />
+      {!isLimitedView && (data?.costs || []).length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between"><h2 className="text-sm font-bold">비용 내역</h2><span className="text-xs text-red-400 font-bold">₩{totalCost.toLocaleString()}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-[var(--text-dim)] border-b border-[var(--border)]"><th className="text-left px-4 py-2 font-medium">항목</th><th className="text-left px-4 py-2 font-medium">카테고리</th><th className="text-right px-4 py-2 font-medium">금액</th><th className="text-center px-4 py-2 font-medium">상태</th><th className="text-left px-4 py-2 font-medium">예정일</th></tr></thead><tbody>{(data?.costs || []).map((c: any) => (<tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"><td className="px-4 py-2.5 font-medium">{c.label || c.category || '비용'}</td><td className="px-4 py-2.5 text-[var(--text-muted)]">{c.category || '—'}</td><td className="px-4 py-2.5 text-right font-bold text-red-400">₩{Number(c.amount || 0).toLocaleString()}</td><td className="px-4 py-2.5 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.status === 'paid' ? 'bg-green-500/10 text-green-400' : c.status === 'confirmed' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>{c.status === 'paid' ? '지급완료' : c.status === 'confirmed' ? '확정' : '예정'}</span></td><td className="px-4 py-2.5 text-[var(--text-dim)]">{c.due_date || '—'}</td></tr>))}</tbody></table></div></div>)}
+      {!isLimitedView && subDeals.length > 0 && (<div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mt-6"><div className="px-5 py-4 border-b border-[var(--border)]"><h2 className="text-sm font-bold">외주 (외주/파트너)</h2></div><div className="divide-y divide-[var(--border)]/50">{subDeals.map((sd: any) => (<div key={sd.id} className="flex items-center justify-between px-5 py-3"><div><span className="text-sm font-medium">{sd.name}</span><span className="text-xs text-[var(--text-dim)] ml-2">{sd.vendors?.name || sd.type}</span></div><div className="text-right"><span className="text-sm font-bold">₩{Number(sd.contract_amount || 0).toLocaleString()}</span><span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${sd.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{sd.status === 'active' ? '진행중' : sd.status}</span></div></div>))}</div></div>)}
+      <DealAssigneesPanel dealId={dealId} companyId={companyId} assignments={assignments} canEdit={!isLimitedView} />
       <DealActivityLog dealId={dealId} companyId={companyId} userId={userId} />
       <DealChatWithFiles dealId={dealId} companyId={companyId} userId={userId} dealChannel={dealChannel} createChannelMut={createChannelMut} recentMessages={recentMessages} chatMsg={chatMsg} setChatMsg={setChatMsg} sendChatMut={sendChatMut} />
 
