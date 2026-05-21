@@ -18,6 +18,8 @@ const db = supabase as any;
 
 interface SignedRow {
   id: string;
+  // 출처 식별 (2026-05-21 dual mode: quote_approvals 단건 vs signature_requests 단체일괄)
+  _source: 'quote_approval' | 'signature_request';
   stage: string;
   status: string;
   recipient_name: string | null;
@@ -28,12 +30,17 @@ interface SignedRow {
   signed_contract_html: string | null;
   signed_contract_url: string | null;
   signature_data_url?: string | null;
+  // 본문 snapshot — quote_approvals 는 payload.template_snapshot_html, signature_requests 는 컬럼 직접
+  template_snapshot_html: string | null;
   payload: {
     template_name?: string;
     template_snapshot_html?: string;
   } | null;
   deals: { id: string; name: string } | null;
   companies: { name: string; representative: string | null } | null;
+  // signature_requests 한정
+  batch_id?: string | null;
+  signer_email?: string | null;
 }
 
 export default function SignedContractPage() {
@@ -47,16 +54,59 @@ export default function SignedContractPage() {
     if (!id) { setErr("잘못된 주소입니다"); setLoading(false); return; }
     (async () => {
       try {
-        const { data, error } = await db
+        // 2026-05-21 dual mode — id 가 quote_approvals 인지 signature_requests 인지 자동 식별
+        // 1) quote_approvals 먼저 (단건 견적·계약 흐름)
+        const { data: qa } = await db
           .from("quote_approvals")
           .select(
             "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, payload, deals(id, name), companies(name, representative)",
           )
           .eq("id", id)
           .maybeSingle();
-        if (error) throw error;
-        if (!data) { setErr("계약서를 찾을 수 없거나 권한이 없습니다."); setLoading(false); return; }
-        setRow(data as SignedRow);
+        if (qa) {
+          setRow({
+            ...qa,
+            _source: 'quote_approval',
+            template_snapshot_html: qa.payload?.template_snapshot_html ?? null,
+          } as SignedRow);
+          setLoading(false);
+          return;
+        }
+
+        // 2) signature_requests fallback (단체일괄 흐름)
+        const { data: sr } = await db
+          .from("signature_requests")
+          .select(
+            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, companies(name, representative), documents(name)",
+          )
+          .eq("id", id)
+          .maybeSingle();
+        if (sr) {
+          setRow({
+            id: sr.id,
+            _source: 'signature_request',
+            stage: 'contract',
+            status: sr.status,
+            recipient_name: sr.signer_name,
+            signer_email: sr.signer_email,
+            signature_method: sr.signature_method,
+            signed_at_external: sr.signed_at,
+            signer_ip: sr.ip_address ?? null,
+            signer_user_agent: null,
+            signed_contract_html: sr.signed_contract_html,
+            signed_contract_url: sr.signed_contract_url,
+            signature_data_url: sr.signature_data_url,
+            template_snapshot_html: sr.template_snapshot_html,
+            payload: { template_name: sr.documents?.name },
+            deals: null,
+            companies: sr.companies || null,
+            batch_id: sr.batch_id,
+          } as SignedRow);
+          setLoading(false);
+          return;
+        }
+
+        setErr("계약서를 찾을 수 없거나 권한이 없습니다.");
         setLoading(false);
       } catch (e: unknown) {
         reportError("contract.signed.fetch", e);
@@ -92,7 +142,8 @@ export default function SignedContractPage() {
          </div>
        </div>`
     : "";
-  const baseHtml = row.payload?.template_snapshot_html || "";
+  // template_snapshot_html: signature_requests 는 컬럼 직접, quote_approvals 는 payload 안 (loadSignedRow 가 통합)
+  const baseHtml = row.template_snapshot_html || row.payload?.template_snapshot_html || "";
   const html = row.signed_contract_html
     ? row.signed_contract_html
     : baseHtml
