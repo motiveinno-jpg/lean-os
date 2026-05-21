@@ -152,22 +152,40 @@ export function renderTemplateWithVariables(body: string | null | undefined, var
 // 견적 → 계약 변수 자동 채움 (D 에서 사용)
 // ──────────────────────────────────────────────────────────
 
-/** 견적 stage 의 payload + deal 정보 + 회사 정보 → 계약 변수 자동 매핑. */
+/** 견적 stage 의 payload + deal 정보 + 회사 정보 → 계약 변수 자동 매핑.
+ *  2026-05-21: 신규 변수 형식({갑_회사명} 등) + 사업자등록번호 + alias 호환.
+ */
 export function buildContractVarsFromDeal(input: {
-  myCompanyName?: string | null;     // 갑사명 (발송 측)
-  myRepresentative?: string | null;  // 대표자_갑
-  partnerName?: string | null;       // 을사명
-  partnerRepresentative?: string | null; // 대표자_을
-  contractTotal?: number | null;     // 계약금액
-  paymentStagesText?: string | null; // 지급조건 (결제 단계 텍스트)
+  myCompanyName?: string | null;          // {갑_회사명}
+  myBusinessNumber?: string | null;       // {갑_사업자번호}
+  myRepresentative?: string | null;       // {갑_대표자}
+  partnerName?: string | null;            // {을_회사명}
+  partnerBusinessNumber?: string | null;  // {을_사업자번호}
+  partnerRepresentative?: string | null;  // {을_대표자}
+  contractTotal?: number | null;          // {계약금액}
+  paymentStagesText?: string | null;      // {지급조건}
 }): Record<string, string> {
-  const out: Record<string, string> = {
-    "갑사명": (input.myCompanyName || "").trim(),
-    "대표자_갑": (input.myRepresentative || "").trim(),
-    "을사명": (input.partnerName || "").trim(),
-    "대표자_을": (input.partnerRepresentative || "").trim(),
+  const myCo = (input.myCompanyName || "").trim();
+  const myBiz = (input.myBusinessNumber || "").trim();
+  const myRep = (input.myRepresentative || "").trim();
+  const ptCo = (input.partnerName || "").trim();
+  const ptBiz = (input.partnerBusinessNumber || "").trim();
+  const ptRep = (input.partnerRepresentative || "").trim();
+  return {
+    // 신규 형식 (시스템 양식 v2 기준)
+    "갑_회사명": myCo,
+    "갑_사업자번호": myBiz,
+    "갑_대표자": myRep,
+    "을_회사명": ptCo,
+    "을_사업자번호": ptBiz,
+    "을_대표자": ptRep,
+    // alias — 기존 회사 양식(v1) 호환
+    "갑사명": myCo,
+    "대표자_갑": myRep,
+    "을사명": ptCo,
+    "대표자_을": ptRep,
+    // 공통
     "계약금액": input.contractTotal ? Number(input.contractTotal).toLocaleString("ko-KR") : "",
     "지급조건": (input.paymentStagesText || "").trim(),
   };
-  return out;
 }

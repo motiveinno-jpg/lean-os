@@ -81,8 +81,9 @@ export function ContractStageCard({
   const [vars, setVars] = useState<Record<string, string>>({});
   const [recipientEmailInput, setRecipientEmailInput] = useState(partnerEmail);
   const [sending, setSending] = useState(false);
-  const [companyInfo, setCompanyInfo] = useState<{ name: string; representative: string | null }>({ name: "", representative: null });
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; representative: string | null; business_number: string | null }>({ name: "", representative: null, business_number: null });
   const [partnerRep, setPartnerRep] = useState<string | null>(null);
+  const [partnerBiz, setPartnerBiz] = useState<string | null>(null);
 
   // 양식 + 회사/거래처 정보 초기 로드
   useEffect(() => {
@@ -95,13 +96,13 @@ export function ContractStageCard({
         }
       } catch (e) { reportError("contract.templates.list", e); }
       try {
-        const { data: co } = await (supabase as any).from("companies").select("name, representative").eq("id", companyId).maybeSingle();
-        if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null });
+        const { data: co } = await (supabase as any).from("companies").select("name, representative, business_number").eq("id", companyId).maybeSingle();
+        if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null, business_number: co.business_number || null });
       } catch { /* ignore */ }
       if (partnerId) {
         try {
-          const { data: p } = await (supabase as any).from("partners").select("representative").eq("id", partnerId).maybeSingle();
-          if (p) setPartnerRep(p.representative || null);
+          const { data: p } = await (supabase as any).from("partners").select("representative, business_number").eq("id", partnerId).maybeSingle();
+          if (p) { setPartnerRep(p.representative || null); setPartnerBiz(p.business_number || null); }
         } catch { /* ignore */ }
       }
     })();
@@ -116,14 +117,21 @@ export function ContractStageCard({
   // 양식 변경 시 자동 채움
   useEffect(() => {
     if (!selectedTemplate) return;
+    // 결제단계 텍스트에 금액 합성 (% (₩금액) — 조건) — 핸드오프 A 매칭
     const paymentText = (paymentStages || [])
       .filter((s) => s.label || s.ratio || s.condition)
-      .map((s, i) => `${s.label || `${i + 1}차`}: ${s.ratio ?? 0}% — ${s.condition || ""}`)
+      .map((s, i) => {
+        const ratio = s.ratio ?? 0;
+        const amount = contractTotal > 0 ? ` (₩${Math.round((contractTotal * ratio) / 100).toLocaleString("ko-KR")})` : "";
+        return `${s.label || `${i + 1}차`}: ${ratio}%${amount} — ${s.condition || ""}`;
+      })
       .join("\n");
     const auto = buildContractVarsFromDeal({
       myCompanyName: companyInfo.name,
+      myBusinessNumber: companyInfo.business_number,
       myRepresentative: companyInfo.representative,
       partnerName,
+      partnerBusinessNumber: partnerBiz,
       partnerRepresentative: partnerRep,
       contractTotal,
       paymentStagesText: paymentText,
@@ -187,6 +195,7 @@ export function ContractStageCard({
             signUrl: token ? buildQuoteUrl(token) : null,
             companyName: companyInfo.name || undefined,
             amount: contractTotal || undefined,
+            paymentStages: paymentStages || undefined,
           },
         });
       } catch (e) { reportError("contract.send.edge", e); }
@@ -218,6 +227,7 @@ export function ContractStageCard({
             signUrl: buildQuoteUrl(token),
             companyName: companyInfo.name || undefined,
             amount: contractTotal || undefined,
+            paymentStages: paymentStages || undefined,
           },
         });
       } catch (e) { reportError("contract.resend.edge", e); }
