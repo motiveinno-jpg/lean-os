@@ -181,9 +181,10 @@ export default function QuoteApprovalPage() {
     setErrMsg(null);
     try {
       // 서명 합성 HTML 생성 (계약 승인 시)
-      //   1) template_snapshot_html 의 {을_*} 변수 자리에 서명자 입력값 치환 (계약서 본문 갑/을 영역 채움)
-      //      — alias {을사명}/{대표자_을} 도 함께 치환 (구버전 회사 양식 호환)
-      //   2) 본문 끝에 서명란 카드 append
+      //   1) template_snapshot_html 의 {을_*} 변수 자리에 서명자 입력값 치환
+      //   2) sig-box[data-role="을"] 있으면 그 안에 서명 이미지 삽입 (시스템 양식 71259ef7)
+      //   3) sig-box 없으면 본문 그대로 — 페이지(/contracts/signed) 측 푸터가 별도 합성 (4eca444d)
+      //   본문 끝 sig 카드 append 제거 (사용자 호소 중복 회귀 해소)
       let signedHtml: string | null = null;
       if (isContractApproval) {
         const p = (row.payload || {}) as { template_snapshot_html?: string };
@@ -203,24 +204,15 @@ export default function QuoteApprovalPage() {
         body = subst(body, "을사명", signerCo);
         body = subst(body, "대표자_을", signerName);
 
-        const methodLabel = signatureMethod === "draw" ? "손글씨 서명"
-                          : signatureMethod === "type" ? "타이핑 서명"
-                          : "도장/사인";
-        const decidedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-        signedHtml = `${body}\n\n<div style="margin-top:32px;padding:20px;border:2px solid #4f46e5;border-radius:12px;background:#f8fafc">
-  <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:bold">📝 거래처 서명 / 날인</div>
-  <div style="display:flex;align-items:center;gap:16px">
-    <div style="flex:1">
-      <div style="font-size:13px;font-weight:bold;color:#111827">${signerCo || signerName}</div>
-      ${signerBiz ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">사업자등록번호 ${signerBiz}</div>` : ""}
-      <div style="font-size:11px;color:#6b7280;margin-top:2px">대표 ${signerName}</div>
-      <div style="font-size:11px;color:#6b7280;margin-top:4px">${methodLabel} · ${decidedAt} (KST)</div>
-    </div>
-    <div style="border:1px solid #e5e7eb;background:white;padding:6px;border-radius:6px">
-      <img src="${signatureDataUrl}" alt="서명" style="max-height:90px;max-width:200px;display:block" />
-    </div>
-  </div>
-</div>`;
+        // 시스템 양식 sig-box 안에 서명 삽입 (있을 때만). 옛 양식·자유 본문은 페이지 푸터가 처리.
+        const sigBoxRe = /(<span class="sig-box"\s+data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
+        if (signatureDataUrl && sigBoxRe.test(body)) {
+          const sigInline = signatureMethod === "type"
+            ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${signatureDataUrl}</span>`
+            : `<img src="${signatureDataUrl}" alt="" style="width:100%;height:100%;object-fit:contain"/>`;
+          body = body.replace(sigBoxRe, `$1${sigInline}$3`);
+        }
+        signedHtml = body;
       }
 
       const { data, error } = await db.rpc("submit_quote_decision", {

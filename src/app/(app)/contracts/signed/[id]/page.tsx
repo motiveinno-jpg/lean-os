@@ -247,14 +247,7 @@ export default function SignedContractPage() {
                 <div>사업자등록번호: {row.companies?.business_number || "—"}</div>
                 <div className="flex items-center gap-3 mt-1">
                   <span>대표자: {row.companies?.representative || "—"} (인)</span>
-                  <span className="inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded relative bg-gray-50 flex-shrink-0">
-                    {row.our_signature_data_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={row.our_signature_data_url} alt="갑 서명" className="absolute inset-0 w-full h-full object-contain p-1" />
-                    ) : (
-                      <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">서명 대기</span>
-                    )}
-                  </span>
+                  <SignatureBox dataUrl={row.our_signature_data_url} />
                 </div>
                 {row.our_signed_at && (
                   <div className="text-[10px] text-gray-500 mt-1">
@@ -272,14 +265,7 @@ export default function SignedContractPage() {
                 <div>사업자등록번호: {row.partner?.business_number || "—"}</div>
                 <div className="flex items-center gap-3 mt-1">
                   <span>대표자: {row.partner?.representative || "—"} (인)</span>
-                  <span className="inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded relative bg-gray-50 flex-shrink-0">
-                    {row.signature_data_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={row.signature_data_url} alt="을 서명" className="absolute inset-0 w-full h-full object-contain p-1" />
-                    ) : (
-                      <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">서명 대기</span>
-                    )}
-                  </span>
+                  <SignatureBox dataUrl={row.signature_data_url ?? null} />
                 </div>
                 {row.signed_at_external && (
                   <div className="text-[10px] text-gray-500 mt-1">
@@ -299,5 +285,31 @@ export default function SignedContractPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// 푸터 서명 박스 — base64 data URL 이미지 안전 렌더.
+//   - alt="" : 깨진 이미지일 때 "을 서명" 같은 텍스트 노출 차단
+//   - onError : 깨진 src 자동 숨김 → "서명 대기" placeholder 자연 fallback
+//   - inline style : Tailwind utility 와 충돌 회피 (object-contain·width 100% 안정)
+function SignatureBox({ dataUrl }: { dataUrl: string | null | undefined }) {
+  const [broken, setBroken] = useState(false);
+  const showImg = !!dataUrl && !broken;
+  return (
+    <span className="relative inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded bg-gray-50 flex-shrink-0 overflow-hidden align-middle">
+      {showImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={dataUrl!}
+          alt=""
+          onError={() => setBroken(true)}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}
+        />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">
+          서명 대기
+        </span>
+      )}
+    </span>
   );
 }
