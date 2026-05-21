@@ -3624,6 +3624,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
   //   필요시 사용자가 접을 수 있게 토글은 유지.
   const [allowanceExpanded, setAllowanceExpanded] = useState(true);
+  // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
+  //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
+  //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
+  const effectiveStatus = (r: { is_late?: boolean; status?: string | null }): string =>
+    r.is_late ? 'late' : (r.status || 'present');
 
   // Get month start/end for queries
   const monthStart = `${selectedMonth}-01`;
@@ -3718,7 +3723,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     const empMap: Record<string, Record<string, string>> = {};
     records.forEach((r: any) => {
       if (!empMap[r.employee_id]) empMap[r.employee_id] = {};
-      empMap[r.employee_id][r.date] = r.status;
+      empMap[r.employee_id][r.date] = effectiveStatus(r);
     });
 
     return { year, month, daysInMonth, firstDayOfWeek, empMap };
@@ -3726,8 +3731,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
   // Stats
   const totalRecords = records.length;
-  const presentCount = records.filter((r: any) => r.status === "present" || r.status === "remote").length;
-  const lateCount = records.filter((r: any) => r.status === "late").length;
+  const presentCount = records.filter((r: any) => { const s = effectiveStatus(r); return s === "present" || s === "remote"; }).length;
+  const lateCount = records.filter((r: any) => effectiveStatus(r) === "late").length;
   const avgHours = totalRecords > 0
     ? (records.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0) / totalRecords).toFixed(1)
     : "0.0";
@@ -4192,17 +4197,22 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     <td className="px-5 py-3 text-center">
                       <div className="flex flex-wrap items-center justify-center gap-1">
                         {/* 기본 상태 배지 */}
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                          r.status === "present" ? "bg-green-500/10 text-green-400"
-                          : r.status === "late" ? "bg-yellow-500/10 text-yellow-400"
-                          : r.status === "absent" ? "bg-red-500/10 text-red-400"
-                          : r.status === "half_day" ? "bg-orange-500/10 text-orange-400"
-                          : r.status === "remote" ? "bg-blue-500/10 text-blue-400"
-                          : "bg-gray-500/10 text-gray-400"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
-                          {statusLabel(r.status)}
-                        </span>
+                        {(() => {
+                          const es = effectiveStatus(r);
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                              es === "present" ? "bg-green-500/10 text-green-400"
+                              : es === "late" ? "bg-yellow-500/10 text-yellow-400"
+                              : es === "absent" ? "bg-red-500/10 text-red-400"
+                              : es === "half_day" ? "bg-orange-500/10 text-orange-400"
+                              : es === "remote" ? "bg-blue-500/10 text-blue-400"
+                              : "bg-gray-500/10 text-gray-400"
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${statusColor(es)}`} />
+                              {statusLabel(es)}
+                            </span>
+                          );
+                        })()}
                         {/* 갭①-B: 인라인 배지 매핑 → AttendanceBadges 컴포넌트로 통합.
                             관리자·직원 본인 뷰가 동일 출력 (MyAttendanceCard 도 같은 컴포넌트 사용). */}
                         <AttendanceBadges record={r} compact />
