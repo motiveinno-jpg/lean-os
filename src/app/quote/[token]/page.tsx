@@ -216,6 +216,22 @@ export default function QuoteApprovalPage() {
 
   const grandTotal = items.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
 
+  // L 계약: stage='contract' 의 payload — template_snapshot_html / PDF URL
+  const contractSnapshot = useMemo<{ html: string | null; fileUrl: string | null; fileType: string | null; templateName: string | null }>(() => {
+    const p = (row?.payload || {}) as {
+      template_snapshot_html?: string;
+      template_file_url?: string;
+      template_file_type?: string;
+      template_name?: string;
+    };
+    return {
+      html: typeof p.template_snapshot_html === "string" && p.template_snapshot_html.trim() ? p.template_snapshot_html : null,
+      fileUrl: typeof p.template_file_url === "string" ? p.template_file_url : null,
+      fileType: typeof p.template_file_type === "string" ? p.template_file_type : null,
+      templateName: typeof p.template_name === "string" ? p.template_name : null,
+    };
+  }, [row?.payload]);
+
   // ──────────────────────────────────────────────────────────
   // 렌더
   // ──────────────────────────────────────────────────────────
@@ -324,10 +340,30 @@ export default function QuoteApprovalPage() {
           <section>
             <Label>프로젝트</Label>
             <div className="text-sm font-semibold text-gray-900">{row.deal_name}</div>
+            {contractSnapshot.templateName && (
+              <div className="text-[11px] text-gray-500 mt-1">양식: {contractSnapshot.templateName}</div>
+            )}
           </section>
 
-          {/* 품목 표 */}
-          {items.length > 0 && (
+          {/* L 계약: stage='contract' — 양식 본문(template_snapshot_html) 또는 PDF 직접 노출 */}
+          {row.stage === "contract" && (contractSnapshot.html || contractSnapshot.fileUrl) && (
+            <section>
+              <Label>{stageLabel} 본문</Label>
+              {contractSnapshot.html ? (
+                <div
+                  className="border border-gray-200 rounded-lg p-4 bg-gray-50 text-xs max-h-[500px] overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: contractSnapshot.html }}
+                />
+              ) : contractSnapshot.fileUrl ? (
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 text-xs text-gray-700">
+                  📎 PDF 양식 — <a href={contractSnapshot.fileUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-semibold">PDF 열어서 확인</a>
+                </div>
+              ) : null}
+            </section>
+          )}
+
+          {/* 품목 표 — estimate 또는 contract 미상시 fallback */}
+          {items.length > 0 && row.stage !== "contract" && (
             <section>
               <Label>{stageLabel} 품목 ({items.length}건)</Label>
               <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
@@ -377,8 +413,8 @@ export default function QuoteApprovalPage() {
             </section>
           )}
 
-          {/* 결제 단계 */}
-          {stages.length > 0 && (
+          {/* 결제 단계 — estimate 또는 contract 미상시 fallback */}
+          {stages.length > 0 && row.stage !== "contract" && (
             <section>
               <Label>결제 단계 ({stages.length}단계)</Label>
               <div className="border border-gray-200 rounded-lg p-3 space-y-1.5">
