@@ -955,7 +955,7 @@ function SignContent() {
                     </p>
                   </div>
                 ))}
-                {!cj?.sections && cj?.body && (
+                {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
                     <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(cj.body)) }} />
                   ) : (
@@ -1132,7 +1132,7 @@ function SignContent() {
                 </p>
               </div>
             ))}
-            {!content?.sections && content?.body && (
+            {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
                 <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
               ) : (
@@ -1174,8 +1174,9 @@ function SignContent() {
                   </p>
                 </div>
               ))}
-              {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더 */}
-              {!content?.sections && content?.body && (
+              {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더.
+                  2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
+              {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
                   <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
                 ) : (
@@ -1184,7 +1185,7 @@ function SignContent() {
                   </div>
                 )
               )}
-              {!content?.sections && !content?.body && (
+              {(!Array.isArray(content?.sections) || content.sections.length === 0) && !content?.body && (
                 <div className="text-center text-gray-400 text-sm py-8">
                   문서 내용을 불러올 수 없습니다 — 관리자에게 문의해주세요.
                 </div>
