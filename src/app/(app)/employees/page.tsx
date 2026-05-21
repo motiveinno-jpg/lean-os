@@ -4219,17 +4219,20 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   }`}>
                     {day}
                   </div>
-                  <div className="flex flex-wrap gap-0.5">
+                  <div className="flex flex-wrap gap-1">
                     {dayRecords.map((r: any, idx: number) => (
-                      <div
+                      <span
                         key={idx}
                         title={
                           r.status === 'late'
                             ? `${r.name}: 🔴 지각 ${r.lateMin}분`
                             : `${r.name}: ${statusLabel(r.status)}`
                         }
-                        className={`w-2.5 h-2.5 rounded-full ${statusColor(r.status)}`}
-                      />
+                        className="inline-flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] leading-none"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
+                        <span className="truncate max-w-[2.5em]">{(r.name || '').slice(0, 2)}</span>
+                      </span>
                     ))}
                   </div>
                 </div>
