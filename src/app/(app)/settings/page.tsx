@@ -16,6 +16,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import BulkInvite from "@/components/bulk-invite";
 import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
+import ContractTemplatesManager from "@/components/contract-templates-manager";
 
 type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions" | "danger" | "hr_attendance";
 
@@ -513,7 +514,13 @@ export default function SettingsPage() {
       {mainTab === "account" && <AccountTab />}
 
       {/* ═══ Company Info Tab ═══ */}
-      {mainTab === "company" && <CompanyInfoTab companyId={companyId} />}
+      {mainTab === "company" && (
+        <div className="space-y-6">
+          <CompanyInfoTab companyId={companyId} />
+          {/* L 견적/계약: 계약서 양식 관리 — 시스템 양식 3종 + 회사 자체 양식 CRUD */}
+          {companyId && <ContractTemplatesManager companyId={companyId} />}
+        </div>
+      )}
 
       {/* ═══ Approval Policy Tab ═══ */}
       {mainTab === "approval" && <ApprovalPolicyTab companyId={companyId} />}
