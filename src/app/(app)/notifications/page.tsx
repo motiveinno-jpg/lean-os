@@ -31,11 +31,15 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   attendance_edit_request: () => `/employees?tab=attendance`,
   expense_request: () => `/payments?tab=expenses`,
   // STEP 4 (PR-F): 외부 견적 승인 결정 알림 (submit_quote_decision RPC 가 서버측 INSERT).
-  //   entity_id 는 quote_approvals.id — 직접 deal_id 매핑 없이 fallback /projects.
-  //   다음 라운드: notifications 페이로드에 deal_id 추가하거나 quote_approvals→deal_id JOIN 후
-  //   /projects?deal=<dealId> 로 점프하도록 개선 (메인 후속).
+  //   entity_id 는 quote_approvals.id — quoteApprovalsMap (entity_id → {deal_id, stage}) 가
+  //   있으면 /projects?deal=<id>&action=<quote|contract> 로 점프, 없으면 fallback /projects.
   quote_approval: () => `/projects`,
 };
+
+// stage → ACTION_TAB key (project-slide-over.tsx): 'quote' 또는 'contract' 가 sec-quote 로 스크롤
+function stageToAction(stage: string | null | undefined): 'quote' | 'contract' {
+  return stage === 'contract' ? 'contract' : 'quote';
+}
 
 // v4 D4: type 기반 fallback — entity_type=null 인 경우 (피드백 알림 등).
 //   직원 보고 캡처: type='document', entity_type=null, entity_id=<doc_id> 였음 →
@@ -58,6 +62,8 @@ const TYPE_HREF: Record<string, (id: string | null) => string> = {
 export default function NotificationsPage() {
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  // quote_approval entity_id → { deal_id, stage } 매핑 — Link href 에서 사용
+  const [quoteMap, setQuoteMap] = useState<Record<string, { deal_id: string; stage: string }>>({});
 
   useEffect(() => {
     (async () => {
@@ -69,7 +75,25 @@ export default function NotificationsPage() {
         .eq('user_id', u.id)
         .order('created_at', { ascending: false })
         .limit(100);
-      setRows((data || []) as NotificationRow[]);
+      const list = (data || []) as NotificationRow[];
+      setRows(list);
+
+      // quote_approval entity_ids 추려서 deal_id+stage 한 번에 prefetch
+      const quoteIds = Array.from(new Set(
+        list.filter(n => n.entity_type === 'quote_approval' && n.entity_id).map(n => n.entity_id as string),
+      ));
+      if (quoteIds.length > 0) {
+        const { data: qaRows } = await (supabase as any)
+          .from('quote_approvals')
+          .select('id, deal_id, stage')
+          .in('id', quoteIds);
+        const map: Record<string, { deal_id: string; stage: string }> = {};
+        for (const r of (qaRows || []) as Array<{ id: string; deal_id: string; stage: string }>) {
+          map[r.id] = { deal_id: r.deal_id, stage: r.stage };
+        }
+        setQuoteMap(map);
+      }
+
       setLoading(false);
     })();
   }, []);
@@ -121,11 +145,18 @@ export default function NotificationsPage() {
           {rows.map(n => {
             // v4 D4: 1) entity_type 매핑 우선, 2) entity_type=null 이면 type 기반 fallback,
             //          3) 둘 다 실패 시에만 /dashboard.
-            const href = (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type])
-              ? ENTITY_HREF[n.entity_type](n.entity_id)
-              : (TYPE_HREF[n.type]
-                  ? TYPE_HREF[n.type](n.entity_id)
-                  : '/dashboard');
+            // L 견적/계약: quote_approval 알림은 quoteMap 으로 deal_id+stage 알면 정확한 라우팅.
+            let href: string;
+            if (n.entity_type === 'quote_approval' && n.entity_id && quoteMap[n.entity_id]) {
+              const { deal_id, stage } = quoteMap[n.entity_id];
+              href = `/projects?deal=${encodeURIComponent(deal_id)}&action=${stageToAction(stage)}`;
+            } else if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
+              href = ENTITY_HREF[n.entity_type](n.entity_id);
+            } else if (TYPE_HREF[n.type]) {
+              href = TYPE_HREF[n.type](n.entity_id);
+            } else {
+              href = '/dashboard';
+            }
             const date = n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '';
             return (
               <Link key={n.id} href={href}

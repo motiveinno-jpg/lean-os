@@ -341,6 +341,10 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
       // v4 B1: 게시판 멘션 알림 → 해당 글로 이동 (post id 는 entity_id)
       case "board_post":
       case "board_comment": return entityId ? `/board?id=${entityId}` : "/board";
+      // L 견적/계약 외부 승인 — quote_approval 알림은 handleNotificationClick 에서
+      //   비동기로 deal_id+stage 를 fetch 해 정확한 라우팅(/projects?deal=...&action=...)
+      //   여기서는 fallback (entity_id 없으면 /projects)
+      case "quote_approval": return "/projects";
     }
   }
   // 2) notification type prefix 로 추정
@@ -476,6 +480,35 @@ export function NotificationCenter() {
           )
         );
       } catch {}
+    }
+
+    // L 견적/계약 외부 승인 거절/승인 알림 — entity_id 는 quote_approvals.id 라
+    //   거기서 deal_id + stage 를 비동기 fetch 해 패널이 정확히 견적/계약 섹션으로 열리게.
+    //   ACTION_TAB 매핑(project-slide-over): 'quote'/'contract' → { tab: 'money', scroll: 'sec-quote' }
+    //   stage → action 키 변환:
+    //     estimate          → 'quote'
+    //     contract          → 'contract'
+    //     progress_report   → 'quote'   (sec-quote 같은 영역에서 다음 라운드 본 폼)
+    //     completion        → 'quote'
+    //     settlement        → 'quote'
+    if (notification.entity_type === "quote_approval" && notification.entity_id) {
+      try {
+        const { data } = await supabase
+          .from("quote_approvals")
+          .select("deal_id, stage")
+          .eq("id", notification.entity_id)
+          .maybeSingle();
+        const dealId = (data as { deal_id?: string } | null)?.deal_id;
+        const stage = (data as { stage?: string } | null)?.stage;
+        if (dealId) {
+          const action = stage === "contract" ? "contract" : "quote";
+          router.push(`/projects?deal=${encodeURIComponent(dealId)}&action=${action}`);
+          setOpen(false);
+          return;
+        }
+      } catch {
+        // 권한/네트워크 실패는 fallback 으로 진행
+      }
     }
 
     const route = getEntityRoute(notification.entity_type, notification.entity_id, notification.type);
