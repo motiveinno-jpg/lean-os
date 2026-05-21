@@ -89,6 +89,7 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   employee: [
     "/dashboard",
     "/schedule",       // 일정 / 할 일
+    "/deals",          // 본인 담당 프로젝트 read-only 진입 (페이지 내부 B-3 가드 + get_my_assigned_deals 본인 검증 + isLimitedView 재무 가림)
     "/announcements",  // 공지사항 (전체 공개, 운영자만 작성)
     "/board",          // 회사 게시판 (구성원 글·댓글)
     "/error-logs",     // 에러 모니터링 (운영자 전용 — 페이지 내 이메일 게이트)
