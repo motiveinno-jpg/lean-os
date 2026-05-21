@@ -235,6 +235,9 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             // 절대 URL: PR-D 엣지가 받아서 본문에 노출. 환경변수 SITE_URL 폴백.
             signUrl: _token ? buildQuoteUrl(_token) : null,
             companyName: undefined, // 엣지가 발신자 회사명 조회 (간단 fallback)
+            amount: contractTotal || undefined,
+            items: items.length > 0 ? items : undefined,
+            paymentStages: stages.length > 0 ? stages : undefined,
           },
         });
       } catch (e) {
@@ -279,6 +282,9 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             signerName: partnerName || undefined,
             title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청 (재발송)` : `${STAGE_LABEL[stage]} 확인 요청 (재발송)`,
             signUrl: buildQuoteUrl(token),
+            amount: contractTotal || undefined,
+            items: items.length > 0 ? items : undefined,
+            paymentStages: stages.length > 0 ? stages : undefined,
           },
         });
       } catch (e) {

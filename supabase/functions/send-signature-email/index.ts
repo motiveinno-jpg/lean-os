@@ -26,7 +26,9 @@ interface InvokeBody {
   amount?: number;            // 총액 (₩)
   items?: Array<{ name?: string; totalAmount?: number; quantity?: number }>;
   representative?: string;    // 발송자 회사 대표
-  stage?: QuoteStage;         // 2026-05-21 신설 — 단계별 라벨 분기 (default estimate)
+  stage?: QuoteStage;         // 단계별 라벨 분기 (default estimate)
+  // 2026-05-21 결제단계 % + 금액 표시 (총액 있으면 환산)
+  paymentStages?: Array<{ label?: string; ratio?: number; condition?: string }>;
 }
 
 const STAGE_LABEL_KO: Record<QuoteStage, string> = {
@@ -105,6 +107,7 @@ function buildQuoteHtml(p: {
   items?: Array<{ name?: string; totalAmount?: number; quantity?: number }>;
   representative?: string;
   stage: QuoteStage;
+  paymentStages?: Array<{ label?: string; ratio?: number; condition?: string }>;
 }): string {
   const stageLabel = STAGE_LABEL_KO[p.stage] || STAGE_LABEL_KO.estimate;
   const headerHint = STAGE_HEADER_HINT[p.stage] || STAGE_HEADER_HINT.estimate;
@@ -118,6 +121,29 @@ function buildQuoteHtml(p: {
   const moreCount = (p.items?.length || 0) - 3;
   const moreLine = moreCount > 0 ? `<tr><td colspan="2" style="padding:4px 0;font-size:11px;color:#9ca3af">... 외 ${moreCount}건</td></tr>` : "";
   const repLine = p.representative ? `<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.85)">대표 ${htmlEscape(p.representative)}</p>` : "";
+
+  // 2026-05-21 결제단계 % + 금액 표시 (총액이 있으면 환산, 없으면 % 만)
+  const totalForCalc = Number(p.amount || 0);
+  const stageRows = (p.paymentStages || [])
+    .filter((s) => (s.label || s.ratio || s.condition))
+    .map((s, i) => {
+      const ratio = Number(s.ratio || 0);
+      const amountText = totalForCalc > 0
+        ? ` <span style="color:#4f46e5;font-weight:700">(${fmtKRW(Math.round((totalForCalc * ratio) / 100))})</span>`
+        : "";
+      return `<tr>
+        <td style="padding:5px 8px 5px 0;font-size:12px;color:#374151;width:40px">${i + 1}차</td>
+        <td style="padding:5px 8px;font-size:12px;color:#374151;font-weight:600">${htmlEscape(s.label || `${i + 1}차`)}</td>
+        <td style="padding:5px 8px;font-size:12px;color:#374151;text-align:right;font-weight:600">${ratio}%${amountText}</td>
+        <td style="padding:5px 0 5px 8px;font-size:11px;color:#6b7280">${htmlEscape(s.condition || "")}</td>
+      </tr>`;
+    }).join("");
+  const stagesBlock = stageRows
+    ? `<div style="margin-top:12px;padding-top:8px;border-top:1px dashed #d1d5db">
+         <div style="font-size:11px;color:#6b7280;margin-bottom:4px;font-weight:600">결제 단계 (${(p.paymentStages || []).length}단계)</div>
+         <table style="width:100%;border-collapse:collapse">${stageRows}</table>
+       </div>`
+    : "";
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
@@ -135,6 +161,7 @@ function buildQuoteHtml(p: {
           <span style="font-size:12px;color:#6b7280">총액 (VAT 포함)</span>
           <span style="font-size:16px;font-weight:800;color:#4f46e5">${fmtKRW(p.amount)}</span>
         </div>` : ""}
+        ${stagesBlock}
         <p style="margin:8px 0 0;font-size:11px;color:#9ca3af">유효 기한: ${htmlEscape(p.expiryText)}</p>
       </div>
       <div style="text-align:center;margin:24px 0">
@@ -150,7 +177,7 @@ serve(async (req) => {
 
   try {
     const body = (await req.json()) as InvokeBody;
-    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage } = body;
+    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage, paymentStages } = body;
 
     if (!to || !title || !signUrl) {
       return new Response(
@@ -169,7 +196,7 @@ serve(async (req) => {
     const stageLabel = STAGE_LABEL_KO[stageNorm];
 
     const html = isQuote
-      ? buildQuoteHtml({ signerName, title, signUrl, expiryText, companyName, amount, items, representative, stage: stageNorm })
+      ? buildQuoteHtml({ signerName, title, signUrl, expiryText, companyName, amount, items, representative, stage: stageNorm, paymentStages })
       : buildSignatureHtml({ signerName, title, signUrl, expiryText, companyName });
 
     const subject = isQuote
