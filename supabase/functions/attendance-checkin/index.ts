@@ -58,6 +58,28 @@ serve(async (req) => {
         .eq("employee_id", employeeId)
         .eq("date", today);
 
+      // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
+      //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. 클라이언트 hr.ts 의
+      //   mark_attendance_late RPC 는 그대로 유지(이중 안전망).
+      //   회사 설정 work_start_time 기준 KST 분 단위 비교, late_grace_minutes 적용.
+      let isLateFlag = status === "late";
+      let lateMinutes = 0;
+      if (isLateFlag) {
+        const { data: cs } = await admin.from("company_settings")
+          .select("work_start_time, late_grace_minutes")
+          .eq("company_id", companyId)
+          .maybeSingle();
+        const wst = (cs?.work_start_time as string | null) ?? "09:00";
+        const [whStr, wmStr] = wst.split(":");
+        const workStartMin = (Number(whStr) || 0) * 60 + (Number(wmStr) || 0);
+        // now(UTC ISO) → KST 분
+        const ciDate = new Date(now);
+        const kstMs = ciDate.getTime() + 9 * 3600 * 1000;
+        const kstDate = new Date(kstMs);
+        const ciKstMin = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
+        lateMinutes = Math.max(0, ciKstMin - workStartMin);
+      }
+
       const { data, error } = await admin.from("attendance_records")
         .insert({
           company_id: companyId,
@@ -65,6 +87,8 @@ serve(async (req) => {
           date: today,
           check_in: now,
           status: status || "present",
+          is_late: isLateFlag,
+          late_minutes: lateMinutes,
           work_hours: 0,
           overtime_hours: 0,
         })
