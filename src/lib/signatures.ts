@@ -207,21 +207,34 @@ export async function saveSignature(
   }
 
   // 서명 합성된 최종 계약서 HTML 생성 (template_snapshot_html 있을 때만)
+  //   2026-05-21 sig-box 명시: 시스템 양식의 <span class="sig-box" data-role="을"> 안에 이미지 삽입.
+  //   sig-box 없는 옛 양식 / 회사 커스텀 양식은 기존 append fallback 으로 호환.
   const signedAtIso = new Date().toISOString();
   const signedAtKst = new Date(signedAtIso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-  const sigImgBlock = signatureData.type === 'type'
-    ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
-    : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
-  const signedContractHtml = existing.template_snapshot_html
-    ? existing.template_snapshot_html + `
+  const sigInline = signatureData.type === 'type'
+    ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${signatureData.data}</span>`
+    : `<img src="${signatureData.data}" alt="서명" style="width:100%;height:100%;object-fit:contain"/>`;
+  const sigBoxRe = /(<span class="sig-box" data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
+  let signedContractHtml: string | null = null;
+  if (existing.template_snapshot_html) {
+    if (sigBoxRe.test(existing.template_snapshot_html)) {
+      // 시스템 양식 — sig-box[data-role="을"] 안에 서명 삽입
+      signedContractHtml = existing.template_snapshot_html.replace(sigBoxRe, `$1${sigInline}$3`);
+    } else {
+      // 옛 양식 / 커스텀 양식 — 본문 끝에 append (회귀 fallback)
+      const sigImgBlock = signatureData.type === 'type'
+        ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
+        : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
+      signedContractHtml = existing.template_snapshot_html + `
 <div style="margin-top:40px;text-align:right;page-break-inside:avoid">
   <div style="display:inline-block">
     <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
     ${sigImgBlock}
     <div style="font-size:10px;color:#9ca3af;margin-top:4px">${existing.recipient_name || ''} · ${signedAtKst}</div>
   </div>
-</div>`
-    : null;
+</div>`;
+    }
+  }
 
   const { data, error } = await db
     .from('signature_requests')
