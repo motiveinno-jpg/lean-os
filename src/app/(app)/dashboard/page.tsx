@@ -3001,7 +3001,7 @@ function EmployeeProjectsWidget() {
             {deals.map((d) => (
               <div
                 key={d.id}
-                onClick={() => router.push(`/deals?id=${d.id}`)}
+                onClick={() => router.push(`/projects?deal=${d.id}`)}
                 className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--bg-surface)] transition"
               >
                 <span className="text-base shrink-0">📋</span>

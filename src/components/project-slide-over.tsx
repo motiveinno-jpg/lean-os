@@ -48,6 +48,8 @@ interface ProjectSlideOverProps {
   //   적용 직후 부모에게 onActionConsumed 콜백으로 알려 URL 클리어.
   pendingAction?: string | null;
   onActionConsumed?: () => void;
+  // 2026-05-21: 직원(role='employee') 컨텍스트 — 돈 탭 + 재무 정보 가림
+  isEmployeeLimited?: boolean;
 }
 
 // PR3.5: action key → 어느 탭의 어느 섹션으로 점프할지.
@@ -64,7 +66,7 @@ const ACTION_TAB: Record<string, { tab: Tab; scroll?: string }> = {
   'archive':         { tab: 'overview', scroll: 'sec-stage' },
 };
 
-export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed }: ProjectSlideOverProps) {
+export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed, isEmployeeLimited = false }: ProjectSlideOverProps) {
   const [tab, setTab] = useState<Tab>("overview");
 
   // ESC 닫기
@@ -137,6 +139,7 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
             onOpenStageModal={onOpenStageModal}
             dealId={dealId}
             companyId={companyId}
+            isEmployeeLimited={isEmployeeLimited}
           />
         )}
         {data && !data.deal && (
@@ -175,6 +178,7 @@ function PanelBody({
   onOpenStageModal,
   dealId,
   companyId,
+  isEmployeeLimited = false,
 }: {
   data: PanelData;
   tab: Tab;
@@ -183,6 +187,7 @@ function PanelBody({
   onOpenStageModal?: () => void;
   dealId: string;
   companyId: string;
+  isEmployeeLimited?: boolean;
 }) {
   const deal = data.deal;
   const stage = (deal.stage || "estimate") as ProjectStage;
@@ -228,14 +233,19 @@ function PanelBody({
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — 직원은 돈 탭 미노출 (재무 가림) */}
         <div className="flex items-center gap-1 -mb-px">
           {(
-            [
-              { key: "overview", label: "개요" },
-              { key: "money", label: "돈" },
-              { key: "activity", label: "활동" },
-            ] as { key: Tab; label: string }[]
+            (isEmployeeLimited
+              ? [
+                  { key: "overview", label: "개요" },
+                  { key: "activity", label: "활동" },
+                ]
+              : [
+                  { key: "overview", label: "개요" },
+                  { key: "money", label: "돈" },
+                  { key: "activity", label: "활동" },
+                ]) as { key: Tab; label: string }[]
           ).map((t) => (
             <button
               key={t.key}
@@ -253,10 +263,10 @@ function PanelBody({
         </div>
       </div>
 
-      {/* Body */}
+      {/* Body — 직원이 직접 URL 로 money 진입 시도해도 차단 */}
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === "overview" && <OverviewTab data={data} stage={stage} />}
-        {tab === "money" && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
+        {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} />}
+        {tab === "money" && !isEmployeeLimited && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
         {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
       </div>
     </>
@@ -267,7 +277,7 @@ function PanelBody({
 // 개요 탭
 // ────────────────────────────────────────────────
 
-function OverviewTab({ data, stage }: { data: PanelData; stage: ProjectStage }) {
+function OverviewTab({ data, stage, isEmployeeLimited = false }: { data: PanelData; stage: ProjectStage; isEmployeeLimited?: boolean }) {
   const deal = data.deal;
   const progress = STAGE_PROGRESS[stage] || 20;
 
@@ -416,7 +426,9 @@ function OverviewTab({ data, stage }: { data: PanelData; stage: ProjectStage }) 
           <InfoRow label="종료일" value={deal.end_date || "—"} />
           <InfoRow label="기간" value={formatRange(deal.start_date, deal.end_date)} />
           <InfoRow label="기한" value={formatDueLabel(deal.end_date)} />
-          <InfoRow label="계약금액" value={`₩${Number(deal.contract_total || 0).toLocaleString()}`} />
+          {!isEmployeeLimited && (
+            <InfoRow label="계약금액" value={`₩${Number(deal.contract_total || 0).toLocaleString()}`} />
+          )}
           <InfoRow label="상태" value={deal.status || "—"} />
         </dl>
       </div>

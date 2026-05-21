@@ -73,13 +73,14 @@ interface ProjectCard extends DealRow {
 export default function ProjectsPage() {
   const { role, loading } = useUser();
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
-  if (role !== "owner" && role !== "admin") {
-    return <AccessDenied detail="프로젝트(신규) 메뉴는 대표/관리자만 접근할 수 있습니다." />;
+  // 2026-05-21 사장님 요청: employee 도 /projects 통일 진입. 단 isEmployeeLimited 가드로 재무 가림 + 본인 담당만.
+  if (role !== "owner" && role !== "admin" && role !== "employee") {
+    return <AccessDenied detail="프로젝트 메뉴는 대표/관리자/구성원만 접근할 수 있습니다." />;
   }
-  return <ProjectsInner />;
+  return <ProjectsInner isEmployeeLimited={role === "employee"} />;
 }
 
-function ProjectsInner() {
+function ProjectsInner({ isEmployeeLimited = false }: { isEmployeeLimited?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -134,9 +135,18 @@ function ProjectsInner() {
   }, [actionParam]);
 
   // ── 데이터 ──
+  //   employee 는 get_my_assigned_deals RPC 로 본인 담당딜만 (SECDEF, 재무 컬럼 미반환)
+  //   owner/admin 은 getDeals 전사 fetch
   const { data: deals = [], isLoading: dealsLoading } = useQuery({
-    queryKey: ["projects-deals", companyId],
-    queryFn: () => getDeals(companyId!),
+    queryKey: ["projects-deals", companyId, isEmployeeLimited ? "limited" : "full"],
+    queryFn: async () => {
+      if (isEmployeeLimited) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any).rpc("get_my_assigned_deals");
+        return (data || []) as DealRow[];
+      }
+      return getDeals(companyId!);
+    },
     enabled: !!companyId,
   });
 
@@ -435,6 +445,7 @@ function ProjectsInner() {
           }}
           pendingAction={pendingAction}
           onActionConsumed={() => setPendingAction(null)}
+          isEmployeeLimited={isEmployeeLimited}
         />
       )}
 

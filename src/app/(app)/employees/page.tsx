@@ -42,13 +42,11 @@ import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInv
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 import {
-  ExtraPaySummaryCard,
   AttendanceEditRequestDialog,
   EditRequestInbox,
   MonthlyRecomputeButton,
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
-import MyAllowanceCard from "@/components/hr-my-allowance-card";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
@@ -3838,10 +3836,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // employees 배열의 직원 row 는 user_id 보유 — admin 본인의 user.id 는 props 로 받은 userId 가 가장 정확
   const reviewerUserId = userId || null;
 
-  // L 근태 — C-2 직원 본인의 monthly base salary (selectedMonth 의 월급)
-  // myEmployeeRecord.salary 가 연봉이면 /12, 월급이면 그대로 — 기존 정책 모호하므로 일단 보수적으로 salary 그대로 전달 (정책 통일 시 일괄 수정).
-  const myMonthlyBaseSalary = (myEmployeeRecord && Number(myEmployeeRecord.salary)) || 0;
-
   // 관리자 분기 — 이번 달 "퇴근 미입력" 행 수 (overtime/night/holiday 산정 불가 사유).
   //   사용자 호소 "수당 일괄 계산 후 0" 의 근본 원인 안내용.
   //   check_out 이 null 인 attendance_records 카운트.
@@ -3934,29 +3928,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         </div>
       )}
 
-      {/* L 근태 — C-2 직원: 본인 이번 달 가산수당 요약 */}
-      {isEmployeeRole && myEmployeeRecord && companyId && myMonthlyBaseSalary > 0 && (
-        <div className="mb-4">
-          <ExtraPaySummaryCard
-            companyId={companyId}
-            employeeId={myEmployeeRecord.id}
-            monthlyBaseSalary={myMonthlyBaseSalary}
-            yearMonth={selectedMonth}
-          />
-        </div>
-      )}
-
-      {/* L 수당 — C-2 직원: 본인 이번 달 수당 (allowance_entries 카탈로그 기반) */}
-      {isEmployeeRole && myEmployeeRecord && companyId && (
-        <div className="mb-4">
-          <MyAllowanceCard
-            companyId={companyId}
-            employeeId={myEmployeeRecord.id}
-            yyyymm={selectedMonth}
-            hourly={myMonthlyBaseSalary > 0 ? Math.round(myMonthlyBaseSalary / 209) : undefined}
-          />
-        </div>
-      )}
+      {/* 2026-05-21 사장님 요청: 직원 근태관리에서 수당 카드 (ExtraPaySummaryCard / MyAllowanceCard) 제거.
+          관리자 영역 (EditRequestInbox, MonthlyRecomputeButton, AllowanceAdminTab) 은 그대로 유지. */}
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
