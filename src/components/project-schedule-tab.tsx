@@ -457,6 +457,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
   const spanDays = Math.max(1, Math.round(span / 864e5));
 
   // 매일 일자 tick + 라벨. (라벨은 매일 표시 — 사용자 요청)
+  //   포맷: YY.MM.DD (예: 26.05.22)
   const dayTicks = useMemo(() => {
     const arr: { pct: number; label: string; sub: string; isMonthStart: boolean; isWeekend: boolean; weekday: number }[] = [];
     const start = new Date(rangeStart);
@@ -464,9 +465,12 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
     let cursor = new Date(start);
     while (cursor.getTime() <= rangeEnd) {
       const pct = ((cursor.getTime() - rangeStart) / span) * 100;
+      const yy = String(cursor.getFullYear()).slice(2);
+      const mm = String(cursor.getMonth() + 1).padStart(2, "0");
+      const dd = String(cursor.getDate()).padStart(2, "0");
       arr.push({
         pct,
-        label: `${cursor.getMonth() + 1}/${cursor.getDate()}`,
+        label: `${yy}.${mm}.${dd}`,
         sub: ["일", "월", "화", "수", "목", "금", "토"][cursor.getDay()],
         isMonthStart: cursor.getDate() === 1,
         isWeekend: cursor.getDay() === 0 || cursor.getDay() === 6,
@@ -488,8 +492,9 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
   const ROW_H = 48; // 행 높이 (큰 막대 + 라벨 가독)
   const HEADER_H = 56; // 일자 + 요일 2-row
   const LABEL_W = 128; // 좌측 라벨 컬럼 px
-  // 매일 라벨 가독성 위한 timeline 최소 폭 (32px/day). 슬라이드보다 넓으면 가로 스크롤.
-  const TIMELINE_MIN_W = Math.max(spanDays * 32, 480);
+  // 매일 8자 라벨(26.05.22) 가독성 위한 timeline 최소 폭 (64px/day).
+  // 슬라이드보다 넓으면 가로 스크롤.
+  const TIMELINE_MIN_W = Math.max(spanDays * 64, 480);
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-sm w-full">
@@ -654,13 +659,24 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
                     }`}
                     style={{ height: ROW_H }}
                   >
-                    {/* 마감일 수직선 — 항상 옅게, 호버 시 진하게 */}
+                    {/* 마감일 수직선 — 평소에도 잘 보이게(60%), 호버 시 100% */}
                     {dueDatePct !== null && dueDatePct >= 0 && dueDatePct <= 100 && (
-                      <div
-                        className={`absolute top-0 bottom-0 w-0.5 ${lineColor} opacity-30 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-[5]`}
-                        style={{ left: `${dueDatePct}%`, transform: "translateX(-50%)" }}
-                        aria-hidden
-                      />
+                      <>
+                        <div
+                          className={`absolute top-0 bottom-0 w-0.5 ${lineColor} opacity-60 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-[5]`}
+                          style={{ left: `${dueDatePct}%`, transform: "translateX(-50%)" }}
+                          aria-hidden
+                        />
+                        {/* ▼ 마감 마커 — 행 상단에 항상 표시(다이아몬드). hover 시 ring으로 강조 */}
+                        <div
+                          className={`absolute top-0 ${lineColor} w-2.5 h-2.5 pointer-events-none z-[7] shadow-md ring-1 ring-white/50 group-hover/bar:ring-2 group-hover/bar:ring-white transition-shadow`}
+                          style={{
+                            left: `${dueDatePct}%`,
+                            transform: "translate(-50%, -25%) rotate(45deg)",
+                          }}
+                          aria-hidden
+                        />
+                      </>
                     )}
 
                     {/* 막대 */}
