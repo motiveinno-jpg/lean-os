@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
+import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -88,6 +89,11 @@ export default function QuoteApprovalPage() {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
+  // L 계약 서명 모달 — stage='contract' 승인 흐름
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureMethod, setSignatureMethod] = useState<SignatureMethod | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+
   // 1) 토큰으로 1회 fetch + viewed 처리
   useEffect(() => {
     if (!token) {
@@ -139,19 +145,65 @@ export default function QuoteApprovalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // 계약 단계 승인은 서명이 있어야 함 — 모달 → submit
+  function handleApproveClick() {
+    if (!row) return;
+    if (row.stage === "contract") {
+      setShowSignatureModal(true);
+      return;
+    }
+    void submit("approved");
+  }
+
   async function submit(decision: "approved" | "rejected") {
     if (!row || submitting) return;
     if (decision === "rejected" && !rejectNote.trim()) {
       setErrMsg("거절 사유를 입력해 주세요");
       return;
     }
+    // 계약 승인 — 서명 필수
+    const isContractApproval = decision === "approved" && row.stage === "contract";
+    if (isContractApproval && (!signatureMethod || !signatureDataUrl)) {
+      setErrMsg("서명 또는 도장을 추가해 주세요");
+      return;
+    }
     setSubmitting(true);
     setErrMsg(null);
     try {
+      // 서명 합성 HTML 생성 (계약 승인 시) — template_snapshot_html 끝에 서명란 추가
+      let signedHtml: string | null = null;
+      if (isContractApproval) {
+        const p = (row.payload || {}) as { template_snapshot_html?: string };
+        const baseHtml = typeof p.template_snapshot_html === "string" ? p.template_snapshot_html : "";
+        const methodLabel = signatureMethod === "draw" ? "손글씨 서명"
+                          : signatureMethod === "type" ? "타이핑 서명"
+                          : "도장/사인";
+        const decidedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+        const signerName = row.recipient_name || "거래처";
+        signedHtml = `${baseHtml}\n\n<div style="margin-top:32px;padding:20px;border:2px solid #4f46e5;border-radius:12px;background:#f8fafc">
+  <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:bold">📝 거래처 서명 / 날인</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:bold;color:#111827">${signerName}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px">${methodLabel} · ${decidedAt} (KST)</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;background:white;padding:6px;border-radius:6px">
+      <img src="${signatureDataUrl}" alt="서명" style="max-height:90px;max-width:200px;display:block" />
+    </div>
+  </div>
+</div>`;
+      }
+
       const { data, error } = await db.rpc("submit_quote_decision", {
         p_token: token,
         p_decision: decision,
         p_note: decision === "rejected" ? rejectNote.trim() : null,
+        p_signature_method: isContractApproval ? signatureMethod : null,
+        p_signature_data_url: isContractApproval ? signatureDataUrl : null,
+        p_signed_contract_url: null,  // PDF Storage 는 후속 라운드
+        p_signed_contract_html: signedHtml,
+        p_signer_ip: null,             // RLS 안에서 서버측 inet 추출은 RPC 한계 — 클라 미전달
+        p_signer_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null,
       });
       if (error) {
         reportError("quote.token.submit", { code: error.code });
@@ -175,6 +227,7 @@ export default function QuoteApprovalPage() {
         return;
       }
       setDecided({ decision, stage_after: res.deal_stage_after ?? null });
+      setShowSignatureModal(false);
       setSubmitting(false);
     } catch (e: unknown) {
       reportError("quote.token.submit.catch", e);
@@ -465,11 +518,11 @@ export default function QuoteApprovalPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
-                  onClick={() => submit("approved")}
+                  onClick={handleApproveClick}
                   disabled={submitting}
                   className="flex-1 py-3 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 transition"
                 >
-                  {submitting ? "처리 중…" : "승인하기"}
+                  {submitting ? "처리 중…" : row.stage === "contract" ? "✍️ 서명 후 승인" : "승인하기"}
                 </button>
                 <button
                   type="button"
@@ -517,6 +570,50 @@ export default function QuoteApprovalPage() {
           </section>
         </div>
       </div>
+
+      {/* L 계약: stage='contract' 승인 시 서명 모달 */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSignatureModal(false)}>
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900">계약서 서명</h2>
+              <button onClick={() => setShowSignatureModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">손글씨 · 타이핑 · 도장 업로드 중 하나로 서명한 후 승인해 주세요. 서명이 합성된 계약서가 발송자에게 즉시 회수됩니다.</p>
+
+            <SignatureCapture
+              defaultTypeName={row?.recipient_name || ""}
+              onChange={(m, url) => { setSignatureMethod(m); setSignatureDataUrl(url); }}
+            />
+
+            {errMsg && (
+              <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{errMsg}</div>
+            )}
+
+            <div className="mt-5 flex gap-2 justify-end pt-3 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowSignatureModal(false)}
+                disabled={submitting}
+                className="px-4 py-2 rounded-lg text-xs text-gray-600 hover:text-gray-900 transition"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => submit("approved")}
+                disabled={submitting || !signatureDataUrl}
+                className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition"
+              >
+                {submitting ? "처리 중…" : "✅ 서명 완료 → 계약 승인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
