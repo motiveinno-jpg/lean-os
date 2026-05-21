@@ -265,7 +265,7 @@ function PanelBody({
 
       {/* Body — 직원이 직접 URL 로 money 진입 시도해도 차단 */}
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} />}
+        {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} onClose={onClose} />}
         {tab === "money" && !isEmployeeLimited && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
         {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
       </div>
@@ -277,9 +277,13 @@ function PanelBody({
 // 개요 탭
 // ────────────────────────────────────────────────
 
-function OverviewTab({ data, stage, isEmployeeLimited = false }: { data: PanelData; stage: ProjectStage; isEmployeeLimited?: boolean }) {
+function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data: PanelData; stage: ProjectStage; isEmployeeLimited?: boolean; onClose: () => void }) {
   const deal = data.deal;
   const progress = STAGE_PROGRESS[stage] || 20;
+  // 2026-05-21 프로젝트 삭제 — owner/admin 전용 (직원·매니저 노출 X).
+  const { role } = useUser();
+  const canDelete = role === 'owner' || role === 'admin';
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // 2026-05-21 사장님 요청: 편집 버튼 → 옛 /deals?detail= 점프 X, 인라인 모달로 기본 정보 수정.
   const [editOpen, setEditOpen] = useState(false);
@@ -611,6 +615,37 @@ function OverviewTab({ data, stage, isEmployeeLimited = false }: { data: PanelDa
             </div>
           )}
         </div>
+      )}
+
+      {/* 위험 영역 — owner/admin 만 노출 */}
+      {canDelete && (
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-1">⚠ 위험 영역</div>
+          <div className="text-[11px] text-[var(--text-muted)] mb-3">
+            프로젝트를 삭제하면 칸반·리스트·활동 어디에서도 보이지 않게 됩니다.
+            회계 데이터(매출·비용·정산서·계약서)는 보존됩니다.
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-500 hover:bg-red-500/10 text-[11px] font-semibold transition"
+          >
+            🗑 프로젝트 삭제
+          </button>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <DeleteProjectModal
+          dealId={deal.id}
+          dealName={deal.name || ""}
+          companyId={deal.company_id}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={() => {
+            setDeleteOpen(false);
+            onClose();
+          }}
+        />
       )}
     </div>
   );
@@ -1529,4 +1564,139 @@ function formatAction(a: string) {
     remind: "리마인드", revoke: "취소", view: "조회", export: "내보내기",
   };
   return map[a] || a;
+}
+
+// ────────────────────────────────────────────────
+// 프로젝트 삭제 모달 — 이름 입력 확인 게이트 (소프트 삭제 archived_at)
+// ────────────────────────────────────────────────
+function DeleteProjectModal({
+  dealId, dealName, companyId, onClose, onDeleted,
+}: {
+  dealId: string;
+  dealName: string;
+  companyId: string | null;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [typed, setTyped] = useState("");
+  const target = (dealName || "").trim();
+  const canDelete = typed.trim() === target && target.length > 0;
+
+  const del = useMutation({
+    mutationFn: async () => {
+      // 1) soft delete — archived_at 만 갱신, 자식 데이터(quote_approvals/revenue/cost) 전부 보존
+      const { error } = await (supabase as any)
+        .from("deals")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", dealId);
+      if (error) throw error;
+      // 2) 감사 로그 (실패해도 본 흐름 비차단)
+      //    audit_logs 컬럼: id/company_id/user_id/entity_type/entity_id/action/before_json/after_json/metadata.
+      //    entity_name 은 metadata 에 포함 (별도 컬럼 없음).
+      try {
+        await (supabase as any).from("audit_logs").insert({
+          company_id: companyId,
+          entity_type: "deal",
+          entity_id: dealId,
+          action: "delete",
+          before_json: { archived_at: null, name: dealName },
+          after_json: { archived_at: new Date().toISOString() },
+          metadata: { soft_delete: true, deal_name: dealName },
+        });
+      } catch { /* audit 실패 무시 — 비차단 */ }
+    },
+    onSuccess: () => {
+      // 캐시 무효화 — 칸반·리스트·상세·검색·대시보드 위젯 등 일괄
+      queryClient.invalidateQueries({ queryKey: ["projects-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
+      queryClient.invalidateQueries({ queryKey: ["deal-detail", dealId] });
+      queryClient.invalidateQueries({ queryKey: ["deals"] });
+      queryClient.invalidateQueries({ queryKey: ["my-assigned-deal-ids"] });
+      queryClient.invalidateQueries({ queryKey: ["owner-dashboard"] });
+      toast("프로젝트가 삭제되었습니다", "success");
+      onDeleted();
+    },
+    onError: (e) => {
+      toast(friendlyError(e, "삭제에 실패했습니다"), "error");
+    },
+  });
+
+  // ESC 닫기 — 진행 중에는 잠금
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !del.isPending) onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, del.isPending]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+      onClick={() => !del.isPending && onClose()}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full sm:max-w-md bg-[var(--bg-card)] border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden"
+      >
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3">
+          <div className="text-sm font-bold text-red-500">⚠️ 프로젝트 삭제</div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={del.isPending}
+            aria-label="닫기"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition disabled:opacity-50"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            이 작업은 칸반·리스트·활동 어디에서도 더 이상 보이지 않게 합니다.
+            <br />회계 데이터(매출·비용·정산서·계약서)는 <span className="text-[var(--text)] font-semibold">보존</span>됩니다.
+          </p>
+          <div>
+            <div className="text-[10px] text-[var(--text-dim)] mb-1">
+              삭제할 프로젝트: <span className="text-[var(--text)] font-bold break-all">{target || "(이름 없음)"}</span>
+            </div>
+            <input
+              type="text"
+              autoFocus
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder="프로젝트명을 정확히 입력하세요"
+              disabled={del.isPending}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-red-500 disabled:opacity-50"
+            />
+            {typed.length > 0 && !canDelete && (
+              <div className="text-[10px] text-amber-500 mt-1">프로젝트명이 일치하지 않습니다</div>
+            )}
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 bg-[var(--bg-surface)]/40">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={del.isPending}
+            className="px-3 py-1.5 rounded-lg bg-[var(--bg)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] text-xs font-semibold transition disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => del.mutate()}
+            disabled={!canDelete || del.isPending}
+            className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {del.isPending ? "삭제 중…" : "🗑 삭제"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

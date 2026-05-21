@@ -425,10 +425,12 @@ export async function getDashboardKPIs(companyId: string) {
 
 // ── Deals ──
 export async function getDeals(companyId: string) {
+  // 2026-05-21 소프트 삭제(archived_at IS NOT NULL) 제외 — 칸반/리스트에서 삭제된 행 0 노출.
   const { data } = await supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
+    .is('archived_at', null)
     .order('created_at', { ascending: false });
   return data || [];
 }
