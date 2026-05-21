@@ -90,12 +90,12 @@ const CARDS: HubCard[] = [
       </svg>
     ),
   },
-  // 사용자 핸드오프: 세금계산서 3-Way 매칭을 관리자 분석 카드로 노출.
-  //   ?tab=matching deep-link 로 세금계산서 페이지의 매칭 탭 직접 진입.
+  // 2026-05-21 사장님 요청: 3-Way 매칭 전용 페이지 신설.
+  //   세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%).
   {
-    href: "/tax-invoices?tab=matching",
+    href: "/reports/three-way-match",
     title: "3-Way 매칭",
-    desc: "계약 ↔ 세금계산서 ↔ 입금을 자동 검증. 누락·과다·금액 불일치 즉시 발견.",
+    desc: "세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%).",
     accent: "#ec4899",
     roles: ["owner", "admin"],
     icon: (
