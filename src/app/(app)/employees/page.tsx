@@ -49,6 +49,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import MyAllowanceCard from "@/components/hr-my-allowance-card";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
+import { recomputeMonthlyAllowancesForCompany } from "@/lib/allowance-calc";
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
@@ -3649,6 +3650,42 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId,
   });
 
+  // 관리자 분기 — 직원별 월간 요약 표의 수당 컬럼 데이터 (allowance_entries × allowance_types).
+  //   직원 분기 미조회 (enabled 가드). admin RLS 통과.
+  const isAdminForAllowance = role === 'owner' || role === 'admin';
+  const { data: monthlyAllowanceEntries = [] } = useQuery({
+    queryKey: ["allowance-entries-monthly-summary", companyId, selectedMonth],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data } = await db
+        .from('allowance_entries')
+        .select('employee_id, amount, allowance_types!inner(code, name, is_active)')
+        .eq('company_id', companyId)
+        .eq('payroll_month', selectedMonth)
+        .filter('allowance_types.is_active', 'eq', true);
+      return (data as Array<{ employee_id: string; amount: number; allowance_types: { code: string; name: string } | null }>) || [];
+    },
+    enabled: !!companyId && isAdminForAllowance,
+  });
+
+  // 관리자 분기 — 마운트 시 1회 자동 가산수당 재계산 (1시간 디바운스).
+  //   사용자 트래픽 부담 회피 위해 localStorage 키로 같은 (company, yyyymm) 1시간 1회만 호출.
+  //   직원 분기 미실행. 실패는 silent (수동 "월 일괄 재계산" 버튼이 fallback).
+  useEffect(() => {
+    if (!isAdminForAllowance || !companyId) return;
+    if (typeof window === 'undefined') return;
+    const key = `allowance-recompute-${companyId}-${selectedMonth}`;
+    const last = Number(localStorage.getItem(key) || '0');
+    if (Date.now() - last < 3600_000) return; // 1시간 내 재호출 0
+    recomputeMonthlyAllowancesForCompany(companyId, selectedMonth)
+      .then(() => {
+        localStorage.setItem(key, String(Date.now()));
+        queryClient.invalidateQueries({ queryKey: ['allowance-entries-monthly-summary', companyId, selectedMonth] });
+      })
+      .catch(() => { /* silent — 수동 버튼이 fallback */ });
+  }, [isAdminForAllowance, companyId, selectedMonth, queryClient]);
+
   // Check-in mutation
   const doCheckIn = useMutation({
     mutationFn: (employeeId: string) => checkIn(companyId!, employeeId),
@@ -3811,6 +3848,28 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // L 근태 — C-2 직원 본인의 monthly base salary (selectedMonth 의 월급)
   // myEmployeeRecord.salary 가 연봉이면 /12, 월급이면 그대로 — 기존 정책 모호하므로 일단 보수적으로 salary 그대로 전달 (정책 통일 시 일괄 수정).
   const myMonthlyBaseSalary = (myEmployeeRecord && Number(myEmployeeRecord.salary)) || 0;
+
+  // 관리자 분기 — 직원별 월간 수당 합산 (allowance_entries × allowance_types).
+  //   key: employee_id → { overtime, night, holiday, on_duty, etc, total }
+  //   allowance_types.code 기준 매칭 — 회사별 커스텀 코드는 'etc' 로 합산.
+  const allowanceByEmployee = useMemo(() => {
+    const m = new Map<string, { overtime: number; night: number; holiday: number; on_duty: number; etc: number; total: number }>();
+    for (const row of monthlyAllowanceEntries) {
+      const emp = row.employee_id;
+      const amt = Number(row.amount || 0);
+      if (!emp) continue;
+      const code = (row.allowance_types?.code || '').toLowerCase();
+      if (!m.has(emp)) m.set(emp, { overtime: 0, night: 0, holiday: 0, on_duty: 0, etc: 0, total: 0 });
+      const e = m.get(emp)!;
+      if (code === 'overtime') e.overtime += amt;
+      else if (code === 'night') e.night += amt;
+      else if (code === 'holiday') e.holiday += amt;
+      else if (code === 'on_duty') e.on_duty += amt;
+      else e.etc += amt;
+      e.total += amt;
+    }
+    return m;
+  }, [monthlyAllowanceEntries]);
 
   // 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5).
   //   직원 분기에선 미노출. records / activeEmployees / effectiveStatus 재사용.
@@ -4325,39 +4384,80 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       )}
 
       {/* Monthly Summary per Employee */}
-      {summary.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-bold mb-3 text-[var(--text-muted)]">직원별 월간 요약</h3>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead>
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-5 py-3 font-medium">직원</th>
-                  <th className="text-center px-5 py-3 font-medium">출근일</th>
-                  <th className="text-center px-5 py-3 font-medium">지각</th>
-                  <th className="text-center px-5 py-3 font-medium">결근</th>
-                  <th className="text-center px-5 py-3 font-medium">재택</th>
-                  <th className="text-center px-5 py-3 font-medium">반차</th>
-                  <th className="text-right px-5 py-3 font-medium">총 근무시간</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.map((s: any) => (
-                  <tr key={s.employee_id} className="border-b border-[var(--border)]/50">
-                    <td className="px-5 py-3 text-sm font-medium">{s.name}</td>
-                    <td className="px-5 py-3 text-sm text-center">{s.totalDays}일</td>
-                    <td className="px-5 py-3 text-sm text-center text-yellow-400">{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
-                    <td className="px-5 py-3 text-sm text-center text-red-400">{s.absentDays > 0 ? `${s.absentDays}회` : "—"}</td>
-                    <td className="px-5 py-3 text-sm text-center text-blue-400">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
-                    <td className="px-5 py-3 text-sm text-center text-orange-400">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">{s.totalHours.toFixed(1)}h</td>
+      {summary.length > 0 && (() => {
+        // 분 → "Nh Nm" 포맷 헬퍼 (0 은 "—")
+        const fmtMin = (n: number): string => {
+          const m = Math.round(Number(n) || 0);
+          if (m <= 0) return "—";
+          const h = Math.floor(m / 60);
+          const mm = m % 60;
+          return h > 0 ? `${h}h ${mm}m` : `${mm}m`;
+        };
+        const fmtKRW = (n: number): string => {
+          const v = Math.round(Number(n) || 0);
+          return v > 0 ? `${v.toLocaleString('ko-KR')}원` : "—";
+        };
+        return (
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약</h3>
+              {isAdminForAllowance && (
+                <span className="text-[11px] text-[var(--text-muted)]">수당은 마운트 시 자동 재계산 · 1시간 디바운스</span>
+              )}
+            </div>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <th className="text-left px-5 py-3 font-medium">직원</th>
+                    <th className="text-center px-5 py-3 font-medium">출근일</th>
+                    <th className="text-center px-5 py-3 font-medium">지각</th>
+                    <th className="text-center px-5 py-3 font-medium">지각 합계</th>
+                    <th className="text-center px-5 py-3 font-medium">연장</th>
+                    <th className="text-center px-5 py-3 font-medium">야간</th>
+                    <th className="text-center px-5 py-3 font-medium">휴일</th>
+                    <th className="text-center px-5 py-3 font-medium">결근</th>
+                    <th className="text-center px-5 py-3 font-medium">재택</th>
+                    <th className="text-center px-5 py-3 font-medium">반차</th>
+                    <th className="text-right px-5 py-3 font-medium">총 근무</th>
+                    {isAdminForAllowance && (
+                      <th className="text-right px-5 py-3 font-medium">수당 합계</th>
+                    )}
                   </tr>
-                ))}
-              </tbody>
-            </table></div>
+                </thead>
+                <tbody>
+                  {summary.map((s: any) => {
+                    const alw = allowanceByEmployee.get(s.employee_id);
+                    const alwTitle = alw
+                      ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
+                      : '수당 기록 없음';
+                    return (
+                      <tr key={s.employee_id} className="border-b border-[var(--border)]/50">
+                        <td className="px-5 py-3 text-sm font-medium">{s.name}</td>
+                        <td className="px-5 py-3 text-sm text-center">{s.totalDays}일</td>
+                        <td className="px-5 py-3 text-sm text-center text-yellow-400">{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-center text-yellow-400">{fmtMin(s.lateMinutesSum)}</td>
+                        <td className="px-5 py-3 text-sm text-center text-orange-400">{fmtMin(s.overtimeMinutesSum)}</td>
+                        <td className="px-5 py-3 text-sm text-center text-purple-400">{fmtMin(s.nightMinutesSum)}</td>
+                        <td className="px-5 py-3 text-sm text-center text-green-400">{fmtMin(s.holidayMinutesSum)}</td>
+                        <td className="px-5 py-3 text-sm text-center text-red-400">{s.absentDays > 0 ? `${s.absentDays}회` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-center text-blue-400">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-center text-orange-400">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-right font-medium">{s.totalHours.toFixed(1)}h</td>
+                        {isAdminForAllowance && (
+                          <td className="px-5 py-3 text-sm text-right font-medium text-emerald-400" title={alwTitle}>
+                            {fmtKRW(alw?.total ?? 0)}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table></div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* L 근태 — C-2 직원: 수정요청 다이얼로그 */}
       {editReqOpen && editReqRecord && companyId && userId && (

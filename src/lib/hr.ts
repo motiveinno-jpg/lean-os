@@ -914,7 +914,7 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
 
   const { data: records } = await db
     .from('attendance_records')
-    .select('employee_id, status, work_hours, employees(name, department)')
+    .select('employee_id, status, work_hours, is_late, late_minutes, overtime_minutes, night_minutes, holiday_minutes, employees(name, department)')
     .eq('company_id', companyId)
     .gte('date', startDate)
     .lte('date', endDate);
@@ -922,12 +922,18 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
   if (!records) return [];
 
   // Group by employee
+  //   2026-05-21 보강: 분 컬럼 합산(지각·연장·야간·휴일) + is_late 흡수 (status='present'
+  //   + is_late=true 행 lateDays 누락 회귀 차단).
   const map: Record<string, {
     employee_id: string;
     name: string;
     department: string;
     totalDays: number;
     lateDays: number;
+    lateMinutesSum: number;
+    overtimeMinutesSum: number;
+    nightMinutesSum: number;
+    holidayMinutesSum: number;
     absentDays: number;
     remoteDays: number;
     halfDays: number;
@@ -942,6 +948,10 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
         department: r.employees?.department || '',
         totalDays: 0,
         lateDays: 0,
+        lateMinutesSum: 0,
+        overtimeMinutesSum: 0,
+        nightMinutesSum: 0,
+        holidayMinutesSum: 0,
         absentDays: 0,
         remoteDays: 0,
         halfDays: 0,
@@ -950,11 +960,16 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
     }
     const entry = map[r.employee_id];
     entry.totalDays++;
-    if (r.status === 'late') entry.lateDays++;
+    // effectiveStatus 와 동일 의미: is_late=true 면 lateDays 카운트 (status='present' 회귀 차단)
+    if (r.is_late || r.status === 'late') entry.lateDays++;
     if (r.status === 'absent') entry.absentDays++;
     if (r.status === 'remote') entry.remoteDays++;
     if (r.status === 'half_day') entry.halfDays++;
     entry.totalHours += Number(r.work_hours || 0);
+    entry.lateMinutesSum += Number(r.late_minutes || 0);
+    entry.overtimeMinutesSum += Number(r.overtime_minutes || 0);
+    entry.nightMinutesSum += Number(r.night_minutes || 0);
+    entry.holidayMinutesSum += Number(r.holiday_minutes || 0);
   });
 
   return Object.values(map);
