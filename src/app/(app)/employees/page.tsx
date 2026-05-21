@@ -3812,6 +3812,32 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // myEmployeeRecord.salary 가 연봉이면 /12, 월급이면 그대로 — 기존 정책 모호하므로 일단 보수적으로 salary 그대로 전달 (정책 통일 시 일괄 수정).
   const myMonthlyBaseSalary = (myEmployeeRecord && Number(myEmployeeRecord.salary)) || 0;
 
+  // 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5).
+  //   직원 분기에선 미노출. records / activeEmployees / effectiveStatus 재사용.
+  //   비용: O(records) 1패스. typical 회사(<50명, <1500행) 무시 가능.
+  const lateAdminSummary = useMemo(() => {
+    if (isEmployeeRole) return { todayList: [] as { name: string; minutes: number }[], monthTop: [] as { name: string; count: number }[] };
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const empNameMap = new Map<string, string>(activeEmployees.map((e: any) => [e.id, e.name]));
+    const todayList: { name: string; minutes: number }[] = [];
+    const monthCount = new Map<string, number>();
+    for (const r of records as any[]) {
+      if (effectiveStatus(r) !== 'late') continue;
+      monthCount.set(r.employee_id, (monthCount.get(r.employee_id) || 0) + 1);
+      if (r.date === todayStr) {
+        todayList.push({
+          name: empNameMap.get(r.employee_id) || '직원',
+          minutes: Number(r.late_minutes || 0),
+        });
+      }
+    }
+    const monthTop = Array.from(monthCount.entries())
+      .map(([id, count]) => ({ name: empNameMap.get(id) || '직원', count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    return { todayList, monthTop };
+  }, [records, activeEmployees, isEmployeeRole]);
+
   return (
     <div>
       {/* L 근태 — C-3 관리자: 수정 요청 인박스 */}
@@ -3903,6 +3929,56 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           <div className="text-lg font-bold">{totalRecords}건</div>
         </div>
       </div>
+
+      {/* 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5) */}
+      {!isEmployeeRole && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">🔴</span>
+              <span className="text-xs text-[var(--text-dim)]">오늘 지각자</span>
+              {lateAdminSummary.todayList.length > 0 && (
+                <span className="ml-auto text-xs text-yellow-400 font-semibold">{lateAdminSummary.todayList.length}명</span>
+              )}
+            </div>
+            {lateAdminSummary.todayList.length === 0 ? (
+              <div className="text-sm text-[var(--text-muted)]">오늘 지각자 없음 ✅</div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {lateAdminSummary.todayList.slice(0, 5).map((x, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">
+                    {x.name} <span className="font-semibold">{x.minutes}분</span>
+                  </span>
+                ))}
+                {lateAdminSummary.todayList.length > 5 && (
+                  <span className="text-xs text-[var(--text-muted)] self-center">외 {lateAdminSummary.todayList.length - 5}명</span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">📊</span>
+              <span className="text-xs text-[var(--text-dim)]">이번 달 지각 누적 Top 5</span>
+            </div>
+            {lateAdminSummary.monthTop.length === 0 ? (
+              <div className="text-sm text-[var(--text-muted)]">이번 달 지각 기록 없음</div>
+            ) : (
+              <div className="space-y-1">
+                {lateAdminSummary.monthTop.map((x, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text)] flex items-center gap-1.5">
+                      <span className="text-[var(--text-muted)] tabular-nums">{i + 1}.</span>
+                      {x.name}
+                    </span>
+                    <span className="text-yellow-400 font-semibold tabular-nums">{x.count}회</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 52-hour warnings */}
       {weeklyWarnings.length > 0 && (
@@ -4051,11 +4127,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               const dayOfWeek = (calendarData.firstDayOfWeek + i) % 7;
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-              // Get all employee statuses for this day
-              const dayRecords = activeEmployees.map((emp: any) => ({
-                name: emp.name,
-                status: calendarData.empMap[emp.id]?.[dateStr] || null,
-              })).filter((r: any) => r.status);
+              // Get all employee statuses for this day.
+              //   tooltip 에 지각 분 표시를 위해 records 에서 같은 (emp,date) 행 직접 조회.
+              //   typical 회사 직원 수·records 수 < 1500 이라 O(emps × records) 무시 가능.
+              const dayRecords = activeEmployees.map((emp: any) => {
+                const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
+                const status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
+                return {
+                  name: emp.name,
+                  status,
+                  lateMin: rec ? Number(rec.late_minutes || 0) : 0,
+                };
+              }).filter((r: any) => r.status);
 
               return (
                 <div
@@ -4073,7 +4156,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     {dayRecords.map((r: any, idx: number) => (
                       <div
                         key={idx}
-                        title={`${r.name}: ${statusLabel(r.status)}`}
+                        title={
+                          r.status === 'late'
+                            ? `${r.name}: 🔴 지각 ${r.lateMin}분`
+                            : `${r.name}: ${statusLabel(r.status)}`
+                        }
                         className={`w-2.5 h-2.5 rounded-full ${statusColor(r.status)}`}
                       />
                     ))}
