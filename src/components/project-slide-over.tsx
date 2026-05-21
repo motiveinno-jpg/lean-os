@@ -755,7 +755,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-orange-500/15 text-orange-400">
                     비용
                   </span>
-                  <span className="text-[var(--text-muted)] truncate">{c.note || c.due_date || "—"}</span>
+                  <span className="text-[var(--text-muted)] truncate">{c.condition_text || c.due_date || "—"}</span>
                 </div>
                 <span className="text-[var(--text)] font-medium">₩{Number(c.amount || 0).toLocaleString()}</span>
               </li>
