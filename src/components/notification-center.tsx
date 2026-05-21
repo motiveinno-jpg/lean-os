@@ -340,7 +340,8 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
       case "hometax_sync_job": return "/tax-invoices";
       // v4 B1: 게시판 멘션 알림 → 해당 글로 이동 (post id 는 entity_id)
       case "board_post":
-      case "board_comment": return entityId ? `/board?id=${entityId}` : "/board";
+      case "board_comment":
+      case "board_mention": return entityId ? `/board?id=${entityId}` : "/board";
       // L 견적/계약 외부 승인 — quote_approval 알림은 handleNotificationClick 에서
       //   비동기로 deal_id+stage 를 fetch 해 정확한 라우팅(/projects?deal=...&action=...)
       //   여기서는 fallback (entity_id 없으면 /projects)
@@ -350,7 +351,8 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
   // 2) notification type prefix 로 추정
   const t = (notifType || "").toLowerCase();
   if (t.includes("approval") || t.includes("결재") || t.includes("승인")) return "/approvals";
-  if (t.includes("chat") || t.includes("mention")) return "/chat";
+  // chat 전용 type 만 /chat 으로 — 'mention' 단독 매칭은 board_mention 등 다른 type 잘못 잡음
+  if (t === "chat_message" || t === "chat_mention" || t === "chat" || t.startsWith("chat_")) return "/chat";
   if (t.includes("payment") || t.includes("payroll") || t.includes("고정비") || t.includes("결제")) return "/payments";
   if (t.includes("expense") || t.includes("경비")) return "/approvals?tab=expense";
   if (t.includes("tax") || t.includes("세금")) return "/tax-invoices";
