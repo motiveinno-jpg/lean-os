@@ -27,6 +27,7 @@ import {
 import { formatDueLabel } from "@/lib/project-badges";
 import { ProjectQuoteStages } from "@/components/project-quote-stages";
 import { getLatestApproval, type ApprovalLite } from "@/lib/quote-approvals";
+import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 
 // stage → 진행률 (%)
 const STAGE_PROGRESS: Record<ProjectStage, number> = {
@@ -37,7 +38,7 @@ const STAGE_PROGRESS: Record<ProjectStage, number> = {
   settlement: 100,
 };
 
-type Tab = "overview" | "money" | "activity";
+type Tab = "overview" | "money" | "activity" | "schedule";
 
 interface ProjectSlideOverProps {
   dealId: string;
@@ -240,11 +241,13 @@ function PanelBody({
               ? [
                   { key: "overview", label: "개요" },
                   { key: "activity", label: "활동" },
+                  { key: "schedule", label: "일정 관리" },
                 ]
               : [
                   { key: "overview", label: "개요" },
                   { key: "money", label: "돈" },
                   { key: "activity", label: "활동" },
+                  { key: "schedule", label: "일정 관리" },
                 ]) as { key: Tab; label: string }[]
           ).map((t) => (
             <button
@@ -268,6 +271,7 @@ function PanelBody({
         {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} onClose={onClose} />}
         {tab === "money" && !isEmployeeLimited && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
         {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
+        {tab === "schedule" && <ProjectScheduleTab dealId={dealId} />}
       </div>
     </>
   );

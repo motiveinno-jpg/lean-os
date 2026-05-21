@@ -2340,30 +2340,33 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           deal_id: string
-          due_date: string
+          due_date: string | null
           id: string
           name: string
           sort_order: number | null
+          start_date: string | null
           status: string | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string | null
           deal_id: string
-          due_date: string
+          due_date?: string | null
           id?: string
           name: string
           sort_order?: number | null
+          start_date?: string | null
           status?: string | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string | null
           deal_id?: string
-          due_date?: string
+          due_date?: string | null
           id?: string
           name?: string
           sort_order?: number | null
+          start_date?: string | null
           status?: string | null
         }
         Relationships: [
