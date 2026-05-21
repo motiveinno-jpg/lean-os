@@ -223,13 +223,20 @@ export function calcDailyAttendance(input: DailyInput): DailyResult {
     // 휴일 근로 — 전부 holiday_minutes 로 분류 (가중치는 월간 계산에서)
     holiday_minutes = work_minutes;
   } else {
-    // 평일 — 8h(=480분) 까지 정규, 초과 = 연장
-    const SOJEONG = 8 * 60;
-    if (work_minutes <= SOJEONG) {
+    // 평일 — 회사 정시(work_end_time - work_start_time - lunch) 까지 정규, 초과 = 연장.
+    //   사용자 회사 정책 우선. ⚠️ 법정 1.5배 가산 의무는 "1일 8h 초과" 부터 —
+    //   회사 정시 < 8h 인 경우 "정시~8h" 구간은 약정연장(통상시급 1.0배만).
+    //   본 함수는 분 분류만 — 가산 1.5배 적용은 월간 calcOvertimePay 단계에서 8h cap 적용.
+    //   설정 누락/잘못된 값 안전 fallback: 정시 < 1분이면 8h(=480) 사용.
+    const workStartMin = parseHhmm(settings.work_start_time, 9 * 60);
+    const workEndMin = parseHhmm(settings.work_end_time, 18 * 60);
+    const nominalRaw = (workEndMin - workStartMin) - lunch;
+    const nominalWorkMin = nominalRaw > 0 ? nominalRaw : 8 * 60;
+    if (work_minutes <= nominalWorkMin) {
       regular_minutes = work_minutes;
     } else {
-      regular_minutes = SOJEONG;
-      overtime_minutes = work_minutes - SOJEONG;
+      regular_minutes = nominalWorkMin;
+      overtime_minutes = work_minutes - nominalWorkMin;
     }
   }
 

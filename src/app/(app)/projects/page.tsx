@@ -29,6 +29,7 @@ import {
   type ProjectStage,
 } from "@/lib/project-rules";
 import { ProjectSlideOver } from "@/components/project-slide-over";
+import { autoCreatePartnerFromDeal } from "@/lib/partners";
 
 // ── 5-stage enum ──
 type Stage = "estimate" | "contract" | "in_progress" | "completed" | "settlement";
@@ -86,6 +87,19 @@ function ProjectsInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
+
+  // ?create=1 → 새 프로젝트 모달 (인라인) — /deals 점프 차단
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setShowCreateModal(true);
+      // URL 클리어 (?create=1 1회 적용 후, history 안 늘림)
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("create");
+      const qs = sp.toString();
+      router.replace(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // ── URL ?deal=<id>&action=<key> → 슬라이드 패널 (PR3.5) ──
   //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
@@ -298,7 +312,7 @@ function ProjectsInner() {
             ← 기존 /deals
           </Link>
           <Link
-            href="/deals?create=1"
+            href="/projects?create=1"
             className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition"
           >
             + 새 프로젝트
@@ -423,6 +437,216 @@ function ProjectsInner() {
           onActionConsumed={() => setPendingAction(null)}
         />
       )}
+
+      {/* 새 프로젝트 모달 (?create=1 진입 시) — /deals 점프 차단 */}
+      {showCreateModal && companyId && (
+        <NewProjectModal
+          companyId={companyId}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ["deals"] });
+            queryClient.invalidateQueries({ queryKey: ["projects-cards"] });
+            queryClient.invalidateQueries({ queryKey: ["partners"] });
+            setShowCreateModal(false);
+            toast("프로젝트가 생성되었습니다", "success");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── New Project Modal (인라인, /projects ?create=1 진입 시) ──
+//   /deals 페이지의 createDeal mutationFn 과 동일 로직.
+//   deals 테이블 직접 insert + autoCreatePartnerFromDeal (거래처 자동등록) 재사용.
+//   필드: 분류·이름·계약금액(VAT inclusion)·기간·우선순위·거래처.
+function NewProjectModal({
+  companyId,
+  onClose,
+  onCreated,
+}: {
+  companyId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const [form, setForm] = useState({
+    classification: "B2B" as string,
+    name: "",
+    contract_total: "",
+    start_date: "",
+    end_date: "",
+    counterparty: "",
+    priority: "medium" as "low" | "medium" | "high" | "urgent",
+    vatType: "exclude" as "exclude" | "include",
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const onSubmit = async () => {
+    setErr("");
+    const rawAmount = Number(form.contract_total);
+    if (!form.name.trim()) {
+      setErr("프로젝트명을 입력해주세요.");
+      return;
+    }
+    if (!rawAmount || rawAmount <= 0) {
+      setErr("계약금액은 1원 이상이어야 합니다.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const contractAmount = form.vatType === "include" ? Math.round(rawAmount / 1.1) : rawAmount;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data: newDeal, error } = await db
+        .from("deals")
+        .insert({
+          company_id: companyId,
+          name: form.name.trim(),
+          classification: form.classification,
+          contract_total: contractAmount,
+          status: "active",
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+          priority: form.priority,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      if (form.counterparty.trim() && newDeal) {
+        try {
+          await autoCreatePartnerFromDeal(companyId, newDeal.id, form.counterparty.trim());
+        } catch (e) {
+          reportError("projects.new.autoCreatePartner", e);
+        }
+      }
+      onCreated();
+    } catch (e) {
+      const msg = friendlyError(e, "프로젝트 생성에 실패했습니다.");
+      setErr(msg);
+      toast(msg, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold">+ 새 프로젝트</div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+        </div>
+        <div className="p-5 grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">분류 *</label>
+            <select
+              value={form.classification}
+              onChange={(e) => setForm({ ...form, classification: e.target.value })}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="B2B">B2B</option>
+              <option value="B2C">B2C</option>
+              <option value="B2G">B2G</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">프로젝트명 *</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="예: 수출바우처 - A기업"
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">계약금액 *</label>
+            <div className="flex gap-2">
+              <select
+                value={form.vatType}
+                onChange={(e) => setForm({ ...form, vatType: e.target.value as "exclude" | "include" })}
+                className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+              >
+                <option value="exclude">VAT 별도</option>
+                <option value="include">VAT 포함</option>
+              </select>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.contract_total ? Number(form.contract_total).toLocaleString("ko-KR") : ""}
+                onChange={(e) => setForm({ ...form, contract_total: e.target.value.replace(/[^\d]/g, "") })}
+                placeholder="15,000,000"
+                className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label>
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label>
+            <input
+              type="date"
+              value={form.end_date}
+              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+              min={form.start_date || undefined}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">우선순위</label>
+            <select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value as "low" | "medium" | "high" | "urgent" })}
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="low">낮음</option>
+              <option value="medium">보통</option>
+              <option value="high">높음</option>
+              <option value="urgent">긴급</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label>
+            <input
+              value={form.counterparty}
+              onChange={(e) => setForm({ ...form, counterparty: e.target.value })}
+              placeholder="예: (주)ABC컴퍼니"
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
+          {err && (
+            <div className="col-span-2 text-xs text-red-400">{err}</div>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={saving || !form.name || !form.contract_total || Number(form.contract_total) <= 0}
+            className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg text-sm font-semibold"
+          >
+            {saving ? "생성 중..." : "프로젝트 생성"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
