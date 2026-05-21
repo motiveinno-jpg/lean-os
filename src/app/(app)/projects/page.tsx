@@ -477,11 +477,30 @@ function NewProjectModal({
     start_date: "",
     end_date: "",
     counterparty: "",
+    partner_id: null as string | null,
     priority: "medium" as "low" | "medium" | "high" | "urgent",
     vatType: "exclude" as "exclude" | "include",
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  // 거래처 자동완성 (deals/page.tsx searchDealPartners 패턴 미러 — RLS 회사격리 그대로)
+  const [partnerResults, setPartnerResults] = useState<Array<{
+    id: string; name: string;
+    contact_email: string | null; business_number: string | null; contact_phone: string | null;
+  }>>([]);
+  const [partnerFocused, setPartnerFocused] = useState(false);
+  const searchPartners = async (q: string) => {
+    if (!companyId || !q.trim()) { setPartnerResults([]); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { data } = await db
+      .from('partners')
+      .select('id, name, contact_email, business_number, contact_phone')
+      .eq('company_id', companyId)
+      .ilike('name', `%${q}%`)
+      .limit(8);
+    setPartnerResults((data || []) as typeof partnerResults);
+  };
 
   const onSubmit = async () => {
     setErr("");
@@ -510,11 +529,15 @@ function NewProjectModal({
           start_date: form.start_date || null,
           end_date: form.end_date || null,
           priority: form.priority,
+          // 기존 거래처 선택 시 즉시 매핑 (자동완성 결과 click)
+          partner_id: form.partner_id ?? null,
+          counterparty: form.counterparty.trim() || null,
         })
         .select()
         .single();
       if (error) throw error;
-      if (form.counterparty.trim() && newDeal) {
+      // partner_id 매핑 없이 신규 텍스트만 입력 시: 기존 흐름대로 autoCreatePartnerFromDeal
+      if (!form.partner_id && form.counterparty.trim() && newDeal) {
         try {
           await autoCreatePartnerFromDeal(companyId, newDeal.id, form.counterparty.trim());
         } catch (e) {
@@ -616,14 +639,56 @@ function NewProjectModal({
               <option value="urgent">긴급</option>
             </select>
           </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">거래처명</label>
+          <div className="relative">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">
+              거래처명
+              {form.partner_id && (
+                <span className="ml-2 text-[10px] text-[var(--primary)]">기존 거래처 선택됨</span>
+              )}
+            </label>
             <input
               value={form.counterparty}
-              onChange={(e) => setForm({ ...form, counterparty: e.target.value })}
-              placeholder="예: (주)ABC컴퍼니"
+              onChange={(e) => {
+                // 직접 편집 시 기존 매핑 해제 (텍스트 신규 거래처 흐름으로 전환)
+                setForm({ ...form, counterparty: e.target.value, partner_id: null });
+                searchPartners(e.target.value);
+              }}
+              onFocus={() => setPartnerFocused(true)}
+              onBlur={() => setTimeout(() => setPartnerFocused(false), 200)}
+              placeholder="거래처명 검색 (입력 후 선택, 없으면 신규 등록)"
               className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
             />
+            {partnerFocused && partnerResults.length > 0 && (
+              <ul className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-xl z-10 shadow-lg">
+                {partnerResults.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setForm((prev) => ({ ...prev, counterparty: p.name, partner_id: p.id }));
+                        setPartnerResults([]);
+                        setPartnerFocused(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] transition"
+                    >
+                      <div className="text-xs font-semibold">{p.name}</div>
+                      {(p.contact_email || p.business_number) && (
+                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
+                          {p.business_number ? p.business_number + (p.contact_email ? ' · ' : '') : ''}
+                          {p.contact_email || ''}
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {partnerFocused && partnerResults.length === 0 && form.counterparty.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl z-10 shadow-lg px-3 py-2 text-[10px] text-[var(--primary)]">
+                + &ldquo;{form.counterparty}&rdquo; 신규 거래처로 등록 (프로젝트 생성 시 자동 등록)
+              </div>
+            )}
           </div>
           {err && (
             <div className="col-span-2 text-xs text-red-400">{err}</div>
@@ -659,7 +724,7 @@ function EmptyState() {
       <h2 className="text-base font-bold text-[var(--text)] mb-1">아직 프로젝트가 없습니다</h2>
       <p className="text-xs text-[var(--text-muted)] mb-5">첫 프로젝트를 만들고 5단계 진행 상태를 한눈에 관리해보세요.</p>
       <Link
-        href="/deals?create=1"
+        href="/projects?create=1"
         className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold transition active:scale-[0.98]"
       >
         + 새 프로젝트 만들기
