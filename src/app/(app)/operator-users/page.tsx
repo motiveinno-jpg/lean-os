@@ -47,6 +47,10 @@ export default function OperatorUsersPage() {
   const [edit, setEdit] = useState({ name: "", email: "", role: "" });
   const [adminKey, setAdminKey] = useState("");
   const [saving, setSaving] = useState(false);
+  // OP-A: 회원 조회 ↔ 계정 수정 탭 분리 + 에러 로그 동시 조회
+  const [tab, setTab] = useState<"view" | "edit">("view");
+  const [errors, setErrors] = useState<{ logs: any[]; stats: any } | null>(null);
+  const [errLoading, setErrLoading] = useState(false);
 
   if (loading) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (!isOperator) {
@@ -58,11 +62,24 @@ export default function OperatorUsersPage() {
     if (!term) return;
     setSearching(true);
     setResult(null);
+    setErrors(null);
     try {
       const r = await callEF({ mode: "lookup", query: term });
       setResult(r);
       if (r.found) {
         setEdit({ name: r.user.name || "", email: r.user.email || "", role: r.user.role || "" });
+        // 에러 로그 병행 조회 (실패해도 메인 흐름 영향 없음)
+        if (r.user.email) {
+          setErrLoading(true);
+          try {
+            const e = await callEF({ mode: "errors", email: r.user.email });
+            setErrors(e);
+          } catch (err) {
+            // EF 배포 누락 등은 조용히 실패 — 메인 정보는 정상
+            console.warn("errors lookup failed", err);
+          }
+          setErrLoading(false);
+        }
       }
     } catch (e: any) {
       toast("조회 실패: " + (e?.message || ""), "error");
@@ -98,8 +115,28 @@ export default function OperatorUsersPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold">유저 계정 관리</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
-          이메일 또는 계정 ID 로 조회 후 정보 확인·수정 (수정 시 관리자 키 필요)
+          이메일 또는 계정 ID 로 회원을 조회해 상세 정보·에러 이력 확인 (수정은 관리자 키 필요)
         </p>
+      </div>
+
+      {/* 탭 */}
+      <div className="flex gap-1 mb-5 border-b border-[var(--border)]">
+        {[
+          { k: "view" as const, label: "🔍 회원 조회" },
+          { k: "edit" as const, label: "✏️ 계정 수정" },
+        ].map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            className={`px-4 py-2 text-sm font-semibold transition border-b-2 -mb-px ${
+              tab === t.k
+                ? "border-[var(--primary)] text-[var(--text)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* 검색 */}
@@ -145,58 +182,140 @@ export default function OperatorUsersPage() {
         </div>
       )}
 
-      {/* 계정 정보 + 수정 */}
+      {/* 계정 정보 + 수정 — 탭별 분리 */}
       {result?.found && u && (
         <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
-            <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">계정 정보</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Info label="계정 ID" value={u.id} mono />
-              <Info label="auth_id" value={u.auth_id || "-"} mono />
-              <Info label="회사" value={result.company?.name || u.company_id || "-"} />
-              <Info label="가입일" value={u.created_at ? new Date(u.created_at).toLocaleString("ko-KR") : "-"} />
-              <Info label="마지막 로그인" value={result.auth?.last_sign_in_at ? new Date(result.auth.last_sign_in_at).toLocaleString("ko-KR") : "-"} />
-              <Info label="이메일 인증" value={result.auth?.email_confirmed_at ? "완료" : "미완료"} />
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5">
-            <div className="text-xs font-bold text-[var(--primary)] uppercase mb-3">정보 수정</div>
-            <div className="space-y-3">
-              <Field label="이름">
-                <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </Field>
-              <Field label="이메일">
-                <input value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </Field>
-              <Field label="역할">
-                <select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
-                  {["owner", "admin", "employee", "partner"].map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </Field>
-              <div className="border-t border-[var(--border)] pt-3">
-                <Field label="관리자 키 (수정 시 필수)">
-                  <input
-                    type="password"
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    placeholder="OPERATOR_ADMIN_KEY"
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-amber-500/30 rounded-lg text-sm focus:outline-none focus:border-amber-500"
-                  />
-                </Field>
+          {/* 회원 조회 탭 */}
+          {tab === "view" && (
+            <>
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+                <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">📋 계정 정보</div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <Info label="이름" value={u.name || "-"} />
+                  <Info label="이메일" value={u.email || "-"} />
+                  <Info label="역할" value={u.role || "-"} />
+                  <Info label="계정 ID" value={u.id} mono />
+                  <Info label="auth_id" value={u.auth_id || "-"} mono />
+                  <Info label="회사" value={result.company?.name || "-"} />
+                  <Info label="회사 사업자번호" value={result.company?.business_number || "-"} />
+                  <Info label="회사 대표자" value={result.company?.representative || "-"} />
+                  <Info label="가입일" value={u.created_at ? new Date(u.created_at).toLocaleString("ko-KR") : "-"} />
+                  <Info label="마지막 로그인" value={result.auth?.last_sign_in_at ? new Date(result.auth.last_sign_in_at).toLocaleString("ko-KR") : "-"} />
+                  <Info label="auth 가입일" value={result.auth?.created_at ? new Date(result.auth.created_at).toLocaleString("ko-KR") : "-"} />
+                  <Info label="이메일 인증" value={result.auth?.email_confirmed_at ? `완료 (${new Date(result.auth.email_confirmed_at).toLocaleString("ko-KR")})` : "미완료"} />
+                  {result.auth?.banned_until && (
+                    <Info label="🚫 정지 상태" value={`정지됨 (해제: ${new Date(result.auth.banned_until).toLocaleString("ko-KR")})`} />
+                  )}
+                </div>
               </div>
-              <button
-                onClick={doSave}
-                disabled={saving || !dirty || !adminKey.trim()}
-                className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
-              >
-                {saving ? "저장 중..." : dirty ? "변경사항 저장" : "변경된 항목 없음"}
-              </button>
+
+              {/* 에러 발생 이력 */}
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="text-xs font-bold text-[var(--text-muted)] uppercase">⚠️ 에러 발생 이력</div>
+                  {errors?.stats && (
+                    <div className="text-[11px] text-[var(--text-dim)]">
+                      총 <span className="text-[var(--text)] font-semibold">{errors.stats.total}</span>건 ·
+                      미해결 <span className="text-red-500 font-semibold">{errors.stats.unresolved}</span>건 ·
+                      7일 <span className="text-amber-500 font-semibold">{errors.stats.last_7d}</span>건 ·
+                      30일 <span className="text-[var(--text-muted)] font-semibold">{errors.stats.last_30d}</span>건
+                    </div>
+                  )}
+                </div>
+                {errLoading ? (
+                  <div className="text-center py-6 text-sm text-[var(--text-muted)]">에러 로그 조회 중...</div>
+                ) : !errors || errors.logs.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-[var(--text-muted)]">
+                    🎉 이 회원이 일으킨 에러가 없습니다
+                  </div>
+                ) : (
+                  <>
+                    {Object.keys(errors.stats?.by_type || {}).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {Object.entries(errors.stats.by_type)
+                          .sort((a, b) => (b[1] as number) - (a[1] as number))
+                          .slice(0, 6)
+                          .map(([t, c]) => (
+                            <span key={t} className="text-[10px] px-2 py-1 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                              {t} · <b className="text-[var(--text)]">{c as number}</b>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                    <div className="space-y-1.5 max-h-[480px] overflow-y-auto">
+                      {errors.logs.slice(0, 20).map((l: any) => (
+                        <div key={l.id} className={`rounded-lg border px-3 py-2 ${l.resolved ? "border-[var(--border)] opacity-60" : "border-red-500/30 bg-red-500/5"}`}>
+                          <div className="flex items-center gap-2 mb-1 text-[11px] flex-wrap">
+                            <span className="font-semibold text-[var(--text)]">{l.error_type || "unknown"}</span>
+                            <span className="text-[var(--text-dim)]">·</span>
+                            <span className="text-[var(--text-muted)]">{l.source || "-"}</span>
+                            <span className="text-[var(--text-dim)]">·</span>
+                            <span className="text-[var(--text-dim)]">{new Date(l.created_at).toLocaleString("ko-KR")}</span>
+                            {l.resolved && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-600">해결됨</span>}
+                          </div>
+                          <div className="text-xs text-[var(--text-muted)] truncate" title={l.message}>{l.message}</div>
+                          {(l.url || l.context?.action || l.context?.page) && (
+                            <div className="text-[10px] text-[var(--text-dim)] mt-1 truncate">
+                              {l.context?.action && <span>🛠 {String(l.context.action)} </span>}
+                              {(l.context?.page || l.url) && (
+                                <span>📄 {l.context?.page || (() => { try { return new URL(l.url).pathname; } catch { return l.url; } })()}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {errors.logs.length > 20 && (
+                      <div className="text-[11px] text-[var(--text-dim)] mt-2 text-center">
+                        · 최근 50건 중 20건 표시. 전체는 /error-logs 에서 사용자 필터.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 계정 수정 탭 */}
+          {tab === "edit" && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5">
+              <div className="text-xs font-bold text-[var(--primary)] uppercase mb-3">✏️ 정보 수정</div>
+              <div className="space-y-3">
+                <Field label="이름">
+                  <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+                </Field>
+                <Field label="이메일">
+                  <input value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+                </Field>
+                <Field label="역할">
+                  <select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
+                    {["owner", "admin", "employee", "partner"].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </Field>
+                <div className="border-t border-[var(--border)] pt-3">
+                  <Field label="관리자 키 (수정 시 필수)">
+                    <input
+                      type="password"
+                      value={adminKey}
+                      onChange={(e) => setAdminKey(e.target.value)}
+                      placeholder="OPERATOR_ADMIN_KEY"
+                      className="w-full px-3 py-2 bg-[var(--bg)] border border-amber-500/30 rounded-lg text-sm focus:outline-none focus:border-amber-500"
+                    />
+                  </Field>
+                </div>
+                <button
+                  onClick={doSave}
+                  disabled={saving || !dirty || !adminKey.trim()}
+                  className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+                >
+                  {saving ? "저장 중..." : dirty ? "변경사항 저장" : "변경된 항목 없음"}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
