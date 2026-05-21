@@ -33,14 +33,35 @@ const db = supabase as any;
  */
 function stripBodySignatureArea(rawHtml: string): string {
   if (!rawHtml) return rawHtml;
+
   if (typeof DOMParser === 'undefined') {
-    // 서버/SSR fallback — 정규식 비탐욕 매칭으로 div/section 통째 제거
-    return rawHtml
-      .replace(/<div[^>]*>(?:(?!<div)[\s\S])*?거래처\s*서명[\s\S]*?<\/div>/g, '')
-      .replace(/<section[^>]*>[\s\S]*?거래처\s*서명[\s\S]*?<\/section>/g, '');
+    // SSR fallback — 정규식: text-align:right + display:inline-block 패턴 통째 매칭
+    return rawHtml.replace(
+      /<div[^>]*style="[^"]*(?:margin-top:\s*\d+px[^"]*text-align:\s*right|text-align:\s*right[^"]*margin-top:\s*\d+px)[^"]*"[^>]*>\s*<div[^>]*style="[^"]*display:\s*inline-block[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi,
+      ''
+    );
   }
+
   try {
     const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+    // 1) display:inline-block wrapper 중 sig 시그니처(img base64 또는 "거래처 서명" 텍스트) 매칭
+    doc.querySelectorAll('div[style*="display:inline-block"], div[style*="display: inline-block"]')
+      .forEach((el) => {
+        const hasDataImg = !!el.querySelector('img[src^="data:image"]');
+        const hasSigText = /거래처\s*서명/.test(el.textContent || '');
+        if (hasDataImg || hasSigText) {
+          // wrapper 의 외부 부모가 text-align:right 라면 그 부모까지 같이 제거 (실제 sig 카드 구조)
+          const parent = el.parentElement;
+          if (parent && /text-align:\s*right/i.test(parent.getAttribute('style') || '')) {
+            parent.remove();
+          } else {
+            el.remove();
+          }
+        }
+      });
+
+    // 2) fallback — display:inline-block 없는 옛 합성본 (직전 04bc7083 패턴) 대응
+    //    "거래처 서명" 텍스트노드 → 가까운 div/section 3단계 상향 제거
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
     const targets: Element[] = [];
     let node: Node | null;
@@ -49,7 +70,6 @@ function stripBodySignatureArea(rawHtml: string): string {
         let el: Element | null = node.parentElement;
         for (let i = 0; i < 3 && el; i++) {
           if (['DIV', 'SECTION', 'P', 'TABLE'].includes(el.tagName)) {
-            // 같은 wrapper 가 이미 targets 에 있으면 skip
             if (!targets.includes(el)) targets.push(el);
             break;
           }
@@ -57,10 +77,11 @@ function stripBodySignatureArea(rawHtml: string): string {
         }
       }
     }
-    targets.forEach((t) => t.remove());
+    targets.forEach((t) => { try { t.remove(); } catch { /* already removed */ } });
+
     return doc.body.innerHTML;
   } catch {
-    return rawHtml; // 파싱 실패 시 원본 — 사용자 데이터 보호 우선
+    return rawHtml;
   }
 }
 
