@@ -49,6 +49,8 @@ export default function SignaturesDashboardPage() {
   // U4 페이지네이션 — 한 페이지 10/25/50건. 필터/검색 변경 시 1페이지 리셋.
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
+  // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
+  const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string } | null>(null);
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {
@@ -318,7 +320,7 @@ export default function SignaturesDashboardPage() {
                           🔔
                         </button>
                       )}
-                      {r.sign_token && (
+                      {r.sign_token && r.status !== 'signed' && (
                         <a
                           href={`/sign?token=${r.sign_token}`}
                           target="_blank"
@@ -328,6 +330,22 @@ export default function SignaturesDashboardPage() {
                         >
                           🔗
                         </a>
+                      )}
+                      {r.status === 'signed' && (
+                        <button
+                          onClick={() => setViewSignedRow({
+                            id: r.id,
+                            signer_name: r.signer_name,
+                            signed_at: r.signed_at,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            signature_data: (r as any).signature_data || null,
+                            title: r.title,
+                          })}
+                          className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded hover:bg-green-500/20"
+                          title="서명본 보기"
+                        >
+                          ✅
+                        </button>
                       )}
                       {canRemind && (
                         <button
@@ -403,6 +421,75 @@ export default function SignaturesDashboardPage() {
             qc.invalidateQueries({ queryKey: ["signature-requests"] });
           }}
         />
+      )}
+
+      {/* PR-3: 서명본 보기 모달 (status='signed' 행) */}
+      {viewSignedRow && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setViewSignedRow(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold">✅ 서명본</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{viewSignedRow.title}</div>
+              </div>
+              <button onClick={() => setViewSignedRow(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <div className="text-[var(--text-muted)] mb-1">서명자</div>
+                  <div className="font-semibold">{viewSignedRow.signer_name}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--text-muted)] mb-1">서명 시각 (KST)</div>
+                  <div className="font-semibold">
+                    {viewSignedRow.signed_at
+                      ? new Date(viewSignedRow.signed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[var(--text-muted)] mb-1">서명 방식</div>
+                  <div className="font-semibold">
+                    {viewSignedRow.signature_data?.type === "draw" ? "손글씨 서명"
+                      : viewSignedRow.signature_data?.type === "type" ? "타이핑 서명"
+                      : viewSignedRow.signature_data?.type === "upload" ? "도장/사인 업로드"
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+              <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--bg-surface)]/50">
+                <div className="text-[10px] text-[var(--text-muted)] mb-2">서명 이미지</div>
+                {viewSignedRow.signature_data?.data ? (
+                  viewSignedRow.signature_data.type === "type" ? (
+                    <div className="text-2xl font-bold py-4 text-center" style={{ fontFamily: "'Nanum Pen Script', cursive" }}>
+                      {viewSignedRow.signature_data.data}
+                    </div>
+                  ) : (
+                    <img
+                      src={viewSignedRow.signature_data.data}
+                      alt="서명"
+                      className="max-w-full max-h-48 mx-auto bg-white rounded p-2"
+                    />
+                  )
+                ) : (
+                  <div className="text-xs text-[var(--text-muted)] text-center py-6">서명 이미지가 저장되어 있지 않습니다.</div>
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <a
+                href={`/sign?token=${(filtered.find((x) => x.id === viewSignedRow.id) as { sign_token?: string } | undefined)?.sign_token || ""}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-1.5 text-xs bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg"
+              >
+                🔗 외부 보기
+              </a>
+              <button onClick={() => setViewSignedRow(null)} className="px-4 py-1.5 text-xs bg-[var(--primary)] text-white rounded-lg font-semibold">닫기</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
