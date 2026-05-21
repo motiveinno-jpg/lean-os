@@ -6,15 +6,40 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
 
+// OP-A 게이트 강화: 회사명 OR @mo-tive.com 이메일 (둘 다 통과 — 기존 호환 유지)
 const SUPER_ADMIN_COMPANY = "모티브이노베이션";
+const OPERATOR_EMAIL_PATTERN = /@mo-tive\.com$/i;
 
-const NAV_ITEMS = [
-  { href: "/platform", label: "개요", icon: "chart" },
-  { href: "/platform/customers", label: "고객사", icon: "building" },
-  { href: "/platform/revenue", label: "수익", icon: "dollar" },
-  { href: "/platform/feedback", label: "피드백", icon: "message" },
-  { href: "/platform/referral", label: "추천", icon: "gift" },
-  { href: "/platform/system", label: "시스템", icon: "cog" },
+// OP-A 메뉴 섹션화: 비즈니스(매출/고객) + 운영(평균/업계/에러/의존성/사고/감사)
+type NavGroup = { title: string; items: { href: string; label: string; icon: string }[] };
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: "비즈니스",
+    items: [
+      { href: "/platform", label: "개요", icon: "chart" },
+      { href: "/platform/customers", label: "고객사", icon: "building" },
+      { href: "/platform/revenue", label: "수익", icon: "dollar" },
+      { href: "/platform/feedback", label: "피드백", icon: "message" },
+      { href: "/platform/referral", label: "추천", icon: "gift" },
+    ],
+  },
+  {
+    title: "운영 (OP)",
+    items: [
+      { href: "/platform/averages", label: "재무평균", icon: "trending" },
+      { href: "/platform/industry", label: "업계분석", icon: "layers" },
+      { href: "/platform/errors", label: "에러해석", icon: "alert" },
+      { href: "/platform/dependencies", label: "의존성", icon: "link" },
+      { href: "/platform/incidents", label: "사고기록", icon: "siren" },
+      { href: "/platform/audit", label: "감사로그", icon: "shield" },
+    ],
+  },
+  {
+    title: "시스템",
+    items: [
+      { href: "/platform/system", label: "시스템", icon: "cog" },
+    ],
+  },
 ];
 
 function NavIcon({ type, active }: { type: string; active: boolean }) {
@@ -27,6 +52,12 @@ function NavIcon({ type, active }: { type: string; active: boolean }) {
     case "message": return <svg {...props}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "gift": return <svg {...props}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
     case "cog": return <svg {...props}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
+    case "trending": return <svg {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+    case "layers": return <svg {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+    case "alert": return <svg {...props}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
+    case "siren": return <svg {...props}><path d="M3 18h18M5 18a7 7 0 0114 0M12 4v3M4.93 6.93l2.12 2.12M19.07 6.93l-2.12 2.12"/></svg>;
+    case "shield": return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
     default: return null;
   }
 }
@@ -45,7 +76,11 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         if (!data.session) { router.replace("/auth"); return; }
         const user = await getCurrentUser();
         if (cancelled) return;
-        if (!user || user.role !== "owner" || user.companies?.name !== SUPER_ADMIN_COMPANY) {
+        // OP-A 게이트: @mo-tive.com 이메일 OR 기존 모티브이노베이션 회사명 (둘 다 허용)
+        const email = user?.email || "";
+        const isOpEmail = OPERATOR_EMAIL_PATTERN.test(email);
+        const isLegacy = user?.role === "owner" && user?.companies?.name === SUPER_ADMIN_COMPANY;
+        if (!user || (!isOpEmail && !isLegacy)) {
           setStatus("denied");
           return;
         }
@@ -101,22 +136,31 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           </div>
         </div>
 
-        <nav className="flex-1 py-3 px-2 space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href || (item.href !== "/platform" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  active ? "bg-blue-600/20 text-white" : "text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
-                }`}
-              >
-                <NavIcon type={item.icon} active={active} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title}>
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
+                {group.title}
+              </div>
+              <div className="space-y-0.5 mt-1">
+                {group.items.map((item) => {
+                  const active = pathname === item.href || (item.href !== "/platform" && pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        active ? "bg-cyan-600/20 text-cyan-200 border border-cyan-600/30" : "text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
+                      }`}
+                    >
+                      <NavIcon type={item.icon} active={active} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="p-4 border-t border-[#1e293b]">

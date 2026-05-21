@@ -55,6 +55,16 @@ export default function PlatformOverview() {
     },
   });
 
+  // OP-A: 24h 에러 수 (error_logs 테이블 — 운영 신호)
+  const { data: recentErrors = [] } = useQuery({
+    queryKey: ["p-errors-24h"],
+    queryFn: async () => {
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data } = await db.from("error_logs").select("id").gte("created_at", since);
+      return data || [];
+    },
+  });
+
   const totalCompanies = companies.length;
   const totalUsers = users.length;
   const activeSubs = subscriptions.filter((s: any) => s.status === "active" || s.status === "trialing").length;
@@ -119,6 +129,32 @@ export default function PlatformOverview() {
           <div className="text-3xl font-extrabold text-amber-400">{pendingFeedback}</div>
           <div className="text-xs text-[#64748b] mt-1">
             <Link href="/platform/feedback" className="text-blue-400 hover:underline">바로가기</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* OP-A: 운영 신호 (24h 에러 + 사고) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs text-[#64748b]">최근 24시간 에러</div>
+            <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400">운영</span>
+          </div>
+          <div className={`text-3xl font-extrabold ${recentErrors.length > 50 ? "text-red-400" : recentErrors.length > 10 ? "text-amber-400" : "text-emerald-400"}`}>
+            {recentErrors.length}
+          </div>
+          <div className="text-xs text-[#64748b] mt-1">
+            <Link href="/platform/errors" className="text-cyan-400 hover:underline">상세 해석 보기 →</Link>
+          </div>
+        </div>
+        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs text-[#64748b]">미해결 사고</div>
+            <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400">운영</span>
+          </div>
+          <div className="text-3xl font-extrabold text-[#64748b]">—</div>
+          <div className="text-xs text-[#64748b] mt-1">
+            <Link href="/platform/incidents" className="text-cyan-400 hover:underline">사고 기록 →</Link>
           </div>
         </div>
       </div>
