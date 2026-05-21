@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
 import { ContractStageCard } from "@/components/contract-stage-card";
+import { ProgressReportStageCard } from "@/components/progress-report-stage-card";
 import {
   createApproval,
   sendApproval,
@@ -64,9 +65,9 @@ interface Props {
 
 type Mode = "edit" | "preview";
 
-// progress_report / completion / settlement 는 우선 stub — 견적·계약 본 흐름과 분리
+// completion / settlement 는 우선 stub — 견적·계약·진척보고서 본 흐름과 분리
+// B 핸드오프: progress_report 는 ProgressReportStageCard 로 분기 (stub 제거).
 const STUB_STAGES: ReadonlySet<QuoteApprovalStage> = new Set<QuoteApprovalStage>([
-  "progress_report",
   "completion",
   "settlement",
 ]);
@@ -355,9 +356,26 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     return <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-[11px] text-[var(--text-dim)] text-center">불러오는 중…</div>;
   }
 
-  // 진척 보고서 / 완료 확인서 / 정산 확인 — 우선 stub, 다음 라운드에서 본 폼 추가
+  // 완료 확인서 / 정산 확인 — 우선 stub, 다음 라운드에서 본 폼 추가
   if (STUB_STAGES.has(stage)) {
     return <StageStubCard stage={stage} approval={approval} />;
+  }
+
+  // B 핸드오프: 진척 보고서 본 폼 (별도 카드 컴포넌트).
+  if (stage === "progress_report") {
+    return (
+      <ProgressReportStageCard
+        dealId={dealId}
+        companyId={companyId}
+        readonly={!!readonly}
+        dealName={dealName}
+        partnerId={partnerId}
+        partnerName={partnerName}
+        partnerEmail={partnerEmail}
+        approval={approval}
+        onApprovalChange={setApproval}
+      />
+    );
   }
 
   // L 계약: stage='contract' 는 견적 payload(items/paymentStages) 자동 inherit 후 양식 선택 모드.

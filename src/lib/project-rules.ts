@@ -137,11 +137,12 @@ export function getNextAction(
       return { text: '서명 요청 보내기 →', href: panelHref('send'), icon: '✍️', reason: '계약서 서명 진행', level: 'recommended' };
 
     case 'in_progress': {
-      // 기한 임박이면 진척 점검
+      // B 핸드오프: deal.stage='in_progress' → approval stage='progress_report' 매핑.
+      //   진척 보고서 작성·발송이 다음 자연 액션. 거래처가 승인하면 자동 완료(submit_quote_decision 매핑).
       if (badge.key === 'urgent') {
-        return { text: '진척 점검 / 마감 준비 →', href: panelHref('progress'), icon: '⏰', reason: '기한 7일 이내', level: 'recommended' };
+        return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '⏰', reason: '기한 임박 — 진척 보고서로 마감 정렬', level: 'recommended' };
       }
-      return { text: '진행상황 업데이트 →', href: panelHref('progress'), icon: '🚀', reason: '진행중 — 정기 점검', level: 'optional' };
+      return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '📊', reason: '진행중 — 거래처에 진척 공유 + 완료 단계 진입', level: 'recommended' };
     }
 
     case 'completed':

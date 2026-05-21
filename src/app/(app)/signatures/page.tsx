@@ -585,6 +585,61 @@ export default function SignaturesDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* 일괄 우리 서명 마법사 — batch 의 거래처 서명 완료 행에 도장 일괄 적용 */}
+      {bulkOurSignBatch && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !bulkSubmitting && setBulkOurSignBatch(null)}
+        >
+          <div
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold">📝 일괄 우리 서명·도장 적용</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  거래처 서명 완료 <b className="text-orange-300">{bulkOurSignBatch.total}건</b>에
+                  같은 서명·도장이 일괄 적용됩니다.
+                </div>
+              </div>
+              <button
+                onClick={() => !bulkSubmitting && setBulkOurSignBatch(null)}
+                disabled={bulkSubmitting}
+                className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-3 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
+              💡 손글씨로 그리거나 회사 도장 이미지를 업로드하세요. 적용 후엔 각 계약서의
+              갑 박스에 표시됩니다. 이미 우리 서명된 행은 자동 스킵됩니다.
+            </div>
+            <div className="p-5">
+              <SignatureCapture
+                onChange={(m, d) => { setBulkOurMethod(m); setBulkOurDataUrl(d); }}
+              />
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button
+                onClick={() => setBulkOurSignBatch(null)}
+                disabled={bulkSubmitting}
+                className="px-4 py-1.5 text-xs bg-[var(--bg)] text-[var(--text-muted)] rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                onClick={submitBulkOurSig}
+                disabled={bulkSubmitting || !bulkOurMethod || !bulkOurDataUrl}
+                className="px-4 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg font-semibold"
+              >
+                {bulkSubmitting ? '적용 중...' : `${bulkOurSignBatch.total}건 일괄 적용`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
