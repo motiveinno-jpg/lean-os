@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -15,6 +17,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 };
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -84,6 +87,7 @@ export default function CustomersPage() {
                 <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">상태</th>
                 <th className="text-center px-5 py-3.5 font-semibold text-[#64748b]">좌석</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">가입일</th>
+                <th className="px-5 py-3.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e293b]">
@@ -92,10 +96,18 @@ export default function CustomersPage() {
                 const plan = sub?.subscription_plans;
                 const st = STATUS_COLORS[sub?.status || "trialing"] || STATUS_COLORS.trialing;
                 return (
-                  <tr key={c.id} className="hover:bg-[#1e293b]/50 transition">
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/platform/companies/${c.id}`)}
+                    className="hover:bg-[#1e293b]/50 transition cursor-pointer"
+                  >
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-white">{c.name}</div>
-                      {c.industry && <div className="text-xs text-[#64748b]">{c.industry}</div>}
+                      {c.industry ? (
+                        <div className="text-xs text-[#64748b]">{c.industry}</div>
+                      ) : (
+                        <div className="text-xs text-amber-400/70">업종 미분류</div>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
@@ -111,6 +123,15 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-5 py-3.5 text-center text-[#94a3b8]">{sub?.seat_count || 1}명</td>
                     <td className="px-5 py-3.5 text-[#94a3b8]">{new Date(c.created_at).toLocaleDateString("ko-KR")}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <Link
+                        href={`/platform/companies/${c.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-cyan-400 hover:underline"
+                      >
+                        상세 →
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
