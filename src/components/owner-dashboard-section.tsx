@@ -106,7 +106,6 @@ export function OwnerDashboardSection() {
     <div className="space-y-6 mb-8">
       <KpiSection data={data} />
       <StageDistributionSection data={data.stage_distribution} />
-      <TopActorsSection partners={data.top_partners} managers={data.top_managers} qLabel={data.quarter.label} />
       <QuarterlyTrendSection data={data.quarterly_trend} />
       <InProgressListSection data={data.in_progress} />
       <CompletedReportsSection data={data.completed_reports} />
@@ -191,53 +190,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 }
 
 // ─────────── 3. TOP 거래처·담당자 ───────────
-function TopActorsSection({ partners, managers, qLabel }: { partners: TopPartner[]; managers: TopManager[]; qLabel: string }) {
-  return (
-    <div>
-      {/* <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">🏢 누구랑 했나 — {qLabel} TOP 5</h2> */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-          <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">거래처</div>
-          {partners.length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)] py-2">이번 분기 매출 발생 거래처 없음</div>
-          ) : (
-            <ul className="space-y-1.5">
-              {partners.map((p, i) => (
-                <li key={p.id} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-5 h-5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center font-bold text-[10px]">{i+1}</span>
-                    <Link href={`/partners?id=${p.id}`} className="text-[var(--text)] font-medium truncate hover:underline">{p.name}</Link>
-                    <span className="text-[var(--text-dim)] text-[10px] shrink-0">{p.deal_count}건</span>
-                  </div>
-                  <span className="text-[var(--text)] font-semibold tabular-nums shrink-0">{fmtW(p.revenue_q)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-          <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">담당자</div>
-          {managers.length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)] py-2">이번 분기 매출 발생 담당자 없음</div>
-          ) : (
-            <ul className="space-y-1.5">
-              {managers.map((m, i) => (
-                <li key={m.id} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold text-[10px]">{i+1}</span>
-                    <span className="text-[var(--text)] font-medium truncate">{m.name || m.email}</span>
-                    <span className="text-[var(--text-dim)] text-[10px] shrink-0">{m.deal_count}건</span>
-                  </div>
-                  <span className="text-[var(--text)] font-semibold tabular-nums shrink-0">{fmtW(m.revenue_q)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// TopActorsSection (🏢 누구랑 했나 TOP 5) — 2026-05-21 사장님 요청으로 통째 제거.
 
 // ─────────── 4. 분기별 추이 ───────────
 function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
@@ -269,25 +222,26 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
         </div>
       </div>
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        <div className="grid grid-cols-4 gap-3 items-end h-40">
+        {/* 2026-05-21 그래프 깨짐 fix: flex-1 막대 영역 + items-end bottom-align (이전 height:70% + marginTop 패턴 폐기) */}
+        <div className="grid grid-cols-4 gap-3 h-48">
           {data.map((q) => {
             const v = Number(q[metric]) || 0;
             const h = max > 0 ? (Math.abs(v) / max) * 100 : 0;
             return (
-              <div key={q.label} className="flex flex-col items-center gap-1 h-full justify-end">
+              <div key={q.label} className="flex flex-col items-center gap-1.5 h-full">
                 <div className="text-[11px] font-bold text-[var(--text)] tabular-nums">
                   {metric === "done_count" ? `${v}건` : fmtW(v)}
                 </div>
-                <div className="w-full bg-[var(--bg-surface)] rounded-t-lg overflow-hidden" style={{ height: "70%" }}>
+                <div className="flex-1 w-full flex items-end">
                   <div
-                    className={`w-full transition-all ${
+                    className={`w-full rounded-t-lg transition-all ${
                       metric === "profit" ? (v < 0 ? "bg-red-500/60" : "bg-purple-500/60") :
                       metric === "revenue" ? "bg-cyan-500/60" : "bg-emerald-500/60"
                     }`}
-                    style={{ height: `${h}%`, marginTop: `${100 - h}%` }}
+                    style={{ height: `${h}%` }}
                   />
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{q.label.replace(" ", " ")}</div>
+                <div className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{q.label}</div>
               </div>
             );
           })}
