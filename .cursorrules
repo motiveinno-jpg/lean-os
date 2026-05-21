@@ -1,0 +1,24 @@
+# Cursor Rules — OwnerView
+
+## 🚨 세션 시작 시 강제 — 첫 응답 전
+
+아래 2개를 무조건 먼저 읽는다:
+```
+cat ~/motive-brain/state/ownerview.md
+tail -80 ~/motive-brain/lessons.md
+```
+
+읽은 후 brain 상태 1줄 요약 → 작업 진행. 안 읽고 코드 변경 시작 = 룰 위반.
+
+상세 규칙은 `AGENTS.md` (전체 AI 공통) 와 `CLAUDE.md` (Claude 전용) 참조.
+
+## 핵심 룰 요약
+- RLS 정책 본문에 인라인 `users`/`employees` 서브쿼리 금지 → SECURITY DEFINER 헬퍼만
+- edge function 은 반드시 `npx supabase functions deploy` CLI 정공 (Management API PATCH 금지)
+- prod DB 재시작은 사용자 명시 승인 후
+- 홈택스/CODEF 분기 미접촉 (운영팀 답변 대기)
+- 작업 종료 전 `~/motive-brain/state/ownerview.md` 갱신
+
+## 기술 스택
+- Next.js 16 / React 19 / TypeScript / Tailwind / Supabase / Vercel / Stripe Live
+- 배포: `git push origin main` → www.owner-view.com

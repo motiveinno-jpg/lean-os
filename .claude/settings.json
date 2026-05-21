@@ -1,0 +1,16 @@
+{
+  "_comment": "팀 공유 Claude Code 설정. 세션 시작 시 motive-brain state 를 강제 주입한다.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '═══ MOTIVE BRAIN — ownerview.md ═══' && cat ~/motive-brain/state/ownerview.md && echo '\n═══ MOTIVE BRAIN — lessons.md (최근 80줄) ═══' && tail -80 ~/motive-brain/lessons.md && echo '\n═══ END BRAIN ═══'"
+          }
+        ]
+      }
+    ]
+  }
+}
