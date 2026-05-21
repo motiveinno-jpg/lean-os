@@ -310,7 +310,7 @@ export async function createBulkSignatureRequests(params: {
 //   partner_id / batch_id / batch_seq 만 추가로 채워 묶음을 식별한다.
 //   변수 치환은 documents.fillVariables 재사용. send-signature-email 엣지는
 //   sendSignatureEmail 한 곳에서만 호출 (엣지 무수정).
-export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_email'|'business_number'|'address';
+export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_email'|'contact_phone'|'business_number'|'address';
 
 export async function createBulkSignatureRequestsToOrgs(params: {
   companyId: string;
@@ -372,7 +372,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   // 1) 회사 격리 가드 + 데이터 한 번에 조회
   const { data: partners, error: pErr } = await db
     .from('partners')
-    .select('id, name, representative, contact_name, contact_email, business_number, address')
+    .select('id, name, representative, contact_name, contact_email, contact_phone, business_number, address')
     .eq('company_id', companyId)
     .in('id', partnerIds);
 

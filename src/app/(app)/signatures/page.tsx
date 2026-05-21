@@ -597,18 +597,26 @@ const PARTNER_COLUMN_LABELS: Record<PartnerVarColumn, string> = {
   representative: "대표자",
   contact_name: "담당자",
   contact_email: "담당자 이메일",
+  contact_phone: "담당자 연락처",
   business_number: "사업자번호",
   address: "주소",
 };
 
 function autoMapToken(token: string): PartnerVarColumn | null {
   const t = token.replace(/\s+/g, "").toLowerCase();
-  if (/(단체명|회사명|업체명|상호|법인명|partnername|companyname)/i.test(t)) return "name";
-  if (/(대표자|대표|representative|ceo)/i.test(t)) return "representative";
-  if (/(담당자|담당|contactname)/i.test(t) && !/이메일|email/i.test(t)) return "contact_name";
-  if (/(이메일|메일|email|mail)/i.test(t)) return "contact_email";
-  if (/(사업자번호|사업자등록번호|businessnumber|brn)/i.test(t)) return "business_number";
-  if (/(주소|소재지|address|addr)/i.test(t)) return "address";
+  // 갑(甲) 측은 우리 회사 = commonVariables 에서 회사 설정으로 입력. 자동매핑 X.
+  //   예: {갑_회사명} / {our_company_name} / {company_name} (회사 자체)
+  if (/^(갑|甲|our|us|company)[_-]/i.test(t)) return null;
+  // 을(乙) 측 또는 partner/client/customer 접두사는 거래처 매핑.
+  //   접두사 제거 후 본체 매칭.
+  const body = t.replace(/^(을|乙|partner|client|customer|counterparty)[_-]/i, "");
+  if (/(단체명|회사명|업체명|상호|법인명|partnername|companyname|name)/i.test(body)) return "name";
+  if (/(대표자|대표|representative|ceo)/i.test(body)) return "representative";
+  if (/(담당자|담당|contactname)/i.test(body) && !/이메일|email/i.test(body)) return "contact_name";
+  if (/(이메일|메일|email|mail)/i.test(body)) return "contact_email";
+  if (/(사업자번호|사업자등록번호|businessnumber|brn)/i.test(body)) return "business_number";
+  if (/(연락처|전화|휴대폰|핸드폰|phone|tel|mobile)/i.test(body)) return "contact_phone";
+  if (/(주소|소재지|사업장|address|addr)/i.test(body)) return "address";
   return null;
 }
 
@@ -912,7 +920,11 @@ function OrgBulkWizard({
             <div className="text-xs text-[var(--text-muted)]">
               이미 작성된 계약서만 선택할 수 있습니다. 새 계약서가 필요하면 먼저{" "}
               <Link href="/documents" className="text-[var(--primary)] hover:underline">문서함</Link>
-              에서 작성해 주세요.
+              에서 양식(서비스/공급/컨설팅 등) 기반으로 작성해 주세요.
+              <br />
+              <span className="text-[10px] text-[var(--text-dim)]">
+                💡 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
+              </span>
             </div>
             <div className="border border-[var(--border)] rounded-lg max-h-[360px] overflow-y-auto">
               {documents.length === 0 ? (
