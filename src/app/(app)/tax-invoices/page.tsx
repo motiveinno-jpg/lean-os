@@ -552,12 +552,11 @@ export default function TaxInvoicesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  // 사용자 핸드오프: ?tab=matching deep-link 지원 (분석 허브 → 3-Way 매칭 카드 진입).
-  //   허용 키 화이트리스트 검증. lazy initializer 로 mount 시 1회만 파싱.
+  // 2026-05-21 사장님 요청: "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 — 우선 sales 폴백).
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<"sales" | "purchase" | "matching" | "vat" | "summary" | "queue" | "sync">(() => {
+  const [tab, setTab] = useState<"sales" | "purchase" | "vat" | "summary" | "queue" | "sync">(() => {
     const t = searchParams?.get("tab");
-    if (t === "sales" || t === "purchase" || t === "matching" || t === "vat" || t === "summary" || t === "queue" || t === "sync") {
+    if (t === "sales" || t === "purchase" || t === "vat" || t === "summary" || t === "queue" || t === "sync") {
       return t;
     }
     return "sales";
@@ -1885,7 +1884,7 @@ export default function TaxInvoicesPage() {
           { key: "sales" as const, label: "매출", count: salesInvoices.length },
           { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
           { key: "queue" as const, label: "자동발행" },
-          { key: "matching" as const, label: "3-Way 매칭" },
+          // "3-Way 매칭" 탭은 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
           { key: "summary" as const, label: "기간별 집계" },
           { key: "vat" as const, label: "VAT 미리보기" },
           { key: "sync" as const, label: "홈택스 동기화" },
@@ -2442,21 +2441,6 @@ export default function TaxInvoicesPage() {
               </table></div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* 3-Way Matching Tab */}
-      {tab === "matching" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center">
-          <div className="text-4xl mb-3">🔗</div>
-          <h2 className="text-base font-bold text-[var(--text)] mb-2">3-Way 매칭 페이지로 이동되었습니다</h2>
-          <p className="text-xs text-[var(--text-muted)] mb-5 leading-relaxed">
-            세금계산서 ↔ 거래처 ↔ 입출금 자동 추천이 분석 허브의 전용 페이지로 통합되었습니다.<br/>
-            (거래처명·대표자명·금액±10% 매칭 규칙)
-          </p>
-          <Link href="/reports/three-way-match" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold transition">
-            → 3-Way 매칭 페이지 열기
-          </Link>
         </div>
       )}
 

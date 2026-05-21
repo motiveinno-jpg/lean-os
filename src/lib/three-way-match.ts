@@ -28,7 +28,21 @@ export interface ThreeWayCandidate {
   bankDate: string;
   bankDescription: string | null;
   reasons: string[]; // 매칭 사유 라벨
-  score: number;     // reasons.length (정렬용)
+  score: number;     // reasons.length
+  amountDiff: number; // 매칭 금액과의 절대 차이 (정렬 기준 — 작은 순)
+}
+
+// 매칭 완료된 세금계산서 + 연결된 bank_transaction 정보
+export interface MatchedInvoice {
+  invoiceId: string;
+  invoiceType: 'sales' | 'purchase';
+  invoiceCounterparty: string | null;
+  invoiceTotal: number;
+  invoiceDate: string | null;
+  bankTxId: string;
+  bankCounterparty: string;
+  bankAmount: number;
+  bankDate: string;
 }
 
 // 미매칭 세금계산서 목록 — 좌측 패널
@@ -107,6 +121,9 @@ export async function getThreeWayCandidates(
     }
 
     if (reasons.length > 0) {
+      // 매칭 금액과의 차이 (total 우선, total 0 이면 supply 사용)
+      const refAmt = total > 0 ? total : supply;
+      const amountDiff = refAmt > 0 ? Math.abs(refAmt - amt) : Number.MAX_SAFE_INTEGER;
       candidates.push({
         bankTxId: tx.id,
         bankCounterparty: tx.counterparty || '',
@@ -115,10 +132,63 @@ export async function getThreeWayCandidates(
         bankDescription: tx.description ?? tx.memo ?? null,
         reasons,
         score: reasons.length,
+        amountDiff,
       });
     }
   }
-  return candidates.sort((a, b) => b.score - a.score);
+  // 2026-05-21 사장님 요청: 금액 가까운 순 정렬 (amountDiff 작은 순). 동률이면 사유 많은 순.
+  return candidates.sort((a, b) => {
+    if (a.amountDiff !== b.amountDiff) return a.amountDiff - b.amountDiff;
+    return b.score - a.score;
+  });
+}
+
+// 매칭 완료된 세금계산서 목록 — 우측 "매칭됨" 칸
+export async function listMatchedInvoices(
+  companyId: string,
+  opts?: { type?: 'sales' | 'purchase'; limit?: number },
+): Promise<MatchedInvoice[]> {
+  const limit = opts?.limit ?? 100;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  // bank_transactions 에서 tax_invoice_id NOT NULL + 회사격리, 세금계산서 join
+  let q = db
+    .from('bank_transactions')
+    .select('id, counterparty, amount, transaction_date, tax_invoice_id, tax_invoices!inner(id, type, counterparty_name, total_amount, issue_date, status)')
+    .eq('company_id', companyId)
+    .not('tax_invoice_id', 'is', null)
+    .order('transaction_date', { ascending: false })
+    .limit(limit);
+  if (opts?.type) q = q.eq('tax_invoices.type', opts.type);
+  const { data } = await q;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data || []) as any[]).map((row) => ({
+    invoiceId: row.tax_invoices?.id || row.tax_invoice_id,
+    invoiceType: (row.tax_invoices?.type || 'sales') as 'sales' | 'purchase',
+    invoiceCounterparty: row.tax_invoices?.counterparty_name || null,
+    invoiceTotal: Number(row.tax_invoices?.total_amount || 0),
+    invoiceDate: row.tax_invoices?.issue_date || null,
+    bankTxId: row.id,
+    bankCounterparty: row.counterparty || '',
+    bankAmount: Number(row.amount || 0),
+    bankDate: row.transaction_date,
+  }));
+}
+
+// 매칭 해제 — confirm 한 매칭을 되돌림
+export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { error: txErr } = await db
+    .from('bank_transactions')
+    .update({ tax_invoice_id: null })
+    .eq('id', bankTxId);
+  if (txErr) throw txErr;
+  const { error: invErr } = await db
+    .from('tax_invoices')
+    .update({ status: 'unmatched' })
+    .eq('id', invoiceId);
+  if (invErr) throw invErr;
 }
 
 // 매칭 확정 — bank_transactions.tax_invoice_id 갱신 + invoice status='matched'

@@ -14,8 +14,10 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import {
   listUnmatchedInvoices,
+  listMatchedInvoices,
   getThreeWayCandidates,
   confirmThreeWayMatch,
+  unmatchInvoice,
   type ThreeWayInvoice,
 } from "@/lib/three-way-match";
 import { getCurrentUser } from "@/lib/queries";
@@ -55,15 +57,36 @@ function Inner() {
     enabled: !!companyId && !!selectedInvoice,
   });
 
+  // 매칭 완료 목록 — 우측 패널
+  const { data: matched = [], isLoading: matchedLoading } = useQuery({
+    queryKey: ["three-way-matched", companyId, typeFilter],
+    queryFn: () => listMatchedInvoices(companyId!, typeFilter === 'all' ? undefined : { type: typeFilter }),
+    enabled: !!companyId,
+  });
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["three-way-invoices"] });
+    qc.invalidateQueries({ queryKey: ["three-way-candidates"] });
+    qc.invalidateQueries({ queryKey: ["three-way-matched"] });
+  };
+
   const matchMut = useMutation({
     mutationFn: ({ bankTxId, invoiceId }: { bankTxId: string; invoiceId: string }) => confirmThreeWayMatch(bankTxId, invoiceId),
     onSuccess: () => {
       toast("매칭 완료", "success");
-      qc.invalidateQueries({ queryKey: ["three-way-invoices"] });
-      qc.invalidateQueries({ queryKey: ["three-way-candidates"] });
+      invalidateAll();
       setSelectedInvoice(null);
     },
     onError: (err: Error) => toast(friendlyError(err, "매칭 실패"), "error"),
+  });
+
+  const unmatchMut = useMutation({
+    mutationFn: ({ bankTxId, invoiceId }: { bankTxId: string; invoiceId: string }) => unmatchInvoice(bankTxId, invoiceId),
+    onSuccess: () => {
+      toast("매칭이 해제되었습니다", "success");
+      invalidateAll();
+    },
+    onError: (err: Error) => toast(friendlyError(err, "매칭 해제 실패"), "error"),
   });
 
   return (
@@ -88,7 +111,7 @@ function Inner() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
         {/* 좌측 — 미매칭 세금계산서 */}
         <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
@@ -125,8 +148,8 @@ function Inner() {
           </div>
         </div>
 
-        {/* 우측 — 매칭 후보 */}
-        <div className="lg:col-span-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        {/* 가운데 — 매칭 후보 */}
+        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)]">
             <div className="text-sm font-bold">매칭 후보 추천</div>
             {selectedInvoice ? (
@@ -186,6 +209,62 @@ function Inner() {
                     </button>
                   </li>
                 ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* 우측 — 매칭됨 (확정된 결과) */}
+        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+            <div>
+              <div className="text-sm font-bold">✅ 매칭됨 ({matched.length})</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">확정 → 행 클릭 시 해제 가능</div>
+            </div>
+          </div>
+          <div className="max-h-[70vh] overflow-y-auto">
+            {matchedLoading ? (
+              <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
+            ) : matched.length === 0 ? (
+              <div className="p-8 text-center text-xs text-[var(--text-muted)]">매칭된 항목 없음</div>
+            ) : (
+              <ul className="divide-y divide-[var(--border)]/50">
+                {matched.map((m) => {
+                  const diff = Math.abs(m.invoiceTotal - m.bankAmount);
+                  return (
+                    <li key={m.bankTxId}>
+                      <button
+                        onClick={() => {
+                          if (confirm(`이 매칭을 해제하시겠습니까?\n\n세금계산서: ${m.invoiceCounterparty || '거래처'} ₩${m.invoiceTotal.toLocaleString()}\n입출금: ${m.bankCounterparty} ₩${m.bankAmount.toLocaleString()}`)) {
+                            unmatchMut.mutate({ bankTxId: m.bankTxId, invoiceId: m.invoiceId });
+                          }
+                        }}
+                        disabled={unmatchMut.isPending}
+                        className="w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
+                        title="클릭 시 매칭 해제"
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${m.invoiceType === 'sales' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-orange-500/15 text-orange-400'}`}>
+                            {m.invoiceType === 'sales' ? '매출' : '매입'}
+                          </span>
+                          <span className="text-xs font-semibold truncate flex-1">{m.invoiceCounterparty || '거래처'}</span>
+                          <span className="text-[9px] text-emerald-400">✓</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-[var(--text-muted)]">📄 {m.invoiceDate || '—'}</span>
+                          <span className="text-[var(--text)] font-semibold">₩{m.invoiceTotal.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-[var(--text-muted)] truncate">💸 {m.bankCounterparty} · {m.bankDate}</span>
+                          <span className="text-[var(--text)] font-semibold">₩{m.bankAmount.toLocaleString()}</span>
+                        </div>
+                        {diff > 0 && (
+                          <div className="text-[9px] text-amber-400">차이 ₩{diff.toLocaleString()}</div>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
