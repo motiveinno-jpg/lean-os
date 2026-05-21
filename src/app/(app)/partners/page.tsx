@@ -425,12 +425,24 @@ export default function PartnersPage() {
     setShowModal(false); setEditingId(null); setForm(EMPTY_FORM);
   }, []);
 
-  // CSV 임포트: 파일 → 파싱 → 미리보기 (실제 저장은 confirm 시점)
+  // CSV/XLSX 임포트: 파일 → 파싱 → 미리보기 (실제 저장은 confirm 시점)
+  //   2026-05-21 PR-1: xlsx 지원 추가 (400행 대량). CSV 는 기존 흐름 유지.
   const handleCSVFile = useCallback(async (file: File) => {
     setImportError(null);
     try {
-      const text = await file.text();
-      const rows = parseCSV(text);
+      let rows: string[][];
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+        const XLSX = await import("xlsx");
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const arr = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: "", raw: false });
+        rows = arr.map((r) => (r || []).map((c) => String(c ?? "")));
+      } else {
+        const text = await file.text();
+        rows = parseCSV(text);
+      }
       if (rows.length < 2) { setImportError("헤더 + 1행 이상이 필요합니다"); return; }
       const headers = rows[0].map(h => h.trim().toLowerCase());
       const fieldKeys = headers.map(h => CSV_FIELD_MAP[h] || CSV_FIELD_MAP[h.replace(/\s+/g, "")] || null);
@@ -455,35 +467,111 @@ export default function PartnersPage() {
     }
   }, []);
 
+  // 2026-05-21 PR-1: 400행 대량 import 지원 — 중복 검출 + 20 chunk 병렬 + 실패행 분리 리포트.
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    updated: number;
+    skipped: number;
+    failed: { row: number; name: string; reason: string }[];
+  } | null>(null);
+
   const confirmImport = useCallback(async () => {
     if (!importPreview || !companyId) return;
     setImporting(true);
-    try {
-      // 직렬 처리(에러 추적 용이) — 행 수가 많지 않은 일반 CRM 사용처를 가정
-      for (const row of importPreview) {
-        await upsertPartner({
-          companyId, name: row.name, type: row.type || "client",
-          classification: row.classification || undefined,
-          businessNumber: row.businessNumber || undefined,
-          representative: row.representative || undefined,
-          contactName: row.contactName || undefined,
-          contactEmail: row.contactEmail || undefined,
-          contactPhone: row.contactPhone || undefined,
-          address: row.address || undefined,
-          bankName: row.bankName || undefined,
-          accountNumber: row.accountNumber || undefined,
-          tags: row.tags || [],
-          notes: row.notes || undefined,
-        });
-      }
-      setImportPreview(null);
-      qc.invalidateQueries({ queryKey: ["partners"] });
-      toast(`${importPreview.length}건 거래처가 임포트되었습니다`, "success");
-    } catch (err: any) {
-      setImportError(`저장 실패: ${err?.message || "오류"}`);
+    setImportResult(null);
+    setImportProgress({ done: 0, total: importPreview.length });
+
+    // 1) 중복 검출: business_number 또는 (name + contact_email) 매칭 (회사 단위)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { data: existing } = await db
+      .from('partners')
+      .select('id, name, business_number, contact_email')
+      .eq('company_id', companyId);
+    const existingByBn = new Map<string, { id: string; name: string }>();
+    const existingByNameEmail = new Map<string, { id: string; name: string }>();
+    for (const e of (existing || []) as { id: string; name: string; business_number?: string; contact_email?: string }[]) {
+      if (e.business_number) existingByBn.set(String(e.business_number).replace(/[^0-9]/g, ''), { id: e.id, name: e.name });
+      if (e.name && e.contact_email) existingByNameEmail.set(`${e.name}__${e.contact_email}`, { id: e.id, name: e.name });
     }
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const failed: { row: number; name: string; reason: string }[] = [];
+
+    // 2) 20 chunk 병렬 처리 (Promise.allSettled — 실패 1건이 전체 중단 안 시킴)
+    const CHUNK = 20;
+    for (let i = 0; i < importPreview.length; i += CHUNK) {
+      const slice = importPreview.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(slice.map(async (row: any, idx: number) => {
+        const rowNum = i + idx + 2; // 1-base + header
+        const bnClean = row.businessNumber ? String(row.businessNumber).replace(/[^0-9]/g, '') : '';
+        const dupBn = bnClean ? existingByBn.get(bnClean) : null;
+        const dupNE = row.name && row.contactEmail ? existingByNameEmail.get(`${row.name}__${row.contactEmail}`) : null;
+        const dup = dupBn || dupNE;
+        if (dup) {
+          // 기존 존재 → skip (update 옵션은 별건 후속)
+          return { kind: 'skipped' as const, rowNum, name: row.name };
+        }
+        try {
+          await upsertPartner({
+            companyId, name: row.name, type: row.type || "client",
+            classification: row.classification || undefined,
+            businessNumber: row.businessNumber || undefined,
+            representative: row.representative || undefined,
+            contactName: row.contactName || undefined,
+            contactEmail: row.contactEmail || undefined,
+            contactPhone: row.contactPhone || undefined,
+            address: row.address || undefined,
+            bankName: row.bankName || undefined,
+            accountNumber: row.accountNumber || undefined,
+            tags: row.tags || [],
+            notes: row.notes || undefined,
+          });
+          return { kind: 'created' as const, rowNum, name: row.name };
+        } catch (e) {
+          const msg = (e as Error)?.message || '저장 실패';
+          return { kind: 'failed' as const, rowNum, name: row.name || '(이름 없음)', reason: msg };
+        }
+      }));
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          const v = r.value;
+          if (v.kind === 'created') created++;
+          else if (v.kind === 'skipped') skipped++;
+          else if (v.kind === 'failed') failed.push({ row: v.rowNum, name: v.name, reason: v.reason });
+        } else {
+          // Promise 자체 reject — 드문 케이스
+          failed.push({ row: i, name: '(unknown)', reason: r.reason?.message || 'unknown' });
+        }
+      }
+      setImportProgress({ done: Math.min(i + CHUNK, importPreview.length), total: importPreview.length });
+    }
+
     setImporting(false);
-  }, [importPreview, companyId, qc]);
+    setImportProgress(null);
+    setImportPreview(null);
+    setImportResult({ created, updated, skipped, failed });
+    qc.invalidateQueries({ queryKey: ["partners"] });
+    const total = created + updated + skipped + failed.length;
+    toast(`${total}건 처리 — 생성 ${created} · 중복 ${skipped} · 실패 ${failed.length}`, failed.length > 0 ? 'info' : 'success');
+  }, [importPreview, companyId, qc, toast]);
+
+  // 실패행 CSV 다운로드 (재시도용)
+  const downloadFailedCSV = useCallback(() => {
+    if (!importResult || importResult.failed.length === 0) return;
+    const header = '행번호,거래처명,실패사유\n';
+    const body = importResult.failed.map((f) => `${f.row},"${(f.name || '').replace(/"/g, '""')}","${f.reason.replace(/"/g, '""')}"`).join('\n');
+    const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `partners_import_failed_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [importResult]);
 
   const downloadCSVTemplate = useCallback(() => {
     const headers = ["이름", "구분", "분류", "사업자번호", "대표자", "담당자", "이메일", "연락처", "주소", "은행명", "계좌번호", "태그", "메모"];
@@ -532,7 +620,7 @@ export default function PartnersPage() {
           </button>
           <label className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer whitespace-nowrap">
             CSV 임포트
-            <input type="file" accept=".csv,text/csv" className="hidden"
+            <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
           </label>
           <button onClick={handleExport}
@@ -1124,14 +1212,76 @@ export default function PartnersPage() {
       })()}
 
       {/* CSV Import Preview Modal */}
+      {/* Import 결과 리포트 (confirm 완료 후) */}
+      {importResult && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setImportResult(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <h2 className="text-lg font-bold">임포트 결과</h2>
+              <button onClick={() => setImportResult(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl">✕</button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="px-3 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
+                  <div className="text-2xl font-bold text-green-400">{importResult.created}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">신규 생성</div>
+                </div>
+                <div className="px-3 py-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-center">
+                  <div className="text-2xl font-bold text-blue-400">{importResult.skipped}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">중복 스킵</div>
+                </div>
+                <div className="px-3 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-center">
+                  <div className="text-2xl font-bold text-red-400">{importResult.failed.length}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">실패</div>
+                </div>
+              </div>
+              {importResult.failed.length > 0 && (
+                <div className="border border-[var(--border)] rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-[var(--bg-surface)] flex items-center justify-between">
+                    <span className="text-xs font-semibold">실패 행 {importResult.failed.length}건</span>
+                    <button onClick={downloadFailedCSV} className="text-[11px] text-[var(--primary)] hover:underline">CSV 다운로드</button>
+                  </div>
+                  <div className="max-h-48 overflow-auto">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-[var(--bg-surface)]/50 sticky top-0">
+                        <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
+                          <th className="text-left px-3 py-1.5">행</th>
+                          <th className="text-left px-3 py-1.5">이름</th>
+                          <th className="text-left px-3 py-1.5">사유</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResult.failed.slice(0, 30).map((f, i) => (
+                          <tr key={i} className="border-b border-[var(--border)]/30">
+                            <td className="px-3 py-1 tabular-nums">{f.row}</td>
+                            <td className="px-3 py-1">{f.name}</td>
+                            <td className="px-3 py-1 text-red-400">{f.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importResult.failed.length > 30 && (
+                    <div className="text-[10px] text-center text-[var(--text-dim)] py-1">… 외 {importResult.failed.length - 30}건 (CSV 다운로드로 확인)</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-3 border-t border-[var(--border)] flex justify-end">
+              <button onClick={() => setImportResult(null)} className="px-5 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(importPreview || importError) && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <div>
-                <h2 className="text-lg font-bold">CSV 임포트 미리보기</h2>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건 가져옵니다` : "오류"}</p>
+                <h2 className="text-lg font-bold">CSV / 엑셀 임포트 미리보기</h2>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건 가져옵니다 · 중복(사업자번호/이름+이메일)은 자동 스킵` : "오류"}</p>
               </div>
               <button onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}
                 className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
@@ -1171,16 +1321,29 @@ export default function PartnersPage() {
               </div>
             )}
             {importPreview && (
-              <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
-                <button onClick={() => setImportPreview(null)} disabled={importing}
-                  className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-main)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
-                  취소
-                </button>
-                <button onClick={confirmImport} disabled={importing}
-                  className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-                  {importing ? `저장 중... (${importPreview.length}건)` : `${importPreview.length}건 저장`}
-                </button>
-              </div>
+              <>
+                {importProgress && importing && (
+                  <div className="mx-6 mb-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="font-semibold">처리 중... {importProgress.done} / {importProgress.total} ({Math.round((importProgress.done / importProgress.total) * 100)}%)</span>
+                      <span className="text-[var(--text-muted)]">20행 chunk 병렬</span>
+                    </div>
+                    <div className="w-full h-1 bg-[var(--border)] rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+                  <button onClick={() => setImportPreview(null)} disabled={importing}
+                    className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-main)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
+                    취소
+                  </button>
+                  <button onClick={confirmImport} disabled={importing}
+                    className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                    {importing ? `처리 중...` : `${importPreview.length}건 저장`}
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
