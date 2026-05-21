@@ -95,6 +95,9 @@ export function ProgressReportStageCard({
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
+  // 2026-05-21 누적 스택 상세 모달 (사장님 요청 — 클릭 시 본문 전문 확인).
+  const [detailOpen, setDetailOpen] = useState<StackItem | null>(null);
+
   const canSend = reportText.trim().length > 0;
 
   // 2026-05-21 v6: 진척보고서 누적 스택 (사장님 요청).
@@ -454,22 +457,28 @@ export function ProgressReportStageCard({
               const statusLabel = STATUS_LABEL[s.status as keyof typeof STATUS_LABEL] || s.status;
               const at = s.decided_at || s.sent_at || s.created_at;
               return (
-                <li key={s.id} className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-2.5">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[11px] font-bold text-[var(--primary)] tabular-nums">{pct}%</span>
-                    <div className="flex-1 h-1 bg-[var(--bg-surface)] rounded overflow-hidden">
-                      <div className="h-full bg-[var(--primary)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => setDetailOpen(s)}
+                    className="w-full text-left bg-[var(--bg)] border border-[var(--border)] rounded-lg p-2.5 hover:border-[var(--primary)]/40 hover:bg-[var(--bg-surface)] transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[11px] font-bold text-[var(--primary)] tabular-nums">{pct}%</span>
+                      <div className="flex-1 h-1 bg-[var(--bg-surface)] rounded overflow-hidden">
+                        <div className="h-full bg-[var(--primary)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                      </div>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusTone(s.status)}`}>{statusLabel}</span>
+                      <span className="text-[9px] text-[var(--text-dim)]">
+                        {at ? new Date(at).toLocaleDateString("ko-KR") : ""}
+                      </span>
                     </div>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusTone(s.status)}`}>{statusLabel}</span>
-                    <span className="text-[9px] text-[var(--text-dim)]">
-                      {at ? new Date(at).toLocaleDateString("ko-KR") : ""}
-                    </span>
-                  </div>
-                  {text && (
-                    <div className="text-[10px] text-[var(--text-muted)] whitespace-pre-wrap break-words line-clamp-3">
-                      {text}
-                    </div>
-                  )}
+                    {text && (
+                      <div className="text-[10px] text-[var(--text-muted)] whitespace-pre-wrap break-words line-clamp-3">
+                        {text}
+                      </div>
+                    )}
+                  </button>
                 </li>
               );
             })}
@@ -501,6 +510,132 @@ export function ProgressReportStageCard({
           </div>
         </div>
       )}
+
+      {/* 누적 스택 상세 모달 — 본문 전문 + 발송 정보 (읽기 전용) */}
+      {detailOpen && (
+        <ProgressDetailModal item={detailOpen} onClose={() => setDetailOpen(null)} />
+      )}
+    </div>
+  );
+}
+
+// 누적 스택 항목의 progress_pct + report_text 전문을 보여주는 읽기 전용 모달.
+function ProgressDetailModal({
+  item,
+  onClose,
+}: {
+  item: {
+    id: string;
+    status: string;
+    payload: { report_text?: string; progress_pct?: number } | null;
+    created_at: string;
+    sent_at: string | null;
+    decided_at: string | null;
+    recipient_email: string | null;
+  };
+  onClose: () => void;
+}) {
+  // ESC 닫기
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const pct = Math.max(0, Math.min(100, Number(item.payload?.progress_pct || 0)));
+  const text = String(item.payload?.report_text || "");
+  const statusLabel = STATUS_LABEL[item.status as keyof typeof STATUS_LABEL] || item.status;
+  const fmt = (s: string | null) => (s ? new Date(s).toLocaleString("ko-KR") : "—");
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full sm:max-w-lg bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        {/* 헤더 */}
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <span className="text-sm font-bold text-[var(--text)]">📊 진척 보고서 상세</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone(item.status)}`}>
+                {statusLabel}
+              </span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">
+              저장 {fmt(item.created_at)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 본문 */}
+        <div className="p-5 overflow-y-auto space-y-4">
+          {/* 진행률 바 (크게) */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">진행률</span>
+              <span className="text-2xl font-extrabold text-[var(--primary)] tabular-nums">{pct}%</span>
+            </div>
+            <div className="h-3 bg-[var(--bg)] rounded-lg overflow-hidden">
+              <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+
+          {/* 보고 내용 전문 */}
+          <div>
+            <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">보고 내용</div>
+            <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3 text-xs text-[var(--text)] whitespace-pre-wrap break-words">
+              {text || <span className="text-[var(--text-dim)]">(내용 없음)</span>}
+            </div>
+          </div>
+
+          {/* 발송 정보 — 발송됐을 때만 */}
+          {(item.sent_at || item.decided_at || item.recipient_email) && (
+            <div>
+              <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">발송 정보</div>
+              <dl className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3 text-xs space-y-1.5">
+                {item.recipient_email && (
+                  <div className="flex items-start gap-3">
+                    <dt className="w-16 shrink-0 text-[var(--text-dim)]">수신자</dt>
+                    <dd className="text-[var(--text)] break-all">{item.recipient_email}</dd>
+                  </div>
+                )}
+                {item.sent_at && (
+                  <div className="flex items-start gap-3">
+                    <dt className="w-16 shrink-0 text-[var(--text-dim)]">발송</dt>
+                    <dd className="text-[var(--text)]">{fmt(item.sent_at)}</dd>
+                  </div>
+                )}
+                {item.decided_at && (
+                  <div className="flex items-start gap-3">
+                    <dt className="w-16 shrink-0 text-[var(--text-dim)]">응답</dt>
+                    <dd className="text-[var(--text)]">{fmt(item.decided_at)} · {statusLabel}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          <div className="text-[10px] text-[var(--text-dim)] text-center pt-2">
+            읽기 전용 · 수정/재발송은 상단 폼에서 진행
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

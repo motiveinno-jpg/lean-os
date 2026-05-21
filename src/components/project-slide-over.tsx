@@ -1192,6 +1192,12 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   const signedFiles = useMemo(() => {
     const arr: { id: string; name: string; icon: string; href: string; at: string; status: string }[] = [];
     approvals.forEach((a) => {
+      // 2026-05-21 진척보고서는 활동탭 파일에 표시하지 않음.
+      //   /contracts/signed/<id> 는 서명 본문 페이지라 progress_report 행에는 본문이 없어
+      //   "본문이 저장되지 않았습니다" 안내가 나옴 → 사장님 호소.
+      //   같은 데이터는 진척 카드 누적 스택(클릭 시 상세 모달)에서 표시됨.
+      //   활동 로그(combinedActivity)의 sent/viewed/decided 이벤트는 그대로 유지 — 흐름 추적용.
+      if (a.stage === 'progress_report') return;
       const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
       const recipient = a.recipient_name || a.recipient_email || '거래처';
       const statusKo = STATUS_LABEL_KO[a.status] || a.status;
@@ -1200,7 +1206,6 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
         name: `${stageLabel} · ${recipient}`,
         icon: STAGE_ICON[a.stage] || '📄',
         href: `/contracts/signed/${a.id}`,
-        // 시점: 최신 활동 우선 (our_signed > decided > sent > updated)
         at: a.our_signed_at || a.decided_at || a.sent_at || a.updated_at || '',
         status: statusKo,
       });
