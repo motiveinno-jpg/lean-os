@@ -130,6 +130,8 @@ export default function PartnersPage() {
   const [importPreview, setImportPreview] = useState<any[] | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // PR: 다중선택 + 일괄삭제
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
@@ -402,6 +404,21 @@ export default function PartnersPage() {
     mutationFn: (id: string) => deletePartner(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast("거래처가 삭제되었습니다", "success"); },
     onError: (err: Error) => { toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
+  });
+
+  // PR: 일괄삭제 (Promise.allSettled — FK 실패행 grace 처리)
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(ids.map((id) => deletePartner(id)));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      return { ok: ids.length - failed, failed };
+    },
+    onSuccess: (r) => {
+      toast(`삭제 ${r.ok}건${r.failed ? ` · 실패 ${r.failed}건 (관련 데이터 있음)` : ''}`, r.failed === 0 ? 'success' : 'error');
+      setSelectedIds(new Set());
+      qc.invalidateQueries({ queryKey: ["partners"] });
+    },
+    onError: (err: Error) => { toast("일괄삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
   });
 
   const toggleActiveMutation = useMutation({
@@ -732,10 +749,48 @@ export default function PartnersPage() {
             <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 거래처 추가</button>
           </div>
         ) : (
+          <>
+          {/* PR: 다중선택 액션바 (선택 1+ 시만 노출) */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 mb-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <span className="text-xs text-[var(--text-muted)]"><b className="text-[var(--text)]">{selectedIds.size}개</b> 선택됨</span>
+              <button
+                onClick={async () => {
+                  if (!confirm(`선택한 거래처 ${selectedIds.size}개를 삭제하시겠습니까?\n복구할 수 없습니다.`)) return;
+                  await bulkDeleteMut.mutateAsync(Array.from(selectedIds));
+                }}
+                disabled={bulkDeleteMut.isPending}
+                className="px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition disabled:opacity-50"
+              >
+                🗑 {bulkDeleteMut.isPending ? '삭제 중...' : '일괄삭제'}
+              </button>
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
+                선택 해제
+              </button>
+            </div>
+          )}
           <div className="overflow-auto max-h-[60vh]">
             <table className="w-full min-w-[600px]">
               <thead className="bg-[var(--bg-card)] text-[var(--text-muted)] sticky top-0 z-10">
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
+                  <th className="text-center px-3 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="현재 페이지 전체 선택"
+                      checked={(() => {
+                        const cur = partners.slice((page - 1) * pageSize, page * pageSize) as { id: string }[];
+                        return cur.length > 0 && cur.every((p) => selectedIds.has(p.id));
+                      })()}
+                      onChange={(e) => {
+                        const cur = partners.slice((page - 1) * pageSize, page * pageSize) as { id: string }[];
+                        const next = new Set(selectedIds);
+                        if (e.target.checked) cur.forEach((p) => next.add(p.id));
+                        else cur.forEach((p) => next.delete(p.id));
+                        setSelectedIds(next);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </th>
                   <th className="text-left px-5 py-3 font-medium">이름</th>
                   <th className="text-center px-4 py-3 font-medium">구분</th>
                   <th className="text-left px-4 py-3 font-medium">사업자번호</th>
@@ -750,7 +805,19 @@ export default function PartnersPage() {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
                     <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
-                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition">
+                      className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition ${selectedIds.has(p.id) ? 'bg-[var(--primary)]/5' : ''}`}>
+                      <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`${p.name} 선택`}
+                          checked={selectedIds.has(p.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedIds);
+                            if (e.target.checked) next.add(p.id); else next.delete(p.id);
+                            setSelectedIds(next);
+                          }}
+                        />
+                      </td>
                       <td className="px-5 py-3 text-sm font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
@@ -807,6 +874,7 @@ export default function PartnersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
         {/* U4 페이지네이션 — signatures L352-362 패턴 미러 */}
         {partners.length > 0 && (() => {
