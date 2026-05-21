@@ -10,8 +10,8 @@
 // 거래처가 승인하면 submit_quote_decision RPC 의 next_stage 매핑에 따라
 // deal.stage 가 자동으로 'completed' 로 전환.
 
-import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
@@ -87,32 +87,77 @@ export function ProgressReportStageCard({
     return () => { cancelled = true; };
   }, [approval?.id, dealId]);
 
-  // 1초 디바운스 자동 임시 저장 — 발송 전 edit 모드 + 내용 있을 때만
-  useEffect(() => {
-    if (approval || readonly) return; // 발송된 행 또는 readonly 는 draft 불요
-    if (!reportText && !progressPct) return; // 빈 상태는 저장 안 함
-    const t = setTimeout(async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const db = supabase as any;
-        const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
-        const scope = {
-          ...(((deal?.custom_scope as Record<string, unknown>) || {})),
-          progress_report: { report_text: reportText, progress_pct: progressPct, updated_at: new Date().toISOString() },
-        };
-        await db.from("deals").update({ custom_scope: scope }).eq("id", dealId);
-      } catch (e) {
-        reportError("progress-report.draft.save", e);
-      }
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [reportText, progressPct, approval, readonly, dealId]);
+  // v6 사장님 요청: 자동 디바운스 저장 제거 — 명시 "💾 저장하기" 누를 때만 quote_approvals 행 생성.
+  //   기존 deals.custom_scope.progress_report 단일 객체 패턴은 누적 스택 모델로 폐기.
 
   const [mode, setMode] = useState<"edit" | "preview">(approval ? "preview" : "edit");
   const [recipientEmail, setRecipientEmail] = useState<string>(partnerEmail || approval?.recipient_email || "");
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const canSend = reportText.trim().length > 0;
+
+  // 2026-05-21 v6: 진척보고서 누적 스택 (사장님 요청).
+  //   "저장하기" 누를 때마다 새 quote_approvals draft 행 추가 → 시간 역순 리스트.
+  //   각 행: 진척% + 보고 요약 + 시각 + 발송 버튼 (draft 만).
+  type StackItem = {
+    id: string;
+    status: string;
+    payload: { report_text?: string; progress_pct?: number } | null;
+    created_at: string;
+    sent_at: string | null;
+    decided_at: string | null;
+    recipient_email: string | null;
+  };
+  const { data: stack = [] } = useQuery<StackItem[]>({
+    queryKey: ["deal-progress-reports", dealId],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from("quote_approvals")
+        .select("id, status, payload, created_at, sent_at, decided_at, recipient_email")
+        .eq("deal_id", dealId)
+        .eq("stage", "progress_report")
+        .order("created_at", { ascending: false });
+      return (data || []) as StackItem[];
+    },
+    enabled: !!dealId,
+  });
+
+  // 다음 보고서 기본 진척% — 가장 최근 저장본 + 10% (max 100)
+  const suggestedPct = useMemo(() => {
+    if (stack.length === 0) return 10;
+    const top = Number(stack[0]?.payload?.progress_pct || 0);
+    return Math.min(100, top + 10);
+  }, [stack]);
+
+  // "💾 저장하기" — quote_approvals draft 새 행 INSERT (sendApproval 안 함)
+  async function saveDraft() {
+    if (readonly || savingDraft) return;
+    if (!reportText.trim()) {
+      toast("보고 내용을 입력해 주세요", "error");
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const payload = { report_text: reportText.trim(), progress_pct: progressPct };
+      await createApproval({ dealId, stage: "progress_report", payload, partnerId });
+      // 폼 리셋 — 다음 보고서 작성용 빈 상태
+      setReportText("");
+      setProgressPct(suggestedPct);
+      // 기존 approval 단일 흐름 (위 발송 카드) — 사용자가 "현재 활성" 으로 보던 draft 가 더 이상 의미 없으니
+      //   onApprovalChange(null) 안 보냄 (rejected 재발송 등 기존 흐름 회귀 0)
+      queryClient.invalidateQueries({ queryKey: ["deal-progress-reports", dealId] });
+      queryClient.invalidateQueries({ queryKey: ["deal-approvals", dealId] });
+      queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
+      toast("진척 보고서가 저장되었습니다", "success");
+    } catch (e: unknown) {
+      toast(`저장 실패: ${friendlyError(e, "저장에 실패했습니다")}`, "error");
+      reportError("progress-report.saveDraft", e);
+    } finally {
+      setSavingDraft(false);
+    }
+  }
 
   async function handleSend() {
     if (readonly || sending) return;
@@ -356,32 +401,79 @@ export function ProgressReportStageCard({
         </div>
       )}
 
-      {/* 발송 바 */}
-      {showSend && (
-        <div className="mb-1 pt-3 mt-3 border-t border-[var(--border)]/40">
-          <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
-            거래처에 진척 보고서 발송 {partnerName ? `· ${partnerName}` : ""}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-1.5">
-            <input
-              type="email"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-              placeholder="recipient@example.com"
-              className="flex-1 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)]"
-            />
+      {/* 💾 저장하기 (발송 없이 박제) + 발송 바 */}
+      {!readonly && (mode === "edit" || (mode === "preview" && (!approval || approval?.status === "draft"))) && (
+        <div className="mb-1 pt-3 mt-3 border-t border-[var(--border)]/40 space-y-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
-              onClick={handleSend}
-              disabled={sending || !canSend}
-              className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
+              onClick={saveDraft}
+              disabled={savingDraft || !canSend}
+              className="flex-1 min-w-[120px] px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-50 transition"
             >
-              {sending ? "발송 중…" : "📤 거래처에 진척 보고서 발송"}
+              {savingDraft ? "저장 중…" : "💾 저장하기"}
             </button>
+            {showSend && (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={sending || !canSend || !recipientEmail.trim()}
+                className="flex-1 min-w-[160px] px-3 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition"
+              >
+                {sending ? "발송 중…" : "📤 거래처에 발송"}
+              </button>
+            )}
           </div>
-          <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">
-            만료: 14일 · 거래처 확인 후 완료 단계로 안내됩니다
+          {showSend && (
+            <>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="recipient@example.com"
+                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)]"
+              />
+              <div className="text-[10px] text-[var(--text-dim)]">
+                💾 저장 = 우리 쪽 박제만 · 📤 발송 = 거래처 승인 요청 (만료 14일)
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 누적 스택 — 저장된 진척보고서 시간 역순 (사장님 요청: "쭉쭉 쌓이게") */}
+      {stack.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-[var(--border)]/40">
+          <div className="text-[10px] text-[var(--text-dim)] font-medium mb-2">
+            저장된 진척 보고서 ({stack.length}건)
           </div>
+          <ul className="space-y-1.5">
+            {stack.map((s) => {
+              const pct = Number(s.payload?.progress_pct || 0);
+              const text = String(s.payload?.report_text || "");
+              const statusLabel = STATUS_LABEL[s.status as keyof typeof STATUS_LABEL] || s.status;
+              const at = s.decided_at || s.sent_at || s.created_at;
+              return (
+                <li key={s.id} className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-2.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[11px] font-bold text-[var(--primary)] tabular-nums">{pct}%</span>
+                    <div className="flex-1 h-1 bg-[var(--bg-surface)] rounded overflow-hidden">
+                      <div className="h-full bg-[var(--primary)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                    </div>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusTone(s.status)}`}>{statusLabel}</span>
+                    <span className="text-[9px] text-[var(--text-dim)]">
+                      {at ? new Date(at).toLocaleDateString("ko-KR") : ""}
+                    </span>
+                  </div>
+                  {text && (
+                    <div className="text-[10px] text-[var(--text-muted)] whitespace-pre-wrap break-words line-clamp-3">
+                      {text}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
