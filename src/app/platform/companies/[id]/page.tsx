@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -32,6 +32,17 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
     },
     enabled: !!id,
   });
+
+  // OP-F: 회사 드릴다운 진입 자동 기록 (감사 로그)
+  useEffect(() => {
+    if (!id) return;
+    db.rpc("operator_log_action", {
+      p_action: "view_company",
+      p_target_type: "company",
+      p_target_id: id,
+      p_context: null,
+    }).then(() => {});
+  }, [id]);
 
   if (isLoading) {
     return (
