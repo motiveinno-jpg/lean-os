@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
+import { ContractStageCard } from "@/components/contract-stage-card";
 import {
   createApproval,
   sendApproval,
@@ -70,7 +71,7 @@ const STUB_STAGES: ReadonlySet<QuoteApprovalStage> = new Set<QuoteApprovalStage>
   "settlement",
 ]);
 
-export function ProjectQuoteStages({ dealId, readonly, stage = "estimate" }: Props) {
+export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estimate" }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
@@ -340,10 +341,28 @@ export function ProjectQuoteStages({ dealId, readonly, stage = "estimate" }: Pro
     return <StageStubCard stage={stage} approval={approval} />;
   }
 
-  // estimate / contract 본 폼 — payload schema 동일(items/paymentStages/quoteContent)
-  // contract 도 estimate payload inherit 이라 같은 UI 그대로 사용 (다음 라운드에서
-  // 계약기간·특약사항 입력 필드 추가). saveQuoteAndPayment 와 호환.
-  const sectionLabel = stage === "estimate" ? "견적 품목 / 결제 단계" : `${STAGE_LABEL[stage]} 항목 / 결제 단계`;
+  // L 계약: stage='contract' 는 견적 payload(items/paymentStages) 자동 inherit 후 양식 선택 모드.
+  if (stage === "contract") {
+    return (
+      <ContractStageCard
+        dealId={dealId}
+        companyId={companyId}
+        readonly={!!readonly}
+        dealName={dealName}
+        contractTotal={contractTotal}
+        partnerId={partnerId}
+        partnerName={partnerName}
+        partnerEmail={partnerEmail}
+        items={items}
+        paymentStages={stages}
+        approval={approval}
+        onApprovalChange={setApproval}
+      />
+    );
+  }
+
+  // estimate 본 폼 — 견적 품목 / 결제 단계 / 견적 내용
+  const sectionLabel = "견적 품목 / 결제 단계";
 
   return (
     <div className="bg-[var(--bg-surface)] rounded-xl p-4">
