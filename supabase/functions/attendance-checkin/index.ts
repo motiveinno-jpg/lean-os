@@ -59,20 +59,24 @@ serve(async (req) => {
         .eq("date", today);
 
       // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
-      //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. 클라이언트 hr.ts 의
-      //   mark_attendance_late RPC 는 그대로 유지(이중 안전망).
-      //   회사 설정 work_start_time 기준 KST 분 단위 비교, late_grace_minutes 적용.
-      let isLateFlag = status === "late";
+      //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. KST 분 단위 비교.
+      //   클라이언트 hr.ts mark_attendance_late RPC 도 유지 (이중 안전망).
+      const isLateFlag = status === "late";
       let lateMinutes = 0;
       if (isLateFlag) {
-        const { data: cs } = await admin.from("company_settings")
-          .select("work_start_time, late_grace_minutes")
+        const csRes = await admin.from("company_settings")
+          .select("work_start_time")
           .eq("company_id", companyId)
           .maybeSingle();
-        const wst = (cs?.work_start_time as string | null) ?? "09:00";
-        const [whStr, wmStr] = wst.split(":");
-        const workStartMin = (Number(whStr) || 0) * 60 + (Number(wmStr) || 0);
-        // now(UTC ISO) → KST 분
+        const cs = csRes.data;
+        let wst = "09:00";
+        if (cs && typeof cs.work_start_time === "string") {
+          wst = cs.work_start_time;
+        }
+        const parts = wst.split(":");
+        const wh = Number(parts[0]) || 0;
+        const wm = Number(parts[1]) || 0;
+        const workStartMin = wh * 60 + wm;
         const ciDate = new Date(now);
         const kstMs = ciDate.getTime() + 9 * 3600 * 1000;
         const kstDate = new Date(kstMs);

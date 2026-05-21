@@ -1,6 +1,16 @@
 #!/usr/bin/env node
-// Deploy a Supabase edge function via the Management API (전체 재배포).
-//   사용자 승인 후만 호출 (룰: edge PATCH 금지, 전체 재배포만).
+// ⚠️ DEPRECATED — Management API PATCH 는 함수 metadata 만 갱신하고
+//   실제 eszip bundle 은 옛 버전 그대로 남아 BOOT_ERROR 회귀 위험.
+//   (2026-05-21 attendance-checkin v2~v11 BOOT_ERROR 인시던트 사후 식별).
+//
+// 정공 deploy 는 supabase CLI 사용:
+//   $ export SUPABASE_ACCESS_TOKEN=<PAT>
+//   $ npx -y supabase functions deploy <slug> --project-ref <ref>
+//   → eszip bundle 새로 빌드 + entrypoint_path 도 매 버전마다 새 디렉토리
+//   → boot 안정성 보장
+//
+// 본 스크립트는 진단/메타데이터 확인 용으로만 유지. 실제 코드 배포에는
+// supabase CLI 또는 Dashboard 사용 권장.
 //
 // Usage:
 //   node scripts/deploy-edge-function.mjs <function-slug>
