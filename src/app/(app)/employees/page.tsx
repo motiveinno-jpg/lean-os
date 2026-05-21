@@ -11,6 +11,7 @@ import {
   CONTRACT_TYPES, updateEmployee,
   // Attendance & Leave
   checkIn, checkOut, cancelCheckOut, getAttendanceRecords, getMonthlyAttendanceSummary,
+  recomputeAttendance,
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
@@ -3625,6 +3626,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
   //   필요시 사용자가 접을 수 있게 토글은 유지.
   const [allowanceExpanded, setAllowanceExpanded] = useState(true);
+  // 퇴근 미입력 일괄 보정 모달 (관리자 전용)
+  const [showMissingCheckOutModal, setShowMissingCheckOutModal] = useState(false);
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
   //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
   //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
@@ -4416,12 +4419,21 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 <span className="text-[11px] text-[var(--text-muted)]">수당은 마운트 시 자동 재계산 · 1시간 디바운스</span>
               )}
             </div>
-            {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 */}
+            {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 + 입력 진입 CTA */}
             {isAdminForAllowance && missingCheckOutCount > 0 && (
-              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs">
-                <span className="font-semibold">⚠️ 퇴근 미입력 {missingCheckOutCount}건</span>
-                {" — "}
-                해당 행은 연장·야간·휴일 분이 산정되지 않아 수당이 0원입니다. 직원 본인 또는 관리자가 퇴근을 입력해야 자동 산출됩니다.
+              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs flex items-center justify-between gap-3">
+                <span>
+                  <span className="font-semibold">⚠️ 퇴근 미입력 {missingCheckOutCount}건</span>
+                  {" — "}
+                  연장·야간·휴일 분 산정 불가, 수당 0원. 직원/관리자가 퇴근을 입력해야 자동 산출됩니다.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMissingCheckOutModal(true)}
+                  className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-orange-500/20 text-orange-200 hover:bg-orange-500/30 rounded-lg transition"
+                >
+                  📝 미입력 행 보기·입력
+                </button>
               </div>
             )}
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
@@ -4493,6 +4505,189 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           }}
         />
       )}
+
+      {/* 관리자 — 퇴근 미입력 일괄 보정 모달 */}
+      {showMissingCheckOutModal && companyId && (
+        <MissingCheckOutModal
+          companyId={companyId}
+          records={records}
+          employees={employees}
+          selectedMonth={selectedMonth}
+          onClose={() => setShowMissingCheckOutModal(false)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["attendance"] });
+            queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+            queryClient.invalidateQueries({ queryKey: ["allowance-entries-monthly-summary"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Missing Check-Out Modal (관리자 전용 일괄 보정) ──
+//   - 이번 달 check_out=null 행을 모아 입력
+//   - 각 행: 직원·날짜·check_in (읽기) + check_out time picker + 저장 버튼
+//   - 저장: correctAttendanceRecord (UPDATE check_out) + recomputeAttendance (분 컬럼 산정)
+//   - RLS: UPDATE 정책이 admin OR 본인 (dce3488b 후) — 관리자 통과 보장
+function MissingCheckOutModal({
+  companyId,
+  records,
+  employees,
+  selectedMonth,
+  onClose,
+  onSaved,
+}: {
+  companyId: string;
+  records: any[];
+  employees: any[];
+  selectedMonth: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const empNameMap = useMemo(() => new Map(employees.map((e: any) => [e.id, e.name])), [employees]);
+  // 행별 입력 시간 (HH:MM). 기본값 "18:30" (보편적 퇴근시각).
+  const missingRows = useMemo(
+    () => (records || []).filter((r: any) => !r.check_out).sort((a: any, b: any) => (b.date || "").localeCompare(a.date || "")),
+    [records],
+  );
+  const [times, setTimes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(missingRows.map((r: any) => [r.id, "18:30"])),
+  );
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+
+  const saveOne = async (row: any) => {
+    const t = times[row.id] || "18:30";
+    if (!/^\d{2}:\d{2}$/.test(t)) {
+      toast("시간 형식이 잘못되었습니다 (HH:MM).", "error");
+      return;
+    }
+    setSaving((s) => new Set(s).add(row.id));
+    try {
+      // KST 기준 ISO 생성: YYYY-MM-DDTHH:MM:00+09:00
+      const iso = `${row.date}T${t}:00+09:00`;
+      await correctAttendanceRecord(row.id, { check_out: iso });
+      // 분 컬럼 산정 (regular/overtime/night/holiday)
+      await recomputeAttendance({
+        companyId,
+        employeeId: row.employee_id,
+        from: row.date,
+        to: row.date,
+      });
+      toast(`${empNameMap.get(row.employee_id) || "직원"} ${row.date} 퇴근 입력 완료`, "success");
+      onSaved();
+    } catch (e) {
+      toast(friendlyError(e, "퇴근 입력에 실패했습니다."), "error");
+    } finally {
+      setSaving((s) => {
+        const n = new Set(s);
+        n.delete(row.id);
+        return n;
+      });
+    }
+  };
+
+  const saveAll = async () => {
+    for (const row of missingRows) {
+      await saveOne(row);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold">📝 퇴근 미입력 일괄 보정</div>
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+              {selectedMonth} 누락 {missingRows.length}건 — 저장 시 자동으로 연장·야간·휴일 분이 산정됩니다.
+            </div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+        </div>
+
+        <div className="overflow-auto flex-1">
+          {missingRows.length === 0 ? (
+            <div className="p-10 text-center text-sm text-[var(--text-muted)]">미입력 행이 없습니다 ✅</div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-[var(--bg-surface)]/50 sticky top-0">
+                <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <th className="text-left px-4 py-2 font-medium">직원</th>
+                  <th className="text-left px-4 py-2 font-medium">날짜</th>
+                  <th className="text-left px-4 py-2 font-medium">출근(KST)</th>
+                  <th className="text-left px-4 py-2 font-medium">퇴근 시각</th>
+                  <th className="text-center px-4 py-2 font-medium">저장</th>
+                </tr>
+              </thead>
+              <tbody>
+                {missingRows.map((row: any) => {
+                  const ciStr = row.check_in
+                    ? new Date(row.check_in).toLocaleString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                    : "—";
+                  return (
+                    <tr key={row.id} className="border-b border-[var(--border)]/50">
+                      <td className="px-4 py-2 font-medium">{empNameMap.get(row.employee_id) || "—"}</td>
+                      <td className="px-4 py-2 text-[var(--text-muted)]">{row.date}</td>
+                      <td className="px-4 py-2 text-[var(--text-muted)] tabular-nums">{ciStr}</td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="time"
+                          value={times[row.id] || "18:30"}
+                          onChange={(e) => setTimes((t) => ({ ...t, [row.id]: e.target.value }))}
+                          className="px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-md text-xs focus:outline-none focus:border-[var(--primary)]"
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <button
+                          type="button"
+                          disabled={saving.has(row.id)}
+                          onClick={() => saveOne(row)}
+                          className="px-3 py-1 text-xs font-semibold bg-[var(--primary)]/20 text-[var(--primary)] hover:bg-[var(--primary)]/30 disabled:opacity-40 rounded-md transition"
+                        >
+                          {saving.has(row.id) ? "..." : "저장"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
+          <span className="text-[11px] text-[var(--text-muted)]">기본 18:30, 직원별 변경 가능</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-1.5 text-xs bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg transition"
+            >
+              닫기
+            </button>
+            {missingRows.length > 0 && (
+              <button
+                type="button"
+                disabled={saving.size > 0}
+                onClick={saveAll}
+                className="px-4 py-1.5 text-xs font-semibold bg-orange-500/20 text-orange-200 hover:bg-orange-500/30 disabled:opacity-40 rounded-lg transition"
+              >
+                {saving.size > 0 ? "저장 중..." : `일괄 저장 (${missingRows.length}건)`}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
