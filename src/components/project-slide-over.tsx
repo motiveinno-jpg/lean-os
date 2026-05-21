@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { getProjectDetail } from "@/lib/queries";
 import {
   getProjectBadge,
@@ -253,7 +254,7 @@ function PanelBody({
       <div className="flex-1 overflow-y-auto p-5">
         {tab === "overview" && <OverviewTab data={data} stage={stage} />}
         {tab === "money" && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
-        {tab === "activity" && <ActivityTab data={data} />}
+        {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
       </div>
     </>
   );
@@ -682,7 +683,103 @@ const ROLE_LABEL: Record<string, string> = {
   contributor: "참여자",
 };
 
-function ActivityTab({ data }: { data: PanelData }) {
+// approval stage → 한국어 라벨 (견적/계약 외 진척·완료 포함)
+const APPROVAL_STAGE_LABEL: Record<string, string> = {
+  estimate: "견적서",
+  contract: "계약서",
+  progress_report: "진척보고서",
+  completion: "완료확인서",
+  settlement: "정산서",
+};
+
+type ApprovalRow = {
+  id: string;
+  stage: string;
+  status: string;
+  sent_at: string | null;
+  viewed_at: string | null;
+  decided_at: string | null;
+  our_signed_at: string | null;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  signed_contract_url: string | null;
+  fully_signed_contract_url: string | null;
+};
+
+type ActivityEvent = {
+  key: string;
+  icon: string;
+  action: string;
+  target: string | null;
+  at: string;
+};
+
+function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
+  // quote_approvals — 견적/계약/진척/완료 stage 의 sent/viewed/decided/our_signed 이벤트 + 서명본 PDF
+  const { data: approvals = [] } = useQuery<ApprovalRow[]>({
+    queryKey: ["deal-approvals", dealId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("quote_approvals")
+        .select(
+          "id, stage, status, sent_at, viewed_at, decided_at, our_signed_at, recipient_name, recipient_email, signed_contract_url, fully_signed_contract_url",
+        )
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: false });
+      return (data || []) as ApprovalRow[];
+    },
+    enabled: !!dealId,
+  });
+
+  // quote_approvals → 활동 이벤트 변환
+  const approvalEvents: ActivityEvent[] = useMemo(() => {
+    const ev: ActivityEvent[] = [];
+    approvals.forEach((a) => {
+      const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
+      if (a.sent_at) ev.push({ key: `${a.id}-sent`, icon: "📤", action: `${stageLabel} 발송`, target: a.recipient_email || a.recipient_name, at: a.sent_at });
+      if (a.viewed_at) ev.push({ key: `${a.id}-viewed`, icon: "👁", action: `${stageLabel} 거래처 열람`, target: a.recipient_name, at: a.viewed_at });
+      if (a.status === "approved" && a.decided_at) ev.push({ key: `${a.id}-approved`, icon: "✅", action: `${stageLabel} 거래처 승인`, target: a.recipient_name, at: a.decided_at });
+      if (a.status === "rejected" && a.decided_at) ev.push({ key: `${a.id}-rejected`, icon: "❌", action: `${stageLabel} 거래처 거절`, target: a.recipient_name, at: a.decided_at });
+      if (a.our_signed_at) ev.push({ key: `${a.id}-our-signed`, icon: "✍️", action: `${stageLabel} 우리 서명 완료`, target: null, at: a.our_signed_at });
+    });
+    return ev.sort((x, y) => new Date(y.at).getTime() - new Date(x.at).getTime());
+  }, [approvals]);
+
+  // auditLogs + approvalEvents 시간순 통합
+  const combinedActivity: ActivityEvent[] = useMemo(() => {
+    const auditEvents: ActivityEvent[] = (data.auditLogs || []).map((l: any) => ({
+      key: `audit-${l.id}`,
+      icon: "📝",
+      action: formatAction(l.action || l.entity_type || ""),
+      target: l.entity_name || null,
+      at: l.created_at,
+    }));
+    return [...auditEvents, ...approvalEvents].sort(
+      (x, y) => new Date(y.at).getTime() - new Date(x.at).getTime(),
+    );
+  }, [data.auditLogs, approvalEvents]);
+
+  // 서명본 PDF 파일 (quote_approvals 의 url 컬럼) — documents 와 통합 표시
+  const signedFiles = useMemo(() => {
+    const arr: { id: string; name: string; url: string; href: string; at: string }[] = [];
+    approvals.forEach((a) => {
+      const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
+      const url = a.fully_signed_contract_url || a.signed_contract_url;
+      if (url) {
+        arr.push({
+          id: a.id,
+          name: `${stageLabel} 서명본 PDF`,
+          url,
+          href: `/contracts/signed/${a.id}`,
+          at: a.our_signed_at || a.decided_at || a.sent_at || "",
+        });
+      }
+    });
+    return arr;
+  }, [approvals]);
+
+  const totalFiles = data.documents.length + signedFiles.length;
+
   return (
     <div id="sec-activity" className="flex flex-col gap-4 transition-shadow">
       {/* 담당자 목록 */}
@@ -714,19 +811,33 @@ function ActivityTab({ data }: { data: PanelData }) {
         )}
       </Section>
 
-      {/* 파일 */}
+      {/* 파일 — documents + quote_approvals 서명본 PDF 통합 */}
       <Section
-        title={`파일 (${data.documents.length})`}
+        title={`파일 (${totalFiles})`}
         right={
           <Link href={`/documents?deal=${data.deal.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
             전체보기 →
           </Link>
         }
       >
-        {data.documents.length === 0 ? (
+        {totalFiles === 0 ? (
           <Empty text="문서 없음" />
         ) : (
           <ul className="flex flex-col gap-1.5">
+            {signedFiles.map((f) => (
+              <li
+                key={`signed-${f.id}`}
+                className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+              >
+                <Link href={f.href} className="flex items-center gap-2 min-w-0 hover:underline">
+                  <span className="text-emerald-500">📄</span>
+                  <span className="text-[var(--text)] truncate">{f.name}</span>
+                </Link>
+                <span className="text-[10px] text-[var(--text-dim)] shrink-0">
+                  {f.at ? new Date(f.at).toLocaleDateString("ko-KR") : ""}
+                </span>
+              </li>
+            ))}
             {data.documents.map((d: any) => (
               <li
                 key={d.id}
@@ -759,25 +870,25 @@ function ActivityTab({ data }: { data: PanelData }) {
         </div>
       </Section>
 
-      {/* 활동로그 */}
-      <Section title={`활동 로그 (${data.auditLogs.length})`}>
-        {data.auditLogs.length === 0 ? (
+      {/* 활동로그 — auditLogs + quote_approvals 이벤트 통합 */}
+      <Section title={`활동 로그 (${combinedActivity.length})`}>
+        {combinedActivity.length === 0 ? (
           <Empty text="활동 기록 없음" />
         ) : (
           <ul className="flex flex-col gap-1.5">
-            {data.auditLogs.map((l: any) => (
+            {combinedActivity.map((e) => (
               <li
-                key={l.id}
+                key={e.key}
                 className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
               >
-                <span className="text-[var(--text-dim)] shrink-0">·</span>
+                <span className="shrink-0">{e.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[var(--text)]">
-                    <span className="font-semibold">{formatAction(l.action)}</span>
-                    {l.entity_name && <span className="text-[var(--text-muted)]"> — {l.entity_name}</span>}
+                    <span className="font-semibold">{e.action}</span>
+                    {e.target && <span className="text-[var(--text-muted)]"> — {e.target}</span>}
                   </div>
                   <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                    {l.created_at ? new Date(l.created_at).toLocaleString("ko-KR") : ""}
+                    {e.at ? new Date(e.at).toLocaleString("ko-KR") : ""}
                   </div>
                 </div>
               </li>
