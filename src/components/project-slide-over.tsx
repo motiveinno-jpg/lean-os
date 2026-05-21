@@ -524,10 +524,12 @@ function dealStageToApprovalStage(s: string | null | undefined): 'estimate' | 'c
 function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string; companyId: string }) {
   const contract = Number(data.deal.contract_total || 0);
 
-  const expected = (data.revenue || []).filter((r: any) => r.status === "expected");
   const paid = (data.revenue || []).filter((r: any) => r.status === "paid");
-  const expectedSum = expected.reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
   const paidSum = paid.reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+  // 미수금 = 계약가 - 입금완료 (자동 차감, 사장님 직관).
+  //   2026-05-21 사장님 호소: 수금 추가해도 미수금 갱신 안 됨 → 계약가 기반 단순 차감으로 변경.
+  //   expected 행은 향후 수금 일정 표시용 (목록 ul 에 그대로 유지) — 계산엔 미사용.
+  const expectedSum = Math.max(0, contract - paidSum);
 
   // 2026-05-21 받을 돈 인라인 수금 입력 모달 (사장님 요청: 화면 이탈 X)
   const moneyQc = useQueryClient();
