@@ -296,31 +296,31 @@ function SignContent() {
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
-          // companies (갑) + partners (을) 동시 조회 — 본문 변수 치환용
-          const companyId = sigReq.documents?.company_id || sigReq.company_id;
-          const [{ data: company }, { data: partner }] = await Promise.all([
-            db.from("companies").select("name, business_number, representative, address").eq("id", companyId).maybeSingle(),
-            sigReq.partner_id
-              ? db.from("partners").select("name, business_number, representative, contact_name, contact_email, contact_phone, address").eq("id", sigReq.partner_id).maybeSingle()
-              : Promise.resolve({ data: null }),
-          ]);
+          // 2026-05-21: anon RLS 우회 — SECURITY DEFINER RPC 로 company + partner 한 번에 조회.
+          //   sign_token 검증 후 안전하게 갑/을 컨텍스트 반환.
+          //   기존 partners RLS = company_id = get_my_company_id() 가 anon 차단해 표시 단 치환 불가했던 회귀 정공 fix.
+          const { data: ctx } = await db.rpc('get_signature_context_by_token', { p_sign_token: token });
+          const company = ctx?.company || null;
+          const partner = ctx?.partner || null;
 
-          // 본문 변수 치환 — content_json.body 안의 {{갑_*}} / {{을_*}} 토큰을 회사·거래처 데이터로 채움.
-          //   단체일괄 발송 시 createBulkSignatureRequestsToOrgs 가 title 만 치환하고 본문은 untouched.
-          //   거래처가 토큰 그대로 보거나 빈 화면 받는 회귀를 표시 단에서 흡수.
-          //   regex: {{var}} 또는 {var} 모두 허용 (양식 작성자 패턴 다양성).
+          // 본문 변수 치환 — content_json.body 안의 토큰을 회사(갑)·거래처(을) 데이터로 채움.
+          //   사용자 양식 토큰 패턴 매우 다양 ({{갑_회사명}}, {{갑}}, {{사업자등록번호}}, {{대표자명}} 등).
+          //   매핑 없는 토큰은 원형 유지 (오타 발견용).
+          //   주의: {{사업자등록번호}} / {{대표자명}} 처럼 갑/을 구분 없는 단독 토큰은 모호.
+          //         양식 작성 시 사용자가 양쪽 다 같은 토큰 쓰면 동일 값 표시 — 정공은 {{갑_*}}/{{을_*}} 권장.
+          //         단독 토큰은 partner(을) 우선 매핑 (계약서의 lead party 가 일반적으로 을).
           const fillBody = (body: unknown): unknown => {
             if (typeof body !== "string") return body;
             const c = company || {};
             const pn = partner || {};
             const replacements: Record<string, string> = {
-              // 갑 (우리 회사)
+              // ─── 갑 (우리 회사) — 명시 접두사 ───
               "갑_회사명": String(c.name || ""),
               "갑_사업자번호": String(c.business_number || ""),
               "갑_대표자": String(c.representative || ""),
               "갑_주소": String(c.address || ""),
               "company_name": String(c.name || ""),
-              // 을 (거래처)
+              // ─── 을 (거래처) — 명시 접두사 ───
               "을_회사명": String(pn.name || ""),
               "을_단체명": String(pn.name || ""),
               "을_사업자번호": String(pn.business_number || ""),
@@ -331,11 +331,31 @@ function SignContent() {
               "을_전화": String(pn.contact_phone || ""),
               "을_주소": String(pn.address || ""),
               "partner_name": String(pn.name || ""),
+              // ─── 단독 토큰 (사용자 자유 양식) ───
+              "갑": String(c.name || ""),
+              "을": String(pn.name || ""),
+              // 갑/을 구분 없는 단독 토큰 — 을(거래처) 우선 매핑
+              "회사명": String(pn.name || ""),
+              "단체명": String(pn.name || ""),
+              "사업자등록번호": String(pn.business_number || c.business_number || ""),
+              "사업자번호": String(pn.business_number || c.business_number || ""),
+              "대표자명": String(pn.representative || c.representative || ""),
+              "대표자": String(pn.representative || c.representative || ""),
+              "주소": String(pn.address || c.address || ""),
+              "담당자": String(pn.contact_name || ""),
+              "이메일": String(pn.contact_email || ""),
+              "연락처": String(pn.contact_phone || ""),
+              "전화": String(pn.contact_phone || ""),
+              "전화번호": String(pn.contact_phone || ""),
+              // 공통값
+              "날짜": new Date().toLocaleDateString('ko-KR'),
+              "오늘": new Date().toLocaleDateString('ko-KR'),
+              "계약일": new Date().toLocaleDateString('ko-KR'),
             };
             return body.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
               const k = String(key).trim();
               if (k in replacements) return replacements[k];
-              return full; // 매핑 없는 토큰은 원형 유지 (오타 발견용)
+              return full; // 매핑 없는 토큰(예: {{계약금액}}) 은 원형 유지
             });
           };
           const filledContentJson = sigReq.documents?.content_json
