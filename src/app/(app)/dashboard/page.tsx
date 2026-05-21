@@ -36,6 +36,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { AiBriefing } from "@/components/ai-briefing";
+import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -557,6 +558,9 @@ export default function DashboardPage() {
 
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
       <div className="mb-4">
+        {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
+        {(role === "owner" || role === "admin") && <OwnerDashboardSection />}
+
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
           <MorningBrief
