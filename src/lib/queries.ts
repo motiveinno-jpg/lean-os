@@ -2177,7 +2177,7 @@ export async function getProjectDetail(dealId: string, companyId: string) {
     db.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id)').eq('deal_nodes.deal_id', dealId).order('due_date', { ascending: true }),
     db.from('sub_deals').select('*, vendors(id,name)').eq('parent_deal_id', dealId).order('created_at', { ascending: false }),
     db.from('deal_assignments')
-      .select('deal_id, user_id, role, is_active, users:user_id(id, name, email)')
+      .select('id, deal_id, user_id, role, is_active, users:user_id(id, name, email)')
       .eq('deal_id', dealId)
       .eq('is_active', true),
     // documents: deal_id 매칭 (deal_files 컬럼 미존재 → documents 사용)

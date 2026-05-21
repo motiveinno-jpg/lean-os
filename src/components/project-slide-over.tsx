@@ -10,9 +10,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getProjectDetail } from "@/lib/queries";
+import { getProjectDetail, getCompanyUsers } from "@/lib/queries";
+import { friendlyError } from "@/lib/friendly-error";
+import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 import {
   getProjectBadge,
   getNextAction,
@@ -799,15 +802,83 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
 
   const totalFiles = data.documents.length + signedFiles.length;
 
+  // 담당자 추가/제거 (핸드오프 v5 Q3) — admin/owner 만
+  const { role: userRole } = useUser();
+  const canEditAssignments = userRole === 'owner' || userRole === 'admin';
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showAddAssignee, setShowAddAssignee] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [pendingRole, setPendingRole] = useState<'manager' | 'reviewer' | 'participant'>('manager');
+  const companyId = data.deal?.company_id || '';
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ['company-users', companyId],
+    queryFn: () => getCompanyUsers(companyId),
+    enabled: !!companyId && showAddAssignee,
+  });
+  const addAssigneeMut = useMutation({
+    mutationFn: async (userId: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db2 = supabase as any;
+      const { error } = await db2.from('deal_assignments').insert({
+        deal_id: dealId,
+        user_id: userId,
+        role: pendingRole,
+        is_active: true,
+        assigned_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-detail', dealId] });
+      setShowAddAssignee(false);
+      setAssigneeSearch('');
+      toast('담당자가 추가되었습니다', 'success');
+    },
+    onError: (err: Error) => toast(`담당자 추가 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'),
+  });
+  const removeAssigneeMut = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db2 = supabase as any;
+      const { error } = await db2.from('deal_assignments')
+        .update({ is_active: false, removed_at: new Date().toISOString() })
+        .eq('id', assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-detail', dealId] });
+      toast('담당자가 제거되었습니다', 'success');
+    },
+    onError: (err: Error) => toast(`담당자 제거 실패: ${friendlyError(err, '알 수 없는 오류')}`, 'error'),
+  });
+  const assignedUserIds = new Set(data.assignments.map((a: { user_id: string }) => a.user_id));
+  const filteredUsers = (companyUsers as { id: string; name?: string; email?: string }[]).filter((u) => {
+    if (assignedUserIds.has(u.id)) return false;
+    if (!assigneeSearch.trim()) return true;
+    const q = assigneeSearch.toLowerCase();
+    return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+  });
+
   return (
     <div id="sec-activity" className="flex flex-col gap-4 transition-shadow">
-      {/* 담당자 목록 */}
-      <Section title={`담당자 (${data.assignments.length})`}>
+      {/* 담당자 목록 + 추가/제거 (v5 Q3) */}
+      <Section
+        title={`담당자 (${data.assignments.length})`}
+        right={canEditAssignments ? (
+          <button
+            onClick={() => setShowAddAssignee(true)}
+            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 font-semibold"
+          >
+            + 추가
+          </button>
+        ) : null}
+      >
         {data.assignments.length === 0 ? (
-          <Empty text="배정된 담당자 없음" />
+          <Empty text={canEditAssignments ? '배정된 담당자 없음 — "+ 추가" 클릭' : '배정된 담당자 없음'} />
         ) : (
           <ul className="flex flex-col gap-1.5">
-            {data.assignments.map((a: any) => (
+            {data.assignments.map((a: { id?: string; deal_id: string; user_id: string; role: string; users?: { name?: string; email?: string } }) => (
               <li
                 key={`${a.deal_id}-${a.user_id}`}
                 className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
@@ -821,14 +892,91 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                     <div className="text-[10px] text-[var(--text-dim)] truncate">{a.users?.email}</div>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold">
-                  {ROLE_LABEL[a.role] || a.role || "참여자"}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold">
+                    {ROLE_LABEL[a.role] || a.role || "참여자"}
+                  </span>
+                  {canEditAssignments && a.id && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`${a.users?.name || '담당자'}을(를) 제거하시겠습니까?`)) {
+                          removeAssigneeMut.mutate(a.id!);
+                        }
+                      }}
+                      disabled={removeAssigneeMut.isPending}
+                      className="text-[var(--text-dim)] hover:text-red-400 text-xs"
+                      title="제거"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
         )}
       </Section>
+
+      {/* 담당자 추가 모달 */}
+      {showAddAssignee && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setShowAddAssignee(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="text-sm font-bold">+ 담당자 추가</div>
+              <button onClick={() => setShowAddAssignee(false)} className="text-[var(--text-muted)] text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
+                <div className="flex gap-1">
+                  {[
+                    { v: 'manager' as const, label: '담당' },
+                    { v: 'reviewer' as const, label: '검토' },
+                    { v: 'participant' as const, label: '참여' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setPendingRole(opt.v)}
+                      className={`flex-1 px-3 py-1.5 text-xs rounded-lg ${pendingRole === opt.v ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg)] text-[var(--text-muted)]'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">사용자 검색</label>
+                <input
+                  value={assigneeSearch}
+                  onChange={(e) => setAssigneeSearch(e.target.value)}
+                  placeholder="이름·이메일"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                />
+              </div>
+              <div className="max-h-48 overflow-auto border border-[var(--border)] rounded-lg">
+                {filteredUsers.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[var(--text-muted)]">사용자 없음</div>
+                ) : (
+                  filteredUsers.map((u) => (
+                    <button
+                      key={u.id}
+                      onClick={() => addAssigneeMut.mutate(u.id)}
+                      disabled={addAssigneeMut.isPending}
+                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] border-b border-[var(--border)]/30 last:border-b-0 text-xs"
+                    >
+                      <div className="font-medium">{u.name || '(이름 없음)'}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{u.email}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end">
+              <button onClick={() => setShowAddAssignee(false)} className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg">취소</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 파일 — documents + quote_approvals 서명본 PDF 통합 */}
       <Section
