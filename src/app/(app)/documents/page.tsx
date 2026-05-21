@@ -40,6 +40,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [bulkSigners, setBulkSigners] = useState<{ name: string; email: string; phone: string }[]>([{ name: "", email: "", phone: "" }]);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
+  // 진행 리스트 각 행 클릭 → /contracts/signed dual mode 진입 (signature_requests.id 지원)
+  const detailRouter = useRouter();
   const [tab, setTab] = useState<"content" | "revisions" | "approvals">("content");
   // 품목/결제조건/직인 상태
   const [editItems, setEditItems] = useState<any[]>([]);
@@ -682,7 +684,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 const reminderCount = sig.reminder_count || 0;
                 const lastReminded = sig.last_reminded_at ? new Date(sig.last_reminded_at).toLocaleString("ko") : null;
                 return (
-                  <div key={sig.id} className="flex items-center justify-between text-xs px-2 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                  <div
+                    key={sig.id}
+                    onClick={() => detailRouter.push(`/contracts/signed/${sig.id}`)}
+                    className="flex items-center justify-between text-xs px-2 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition cursor-pointer group"
+                    title="이 계약서 보기 / PDF 다운로드"
+                  >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className={`w-1.5 h-1.5 rounded-full ${si.dot} flex-shrink-0`} />
                       <span className="font-medium truncate">{sig.signer_name}</span>
@@ -701,13 +708,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       )}
                       {isPending && (
                         <button
-                          onClick={() => sendReminder(sig.id)}
+                          onClick={(e) => { e.stopPropagation(); sendReminder(sig.id); }}
                           disabled={reminderSendingId === sig.id}
                           className="text-[10px] px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition disabled:opacity-50"
                         >
                           {reminderSendingId === sig.id ? "..." : "리마인더"}
                         </button>
                       )}
+                      <span className="text-[var(--text-dim)] opacity-0 group-hover:opacity-100 transition">›</span>
                     </div>
                   </div>
                 );
