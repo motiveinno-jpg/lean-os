@@ -545,11 +545,13 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db2 = supabase as any;
+      // 2026-05-21 핫픽스: deal_revenue_schedule 에 company_id 컬럼 없음 — RLS 는 deals JOIN 으로 회사격리.
+      //   페이로드에서 company_id 제거 + received_at 추가 (status='paid' 의미 명확화).
       const { error } = await db2.from("deal_revenue_schedule").insert({
         deal_id: dealId,
-        company_id: companyId,
         status: "paid",
         due_date: paymentDate,
+        received_at: new Date(paymentDate + "T00:00:00").toISOString(),
         amount: Math.round(amt),
       });
       if (error) throw error;
