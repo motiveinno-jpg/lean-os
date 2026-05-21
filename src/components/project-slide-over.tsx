@@ -539,6 +539,62 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentSaving, setPaymentSaving] = useState(false);
 
+  // 2026-05-21 줄돈 인라인 비용 입력 모달 (사장님 요청: 받을 돈과 동일 패턴)
+  const [costModalOpen, setCostModalOpen] = useState(false);
+  const [costDate, setCostDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [costAmount, setCostAmount] = useState<string>("");
+  const [costMemo, setCostMemo] = useState<string>("");
+  const [costSaving, setCostSaving] = useState(false);
+
+  const submitCost = async () => {
+    const amt = Number(costAmount);
+    if (!costDate) { moneyToast("지급 날짜를 입력해 주세요", "error"); return; }
+    if (!amt || amt <= 0) { moneyToast("금액은 1원 이상", "error"); return; }
+    setCostSaving(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db2 = supabase as any;
+      // deal_cost_schedule 는 deal_node_id 통해 deal 와 연결 (RLS + getProjectDetail !inner JOIN).
+      //   해당 dealId 의 첫 node 사용 → 없으면 자동 생성 (root '기본 비용').
+      let nodeId: string | null = null;
+      const { data: nodes } = await db2
+        .from("deal_nodes").select("id").eq("deal_id", dealId).limit(1);
+      if (nodes && nodes.length > 0) {
+        nodeId = nodes[0].id;
+      } else {
+        const { data: newNode, error: nodeErr } = await db2
+          .from("deal_nodes")
+          .insert({ deal_id: dealId, name: "기본 비용", node_type: "cost" })
+          .select("id")
+          .single();
+        if (nodeErr) throw nodeErr;
+        nodeId = newNode.id;
+      }
+      const { error } = await db2.from("deal_cost_schedule").insert({
+        deal_node_id: nodeId,
+        company_id: companyId,
+        status: "paid",
+        approved: true,
+        approved_at: new Date().toISOString(),
+        due_date: costDate,
+        amount: Math.round(amt),
+        condition_text: costMemo.trim() || null,
+      });
+      if (error) throw error;
+      moneyToast(`비용 ₩${Math.round(amt).toLocaleString()} 추가됨`, "success");
+      moneyQc.invalidateQueries({ queryKey: ["project-detail", dealId] });
+      moneyQc.invalidateQueries({ queryKey: ["deal-detail", dealId] });
+      setCostModalOpen(false);
+      setCostAmount("");
+      setCostMemo("");
+      setCostDate(new Date().toISOString().slice(0, 10));
+    } catch (e) {
+      moneyToast(friendlyError(e, "비용 추가에 실패했습니다"), "error");
+    } finally {
+      setCostSaving(false);
+    }
+  };
+
   const submitPayment = async () => {
     const amt = Number(paymentAmount);
     if (!paymentDate) { moneyToast("받은 날짜를 입력해 주세요", "error"); return; }
@@ -644,9 +700,14 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       <div id="sec-cost" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-[var(--text-muted)]">줄 돈 (비용 + 외주)</h3>
-          <Link href={`/deals?detail=${data.deal.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
-            편집 →
-          </Link>
+          <button
+            type="button"
+            onClick={() => setCostModalOpen(true)}
+            className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+            title="비용 추가 — 지급 날짜와 금액 입력"
+          >
+            + 비용 추가
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <KV label="비용 합계" value={`₩${costSum.toLocaleString()}`} />
@@ -773,6 +834,86 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold"
               >
                 {paymentSaving ? "저장 중…" : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 줄 돈 비용 추가 모달 (받을 돈 모달과 동일 패턴) */}
+      {costModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !costSaving && setCostModalOpen(false)}
+        >
+          <div
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold">+ 비용 추가</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  지급 날짜·금액 입력 → 줄 돈/마진 즉시 갱신
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !costSaving && setCostModalOpen(false)}
+                disabled={costSaving}
+                className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">지급 날짜</label>
+                <input
+                  type="date"
+                  value={costDate}
+                  onChange={(e) => setCostDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">지급 금액 (원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={costAmount ? Number(costAmount).toLocaleString("ko-KR") : ""}
+                  onChange={(e) => setCostAmount(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="1,000,000"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">항목/메모 <span className="text-[var(--text-dim)]">(선택)</span></label>
+                <input
+                  type="text"
+                  value={costMemo}
+                  onChange={(e) => setCostMemo(e.target.value)}
+                  placeholder="예: 외주 디자인 / 광고비"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCostModalOpen(false)}
+                disabled={costSaving}
+                className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitCost}
+                disabled={costSaving || !costDate || !costAmount || Number(costAmount) <= 0}
+                className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold"
+              >
+                {costSaving ? "저장 중…" : "저장"}
               </button>
             </div>
           </div>
