@@ -50,7 +50,8 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import MyAllowanceCard from "@/components/hr-my-allowance-card";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
-import { recomputeMonthlyAllowancesForCompany } from "@/lib/allowance-calc";
+// recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
+//   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
 type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
@@ -3672,22 +3673,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId && isAdminForAllowance,
   });
 
-  // 관리자 분기 — 마운트 시 1회 자동 가산수당 재계산 (1시간 디바운스).
-  //   사용자 트래픽 부담 회피 위해 localStorage 키로 같은 (company, yyyymm) 1시간 1회만 호출.
-  //   직원 분기 미실행. 실패는 silent (수동 "월 일괄 재계산" 버튼이 fallback).
-  useEffect(() => {
-    if (!isAdminForAllowance || !companyId) return;
-    if (typeof window === 'undefined') return;
-    const key = `allowance-recompute-${companyId}-${selectedMonth}`;
-    const last = Number(localStorage.getItem(key) || '0');
-    if (Date.now() - last < 3600_000) return; // 1시간 내 재호출 0
-    recomputeMonthlyAllowancesForCompany(companyId, selectedMonth)
-      .then(() => {
-        localStorage.setItem(key, String(Date.now()));
-        queryClient.invalidateQueries({ queryKey: ['allowance-entries-monthly-summary', companyId, selectedMonth] });
-      })
-      .catch(() => { /* silent — 수동 버튼이 fallback */ });
-  }, [isAdminForAllowance, companyId, selectedMonth, queryClient]);
+  // ⚠️ 비활성화 (2026-05-21 504 인시던트 3차) — 클라이언트 마운트마다 자동 호출이
+  //   사용자 동시 진입·hot reload 시 폭증 → DB hung. 5/19·5/20 패턴 재발 차단.
+  //   대안: 사용자가 화면의 "월 일괄 재계산" 버튼 수동 클릭 (MonthlyRecomputeButton).
+  //   근본 해결: 별건 PR — pg_cron 1시간 1회 배치 + advisory lock 으로 동시 실행 1개 제한.
+  // recomputeMonthlyAllowancesForCompany 자동 호출은 본 PR 에서 제거됨.
 
   // Check-in mutation
   const doCheckIn = useMutation({
@@ -4416,7 +4406,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약</h3>
               {isAdminForAllowance && (
-                <span className="text-[11px] text-[var(--text-muted)]">수당은 마운트 시 자동 재계산 · 1시간 디바운스</span>
+                <span className="text-[11px] text-[var(--text-muted)]">수당 재계산은 위의 "월 일괄 재계산" 버튼 클릭 시 실행</span>
               )}
             </div>
             {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 + 입력 진입 CTA */}
