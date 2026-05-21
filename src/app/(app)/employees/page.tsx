@@ -3849,6 +3849,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // myEmployeeRecord.salary 가 연봉이면 /12, 월급이면 그대로 — 기존 정책 모호하므로 일단 보수적으로 salary 그대로 전달 (정책 통일 시 일괄 수정).
   const myMonthlyBaseSalary = (myEmployeeRecord && Number(myEmployeeRecord.salary)) || 0;
 
+  // 관리자 분기 — 이번 달 "퇴근 미입력" 행 수 (overtime/night/holiday 산정 불가 사유).
+  //   사용자 호소 "수당 일괄 계산 후 0" 의 근본 원인 안내용.
+  //   check_out 이 null 인 attendance_records 카운트.
+  const missingCheckOutCount = useMemo(() => {
+    if (isEmployeeRole) return 0;
+    return (records as any[]).filter((r) => !r.check_out).length;
+  }, [records, isEmployeeRole]);
+
   // 관리자 분기 — 직원별 월간 수당 합산 (allowance_entries × allowance_types).
   //   key: employee_id → { overtime, night, holiday, on_duty, etc, total }
   //   allowance_types.code 기준 매칭 — 회사별 커스텀 코드는 'etc' 로 합산.
@@ -4405,6 +4413,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 <span className="text-[11px] text-[var(--text-muted)]">수당은 마운트 시 자동 재계산 · 1시간 디바운스</span>
               )}
             </div>
+            {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 */}
+            {isAdminForAllowance && missingCheckOutCount > 0 && (
+              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs">
+                <span className="font-semibold">⚠️ 퇴근 미입력 {missingCheckOutCount}건</span>
+                {" — "}
+                해당 행은 연장·야간·휴일 분이 산정되지 않아 수당이 0원입니다. 직원 본인 또는 관리자가 퇴근을 입력해야 자동 산출됩니다.
+              </div>
+            )}
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
                 <thead>

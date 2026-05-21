@@ -92,6 +92,10 @@ export default function AllowanceAdminTab({
         res.failed > 0 ? "info" : "success",
       );
       queryClient.invalidateQueries({ queryKey: ["allowance-entries-admin", companyId, month] });
+      // 회귀픽스 (2026-05-21): /attendance 표의 수당 컬럼 stale 방지.
+      //   employees/page.tsx AttendanceTab 가 ["allowance-entries-monthly-summary"] 키로 별도 조회 →
+      //   본 컴포넌트 일괄 재계산 후 그쪽도 invalidate.
+      queryClient.invalidateQueries({ queryKey: ["allowance-entries-monthly-summary"] });
     },
     onError: (err: any) => toast(friendlyError(err, "재계산에 실패했습니다."), "error"),
   });
@@ -109,6 +113,7 @@ export default function AllowanceAdminTab({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allowance-entries-admin", companyId, month] });
+      queryClient.invalidateQueries({ queryKey: ["allowance-entries-monthly-summary"] });
       toast("수당이 수정되었습니다.", "success");
     },
     onError: (err: any) => toast(friendlyError(err, "수정에 실패했습니다."), "error"),
