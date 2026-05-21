@@ -502,6 +502,21 @@ function formatRange(start?: string | null, end?: string | null) {
 // 돈 탭
 // ────────────────────────────────────────────────
 
+// ProjectStage(deals.stage) → QuoteApprovalStage 매핑
+//   in_progress 는 progress_report 로(진척 보고서 단계),
+//   completed 는 completion 으로(완료 확인서 단계).
+//   동일 키(estimate/contract/settlement)는 그대로.
+function dealStageToApprovalStage(s: string | null | undefined): 'estimate' | 'contract' | 'progress_report' | 'completion' | 'settlement' {
+  switch (s) {
+    case 'contract':     return 'contract';
+    case 'in_progress':  return 'progress_report';
+    case 'completed':    return 'completion';
+    case 'settlement':   return 'settlement';
+    case 'estimate':
+    default:             return 'estimate';
+  }
+}
+
 function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string; companyId: string }) {
   const contract = Number(data.deal.contract_total || 0);
 
@@ -517,11 +532,20 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
   const margin = contract - costTotal;
   const marginPct = contract > 0 ? Math.round((margin / contract) * 100) : 0;
 
+  // deal.stage 따라 ProjectQuoteStages 의 stage prop 결정. stage 가 바뀌면 key 로 재마운트
+  //   → approval 재조회·Realtime 구독 갱신.
+  const approvalStage = dealStageToApprovalStage(data.deal.stage);
+
   return (
     <div className="flex flex-col gap-4">
-      {/* PR3.5: 견적 품목 / 결제 단계 — 패널 안에서 직접 편집·저장 */}
+      {/* PR3.5 + 일반화: deal.stage 따라 견적서/계약서/진척보고서/완료확인서/정산 폼 자동 전환 */}
       <div id="sec-quote" className="transition-shadow">
-        <ProjectQuoteStages dealId={dealId} companyId={companyId} />
+        <ProjectQuoteStages
+          key={approvalStage}
+          dealId={dealId}
+          companyId={companyId}
+          stage={approvalStage}
+        />
       </div>
       {/* 받을 돈 */}
       <div id="sec-revenue" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
