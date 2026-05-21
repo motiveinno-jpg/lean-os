@@ -12,6 +12,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
+// 갑(우리) 서명·도장 추가 모달 — 거래처 서명 모달 동일 컴포넌트 재사용
+import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
+import { useToast } from "@/components/toast";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -56,6 +59,42 @@ export default function SignedContractPage() {
   const [row, setRow] = useState<SignedRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  // 갑(우리) 서명·도장 추가 모달
+  const [showOurSignModal, setShowOurSignModal] = useState(false);
+  const [ourSigMethod, setOurSigMethod] = useState<SignatureMethod | null>(null);
+  const [ourSigDataUrl, setOurSigDataUrl] = useState<string | null>(null);
+  const [submittingOurSig, setSubmittingOurSig] = useState(false);
+  const { toast } = useToast();
+
+  const submitOurSignature = async () => {
+    if (!row || !ourSigMethod || !ourSigDataUrl) return;
+    setSubmittingOurSig(true);
+    try {
+      const isReq = row._source === 'signature_request';
+      const { data: res, error } = await db.rpc(
+        isReq ? 'submit_our_signature_for_request' : 'submit_our_signature',
+        isReq
+          ? { p_signature_request_id: row.id, p_signature_method: ourSigMethod, p_signature_data_url: ourSigDataUrl }
+          : { p_approval_id: row.id, p_signature_method: ourSigMethod, p_signature_data_url: ourSigDataUrl }
+      );
+      if (error) throw error;
+      if (res && res.ok === false) throw new Error(res.code || '서명 적용 실패');
+      // 로컬 row 갱신 (재조회 대신 in-memory)
+      setRow({
+        ...row,
+        our_signature_data_url: ourSigDataUrl,
+        our_signed_at: new Date().toISOString(),
+      });
+      setShowOurSignModal(false);
+      setOurSigMethod(null);
+      setOurSigDataUrl(null);
+      toast('우리 서명이 적용되었습니다', 'success');
+    } catch (e) {
+      toast(friendlyError(e, '서명 적용 실패'), 'error');
+    } finally {
+      setSubmittingOurSig(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) { setErr("잘못된 주소입니다"); setLoading(false); return; }
@@ -241,7 +280,18 @@ export default function SignedContractPage() {
           <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
             {/* 갑 (우리 회사) */}
             <div>
-              <div className="text-sm font-bold mb-2">갑</div>
+              <div className="text-sm font-bold mb-2 flex items-center gap-2">
+                <span>갑</span>
+                {!row.our_signature_data_url && (
+                  <button
+                    onClick={() => setShowOurSignModal(true)}
+                    className="px-2 py-0.5 text-[10px] bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold print:hidden"
+                    title="우리 서명·도장 추가"
+                  >
+                    📝 우리 서명
+                  </button>
+                )}
+              </div>
               <div className="text-xs space-y-1.5">
                 <div>회사명: {row.companies?.name || "—"}</div>
                 <div>사업자등록번호: {row.companies?.business_number || "—"}</div>
@@ -284,6 +334,52 @@ export default function SignedContractPage() {
           @page { margin: 18mm; }
         }
       `}</style>
+
+      {/* 갑(우리) 서명·도장 추가 모달 */}
+      {showOurSignModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 print:hidden"
+          onClick={() => !submittingOurSig && setShowOurSignModal(false)}
+        >
+          <div
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="text-sm font-bold">📝 갑(우리 회사) 서명·도장</div>
+              <button
+                onClick={() => !submittingOurSig && setShowOurSignModal(false)}
+                disabled={submittingOurSig}
+                className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5">
+              <SignatureCapture
+                onChange={(m, d) => { setOurSigMethod(m); setOurSigDataUrl(d); }}
+                defaultTypeName={row.companies?.representative || ''}
+              />
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button
+                onClick={() => setShowOurSignModal(false)}
+                disabled={submittingOurSig}
+                className="px-4 py-1.5 text-xs bg-[var(--bg)] text-[var(--text-muted)] rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                onClick={submitOurSignature}
+                disabled={submittingOurSig || !ourSigMethod || !ourSigDataUrl}
+                className="px-4 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg font-semibold"
+              >
+                {submittingOurSig ? '적용 중...' : '서명 적용'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
