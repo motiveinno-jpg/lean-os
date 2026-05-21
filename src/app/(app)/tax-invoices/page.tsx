@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import {
   createTaxInvoice,
-  threeWayMatch,
   markInvoiceMatched,
   getTaxInvoiceSummary,
   getVATPreview,
@@ -793,7 +792,7 @@ export default function TaxInvoicesPage() {
       setSyncProgress(null);
     }
   }
-  const [matchFilter, setMatchFilter] = useState<"all" | "full" | "partial" | "none">("all");
+  // matchFilter state 는 3-way 매칭 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -890,12 +889,8 @@ export default function TaxInvoicesPage() {
     (p.business_number || "").includes(partnerSearch)
   );
 
-  // 3-way match data
-  const { data: matchResults = [], isLoading: matchLoading } = useQuery({
-    queryKey: ["three-way-match", companyId],
-    queryFn: () => threeWayMatch(companyId!),
-    enabled: !!companyId && tab === "matching",
-  });
+  // 3-way 매칭 fetch + matchFilter UI 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
+  //   matching 탭은 안내 메시지로 유지 (?tab=matching 옛 딥링크 호환).
 
   // VAT Preview
   const currentYear = Number(viewToMonth.split("-")[0]);
@@ -1076,7 +1071,6 @@ export default function TaxInvoicesPage() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
-    queryClient.invalidateQueries({ queryKey: ["three-way-match"] });
   };
 
   const createMut = useMutation({
@@ -2453,131 +2447,16 @@ export default function TaxInvoicesPage() {
 
       {/* 3-Way Matching Tab */}
       {tab === "matching" && (
-        <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mb-2">
-            <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-              <strong className="text-[var(--text)]">3-Way 매칭</strong>: 계약금액 ↔
-              세금계산서 ↔ 실제 입금액을 비교합니다. 세 금액이 모두 일치하면
-              완전 매칭 처리됩니다.
-            </div>
-          </div>
-
-          {matchLoading ? (
-            <div className="p-16 text-center text-sm text-[var(--text-muted)]">
-              매칭 분석 중...
-            </div>
-          ) : matchResults.length === 0 ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
-              <div className="text-4xl mb-4">🔍</div>
-              <div className="text-lg font-bold mb-2">매칭 대상 없음</div>
-              <div className="text-sm text-[var(--text-muted)]">
-                프로젝트에 연결된 매출 세금계산서가 없습니다
-              </div>
-            </div>
-          ) : (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              {/* 3-Way Visual Summary — 클릭 가능한 필터 */}
-              <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]/50">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="font-medium text-[var(--text)] mr-1">매칭 현황:</span>
-                  <button onClick={() => setMatchFilter("all")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "all" ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>전체 {matchResults.length}건</button>
-                  <button onClick={() => setMatchFilter("full")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "full" ? "bg-green-500/15 text-green-400" : "text-green-400/60 hover:bg-[var(--bg-surface)]"}`}>완전매칭 {matchResults.filter((r: any) => r.fullMatch).length}건</button>
-                  <button onClick={() => setMatchFilter("partial")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "partial" ? "bg-orange-500/15 text-orange-400" : "text-orange-400/60 hover:bg-[var(--bg-surface)]"}`}>부분매칭 {matchResults.filter((r: any) => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length}건</button>
-                  <button onClick={() => setMatchFilter("none")} className={`px-3 py-1.5 rounded-lg font-semibold transition min-h-[32px] ${matchFilter === "none" ? "bg-red-500/15 text-red-400" : "text-red-400/60 hover:bg-[var(--bg-surface)]"}`}>미매칭 {matchResults.filter((r: any) => !r.fullMatch && !r.amountMatch && !r.paymentMatch).length}건</button>
-                </div>
-              </div>
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
-                <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">프로젝트명</th>
-                    <th className="text-left px-5 py-3 font-medium">PO ↔ 계산서 ↔ 결제</th>
-                    <th className="text-right px-5 py-3 font-medium">차액</th>
-                    <th className="text-center px-5 py-3 font-medium">계약매칭</th>
-                    <th className="text-center px-5 py-3 font-medium">입금매칭</th>
-                    <th className="text-center px-5 py-3 font-medium">전체매칭</th>
-                    <th className="text-center px-5 py-3 font-medium">액션</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matchResults.filter((r: any) => {
-                    if (matchFilter === "all") return true;
-                    if (matchFilter === "full") return r.fullMatch;
-                    if (matchFilter === "partial") return !r.fullMatch && (r.amountMatch || r.paymentMatch);
-                    return !r.fullMatch && !r.amountMatch && !r.paymentMatch;
-                  }).map((r) => (
-                    <tr
-                      key={r.invoiceId}
-                      className={`border-b border-[var(--border)]/50 transition ${
-                        r.fullMatch
-                          ? "bg-green-500/[.03]"
-                          : "hover:bg-[var(--bg-surface)]"
-                      }`}
-                    >
-                      <td className="px-5 py-3 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          {r.dealId ? (
-                            <button onClick={() => setMatchDealPopup(r)} className="hover:text-[var(--primary)] hover:underline transition text-left">{r.dealName || "프로젝트 없음"}</button>
-                          ) : (r.dealName || "프로젝트 없음")}
-                          {r.suggestedDeal && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-[9px] font-bold whitespace-nowrap">AI 추천</span>
-                          )}
-                          {r.amountMatch && r.contractAmount > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[9px] font-bold whitespace-nowrap">공급가액 일치</span>
-                          )}
-                        </div>
-                        {r.contractAmount > 0 && (
-                          <div className="text-[10px] mt-0.5 flex items-center gap-1">
-                            <button onClick={() => setMatchDealPopup(r)} className="text-[var(--primary)] hover:underline cursor-pointer">계약 {r.contractAmount.toLocaleString('ko-KR')}원</button>
-                            <span className="text-[var(--text-dim)]">=</span>
-                            <button onClick={() => { const inv = invoices.find((i: any) => i.id === r.invoiceId); if (inv) { setTab("sales"); setSelectedInvoice(inv); } }} className="text-[var(--primary)] hover:underline cursor-pointer">공급가액 {r.invoiceSupplyAmount.toLocaleString('ko-KR')}원</button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <ThreeWayMatchVisual result={r} />
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right">
-                        {r.amountMatch && r.contractAmount > 0 ? (
-                          <div>
-                            <div className="text-green-400 font-semibold">공급가액 일치</div>
-                            <div className="text-[10px] text-[var(--text-dim)]">VAT 차이: {fmt(r.invoiceTaxAmount)}</div>
-                          </div>
-                        ) : (
-                          <span className={`font-semibold ${Math.abs(r.gap) < 1 ? "text-green-400" : r.gap > 0 ? "text-red-400" : "text-orange-400"}`}>
-                            {r.gap !== 0 ? (r.gap > 0 ? "+" : "") + fmt(r.gap) : "0"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <MatchBadge ok={r.amountMatch} na={r.contractAmount === 0} />
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <MatchBadge ok={r.paymentMatch} na={r.receivedAmount === 0} />
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <MatchBadge ok={r.fullMatch} na={false} />
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        {r.fullMatch ? (
-                          <button
-                            onClick={() => markMatchedMut.mutate(r.invoiceId)}
-                            disabled={markMatchedMut.isPending}
-                            className="px-3 py-1 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-xs font-semibold transition disabled:opacity-50"
-                          >
-                            매칭 확정
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[var(--text-dim)]">
-                            미매칭
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table></div>
-            </div>
-          )}
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center">
+          <div className="text-4xl mb-3">🔗</div>
+          <h2 className="text-base font-bold text-[var(--text)] mb-2">3-Way 매칭 페이지로 이동되었습니다</h2>
+          <p className="text-xs text-[var(--text-muted)] mb-5 leading-relaxed">
+            세금계산서 ↔ 거래처 ↔ 입출금 자동 추천이 분석 허브의 전용 페이지로 통합되었습니다.<br/>
+            (거래처명·대표자명·금액±10% 매칭 규칙)
+          </p>
+          <Link href="/reports/three-way-match" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold transition">
+            → 3-Way 매칭 페이지 열기
+          </Link>
         </div>
       )}
 

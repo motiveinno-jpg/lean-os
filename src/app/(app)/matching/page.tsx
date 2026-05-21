@@ -5,12 +5,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { runMatching, type MatchCandidate } from "@/lib/matching";
-import { threeWayMatch, markInvoiceMatched, type ThreeWayMatchResult } from "@/lib/tax-invoice";
+// threeWayMatch / ThreeWayMatchResult / markInvoiceMatched 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
 import { onRevenueReceived } from "@/lib/deal-pipeline";
 import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 
-type MainTab = "transaction" | "threeway" | "receivables";
+// threeway 탭은 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
+type MainTab = "transaction" | "receivables";
 type Tab = "auto" | "review" | "unmatched";
 type ReceivableFilter = "all" | "under30" | "30to60" | "60to90" | "over90";
 
@@ -57,8 +58,7 @@ export default function MatchingPage() {
   const [tab, setTab] = useState<Tab>("review");
   const [results, setResults] = useState<MatchCandidate[]>([]);
   const [running, setRunning] = useState(false);
-  const [threeWayResults, setThreeWayResults] = useState<ThreeWayMatchResult[]>([]);
-  const [threeWayRunning, setThreeWayRunning] = useState(false);
+  // threeWayResults / threeWayRunning state 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
   const [receivableFilter, setReceivableFilter] = useState<ReceivableFilter>("all");
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
   const [bulkApproving, setBulkApproving] = useState(false);
@@ -451,24 +451,8 @@ export default function MatchingPage() {
     );
   }
 
-  // ── 3-Way Matching ──
-  async function executeThreeWay() {
-    if (!companyId) return;
-    setThreeWayRunning(true);
-    try {
-      const results = await threeWayMatch(companyId);
-      setThreeWayResults(results);
-    } finally {
-      setThreeWayRunning(false);
-    }
-  }
-
-  async function handleMarkMatched(invoiceId: string) {
-    await markInvoiceMatched(invoiceId);
-    setThreeWayResults((prev) =>
-      prev.map((r) => r.invoiceId === invoiceId ? { ...r, fullMatch: true } : r)
-    );
-  }
+  // 3-Way Matching 로직 (executeThreeWay / handleMarkMatched / threeWayResults 정렬 등)
+  //   은 새 페이지(/reports/three-way-match) 로 이전됨 (2026-05-21).
 
   const filtered = results.filter((r) => r.status === tab);
   const autoCount = results.filter((r) => r.status === "auto").length;
@@ -478,20 +462,6 @@ export default function MatchingPage() {
   const txMap = new Map(transactions.map((t) => [t.id, t]));
   const revMap = new Map(revenues.map((r) => [r.id, r]));
   const costMap = new Map(costs.map((c) => [c.id, c]));
-
-  const fullMatchCount = threeWayResults.filter(r => r.fullMatch).length;
-  const recommendedCount = threeWayResults.filter(r => r.amountMatch && !r.fullMatch).length;
-  const partialCount = threeWayResults.filter(r => !r.fullMatch && (r.amountMatch || r.paymentMatch)).length;
-  const noMatchCount = threeWayResults.filter(r => !r.amountMatch && !r.paymentMatch).length;
-
-  // Sort: recommended (amountMatch but not fullMatch) first, then fullMatch, then rest
-  const sortedThreeWayResults = [...threeWayResults].sort((a, b) => {
-    if (a.fullMatch && !b.fullMatch) return -1;
-    if (!a.fullMatch && b.fullMatch) return 1;
-    if (a.amountMatch && !b.amountMatch) return -1;
-    if (!a.amountMatch && b.amountMatch) return 1;
-    return 0;
-  });
 
   if (txLoading) {
     return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -509,7 +479,7 @@ export default function MatchingPage() {
         <div>
           <h1 className="text-2xl font-extrabold">매칭 엔진</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            거래 자동 매칭 + 세금계산서 3-way 매칭 + 미수금 관리
+            거래 자동 매칭 + 미수금 관리 (3-Way 매칭은 분석 → 3-Way 매칭 페이지로 이전)
           </p>
         </div>
         <button
@@ -547,17 +517,7 @@ export default function MatchingPage() {
           </div>
           <div className="text-[10px] text-[var(--text-dim)] mt-0.5">검토 필요</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--primary)]/30 p-4">
-          <div className="text-[10px] text-[var(--primary)] uppercase tracking-wide">3-Way 완료율</div>
-          <div className="text-xl font-extrabold text-[var(--primary)] mt-1">
-            {threeWayResults.length > 0
-              ? `${Math.round((fullMatchCount / threeWayResults.length) * 100)}%`
-              : "—"}
-          </div>
-          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-            {fullMatchCount}/{threeWayResults.length}건
-          </div>
-        </div>
+        {/* 3-Way 완료율 KPI 는 새 페이지(/reports/three-way-match) 로 이전됨 (2026-05-21) */}
         <div className="bg-[var(--bg-card)] rounded-xl border border-yellow-500/30 p-4">
           <div className="text-[10px] text-yellow-400 uppercase tracking-wide">미수금 총액</div>
           <div className="text-xl font-extrabold text-yellow-400 mt-1">
@@ -574,12 +534,6 @@ export default function MatchingPage() {
             mainTab === "transaction" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
           }`}>
           거래 매칭
-        </button>
-        <button onClick={() => setMainTab("threeway")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            mainTab === "threeway" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          3-way 매칭
         </button>
         <button onClick={() => setMainTab("receivables")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -968,131 +922,6 @@ export default function MatchingPage() {
         </>
       )}
 
-      {/* ═══ 3-Way Matching Tab ═══ */}
-      {mainTab === "threeway" && (
-        <>
-          <div className="flex justify-end mb-6">
-            <button onClick={executeThreeWay} disabled={threeWayRunning}
-              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
-              {threeWayRunning ? "분석 중..." : "3-way 매칭 실행"}
-            </button>
-          </div>
-
-          {/* 3-Way Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-              <div className="text-xs text-[var(--text-dim)]">완전 매칭</div>
-              <div className="text-lg font-bold text-green-400 mt-1">{fullMatchCount}건</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">계약=계산서=입금</div>
-            </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-blue-500/30 p-4">
-              <div className="text-xs text-blue-400">추천 매칭</div>
-              <div className="text-lg font-bold text-blue-400 mt-1">{recommendedCount}건</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">계약금액=공급가액</div>
-            </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-              <div className="text-xs text-[var(--text-dim)]">부분 매칭</div>
-              <div className="text-lg font-bold text-yellow-400 mt-1">{partialCount}건</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">일부 항목만 일치</div>
-            </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-              <div className="text-xs text-[var(--text-dim)]">미매칭</div>
-              <div className="text-lg font-bold text-red-400 mt-1">{noMatchCount}건</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">확인 필요</div>
-            </div>
-          </div>
-
-          {threeWayResults.length === 0 ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
-              <div className="text-4xl mb-4">🔺</div>
-              <div className="text-lg font-bold mb-2">3-way 매칭을 실행하세요</div>
-              <div className="text-sm text-[var(--text-muted)]">
-                계약금액 ↔ 세금계산서 ↔ 입금액을 비교합니다.
-              </div>
-            </div>
-          ) : (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
-                <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">프로젝트</th>
-                    <th className="text-right px-5 py-3 font-medium">계약금액</th>
-                    <th className="text-right px-5 py-3 font-medium">세금계산서</th>
-                    <th className="text-right px-5 py-3 font-medium">입금액</th>
-                    <th className="text-right px-5 py-3 font-medium">차이</th>
-                    <th className="text-center px-5 py-3 font-medium">계약=계산서</th>
-                    <th className="text-center px-5 py-3 font-medium">계산서=입금</th>
-                    <th className="text-center px-5 py-3 font-medium">3-way</th>
-                    <th className="text-center px-5 py-3 font-medium">액션</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedThreeWayResults.map((r) => (
-                    <tr key={r.invoiceId} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] ${r.amountMatch && !r.fullMatch ? "bg-blue-500/5" : ""}`}>
-                      <td className="px-5 py-3 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          {r.dealName || "—"}
-                          {r.amountMatch && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30 font-semibold whitespace-nowrap">
-                              추천
-                            </span>
-                          )}
-                          {r.suggestedDeal && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 font-semibold whitespace-nowrap">
-                              금액 자동매칭
-                            </span>
-                          )}
-                        </div>
-                        {r.amountMatch && r.contractAmount > 0 && (
-                          <div className="text-[10px] text-blue-400 mt-0.5">
-                            계약금액 = 공급가액 ₩{r.contractAmount.toLocaleString()}
-                          </div>
-                        )}
-                        {r.suggestedDeal && (
-                          <div className="text-[10px] text-purple-400 mt-0.5">
-                            프로젝트 미연결 → 금액 기반 추천 매칭
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right">₩{r.contractAmount.toLocaleString()}</td>
-                      <td className="px-5 py-3 text-sm text-right">₩{r.invoiceAmount.toLocaleString()}</td>
-                      <td className="px-5 py-3 text-sm text-right">₩{r.receivedAmount.toLocaleString()}</td>
-                      <td className={`px-5 py-3 text-sm text-right font-medium ${r.gap > 0 ? "text-red-400" : r.gap < 0 ? "text-yellow-400" : "text-green-400"}`}>
-                        {r.gap > 0 ? "+" : ""}{r.gap.toLocaleString()}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`text-xs ${r.amountMatch ? "text-green-400" : "text-red-400"}`}>
-                          {r.amountMatch ? "O" : "X"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`text-xs ${r.paymentMatch ? "text-green-400" : "text-red-400"}`}>
-                          {r.paymentMatch ? "O" : "X"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          r.fullMatch ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-                        }`}>
-                          {r.fullMatch ? "MATCH" : "GAP"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        {r.fullMatch && (
-                          <button onClick={() => handleMarkMatched(r.invoiceId)}
-                            className="px-2 py-1 bg-green-500/10 text-green-400 rounded text-[10px] font-semibold hover:bg-green-500/20 transition">
-                            매칭확인
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table></div>
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }
