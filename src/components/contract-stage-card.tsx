@@ -244,6 +244,11 @@ export function ContractStageCard({
         </div>
       )}
 
+      {/* L 계약 승인 완료 — 서명된 계약서 회수 카드 */}
+      {approval?.status === "approved" && (
+        <SignedContractCard approval={approval} />
+      )}
+
       {/* 양식 선택 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
@@ -388,6 +393,58 @@ export function ContractStageCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SignedContractCard({ approval }: { approval: ApprovalLite }) {
+  const method = approval.signature_method || "none";
+  const methodLabel = method === "draw" ? "✍️ 손글씨 서명"
+                     : method === "type" ? "🖊 타이핑 서명"
+                     : method === "upload" || method === "seal" ? "🟥 도장/사인"
+                     : "서명 없음";
+  const signedAt = approval.signed_at_external
+    ? new Date(approval.signed_at_external).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+    : approval.decided_at
+      ? new Date(approval.decided_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+      : "—";
+  const hasHtml = approval.has_signed_html === true;
+  const hasPdfUrl = !!approval.signed_contract_url;
+
+  return (
+    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] font-bold text-emerald-400">✅ 계약 승인 완료 — 서명·날인 회수됨</div>
+      </div>
+      <div className="text-[11px] text-[var(--text)] space-y-0.5">
+        <div>{methodLabel}{approval.recipient_name ? ` · ${approval.recipient_name}` : ""}</div>
+        <div className="text-[10px] text-[var(--text-dim)]">{signedAt} (KST){approval.signer_ip ? ` · IP ${approval.signer_ip}` : ""}</div>
+      </div>
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {hasHtml && (
+          <a
+            href={`/contracts/signed/${approval.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-semibold transition"
+          >
+            📄 서명된 계약서 보기
+          </a>
+        )}
+        {hasPdfUrl && (
+          <a
+            href={approval.signed_contract_url!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-card)] text-[11px] font-semibold transition"
+          >
+            📎 PDF 다운로드
+          </a>
+        )}
+        {!hasHtml && !hasPdfUrl && (
+          <span className="text-[10px] text-[var(--text-dim)]">서명 본문이 회수되지 않았습니다.</span>
+        )}
+      </div>
     </div>
   );
 }

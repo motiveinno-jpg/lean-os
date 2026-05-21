@@ -36,6 +36,12 @@ export interface ApprovalLite {
   decision_note: string | null;
   recipient_email: string | null;
   recipient_name: string | null;
+  // L 계약 서명 (2026-05-21) — contract stage 승인 시 채워짐
+  signature_method?: 'draw' | 'type' | 'upload' | 'seal' | 'none' | null;
+  signed_at_external?: string | null;
+  signer_ip?: string | null;
+  has_signed_html?: boolean;          // signed_contract_html 존재 여부 (전체 본문은 별도 페이지에서 fetch)
+  signed_contract_url?: string | null; // PDF Storage URL (이번 라운드 NULL)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,7 +174,7 @@ export async function getLatestApproval(
   const { data, error } = await db
     .from('quote_approvals')
     .select(
-      'id, status, sent_at, viewed_at, decided_at, expires_at, decision_note, recipient_email, recipient_name',
+      'id, status, sent_at, viewed_at, decided_at, expires_at, decision_note, recipient_email, recipient_name, signature_method, signed_at_external, signer_ip, signed_contract_url, signed_contract_html',
     )
     .eq('deal_id', dealId)
     .eq('stage', stage)
@@ -180,7 +186,9 @@ export async function getLatestApproval(
     return null;
   }
   if (!data) return null;
-  return data as ApprovalLite;
+  // signed_contract_html 자체는 ApprovalLite 에 포함 안 함(용량 큼). has_signed_html 만 노출.
+  const { signed_contract_html, ...rest } = data as Record<string, unknown> & { signed_contract_html?: string | null };
+  return { ...rest, has_signed_html: !!signed_contract_html } as ApprovalLite;
 }
 
 // ──────────────────────────────────────────────────────────
