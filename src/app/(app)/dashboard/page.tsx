@@ -2962,16 +2962,21 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 const DEAL_ROLE_LABEL: Record<string, string> = {
   manager: "담당", reviewer: "검토", participant: "참여",
 };
+type EmpAssignedDeal = { id: string; name: string; status: string | null; my_role: string | null; created_at: string | null };
 function EmployeeProjectsWidget() {
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["emp-assigned-deals"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("get_my_assigned_deals");
       if (error) throw error;
-      return (data || []) as Array<{ id: string; name: string; status: string | null; my_role: string | null; created_at: string | null }>;
+      return (data || []) as EmpAssignedDeal[];
     },
     refetchInterval: 60_000,
   });
+
+  // 카드 클릭 시 read-only 상세 모달 — get_my_assigned_deals RPC 반환 컬럼만 표시
+  //   재무 컬럼(금액·마진·비용)은 RPC 가 애초에 미반환 → 직원 노출 0
+  const [openDeal, setOpenDeal] = useState<EmpAssignedDeal | null>(null);
 
   return (
     <div className="mb-4">
@@ -2992,7 +2997,11 @@ function EmployeeProjectsWidget() {
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {deals.map((d) => (
-              <div key={d.id} className="flex items-center gap-3 px-4 py-3">
+              <div
+                key={d.id}
+                onClick={() => setOpenDeal(d)}
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--bg-surface)] transition"
+              >
                 <span className="text-base shrink-0">📋</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-[var(--text)] truncate">{d.name}</div>
@@ -3005,6 +3014,7 @@ function EmployeeProjectsWidget() {
                     {DEAL_ROLE_LABEL[d.my_role] || d.my_role}
                   </span>
                 )}
+                <span className="text-[var(--text-dim)] text-xs">›</span>
               </div>
             ))}
           </div>
@@ -3013,6 +3023,51 @@ function EmployeeProjectsWidget() {
       <p className="text-[10px] text-[var(--text-dim)] mt-1.5">
         ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용).
       </p>
+
+      {/* 읽기 전용 상세 모달 — RPC 반환 비재무 컬럼만 표시 */}
+      {openDeal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => setOpenDeal(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] max-w-md w-full p-5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold flex items-center gap-2">📋 <span className="truncate">{openDeal.name}</span></h3>
+              <button onClick={() => setOpenDeal(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg leading-none shrink-0">✕</button>
+            </div>
+            <div className="space-y-2 text-xs">
+              {openDeal.status && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-dim)]">상태</span>
+                  <span className="text-[var(--text)] font-semibold">{openDeal.status}</span>
+                </div>
+              )}
+              {openDeal.my_role && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-dim)]">내 역할</span>
+                  <span className="text-[var(--primary)] font-semibold">
+                    {DEAL_ROLE_LABEL[openDeal.my_role] || openDeal.my_role}
+                  </span>
+                </div>
+              )}
+              {openDeal.created_at && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-dim)]">생성일</span>
+                  <span>{new Date(openDeal.created_at).toLocaleDateString('ko-KR')}</span>
+                </div>
+              )}
+              {/* get_my_assigned_deals RPC 가 반환하는 비재무 안전 컬럼만 표시.
+                  금액·마진·비용 등 재무 컬럼은 RPC 가 애초에 미반환 — 직원 노출 0. */}
+            </div>
+            <p className="text-[10px] text-[var(--text-dim)] mt-3 pt-3 border-t border-[var(--border)]">
+              ※ 직원은 읽기 전용. 상세 편집은 관리자/대표에게 문의하세요.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
