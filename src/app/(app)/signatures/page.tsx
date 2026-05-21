@@ -11,6 +11,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { friendlyError } from "@/lib/friendly-error";
 import Link from "next/link";
+// 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
 import {
@@ -39,6 +41,7 @@ export default function SignaturesDashboardPage() {
   }
   const { toast } = useToast();
   const qc = useQueryClient();
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | SignatureStatusValue>("all");
@@ -331,6 +334,14 @@ export default function SignaturesDashboardPage() {
                           🔗
                         </a>
                       )}
+                      {/* 단체일괄 개별 행 → /contracts/signed dual mode 진입 (변수 치환 본문 + PDF) */}
+                      <button
+                        onClick={() => router.push(`/contracts/signed/${r.id}`)}
+                        className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded hover:bg-blue-500/20"
+                        title="이 계약서 보기 / PDF 다운로드"
+                      >
+                        📄
+                      </button>
                       {r.status === 'signed' && (
                         <button
                           onClick={() => setViewSignedRow({
