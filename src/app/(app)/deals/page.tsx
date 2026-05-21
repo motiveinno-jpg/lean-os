@@ -1703,6 +1703,15 @@ function DealsPageInner() {
   const searchParams = useSearchParams(); const router = useRouter(); const selectedId = searchParams.get("id"); const programParam = searchParams.get("program");
   const { role } = useUser();
   const isPartner = role === "partner";
+
+  // 2026-05-21 사장님 요청: 옛 /deals?detail=<id> 또는 /deals?id=<id> 진입 (admin/owner/employee) 시
+  //   새 슬라이드 패널 /projects?deal=<id> 로 자동 리다이렉트. partner 만 옛 화면 유지 (외부 view).
+  const detailId = searchParams.get("detail") || (!isPartner && !programParam ? selectedId : null);
+  useEffect(() => {
+    if (detailId && !isPartner) {
+      router.replace(`/projects?deal=${detailId}`);
+    }
+  }, [detailId, isPartner, router]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

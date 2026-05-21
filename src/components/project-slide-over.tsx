@@ -281,6 +281,56 @@ function OverviewTab({ data, stage, isEmployeeLimited = false }: { data: PanelDa
   const deal = data.deal;
   const progress = STAGE_PROGRESS[stage] || 20;
 
+  // 2026-05-21 사장님 요청: 편집 버튼 → 옛 /deals?detail= 점프 X, 인라인 모달로 기본 정보 수정.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: deal.name || '',
+    contract_total: String(deal.contract_total || ''),
+    start_date: deal.start_date || '',
+    end_date: deal.end_date || '',
+    status: deal.status || 'active',
+    priority: deal.priority || 'medium',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const editQc = useQueryClient();
+  const { toast: editToast } = useToast();
+  const openEdit = () => {
+    setEditForm({
+      name: deal.name || '',
+      contract_total: String(deal.contract_total || ''),
+      start_date: deal.start_date || '',
+      end_date: deal.end_date || '',
+      status: deal.status || 'active',
+      priority: deal.priority || 'medium',
+    });
+    setEditOpen(true);
+  };
+  const submitEdit = async () => {
+    if (!editForm.name.trim()) { editToast('프로젝트명을 입력해 주세요', 'error'); return; }
+    setEditSaving(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { error } = await db.from('deals').update({
+        name: editForm.name.trim(),
+        contract_total: Number(editForm.contract_total) || 0,
+        start_date: editForm.start_date || null,
+        end_date: editForm.end_date || null,
+        status: editForm.status,
+        priority: editForm.priority,
+      }).eq('id', deal.id);
+      if (error) throw error;
+      editToast('프로젝트 정보가 수정되었습니다', 'success');
+      editQc.invalidateQueries({ queryKey: ['project-detail', deal.id] });
+      editQc.invalidateQueries({ queryKey: ['projects-deals'] });
+      setEditOpen(false);
+    } catch (e) {
+      editToast(friendlyError(e, '수정 실패'), 'error');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // STEP 4 (PR-E): 견적 단계 외부 승인 latest approval — getNextAction 에 prop 전달.
   //   estimate stage 만 의미 있음. 다른 stage 는 null 이라도 동작 동일.
   const [latestApproval, setLatestApproval] = useState<ApprovalLite | null>(null);
@@ -434,20 +484,94 @@ function OverviewTab({ data, stage, isEmployeeLimited = false }: { data: PanelDa
       </div>
 
       {/* 액션 버튼 */}
-      <div className="flex items-center gap-2">
-        <Link
-          href={`/deals?detail=${deal.id}`}
-          className="flex-1 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] text-center transition"
+      {!isEmployeeLimited && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openEdit}
+            className="flex-1 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] text-center transition"
+          >
+            편집
+          </button>
+        </div>
+      )}
+
+      {/* 인라인 편집 모달 — 옛 /deals?detail= 화면 대체 (2026-05-21 사장님 요청) */}
+      {editOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !editSaving && setEditOpen(false)}
         >
-          편집 (상세)
-        </Link>
-        <Link
-          href={`/deals?detail=${deal.id}&archive=1`}
-          className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] text-center transition"
-        >
-          아카이브
-        </Link>
-      </div>
+          <div
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="text-sm font-bold">프로젝트 정보 편집</div>
+              <button onClick={() => !editSaving && setEditOpen(false)} disabled={editSaving} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">프로젝트명 *</label>
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">계약금액 (원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editForm.contract_total ? Number(editForm.contract_total).toLocaleString('ko-KR') : ''}
+                  onChange={(e) => setEditForm({ ...editForm, contract_total: e.target.value.replace(/[^\d]/g, '') })}
+                  placeholder="5,000,000"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1">시작일</label>
+                  <input type="date" value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1">종료일</label>
+                  <input type="date" value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1">우선순위</label>
+                  <select value={editForm.priority} onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
+                    <option value="low">낮음</option>
+                    <option value="medium">보통</option>
+                    <option value="high">높음</option>
+                    <option value="urgent">긴급</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[var(--text-muted)] mb-1">상태</label>
+                  <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
+                    <option value="active">활성</option>
+                    <option value="paused">일시중지</option>
+                    <option value="completed">완료</option>
+                    <option value="cancelled">취소</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setEditOpen(false)} disabled={editSaving} className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg">취소</button>
+              <button onClick={submitEdit} disabled={editSaving || !editForm.name.trim()} className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold">
+                {editSaving ? '저장 중…' : '저장'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 고급 토글 (메타) */}
       {meta.hasAny && (
