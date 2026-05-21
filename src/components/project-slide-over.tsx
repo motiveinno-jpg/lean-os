@@ -529,6 +529,44 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
   const expectedSum = expected.reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
   const paidSum = paid.reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
 
+  // 2026-05-21 받을 돈 인라인 수금 입력 모달 (사장님 요청: 화면 이탈 X)
+  const moneyQc = useQueryClient();
+  const { toast: moneyToast } = useToast();
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentSaving, setPaymentSaving] = useState(false);
+
+  const submitPayment = async () => {
+    const amt = Number(paymentAmount);
+    if (!paymentDate) { moneyToast("받은 날짜를 입력해 주세요", "error"); return; }
+    if (!amt || amt <= 0) { moneyToast("금액은 1원 이상", "error"); return; }
+    setPaymentSaving(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db2 = supabase as any;
+      const { error } = await db2.from("deal_revenue_schedule").insert({
+        deal_id: dealId,
+        company_id: companyId,
+        status: "paid",
+        due_date: paymentDate,
+        amount: Math.round(amt),
+      });
+      if (error) throw error;
+      moneyToast(`수금 ₩${Math.round(amt).toLocaleString()} 추가됨`, "success");
+      // 패널 데이터 + 관련 영역 갱신 — 받을 돈 섹션 즉시 재계산
+      moneyQc.invalidateQueries({ queryKey: ["project-detail", dealId] });
+      moneyQc.invalidateQueries({ queryKey: ["deal-detail", dealId] });
+      setPaymentModalOpen(false);
+      setPaymentAmount("");
+      setPaymentDate(new Date().toISOString().slice(0, 10));
+    } catch (e) {
+      moneyToast(friendlyError(e, "수금 추가에 실패했습니다"), "error");
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
+
   const costSum = (data.costs || []).reduce((a: number, c: any) => a + Number(c.amount || 0), 0);
   const subSum = (data.subDeals || []).reduce((a: number, s: any) => a + Number(s.total_amount || 0), 0);
   const costTotal = costSum + subSum;
@@ -555,9 +593,14 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       <div id="sec-revenue" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-bold text-[var(--text-muted)]">받을 돈 (수금)</h3>
-          <Link href={`/deals?detail=${data.deal.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
-            편집 →
-          </Link>
+          <button
+            type="button"
+            onClick={() => setPaymentModalOpen(true)}
+            className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+            title="수금 추가 — 받은 날짜와 금액 입력"
+          >
+            + 수금 추가
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <KV label="계약가" value={`₩${contract.toLocaleString()}`} />
@@ -656,6 +699,81 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
           />
         </div>
       </div>
+
+      {/* 받을 돈 수금 추가 모달 (인라인) */}
+      {paymentModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !paymentSaving && setPaymentModalOpen(false)}
+        >
+          <div
+            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold">+ 수금 추가</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  받은 날짜·금액 입력 → 미수금·회수율 즉시 갱신
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !paymentSaving && setPaymentModalOpen(false)}
+                disabled={paymentSaving}
+                className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">받은 날짜</label>
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">받은 금액 (원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paymentAmount ? Number(paymentAmount).toLocaleString("ko-KR") : ""}
+                  onChange={(e) => setPaymentAmount(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="5,000,000"
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                />
+                {Number(paymentAmount) > 0 && (
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                    저장 후 미수금: ₩{Math.max(0, expectedSum - Number(paymentAmount)).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentModalOpen(false)}
+                disabled={paymentSaving}
+                className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitPayment}
+                disabled={paymentSaving || !paymentDate || !paymentAmount || Number(paymentAmount) <= 0}
+                className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold"
+              >
+                {paymentSaving ? "저장 중…" : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
