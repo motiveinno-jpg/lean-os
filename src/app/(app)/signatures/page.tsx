@@ -13,8 +13,6 @@ import { friendlyError } from "@/lib/friendly-error";
 import Link from "next/link";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
 import { useRouter } from "next/navigation";
-// 일괄 우리 서명 마법사 — SignatureCapture 재사용
-import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
 import {
@@ -56,11 +54,6 @@ export default function SignaturesDashboardPage() {
   const [page, setPage] = useState<number>(1);
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string } | null>(null);
-  // 일괄 우리 서명 마법사 (사용자 핵심 요구 — 단체발송본에 도장 일괄 적용)
-  const [bulkOurSignBatch, setBulkOurSignBatch] = useState<{ batch_id: string; ids: string[]; total: number } | null>(null);
-  const [bulkOurMethod, setBulkOurMethod] = useState<SignatureMethod | null>(null);
-  const [bulkOurDataUrl, setBulkOurDataUrl] = useState<string | null>(null);
-  const [bulkSubmitting, setBulkSubmitting] = useState(false);
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {
@@ -97,53 +90,8 @@ export default function SignaturesDashboardPage() {
     });
   }, [requests, statusFilter, search]);
 
-  // batch 별 진행 통계 — batch_id 묶음의 거래처 서명 완료·우리 서명 완료 카운트
-  //   사용자 호소: "우리도 계약서에 도장을 찍어야 되는데 어디서?"
-  //   거래처 서명 끝났는데 갑 서명 미완 행 N건 → "일괄 우리 서명" 버튼 노출
-  const batchStats = useMemo(() => {
-    type BatchStat = { batch_id: string; total: number; partner_signed: number; our_signed: number; pending_ids: string[] };
-    const map = new Map<string, BatchStat>();
-    for (const r of requests as any[]) {
-      if (!r.batch_id) continue;
-      const s: BatchStat = map.get(r.batch_id) || { batch_id: r.batch_id, total: 0, partner_signed: 0, our_signed: 0, pending_ids: [] };
-      s.total += 1;
-      if (r.status === 'signed') {
-        s.partner_signed += 1;
-        if (r.our_signed_at) s.our_signed += 1;
-        else s.pending_ids.push(r.id as string);
-      }
-      map.set(r.batch_id, s);
-    }
-    // 우리 서명 대기(거래처 서명 완료 행) 1+ 인 batch 만 노출
-    return Array.from(map.values())
-      .filter((b) => b.partner_signed > 0 && b.our_signed < b.partner_signed)
-      .sort((a, b) => (b.partner_signed - b.our_signed) - (a.partner_signed - a.our_signed));
-  }, [requests]);
-
-  const submitBulkOurSig = async () => {
-    if (!bulkOurSignBatch || !bulkOurMethod || !bulkOurDataUrl) return;
-    setBulkSubmitting(true);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: res, error } = await (supabase as any).rpc('submit_our_signature_bulk', {
-        p_signature_request_ids: bulkOurSignBatch.ids,
-        p_signature_method: bulkOurMethod,
-        p_signature_data_url: bulkOurDataUrl,
-        p_apply_to: 'partner_signed_only',
-      });
-      if (error) throw error;
-      if (res?.ok === false) throw new Error(res.code || '일괄 서명 실패');
-      toast(`✅ 우리 서명 ${res?.signed ?? 0}건 적용 · 스킵 ${res?.skipped ?? 0}건`, res?.signed > 0 ? 'success' : 'info');
-      setBulkOurSignBatch(null);
-      setBulkOurMethod(null);
-      setBulkOurDataUrl(null);
-      qc.invalidateQueries({ queryKey: ['signature-requests'] });
-    } catch (e) {
-      toast(friendlyError(e, '일괄 서명 실패'), 'error');
-    } finally {
-      setBulkSubmitting(false);
-    }
-  };
+  // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
+  //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: requests.length };
@@ -284,34 +232,6 @@ export default function SignaturesDashboardPage() {
           </>
         )}
       </div>
-
-      {/* 단체일괄 batch — 우리 서명 대기 알림 (사용자 핵심 요구) */}
-      {batchStats.length > 0 && (
-        <div className="mb-3 space-y-2">
-          {batchStats.map((b) => {
-            const pending = b.partner_signed - b.our_signed;
-            return (
-              <div
-                key={b.batch_id}
-                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30"
-              >
-                <div className="text-xs text-orange-200">
-                  📦 batch · 총 {b.total}건 · 거래처 서명 {b.partner_signed}건
-                  <span className="ml-2 font-semibold text-orange-300">
-                    · 우리 서명 대기 {pending}건
-                  </span>
-                </div>
-                <button
-                  onClick={() => setBulkOurSignBatch({ batch_id: b.batch_id, ids: b.pending_ids, total: pending })}
-                  className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition"
-                >
-                  📝 우리 서명 일괄 적용 ({pending}건)
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* 테이블 */}
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-x-auto">
@@ -586,60 +506,6 @@ export default function SignaturesDashboardPage() {
         </div>
       )}
 
-      {/* 일괄 우리 서명 마법사 — batch 의 거래처 서명 완료 행에 도장 일괄 적용 */}
-      {bulkOurSignBatch && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !bulkSubmitting && setBulkOurSignBatch(null)}
-        >
-          <div
-            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold">📝 일괄 우리 서명·도장 적용</div>
-                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                  거래처 서명 완료 <b className="text-orange-300">{bulkOurSignBatch.total}건</b>에
-                  같은 서명·도장이 일괄 적용됩니다.
-                </div>
-              </div>
-              <button
-                onClick={() => !bulkSubmitting && setBulkOurSignBatch(null)}
-                disabled={bulkSubmitting}
-                className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="px-5 py-3 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
-              💡 손글씨로 그리거나 회사 도장 이미지를 업로드하세요. 적용 후엔 각 계약서의
-              갑 박스에 표시됩니다. 이미 우리 서명된 행은 자동 스킵됩니다.
-            </div>
-            <div className="p-5">
-              <SignatureCapture
-                onChange={(m, d) => { setBulkOurMethod(m); setBulkOurDataUrl(d); }}
-              />
-            </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button
-                onClick={() => setBulkOurSignBatch(null)}
-                disabled={bulkSubmitting}
-                className="px-4 py-1.5 text-xs bg-[var(--bg)] text-[var(--text-muted)] rounded-lg"
-              >
-                취소
-              </button>
-              <button
-                onClick={submitBulkOurSig}
-                disabled={bulkSubmitting || !bulkOurMethod || !bulkOurDataUrl}
-                className="px-4 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg font-semibold"
-              >
-                {bulkSubmitting ? '적용 중...' : `${bulkOurSignBatch.total}건 일괄 적용`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
