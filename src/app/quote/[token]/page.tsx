@@ -430,8 +430,9 @@ export default function QuoteApprovalPage() {
             )}
           </section>
 
-          {/* L 계약: stage='contract' — 양식 본문(template_snapshot_html) 또는 PDF 직접 노출 */}
-          {row.stage === "contract" && (contractSnapshot.html || contractSnapshot.fileUrl) && (
+          {/* L 계약: stage='contract' — 양식 본문(template_snapshot_html) 또는 PDF 직접 노출.
+              2026-05-21 보강: 둘 다 null 일 때 fallback 메시지 (옛 견적/공백 회귀 차단) */}
+          {row.stage === "contract" && (
             <section>
               <Label>{stageLabel} 본문</Label>
               {contractSnapshot.html ? (
@@ -443,7 +444,21 @@ export default function QuoteApprovalPage() {
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 text-xs text-gray-700">
                   📎 PDF 양식 — <a href={contractSnapshot.fileUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-semibold">PDF 열어서 확인</a>
                 </div>
-              ) : null}
+              ) : (
+                <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-xs text-gray-500 text-center">
+                  계약서 본문이 등록되지 않았습니다. 발송자에게 문의하세요.
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 진척/완료/정산 stage — 다음 라운드 정식 본문 양식. 우선 stub 으로 빈 화면 회귀 차단 */}
+          {row.stage && !["estimate", "contract"].includes(row.stage) && (
+            <section>
+              <Label>{stageLabel}</Label>
+              <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-xs text-gray-500 text-center">
+                {stageLabel} 단계 본문은 준비 중입니다. 발송자에게 문의해 주세요.
+              </div>
             </section>
           )}
 
