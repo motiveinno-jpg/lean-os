@@ -164,27 +164,17 @@ export default function SignedContractPage() {
     );
   }
 
-  // 본문 우선순위 (2026-05-21 fallback 보강):
-  //   1) signed_contract_html (양측 서명 합성된 최종본)
-  //   2) payload.template_snapshot_html + signature_data_url 즉석 합성 — 단체일괄 합성 누락 fallback
+  // 본문 우선순위 (2026-05-21 푸터 합성 통합):
+  //   1) signed_contract_html (양측 서명 합성된 최종본) — 그대로
+  //   2) template_snapshot_html (변수 치환된 발송 시점 snapshot) — 그대로
   //   3) 친절 안내
-  const sigImg = row.signature_data_url
-    ? `<div style="margin-top:40px;text-align:right;page-break-inside:avoid">
-         <div style="display:inline-block">
-           <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
-           <img src="${row.signature_data_url}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>
-           <div style="font-size:10px;color:#9ca3af;margin-top:4px">
-             ${row.recipient_name || ""} · ${row.signed_at_external ? new Date(row.signed_at_external).toLocaleString('ko-KR') : ""}
-           </div>
-         </div>
-       </div>`
-    : "";
-  // template_snapshot_html: signature_requests 는 컬럼 직접, quote_approvals 는 payload 안 (loadSignedRow 가 통합)
+  // 본문 끝 sigImg append 제거: 페이지 측 갑/을 푸터(아래 JSX)가 서명 박스 책임.
+  //   이전 e251bcce 의 fallback append 가 푸터와 중복 표시되는 회귀 해소.
   const baseHtml = row.template_snapshot_html || row.payload?.template_snapshot_html || "";
   const html = row.signed_contract_html
     ? row.signed_contract_html
     : baseHtml
-      ? baseHtml + sigImg
+      ? baseHtml
       : "<div style='padding:40px;text-align:center;color:#6b7280'>서명된 계약서 본문이 저장되지 않았습니다. 발송자에게 문의하세요.</div>";
   const methodLabel = row.signature_method === "draw" ? "손글씨 서명"
                      : row.signature_method === "type" ? "타이핑 서명"
@@ -240,8 +230,10 @@ export default function SignedContractPage() {
         )}
       </div>
 
-      {/* 계약서 본문 (print-friendly) — 양식 안에 sig-box 이미 있으면 푸터 중복 회피 */}
-      <div className="bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0">
+      {/* 계약서 본문 (print-friendly) — 양식 안에 sig-box 이미 있으면 푸터 중복 회피.
+          globals.css 의 `body * { visibility: hidden }` 우회 — `.print-area` 만 visible.
+          PDF 저장 시 빈 백지 회귀 fix (2026-05-21). */}
+      <div className="print-area bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0 print:rounded-none print:m-0 print:w-full">
         <div dangerouslySetInnerHTML={{ __html: html }} />
 
         {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
