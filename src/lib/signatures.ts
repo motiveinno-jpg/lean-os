@@ -323,6 +323,14 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   commonVariables?: Record<string, string>;
   perPartnerOverrides?: Record<string /*partnerId*/, Record<string /*varName*/, string>>;
   sendEmails?: boolean;
+  /**
+   * chunk 완료마다 진행률 콜백 (100개+ 대량 발송 UI 진행률 바 용).
+   *   done: 지금까지 처리한 행 수 (성공+실패 포함)
+   *   total: 전체 행 수 (eligible 기준)
+   *   sent: 이메일 발송 성공 누계
+   *   failed: 발송 실패 누계
+   */
+  onProgress?: (info: { done: number; total: number; sent: number; failed: number }) => void;
 }): Promise<{
   batchId: string;
   created: number;
@@ -341,6 +349,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     commonVariables = {},
     perPartnerOverrides = {},
     sendEmails = true,
+    onProgress,
   } = params;
 
   const batchId = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
@@ -449,16 +458,23 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     }
   };
 
-  // CHUNK 3 — Resend/SendGrid 무료/저tier rate-limit(초당 2~3건) 안전선.
-  //   직전엔 5였는데 같은 도메인 동시 5건 호출 시 1건이 일시 거부되어 발송실패 1건 케이스 잦음.
-  //   sendSignatureEmail 자체에 1회 백오프 재시도가 더해져 실패율은 추가 감소.
-  const CHUNK = 3;
-  for (let i = 0; i < eligible.length; i += CHUNK) {
+  // 발송량 기반 chunk·간격 동적 조절 (2026-05-21, 504 인시던트 3차 후속).
+  //   ≤50: chunk 5 / 1초 — 소량은 빠르게
+  //   51~150: chunk 3 / 2초 — Resend/SendGrid 저tier 안전
+  //   151~400: chunk 2 / 3초 — 외부 API rate-limit 회피, 400개 ≈ 10분 분산
+  //   참고: 신규 trigger 추가 절대 금지 (504 재발 원인). 비동기 큐 신설 X (사용자 결정).
+  const total = eligible.length;
+  const CHUNK = total <= 50 ? 5 : total <= 150 ? 3 : 2;
+  const INTERVAL_MS = total <= 50 ? 1000 : total <= 150 ? 2000 : 3000;
+  let processed = 0;
+  for (let i = 0; i < total; i += CHUNK) {
     const slice = eligible.slice(i, i + CHUNK);
     await Promise.allSettled(slice.map(runOne));
-    // chunk 사이 짧은 간격 — rate-limit 윈도 회피
-    if (i + CHUNK < eligible.length) {
-      await new Promise((r) => setTimeout(r, 250));
+    processed += slice.length;
+    onProgress?.({ done: processed, total, sent: sentCount, failed: failedCount });
+    // chunk 사이 간격 — rate-limit 윈도 회피
+    if (i + CHUNK < total) {
+      await new Promise((r) => setTimeout(r, INTERVAL_MS));
     }
   }
 

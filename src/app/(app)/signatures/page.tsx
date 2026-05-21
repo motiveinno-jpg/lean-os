@@ -647,6 +647,8 @@ function OrgBulkWizard({
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [submitting, setSubmitting] = useState(false);
+  // 100개+ 대량 발송 진행률 (chunk 완료마다 갱신)
+  const [progress, setProgress] = useState<{ done: number; total: number; sent: number; failed: number } | null>(null);
 
   // Step 1: 계약서 선택
   const [docId, setDocId] = useState<string>("");
@@ -801,9 +803,20 @@ function OrgBulkWizard({
     return true;
   })();
 
+  // 발송 예측 헬퍼 (signatures.ts L390 동적 chunk 와 동일 기준)
+  const chunkSizeFor = (n: number) => n <= 50 ? 5 : n <= 150 ? 3 : 2;
+  const intervalSecFor = (n: number) => n <= 50 ? 1 : n <= 150 ? 2 : 3;
+  const estimateMinutes = (n: number) => {
+    if (n <= 0) return 0;
+    const chunk = chunkSizeFor(n);
+    const interval = intervalSecFor(n);
+    return Math.max(1, Math.ceil((n / chunk) * interval / 60));
+  };
+
   const submit = async () => {
     if (!docId || selectedPartners.length === 0) return;
     setSubmitting(true);
+    setProgress({ done: 0, total: selectedPartners.length, sent: 0, failed: 0 });
     try {
       // variableMap → 빈 값('') 키는 commonVariables 쪽으로 보냄
       const finalMap: Record<string, PartnerVarColumn> = {};
@@ -821,6 +834,7 @@ function OrgBulkWizard({
         commonVariables,
         perPartnerOverrides,
         sendEmails: sendNow,
+        onProgress: (info) => setProgress(info),
       });
       // 실패/스킵이 있으면 첫 1~2건 사유까지 toast 에 포함 (사용자가 어디서 막혔는지 즉시 인지)
       const partnerNameMap = new Map(selectedPartners.map((p) => [p.id, p.name]));
@@ -844,6 +858,7 @@ function OrgBulkWizard({
       toast(friendlyError(e, "일괄 발송에 실패했습니다"), "error");
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   };
 
@@ -1222,8 +1237,42 @@ function OrgBulkWizard({
                 <div className="p-3 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 text-xs text-[var(--text)]">
                   총 <b>{selectedPartners.length}곳</b>에 발송됩니다. (이메일 미등록 거래처는 자동 스킵)
                 </div>
+
+                {/* 발송 예측 (504 인시던트 3차 후속 — 대량 발송 사전 안내) */}
+                <div className="mt-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs">
+                  <div className="font-semibold mb-1">📊 발송 예측</div>
+                  <ul className="space-y-0.5">
+                    <li>· 거래처: {selectedPartners.length}개 (이메일 미등록 자동 스킵 후 실 발송 기준)</li>
+                    <li>· 예상 소요: 약 {estimateMinutes(selectedPartners.length)}분</li>
+                    <li>· chunk: {chunkSizeFor(selectedPartners.length)}건 동시 × 간격 {intervalSecFor(selectedPartners.length)}초</li>
+                    <li>· 이메일 발송 한도(Resend 등): 시간당 한도 초과 시 일부 지연 가능</li>
+                    {selectedPartners.length > 200 && (
+                      <li className="text-yellow-300">⚠️ 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
+                    )}
+                  </ul>
+                </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* 진행률 바 (submitting + progress 있을 때만 — 100개+ 대량 발송 가시화) */}
+        {submitting && progress && progress.total > 0 && (
+          <div className="mt-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-[var(--text)] font-semibold">
+                거래처 발송 중... {progress.done} / {progress.total} ({Math.round((progress.done / progress.total) * 100)}%)
+              </span>
+              <span className="text-[var(--text-muted)]">
+                성공 {progress.sent} · 실패 {progress.failed}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[var(--primary)] transition-all duration-300"
+                style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+              />
+            </div>
           </div>
         )}
 
