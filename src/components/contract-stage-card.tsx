@@ -29,6 +29,7 @@ import {
   buildContractVarsFromDeal,
   type ContractTemplate,
 } from "@/lib/contract-templates";
+import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 
 type QuoteItem = {
   name?: string;
@@ -81,9 +82,16 @@ export function ContractStageCard({
   const [vars, setVars] = useState<Record<string, string>>({});
   const [recipientEmailInput, setRecipientEmailInput] = useState(partnerEmail);
   const [sending, setSending] = useState(false);
-  const [companyInfo, setCompanyInfo] = useState<{ name: string; representative: string | null; business_number: string | null }>({ name: "", representative: null, business_number: null });
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; representative: string | null; business_number: string | null; seal_url: string | null }>({ name: "", representative: null, business_number: null, seal_url: null });
   const [partnerRep, setPartnerRep] = useState<string | null>(null);
   const [partnerBiz, setPartnerBiz] = useState<string | null>(null);
+
+  // L 양방향: 갑(우리) 서명 모달 상태 — pending_our_signature → fully_signed 전환
+  const [showOurSignModal, setShowOurSignModal] = useState(false);
+  const [ourSignatureMethod, setOurSignatureMethod] = useState<SignatureMethod | null>(null);
+  const [ourSignatureDataUrl, setOurSignatureDataUrl] = useState<string | null>(null);
+  const [ourSubmitting, setOurSubmitting] = useState(false);
+  const [ourErrMsg, setOurErrMsg] = useState<string | null>(null);
 
   // 양식 + 회사/거래처 정보 초기 로드
   useEffect(() => {
@@ -96,8 +104,8 @@ export function ContractStageCard({
         }
       } catch (e) { reportError("contract.templates.list", e); }
       try {
-        const { data: co } = await (supabase as any).from("companies").select("name, representative, business_number").eq("id", companyId).maybeSingle();
-        if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null, business_number: co.business_number || null });
+        const { data: co } = await (supabase as any).from("companies").select("name, representative, business_number, seal_url").eq("id", companyId).maybeSingle();
+        if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null, business_number: co.business_number || null, seal_url: co.seal_url || null });
       } catch { /* ignore */ }
       if (partnerId) {
         try {
@@ -254,9 +262,94 @@ export function ContractStageCard({
         </div>
       )}
 
-      {/* L 계약 승인 완료 — 서명된 계약서 회수 카드 */}
-      {approval?.status === "approved" && (
+      {/* L 양방향: 거래처 서명 완료 — 우리(갑) 서명 대기 */}
+      {approval?.status === "pending_our_signature" && (
+        <PendingOurSignatureCard
+          approval={approval}
+          onClick={() => { setOurErrMsg(null); setShowOurSignModal(true); }}
+        />
+      )}
+
+      {/* L 계약 — 양측 서명 완료 (최종) 또는 우리 측 단방향 승인 완료 */}
+      {(approval?.status === "fully_signed" || approval?.status === "approved") && (
         <SignedContractCard approval={approval} />
+      )}
+
+      {/* L 양방향: 우리(갑) 서명 모달 */}
+      {showOurSignModal && approval && (
+        <OurSignatureModal
+          approval={approval}
+          companyInfo={companyInfo}
+          partnerName={partnerName}
+          partnerRep={partnerRep}
+          partnerBiz={partnerBiz}
+          ourSignatureMethod={ourSignatureMethod}
+          ourSignatureDataUrl={ourSignatureDataUrl}
+          submitting={ourSubmitting}
+          errMsg={ourErrMsg}
+          onCapture={(m, u) => { setOurSignatureMethod(m); setOurSignatureDataUrl(u); }}
+          onClose={() => setShowOurSignModal(false)}
+          onSubmit={async () => {
+            if (!ourSignatureMethod || !ourSignatureDataUrl) {
+              setOurErrMsg("서명 또는 도장을 추가해 주세요");
+              return;
+            }
+            setOurSubmitting(true); setOurErrMsg(null);
+            try {
+              // 양측 서명 합성 HTML — 기존 signed_contract_html (을 서명까지) 끝에 갑(우리) 서명 카드 append
+              const baseHtml = await fetchSignedHtml(approval.id);
+              const sealLabel = ourSignatureMethod === "draw" ? "손글씨 서명"
+                              : ourSignatureMethod === "type" ? "타이핑 서명"
+                              : "도장/사인";
+              const signedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+              const ourBlock = `\n\n<div style="margin-top:16px;padding:20px;border:2px solid #16a34a;border-radius:12px;background:#f0fdf4">
+  <div style="font-size:11px;color:#15803d;margin-bottom:8px;font-weight:bold">✍️ 우리(갑) 서명 / 날인</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:bold;color:#111827">${companyInfo.name || "회사"}</div>
+      ${companyInfo.business_number ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">사업자등록번호 ${companyInfo.business_number}</div>` : ""}
+      ${companyInfo.representative ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">대표 ${companyInfo.representative}</div>` : ""}
+      <div style="font-size:11px;color:#6b7280;margin-top:4px">${sealLabel} · ${signedAt} (KST)</div>
+    </div>
+    <div style="border:1px solid #d1fae5;background:white;padding:6px;border-radius:6px">
+      <img src="${ourSignatureDataUrl}" alt="우리 서명" style="max-height:90px;max-width:200px;display:block" />
+    </div>
+  </div>
+</div>`;
+              const fullySignedHtml = (baseHtml || "") + ourBlock;
+              const { data, error } = await (supabase as any).rpc("submit_our_signature", {
+                p_approval_id: approval.id,
+                p_signature_method: ourSignatureMethod,
+                p_signature_data_url: ourSignatureDataUrl,
+                p_signed_contract_html: fullySignedHtml,
+                p_fully_signed_contract_url: null,
+              });
+              if (error) throw error;
+              const res = (data || {}) as { ok?: boolean; code?: string };
+              if (!res.ok) {
+                const codeMap: Record<string, string> = {
+                  forbidden: "권한이 없습니다. 회사 관리자만 서명 가능합니다.",
+                  wrong_status: "이미 처리된 상태입니다.",
+                  not_found: "계약서를 찾을 수 없습니다.",
+                  unauth: "로그인이 필요합니다.",
+                };
+                setOurErrMsg(codeMap[res.code || ""] || "서명 처리에 실패했습니다.");
+                setOurSubmitting(false);
+                return;
+              }
+              const latest = await getLatestApproval(dealId, "contract");
+              if (latest) onApprovalChange(latest);
+              queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
+              toast("계약 최종 성립 — 양측 서명 완료", "success");
+              setShowOurSignModal(false);
+              setOurSignatureMethod(null);
+              setOurSignatureDataUrl(null);
+            } catch (e: unknown) {
+              setOurErrMsg(friendlyError(e, "서명 처리에 실패했습니다."));
+            }
+            setOurSubmitting(false);
+          }}
+        />
       )}
 
       {/* 양식 선택 */}
@@ -403,6 +496,130 @@ export function ContractStageCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// L 양방향: signed_contract_html fetch (RLS quote_approvals_select_admin_or_self 통과)
+async function fetchSignedHtml(approvalId: string): Promise<string> {
+  try {
+    const { data } = await (supabase as any)
+      .from("quote_approvals")
+      .select("signed_contract_html")
+      .eq("id", approvalId)
+      .maybeSingle();
+    return (data?.signed_contract_html as string) || "";
+  } catch {
+    return "";
+  }
+}
+
+function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite; onClick: () => void }) {
+  const partnerMethod = approval.signature_method;
+  const partnerMethodLabel = partnerMethod === "draw" ? "손글씨 서명"
+                            : partnerMethod === "type" ? "타이핑 서명"
+                            : partnerMethod === "upload" || partnerMethod === "seal" ? "도장/사인"
+                            : "서명";
+  const signedAt = approval.signed_at_external
+    ? new Date(approval.signed_at_external).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+    : "—";
+  return (
+    <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 space-y-2">
+      <div className="text-[12px] font-bold text-orange-400">✍️ 거래처 서명 완료 — 우리(갑) 서명 대기</div>
+      <div className="text-[11px] text-[var(--text)]">
+        거래처가 {partnerMethodLabel}으로 승인했습니다 ({signedAt} KST).
+        이제 우리 측 서명·도장 후 계약이 최종 성립됩니다.
+      </div>
+      <button
+        type="button"
+        onClick={onClick}
+        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition"
+      >
+        📝 우리 서명·도장 추가
+      </button>
+    </div>
+  );
+}
+
+function OurSignatureModal({
+  companyInfo, partnerName, partnerRep, partnerBiz,
+  ourSignatureMethod, ourSignatureDataUrl, submitting, errMsg,
+  onCapture, onClose, onSubmit,
+}: {
+  approval: ApprovalLite;
+  companyInfo: { name: string; representative: string | null; business_number: string | null; seal_url: string | null };
+  partnerName: string; partnerRep: string | null; partnerBiz: string | null;
+  ourSignatureMethod: SignatureMethod | null;
+  ourSignatureDataUrl: string | null;
+  submitting: boolean;
+  errMsg: string | null;
+  onCapture: (m: SignatureMethod | null, u: string | null) => void;
+  onClose: () => void;
+  onSubmit: () => void | Promise<void>;
+}) {
+  // C: 회사 직인(companies.seal_url) 자동 채움 옵션
+  const [usingDefaultSeal, setUsingDefaultSeal] = useState(false);
+  function applyDefaultSeal() {
+    if (!companyInfo.seal_url) return;
+    setUsingDefaultSeal(true);
+    // SignatureMethod 에 'seal' 없음 — 'upload' 로 표현 (이미 이미지 dataUrl/url 형식)
+    onCapture("upload", companyInfo.seal_url);
+  }
+  void partnerName; void partnerRep; void partnerBiz;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-900">우리(갑) 서명 / 날인</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+        </div>
+        <p className="text-xs text-gray-600 mb-4">
+          서명·도장 추가 후 "최종 성립" 클릭 시 계약 stage 가 자동 전환됩니다.
+          (회사: <strong>{companyInfo.name || "—"}</strong>{companyInfo.representative ? ` · 대표 ${companyInfo.representative}` : ""})
+        </p>
+
+        {companyInfo.seal_url && (
+          <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={companyInfo.seal_url} alt="기본 직인" className="w-12 h-12 object-contain bg-white rounded" />
+            <div className="flex-1 text-[11px] text-emerald-900">
+              <div className="font-semibold">회사 기본 직인 등록됨</div>
+              <div className="text-emerald-700">한 번 클릭으로 자동 적용</div>
+            </div>
+            <button
+              type="button"
+              onClick={applyDefaultSeal}
+              className={`px-3 py-1.5 rounded text-[11px] font-bold transition ${
+                usingDefaultSeal
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
+              }`}
+            >
+              {usingDefaultSeal ? "✓ 적용됨" : "직인 자동 적용"}
+            </button>
+          </div>
+        )}
+
+        <SignatureCapture
+          defaultTypeName={companyInfo.representative || ""}
+          onChange={(m, u) => { setUsingDefaultSeal(false); onCapture(m, u); }}
+        />
+
+        {errMsg && <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{errMsg}</div>}
+
+        <div className="mt-5 flex gap-2 justify-end pt-3 border-t border-gray-200">
+          <button type="button" onClick={onClose} disabled={submitting}
+            className="px-4 py-2 rounded-lg text-xs text-gray-600 hover:text-gray-900 transition">취소</button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting || !ourSignatureDataUrl}
+            className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition"
+          >
+            {submitting ? "처리 중…" : "✅ 최종 성립 (계약 완료)"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

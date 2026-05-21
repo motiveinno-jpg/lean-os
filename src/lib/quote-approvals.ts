@@ -24,7 +24,8 @@ import { supabase } from '@/lib/supabase';
 import { reportError } from '@/lib/friendly-error';
 
 export type QuoteApprovalStage = 'estimate' | 'contract' | 'progress_report' | 'completion' | 'settlement';
-export type QuoteApprovalStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'rejected' | 'expired';
+export type QuoteApprovalStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'rejected' | 'expired'
+  | 'pending_our_signature' | 'fully_signed';  // L 양방향: 계약서 단계 우리(갑) 서명 대기/완료
 
 export interface ApprovalLite {
   id: string;
@@ -42,6 +43,10 @@ export interface ApprovalLite {
   signer_ip?: string | null;
   has_signed_html?: boolean;          // signed_contract_html 존재 여부 (전체 본문은 별도 페이지에서 fetch)
   signed_contract_url?: string | null; // PDF Storage URL (이번 라운드 NULL)
+  // L 양방향 (2026-05-21) — 갑(우리) 서명
+  our_signature_method?: 'draw' | 'type' | 'upload' | 'seal' | 'none' | null;
+  our_signed_at?: string | null;
+  fully_signed_contract_url?: string | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,7 +179,7 @@ export async function getLatestApproval(
   const { data, error } = await db
     .from('quote_approvals')
     .select(
-      'id, status, sent_at, viewed_at, decided_at, expires_at, decision_note, recipient_email, recipient_name, signature_method, signed_at_external, signer_ip, signed_contract_url, signed_contract_html',
+      'id, status, sent_at, viewed_at, decided_at, expires_at, decision_note, recipient_email, recipient_name, signature_method, signed_at_external, signer_ip, signed_contract_url, signed_contract_html, our_signature_method, our_signed_at, fully_signed_contract_url',
     )
     .eq('deal_id', dealId)
     .eq('stage', stage)
@@ -279,6 +284,8 @@ export const STATUS_LABEL: Record<QuoteApprovalStatus, string> = {
   approved: '승인됨',
   rejected: '거절됨',
   expired: '만료',
+  pending_our_signature: '우리 서명 대기',
+  fully_signed: '최종 성립',
 };
 
 export const STATUS_TONE: Record<QuoteApprovalStatus, 'neutral' | 'info' | 'positive' | 'warn' | 'negative'> = {
@@ -288,4 +295,6 @@ export const STATUS_TONE: Record<QuoteApprovalStatus, 'neutral' | 'info' | 'posi
   approved: 'positive',
   rejected: 'negative',
   expired: 'warn',
+  pending_our_signature: 'warn',
+  fully_signed: 'positive',
 };
