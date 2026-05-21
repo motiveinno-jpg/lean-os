@@ -287,6 +287,7 @@ function SignContent() {
 
       if (!p) {
         // Fallback: check general document signature_requests
+        //   2026-05-21 단체일괄 본문 치환: partner_id 도 select → 거래처별 본문 변수 치환
         const { data: sigReq } = await db
           .from("signature_requests")
           .select("*, documents(name, content_json, status, company_id)")
@@ -295,12 +296,54 @@ function SignContent() {
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
-          // Get company name
-          const { data: company } = await db
-            .from("companies")
-            .select("name")
-            .eq("id", sigReq.documents?.company_id || sigReq.company_id)
-            .maybeSingle();
+          // companies (갑) + partners (을) 동시 조회 — 본문 변수 치환용
+          const companyId = sigReq.documents?.company_id || sigReq.company_id;
+          const [{ data: company }, { data: partner }] = await Promise.all([
+            db.from("companies").select("name, business_number, representative, address").eq("id", companyId).maybeSingle(),
+            sigReq.partner_id
+              ? db.from("partners").select("name, business_number, representative, contact_name, contact_email, contact_phone, address").eq("id", sigReq.partner_id).maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
+
+          // 본문 변수 치환 — content_json.body 안의 {{갑_*}} / {{을_*}} 토큰을 회사·거래처 데이터로 채움.
+          //   단체일괄 발송 시 createBulkSignatureRequestsToOrgs 가 title 만 치환하고 본문은 untouched.
+          //   거래처가 토큰 그대로 보거나 빈 화면 받는 회귀를 표시 단에서 흡수.
+          //   regex: {{var}} 또는 {var} 모두 허용 (양식 작성자 패턴 다양성).
+          const fillBody = (body: unknown): unknown => {
+            if (typeof body !== "string") return body;
+            const c = company || {};
+            const pn = partner || {};
+            const replacements: Record<string, string> = {
+              // 갑 (우리 회사)
+              "갑_회사명": String(c.name || ""),
+              "갑_사업자번호": String(c.business_number || ""),
+              "갑_대표자": String(c.representative || ""),
+              "갑_주소": String(c.address || ""),
+              "company_name": String(c.name || ""),
+              // 을 (거래처)
+              "을_회사명": String(pn.name || ""),
+              "을_단체명": String(pn.name || ""),
+              "을_사업자번호": String(pn.business_number || ""),
+              "을_대표자": String(pn.representative || ""),
+              "을_담당자": String(pn.contact_name || ""),
+              "을_이메일": String(pn.contact_email || ""),
+              "을_연락처": String(pn.contact_phone || ""),
+              "을_전화": String(pn.contact_phone || ""),
+              "을_주소": String(pn.address || ""),
+              "partner_name": String(pn.name || ""),
+            };
+            return body.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
+              const k = String(key).trim();
+              if (k in replacements) return replacements[k];
+              return full; // 매핑 없는 토큰은 원형 유지 (오타 발견용)
+            });
+          };
+          const filledContentJson = sigReq.documents?.content_json
+            ? { ...sigReq.documents.content_json, body: fillBody(sigReq.documents.content_json.body) }
+            : sigReq.documents?.content_json;
+          const filledDocuments = sigReq.documents
+            ? { ...sigReq.documents, content_json: filledContentJson }
+            : sigReq.documents;
 
           setPkg({
             id: sigReq.id,
@@ -309,7 +352,7 @@ function SignContent() {
             expired,
             companies: company || { name: "" },
             employees: { name: sigReq.signer_name, email: sigReq.signer_email, department: "", position: "" },
-            items: sigReq.documents ? [{ id: sigReq.id, title: sigReq.documents.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: sigReq.documents, sort_order: 0 }] : [],
+            items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0 }] : [],
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
           } as any);
