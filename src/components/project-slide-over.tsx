@@ -704,6 +704,7 @@ type ApprovalRow = {
   recipient_email: string | null;
   signed_contract_url: string | null;
   fully_signed_contract_url: string | null;
+  updated_at?: string | null;
 };
 
 type ActivityEvent = {
@@ -759,9 +760,9 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
     );
   }, [data.auditLogs, approvalEvents]);
 
-  // 서명본 파일 (quote_approvals stage 별) — documents 와 통합 표시.
-  //   2026-05-21: URL 없는 approved 행도 /contracts/signed/[id] 페이지 진입 가능
-  //   (dual mode + snapshot 표시). stage 별 아이콘 강화.
+  // 파일 섹션 (quote_approvals stage 별 모든 상태) — 사장님 요청 v5 Q1·Q2.
+  //   draft (저장만) / sent / viewed / approved / fully_signed 모두 표시.
+  //   stage 별 아이콘 + status 라벨로 사용자 구분.
   const STAGE_ICON: Record<string, string> = {
     estimate: '📋',
     contract: '📝',
@@ -769,17 +770,28 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
     completion: '✅',
     settlement: '💰',
   };
+  const STATUS_LABEL_KO: Record<string, string> = {
+    draft: '임시저장',
+    sent: '발송됨',
+    viewed: '거래처 확인',
+    approved: '승인됨',
+    rejected: '거절',
+    fully_signed: '양측 서명',
+  };
   const signedFiles = useMemo(() => {
-    const arr: { id: string; name: string; icon: string; href: string; at: string }[] = [];
+    const arr: { id: string; name: string; icon: string; href: string; at: string; status: string }[] = [];
     approvals.forEach((a) => {
       const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
       const recipient = a.recipient_name || a.recipient_email || '거래처';
+      const statusKo = STATUS_LABEL_KO[a.status] || a.status;
       arr.push({
         id: a.id,
-        name: `${stageLabel} (${recipient})`,
+        name: `${stageLabel} · ${recipient}`,
         icon: STAGE_ICON[a.stage] || '📄',
         href: `/contracts/signed/${a.id}`,
-        at: a.our_signed_at || a.decided_at || a.sent_at || '',
+        // 시점: 최신 활동 우선 (our_signed > decided > sent > updated)
+        at: a.our_signed_at || a.decided_at || a.sent_at || a.updated_at || '',
+        status: statusKo,
       });
     });
     return arr;
@@ -834,12 +846,15 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
             {signedFiles.map((f) => (
               <li
                 key={`signed-${f.id}`}
-                className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
               >
-                <Link href={f.href} className="flex items-center gap-2 min-w-0 hover:underline">
+                <Link href={f.href} className="flex items-center gap-2 min-w-0 hover:underline flex-1">
                   <span>{f.icon}</span>
                   <span className="text-[var(--text)] truncate">{f.name}</span>
                 </Link>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">
+                  {f.status}
+                </span>
                 <span className="text-[10px] text-[var(--text-dim)] shrink-0">
                   {f.at ? new Date(f.at).toLocaleDateString("ko-KR") : ""}
                 </span>

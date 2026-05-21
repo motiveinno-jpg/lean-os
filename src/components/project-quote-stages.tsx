@@ -175,9 +175,33 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       const scope = { ...((deal?.custom_scope as any) || {}), quoteItems: items, paymentStages: stages, quoteContent: content };
       const { error } = await (supabase as any).from("deals").update({ custom_scope: scope }).eq("id", dealId);
       if (error) throw error;
+
+      // 2026-05-21 v5 Q1·Q2: 활동탭 파일 섹션에 저장 즉시 표시되도록 quote_approvals draft upsert
+      //   기존 draft 있으면 payload 갱신, 없으면 createApproval (status='draft')
+      //   stage 가 'estimate' 일 때만 동작 (이 컴포넌트의 책임). contract 는 contract-stage-card 가 처리.
+      try {
+        const payload = { items, paymentStages: stages, quoteContent: content };
+        if (approval?.id && approval.status === 'draft') {
+          await (supabase as any)
+            .from('quote_approvals')
+            .update({ payload })
+            .eq('id', approval.id);
+        } else if (!approval) {
+          const created = await createApproval({ dealId, stage, payload, partnerId });
+          // 신규 draft 가 만들어졌으니 상위에 알림 (activity / file 섹션 invalidate 후 노출)
+          const latest = await getLatestApproval(dealId, stage);
+          if (latest) setApproval(latest);
+          void created;
+        }
+      } catch (e) {
+        reportError("quote.save.draft.upsert", e);
+        // draft upsert 실패해도 save 자체는 성공 (custom_scope 저장은 이미 완료)
+      }
+
       toast("견적 품목 / 결제 단계가 저장되었습니다", "success");
       queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
       queryClient.invalidateQueries({ queryKey: ["deal-detail", dealId] });
+      queryClient.invalidateQueries({ queryKey: ["deal-approvals", dealId] });
       // STEP 4: 저장 성공 시 자동 preview 전환
       setMode("preview");
     } catch (e: unknown) {

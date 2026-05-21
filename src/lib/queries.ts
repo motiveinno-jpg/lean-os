@@ -2193,13 +2193,13 @@ export async function getProjectDetail(dealId: string, companyId: string) {
       .eq('entity_id', dealId)
       .order('created_at', { ascending: false })
       .limit(10),
-    // 파일 섹션 통합 (2026-05-21): stage 별 서명본 (견적·계약·진척·완료·정산)
-    //   approved/fully_signed 만 — 발송된 draft·sent·viewed 는 파일이 아님
+    // 파일 섹션 통합 (2026-05-21 v5): stage 별 모든 상태 표시 (저장만 한 draft 포함)
+    //   사장님 요청: "진척보고서가 저장이되면 옆에 활동탭에 파일에 쌓여야돼" / "계약서랑 견적서 여전히 저장안되고"
+    //   → draft/sent/viewed/approved/fully_signed 모두 표시. status 별 라벨로 사용자 구분
     db.from('quote_approvals')
-      .select('id, stage, status, recipient_name, recipient_email, sent_at, decided_at, created_at')
+      .select('id, stage, status, recipient_name, recipient_email, sent_at, decided_at, our_signed_at, updated_at')
       .eq('deal_id', dealId)
-      .in('status', ['approved', 'fully_signed'])
-      .order('decided_at', { ascending: false }),
+      .order('updated_at', { ascending: false }),
   ]);
 
   // partner 후처리: deal.partner_id 있으면 1회 추가 조회 (slowpath, 사용자 수 적음)
