@@ -183,6 +183,12 @@ export function ContractStageCard({
     const email = recipientEmailInput.trim();
     if (!email) { toast("거래처 이메일을 입력해 주세요", "error"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("올바른 이메일 형식이 아닙니다", "error"); return; }
+    // 본문 보장 가드 (2026-05-21): renderedHtml 비어있고 PDF 도 없으면 거래처가 빈 화면 받음
+    const isPdf = selectedTemplate.file_type === "pdf" && !!selectedTemplate.file_url;
+    if (!isPdf && !renderedHtml.trim()) {
+      toast("계약서 본문이 비어있습니다. 양식 body 또는 변수 값을 확인해 주세요", "error");
+      return;
+    }
     setSending(true);
     try {
       const payload = buildPayload();
@@ -192,6 +198,26 @@ export function ContractStageCard({
         const created = await createApproval({ dealId, stage: "contract", payload, partnerId });
         approvalId = created.id;
         token = created.token;
+      } else {
+        // 기존 draft 재사용 시: 옛 payload 가 빈 양식일 수 있음 → 새 payload 로 강제 갱신.
+        //   양식 변경·변수 채움·재발송 시 거래처가 옛 빈 본문 받는 회귀 차단.
+        const { error: upErr } = await (supabase as any)
+          .from('quote_approvals')
+          .update({ payload })
+          .eq('id', approvalId);
+        if (upErr) throw upErr;
+      }
+      // 안전망: 어느 경로든 token 확보 (draft 재사용 분기에서 token=null 회귀 차단, d8f9aca7 estimate 와 동일 패턴)
+      if (!token && approvalId) {
+        const { data: row } = await (supabase as any)
+          .from('quote_approvals')
+          .select('approval_token')
+          .eq('id', approvalId)
+          .maybeSingle();
+        token = row?.approval_token ?? null;
+      }
+      if (!token) {
+        throw new Error('서명 링크 생성 실패 — 잠시 후 다시 시도해 주세요');
       }
       await sendApproval({ approvalId: approvalId!, recipientEmail: email, recipientName: partnerName || undefined, expiresInDays: 14 });
       try {
@@ -200,7 +226,7 @@ export function ContractStageCard({
             type: "quote", stage: "contract", to: email,
             signerName: partnerName || undefined,
             title: dealName ? `${dealName} — 계약서 확인 요청` : "계약서 확인 요청",
-            signUrl: token ? buildQuoteUrl(token) : null,
+            signUrl: buildQuoteUrl(token),
             companyName: companyInfo.name || undefined,
             amount: contractTotal || undefined,
             paymentStages: paymentStages || undefined,
