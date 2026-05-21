@@ -722,9 +722,8 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             + 비용 추가
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <KV label="비용 합계" value={`₩${costSum.toLocaleString()}`} />
-          <KV label="외주 합계" value={`₩${subSum.toLocaleString()}`} />
+        <div className="grid grid-cols-1 gap-3 mb-3">
+          <KV label="비용 합계" value={`₩${costTotal.toLocaleString()}`} />
         </div>
         {(data.costs || []).length === 0 && (data.subDeals || []).length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] text-center py-2">비용 항목 없음</div>
