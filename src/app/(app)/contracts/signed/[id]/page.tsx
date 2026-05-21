@@ -19,6 +19,51 @@ import { useToast } from "@/components/toast";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
+/**
+ * 본문 html 에서 "거래처 서명" 영역 sanitize.
+ *   배경: 옛 발송본의 signed_contract_html 또는 template_snapshot_html 에 sig 카드가
+ *   본문 끝에 박혀있어 페이지 푸터의 갑/을 박스와 중복 표시.
+ *   페이지 측 sanitize 로 데이터 무변경 + 옛/신규 양쪽 즉시 깨끗.
+ *
+ * 정공: "거래처 서명" 텍스트 포함 div/section/p/table 의 가장 가까운 wrapper 통째 제거.
+ *   DOMParser 가능하면 안전 DOM 트리 워크, 아니면 정규식 fallback.
+ *
+ * 가정: 양식 정상 컨텐츠에는 "거래처 서명" 키워드가 들어가지 않는다 (계약 본문상
+ *   해당 표현은 sig 카드 외 쓰이지 않음).
+ */
+function stripBodySignatureArea(rawHtml: string): string {
+  if (!rawHtml) return rawHtml;
+  if (typeof DOMParser === 'undefined') {
+    // 서버/SSR fallback — 정규식 비탐욕 매칭으로 div/section 통째 제거
+    return rawHtml
+      .replace(/<div[^>]*>(?:(?!<div)[\s\S])*?거래처\s*서명[\s\S]*?<\/div>/g, '')
+      .replace(/<section[^>]*>[\s\S]*?거래처\s*서명[\s\S]*?<\/section>/g, '');
+  }
+  try {
+    const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    const targets: Element[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue && /거래처\s*서명/.test(node.nodeValue)) {
+        let el: Element | null = node.parentElement;
+        for (let i = 0; i < 3 && el; i++) {
+          if (['DIV', 'SECTION', 'P', 'TABLE'].includes(el.tagName)) {
+            // 같은 wrapper 가 이미 targets 에 있으면 skip
+            if (!targets.includes(el)) targets.push(el);
+            break;
+          }
+          el = el.parentElement;
+        }
+      }
+    }
+    targets.forEach((t) => t.remove());
+    return doc.body.innerHTML;
+  } catch {
+    return rawHtml; // 파싱 실패 시 원본 — 사용자 데이터 보호 우선
+  }
+}
+
 interface SignedRow {
   id: string;
   _source: 'quote_approval' | 'signature_request';
@@ -273,7 +318,7 @@ export default function SignedContractPage() {
           globals.css 의 `body * { visibility: hidden }` 우회 — `.print-area` 만 visible.
           PDF 저장 시 빈 백지 회귀 fix (2026-05-21). */}
       <div className="print-area bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0 print:rounded-none print:m-0 print:w-full">
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <div dangerouslySetInnerHTML={{ __html: stripBodySignatureArea(html) }} />
 
         {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
         {!/class="sig-box"/.test(html) && (
