@@ -106,7 +106,7 @@ export function OwnerDashboardSection() {
     <div className="space-y-6 mb-8">
       <KpiSection data={data} />
       <StageDistributionSection data={data.stage_distribution} />
-      <QuarterlyTrendSection data={data.quarterly_trend} />
+      <ProjectTrendSection fallback={data.quarterly_trend} />
       <InProgressListSection data={data.in_progress} />
       <CompletedReportsSection data={data.completed_reports} />
     </div>
@@ -192,13 +192,32 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 // ─────────── 3. TOP 거래처·담당자 ───────────
 // TopActorsSection (🏢 누구랑 했나 TOP 5) — 2026-05-21 사장님 요청으로 통째 제거.
 
-// ─────────── 4. 분기별 추이 ───────────
-function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
-  const [metric, setMetric] = useState<"done_count" | "revenue" | "profit">("revenue");
-  const [open, setOpen] = useState(false);
-  const max = useMemo(() => Math.max(1, ...data.map((d) => Number(d[metric]) || 0)), [data, metric]);
+// ─────────── 4. 프로젝트 추이 (월/분기/년 토글) ───────────
+type TrendPeriod = "month" | "quarter" | "year";
+type TrendRow = { label: string; p_start: string; p_end: string; done_count: number; revenue: number; profit: number };
 
-  // 접힌 상태에서도 metric 별 합계 1줄 요약은 보여줘서 "뭐가 들어있는지" 감은 잡힌다.
+function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
+  const [metric, setMetric] = useState<"done_count" | "revenue" | "profit">("revenue");
+  const [period, setPeriod] = useState<TrendPeriod>("quarter");
+  const [open, setOpen] = useState(false);
+
+  // period 별 RPC fetch. quarter 는 메인 RPC fallback 사용해 첫 페인트 빠름.
+  const { data: rpcData } = useQuery<TrendRow[]>({
+    queryKey: ["owner-project-trend", period],
+    queryFn: async () => {
+      const { data, error } = await db.rpc("get_owner_project_trend", { p_period: period });
+      if (error) throw error;
+      return (data as TrendRow[]) || [];
+    },
+    enabled: period !== "quarter", // quarter 는 fallback 즉시 사용
+    staleTime: 60_000,
+  });
+
+  const data: TrendRow[] = period === "quarter"
+    ? fallback.map((q) => ({ label: q.label, p_start: q.q_start, p_end: q.q_end, done_count: q.done_count, revenue: q.revenue, profit: q.profit }))
+    : (rpcData || []);
+
+  const max = useMemo(() => Math.max(1, ...data.map((d) => Number(d[metric]) || 0)), [data, metric]);
   const summary = useMemo(() => {
     const sum = data.reduce((acc, q) => acc + (Number(q[metric]) || 0), 0);
     return metric === "done_count" ? `${sum}건` : fmtW(sum);
@@ -207,25 +226,48 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
   return (
     <div>
       <div className="flex items-end justify-between mb-3 gap-2 flex-wrap">
-        <h2 className="text-lg font-extrabold text-[var(--text)]">📈 분기별 추이 — 최근 4분기</h2>
-        <div className="flex gap-1 text-[11px]">
-          {[
-            { k: "revenue", l: "매출" },
-            { k: "profit", l: "이윤" },
-            { k: "done_count", l: "완료수" },
-          ].map((m) => (
-            <button
-              key={m.k}
-              onClick={() => setMetric(m.k as any)}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                metric === m.k
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
-              }`}
-            >
-              {m.l}
-            </button>
-          ))}
+        <h2 className="text-lg font-extrabold text-[var(--text)]">📈 프로젝트 추이</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 기간 단위 토글 */}
+          <div className="flex gap-0.5 p-0.5 rounded-lg bg-[var(--bg-surface)] text-[11px]">
+            {([
+              { k: "month", l: "월" },
+              { k: "quarter", l: "분기" },
+              { k: "year", l: "년" },
+            ] as { k: TrendPeriod; l: string }[]).map((p) => (
+              <button
+                key={p.k}
+                onClick={() => setPeriod(p.k)}
+                className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                  period === p.k
+                    ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {p.l}
+              </button>
+            ))}
+          </div>
+          {/* metric 토글 */}
+          <div className="flex gap-1 text-[11px]">
+            {[
+              { k: "revenue", l: "매출" },
+              { k: "profit", l: "이윤" },
+              { k: "done_count", l: "완료수" },
+            ].map((m) => (
+              <button
+                key={m.k}
+                onClick={() => setMetric(m.k as any)}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                  metric === m.k
+                    ? "bg-[var(--primary)] text-white"
+                    : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {m.l}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
@@ -237,7 +279,7 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
           aria-expanded={open}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-bold text-[var(--text-muted)] uppercase">최근 4분기 합계</span>
+            <span className="text-xs font-bold text-[var(--text-muted)] uppercase">합계</span>
             <span className="text-sm font-extrabold text-[var(--text)] tabular-nums truncate">{summary}</span>
           </div>
           <span className="text-xs font-semibold text-[var(--primary)] shrink-0 flex items-center gap-1">
@@ -254,8 +296,16 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
         </button>
         {open && (
           <div className="px-4 pb-4 pt-1 border-t border-[var(--border)]">
-            {/* 펼친 상태: 가독성 위해 h-72 (이전 h-48) + 라벨 폰트도 크게 */}
-            <div className="grid grid-cols-4 gap-4 h-72 mt-3">
+            {/* 펼친 상태: 막대 너비 동적(데이터 수에 맞춰), h-72. 데이터 없으면 empty placeholder. */}
+            {data.length === 0 ? (
+              <div className="h-72 mt-3 flex items-center justify-center text-xs text-[var(--text-dim)]">
+                불러오는 중…
+              </div>
+            ) : (
+            <div
+              className="grid gap-4 h-72 mt-3"
+              style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}
+            >
               {data.map((q) => {
                 const v = Number(q[metric]) || 0;
                 const h = max > 0 ? (Math.abs(v) / max) * 100 : 0;
@@ -278,6 +328,7 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
                 );
               })}
             </div>
+            )}
           </div>
         )}
       </div>
