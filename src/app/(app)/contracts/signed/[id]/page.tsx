@@ -18,7 +18,6 @@ const db = supabase as any;
 
 interface SignedRow {
   id: string;
-  // 출처 식별 (2026-05-21 dual mode: quote_approvals 단건 vs signature_requests 단체일괄)
   _source: 'quote_approval' | 'signature_request';
   stage: string;
   status: string;
@@ -30,17 +29,25 @@ interface SignedRow {
   signed_contract_html: string | null;
   signed_contract_url: string | null;
   signature_data_url?: string | null;
-  // 본문 snapshot — quote_approvals 는 payload.template_snapshot_html, signature_requests 는 컬럼 직접
   template_snapshot_html: string | null;
+  // 갑 (우리 회사) 서명 — quote_approvals 에만 컬럼 존재. signature_requests 는 null
+  our_signature_data_url: string | null;
+  our_signed_at: string | null;
   payload: {
     template_name?: string;
     template_snapshot_html?: string;
+    // 외부 서명자(을) 직접 입력 정보 (quote_approvals 흐름)
+    signer_company_name?: string;
+    signer_business_number?: string;
+    signer_representative?: string;
   } | null;
   deals: { id: string; name: string } | null;
-  companies: { name: string; representative: string | null } | null;
-  // signature_requests 한정
+  // companies(갑): business_number 포함
+  companies: { name: string; representative: string | null; business_number: string | null } | null;
   batch_id?: string | null;
   signer_email?: string | null;
+  // partner(을) — signature_requests 분기에서 별도 fetch
+  partner: { name: string | null; business_number: string | null; representative: string | null } | null;
 }
 
 export default function SignedContractPage() {
@@ -59,7 +66,7 @@ export default function SignedContractPage() {
         const { data: qa } = await db
           .from("quote_approvals")
           .select(
-            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, payload, deals(id, name), companies(name, representative)",
+            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, payload, deals(id, name), companies(name, representative, business_number)",
           )
           .eq("id", id)
           .maybeSingle();
@@ -68,20 +75,46 @@ export default function SignedContractPage() {
             ...qa,
             _source: 'quote_approval',
             template_snapshot_html: qa.payload?.template_snapshot_html ?? null,
+            // 을(거래처) 정보 — payload.signer_* 우선
+            partner: {
+              name: qa.payload?.signer_company_name ?? qa.recipient_name ?? null,
+              business_number: qa.payload?.signer_business_number ?? null,
+              representative: qa.payload?.signer_representative ?? null,
+            },
           } as SignedRow);
           setLoading(false);
           return;
         }
 
-        // 2) signature_requests fallback (단체일괄 흐름)
+        // 2) signature_requests fallback (단체일괄 흐름) + partner_id 별도 fetch
         const { data: sr } = await db
           .from("signature_requests")
           .select(
-            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, companies(name, representative), documents(name)",
+            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, partner_id, companies(name, representative, business_number), documents(name)",
           )
           .eq("id", id)
           .maybeSingle();
         if (sr) {
+          // 을(거래처) 정보 — partner_id 로 partners 별도 조회 (관리자 컨텍스트, 회사구성원 RLS 통과)
+          let partnerInfo: { name: string | null; business_number: string | null; representative: string | null } = {
+            name: sr.signer_name ?? null,
+            business_number: null,
+            representative: null,
+          };
+          if (sr.partner_id) {
+            const { data: p } = await db
+              .from("partners")
+              .select("name, business_number, representative")
+              .eq("id", sr.partner_id)
+              .maybeSingle();
+            if (p) {
+              partnerInfo = {
+                name: p.name ?? sr.signer_name ?? null,
+                business_number: p.business_number ?? null,
+                representative: p.representative ?? null,
+              };
+            }
+          }
           setRow({
             id: sr.id,
             _source: 'signature_request',
@@ -97,10 +130,14 @@ export default function SignedContractPage() {
             signed_contract_url: sr.signed_contract_url,
             signature_data_url: sr.signature_data_url,
             template_snapshot_html: sr.template_snapshot_html,
+            // signature_requests 는 회사(갑) 서명 컬럼 없음 — null
+            our_signature_data_url: null,
+            our_signed_at: null,
             payload: { template_name: sr.documents?.name },
             deals: null,
             companies: sr.companies || null,
             batch_id: sr.batch_id,
+            partner: partnerInfo,
           } as SignedRow);
           setLoading(false);
           return;
@@ -203,11 +240,65 @@ export default function SignedContractPage() {
         )}
       </div>
 
-      {/* 계약서 본문 (print-friendly) */}
-      <div
-        className="bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      {/* 계약서 본문 (print-friendly) — 양식 안에 sig-box 이미 있으면 푸터 중복 회피 */}
+      <div className="bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0">
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+
+        {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
+        {!/class="sig-box"/.test(html) && (
+          <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
+            {/* 갑 (우리 회사) */}
+            <div>
+              <div className="text-sm font-bold mb-2">갑</div>
+              <div className="text-xs space-y-1.5">
+                <div>회사명: {row.companies?.name || "—"}</div>
+                <div>사업자등록번호: {row.companies?.business_number || "—"}</div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span>대표자: {row.companies?.representative || "—"} (인)</span>
+                  <span className="inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded relative bg-gray-50 flex-shrink-0">
+                    {row.our_signature_data_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={row.our_signature_data_url} alt="갑 서명" className="absolute inset-0 w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">서명 대기</span>
+                    )}
+                  </span>
+                </div>
+                {row.our_signed_at && (
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {new Date(row.our_signed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 을 (거래처) */}
+            <div>
+              <div className="text-sm font-bold mb-2">을</div>
+              <div className="text-xs space-y-1.5">
+                <div>회사명: {row.partner?.name || row.recipient_name || "—"}</div>
+                <div>사업자등록번호: {row.partner?.business_number || "—"}</div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span>대표자: {row.partner?.representative || "—"} (인)</span>
+                  <span className="inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded relative bg-gray-50 flex-shrink-0">
+                    {row.signature_data_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={row.signature_data_url} alt="을 서명" className="absolute inset-0 w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">서명 대기</span>
+                    )}
+                  </span>
+                </div>
+                {row.signed_at_external && (
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {new Date(row.signed_at_external).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <style jsx global>{`
         @media print {
