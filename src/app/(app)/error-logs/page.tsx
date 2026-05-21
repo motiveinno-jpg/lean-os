@@ -145,7 +145,7 @@ export default function ErrorLogsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div data-theme="light" className="max-w-4xl bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2">
