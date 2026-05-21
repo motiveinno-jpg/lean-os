@@ -70,17 +70,66 @@ interface ProjectCard extends DealRow {
   badge: ProjectBadge;
 }
 
+// 기간 필터 — null 이면 전체 표시, 아니면 [from, to] 범위와 겹치는 deal 만
+export type DateFilter = { from: Date; to: Date; label: string } | null;
+
+function dealInPeriod(deal: { start_date?: string | null; end_date?: string | null; created_at?: string | null }, filter: DateFilter): boolean {
+  if (!filter) return true;
+  const startStr = deal.start_date || deal.created_at;
+  const endStr = deal.end_date;
+  const start = startStr ? new Date(startStr) : new Date(0);
+  // end_date 없으면 진행 중 → 무한대
+  const end = endStr ? new Date(endStr) : new Date(8640000000000000);
+  return start <= filter.to && end >= filter.from;
+}
+
+function parsePeriod(sp: URLSearchParams): DateFilter {
+  const period = sp.get("period");
+  const yearStr = sp.get("year");
+  const year = yearStr ? Number(yearStr) : new Date().getFullYear();
+  if (period === "year" && year) {
+    return { from: new Date(year, 0, 1), to: new Date(year, 11, 31, 23, 59, 59), label: `${year}년` };
+  }
+  if (period === "quarter") {
+    const q = Number(sp.get("q") || 1);
+    if (q >= 1 && q <= 4) {
+      const startM = (q - 1) * 3;
+      return { from: new Date(year, startM, 1), to: new Date(year, startM + 3, 0, 23, 59, 59), label: `${year} Q${q}` };
+    }
+  }
+  if (period === "month") {
+    const m = Number(sp.get("m") || 1);
+    if (m >= 1 && m <= 12) {
+      return { from: new Date(year, m - 1, 1), to: new Date(year, m, 0, 23, 59, 59), label: `${year}-${String(m).padStart(2, '0')}` };
+    }
+  }
+  const fromStr = sp.get("from");
+  const toStr = sp.get("to");
+  if (fromStr && toStr) {
+    return { from: new Date(fromStr), to: new Date(toStr + "T23:59:59"), label: `${fromStr} ~ ${toStr}` };
+  }
+  return null;
+}
+
 export default function ProjectsPage() {
   const { role, loading } = useUser();
+  const searchParams = useSearchParams();
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
-  // 2026-05-21 사장님 요청: employee 도 /projects 통일 진입. 단 isEmployeeLimited 가드로 재무 가림 + 본인 담당만.
   if (role !== "owner" && role !== "admin" && role !== "employee") {
     return <AccessDenied detail="프로젝트 메뉴는 대표/관리자/구성원만 접근할 수 있습니다." />;
   }
-  return <ProjectsInner isEmployeeLimited={role === "employee"} />;
+  const isEmployeeLimited = role === "employee";
+  // 딥링크 (?deal=<id>) → 기간 선택기 건너뛰고 칸반 + 슬라이드 자동 오픈 (회귀 보호)
+  const hasDeal = !!searchParams.get("deal");
+  const dateFilter = parsePeriod(new URLSearchParams(searchParams.toString()));
+  // 기간 파라미터 없고 deal 도 없으면 → 기간 선택기 먼저
+  if (!hasDeal && !dateFilter) {
+    return <PeriodPicker isEmployeeLimited={isEmployeeLimited} />;
+  }
+  return <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} />;
 }
 
-function ProjectsInner({ isEmployeeLimited = false }: { isEmployeeLimited?: boolean }) {
+function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmployeeLimited?: boolean; dateFilter?: DateFilter }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -212,21 +261,24 @@ function ProjectsInner({ isEmployeeLimited = false }: { isEmployeeLimited?: bool
 
   // ── 가공: 카드 목록 ──
   const cards: ProjectCard[] = useMemo(() => {
-    return (deals as DealRow[]).map((d) => {
-      const managerId = managerByDeal.get(d.id);
-      const badge = getProjectBadge({
-        stage: d.stage,
-        end_date: d.end_date,
-        contract_total: d.contract_total,
+    return (deals as DealRow[])
+      // 기간 필터 적용 (사장님 요청 2026-05-21): dateFilter 와 활성 구간 겹치는 deal 만
+      .filter((d) => dealInPeriod(d, dateFilter))
+      .map((d) => {
+        const managerId = managerByDeal.get(d.id);
+        const badge = getProjectBadge({
+          stage: d.stage,
+          end_date: d.end_date,
+          contract_total: d.contract_total,
+        });
+        return {
+          ...d,
+          partnerName: d.partner_id ? (partnerMap.get(d.partner_id) || "—") : "—",
+          managerName: managerId ? (userMap.get(managerId) || "—") : "—",
+          badge,
+        };
       });
-      return {
-        ...d,
-        partnerName: d.partner_id ? (partnerMap.get(d.partner_id) || "—") : "—",
-        managerName: managerId ? (userMap.get(managerId) || "—") : "—",
-        badge,
-      };
-    });
-  }, [deals, partnerMap, userMap, managerByDeal]);
+  }, [deals, partnerMap, userMap, managerByDeal, dateFilter]);
 
   // ── 검색/필터 state ──
   const [search, setSearch] = useState("");
@@ -308,11 +360,28 @@ function ProjectsInner({ isEmployeeLimited = false }: { isEmployeeLimited?: bool
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] font-semibold">신규</span>
+            {dateFilter && (
+              <>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-semibold">
+                  📅 {dateFilter.label}
+                </span>
+                <button
+                  onClick={() => router.push("/projects")}
+                  className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+                >
+                  ← 기간 선택으로
+                </button>
+              </>
+            )}
           </div>
-          <p className="text-xs text-[var(--text-muted)]">5단계 칸반·리스트로 진행 상태를 한눈에. (기존 /deals 와 병행)</p>
+          <p className="text-xs text-[var(--text-muted)]">
+            {dateFilter
+              ? `${dateFilter.from.toISOString().slice(0,10)} ~ ${dateFilter.to.toISOString().slice(0,10)} 활성 프로젝트만 표시`
+              : "5단계 칸반·리스트로 진행 상태를 한눈에"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -1110,6 +1179,157 @@ function StageModal({
             {submitting ? "변경 중..." : "변경"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────
+// PeriodPicker — /projects 진입 시 기간 선택 화면 (2026-05-21 사장님 요청)
+//   상단 토글 [년 / 분기 / 월] (기본 분기) + 년도 드롭다운
+//   카드 그리드: 년=3장, 분기=4장, 월=12장 — 각 카드에 그 기간 활성 프로젝트 건수
+// ────────────────────────────────────────────────
+function PeriodPicker({ isEmployeeLimited = false }: { isEmployeeLimited?: boolean }) {
+  const router = useRouter();
+  const [unit, setUnit] = useState<"year" | "quarter" | "month">("quarter");
+  const [year, setYear] = useState<number>(new Date().getFullYear());
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  const currentMonth = now.getMonth() + 1;
+
+  // 회사 id + deals 1회 fetch — 각 기간 카드의 건수 미리보기용
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ["period-picker-deals", companyId, isEmployeeLimited ? "limited" : "full"],
+    queryFn: async () => {
+      if (isEmployeeLimited) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any).rpc("get_my_assigned_deals");
+        return (data || []) as DealRow[];
+      }
+      return getDeals(companyId!);
+    },
+    enabled: !!companyId,
+  });
+
+  function buildFilter(y: number, q?: number, m?: number): DateFilter {
+    if (m !== undefined) return { from: new Date(y, m - 1, 1), to: new Date(y, m, 0, 23, 59, 59), label: `${y}-${String(m).padStart(2, '0')}` };
+    if (q !== undefined) { const s = (q - 1) * 3; return { from: new Date(y, s, 1), to: new Date(y, s + 3, 0, 23, 59, 59), label: `${y} Q${q}` }; }
+    return { from: new Date(y, 0, 1), to: new Date(y, 11, 31, 23, 59, 59), label: `${y}년` };
+  }
+  function countFor(filter: DateFilter): number {
+    return (deals as DealRow[]).filter((d) => dealInPeriod(d, filter)).length;
+  }
+
+  const yearOptions = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+
+  const cards: { key: string; label: string; current: boolean; count: number; href: string }[] = (() => {
+    if (unit === "year") {
+      return yearOptions.map((y) => ({
+        key: `y-${y}`,
+        label: `${y}년`,
+        current: y === currentYear,
+        count: countFor(buildFilter(y)),
+        href: `/projects?period=year&year=${y}`,
+      }));
+    }
+    if (unit === "quarter") {
+      return [1, 2, 3, 4].map((q) => ({
+        key: `q-${q}`,
+        label: `${q}분기`,
+        current: year === currentYear && q === currentQuarter,
+        count: countFor(buildFilter(year, q)),
+        href: `/projects?period=quarter&year=${year}&q=${q}`,
+      }));
+    }
+    return Array.from({ length: 12 }, (_, i) => i + 1).map((m) => ({
+      key: `m-${m}`,
+      label: `${m}월`,
+      current: year === currentYear && m === currentMonth,
+      count: countFor(buildFilter(year, undefined, m)),
+      href: `/projects?period=month&year=${year}&m=${m}`,
+    }));
+  })();
+
+  return (
+    <div className="p-4 sm:p-6 max-w-[1200px] mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 — 기간 선택</h1>
+        <p className="text-xs text-[var(--text-muted)] mt-1">기간을 선택하면 그 기간에 활성이었던 프로젝트만 칸반에 표시됩니다.</p>
+      </div>
+
+      {/* 단위 토글 + 년도 드롭다운 */}
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="flex gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border)]">
+          {(["year", "quarter", "month"] as const).map((u) => (
+            <button
+              key={u}
+              onClick={() => setUnit(u)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded ${unit === u ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)]'}`}
+            >
+              {u === "year" ? "년" : u === "quarter" ? "분기" : "월"}
+            </button>
+          ))}
+        </div>
+        {unit !== "year" && (
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}년</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* 카드 그리드 */}
+      <div className={`grid gap-3 ${unit === "month" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"}`}>
+        {cards.map((c) => (
+          <button
+            key={c.key}
+            onClick={() => router.push(c.href)}
+            className={`bg-[var(--bg-card)] rounded-xl border p-4 text-left hover:border-[var(--primary)] transition ${
+              c.current ? 'border-[var(--primary)] ring-1 ring-[var(--primary)]/30' : 'border-[var(--border)]'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-base font-bold ${c.current ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>
+                {c.label}
+              </span>
+              {c.current && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--primary)]/15 text-[var(--primary)] font-semibold">현재</span>}
+            </div>
+            <div className="text-xs text-[var(--text-muted)]">
+              <span className="font-semibold text-[var(--text)]">{c.count}</span>건 활성
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* 빠른 진입 */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link
+          href={`/projects?period=year&year=${currentYear}`}
+          className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]"
+        >
+          올해 전체
+        </Link>
+        <Link
+          href={`/projects?period=quarter&year=${currentYear}&q=${currentQuarter}`}
+          className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]"
+        >
+          이번 분기
+        </Link>
+        <Link
+          href={`/projects?period=month&year=${currentYear}&m=${currentMonth}`}
+          className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]"
+        >
+          이번 달
+        </Link>
       </div>
     </div>
   );
