@@ -472,7 +472,7 @@ export async function recomputeAttendance(params: {
   // 근태 행
   let q = db
     .from('attendance_records')
-    .select('id, employee_id, date, check_in, check_out, attendance_type, status')
+    .select('id, employee_id, date, check_in, check_out, attendance_type, status, is_late, late_minutes, regular_minutes, overtime_minutes, night_minutes, holiday_minutes, is_holiday')
     .eq('company_id', params.companyId)
     .gte('date', params.from)
     .lte('date', params.to);
