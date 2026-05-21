@@ -104,6 +104,44 @@ serve(async (req) => {
       return json({ found: true, user: userRow, company, auth: authInfo });
     }
 
+    // ── 회원 에러 로그 조회 ──
+    if (mode === "errors") {
+      const email = String(body?.email || "").trim().toLowerCase();
+      if (!email) return json({ error: "email 필요" }, 400);
+
+      const { data: logs, error: logErr } = await svc
+        .from("error_logs")
+        .select("id, source, error_type, message, url, context, resolved, created_at, company_id")
+        .ilike("user_email", email)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (logErr) return json({ error: `에러로그 조회 실패: ${logErr.message}` }, 500);
+
+      // 통계: 유형별 카운트, 해결/미해결, 최근 7일/30일
+      const now = Date.now();
+      const D7 = 7 * 86400_000;
+      const D30 = 30 * 86400_000;
+      const stats = {
+        total: logs?.length || 0,
+        unresolved: 0,
+        last_7d: 0,
+        last_30d: 0,
+        by_type: {} as Record<string, number>,
+        by_source: {} as Record<string, number>,
+      };
+      for (const l of logs || []) {
+        if (!l.resolved) stats.unresolved++;
+        const t = new Date(l.created_at).getTime();
+        if (now - t <= D7) stats.last_7d++;
+        if (now - t <= D30) stats.last_30d++;
+        const et = l.error_type || "unknown";
+        stats.by_type[et] = (stats.by_type[et] || 0) + 1;
+        const sc = l.source || "unknown";
+        stats.by_source[sc] = (stats.by_source[sc] || 0) + 1;
+      }
+      return json({ logs: logs || [], stats });
+    }
+
     // ── 수정 (관리자 키 필요) ──
     if (mode === "update") {
       if (!OPERATOR_ADMIN_KEY) return json({ error: "서버에 OPERATOR_ADMIN_KEY 미설정" }, 500);
@@ -160,7 +198,7 @@ serve(async (req) => {
       return json({ success: true, before, after: updated });
     }
 
-    return json({ error: "mode 는 lookup 또는 update" }, 400);
+    return json({ error: "mode 는 lookup / update / errors" }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[operator-user-admin]", msg);
