@@ -118,6 +118,10 @@ export default function PartnersPage() {
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // U4 페이지네이션 (1e8bb2b 패턴 미러 — signatures/documents 와 동일 UX)
+  //   필터/검색 변경 시 1페이지 리셋. classFilter/regionFilter/sizeFilter/typeFilter/activeFilter 도 의존성.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -133,6 +137,8 @@ export default function PartnersPage() {
   const [classFilter, setClassFilter] = useState<string>("");
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("");
+  // 필터/검색 변경 시 page=1 리셋 (signatures L52 패턴)
+  useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter, activeFilter, classFilter, regionFilter, sizeFilter, pageSize]);
   const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
   const [formBizStatus, setFormBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -726,9 +732,9 @@ export default function PartnersPage() {
             <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 거래처 추가</button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[60vh]">
             <table className="w-full min-w-[600px]">
-              <thead>
+              <thead className="bg-[var(--bg-card)] text-[var(--text-muted)] sticky top-0 z-10">
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
                   <th className="text-left px-5 py-3 font-medium">이름</th>
                   <th className="text-center px-4 py-3 font-medium">구분</th>
@@ -740,7 +746,7 @@ export default function PartnersPage() {
                 </tr>
               </thead>
               <tbody>
-                {partners.map((p: any) => {
+                {partners.slice((page - 1) * pageSize, page * pageSize).map((p: any) => {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
                     <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
@@ -802,6 +808,47 @@ export default function PartnersPage() {
             </table>
           </div>
         )}
+        {/* U4 페이지네이션 — signatures L352-362 패턴 미러 */}
+        {partners.length > 0 && (() => {
+          const totalPages = Math.max(1, Math.ceil(partners.length / pageSize));
+          const curPage = Math.min(page, totalPages);
+          const startIdx = (curPage - 1) * pageSize + 1;
+          const endIdx = Math.min(curPage * pageSize, partners.length);
+          return (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs flex-wrap gap-2">
+              <div className="text-[var(--text-muted)]">
+                전체 {partners.length.toLocaleString()}건 중 {startIdx.toLocaleString()}–{endIdx.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
+                  aria-label="페이지당 개수"
+                >
+                  <option value={20}>20개</option>
+                  <option value={50}>50개</option>
+                  <option value={100}>100개</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={curPage <= 1}
+                  onClick={() => setPage(curPage - 1)}
+                  className="px-2.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  aria-label="이전 페이지"
+                >‹</button>
+                <span className="text-[var(--text-muted)] min-w-[60px] text-center">{curPage} / {totalPages}</span>
+                <button
+                  type="button"
+                  disabled={curPage >= totalPages}
+                  onClick={() => setPage(curPage + 1)}
+                  className="px-2.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  aria-label="다음 페이지"
+                >›</button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 360도뷰 Detail Panel */}
