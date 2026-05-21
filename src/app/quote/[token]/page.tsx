@@ -61,6 +61,18 @@ interface PaymentStage {
 
 type LoadState = "loading" | "ok" | "not_found" | "expired" | "already_decided";
 
+// 2026-05-21 stage 라벨 분기 — 견적/계약/진척/완료/정산
+const STAGE_LABEL_KO: Record<string, string> = {
+  estimate: "견적서",
+  contract: "계약서",
+  progress_report: "진척 보고서",
+  completion: "완료 확인서",
+  settlement: "정산 확인",
+};
+function stageKo(stage: string | null | undefined): string {
+  return STAGE_LABEL_KO[stage || "estimate"] || "견적서";
+}
+
 export default function QuoteApprovalPage() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
@@ -284,13 +296,14 @@ export default function QuoteApprovalPage() {
 
   // 메인 카드 — 결정 대기 상태
   if (!row) return null;
+  const stageLabel = stageKo(row.stage);
   return (
     <Shell>
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {/* 헤더 */}
         <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-6 py-6">
           <div className="text-xs opacity-80 mb-1">{row.company_name} 발송</div>
-          <h1 className="text-xl font-bold">견적서 확인 요청</h1>
+          <h1 className="text-xl font-bold">{stageLabel} 확인 요청</h1>
           {row.recipient_name && (
             <p className="text-xs opacity-90 mt-1">{row.recipient_name}님께</p>
           )}
@@ -316,7 +329,7 @@ export default function QuoteApprovalPage() {
           {/* 품목 표 */}
           {items.length > 0 && (
             <section>
-              <Label>견적 품목 ({items.length}건)</Label>
+              <Label>{stageLabel} 품목 ({items.length}건)</Label>
               <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50">

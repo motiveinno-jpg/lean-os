@@ -1,16 +1,18 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
-// STEP 4 (PR-D): type='quote' 분기 추가.
-//   기존 type 없음/='signature' 흐름은 회귀 0 — 기본은 서명 이메일.
-//   type='quote' 인 경우 외부 비로그인 견적 승인 페이지(/quote/<token>) CTA + 견적 메타.
+// STEP 4 (PR-D): type='quote' 분기. 기본/'signature' 는 기존 흐름 그대로.
+//   type='quote' 인 경우 외부 비로그인 승인 페이지(/quote/<token>) CTA + 견적 메타.
 //
-//   ⚠️ 이 파일은 코드 변경만. prod 재배포는 메인이 사용자 승인 후 별도 1회:
-//      npx supabase functions deploy send-signature-email --no-verify-jwt 또는 기존 옵션 유지
+// 2026-05-21 stage 라벨 동적화:
+//   견적/계약/진척보고서/완료확인서/정산 단계가 같은 엣지를 공유.
+//   stage 가 안 오면 'estimate' 기본 (회귀 0).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+type QuoteStage = "estimate" | "contract" | "progress_report" | "completion" | "settlement";
 
 interface InvokeBody {
   type?: "signature" | "quote";
@@ -24,7 +26,32 @@ interface InvokeBody {
   amount?: number;            // 총액 (₩)
   items?: Array<{ name?: string; totalAmount?: number; quantity?: number }>;
   representative?: string;    // 발송자 회사 대표
+  stage?: QuoteStage;         // 2026-05-21 신설 — 단계별 라벨 분기 (default estimate)
 }
+
+const STAGE_LABEL_KO: Record<QuoteStage, string> = {
+  estimate: "견적서",
+  contract: "계약서",
+  progress_report: "진척 보고서",
+  completion: "완료 확인서",
+  settlement: "정산 확인",
+};
+
+const STAGE_HEADER_HINT: Record<QuoteStage, string> = {
+  estimate: "아래 견적서를 확인하시고 승인/거절 결정을 부탁드립니다.",
+  contract: "아래 계약서를 확인하시고 동의/반대 결정을 부탁드립니다.",
+  progress_report: "아래 진척 보고서를 확인해 주세요.",
+  completion: "아래 완료 확인서를 검토하고 승인/반려 결정을 부탁드립니다.",
+  settlement: "아래 정산 내역을 확인하고 승인/이의 여부를 알려주세요.",
+};
+
+const STAGE_CTA: Record<QuoteStage, string> = {
+  estimate: "견적서 확인 및 결정하기",
+  contract: "계약서 확인 및 결정하기",
+  progress_report: "진척 보고서 확인하기",
+  completion: "완료 확인서 결정하기",
+  settlement: "정산 확인하기",
+};
 
 function fmtKRW(n: number | undefined | null): string {
   const v = Number(n || 0);
@@ -77,7 +104,12 @@ function buildQuoteHtml(p: {
   amount?: number;
   items?: Array<{ name?: string; totalAmount?: number; quantity?: number }>;
   representative?: string;
+  stage: QuoteStage;
 }): string {
+  const stageLabel = STAGE_LABEL_KO[p.stage] || STAGE_LABEL_KO.estimate;
+  const headerHint = STAGE_HEADER_HINT[p.stage] || STAGE_HEADER_HINT.estimate;
+  const cta = STAGE_CTA[p.stage] || STAGE_CTA.estimate;
+
   const itemRows = (p.items || []).slice(0, 3).map((it) => `
     <tr>
       <td style="padding:6px 0;font-size:12px;color:#374151">${htmlEscape(it.name || "—")} ${it.quantity ? `× ${Number(it.quantity)}` : ""}</td>
@@ -85,17 +117,17 @@ function buildQuoteHtml(p: {
     </tr>`).join("");
   const moreCount = (p.items?.length || 0) - 3;
   const moreLine = moreCount > 0 ? `<tr><td colspan="2" style="padding:4px 0;font-size:11px;color:#9ca3af">... 외 ${moreCount}건</td></tr>` : "";
-  const repLine = p.representative ? `<p style="margin:4px 0 0;font-size:12px;color:#6b7280">대표 ${htmlEscape(p.representative)}</p>` : "";
+  const repLine = p.representative ? `<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.85)">대표 ${htmlEscape(p.representative)}</p>` : "";
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
       <h1 style="margin:0;font-size:20px">${htmlEscape(p.companyName || "OwnerView")}</h1>
-      ${repLine.replace("color:#6b7280", "color:rgba(255,255,255,0.85)")}
-      <p style="margin:10px 0 0;opacity:0.9;font-size:14px">견적서 확인 요청</p>
+      ${repLine}
+      <p style="margin:10px 0 0;opacity:0.9;font-size:14px">${stageLabel} 확인 요청</p>
     </div>
     <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
       <p style="font-size:15px;margin:0 0 12px">안녕하세요 <strong>${htmlEscape(p.signerName || "담당자")}</strong>님,</p>
-      <p style="font-size:14px;color:#6b7280;margin:0 0 20px">아래 견적서를 확인하시고 승인/거절 결정을 부탁드립니다.</p>
+      <p style="font-size:14px;color:#6b7280;margin:0 0 20px">${headerHint}</p>
       <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;border:1px solid #e5e7eb">
         <p style="margin:0 0 8px;font-size:14px;font-weight:bold;color:#111827">📝 ${htmlEscape(p.title)}</p>
         ${itemRows || moreLine ? `<table style="width:100%;border-collapse:collapse;margin:8px 0">${itemRows}${moreLine}</table>` : ""}
@@ -106,7 +138,7 @@ function buildQuoteHtml(p: {
         <p style="margin:8px 0 0;font-size:11px;color:#9ca3af">유효 기한: ${htmlEscape(p.expiryText)}</p>
       </div>
       <div style="text-align:center;margin:24px 0">
-        <a href="${p.signUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-weight:bold;font-size:14px">견적서 확인 및 결정하기</a>
+        <a href="${p.signUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-weight:bold;font-size:14px">${cta}</a>
       </div>
       <p style="font-size:11px;color:#9ca3af;text-align:center;margin:16px 0 0">유효 기한이 지나면 링크가 만료됩니다.<br>승인/거절 결정은 즉시 발송자에게 전달됩니다.<br>본 이메일은 자동 발송되었습니다.</p>
     </div>
@@ -118,7 +150,7 @@ serve(async (req) => {
 
   try {
     const body = (await req.json()) as InvokeBody;
-    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative } = body;
+    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage } = body;
 
     if (!to || !title || !signUrl) {
       return new Response(
@@ -133,12 +165,15 @@ serve(async (req) => {
 
     // STEP 4: type='quote' 분기. 기본/'signature' 는 기존 흐름 그대로.
     const isQuote = type === "quote";
+    const stageNorm: QuoteStage = (stage && STAGE_LABEL_KO[stage]) ? stage : "estimate";
+    const stageLabel = STAGE_LABEL_KO[stageNorm];
+
     const html = isQuote
-      ? buildQuoteHtml({ signerName, title, signUrl, expiryText, companyName, amount, items, representative })
+      ? buildQuoteHtml({ signerName, title, signUrl, expiryText, companyName, amount, items, representative, stage: stageNorm })
       : buildSignatureHtml({ signerName, title, signUrl, expiryText, companyName });
 
     const subject = isQuote
-      ? `[견적서] ${companyName || "OwnerView"} → ${signerName || "담당자"}${amount ? ` (총 ${fmtKRW(amount)})` : ""} (유효 ~${expiryText})`
+      ? `[${stageLabel}] ${companyName || "OwnerView"} → ${signerName || "담당자"}${amount ? ` (총 ${fmtKRW(amount)})` : ""} (유효 ~${expiryText})`
       : `[${companyName || "OwnerView"}] "${title}" 전자서명 요청`;
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");

@@ -227,6 +227,7 @@ export function ProjectQuoteStages({ dealId, readonly, stage = "estimate" }: Pro
         await (supabase as any).functions.invoke("send-signature-email", {
           body: {
             type: "quote",
+            stage,                       // 엣지가 stage 라벨로 메일 제목·본문·CTA 분기
             to: email,
             signerName: partnerName || undefined,
             title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청` : `${STAGE_LABEL[stage]} 확인 요청`,
@@ -272,6 +273,7 @@ export function ProjectQuoteStages({ dealId, readonly, stage = "estimate" }: Pro
         await (supabase as any).functions.invoke("send-signature-email", {
           body: {
             type: "quote",
+            stage,                       // 엣지가 stage 라벨로 분기
             to: email,
             signerName: partnerName || undefined,
             title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청 (재발송)` : `${STAGE_LABEL[stage]} 확인 요청 (재발송)`,
