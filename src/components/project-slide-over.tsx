@@ -61,7 +61,7 @@ const ACTION_TAB: Record<string, { tab: Tab; scroll?: string }> = {
   'send':            { tab: 'money',    scroll: 'sec-quote' },
   'cost-review':     { tab: 'money',    scroll: 'sec-cost' },
   'recover':         { tab: 'money',    scroll: 'sec-revenue' },
-  'progress':        { tab: 'activity', scroll: 'sec-activity' },
+  'progress':        { tab: 'activity', scroll: 'sec-progress' },
   'move-settlement': { tab: 'overview', scroll: 'sec-stage' },
   'archive':         { tab: 'overview', scroll: 'sec-stage' },
 };
@@ -653,15 +653,19 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
 
   return (
     <div className="flex flex-col gap-4">
-      {/* PR3.5 + 일반화: deal.stage 따라 견적서/계약서/진척보고서/완료확인서/정산 폼 자동 전환 */}
-      <div id="sec-quote" className="transition-shadow">
-        <ProjectQuoteStages
-          key={approvalStage}
-          dealId={dealId}
-          companyId={companyId}
-          stage={approvalStage}
-        />
-      </div>
+      {/* PR3.5 + 일반화: deal.stage 따라 견적서/계약서/완료확인서/정산 폼 자동 전환.
+          2026-05-21 진척보고서(progress_report) 는 활동 탭으로 이동 (사용자 호소).
+          돈 탭은 금액/계약가 흐름만 — 진척 보고는 활동 흐름. */}
+      {approvalStage !== 'progress_report' && (
+        <div id="sec-quote" className="transition-shadow">
+          <ProjectQuoteStages
+            key={approvalStage}
+            dealId={dealId}
+            companyId={companyId}
+            stage={approvalStage}
+          />
+        </div>
+      )}
       {/* 받을 돈 */}
       <div id="sec-revenue" className="bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
         <div className="flex items-center justify-between mb-3">
@@ -994,6 +998,11 @@ type ActivityEvent = {
 };
 
 function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
+  // 2026-05-21 진척보고서 위치 이동 — deal.stage='in_progress' (=approval stage 'progress_report') 일 때
+  //   돈 탭이 아니라 활동 탭 최상단에서 ProjectQuoteStages 렌더.
+  //   companyId 는 본문 아래의 기존 const (data.deal.company_id) 사용 — 동일 값.
+  const approvalStage = dealStageToApprovalStage(data.deal.stage);
+
   // quote_approvals — 견적/계약/진척/완료 stage 의 sent/viewed/decided/our_signed 이벤트 + 서명본 PDF
   const { data: approvals = [] } = useQuery<ApprovalRow[]>({
     queryKey: ["deal-approvals", dealId],
@@ -1137,6 +1146,20 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
 
   return (
     <div id="sec-activity" className="flex flex-col gap-4 transition-shadow">
+      {/* 진척보고서 — deal.stage='in_progress' 일 때만 표시.
+          2026-05-21 돈 탭에서 활동 탭으로 이동 (사용자 호소).
+          나머지 stage 의 견적/계약/완료/정산 폼은 그대로 돈 탭. */}
+      {approvalStage === 'progress_report' && (
+        <div id="sec-progress" className="transition-shadow">
+          <ProjectQuoteStages
+            key={approvalStage}
+            dealId={dealId}
+            companyId={companyId}
+            stage={approvalStage}
+          />
+        </div>
+      )}
+
       {/* 담당자 목록 + 추가/제거 (v5 Q3) */}
       <Section
         title={`담당자 (${data.assignments.length})`}
