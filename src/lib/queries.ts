@@ -2167,7 +2167,7 @@ export async function getArchivedDeals(companyId: string) {
 //   기존 RPC 무수정 — 각 테이블 RLS(company_id) 그대로 사용.
 export async function getProjectDetail(dealId: string, companyId: string) {
   const db = supabase as any;
-  const [deal, partner, revenue, costs, subs, assignments, files, audits] = await Promise.all([
+  const [deal, partner, revenue, costs, subs, assignments, files, audits, approvals] = await Promise.all([
     supabase.from('deals').select('*').eq('id', dealId).maybeSingle(),
     // partner는 deal 가져온 후 별도로 부르고 싶지만 round-trip 1회 줄이려고 deal 안에서 join 도 가능.
     // 여기는 deal.partner_id 가 있을 수도/없을 수도 있어 후처리에서 처리.
@@ -2193,6 +2193,13 @@ export async function getProjectDetail(dealId: string, companyId: string) {
       .eq('entity_id', dealId)
       .order('created_at', { ascending: false })
       .limit(10),
+    // 파일 섹션 통합 (2026-05-21): stage 별 서명본 (견적·계약·진척·완료·정산)
+    //   approved/fully_signed 만 — 발송된 draft·sent·viewed 는 파일이 아님
+    db.from('quote_approvals')
+      .select('id, stage, status, recipient_name, recipient_email, sent_at, decided_at, created_at')
+      .eq('deal_id', dealId)
+      .in('status', ['approved', 'fully_signed'])
+      .order('decided_at', { ascending: false }),
   ]);
 
   // partner 후처리: deal.partner_id 있으면 1회 추가 조회 (slowpath, 사용자 수 적음)
@@ -2215,5 +2222,6 @@ export async function getProjectDetail(dealId: string, companyId: string) {
     assignments: assignments.data || [],
     documents: files.data || [],
     auditLogs: audits.data || [],
+    approvals: approvals.data || [],
   };
 }

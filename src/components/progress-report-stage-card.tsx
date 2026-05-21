@@ -59,22 +59,54 @@ export function ProgressReportStageCard({
   const [reportText, setReportText] = useState<string>("");
   const [progressPct, setProgressPct] = useState<number>(0);
 
+  // 초기 로드 — 우선순위:
+  //   1) approval.id 있음 (발송된 행) → quote_approvals.payload 복원
+  //   2) approval 없음 (발송 전 draft) → deals.custom_scope.progress_report 복원
   useEffect(() => {
     let cancelled = false;
-    if (!approval?.id) return;
     (async () => {
-      const { data } = await (supabase as any)
-        .from("quote_approvals")
-        .select("payload")
-        .eq("id", approval.id)
-        .maybeSingle();
-      if (cancelled || !data) return;
-      const p = (data.payload as any) || {};
-      if (typeof p.report_text === "string") setReportText(p.report_text);
-      if (typeof p.progress_pct === "number") setProgressPct(p.progress_pct);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      if (approval?.id) {
+        const { data } = await db.from("quote_approvals").select("payload").eq("id", approval.id).maybeSingle();
+        if (cancelled || !data) return;
+        const p = (data.payload as any) || {};
+        if (typeof p.report_text === "string") setReportText(p.report_text);
+        if (typeof p.progress_pct === "number") setProgressPct(p.progress_pct);
+        return;
+      }
+      // 발송 전 draft 복원 (탭 전환·새로고침 회복)
+      const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
+      if (cancelled || !deal) return;
+      const draft = (deal.custom_scope as { progress_report?: { report_text?: string; progress_pct?: number } } | null)?.progress_report;
+      if (draft) {
+        if (typeof draft.report_text === "string") setReportText(draft.report_text);
+        if (typeof draft.progress_pct === "number") setProgressPct(draft.progress_pct);
+      }
     })();
     return () => { cancelled = true; };
-  }, [approval?.id]);
+  }, [approval?.id, dealId]);
+
+  // 1초 디바운스 자동 임시 저장 — 발송 전 edit 모드 + 내용 있을 때만
+  useEffect(() => {
+    if (approval || readonly) return; // 발송된 행 또는 readonly 는 draft 불요
+    if (!reportText && !progressPct) return; // 빈 상태는 저장 안 함
+    const t = setTimeout(async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = supabase as any;
+        const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
+        const scope = {
+          ...(((deal?.custom_scope as Record<string, unknown>) || {})),
+          progress_report: { report_text: reportText, progress_pct: progressPct, updated_at: new Date().toISOString() },
+        };
+        await db.from("deals").update({ custom_scope: scope }).eq("id", dealId);
+      } catch (e) {
+        reportError("progress-report.draft.save", e);
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [reportText, progressPct, approval, readonly, dealId]);
 
   const [mode, setMode] = useState<"edit" | "preview">(approval ? "preview" : "edit");
   const [recipientEmail, setRecipientEmail] = useState<string>(partnerEmail || approval?.recipient_email || "");
@@ -149,6 +181,18 @@ export function ProgressReportStageCard({
       const latest = await getLatestApproval(dealId, "progress_report");
       if (latest) onApprovalChange(latest);
       queryClient.invalidateQueries({ queryKey: ["deal-approvals", dealId] });
+      // 발송 완료 후 deals.custom_scope.progress_report draft 정리 (다음 보고서 작성 시 빈 상태)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = supabase as any;
+        const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
+        const cur = (deal?.custom_scope as Record<string, unknown>) || {};
+        const { progress_report: _drop, ...rest } = cur as { progress_report?: unknown };
+        void _drop;
+        await db.from("deals").update({ custom_scope: rest }).eq("id", dealId);
+      } catch (e) {
+        reportError("progress-report.draft.clear", e);
+      }
       setMode("preview");
       toast(`거래처에 진척 보고서 발송되었습니다 (${email})`, "success");
     } catch (e: unknown) {

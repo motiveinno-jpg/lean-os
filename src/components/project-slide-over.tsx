@@ -759,21 +759,28 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
     );
   }, [data.auditLogs, approvalEvents]);
 
-  // 서명본 PDF 파일 (quote_approvals 의 url 컬럼) — documents 와 통합 표시
+  // 서명본 파일 (quote_approvals stage 별) — documents 와 통합 표시.
+  //   2026-05-21: URL 없는 approved 행도 /contracts/signed/[id] 페이지 진입 가능
+  //   (dual mode + snapshot 표시). stage 별 아이콘 강화.
+  const STAGE_ICON: Record<string, string> = {
+    estimate: '📋',
+    contract: '📝',
+    progress_report: '📊',
+    completion: '✅',
+    settlement: '💰',
+  };
   const signedFiles = useMemo(() => {
-    const arr: { id: string; name: string; url: string; href: string; at: string }[] = [];
+    const arr: { id: string; name: string; icon: string; href: string; at: string }[] = [];
     approvals.forEach((a) => {
       const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
-      const url = a.fully_signed_contract_url || a.signed_contract_url;
-      if (url) {
-        arr.push({
-          id: a.id,
-          name: `${stageLabel} 서명본 PDF`,
-          url,
-          href: `/contracts/signed/${a.id}`,
-          at: a.our_signed_at || a.decided_at || a.sent_at || "",
-        });
-      }
+      const recipient = a.recipient_name || a.recipient_email || '거래처';
+      arr.push({
+        id: a.id,
+        name: `${stageLabel} (${recipient})`,
+        icon: STAGE_ICON[a.stage] || '📄',
+        href: `/contracts/signed/${a.id}`,
+        at: a.our_signed_at || a.decided_at || a.sent_at || '',
+      });
     });
     return arr;
   }, [approvals]);
@@ -830,7 +837,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                 className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
               >
                 <Link href={f.href} className="flex items-center gap-2 min-w-0 hover:underline">
-                  <span className="text-emerald-500">📄</span>
+                  <span>{f.icon}</span>
                   <span className="text-[var(--text)] truncate">{f.name}</span>
                 </Link>
                 <span className="text-[10px] text-[var(--text-dim)] shrink-0">
