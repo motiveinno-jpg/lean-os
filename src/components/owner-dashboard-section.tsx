@@ -195,7 +195,14 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 // ─────────── 4. 분기별 추이 ───────────
 function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
   const [metric, setMetric] = useState<"done_count" | "revenue" | "profit">("revenue");
+  const [open, setOpen] = useState(false);
   const max = useMemo(() => Math.max(1, ...data.map((d) => Number(d[metric]) || 0)), [data, metric]);
+
+  // 접힌 상태에서도 metric 별 합계 1줄 요약은 보여줘서 "뭐가 들어있는지" 감은 잡힌다.
+  const summary = useMemo(() => {
+    const sum = data.reduce((acc, q) => acc + (Number(q[metric]) || 0), 0);
+    return metric === "done_count" ? `${sum}건` : fmtW(sum);
+  }, [data, metric]);
 
   return (
     <div>
@@ -221,31 +228,58 @@ function QuarterlyTrendSection({ data }: { data: QTrend[] }) {
           ))}
         </div>
       </div>
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        {/* 2026-05-21 그래프 깨짐 fix: flex-1 막대 영역 + items-end bottom-align (이전 height:70% + marginTop 패턴 폐기) */}
-        <div className="grid grid-cols-4 gap-3 h-48">
-          {data.map((q) => {
-            const v = Number(q[metric]) || 0;
-            const h = max > 0 ? (Math.abs(v) / max) * 100 : 0;
-            return (
-              <div key={q.label} className="flex flex-col items-center gap-1.5 h-full">
-                <div className="text-[11px] font-bold text-[var(--text)] tabular-nums">
-                  {metric === "done_count" ? `${v}건` : fmtW(v)}
-                </div>
-                <div className="flex-1 w-full flex items-end">
-                  <div
-                    className={`w-full rounded-t-lg transition-all ${
-                      metric === "profit" ? (v < 0 ? "bg-red-500/60" : "bg-purple-500/60") :
-                      metric === "revenue" ? "bg-cyan-500/60" : "bg-emerald-500/60"
-                    }`}
-                    style={{ height: `${h}%` }}
-                  />
-                </div>
-                <div className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{q.label}</div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
+        {/* 헤더 토글 — 접혀있으면 합계 1줄, 펼치면 큰 그래프 */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--bg-surface)]/30 transition rounded-2xl"
+          aria-expanded={open}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-bold text-[var(--text-muted)] uppercase">최근 4분기 합계</span>
+            <span className="text-sm font-extrabold text-[var(--text)] tabular-nums truncate">{summary}</span>
+          </div>
+          <span className="text-xs font-semibold text-[var(--primary)] shrink-0 flex items-center gap-1">
+            {open ? "접기" : "펼쳐보기"}
+            <svg
+              className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </span>
+        </button>
+        {open && (
+          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)]">
+            {/* 펼친 상태: 가독성 위해 h-72 (이전 h-48) + 라벨 폰트도 크게 */}
+            <div className="grid grid-cols-4 gap-4 h-72 mt-3">
+              {data.map((q) => {
+                const v = Number(q[metric]) || 0;
+                const h = max > 0 ? (Math.abs(v) / max) * 100 : 0;
+                return (
+                  <div key={q.label} className="flex flex-col items-center gap-2 h-full">
+                    <div className="text-sm font-bold text-[var(--text)] tabular-nums">
+                      {metric === "done_count" ? `${v}건` : fmtW(v)}
+                    </div>
+                    <div className="flex-1 w-full flex items-end">
+                      <div
+                        className={`w-full rounded-t-lg transition-all ${
+                          metric === "profit" ? (v < 0 ? "bg-red-500/60" : "bg-purple-500/60") :
+                          metric === "revenue" ? "bg-cyan-500/60" : "bg-emerald-500/60"
+                        }`}
+                        style={{ height: `${h}%` }}
+                      />
+                    </div>
+                    <div className="text-xs font-semibold text-[var(--text-muted)] whitespace-nowrap">{q.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
