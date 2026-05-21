@@ -27,7 +27,11 @@ interface SignedRow {
   signer_user_agent: string | null;
   signed_contract_html: string | null;
   signed_contract_url: string | null;
-  payload: { template_name?: string } | null;
+  signature_data_url?: string | null;
+  payload: {
+    template_name?: string;
+    template_snapshot_html?: string;
+  } | null;
   deals: { id: string; name: string } | null;
   companies: { name: string; representative: string | null } | null;
 }
@@ -46,7 +50,7 @@ export default function SignedContractPage() {
         const { data, error } = await db
           .from("quote_approvals")
           .select(
-            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, payload, deals(id, name), companies(name, representative)",
+            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, payload, deals(id, name), companies(name, representative)",
           )
           .eq("id", id)
           .maybeSingle();
@@ -73,7 +77,27 @@ export default function SignedContractPage() {
     );
   }
 
-  const html = row.signed_contract_html || "<div style='padding:40px;text-align:center;color:#6b7280'>서명된 계약서 본문이 저장되지 않았습니다.</div>";
+  // 본문 우선순위 (2026-05-21 fallback 보강):
+  //   1) signed_contract_html (양측 서명 합성된 최종본)
+  //   2) payload.template_snapshot_html + signature_data_url 즉석 합성 — 단체일괄 합성 누락 fallback
+  //   3) 친절 안내
+  const sigImg = row.signature_data_url
+    ? `<div style="margin-top:40px;text-align:right;page-break-inside:avoid">
+         <div style="display:inline-block">
+           <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
+           <img src="${row.signature_data_url}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>
+           <div style="font-size:10px;color:#9ca3af;margin-top:4px">
+             ${row.recipient_name || ""} · ${row.signed_at_external ? new Date(row.signed_at_external).toLocaleString('ko-KR') : ""}
+           </div>
+         </div>
+       </div>`
+    : "";
+  const baseHtml = row.payload?.template_snapshot_html || "";
+  const html = row.signed_contract_html
+    ? row.signed_contract_html
+    : baseHtml
+      ? baseHtml + sigImg
+      : "<div style='padding:40px;text-align:center;color:#6b7280'>서명된 계약서 본문이 저장되지 않았습니다. 발송자에게 문의하세요.</div>";
   const methodLabel = row.signature_method === "draw" ? "손글씨 서명"
                      : row.signature_method === "type" ? "타이핑 서명"
                      : row.signature_method === "upload" || row.signature_method === "seal" ? "도장/사인"
