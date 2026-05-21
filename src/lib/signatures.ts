@@ -192,10 +192,11 @@ export async function saveSignature(
   },
   ipAddress?: string
 ) {
-  // Check if signature request exists and is not expired
+  // Check if signature request exists and is not expired + 본문 스냅샷 같이 조회
+  //   2026-05-21: 회수 흐름 통합 — template_snapshot_html 있으면 서명 이미지 합성하여 signed_contract_html 저장
   const { data: existing } = await db
     .from('signature_requests')
-    .select('id, status, expires_at')
+    .select('id, status, expires_at, recipient_name:signer_name, template_snapshot_html')
     .eq('id', id)
     .maybeSingle();
 
@@ -205,12 +206,33 @@ export async function saveSignature(
     throw new Error('서명 요청이 만료되었습니다');
   }
 
+  // 서명 합성된 최종 계약서 HTML 생성 (template_snapshot_html 있을 때만)
+  const signedAtIso = new Date().toISOString();
+  const signedAtKst = new Date(signedAtIso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const sigImgBlock = signatureData.type === 'type'
+    ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
+    : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
+  const signedContractHtml = existing.template_snapshot_html
+    ? existing.template_snapshot_html + `
+<div style="margin-top:40px;text-align:right;page-break-inside:avoid">
+  <div style="display:inline-block">
+    <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
+    ${sigImgBlock}
+    <div style="font-size:10px;color:#9ca3af;margin-top:4px">${existing.recipient_name || ''} · ${signedAtKst}</div>
+  </div>
+</div>`
+    : null;
+
   const { data, error } = await db
     .from('signature_requests')
     .update({
       status: 'signed',
-      signed_at: new Date().toISOString(),
+      signed_at: signedAtIso,
       signature_data: signatureData,
+      // 회수 흐름 통합: 분리 컬럼 + 합성본 (signed_contract_html 은 template_snapshot_html 있을 때만)
+      signature_method: signatureData.type,
+      signature_data_url: signatureData.data,
+      signed_contract_html: signedContractHtml,
       ip_address: ipAddress || null,
     })
     .eq('id', id)
@@ -369,6 +391,20 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   // documents.fillVariables 동적 import — 순환 방지
   const { fillVariables } = await import('./documents');
 
+  // 본문 snapshot 저장용: documents.content_json 1회 조회 + 회사(갑) 정보 1회 조회
+  //   2026-05-21 회수 흐름 통합: partner 별 변수 치환된 본문을 signature_requests.template_snapshot_html 저장
+  //   → /sign 외부 페이지 + /contracts/signed 본문 표시 + saveSignature 합성 input 으로 사용
+  const { data: docRow } = await db
+    .from('documents')
+    .select('content_json')
+    .eq('id', documentId)
+    .maybeSingle();
+  const { data: companyRow } = await db
+    .from('companies')
+    .select('name, business_number, representative, address')
+    .eq('id', companyId)
+    .maybeSingle();
+
   // 1) 회사 격리 가드 + 데이터 한 번에 조회
   const { data: partners, error: pErr } = await db
     .from('partners')
@@ -427,7 +463,59 @@ export async function createBulkSignatureRequestsToOrgs(params: {
         signerEmail: String(p.contact_email).trim(),
         createdBy,
       });
-      // partner_id/batch_id/batch_seq + 만료(요청한 expiresInDays) 보정
+      // 본문 snapshot: documents.content_json.body 의 토큰을 partner + company 데이터로 치환
+      //   /sign 외부 페이지 fillBody 와 동일 매핑 (server-side mirror)
+      let snapshotHtml: string | null = null;
+      const docBody = (docRow?.content_json as { body?: string } | null)?.body;
+      if (typeof docBody === 'string' && docBody.trim()) {
+        const c = companyRow || {};
+        const pn = p;
+        const replacements: Record<string, string> = {
+          '갑_회사명': String(c.name || ''),
+          '갑_사업자번호': String(c.business_number || ''),
+          '갑_대표자': String(c.representative || ''),
+          '갑_주소': String(c.address || ''),
+          'company_name': String(c.name || ''),
+          '을_회사명': String(pn.name || ''),
+          '을_단체명': String(pn.name || ''),
+          '을_사업자번호': String(pn.business_number || ''),
+          '을_대표자': String(pn.representative || ''),
+          '을_담당자': String(pn.contact_name || ''),
+          '을_이메일': String(pn.contact_email || ''),
+          '을_연락처': String(pn.contact_phone || ''),
+          '을_전화': String(pn.contact_phone || ''),
+          '을_주소': String(pn.address || ''),
+          'partner_name': String(pn.name || ''),
+          '갑': String(c.name || ''),
+          '을': String(pn.name || ''),
+          '회사명': String(pn.name || ''),
+          '단체명': String(pn.name || ''),
+          '사업자등록번호': String(pn.business_number || c.business_number || ''),
+          '사업자번호': String(pn.business_number || c.business_number || ''),
+          '대표자명': String(pn.representative || c.representative || ''),
+          '대표자': String(pn.representative || c.representative || ''),
+          '주소': String(pn.address || c.address || ''),
+          '담당자': String(pn.contact_name || ''),
+          '이메일': String(pn.contact_email || ''),
+          '연락처': String(pn.contact_phone || ''),
+          '전화': String(pn.contact_phone || ''),
+          '전화번호': String(pn.contact_phone || ''),
+          '날짜': new Date().toLocaleDateString('ko-KR'),
+          '오늘': new Date().toLocaleDateString('ko-KR'),
+          '계약일': new Date().toLocaleDateString('ko-KR'),
+        };
+        const filledText = docBody.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
+          const k = String(key).trim();
+          if (k in replacements) return replacements[k];
+          return full;
+        });
+        // text → HTML (개행 보존). 양식이 이미 HTML 이면 그대로.
+        snapshotHtml = /^\s*</.test(filledText)
+          ? filledText
+          : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+      }
+
+      // partner_id/batch_id/batch_seq + 만료 + 본문 snapshot
       const { error: upErr } = await db
         .from('signature_requests')
         .update({
@@ -435,6 +523,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
           batch_id: batchId,
           batch_seq: seqMap.get(p.id) ?? null,
           expires_at: expiresIso,
+          template_snapshot_html: snapshotHtml,
         })
         .eq('id', created.id);
       if (upErr) {
