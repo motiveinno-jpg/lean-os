@@ -93,6 +93,10 @@ export default function QuoteApprovalPage() {
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureMethod, setSignatureMethod] = useState<SignatureMethod | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  // 외부 서명자(을) 회사 정보 — 필수: 회사명/대표자, 선택: 사업자등록번호
+  const [signerCompanyName, setSignerCompanyName] = useState("");
+  const [signerBusinessNumber, setSignerBusinessNumber] = useState("");
+  const [signerRepresentative, setSignerRepresentative] = useState("");
 
   // 1) 토큰으로 1회 fetch + viewed 처리
   useEffect(() => {
@@ -161,30 +165,55 @@ export default function QuoteApprovalPage() {
       setErrMsg("거절 사유를 입력해 주세요");
       return;
     }
-    // 계약 승인 — 서명 필수
+    // 계약 승인 — 서명 + 을 회사 정보 필수
     const isContractApproval = decision === "approved" && row.stage === "contract";
-    if (isContractApproval && (!signatureMethod || !signatureDataUrl)) {
-      setErrMsg("서명 또는 도장을 추가해 주세요");
-      return;
+    if (isContractApproval) {
+      if (!signatureMethod || !signatureDataUrl) {
+        setErrMsg("서명 또는 도장을 추가해 주세요");
+        return;
+      }
+      if (!signerCompanyName.trim() || !signerRepresentative.trim()) {
+        setErrMsg("회사명과 대표자명을 입력해 주세요");
+        return;
+      }
     }
     setSubmitting(true);
     setErrMsg(null);
     try {
-      // 서명 합성 HTML 생성 (계약 승인 시) — template_snapshot_html 끝에 서명란 추가
+      // 서명 합성 HTML 생성 (계약 승인 시)
+      //   1) template_snapshot_html 의 {을_*} 변수 자리에 서명자 입력값 치환 (계약서 본문 갑/을 영역 채움)
+      //      — alias {을사명}/{대표자_을} 도 함께 치환 (구버전 회사 양식 호환)
+      //   2) 본문 끝에 서명란 카드 append
       let signedHtml: string | null = null;
       if (isContractApproval) {
         const p = (row.payload || {}) as { template_snapshot_html?: string };
         const baseHtml = typeof p.template_snapshot_html === "string" ? p.template_snapshot_html : "";
+        const signerName = signerRepresentative.trim() || row.recipient_name || "거래처";
+        const signerCo = signerCompanyName.trim();
+        const signerBiz = signerBusinessNumber.trim();
+        // 변수 치환 — 양식 본문의 {을_*} 자리 채움
+        const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const subst = (html: string, key: string, val: string) =>
+          html.replace(new RegExp(`\\{\\s*${escRe(key)}\\s*\\}`, "g"), val);
+        let body = baseHtml;
+        body = subst(body, "을_회사명", signerCo);
+        body = subst(body, "을_사업자번호", signerBiz);
+        body = subst(body, "을_대표자", signerName);
+        // v1 alias 호환
+        body = subst(body, "을사명", signerCo);
+        body = subst(body, "대표자_을", signerName);
+
         const methodLabel = signatureMethod === "draw" ? "손글씨 서명"
                           : signatureMethod === "type" ? "타이핑 서명"
                           : "도장/사인";
         const decidedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-        const signerName = row.recipient_name || "거래처";
-        signedHtml = `${baseHtml}\n\n<div style="margin-top:32px;padding:20px;border:2px solid #4f46e5;border-radius:12px;background:#f8fafc">
+        signedHtml = `${body}\n\n<div style="margin-top:32px;padding:20px;border:2px solid #4f46e5;border-radius:12px;background:#f8fafc">
   <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:bold">📝 거래처 서명 / 날인</div>
   <div style="display:flex;align-items:center;gap:16px">
     <div style="flex:1">
-      <div style="font-size:13px;font-weight:bold;color:#111827">${signerName}</div>
+      <div style="font-size:13px;font-weight:bold;color:#111827">${signerCo || signerName}</div>
+      ${signerBiz ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">사업자등록번호 ${signerBiz}</div>` : ""}
+      <div style="font-size:11px;color:#6b7280;margin-top:2px">대표 ${signerName}</div>
       <div style="font-size:11px;color:#6b7280;margin-top:4px">${methodLabel} · ${decidedAt} (KST)</div>
     </div>
     <div style="border:1px solid #e5e7eb;background:white;padding:6px;border-radius:6px">
@@ -204,6 +233,9 @@ export default function QuoteApprovalPage() {
         p_signed_contract_html: signedHtml,
         p_signer_ip: null,             // RLS 안에서 서버측 inet 추출은 RPC 한계 — 클라 미전달
         p_signer_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null,
+        p_signer_company_name: isContractApproval ? signerCompanyName.trim() : null,
+        p_signer_business_number: isContractApproval ? signerBusinessNumber.trim() || null : null,
+        p_signer_representative: isContractApproval ? signerRepresentative.trim() : null,
       });
       if (error) {
         reportError("quote.token.submit", { code: error.code });
@@ -582,10 +614,39 @@ export default function QuoteApprovalPage() {
               <h2 className="text-lg font-bold text-gray-900">계약서 서명</h2>
               <button onClick={() => setShowSignatureModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
             </div>
-            <p className="text-xs text-gray-600 mb-4">손글씨 · 타이핑 · 도장 업로드 중 하나로 서명한 후 승인해 주세요. 서명이 합성된 계약서가 발송자에게 즉시 회수됩니다.</p>
+            <p className="text-xs text-gray-600 mb-4">아래 회사 정보를 입력하고 서명/도장을 추가한 뒤 승인해 주세요. 서명이 합성된 계약서가 발송자에게 즉시 회수됩니다.</p>
 
+            {/* 을(거래처) 정보 입력 — 계약서 갑/을 영역 자동 채움 */}
+            <div className="mb-4 space-y-2">
+              <div className="text-[11px] font-semibold text-gray-700">우리(을) 회사 정보</div>
+              <input
+                type="text"
+                value={signerCompanyName}
+                onChange={(e) => setSignerCompanyName(e.target.value)}
+                placeholder="회사명 *"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                required
+              />
+              <input
+                type="text"
+                value={signerBusinessNumber}
+                onChange={(e) => setSignerBusinessNumber(e.target.value)}
+                placeholder="사업자등록번호 (예: 123-45-67890)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+              />
+              <input
+                type="text"
+                value={signerRepresentative}
+                onChange={(e) => setSignerRepresentative(e.target.value)}
+                placeholder="대표자명 *"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                required
+              />
+            </div>
+
+            <div className="text-[11px] font-semibold text-gray-700 mb-2">서명 / 도장</div>
             <SignatureCapture
-              defaultTypeName={row?.recipient_name || ""}
+              defaultTypeName={signerRepresentative || row?.recipient_name || ""}
               onChange={(m, url) => { setSignatureMethod(m); setSignatureDataUrl(url); }}
             />
 
