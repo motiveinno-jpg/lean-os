@@ -290,14 +290,14 @@ export default function PnlPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
-  // 달력만 — preset 제거. 기본 최근 6개월.
+  // 기본 = 1회계기간(당해 회계연도 1월 ~ 현재월). 사용자가 달력으로 직접 조정 가능.
   const [customStart, setCustomStart] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() - 5);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const d = new Date();
+    return `${d.getFullYear()}-01`; // 회계연도 시작 = 1월
   });
   const [customEnd, setCustomEnd] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // 현재월
   });
   // sync 후 강제 재fetch trigger
   const [refreshKey, setRefreshKey] = useState(0);
