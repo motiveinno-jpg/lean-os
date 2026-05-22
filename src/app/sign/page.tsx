@@ -649,8 +649,10 @@ function SignContent() {
       toast("서명이 완료되었습니다", "success");
 
       // Check if all items signed
+      // 2026-05-22 fix: signature_data 를 로컬 item 에 반영해야 완료 화면 서명 푸터(갑 직인·을 서명)가
+      //   렌더됨. 누락 시 completed 화면에 서명 구역이 안 보였음(새로고침 전까지).
       const updatedItems = pkg.items.map((it, i) =>
-        i === activeItem ? { ...it, status: "signed" as const, signed_at: new Date().toISOString() } : it
+        i === activeItem ? { ...it, status: "signed" as const, signed_at: new Date().toISOString(), signature_data: sigData } : it
       );
       const allSigned = updatedItems.every((it) => it.status === "signed");
 
