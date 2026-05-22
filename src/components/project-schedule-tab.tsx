@@ -5,7 +5,7 @@
 //   외부 라이브러리 도입 X (단순함 우선). RLS 회사격리만(기존 정책).
 //   start_date 컬럼은 20260521090000 마이그에서 추가, NULL 허용.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -431,17 +431,19 @@ function todayMs() {
 }
 
 function GanttView({ milestones }: { milestones: Milestone[] }) {
-  // 범위 = 마일스톤들의 (start_date|due_date) min ~ max. 비어있으면 today ± 14일.
+  // 범위 = 마일스톤들의 (start_date|due_date) + "오늘" min ~ max.
+  //   오늘을 항상 축에 포함시켜 today 기준선이 늘 보이게 한다.
   const { rangeStart, rangeEnd, span } = useMemo(() => {
+    const today = todayMs();
     const dates: number[] = [];
     milestones.forEach((m) => {
       if (m.start_date) dates.push(dateOnlyMs(m.start_date));
       if (m.due_date) dates.push(dateOnlyMs(m.due_date));
     });
-    const today = todayMs();
     if (dates.length === 0) {
       return { rangeStart: today - 14 * 864e5, rangeEnd: today + 14 * 864e5, span: 28 * 864e5 };
     }
+    dates.push(today); // ← 오늘을 항상 범위에 포함
     const minD = Math.min(...dates);
     const maxD = Math.max(...dates);
     // 여유 패딩 — 최소 2일, 최대 7%
@@ -481,6 +483,20 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
     return arr;
   }, [rangeStart, rangeEnd, span]);
 
+  // 진입 시 가로 스크롤을 "오늘" 위치로 — 오늘이 화면 중앙에 오게.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !todayInRange) return;
+    const LABEL_W = 128;
+    const id = requestAnimationFrame(() => {
+      const timelineW = el.scrollWidth - LABEL_W;
+      const todayX = LABEL_W + (todayPct / 100) * timelineW;
+      el.scrollLeft = Math.max(0, todayX - el.clientWidth / 2);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [todayPct, todayInRange, spanDays]);
+
   if (milestones.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--text-dim)]">
@@ -498,8 +514,8 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-sm w-full">
-      {/* 가로 스크롤 컨테이너 — 좌측 라벨도 함께 스크롤 */}
-      <div className="overflow-x-auto">
+      {/* 가로 스크롤 컨테이너 — 좌측 라벨도 함께 스크롤. 진입 시 오늘 위치로 auto-scroll */}
+      <div className="overflow-x-auto" ref={scrollRef}>
         <div className="flex" style={{ minWidth: LABEL_W + TIMELINE_MIN_W }}>
           {/* ─── 좌측: 마일스톤 라벨 컬럼 (sticky) ─── */}
           <div
