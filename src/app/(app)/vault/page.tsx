@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -70,6 +72,7 @@ export default function VaultPage() {
     return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
   }
   const { toast } = useToast();
+  const router = useRouter();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("assets");
@@ -520,7 +523,12 @@ export default function VaultPage() {
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => {
-                            setTab(alert.kind === "account" ? "accounts" : "docs");
+                            // 2026-05-22 구독/계정 발견은 /subscriptions 통합 화면으로, 그 외(문서 등)는 자산 탭.
+                            if (alert.kind === "account") {
+                              router.push("/subscriptions");
+                              return;
+                            }
+                            setTab("assets");
                             setTimeout(() => {
                               const row = document.getElementById(`vault-row-${alert.targetId}`);
                               if (row) {
@@ -1142,6 +1150,12 @@ export default function VaultPage() {
 
       {/* ═══ Discovery Tab ═══ */}
       {tab === "discovery" && (
+        <>
+        <div className="mb-3 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-3 text-[11px] text-[var(--text-muted)]">
+          반복 결제 패턴(카드·자동이체)에서 미등록 구독을 자동으로 찾습니다. 수락하면{" "}
+          <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
+          에 추가됩니다.
+        </div>
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
             <div className="p-16 text-center">
@@ -1201,6 +1215,7 @@ export default function VaultPage() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {/* 접근 로그 모달 */}
