@@ -277,6 +277,60 @@ export async function detectDormantDeals(companyId: string) {
 }
 
 // ══════════════════════════════════════════
+// 5-b. 휴면 거래처 자동감지 + 담당자 리마인더 (2026-05-22, ④+⑤)
+//   휴면 = 최근 6개월 거래(deals)·세금계산서·소통(partner_communications) 모두 없음.
+//   다시 거래 발생하면 is_dormant 자동 해제(보존적).
+// ══════════════════════════════════════════
+export async function detectDormantPartners(companyId: string) {
+  const sixMonthsAgoIso = new Date(Date.now() - 182 * 24 * 60 * 60 * 1000).toISOString();
+  const sixMonthsAgoDate = sixMonthsAgoIso.slice(0, 10);
+
+  const { data: partners } = await db
+    .from('partners')
+    .select('id, name, is_dormant')
+    .eq('company_id', companyId)
+    .eq('is_active', true);
+  if (!partners?.length) return { detected: 0, reactivated: 0 };
+
+  // 최근 6개월 활동 있는 partner_id 수집 (거래/세금계산서/소통)
+  const [dealsRes, invRes, commRes] = await Promise.all([
+    db.from('deals').select('partner_id').eq('company_id', companyId).gte('created_at', sixMonthsAgoIso).not('partner_id', 'is', null),
+    db.from('tax_invoices').select('partner_id').eq('company_id', companyId).gte('issue_date', sixMonthsAgoDate).not('partner_id', 'is', null),
+    db.from('partner_communications').select('partner_id').eq('company_id', companyId).gte('comm_date', sixMonthsAgoDate),
+  ]);
+  const activeSet = new Set<string>();
+  for (const r of (dealsRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
+  for (const r of (invRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
+  for (const r of (commRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
+
+  // 신규 휴면: is_dormant=false 인데 최근 활동 없음
+  const newDormant = (partners as any[]).filter((p) => !p.is_dormant && !activeSet.has(p.id));
+  // 재활성: is_dormant=true 인데 최근 활동 있음 → 해제
+  const reactivated = (partners as any[]).filter((p) => p.is_dormant && activeSet.has(p.id));
+
+  if (newDormant.length > 0) {
+    const ids = newDormant.map((p) => p.id);
+    await db.from('partners').update({ is_dormant: true, dormancy_detected_at: new Date().toISOString() }).in('id', ids);
+    // ⑤ 리마인더 알림 — 담당자(관리자) 에게 휴면 거래처 연락 권유
+    const notifications = newDormant.map((p) => ({
+      company_id: companyId,
+      type: 'dormant_partner',
+      title: `휴면 거래처 감지: ${p.name}`,
+      message: `6개월 이상 거래·연락이 없습니다. 리마인더 연락을 권장합니다.`,
+      entity_type: 'partner',
+      entity_id: p.id,
+      is_read: false,
+    }));
+    await db.from('notifications').insert(notifications);
+  }
+  if (reactivated.length > 0) {
+    await db.from('partners').update({ is_dormant: false, dormancy_detected_at: null }).in('id', reactivated.map((p) => p.id));
+  }
+
+  return { detected: newDormant.length, reactivated: reactivated.length, partners: newDormant.map((p) => p.name) };
+}
+
+// ══════════════════════════════════════════
 // 6. 월마감 자동검증
 // ══════════════════════════════════════════
 export async function autoVerifyClosingChecklist(companyId: string, checklistId: string) {

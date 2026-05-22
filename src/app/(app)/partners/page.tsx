@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
@@ -129,6 +130,24 @@ export default function PartnersPage() {
   const [detailTab, setDetailTab] = useState<"info" | "deals" | "payments" | "docs" | "comms" | "timeline">("info");
   const [importPreview, setImportPreview] = useState<any[] | null>(null);
   const [importing, setImporting] = useState(false);
+  // 2026-05-22 휴면 거래처 감지(④) + 담당자 리마인더(⑤)
+  const [detecting, setDetecting] = useState(false);
+  const runDormancyDetect = async () => {
+    if (!companyId) return;
+    setDetecting(true);
+    try {
+      const { detectDormantPartners } = await import("@/lib/automation");
+      const r = await detectDormantPartners(companyId);
+      toast(
+        `휴면 ${r.detected}곳 감지${r.reactivated ? ` · ${r.reactivated}곳 재활성` : ""}${r.detected > 0 ? " (담당자 알림 발송)" : ""}`,
+        "success",
+      );
+      qc.invalidateQueries({ queryKey: ["partners"] });
+    } catch (e: any) {
+      toast("휴면 감지 실패: " + (e.message || ""), "error");
+    }
+    setDetecting(false);
+  };
   const [importError, setImportError] = useState<string | null>(null);
   // PR: 다중선택 + 일괄삭제
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -219,6 +238,17 @@ export default function PartnersPage() {
     enabled: !!companyId,
     staleTime: 30_000,
   });
+
+  // 2026-05-22 알림(휴면 등) → /partners?id=<id> 딥링크: 해당 거래처 360°뷰 1회 자동 오픈
+  const searchParams = useSearchParams();
+  const openedFromUrl = useRef(false);
+  useEffect(() => {
+    if (openedFromUrl.current) return;
+    const id = searchParams?.get("id");
+    if (!id || !(rawPartners as any[]).length) return;
+    const p = (rawPartners as any[]).find((x) => x.id === id);
+    if (p) { setDetailPartner(p); setDetailTab("info"); openedFromUrl.current = true; }
+  }, [searchParams, rawPartners]);
 
   // 파트너별 거래 규모 집계 (전체 프로젝트 합계)
   const { data: partnerTotals = {} } = useQuery<Record<string, number>>({
@@ -650,6 +680,11 @@ export default function PartnersPage() {
             className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">
             Excel 내보내기
           </button>
+          <button onClick={runDormancyDetect} disabled={detecting}
+            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-amber-500/50 text-[var(--text-muted)] hover:text-amber-500 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap disabled:opacity-50"
+            title="6개월 이상 거래·연락 없는 거래처를 휴면으로 표시하고 담당자에게 리마인더 알림 발송">
+            {detecting ? "감지 중..." : "💤 휴면 감지"}
+          </button>
           <button onClick={openCreate}
             className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">
             + 새 거래처
@@ -818,7 +853,14 @@ export default function PartnersPage() {
                           }}
                         />
                       </td>
-                      <td className="px-5 py-3 text-sm font-medium">{p.name}</td>
+                      <td className="px-5 py-3 text-sm font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          {p.name}
+                          {p.is_dormant && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면">💤 휴면</span>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
                       </td>
@@ -955,6 +997,11 @@ export default function PartnersPage() {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${rs.bg} ${rs.color}`} title={`프로젝트 ${dealCount}건 / 계약 ${contractTotal.toLocaleString()}원 / 최근 소통 ${lastCommDaysAgo === null ? '없음' : lastCommDaysAgo + '일전'} / 결제이행 ${(paidRatio * 100).toFixed(0)}%`}>
                       관계점수 {rs.score} · {rs.tier}
                     </span>
+                    {detailPartner.is_dormant && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title={detailPartner.dormancy_detected_at ? `${String(detailPartner.dormancy_detected_at).slice(0,10)} 휴면 감지` : "6개월 이상 거래·연락 없음"}>
+                        💤 휴면
+                      </span>
+                    )}
                     {detailPartner.business_number && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>

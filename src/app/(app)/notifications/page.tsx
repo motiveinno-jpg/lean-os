@@ -19,6 +19,7 @@ interface NotificationRow {
 // v4 D4: entity_type 기반 1차 라우팅. entity_id 가 있으면 상세 진입.
 const ENTITY_HREF: Record<string, (id: string) => string> = {
   deal: (id) => `/projects/${id}`,
+  partner: (id) => `/partners?id=${id}`,
   approval: () => `/approvals`,
   invoice: () => `/tax-invoices`,
   payment: () => `/payments`,
