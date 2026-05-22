@@ -288,12 +288,10 @@ function SignContent() {
 
       if (!p) {
         // Fallback: check general document signature_requests
-        //   2026-05-21 단체일괄 본문 치환: partner_id 도 select → 거래처별 본문 변수 치환
-        const { data: sigReq } = await db
-          .from("signature_requests")
-          .select("*, documents(name, content_json, status, company_id)")
-          .eq("sign_token", token)
-          .maybeSingle();
+        //   2026-05-22 anon RLS 우회 — signature_requests SELECT 가 authenticated 전용이라
+        //   외부 수신자(비로그인)는 직접 조회 시 "유효하지 않은 링크" 가 됨.
+        //   sign_token 검증 SECURITY DEFINER RPC 로 행+문서 반환 (token = secret).
+        const { data: sigReq } = await db.rpc("get_signature_request_by_token", { p_token: token });
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
