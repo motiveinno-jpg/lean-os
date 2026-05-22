@@ -6348,6 +6348,7 @@ export type Database = {
           purchase_date: string | null
           status: string | null
           type: string
+          useful_life_months: number | null
           value: number | null
         }
         Insert: {
@@ -6360,6 +6361,7 @@ export type Database = {
           purchase_date?: string | null
           status?: string | null
           type: string
+          useful_life_months?: number | null
           value?: number | null
         }
         Update: {
@@ -6372,6 +6374,7 @@ export type Database = {
           purchase_date?: string | null
           status?: string | null
           type?: string
+          useful_life_months?: number | null
           value?: number | null
         }
         Relationships: [

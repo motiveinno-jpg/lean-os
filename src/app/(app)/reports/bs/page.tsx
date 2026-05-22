@@ -124,7 +124,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .maybeSingle(),
     supabase
       .from("vault_assets")
-      .select("name, value, type, status, purchase_date, created_at")
+      .select("name, value, type, status, purchase_date, created_at, useful_life_months")
       .eq("company_id", companyId)
       .neq("status", "disposed"),
   ]);
@@ -132,7 +132,8 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const bankAccounts = bankRes.data || [];
   const loans = loanRes.data || [];
   const cashSnapshots = cashRes.data || [];
-  const vaultAssets = (vaultRes.data || []) as { name: string; value: number | null; type: string; status: string | null }[];
+  // database.ts 수기 타입에 useful_life_months 미반영 — any 캐스트로 우회 (DB 컬럼은 PR1 에서 추가됨).
+  const vaultAssets = (vaultRes.data || []) as any[];
 
   // 세금계산서 매출/매입 분리 (status NOT IN void,matched — 미입금·미지급분만)
   const salesInvoices = (invoices as any[]).filter((inv) => inv.type === "sales");
@@ -157,14 +158,25 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     equipment: "장비", vehicle: "차량", furniture: "가구", it_equipment: "IT장비",
     software: "소프트웨어", real_estate: "부동산", other: "기타",
   };
+  // 2026-05-22 고정자산은 감가상각 장부가로 표시 (정액법) — vault 자산 화면과 정합.
+  //   내용연수(useful_life_months)·취득일 없으면 취득가 유지.
+  const bookValueOf = (value: number, purchaseDate: string | null | undefined, usefulLifeMonths: number | null | undefined): number => {
+    const v = Number(value || 0);
+    if (!usefulLifeMonths || usefulLifeMonths <= 0 || !purchaseDate) return v;
+    const start = new Date(purchaseDate).getTime();
+    if (isNaN(start)) return v;
+    const monthsElapsed = Math.max(0, (Date.now() - start) / (1000 * 60 * 60 * 24 * 30.44));
+    const ratio = Math.min(monthsElapsed / usefulLifeMonths, 1);
+    return Math.max(Math.round(v * (1 - ratio)), 0);
+  };
   const fixedAssetDetails = (vaultAssets as any[])
-    .filter((a: any) => (a.value || 0) > 0)
     .map((a: any) => ({
       name: a.name || "unnamed asset",
-      value: a.value || 0,
+      value: bookValueOf(a.value, a.purchase_date, a.useful_life_months),  // 장부가
       type: ASSET_TYPE_LABELS[a.type] || a.type,
       date: a.purchase_date || a.created_at?.slice(0, 10) || null,
-    }));
+    }))
+    .filter((a) => a.value > 0);
   const fixedAssets = fixedAssetDetails.reduce((sum, a) => sum + a.value, 0);
   const totalAssets = currentAssets + fixedAssets;
 
