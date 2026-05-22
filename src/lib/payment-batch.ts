@@ -157,6 +157,9 @@ export interface PayrollOptions {
   nonTaxableAmount?: number; // 비과세 금액 (식대 200,000 등)
   dependents?: number;       // 부양가족 수 (본인 포함, 기본 1)
   industrialAccidentRate?: number; // 산재보험율 (기본 0.7%)
+  // 2026-05-22 과세 대상 임의수당 합 — 소득세·4대보험 과세소득에 가산.
+  //   (비과세 수당은 nonTaxableAmount 로 따로 처리)
+  taxableAllowance?: number;
 }
 
 export function calculatePayroll(
@@ -169,10 +172,12 @@ export function calculatePayroll(
     nonTaxableAmount = 0,
     dependents = 1,
     industrialAccidentRate = RATES.industrialAccident,
+    taxableAllowance = 0,
   } = options;
 
-  // 비과세 차감 → 과세소득 산출
-  const taxableIncome = Math.max(0, baseSalary - nonTaxableAmount);
+  // 비과세 차감 + 과세 수당 가산 → 과세소득 산출
+  //   (수당이 있으면 소득세·국민연금·건강보험·고용보험이 모두 자동으로 늘어남)
+  const taxableIncome = Math.max(0, baseSalary - nonTaxableAmount + taxableAllowance);
 
   // 국민연금: 상한/하한 적용
   const pensionBase = Math.min(

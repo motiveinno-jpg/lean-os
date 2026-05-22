@@ -122,23 +122,25 @@ export async function previewPayroll(
           ? Number(emp.non_taxable_amount)
           : (emp.meal_allowance_included ? 200_000 : 0));
 
+    // v4 H1: 임의 수당/공제 — calculatePayroll 호출 전에 먼저 합산해서
+    //   과세 수당(allowance)을 과세소득에 반영(소득세·4대보험 자동 재계산)한다.
+    const rawExtras = Array.isArray(ov?.extras) ? ov!.extras as Array<{ type?: string; name?: string; amount?: number }> : [];
+    const valid = rawExtras
+      .filter((e) => (e?.type === 'allowance' || e?.type === 'deduction') && typeof e?.name === 'string' && Number(e?.amount) > 0)
+      .map((e) => ({ type: e.type as 'allowance' | 'deduction', name: String(e.name), amount: Math.max(0, Math.round(Number(e.amount))) }));
+    const allowance = valid.filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
+    const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
+
     const item = calculatePayroll(salary, emp.name, emp.id, {
       nonTaxableAmount: nonTaxable,
       dependents: 1,
+      taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
     });
-    // v4 H1: 임의 수당/공제 반영 — extras 의 net (allowance-deduction) 만큼 netPay 가감
-    const rawExtras = Array.isArray(ov?.extras) ? ov!.extras as Array<{ type?: string; name?: string; amount?: number }> : [];
-    if (rawExtras.length > 0) {
-      const valid = rawExtras
-        .filter((e) => (e?.type === 'allowance' || e?.type === 'deduction') && typeof e?.name === 'string' && Number(e?.amount) > 0)
-        .map((e) => ({ type: e.type as 'allowance' | 'deduction', name: String(e.name), amount: Math.max(0, Math.round(Number(e.amount))) }));
-      if (valid.length > 0) {
-        item.extras = valid;
-        const allowance = valid.filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
-        const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
-        item.netPay = item.netPay + allowance - deduction;
-        item.deductionsTotal = item.deductionsTotal + deduction;
-      }
+    // 수당/공제 항목 표시 + 실수령 가감 (세금은 calculatePayroll 이 이미 반영)
+    if (valid.length > 0) {
+      item.extras = valid;
+      item.netPay = item.netPay + allowance - deduction;
+      item.deductionsTotal = item.deductionsTotal + deduction;
     }
     items.push(item);
     totalGross += item.baseSalary;

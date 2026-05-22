@@ -170,15 +170,13 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 5) 지급내역 / 공제내역 표 (6칸 그리드) ──
-  // 지급내역 항목 구성 — 기본급, 식대(비과세 분리) + 임의 수당(item.extras)
-  //   ※ 화면(구성원 탭 급여)에 없는 근태기반 자동수당(allowance_entries)은 표시하지 않는다.
-  //      → PDF 합계가 화면 실수령(item.netPay)과 1원도 어긋나지 않게.
-  const earnings: { label: string; amount: number }[] = [];
+  // 2026-05-22 지급내역 기본급 = item.baseSalary 전체(비과세 포함) — 화면 '기본급' 컬럼과 동일.
+  //   기존엔 과세분(baseSalary-비과세)만 기본급으로 쪼개 표시 → 230→210 처럼 보이던 문제.
+  //   비과세(식대)는 기본급에 이미 포함이므로 별도 지급 라인으로 더하지 않고, 표 아래 안내로 명시.
+  //   ※ 화면에 없는 근태기반 자동수당(allowance_entries)은 표시하지 않는다(합계 1원 일치).
   const taxableBase = item.baseSalary - item.nonTaxableAmount;
-  earnings.push({ label: '기본급', amount: taxableBase });
-  if (item.nonTaxableAmount > 0) {
-    earnings.push({ label: '식대', amount: item.nonTaxableAmount });
-  }
+  const earnings: { label: string; amount: number }[] = [];
+  earnings.push({ label: '기본급', amount: item.baseSalary });
   for (const e of extraEarnings) {
     earnings.push(e);
   }
@@ -276,6 +274,15 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
     margin: { left: margin, right: margin },
   });
   y = (doc as any).lastAutoTable.finalY + 4;
+
+  // 비과세소득 안내 — 기본급에 포함된 비과세(식대) 명시
+  if (item.nonTaxableAmount > 0) {
+    doc.setFontSize(8);
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(...COLOR_TEXT_DIM);
+    doc.text(`※ 위 기본급에는 비과세소득(식대) ${fmt(item.nonTaxableAmount)}원이 포함되어 있습니다 (과세대상 ${fmt(taxableBase)}원).`, margin, y);
+    y += 5;
+  }
 
   // ── 6) 합계 표 ──
   //   2026-05-22 PDF = 화면 단일 진실. previewPayroll 이 만든 item 값을 그대로 신뢰(재계산 0).
