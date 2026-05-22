@@ -177,6 +177,23 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
+  // 2026-05-22 월 변동비 — 이번 달 카드 사용액 (payment_queue 는 due_date 컬럼 부재로 제외).
+  const { data: realVariableData } = useQuery({
+    queryKey: ["real-variable", companyId],
+    queryFn: async () => {
+      const monthPrefix = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+      const { data: cards } = await (supabase as any)
+        .from('card_transactions')
+        .select('amount, transaction_date')
+        .eq('company_id', companyId!)
+        .gte('transaction_date', `${monthPrefix}-01`)
+        .lte('transaction_date', `${monthPrefix}-31`);
+      return (cards || []).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+    },
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+
   // 결재 대기 건수 — 전자결재 카드용
   const { data: approvalsPending = 0 } = useQuery({
     queryKey: ['approvals-pending-dashboard', companyId],
@@ -802,6 +819,7 @@ export default function DashboardPage() {
             approvalsPending={approvalsPending}
             cashBalance={cashPulse?.currentBalance ?? null}
             monthlyFixed={realBurnData ?? null}
+            monthlyVariable={realVariableData ?? null}
           />
         </div>
       )}
@@ -989,12 +1007,13 @@ function QuickNavWidget() {
 
 // ── 요약 위젯: 승인대기 / 통장잔고 / 미수금 / 월고정비 ──
 function SummaryKpisWidget({
-  companyId, approvalsPending, cashBalance, monthlyFixed,
+  companyId, approvalsPending, cashBalance, monthlyFixed, monthlyVariable,
 }: {
   companyId: string;
   approvalsPending: number;
   cashBalance: number | null;
   monthlyFixed: number | null;
+  monthlyVariable: number | null;
 }) {
   // 통장잔고 — bank_accounts.balance 합계 (queries.ts 패턴 재사용)
   const { data: bankBalance = null } = useQuery({
@@ -1053,7 +1072,13 @@ function SummaryKpisWidget({
       label: '월 고정비',
       value: monthlyFixed === null ? '—' : `₩${fmtW(monthlyFixed)}`,
       color: 'var(--text)',
-      href: '/transactions',
+      href: '/reports/costs',
+    },
+    {
+      label: '월 변동비',
+      value: monthlyVariable === null ? '—' : `₩${fmtW(monthlyVariable)}`,
+      color: 'var(--text)',
+      href: '/reports/costs',
     },
   ];
 
@@ -1063,7 +1088,7 @@ function SummaryKpisWidget({
         <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
         <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">요약</h2>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {cells.map((c) => (
           <Link
             key={c.label}

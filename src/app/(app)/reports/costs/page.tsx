@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
+import { getMonthlyBudgetOverview, getCostBreakdown, type MonthlyBudget, type CostBreakdown } from "@/lib/cash-budget";
 import CostsChart from "./costs-chart";
 
 /* ------------------------------------------------------------------ */
@@ -35,6 +35,7 @@ export default function CostsPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [year, setYear] = useState(YEAR_NOW);
   const [rows, setRows] = useState<MonthlyBudget[] | null>(null);
+  const [breakdown, setBreakdown] = useState<CostBreakdown | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +51,11 @@ export default function CostsPage() {
     if (blocked || !companyId) return;
     setIsLoading(true);
     setError(null);
-    getMonthlyBudgetOverview(companyId, year)
-      .then(setRows)
+    Promise.all([
+      getMonthlyBudgetOverview(companyId, year),
+      getCostBreakdown(companyId, year),
+    ])
+      .then(([ov, bd]) => { setRows(ov); setBreakdown(bd); })
       .catch((e) => setError(e?.message || "데이터를 불러오지 못했습니다"))
       .finally(() => setIsLoading(false));
   }, [companyId, year, blocked]);
@@ -178,6 +182,82 @@ export default function CostsPage() {
               </tfoot>
             </table>
           </div>
+
+          {/* 고정비/변동비 세부내역 (category별) */}
+          {breakdown && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
+              {/* 고정비 세부내역 */}
+              <div style={{ borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "#f97316" }}>
+                  고정비 세부내역 ({year}년)
+                </div>
+                {breakdown.fixed.length === 0 ? (
+                  <div style={{ padding: 20, fontSize: 13, color: "var(--text-dim)", textAlign: "center" }}>
+                    등록된 고정비가 없습니다. 결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.
+                  </div>
+                ) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead><tr style={{ background: "var(--bg-surface)" }}>
+                      <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>항목</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>월 평균</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>연 합계</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>비중</th>
+                    </tr></thead>
+                    <tbody>
+                      {breakdown.fixed.map((r) => (
+                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)" }}>
+                          <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-muted)" }}>{fmtKrw(r.monthly)}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-dim)" }}>{breakdown.fixedTotal > 0 ? `${Math.round(r.amount / breakdown.fixedTotal * 100)}%` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
+                      <td style={{ padding: "11px 16px", fontWeight: 700 }}>합계</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-muted)" }}>{fmtKrw(Math.round(breakdown.fixedTotal / 12))}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "#f97316" }}>{fmtKrw(breakdown.fixedTotal)}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>100%</td>
+                    </tr></tfoot>
+                  </table>
+                )}
+              </div>
+
+              {/* 변동비 세부내역 */}
+              <div style={{ borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "#8b5cf6" }}>
+                  변동비 세부내역 ({year}년)
+                </div>
+                {breakdown.variable.length === 0 ? (
+                  <div style={{ padding: 20, fontSize: 13, color: "var(--text-dim)", textAlign: "center" }}>
+                    집계된 변동비가 없습니다. (카드 사용액·일회성 지출)
+                  </div>
+                ) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead><tr style={{ background: "var(--bg-surface)" }}>
+                      <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>항목</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>연 합계</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>비중</th>
+                    </tr></thead>
+                    <tbody>
+                      {breakdown.variable.map((r) => (
+                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)" }}>
+                          <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
+                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-dim)" }}>{breakdown.variableTotal > 0 ? `${Math.round(r.amount / breakdown.variableTotal * 100)}%` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
+                      <td style={{ padding: "11px 16px", fontWeight: 700 }}>합계</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "#8b5cf6" }}>{fmtKrw(breakdown.variableTotal)}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>100%</td>
+                    </tr></tfoot>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Footer note */}
           <div
