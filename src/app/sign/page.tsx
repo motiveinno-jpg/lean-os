@@ -36,66 +36,61 @@ function stripSignatureBlock(body: string): string {
 }
 
 // Flex 스타일 5열 서명 푸터 — 화면 렌더용 React 컴포넌트
+// 2026-05-22 내부 /contracts/signed 와 동일한 갑/을 서명 박스 푸터.
+//   갑(회사) = 회사명·사업자번호·대표자 + 직인 이미지 / 을(서명자) = 성명·생년월일 + 서명 이미지.
 function ContractSignatureFooter(props: {
   contractDate?: string;
   companyName?: string;
   representative?: string;
+  businessNumber?: string | null;
   sealUrl?: string | null;
   sealAppliedAt?: string | null;
   employeeName?: string;
   birthDate?: string;
   signature?: { type: "draw" | "type"; data: string } | null;
 }) {
-  const { contractDate, companyName, representative, sealUrl, sealAppliedAt, employeeName, birthDate, signature } = props;
+  const { contractDate, companyName, representative, businessNumber, sealUrl, sealAppliedAt, employeeName, birthDate, signature } = props;
   const fmtDate = (d?: string): string => {
     if (!d) return "";
     const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[1]}년 ${m[2]}월 ${m[3]}일` : String(d);
   };
-  const labelCls = "text-[11px] text-gray-500 leading-7";
-  const valueCls = "text-[12px] text-gray-900 font-medium leading-7";
   return (
-    <div className="mt-8 pt-6 border-t border-gray-200">
-      <div className="grid grid-cols-5 gap-3 items-start">
-        {/* 1. 날짜 */}
-        <div className={`${valueCls} text-left pt-2`}>{fmtDate(contractDate)}</div>
-        {/* 2. 회사 라벨 */}
-        <div className="text-left">
-          <div className={labelCls}>회사명(A)</div>
-          <div className={labelCls}>직위/성명(A)</div>
-          <div className={`${labelCls} mt-6`}>서명(인)</div>
-        </div>
-        {/* 3. 회사 값 + 직인 */}
-        <div className="text-center">
-          <div className={valueCls}>{companyName || ""}</div>
-          <div className={valueCls}>{representative ? `대표 / ${representative}` : "—"}</div>
-          <div className="mt-1 h-16 flex items-center justify-center">
+    <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
+      {/* 갑 (회사) */}
+      <div>
+        <div className="text-sm font-bold mb-2">갑 (회사)</div>
+        <div className="text-xs space-y-1.5 text-gray-900">
+          <div>회사명: {companyName || "—"}</div>
+          <div>사업자등록번호: {businessNumber || "—"}</div>
+          <div className="flex items-center gap-3 mt-1">
+            <span>대표자: {representative || "—"} (인)</span>
             {sealUrl && sealAppliedAt ? (
-              <img src={sealUrl} alt="회사 직인" className="h-16 inline-block" />
+              <img src={sealUrl} alt="회사 직인" className="h-12 inline-block" />
             ) : (
-              <span className="text-[10px] text-gray-400">(직인 미적용)</span>
+              <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">직인</span>
             )}
           </div>
+          {sealAppliedAt && <div className="text-[10px] text-gray-500 mt-1">{new Date(sealAppliedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</div>}
         </div>
-        {/* 4. 사원 라벨 */}
-        <div className="text-left">
-          <div className={labelCls}>생년월일(B)</div>
-          <div className={labelCls}>성명(B)</div>
-          <div className={`${labelCls} mt-6`}>서명(인)</div>
-        </div>
-        {/* 5. 사원 값 + 서명 */}
-        <div className="text-center">
-          <div className={valueCls}>{fmtDate(birthDate) || "—"}</div>
-          <div className={valueCls}>{employeeName || ""}</div>
-          <div className="mt-1 h-16 flex items-center justify-center">
+      </div>
+      {/* 을 (서명자) */}
+      <div>
+        <div className="text-sm font-bold mb-2">을 (서명자)</div>
+        <div className="text-xs space-y-1.5 text-gray-900">
+          <div>성명: {employeeName || "—"}</div>
+          <div>생년월일: {fmtDate(birthDate) || "—"}</div>
+          <div className="flex items-center gap-3 mt-1">
+            <span>서명 (인)</span>
             {signature?.type === "draw" && typeof signature.data === "string" ? (
-              <img src={signature.data} alt="서명" className="h-16 inline-block" />
+              <img src={signature.data} alt="서명" className="h-12 inline-block" />
             ) : signature?.type === "type" ? (
               <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
             ) : (
-              <span className="text-[10px] text-gray-400">(미서명)</span>
+              <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">서명</span>
             )}
           </div>
+          {contractDate && <div className="text-[10px] text-gray-500 mt-1">{fmtDate(contractDate)}</div>}
         </div>
       </div>
     </div>
@@ -109,7 +104,7 @@ type PackageData = {
   expired: boolean;
   company_id?: string;
   employees: { name: string; email?: string; department?: string; position?: string };
-  companies?: { name: string; seal_url?: string | null; representative?: string | null } | null;
+  companies?: { name: string; seal_url?: string | null; representative?: string | null; business_number?: string | null } | null;
   notes?: string;
   // notes JSON 파싱 결과 — seal_applied_at 있으면 직인 표시
   seal_url?: string | null;
@@ -279,7 +274,7 @@ function SignContent() {
       // Get package by sign_token
       const { data: p } = await db
         .from("hr_contract_packages")
-        .select("*, employees(name, email, department, position, birth_date), companies(name, seal_url, representative)")
+        .select("*, employees(name, email, department, position, birth_date), companies(name, seal_url, representative, business_number)")
         .eq("sign_token", token)
         .maybeSingle();
 
@@ -835,6 +830,7 @@ function SignContent() {
                   <ContractSignatureFooter
                     contractDate={pkg.contract_meta?.["계약일"] || pkg.contract_meta?.["contract_date"] || signedAt}
                     companyName={pkg.seal_company_name || pkg.companies?.name || ''}
+                    businessNumber={pkg.companies?.business_number}
                     representative={pkg.companies?.representative || ''}
                     sealUrl={pkg.seal_url}
                     sealAppliedAt={pkg.seal_applied_at}
