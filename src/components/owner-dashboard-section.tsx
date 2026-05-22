@@ -363,7 +363,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
           return (
             <Link
               key={d.id}
-              href={`/projects?deal=${d.id}`}
+              href={`/projects/${d.id}`}
               className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition"
             >
               <div className="flex-1 min-w-0">
@@ -450,7 +450,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                   <div className="border-t border-[var(--border)] divide-y divide-[var(--border)]">
                     {items.map((r) => (
                       <div key={r.id} className="flex items-center gap-3 px-4 py-2.5">
-                        <Link href={`/projects?deal=${r.id}`} className="flex-1 min-w-0 hover:underline">
+                        <Link href={`/projects/${r.id}`} className="flex-1 min-w-0 hover:underline">
                           <div className="text-sm font-medium text-[var(--text)] truncate">{r.name}</div>
                           <div className="text-[11px] text-[var(--text-dim)] truncate">
                             {r.partner_name || "거래처 미상"}

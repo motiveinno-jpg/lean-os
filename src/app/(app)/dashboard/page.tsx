@@ -2375,7 +2375,7 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
             const hasContract = dealDocs.some((doc: any) => doc.type === 'contract');
             const hasTaxInvoice = dealDocs.some((doc: any) => doc.type === 'tax_invoice');
             return (
-              <Link key={d.id} href={`/projects?deal=${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
+              <Link key={d.id} href={`/projects/${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold truncate">{d.name}</div>
                   <div className="text-[10px] text-[var(--text-dim)]">{d.counterparty || '거래처 미등록'} | ₩{Number(d.contract_total || 0).toLocaleString()}</div>
@@ -3049,7 +3049,7 @@ function EmployeeProjectsWidget() {
             {deals.map((d) => (
               <div
                 key={d.id}
-                onClick={() => router.push(`/projects?deal=${d.id}`)}
+                onClick={() => router.push(`/projects/${d.id}`)}
                 className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--bg-surface)] transition"
               >
                 <span className="text-base shrink-0">📋</span>

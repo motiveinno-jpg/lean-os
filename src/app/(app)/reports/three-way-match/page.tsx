@@ -235,7 +235,7 @@ function Inner() {
                   const diff = Math.abs(m.invoiceTotal - m.bankAmount);
                   const hasDeal = !!m.dealId;
                   const enterProject = () => {
-                    if (m.dealId) router.push(`/projects?deal=${m.dealId}`);
+                    if (m.dealId) router.push(`/projects/${m.dealId}`);
                   };
                   return (
                     <li key={m.bankTxId}>

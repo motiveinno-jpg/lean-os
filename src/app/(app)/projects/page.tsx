@@ -28,7 +28,6 @@ import {
   type ProjectBadge,
   type ProjectStage,
 } from "@/lib/project-rules";
-import { ProjectSlideOver } from "@/components/project-slide-over";
 import { autoCreatePartnerFromDeal } from "@/lib/partners";
 
 // ── 5-stage enum ──
@@ -114,16 +113,28 @@ function parsePeriod(sp: URLSearchParams): DateFilter {
 export default function ProjectsPage() {
   const { role, loading } = useUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  // 2026-05-22 하위호환: 옛 ?deal=<id> 딥링크 → 새 상세 페이지 /projects/<id> 로 리다이렉트
+  const legacyDeal = searchParams.get("deal");
+  useEffect(() => {
+    if (legacyDeal) {
+      const action = searchParams.get("action");
+      router.replace(action ? `/projects/${legacyDeal}?action=${action}` : `/projects/${legacyDeal}`);
+    }
+  }, [legacyDeal, searchParams, router]);
+
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (role !== "owner" && role !== "admin" && role !== "employee") {
     return <AccessDenied detail="프로젝트 메뉴는 대표/관리자/구성원만 접근할 수 있습니다." />;
   }
   const isEmployeeLimited = role === "employee";
-  // 딥링크 (?deal=<id>) → 기간 선택기 건너뛰고 칸반 + 슬라이드 자동 오픈 (회귀 보호)
-  const hasDeal = !!searchParams.get("deal");
   const dateFilter = parsePeriod(new URLSearchParams(searchParams.toString()));
-  // 기간 파라미터 없고 deal 도 없으면 → 기간 선택기 먼저
-  if (!hasDeal && !dateFilter) {
+  // ?deal= 리다이렉트 중에는 빈 화면 (useEffect 가 곧 replace)
+  if (legacyDeal) {
+    return <div className="p-8 text-sm text-[var(--text-muted)]">이동 중...</div>;
+  }
+  // 기간 파라미터 없으면 → 기간 선택기 먼저
+  if (!dateFilter) {
     return <PeriodPicker isEmployeeLimited={isEmployeeLimited} />;
   }
   return <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} />;
@@ -155,12 +166,9 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
   //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
   const dealParam = searchParams.get("deal");
   const actionParam = searchParams.get("action");
+  // 2026-05-22 슬라이드 패널 → 독립 페이지(/projects/[id])로 이동.
   function openSlide(dealId: string, action?: string) {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.set("deal", dealId);
-    if (action) sp.set("action", action);
-    else sp.delete("action");
-    router.push(`/projects?${sp.toString()}`, { scroll: false });
+    router.push(action ? `/projects/${dealId}?action=${action}` : `/projects/${dealId}`);
   }
   function closeSlide() {
     const sp = new URLSearchParams(searchParams.toString());
@@ -502,21 +510,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
         />
       )}
 
-      {/* 슬라이드 패널 — URL ?deal=<id>&action=<key> (PR3.5) */}
-      {dealParam && companyId && (
-        <ProjectSlideOver
-          dealId={dealParam}
-          companyId={companyId}
-          onClose={closeSlide}
-          onOpenStageModal={() => {
-            const card = cards.find((c) => c.id === dealParam);
-            if (card) openStageModal(card);
-          }}
-          pendingAction={pendingAction}
-          onActionConsumed={() => setPendingAction(null)}
-          isEmployeeLimited={isEmployeeLimited}
-        />
-      )}
+      {/* 프로젝트 상세는 독립 페이지 /projects/[id] 로 이동 (슬라이드 패널 제거) */}
 
       {/* 새 프로젝트 모달 (?create=1 진입 시) — /deals 점프 차단 */}
       {showCreateModal && companyId && (

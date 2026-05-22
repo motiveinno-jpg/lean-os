@@ -504,7 +504,7 @@ export function NotificationCenter() {
         const stage = (data as { stage?: string } | null)?.stage;
         if (dealId) {
           const action = stage === "contract" ? "contract" : "quote";
-          router.push(`/projects?deal=${encodeURIComponent(dealId)}&action=${action}`);
+          router.push(`/projects/${encodeURIComponent(dealId)}?action=${action}`);
           setOpen(false);
           return;
         }

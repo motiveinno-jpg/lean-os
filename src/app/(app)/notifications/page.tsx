@@ -18,7 +18,7 @@ interface NotificationRow {
 
 // v4 D4: entity_type 기반 1차 라우팅. entity_id 가 있으면 상세 진입.
 const ENTITY_HREF: Record<string, (id: string) => string> = {
-  deal: (id) => `/projects?deal=${id}`,
+  deal: (id) => `/projects/${id}`,
   approval: () => `/approvals`,
   invoice: () => `/tax-invoices`,
   payment: () => `/payments`,
@@ -48,7 +48,7 @@ const TYPE_HREF: Record<string, (id: string | null) => string> = {
   document: (id) => id ? `/documents?id=${id}` : `/documents`,
   document_feedback: (id) => id ? `/documents?id=${id}` : `/documents`,
   signature_request: (id) => id ? `/sign?id=${id}` : `/signatures`,
-  deal_update: (id) => id ? `/projects?deal=${id}` : `/projects`,
+  deal_update: (id) => id ? `/projects/${id}` : `/projects`,
   payment_due: () => `/payments`,
   expense_request: () => `/payments?tab=expenses`,
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
@@ -149,7 +149,7 @@ export default function NotificationsPage() {
             let href: string;
             if (n.entity_type === 'quote_approval' && n.entity_id && quoteMap[n.entity_id]) {
               const { deal_id, stage } = quoteMap[n.entity_id];
-              href = `/projects?deal=${encodeURIComponent(deal_id)}&action=${stageToAction(stage)}`;
+              href = `/projects/${encodeURIComponent(deal_id)}?action=${stageToAction(stage)}`;
             } else if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
               href = ENTITY_HREF[n.entity_type](n.entity_id);
             } else if (TYPE_HREF[n.type]) {

@@ -72,7 +72,7 @@ export function getNextAction(
   //   기존 /deals?detail= 는 멘탈모델 깨짐(패널 안에서 완결) — 패널이 action 쿼리
   //   읽어 해당 탭/섹션으로 자동 점프 후 URL 클리어.
   const panelHref = (action?: string) =>
-    action ? `/projects?deal=${deal.id}&action=${action}` : `/projects?deal=${deal.id}`;
+    action ? `/projects/${deal.id}?action=${action}` : `/projects/${deal.id}`;
 
   // 1) Critical — 자동 배지 활성 시 그쪽 액션 우선
   const badge = getProjectBadgeFromBase(

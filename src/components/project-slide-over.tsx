@@ -51,6 +51,8 @@ interface ProjectSlideOverProps {
   onActionConsumed?: () => void;
   // 2026-05-21: 직원(role='employee') 컨텍스트 — 돈 탭 + 재무 정보 가림
   isEmployeeLimited?: boolean;
+  // 2026-05-22: 'slide' = 우측 슬라이드 패널(기존), 'page' = 전체화면 독립 페이지(/projects/[id])
+  variant?: 'slide' | 'page';
 }
 
 // PR3.5: action key → 어느 탭의 어느 섹션으로 점프할지.
@@ -67,17 +69,19 @@ const ACTION_TAB: Record<string, { tab: Tab; scroll?: string }> = {
   'archive':         { tab: 'overview', scroll: 'sec-stage' },
 };
 
-export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed, isEmployeeLimited = false }: ProjectSlideOverProps) {
+export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed, isEmployeeLimited = false, variant = 'slide' }: ProjectSlideOverProps) {
   const [tab, setTab] = useState<Tab>("overview");
+  const isPage = variant === 'page';
 
-  // ESC 닫기
+  // ESC 닫기 — 슬라이드 모드에서만 (페이지 모드는 라우터 뒤로가기)
   useEffect(() => {
+    if (isPage) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, isPage]);
 
   // PR3.5: pendingAction 1회 적용 — 탭 전환 + 섹션 스크롤. 직후 onActionConsumed.
   useEffect(() => {
@@ -107,6 +111,43 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
     enabled: !!dealId && !!companyId,
   });
 
+  // ── 페이지 모드 — 전체화면 독립 페이지 (/projects/[id]) ──
+  if (isPage) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)]">
+        {isLoading && (
+          <div className="max-w-5xl mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+        )}
+        {error && (
+          <div className="max-w-5xl mx-auto px-6 py-20 flex flex-col items-center gap-3 text-sm text-[var(--text-muted)]">
+            <span>프로젝트를 불러올 수 없습니다</span>
+            <button onClick={onClose} className="text-xs text-[var(--primary)] hover:underline">← 프로젝트 목록</button>
+          </div>
+        )}
+        {data && data.deal && (
+          <PanelBody
+            data={data}
+            tab={tab}
+            onTabChange={setTab}
+            onClose={onClose}
+            onOpenStageModal={onOpenStageModal}
+            dealId={dealId}
+            companyId={companyId}
+            isEmployeeLimited={isEmployeeLimited}
+            variant="page"
+          />
+        )}
+        {data && !data.deal && (
+          <div className="max-w-5xl mx-auto px-6 py-20 flex flex-col items-center gap-3 text-sm text-[var(--text-muted)]">
+            <span>프로젝트를 찾을 수 없습니다</span>
+            <button onClick={onClose} className="text-xs text-[var(--primary)] hover:underline">← 프로젝트 목록</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 슬라이드 모드 (기존) ──
   return (
     <div className="fixed inset-0 z-40 flex" aria-modal="true" role="dialog">
       {/* Backdrop */}
@@ -180,6 +221,7 @@ function PanelBody({
   dealId,
   companyId,
   isEmployeeLimited = false,
+  variant = 'slide',
 }: {
   data: PanelData;
   tab: Tab;
@@ -189,11 +231,105 @@ function PanelBody({
   dealId: string;
   companyId: string;
   isEmployeeLimited?: boolean;
+  variant?: 'slide' | 'page';
 }) {
   const deal = data.deal;
   const stage = (deal.stage || "estimate") as ProjectStage;
   const stageColor = STAGE_COLOR[stage] || STAGE_COLOR.estimate;
+  const isPage = variant === 'page';
+  const progress = STAGE_PROGRESS[stage] || 20;
 
+  const tabs = (isEmployeeLimited
+    ? [
+        { key: "overview", label: "개요" },
+        { key: "activity", label: "활동" },
+        { key: "schedule", label: "일정 관리" },
+      ]
+    : [
+        { key: "overview", label: "개요" },
+        { key: "money", label: "돈" },
+        { key: "activity", label: "활동" },
+        { key: "schedule", label: "일정 관리" },
+      ]) as { key: Tab; label: string }[];
+
+  // 본문 탭 컨텐츠 — slide/page 공통 재사용 (로직 동일)
+  const tabContent = (
+    <>
+      {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} onClose={onClose} />}
+      {tab === "money" && !isEmployeeLimited && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
+      {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
+      {tab === "schedule" && <ProjectScheduleTab dealId={dealId} />}
+    </>
+  );
+
+  // ── 페이지 모드 — 전체화면 헤더바 + 넓은 본문 ──
+  if (isPage) {
+    return (
+      <>
+        <div className="sticky top-0 z-20 bg-[var(--bg-card)] border-b border-[var(--border)]">
+          <div className="max-w-6xl mx-auto px-6 pt-4">
+            <button onClick={onClose} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] mb-2 inline-flex items-center gap-1 transition">
+              ← 프로젝트 목록
+            </button>
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1 ${stageColor.bg} ${stageColor.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${stageColor.dot}`} />
+                    {STAGE_LABEL[stage] || stage}
+                  </span>
+                  <span className="text-xs text-[var(--text-dim)]">{deal.partner_id ? data.partner?.name || "—" : "—"}</span>
+                </div>
+                <h1 className="text-2xl font-extrabold text-[var(--text)] truncate">{deal.name || "(이름 없음)"}</h1>
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-[var(--text-muted)] flex-wrap">
+                  <span>📅 {formatRange(deal.start_date, deal.end_date)}</span>
+                  {!isEmployeeLimited && deal.contract_total != null && (
+                    <span>💰 {Number(deal.contract_total).toLocaleString()}원</span>
+                  )}
+                </div>
+              </div>
+              {onOpenStageModal && (
+                <button
+                  type="button"
+                  onClick={onOpenStageModal}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] transition shrink-0"
+                >
+                  단계 변경
+                </button>
+              )}
+            </div>
+            {/* 진행률 */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                <div className="h-full bg-[var(--primary)] rounded-full transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="text-[10px] font-bold text-[var(--text-muted)] tabular-nums">{progress}%</span>
+            </div>
+            {/* 탭 */}
+            <div className="flex items-center gap-1 -mb-px overflow-x-auto">
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => onTabChange(t.key)}
+                  className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                    tab === t.key
+                      ? "border-[var(--primary)] text-[var(--text)]"
+                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-6">{tabContent}</div>
+      </>
+    );
+  }
+
+  // ── 슬라이드 모드 (기존) ──
   return (
     <>
       {/* Header */}
@@ -268,10 +404,7 @@ function PanelBody({
 
       {/* Body — 직원이 직접 URL 로 money 진입 시도해도 차단 */}
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === "overview" && <OverviewTab data={data} stage={stage} isEmployeeLimited={isEmployeeLimited} onClose={onClose} />}
-        {tab === "money" && !isEmployeeLimited && <MoneyTab data={data} dealId={dealId} companyId={companyId} />}
-        {tab === "activity" && <ActivityTab data={data} dealId={dealId} />}
-        {tab === "schedule" && <ProjectScheduleTab dealId={dealId} />}
+        {tabContent}
       </div>
     </>
   );
