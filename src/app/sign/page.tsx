@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
-import { verifyDocumentIntegrity, generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
+import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { generateDocumentPDF } from "@/lib/document-generator";
 import { injectContractInlineStyles } from "@/lib/signatures";
 
@@ -158,8 +158,6 @@ function SignContent() {
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
-  const [verifyResult, setVerifyResult] = useState<{ valid: boolean; hash: string } | null>(null);
-  const [verifying, setVerifying] = useState(false);
 
   // Canvas ref for drawing (high-quality signature pad)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -852,19 +850,6 @@ function SignContent() {
     }
   }
 
-  async function handleVerifyIntegrity() {
-    if (!pkg) return;
-    setVerifying(true);
-    try {
-      const result = await verifyDocumentIntegrity(pkg.id);
-      setVerifyResult({ valid: result.valid, hash: result.storedHash });
-    } catch (e: any) {
-      console.error('Integrity check error:', e);
-      setVerifyResult({ valid: false, hash: e.message || '검증 실패' });
-    } finally {
-      setVerifying(false);
-    }
-  }
 
   // ── Completed ──
   if (completed) {
@@ -955,40 +940,6 @@ function SignContent() {
             서명된 계약서 PDF 다운로드
           </button>
 
-          {/* Document integrity verification */}
-          <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-700">문서 무결성 검증</p>
-              <button
-                onClick={handleVerifyIntegrity}
-                disabled={verifying}
-                className="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition disabled:opacity-50"
-              >
-                {verifying ? '검증 중...' : '검증하기'}
-              </button>
-            </div>
-            {verifyResult && (
-              <div className="mt-3">
-                {verifyResult.valid ? (
-                  <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <span className="text-green-600 mt-0.5">&#10003;</span>
-                    <div>
-                      <p className="text-sm font-medium text-green-700">문서가 서명 후 변경되지 않았습니다</p>
-                      <p className="text-xs text-green-600/70 mt-1 font-mono break-all">SHA-256: {verifyResult.hash}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                    <span className="text-red-600 mt-0.5">&#10007;</span>
-                    <div>
-                      <p className="text-sm font-medium text-red-700">문서가 변경된 것으로 감지됩니다</p>
-                      <p className="text-xs text-red-600/70 mt-1 font-mono break-all">{verifyResult.hash}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );
