@@ -97,25 +97,31 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("current_balance")
       .eq("company_id", companyId)
       .limit(1),
+    // 2026-05-22 정합 수정: status('active'/'pending')는 의미 모호 → stage 기준으로
+    //   "아직 정산 안 끝난 프로젝트"를 매출채권 대상으로. 삭제(archived) 제외.
     supabase
       .from("deals")
-      .select("id, name, contract_total, status, created_at")
+      .select("id, name, contract_total, status, stage, created_at")
       .eq("company_id", companyId)
-      .in("status", ["in_progress", "pending", "contracted"]),
+      .is("archived_at", null)
+      .not("stage", "in", '("completed","settlement")'),
+    // 입금 완료(paid)만 집계 — 'received'는 실재 안 하는 값, 'expected'는 미수라 제외.
     fetchAllPaginated<any>((from, to) =>
       supabase
         .from("deal_revenue_schedule")
         .select("deal_id, amount, status")
-        .in("status", ["received", "paid"])
+        .eq("status", "paid")
         .range(from, to)
     ),
+    // 미지급금 = 미지급(issued) 매입 세금계산서만. 'matched'(입출금 매칭=지급완료 추정) 제외.
+    //   'received'·'modified'는 실재 안 하는 값이라 제거.
     fetchAllPaginated<any>((from, to) => {
       let q = supabase
         .from("tax_invoices")
         .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
         .eq("company_id", companyId)
         .eq("type", "purchase")
-        .in("status", ["received", "issued", "modified"]);
+        .eq("status", "issued");
       if (cutoffDate) q = q.lte("issue_date", cutoffDate);
       return q.range(from, to);
     }),
