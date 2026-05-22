@@ -6567,21 +6567,6 @@ export type Database = {
         }[]
       }
       get_my_company_id: { Args: never; Returns: string }
-      get_partner_ledger: {
-        Args: { p_partner_name: string; p_from?: string; p_to?: string }
-        Returns: {
-          entry_date: string
-          source: string
-          source_id: string
-          description: string
-          receivable: number
-          payable: number
-          inflow: number
-          outflow: number
-          running_balance: number
-          sort_order: number
-        }[]
-      }
       is_channel_member: {
         Args: { p_channel_id: string; p_user_id: string }
         Returns: boolean

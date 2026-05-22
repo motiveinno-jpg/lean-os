@@ -486,7 +486,6 @@ export default function DashboardPage() {
               { href: "/cards", label: "법인카드", icon: "💳", desc: "카드 사용·승인 내역" },
               { href: "/tax-invoices", label: "세금계산서", icon: "🧾", desc: "매출·매입 세금계산서" },
               { href: "/reports", label: "분석", icon: "📊", desc: "손익·비용 리포트" },
-              { href: "/partners/ledger", label: "거래처원장", icon: "📒", desc: "거래처별 채권·채무" },
             ].map(card => (
               <Link key={card.href} href={card.href}
                 className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">

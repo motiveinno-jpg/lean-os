@@ -61,7 +61,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
-      { href: "/partners/ledger", label: "거래처원장", icon: "book", roles: ["owner", "admin"] },
     ],
   },
   {
