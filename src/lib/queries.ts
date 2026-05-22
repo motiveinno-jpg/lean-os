@@ -530,7 +530,7 @@ export async function getFounderData(companyId: string) {
   const quarter = `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
   const year = String(now.getFullYear());
 
-  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes, bankRes, recurRes] = await Promise.all([
+  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes, bankRes, recurRes, bankTxRes, taxRes] = await Promise.all([
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month', { ascending: false }),
     supabase.from('financial_items').select('*').eq('company_id', companyId).eq('month', thisMonth),
     supabase.from('growth_targets').select('*').eq('company_id', companyId),
@@ -539,7 +539,12 @@ export async function getFounderData(companyId: string) {
     supabase.from('deal_cost_schedule').select('amount, deal_node_id').eq('company_id', companyId),
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     supabase.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
+    // 2026-05-22 hasData 안전망: 집계(monthly_financials)가 아직 안 돌았어도 원천 있으면 "데이터 없음" CTA 숨김
+    supabase.from('bank_transactions').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
+    supabase.from('tax_invoices').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
   ]);
+  const bankTxCount = bankTxRes.count || 0;
+  const taxInvoiceCount = taxRes.count || 0;
 
   const allMonths = mfRes.data || [];
   const currentMonth = allMonths.find((m: any) => m.month === thisMonth) || allMonths[0] || null;
@@ -634,7 +639,7 @@ export async function getFounderData(companyId: string) {
       totalIncome: Number(m.total_income || 0),
       totalExpense: Number(m.total_expense || 0),
     })),
-    hasData: allMonths.length > 0 || items.length > 0,
+    hasData: allMonths.length > 0 || items.length > 0 || bankTxCount > 0 || taxInvoiceCount > 0,
   };
 }
 

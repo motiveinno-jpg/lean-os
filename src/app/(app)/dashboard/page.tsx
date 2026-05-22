@@ -157,6 +157,25 @@ export default function DashboardPage() {
     retry: 1,
   });
 
+  // 2026-05-22 원천(통장/카드/세금계산서)→monthly_financials 자동 집계 (lazy).
+  //   대시보드 진입 시 30분 throttle 로 1회 재집계 → 차트·KPI 가 최신 거래 반영.
+  //   source='auto' 만 재계산하므로 엑셀 수동 업로드분과 충돌 없음. 실패는 조용히 무시.
+  useEffect(() => {
+    if (!companyId) return;
+    const key = `mf-recompute-${companyId}`;
+    try {
+      const last = Number(localStorage.getItem(key) || 0);
+      if (Date.now() - last < 30 * 60 * 1000) return;
+      localStorage.setItem(key, String(Date.now()));
+    } catch { /* ignore */ }
+    (supabase as any)
+      .rpc("recompute_monthly_financials", { p_company_id: companyId })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] });
+      })
+      .catch(() => { /* 집계 실패는 비차단 — 원천 hasData 안전망이 CTA 숨김 */ });
+  }, [companyId, queryClient]);
+
   // Real monthly burn = recurring payments + total salary + 사용자 입력 (cash_snapshot.monthly_fixed_cost)
   const { data: realBurnData } = useQuery({
     queryKey: ["real-burn", companyId],
