@@ -28,12 +28,21 @@ export async function logAudit(entry: AuditLogEntry) {
     // user_id 는 UUID 컬럼이라 'system' 같은 문자열을 그대로 넣으면 22P02 (invalid uuid) 발생.
     // 비-UUID 값은 null 로 정규화하고 metadata.actor 로 보존.
     const safeUserId = UUID_RE.test(entry.user_id) ? entry.user_id : null;
-    const metadata = safeUserId === null
-      ? { ...(entry.metadata || {}), actor: entry.user_id }
-      : entry.metadata;
+    // 2026-05-22 audit_logs 실제 컬럼만 insert. entity_name/changes 는 컬럼 없음 → metadata 에 보존
+    //   (기존 {...entry} spread 가 없는 컬럼을 넣어 'column does not exist' 반복 실패 → 504 가중).
+    const { entity_name, changes, ...rest } = entry;
+    const metadata = {
+      ...(entry.metadata || {}),
+      ...(safeUserId === null ? { actor: entry.user_id } : {}),
+      ...(entity_name ? { entity_name } : {}),
+      ...(changes ? { changes } : {}),
+    };
     await (supabase as any).from('audit_logs').insert({
-      ...entry,
+      company_id: rest.company_id,
       user_id: safeUserId,
+      action: rest.action,
+      entity_type: rest.entity_type,
+      entity_id: rest.entity_id,
       metadata,
       created_at: new Date().toISOString(),
     });

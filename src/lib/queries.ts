@@ -2202,7 +2202,7 @@ export async function getProjectDetail(dealId: string, companyId: string) {
       .order('created_at', { ascending: false })
       .limit(5),
     db.from('audit_logs')
-      .select('id, action, entity_type, entity_id, entity_name, user_id, created_at, metadata')
+      .select('id, action, entity_type, entity_id, user_id, created_at, metadata')
       .eq('company_id', companyId)
       .eq('entity_type', 'deal')
       .eq('entity_id', dealId)

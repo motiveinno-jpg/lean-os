@@ -618,7 +618,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
     queryKey: ['deal-activity', dealId],
     queryFn: async () => {
       const { data } = await db2.from('audit_logs')
-        .select('id, action, entity_type, entity_name, changes, metadata, created_at, user_id, users:user_id(name, email)')
+        .select('id, action, entity_type, metadata, created_at, user_id, users:user_id(name, email)')
         .eq('entity_type', 'deal')
         .eq('entity_id', dealId)
         .order('created_at', { ascending: false })
@@ -638,8 +638,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
         action: 'update',
         entity_type: 'deal',
         entity_id: dealId,
-        entity_name: '프로젝트 메모',
-        metadata: { kind: 'note', content: newNote.trim() },
+        metadata: { kind: 'note', content: newNote.trim(), entity_name: '프로젝트 메모' },
         created_at: new Date().toISOString(),
       });
       setNewNote('');
@@ -655,7 +654,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
   const filtered = (logs as any[]).filter((l) => {
     if (filter === 'all') return true;
     if (filter === 'note') return l.metadata?.kind === 'note';
-    if (filter === 'file') return l.metadata?.kind === 'file' || l.entity_name?.includes('파일');
+    if (filter === 'file') return l.metadata?.kind === 'file' || l.metadata?.entity_name?.includes('파일');
     return l.action === filter;
   });
 
@@ -707,7 +706,7 @@ function DealActivityLog({ dealId, companyId, userId }: { dealId: string; compan
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold">{userLabel}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${meta.color} bg-[var(--bg-surface)]`}>{isNote ? '메모' : meta.label}</span>
-                      {log.entity_name && !isNote && <span className="text-[10px] text-[var(--text-dim)]">{log.entity_name}</span>}
+                      {log.metadata?.entity_name && !isNote && <span className="text-[10px] text-[var(--text-dim)]">{log.metadata.entity_name}</span>}
                       <span className="text-[10px] text-[var(--text-dim)] ml-auto">{whenStr}</span>
                     </div>
                     {isNote ? (

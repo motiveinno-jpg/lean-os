@@ -191,8 +191,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         action: 'update',
         entity_type: 'payment',
         entity_id: refundItem.id,
-        entity_name: refundItem.description || '결제',
-        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount },
+        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount, entity_name: refundItem.description || '결제' },
         created_at: new Date().toISOString(),
       });
       queueToast(`₩${Number(refundItem.amount).toLocaleString()} 환불 처리되었습니다`, 'success');

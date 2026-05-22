@@ -1335,7 +1335,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
       key: `audit-${l.id}`,
       icon: "📝",
       action: formatAction(l.action || l.entity_type || ""),
-      target: l.entity_name || null,
+      target: l.metadata?.entity_name || null,
       at: l.created_at,
     }));
     return [...auditEvents, ...approvalEvents].sort(
