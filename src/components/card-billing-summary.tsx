@@ -229,6 +229,19 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['corp-cards'] }),
   });
 
+  // 2026-05-22 최근 동기화(카드 거래 최신 일자) — 사장님이 데이터 시점 인지 가능하게.
+  //   ⚠️ 훅은 반드시 early return 앞에 위치 (billings 0건일 때 훅 스킵 → React #310 방지).
+  const lastSyncDate = useMemo(() => {
+    let max = '';
+    for (const tx of txAll as any[]) {
+      if (tx.transaction_date && tx.transaction_date > max) max = tx.transaction_date;
+    }
+    return max || null;
+  }, [txAll]);
+
+  // 청구서 명세 모달 — 청구서 버튼 클릭 시 그 카드의 사이클 거래 명세 표시.
+  const [detailBilling, setDetailBilling] = useState<Billing | null>(null);
+
   if (billings.length === 0) {
     return (
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
@@ -245,18 +258,6 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   }
 
   const grand = billings.reduce((s, b) => s + b.totalAmount, 0);
-
-  // 2026-05-22 최근 동기화(카드 거래 최신 일자) — 사장님이 데이터 시점 인지 가능하게.
-  const lastSyncDate = useMemo(() => {
-    let max = '';
-    for (const tx of txAll as any[]) {
-      if (tx.transaction_date && tx.transaction_date > max) max = tx.transaction_date;
-    }
-    return max || null;
-  }, [txAll]);
-
-  // 청구서 명세 모달 — 청구서 버튼 클릭 시 그 카드의 사이클 거래 명세 표시.
-  const [detailBilling, setDetailBilling] = useState<Billing | null>(null);
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
