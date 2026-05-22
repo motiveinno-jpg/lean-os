@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
-import { generateDocumentPDF } from "@/lib/document-generator";
 import { injectContractInlineStyles } from "@/lib/signatures";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -763,92 +762,6 @@ function SignContent() {
 
   // ── Helpers for completed view ──
 
-  async function handleDownloadSignedPDF() {
-    if (!pkg) return;
-    try {
-      // Gather all document sections into a single text content
-      const allSections: string[] = [];
-      const signatures: Array<{
-        signerName: string;
-        signatureType: 'draw' | 'type';
-        signatureData: string;
-        signedAt: string;
-        documentTitle?: string;
-      }> = [];
-
-      for (const item of pkg.items) {
-        const doc = item.documents;
-        if (!doc?.content_json) continue;
-        const cj = doc.content_json;
-        if (cj.title) allSections.push(cj.title);
-        // 2026-05-22 빈 sections([]) 도 truthy 라 본문(body) 분기를 못 타던 버그 → length>0 체크.
-        //   필드명 fallback (heading|title, body|content) — 화면 렌더(sections.length===0 면 body)와 동일 소스.
-        if (cj.sections && Array.isArray(cj.sections) && cj.sections.length > 0) {
-          for (const sec of cj.sections) {
-            const h = sec.heading || sec.title;
-            const b = sec.body || sec.content;
-            if (h) allSections.push(`\n${h}`);
-            if (b) allSections.push(b);
-          }
-        } else if (cj.body) {
-          // Built-in/사용자 편집 템플릿: 단일 body — HTML 이면 plain text 로 변환 + 서명 블록 strip
-          allSections.push(`\n${item.title || ''}`);
-          let bodyText = String(cj.body);
-          if (/^\s*</.test(bodyText)) {
-            // HTML → text (브라우저 DOM 으로 안전하게 변환)
-            const tmp = document.createElement('div');
-            tmp.innerHTML = bodyText;
-            bodyText = tmp.textContent || tmp.innerText || '';
-          }
-          // 본문 끝의 서명 placeholder 블록 제거 (footer 가 따로 렌더)
-          bodyText = stripSignatureBlock(bodyText);
-          allSections.push(bodyText);
-        }
-        allSections.push(''); // blank line between documents
-
-        // 서명 정보 수집
-        const sig: any = (item as any).signature_data;
-        const signedAt = (item as any).signed_at;
-        if (sig && signedAt && (sig.type === 'draw' || sig.type === 'type')) {
-          signatures.push({
-            signerName: pkg.employees?.name || '',
-            signatureType: sig.type,
-            signatureData: sig.data,
-            signedAt,
-            documentTitle: item.title,
-          });
-        }
-      }
-
-      const blob = await generateDocumentPDF({
-        title: pkg.title,
-        content: allSections.join('\n'),
-        companyName: pkg.companies?.name || '',
-        companyInfo: { representative: pkg.companies?.representative || undefined },
-        signerBirthDate:
-          pkg.contract_meta?.["생년월일"]
-          || pkg.contract_meta?.["birth_date"]
-          || (pkg.employees as any)?.birth_date,
-        signatures,
-        // 직인이 적용된 패키지면 PDF 우측 하단에 도장 오버레이
-        sealUrl: pkg.seal_applied_at && pkg.seal_url ? pkg.seal_url : undefined,
-        applyStamp: !!(pkg.seal_applied_at && pkg.seal_url),
-      });
-
-      // Trigger download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${pkg.title || '서명완료문서'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('PDF generation error:', e);
-      toast('PDF 생성 중 오류가 발생했습니다.', 'error');
-    }
-  }
 
 
   // ── Completed ──
@@ -856,7 +769,7 @@ function SignContent() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -873,14 +786,17 @@ function SignContent() {
         </header>
 
         <div className="max-w-3xl mx-auto px-4 py-6">
+          {/* 2026-05-22 내부(/contracts/signed)와 동일하게 — 화면 HTML 그대로 print→PDF.
+              .print-area 만 visible(globals.css), jsPDF text 변환 폐기. */}
+          <div className="print-area">
           {/* Signed documents — inline render */}
           {pkg.items.map((item, idx) => {
             const cj: any = item.documents?.content_json;
             const sig: any = (item as any).signature_data;
             const signedAt = (item as any).signed_at;
             return (
-              <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm">
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+              <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm print:border-0 print:shadow-none print:rounded-none print:p-0 print:mb-8 print:break-inside-avoid">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 print:hidden">
                   <h3 className="text-sm font-bold text-gray-800">
                     문서 {idx + 1} · {item.title}
                   </h3>
@@ -928,19 +844,27 @@ function SignContent() {
               </div>
             );
           })}
+          </div>
 
-          {/* Signed document PDF download */}
+          {/* Signed document PDF download — 내부와 동일하게 화면 HTML 인쇄→PDF */}
           <button
-            onClick={handleDownloadSignedPDF}
-            className="mt-3 w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+            onClick={() => window.print()}
+            className="mt-3 w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 print:hidden"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            서명된 계약서 PDF 다운로드
+            🖨 인쇄 / PDF 저장
           </button>
 
         </div>
+
+        <style jsx global>{`
+          @media print {
+            body { background: white !important; }
+            @page { margin: 18mm; }
+          }
+        `}</style>
       </div>
     );
   }
