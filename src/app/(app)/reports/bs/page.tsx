@@ -81,8 +81,8 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  // 큰 테이블(deal_revenue_schedule, tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
-  const [bankRes, loanRes, cashRes, dealsRes, revenueSchedules, invoices, companyRes, settingsRes, vaultRes] = await Promise.all([
+  // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
+  const [bankRes, loanRes, cashRes, invoices, companyRes, settingsRes, vaultRes] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -97,31 +97,18 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("current_balance")
       .eq("company_id", companyId)
       .limit(1),
-    // 2026-05-22 정합 수정: status('active'/'pending')는 의미 모호 → stage 기준으로
-    //   "아직 정산 안 끝난 프로젝트"를 매출채권 대상으로. 삭제(archived) 제외.
-    supabase
-      .from("deals")
-      .select("id, name, contract_total, status, stage, created_at")
-      .eq("company_id", companyId)
-      .is("archived_at", null)
-      .not("stage", "in", '("completed","settlement")'),
-    // 입금 완료(paid)만 집계 — 'received'는 실재 안 하는 값, 'expected'는 미수라 제외.
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("deal_revenue_schedule")
-        .select("deal_id, amount, status")
-        .eq("status", "paid")
-        .range(from, to)
-    ),
-    // 미지급금 = 미지급(issued) 매입 세금계산서만. 'matched'(입출금 매칭=지급완료 추정) 제외.
-    //   'received'·'modified'는 실재 안 하는 값이라 제거.
+    // 2026-05-22 매출채권·미지급금 모두 세금계산서 기준으로 통일 (사장님 요청).
+    //   매출(sales)·매입(purchase) 세금계산서를 한 번에 가져와 분리.
+    //   status NOT IN ('void','matched'):
+    //     - 'matched' = 3-way 매칭으로 통장 입출금과 연결됨 = 현금에 이미 반영됨
+    //       → 매출채권/미지급금에서 제외해 현금 및 예금과 상계(이중계상 방지).
+    //     - 'void' = 무효 세금계산서 제외.
     fetchAllPaginated<any>((from, to) => {
       let q = supabase
         .from("tax_invoices")
         .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
         .eq("company_id", companyId)
-        .eq("type", "purchase")
-        .eq("status", "issued");
+        .not("status", "in", '("void","matched")');
       if (cutoffDate) q = q.lte("issue_date", cutoffDate);
       return q.range(from, to);
     }),
@@ -145,35 +132,23 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const bankAccounts = bankRes.data || [];
   const loans = loanRes.data || [];
   const cashSnapshots = cashRes.data || [];
-  const deals = dealsRes.data || [];
   const vaultAssets = (vaultRes.data || []) as { name: string; value: number | null; type: string; status: string | null }[];
+
+  // 세금계산서 매출/매입 분리 (status NOT IN void,matched — 미입금·미지급분만)
+  const salesInvoices = (invoices as any[]).filter((inv) => inv.type === "sales");
+  const purchaseInvoices = (invoices as any[]).filter((inv) => inv.type === "purchase");
 
   /* --- Assets: Current --- */
   const bankTotal = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
   const cashAmount = cashSnapshots.length > 0 ? (cashSnapshots[0].current_balance || 0) : 0;
   const cashAndDeposits = bankTotal + cashAmount;
 
-  const paidByDeal = new Map<string, number>();
-  for (const rs of revenueSchedules) {
-    if (!rs.deal_id) continue;
-    paidByDeal.set(rs.deal_id, (paidByDeal.get(rs.deal_id) || 0) + (rs.amount || 0));
-  }
-
-  const receivableDetails = deals
-    .filter((d) => {
-      const paid = paidByDeal.get(d.id) || 0;
-      const outstanding = (d.contract_total || 0) - paid;
-      return outstanding > 0;
-    })
-    .map((d: any) => {
-      const paid = paidByDeal.get(d.id) || 0;
-      const date = d.created_at?.slice(0, 10) || null;
-      return {
-        name: d.name || "unnamed deal",
-        amount: (d.contract_total || 0) - paid,
-        date,
-      };
-    });
+  // 매출채권 = 미입금(미매칭) 매출 세금계산서. 매칭(matched)된 건은 통장 입금 확인 → 현금에 반영됨.
+  const receivableDetails = salesInvoices.map((inv: any) => ({
+    name: inv.counterparty_name || "거래처 미상",
+    amount: Number(inv.total_amount || 0),
+    date: inv.issue_date || null,
+  }));
   const accountsReceivable = receivableDetails.reduce((sum, r) => sum + r.amount, 0);
   const currentAssets = cashAndDeposits + accountsReceivable;
 
@@ -201,7 +176,8 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   }));
   const borrowings = loanDetails.reduce((sum, l) => sum + l.remainingAmount, 0);
 
-  const payableDetails = (invoices as any[]).map((inv: any) => ({
+  // 미지급금 = 미지급(미매칭) 매입 세금계산서. 매칭(matched)된 건은 통장 출금 확인 → 현금에서 차감됨.
+  const payableDetails = purchaseInvoices.map((inv: any) => ({
     name: inv.counterparty_name || "unnamed",
     amount: inv.total_amount || 0,
     date: inv.issue_date || null,
@@ -211,7 +187,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
 
   /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
   const vendorMap = new Map<string, PayableVendor>();
-  for (const inv of invoices as any[]) {
+  for (const inv of purchaseInvoices as any[]) {
     const vendor = (inv.counterparty_name || "(거래처 미상)").trim() || "(거래처 미상)";
     const key = `${vendor}|${inv.counterparty_bizno || ""}`;
     const cur = vendorMap.get(key) || {
@@ -1111,13 +1087,13 @@ export default function BalanceSheetPage() {
         <br />
         - 현금 및 예금은 등록된 은행계좌 잔액과 현금 스냅샷의 합계입니다.
         <br />
-        - 매출채권은 진행 중인 프로젝트의 미수금액을 기반으로 산출됩니다.
+        - 매출채권은 미입금(미매칭) 매출 세금계산서를 기반으로 산출됩니다. 3-way 매칭으로 통장 입금이 확인된 건은 현금 및 예금에 반영되어 매출채권에서 제외(상계)됩니다.
         <br />
         - 고정자산은 자산관리(Vault)에 등록된 장비, 차량, 소프트웨어 등의 자산가치입니다.
         <br />
         - 차입금은 대출 관리에서 진행 중인 대출 잔액입니다.
         <br />
-        - 미지급금은 미결제 상태의 매입 세금계산서를 기반으로 산출됩니다.
+        - 미지급금은 미지급(미매칭) 매입 세금계산서를 기반으로 산출됩니다. 통장 출금이 확인(매칭)된 건은 현금 및 예금에서 차감되어 미지급금에서 제외(상계)됩니다.
         <br />
         - 자본금은 {data.isCapitalDefault
           ? `DB에 등록된 값이 없어 기본값 ${DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시됩니다. 설정에서 변경해주세요.`
