@@ -131,8 +131,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       const { start, end } = computeCycle(today, billingDay);
       const startISO = start.toISOString().slice(0, 10);
       const endISO = end.toISOString().slice(0, 10);
+      // 2026-05-22 card_id 우선, NULL이면 card_name 으로 fallback 매칭.
+      //   CODEF 신규 거래가 card_id NULL 로 들어와도 청구서에 정상 집계 (백필+런타임 이중 안전망).
       const cardTxs = (txAll as any[]).filter((tx) =>
-        tx.card_id === c.id &&
+        (tx.card_id === c.id || (!tx.card_id && tx.card_name && tx.card_name === c.card_name)) &&
         tx.transaction_date >= startISO && tx.transaction_date <= endISO &&
         Number(tx.amount || 0) > 0,
       );
@@ -492,6 +494,16 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
                   </div>
                 )}
               </div>
+            )}
+            {/* 2026-05-22 청구 마감일(billing_day) 미설정 경고 — 청구 사이클이 fallback(1일~말일)이라 부정확 */}
+            {b.billingDay == null && card && (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition shrink-0"
+                title="청구 마감일이 설정되지 않아 청구 사이클이 부정확합니다. 클릭해 설정하세요."
+              >
+                ⚠ 마감일 설정
+              </button>
             )}
           </div>
           <div className="text-[9px] text-[var(--text-dim)] truncate">{b.cardCompany} · {b.txCount}건</div>
