@@ -25,6 +25,15 @@ interface RichEditorProps {
   onUploadImage?: (file: File) => Promise<string>;
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // 글자 색상 팔레트
 const COLORS = ["#000000", "#374151", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
 const FONT_SIZES = [
@@ -109,38 +118,86 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     setPdfProgress("PDF 불러오는 중...");
     try {
       const pdfjs: any = await import("pdfjs-dist");
-      // worker 설정 (v4: .mjs)
       pdfjs.GlobalWorkerOptions.workerSrc = new URL(
         "pdfjs-dist/build/pdf.worker.min.mjs",
         import.meta.url
       ).toString();
+      const OPS = pdfjs.OPS;
 
       const buf = await file.arrayBuffer();
       const pdf = await pdfjs.getDocument({ data: buf }).promise;
       const total = pdf.numPages;
+
+      // 페이지별로 HTML 조각을 누적 → 마지막에 한 번에 삽입 (전체 페이지 보장 = 마지막장만 나오던 버그 해소).
+      const parts: string[] = [];
+
       for (let i = 1; i <= total; i++) {
         setPdfProgress(`${total}페이지 중 ${i}페이지 변환 중...`);
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) continue;
-        await page.render({ canvasContext: ctx, viewport }).promise;
 
-        if (onUploadImage) {
-          const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
-          if (blob) {
-            const pageFile = new File([blob], `${file.name.replace(/\.pdf$/i, "")}-p${i}.png`, { type: "image/png" });
-            const url = await onUploadImage(pageFile);
-            editor.chain().focus().setImage({ src: url }).run();
+        // 1) 텍스트 레이어 추출 (편집 가능) — y좌표로 줄 복원
+        let pageText = "";
+        try {
+          const tc = await page.getTextContent();
+          let lastY: number | null = null;
+          for (const it of tc.items as any[]) {
+            if (typeof it.str !== "string") continue;
+            const y = it.transform?.[5];
+            if (lastY !== null && typeof y === "number" && Math.abs(y - lastY) > 3) pageText += "\n";
+            pageText += it.str;
+            if (typeof y === "number") lastY = y;
           }
-        } else {
-          const dataUrl = canvas.toDataURL("image/png");
-          editor.chain().focus().setImage({ src: dataUrl }).run();
+        } catch { /* 텍스트 없는 페이지 무시 */ }
+        const trimmedText = pageText.trim();
+
+        // 2) 그래픽(이미지·표·그래프) 포함 여부 판정
+        let hasGraphic = false;
+        try {
+          const ops = await page.getOperatorList();
+          hasGraphic = (ops.fnArray as number[]).some((fn) =>
+            fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject ||
+            fn === OPS.paintImageMaskXObject || fn === OPS.paintInlineImageXObject);
+        } catch { /* ignore */ }
+
+        // 페이지 구분 헤더 (2페이지 이상일 때만)
+        if (total > 1) parts.push(`<p><strong>— ${i} / ${total} 페이지 —</strong></p>`);
+
+        // 3) 텍스트가 있으면 편집 가능한 문단으로
+        if (trimmedText.length > 0) {
+          const paras = trimmedText
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((l) => `<p>${escapeHtml(l)}</p>`)
+            .join("");
+          parts.push(paras);
+        }
+
+        // 4) 그래픽 포함 페이지(또는 텍스트가 거의 없는 페이지)는 페이지 이미지도 삽입 (표·그래프 그대로 보존)
+        if (hasGraphic || trimmedText.length < 10) {
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            let src: string;
+            if (onUploadImage) {
+              const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
+              src = blob
+                ? await onUploadImage(new File([blob], `${file.name.replace(/\.pdf$/i, "")}-p${i}.png`, { type: "image/png" }))
+                : canvas.toDataURL("image/png");
+            } else {
+              src = canvas.toDataURL("image/png");
+            }
+            parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
+          }
         }
       }
+
+      setPdfProgress("본문에 삽입 중...");
+      editor.chain().focus().insertContent(parts.join("")).run();
       setPdfProgress(null);
     } catch (e) {
       console.error("PDF 삽입 실패:", e);
