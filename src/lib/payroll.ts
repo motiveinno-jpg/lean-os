@@ -143,7 +143,8 @@ export async function previewPayroll(
       item.deductionsTotal = item.deductionsTotal + deduction;
     }
     items.push(item);
-    totalGross += item.baseSalary;
+    // 세전 총급여 = 과세 기본급 + 비과세(식대) + 과세수당 (지급총액 기준)
+    totalGross += item.baseSalary + nonTaxable + allowance;
     totalDeductions += item.deductionsTotal;
     totalNet += item.netPay;
 

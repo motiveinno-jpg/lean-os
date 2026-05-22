@@ -175,9 +175,12 @@ export function calculatePayroll(
     taxableAllowance = 0,
   } = options;
 
-  // 비과세 차감 + 과세 수당 가산 → 과세소득 산출
-  //   (수당이 있으면 소득세·국민연금·건강보험·고용보험이 모두 자동으로 늘어남)
-  const taxableIncome = Math.max(0, baseSalary - nonTaxableAmount + taxableAllowance);
+  // 2026-05-22 (사장님 확정) 기본급 모델: baseSalary = 과세 기본급, nonTaxableAmount = 별도 비과세(식대).
+  //   지급총액 = baseSalary + nonTaxableAmount (예: 기본급 230 + 식대 20 = 250).
+  //   과세소득 = 과세 기본급 + 과세 수당 (비과세는 차감 대상이 아니라 애초에 과세에 미포함).
+  const taxableIncome = Math.max(0, baseSalary + taxableAllowance);
+  // 지급총액 (세전) = 과세 기본급 + 비과세
+  const grossPay = baseSalary + nonTaxableAmount;
 
   // 국민연금: 상한/하한 적용
   const pensionBase = Math.min(
@@ -225,7 +228,7 @@ export function calculatePayroll(
     incomeTax: it,
     localIncomeTax: lit,
     deductionsTotal: deductions,
-    netPay: baseSalary - deductions,
+    netPay: grossPay - deductions, // 지급총액(기본급+비과세) - 공제
     employerCosts: {
       nationalPension: employerNp,
       healthInsurance: employerHi - ltc, // 건강보험 사업주 부담 (장기요양 제외)
