@@ -375,9 +375,9 @@ function SignContent() {
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
           } as any);
-          // Mark as viewed
+          // Mark as viewed — anon RLS 우회 SECDEF RPC (실패해도 비차단)
           if (sigReq.status === 'sent') {
-            await db.from("signature_requests").update({ status: "viewed", viewed_at: new Date().toISOString() }).eq("id", sigReq.id);
+            try { await db.rpc("mark_signature_viewed_by_token", { p_token: token }); } catch { /* 비차단 */ }
           }
           setLoading(false);
           return;
@@ -586,7 +586,8 @@ function SignContent() {
       if (isGeneralDoc) {
         // General document signing: update signature_requests table
         const { saveSignature } = await import("@/lib/signatures");
-        await saveSignature((pkg as any)._signatureRequestId, sigData);
+        // 외부(anon) 서명 — sign_token 전달로 SECDEF RPC 경로 사용 (RLS 우회).
+        await saveSignature((pkg as any)._signatureRequestId, sigData, undefined, token);
       } else {
         // HR contract package — Edge Function 으로 처리 (익명 이메일 링크도 동일 경로)
         // service role 이 RLS 우회하여 item 업데이트 + 전체 완료 시 알림까지 한 번에 수행.

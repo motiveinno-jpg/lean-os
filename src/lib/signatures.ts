@@ -184,14 +184,62 @@ export async function updateSignatureStatus(
 }
 
 // ── Save Signature Data ──
+// 서명 이미지를 본문 스냅샷에 합성 — sig-box[data-role="을"] 우선, 없으면 본문 끝 append.
+function buildSignedContractHtml(
+  snapshotHtml: string | null | undefined,
+  signatureData: { type: 'draw' | 'type' | 'upload'; data: string },
+  signerName?: string | null,
+): string | null {
+  if (!snapshotHtml) return null;
+  const signedAtKst = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const sigInline = signatureData.type === 'type'
+    ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${signatureData.data}</span>`
+    : `<img src="${signatureData.data}" alt="서명" style="width:100%;height:100%;object-fit:contain"/>`;
+  const sigBoxRe = /(<span class="sig-box" data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
+  if (sigBoxRe.test(snapshotHtml)) {
+    return snapshotHtml.replace(sigBoxRe, `$1${sigInline}$3`);
+  }
+  const sigImgBlock = signatureData.type === 'type'
+    ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
+    : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
+  return snapshotHtml + `
+<div style="margin-top:40px;text-align:right;page-break-inside:avoid">
+  <div style="display:inline-block">
+    <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
+    ${sigImgBlock}
+    <div style="font-size:10px;color:#9ca3af;margin-top:4px">${signerName || ''} · ${signedAtKst}</div>
+  </div>
+</div>`;
+}
+
 export async function saveSignature(
   id: string,
   signatureData: {
     type: 'draw' | 'type' | 'upload';
     data: string; // base64 image data or typed name
   },
-  ipAddress?: string
+  ipAddress?: string,
+  // 2026-05-22 외부 서명 페이지(anon) 경로 — sign_token 있으면 SECDEF RPC 로 제출(RLS 우회).
+  signToken?: string,
 ) {
+  if (signToken) {
+    // anon 경로: get_signature_request_by_token 으로 검증·스냅샷 조회 → submit_signature_by_token 으로 저장.
+    const { data: ex } = await db.rpc('get_signature_request_by_token', { p_token: signToken });
+    if (!ex) throw new Error('서명 요청을 찾을 수 없습니다');
+    if (ex.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
+    if (ex.expires_at && new Date(ex.expires_at) < new Date()) throw new Error('서명 요청이 만료되었습니다');
+    const signedContractHtml = buildSignedContractHtml(ex.template_snapshot_html, signatureData, ex.signer_name);
+    const { error } = await db.rpc('submit_signature_by_token', {
+      p_token: signToken,
+      p_signature_data: signatureData,
+      p_signed_contract_html: signedContractHtml,
+      p_signature_method: signatureData.type,
+      p_signature_data_url: signatureData.data,
+      p_ip: ipAddress || null,
+    });
+    if (error) throw error;
+    return { id: ex.id, status: 'signed' };
+  }
   // Check if signature request exists and is not expired + 본문 스냅샷 같이 조회
   //   2026-05-21: 회수 흐름 통합 — template_snapshot_html 있으면 서명 이미지 합성하여 signed_contract_html 저장
   const { data: existing } = await db
