@@ -1,15 +1,23 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const db = supabase as any;
 
 export default function SystemPage() {
+  const [expanded, setExpanded] = useState<null | "companies" | "users">(null);
+  const toggle = (k: "companies" | "users") => setExpanded((cur) => (cur === k ? null : k));
+
   const { data: companies = [] } = useQuery({
     queryKey: ["p-sys-companies"],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("id");
+      const { data } = await db
+        .from("companies")
+        .select("id, name, business_number, created_at")
+        .order("created_at", { ascending: false });
       return data || [];
     },
   });
@@ -17,7 +25,10 @@ export default function SystemPage() {
   const { data: users = [] } = useQuery({
     queryKey: ["p-sys-users"],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, role, created_at").order("created_at", { ascending: false });
+      const { data } = await db
+        .from("users")
+        .select("id, name, email, role, created_at, company_id")
+        .order("created_at", { ascending: false });
       return data || [];
     },
   });
@@ -61,14 +72,79 @@ export default function SystemPage() {
         <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
           <h3 className="font-bold text-white mb-4">데이터베이스</h3>
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a]">
-              <span className="text-sm text-[#94a3b8]">총 회사</span>
+            {/* 총 회사 — 클릭 시 목록 토글 */}
+            <button
+              onClick={() => toggle("companies")}
+              className="w-full flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a] hover:bg-[#0f1524] transition text-left"
+            >
+              <span className="text-sm text-[#94a3b8] flex items-center gap-1.5">
+                총 회사
+                <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "companies" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+              </span>
               <span className="font-bold text-white">{companies.length}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a]">
-              <span className="text-sm text-[#94a3b8]">총 사용자</span>
+            </button>
+            {expanded === "companies" && (
+              <div className="max-h-72 overflow-y-auto rounded-xl border border-[#1e293b] divide-y divide-[#1e293b]">
+                {companies.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#64748b]">회사가 없습니다</div>
+                ) : (
+                  companies.map((c: any) => (
+                    <Link
+                      key={c.id}
+                      href={`/platform/companies/${c.id}`}
+                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[#0f1524] transition"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm text-white font-medium truncate">{c.name || "(이름 없음)"}</div>
+                        <div className="text-[11px] text-[#64748b]">
+                          {c.business_number || "사업자번호 미등록"}
+                          {c.created_at && ` · 가입 ${new Date(c.created_at).toLocaleDateString("ko-KR")}`}
+                        </div>
+                      </div>
+                      <span className="text-[#64748b] text-xs shrink-0 ml-2">상세 →</span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 총 사용자 — 클릭 시 목록 토글 */}
+            <button
+              onClick={() => toggle("users")}
+              className="w-full flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a] hover:bg-[#0f1524] transition text-left"
+            >
+              <span className="text-sm text-[#94a3b8] flex items-center gap-1.5">
+                총 사용자
+                <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "users" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+              </span>
               <span className="font-bold text-white">{users.length}</span>
-            </div>
+            </button>
+            {expanded === "users" && (
+              <div className="max-h-72 overflow-y-auto rounded-xl border border-[#1e293b] divide-y divide-[#1e293b]">
+                {users.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#64748b]">사용자가 없습니다</div>
+                ) : (
+                  users.map((u: any) => (
+                    <Link
+                      key={u.id}
+                      href={`/operator-users?q=${encodeURIComponent(u.email || u.id)}`}
+                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[#0f1524] transition"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm text-white font-medium truncate">{u.name || "(이름 없음)"}</div>
+                        <div className="text-[11px] text-[#64748b] truncate">{u.email || u.id}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e293b] text-[#94a3b8]">{u.role}</span>
+                        {u.created_at && <span className="text-[10px] text-[#64748b]">{new Date(u.created_at).toLocaleDateString("ko-KR")}</span>}
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 역할별 카운트 (기존 유지) */}
             {Object.entries(roleCounts).map(([role, count]) => (
               <div key={role} className="flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a]">
                 <span className="text-sm text-[#64748b]">  {role}</span>
