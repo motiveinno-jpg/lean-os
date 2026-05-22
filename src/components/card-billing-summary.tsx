@@ -133,10 +133,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       const endISO = end.toISOString().slice(0, 10);
       // 2026-05-22 card_id 우선, NULL이면 card_name 으로 fallback 매칭.
       //   CODEF 신규 거래가 card_id NULL 로 들어와도 청구서에 정상 집계 (백필+런타임 이중 안전망).
+      //   취소·환불(음수)도 같은 사이클이면 합산에 포함(차감) → 실청구액(net). amount>0 필터 제거.
       const cardTxs = (txAll as any[]).filter((tx) =>
         (tx.card_id === c.id || (!tx.card_id && tx.card_name && tx.card_name === c.card_name)) &&
-        tx.transaction_date >= startISO && tx.transaction_date <= endISO &&
-        Number(tx.amount || 0) > 0,
+        tx.transaction_date >= startISO && tx.transaction_date <= endISO,
       );
       const total = cardTxs.reduce((s, t) => s + Number(t.amount || 0), 0);
       const nextPay = computeNextPayment(today, paymentDay);
@@ -246,6 +246,18 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
   const grand = billings.reduce((s, b) => s + b.totalAmount, 0);
 
+  // 2026-05-22 최근 동기화(카드 거래 최신 일자) — 사장님이 데이터 시점 인지 가능하게.
+  const lastSyncDate = useMemo(() => {
+    let max = '';
+    for (const tx of txAll as any[]) {
+      if (tx.transaction_date && tx.transaction_date > max) max = tx.transaction_date;
+    }
+    return max || null;
+  }, [txAll]);
+
+  // 청구서 명세 모달 — 청구서 버튼 클릭 시 그 카드의 사이클 거래 명세 표시.
+  const [detailBilling, setDetailBilling] = useState<Billing | null>(null);
+
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
       <div className="flex items-center justify-between mb-3">
@@ -257,6 +269,9 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
         <div className="text-right">
           <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider">청구 합계</div>
           <div className="text-sm font-black mono-number text-[var(--danger)]">₩{fmtKRW(grand)}</div>
+          {lastSyncDate && (
+            <div className="text-[8px] text-[var(--text-dim)] mt-0.5">최근 거래 {lastSyncDate}</div>
+          )}
         </div>
       </div>
 
@@ -281,6 +296,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
               if (card) typeMut.mutate({ card, type });
             }}
             onSelectCard={onSelectCard}
+            onShowDetail={() => setDetailBilling(b)}
             saving={paymentDayMut.isPending || typeMut.isPending}
           />
         ))}
@@ -300,6 +316,151 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
           saving={typeMut.isPending}
         />
       )}
+
+      {/* 청구서 명세 모달 */}
+      {detailBilling && (
+        <BillingDetailModal
+          billing={detailBilling}
+          companyId={companyId}
+          today={today}
+          lastSyncDate={lastSyncDate}
+          onClose={() => setDetailBilling(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// 청구서 명세 모달 — 카드별 사이클 거래 리스트 + 합계 + 사이클 전환
+// ─────────────────────────────────────────────────────
+function BillingDetailModal({
+  billing, companyId, today, lastSyncDate, onClose,
+}: {
+  billing: Billing;
+  companyId: string;
+  today: Date;
+  lastSyncDate: string | null;
+  onClose: () => void;
+}) {
+  const [offset, setOffset] = useState(0); // 0=현재 사이클, -1=직전 ...
+
+  // offset 적용 사이클 — 현재 사이클을 offset 개월 이동
+  const cycle = useMemo(() => {
+    const base = computeCycle(today, billing.billingDay);
+    if (offset === 0) return base;
+    const start = new Date(base.start); start.setMonth(start.getMonth() + offset);
+    const end = new Date(base.end); end.setMonth(end.getMonth() + offset);
+    return { start: startOfDay(start), end: startOfDay(end) };
+  }, [today, billing.billingDay, offset]);
+
+  const startISO = cycle.start.toISOString().slice(0, 10);
+  const endISO = cycle.end.toISOString().slice(0, 10);
+
+  const { data: txs = [], isLoading } = useQuery({
+    queryKey: ['card-billing-detail', companyId, billing.cardId, startISO, endISO],
+    queryFn: () => fetchAllPaginated<any>((from, to) =>
+      (supabase as any)
+        .from('card_transactions')
+        .select('id, transaction_date, merchant_name, card_name, card_id, amount')
+        .eq('company_id', companyId)
+        .gte('transaction_date', startISO).lte('transaction_date', endISO)
+        .range(from, to)
+    ),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+
+  // 이 카드 거래만 (card_id 우선, NULL이면 card_name fallback — 청구서 합계와 동일 규칙)
+  const cardTxs = useMemo(() => {
+    return (txs as any[])
+      .filter((tx) => tx.card_id === billing.cardId || (!tx.card_id && tx.card_name && tx.card_name === billing.cardName))
+      .sort((a, b) => String(b.transaction_date).localeCompare(String(a.transaction_date)));
+  }, [txs, billing.cardId, billing.cardName]);
+
+  const total = cardTxs.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const usedSum = cardTxs.filter((t) => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
+  const cancelSum = cardTxs.filter((t) => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount), 0);
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div onClick={(e) => e.stopPropagation()} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        {/* 헤더 */}
+        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-[var(--text)] truncate">🧾 {billing.cardName} 청구서</div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{billing.cardCompany}</div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
+        </div>
+
+        {/* 사이클 전환 */}
+        <div className="px-4 py-2 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-surface)]/40">
+          <button onClick={() => setOffset((o) => o - 1)} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" title="이전 사이클">‹ 이전</button>
+          <div className="text-center">
+            <div className="text-xs font-semibold text-[var(--text)]">{startISO} ~ {endISO}</div>
+            <div className="text-[9px] text-[var(--text-dim)]">
+              {offset === 0 ? '이번 청구 사이클' : `${offset < 0 ? `${-offset}회 이전` : `${offset}회 이후`} 사이클`}
+              {billing.billingDay == null && ' · 마감일 미설정(월 단위 추정)'}
+            </div>
+          </div>
+          <button onClick={() => setOffset((o) => o + 1)} disabled={offset >= 0} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30" title="다음 사이클">다음 ›</button>
+        </div>
+
+        {/* 합계 */}
+        <div className="px-4 py-3 border-b border-[var(--border)] grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-[9px] text-[var(--text-dim)]">사용</div>
+            <div className="text-xs font-bold mono-number text-[var(--text)]">₩{fmtKRW(usedSum)}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-[var(--text-dim)]">취소·환불</div>
+            <div className="text-xs font-bold mono-number text-emerald-500">₩{fmtKRW(cancelSum)}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-[var(--text-dim)]">청구액(net)</div>
+            <div className="text-sm font-black mono-number text-[var(--danger)]">₩{fmtKRW(total)}</div>
+          </div>
+        </div>
+
+        {/* 거래 리스트 */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="p-8 text-center text-xs text-[var(--text-dim)]">불러오는 중...</div>
+          ) : cardTxs.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[var(--text-dim)]">
+              이 사이클에 거래가 없습니다.
+              {lastSyncDate && <div className="mt-1">최근 동기화 거래: {lastSyncDate}</div>}
+            </div>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]/50">
+              {cardTxs.map((tx) => {
+                const amt = Number(tx.amount || 0);
+                const isNeg = amt < 0;
+                return (
+                  <li key={tx.id} className="px-4 py-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs text-[var(--text)] truncate">{tx.merchant_name || '가맹점 미상'}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{tx.transaction_date}</div>
+                    </div>
+                    <div className={`text-xs font-bold mono-number shrink-0 ${isNeg ? 'text-emerald-500' : 'text-[var(--text)]'}`}>
+                      {isNeg ? '' : ''}₩{fmtKRW(amt)}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* 푸터 — 결제예정 + 건수 */}
+        <div className="px-4 py-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--text-dim)]">
+          <span>{cardTxs.length}건</span>
+          {billing.nextPaymentDate
+            ? <span>결제예정 {billing.nextPaymentDate.getMonth() + 1}/{billing.nextPaymentDate.getDate()}{billing.daysToPayment != null ? ` (D-${billing.daysToPayment})` : ''}</span>
+            : <span className="text-amber-500">결제일 미설정</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -408,12 +569,13 @@ function NonCreditTypeToggle({ currentType, currentLabel, onChange, saving }: {
   );
 }
 
-function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCard, saving }: {
+function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCard, onShowDetail, saving }: {
   billing: Billing;
   card: any;
   onSavePayment: (payDay: number | null, billDay: number | null) => void;
   onChangeType?: (type: 'credit' | 'check' | 'debit' | 'other') => void;
   onSelectCard?: (cardId: string) => void;
+  onShowDetail?: () => void;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -517,12 +679,10 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
 
         {/* 액션 */}
         <div className="flex flex-col gap-1 shrink-0">
-          {onSelectCard && (
-            <button onClick={() => onSelectCard(b.cardId)}
-              className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] text-[var(--text)] border border-[var(--border)] transition"
-              title="이 카드 거래만 보기"
-            >📄 청구서</button>
-          )}
+          <button onClick={() => { onShowDetail?.(); onSelectCard?.(b.cardId); }}
+            className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30 transition"
+            title="청구 명세 보기 (사이클 거래·합계)"
+          >📄 청구서</button>
           {card && (
             <button onClick={() => setEditing(v => !v)}
               className={`px-2 py-0.5 text-[9px] font-semibold rounded border transition ${
