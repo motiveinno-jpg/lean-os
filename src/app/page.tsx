@@ -743,6 +743,21 @@ export default function LandingPage() {
   const [partnerSent, setPartnerSent] = useState(false);
   const [partnerSending, setPartnerSending] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // 2026-05-22 랜딩 라이트/다크 토글 (앱 테마와 독립). 기본 다크, localStorage 유지.
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("landing-theme");
+      if (s === "light" || s === "dark") setTheme(s);
+    } catch { /* ignore */ }
+  }, []);
+  const toggleTheme = () => {
+    setTheme((t) => {
+      const next = t === "dark" ? "light" : "dark";
+      try { localStorage.setItem("landing-theme", next); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   async function handlePartnerSubmit() {
     if (!partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message) return;
@@ -785,7 +800,7 @@ export default function LandingPage() {
   const SimComponent = SIM_MAP[FEATURES[activeFeat].sim];
 
   return (
-    <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Inter', 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif" }}>
+    <div className="landing-root min-h-screen bg-white text-gray-900" data-theme={theme} style={{ fontFamily: "'Inter', 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif" }}>
       <style>{`
         @keyframes float-y { from { transform: translateY(0px) rotate(0deg); } to { transform: translateY(-30px) rotate(5deg); } }
         @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
@@ -826,6 +841,18 @@ export default function LandingPage() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
+              )}
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="landing-theme-toggle p-2 rounded-lg text-slate-400 hover:text-white transition"
+              aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+              title={theme === "dark" ? "라이트 모드" : "다크 모드"}
+            >
+              {theme === "dark" ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path strokeLinecap="round" d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
               )}
             </button>
             <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition hidden sm:block">로그인</Link>
