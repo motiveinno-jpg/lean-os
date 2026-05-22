@@ -133,8 +133,10 @@ export default function ProjectsPage() {
   if (legacyDeal) {
     return <div className="p-8 text-sm text-[var(--text-muted)]">이동 중...</div>;
   }
-  // 기간 파라미터 없으면 → 기간 선택기 먼저
-  if (!dateFilter) {
+  // ?create=1(새 프로젝트 모달) 진입은 기간 없어도 ProjectsInner 로 — 모달 표시.
+  const hasCreate = searchParams.get("create") === "1";
+  // 기간 파라미터도 create 도 없으면 → 기간 선택기 먼저
+  if (!dateFilter && !hasCreate) {
     return <PeriodPicker isEmployeeLimited={isEmployeeLimited} />;
   }
   return <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} />;
