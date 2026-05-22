@@ -376,6 +376,36 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
     return { count: cards.length, total, byStageCount, doneCount };
   }, [cards]);
 
+  // 2026-05-22 정밀 수익/비용/마진 — 기간 cards 의 deal 들에 대해 실입금(수금)·실비용 집계.
+  //   직원(재무 가림)에겐 fetch·표시 안 함. 기간 바뀌면 dealIds 변경으로 자동 갱신.
+  const dealIds = useMemo(() => cards.map((c) => c.id), [cards]);
+  const { data: periodPnl } = useQuery({
+    queryKey: ["projects-period-pnl", companyId, dealIds],
+    queryFn: async () => {
+      if (!companyId || dealIds.length === 0) return { revenue: 0, cost: 0 };
+      const idSet = new Set(dealIds);
+      const [revRes, costRes] = await Promise.all([
+        (supabase as any)
+          .from("deal_revenue_schedule")
+          .select("deal_id, amount")
+          .in("deal_id", dealIds)
+          .eq("status", "paid"),
+        (supabase as any)
+          .from("deal_cost_schedule")
+          .select("amount, deal_nodes:deal_node_id(deal_id), sub_deals:sub_deal_id(parent_deal_id)")
+          .eq("company_id", companyId),
+      ]);
+      const revenue = ((revRes.data || []) as any[]).reduce((s, r) => s + Number(r.amount || 0), 0);
+      const cost = ((costRes.data || []) as any[]).reduce((s, r) => {
+        const did = r.deal_nodes?.deal_id || r.sub_deals?.parent_deal_id;
+        return did && idSet.has(did) ? s + Number(r.amount || 0) : s;
+      }, 0);
+      return { revenue, cost };
+    },
+    enabled: !!companyId && !!dateFilter && !isEmployeeLimited && dealIds.length > 0,
+    staleTime: 60_000,
+  });
+
   return (
     <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
       {/* Header */}
@@ -433,6 +463,29 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
               <div className="text-base font-extrabold text-[var(--text)] tabular-nums">₩{summary.total.toLocaleString("ko-KR")}</div>
             </div>
           )}
+          {/* 정밀 수익/비용/마진 — 직원 가림 */}
+          {!isEmployeeLimited && periodPnl && (() => {
+            const margin = periodPnl.revenue - periodPnl.cost;
+            const marginPct = periodPnl.revenue > 0 ? Math.round((margin / periodPnl.revenue) * 100) : 0;
+            return (
+              <>
+                <div className="rounded-xl bg-cyan-500/8 border border-cyan-500/20 px-3 py-2">
+                  <div className="text-[10px] text-cyan-500/80 uppercase tracking-wide">총 수익(수금)</div>
+                  <div className="text-base font-extrabold text-cyan-500 tabular-nums">₩{periodPnl.revenue.toLocaleString("ko-KR")}</div>
+                </div>
+                <div className="rounded-xl bg-rose-500/8 border border-rose-500/20 px-3 py-2">
+                  <div className="text-[10px] text-rose-500/80 uppercase tracking-wide">총 비용</div>
+                  <div className="text-base font-extrabold text-rose-500 tabular-nums">₩{periodPnl.cost.toLocaleString("ko-KR")}</div>
+                </div>
+                <div className={`rounded-xl px-3 py-2 border ${margin >= 0 ? "bg-emerald-500/8 border-emerald-500/20" : "bg-rose-500/8 border-rose-500/20"}`}>
+                  <div className={`text-[10px] uppercase tracking-wide ${margin >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}>마진 · 마진율</div>
+                  <div className={`text-base font-extrabold tabular-nums ${margin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    ₩{margin.toLocaleString("ko-KR")} <span className="text-xs">({marginPct}%)</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
           <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-3 py-2">
             <div className="text-[10px] text-emerald-500/80 uppercase tracking-wide">완료·정산</div>
             <div className="text-base font-extrabold text-emerald-500 tabular-nums">{summary.doneCount}건</div>
