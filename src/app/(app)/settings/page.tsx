@@ -5969,7 +5969,7 @@ function DataResetTab({ companyId }: { companyId: string }) {
   async function handleReset() {
     setStep("processing");
     setErrors([]);
-    const totalSteps = 2 + CHILD_DELETE_GROUPS.length + DIRECT_DELETE_TABLES.length + 1;
+    const totalSteps = 3; // 2026-05-22 서버 RPC 1회 + 회사정보 초기화 + 완료
     let current = 0;
     const failedTables: string[] = [];
 
@@ -5978,64 +5978,16 @@ function DataResetTab({ companyId }: { companyId: string }) {
       setProgress({ current, total: totalSteps, currentTable: label });
     }
 
-    // ── Phase 1: 순환 FK NULL 처리 ──
-    tick("순환 FK 해제");
-    await db.from("partners").update({ source_deal_id: null }).eq("company_id", companyId);
-    await db.from("tax_invoices").update({ original_invoice_id: null }).eq("company_id", companyId);
-    await db.from("deals").update({ partner_id: null, bank_account_id: null }).eq("company_id", companyId);
-    await db.from("deal_cost_schedule").update({ sub_deal_id: null }).eq("company_id", companyId);
+    // ── 서버 RPC 1회로 전체 데이터 일괄 삭제 ──
+    //   2026-05-22: 기존 클라이언트 테이블별 단건 거대 DELETE(트리거·FK CASCADE 로 hang) →
+    //   reset_company_data RPC(SECDEF, session_replication_role=replica 로 FK·트리거 우회) 1회.
+    //   자식·DIRECT·멤버 detach 모두 RPC 가 트랜잭션으로 처리. 순환 FK NULL 도 불요(replica).
+    tick("전체 데이터 삭제 중...");
+    const { error: resetErr } = await (db as any).rpc("reset_company_data", { p_company_id: companyId });
+    if (resetErr) failedTables.push(`데이터 삭제: ${resetErr.message}`);
 
-    // ── Phase 1.5: chat_reactions는 message_id로만 삭제 가능 ──
-    tick("chat_reactions");
-    const chatChannelIds = await fetchIds("chat_channels");
-    if (chatChannelIds.length > 0) {
-      const allMsgIds: string[] = [];
-      for (let i = 0; i < chatChannelIds.length; i += 100) {
-        const batch = chatChannelIds.slice(i, i + 100);
-        const { data: msgs } = await db.from("chat_messages").select("id").in("channel_id", batch);
-        if (msgs) allMsgIds.push(...msgs.map((m: { id: string }) => m.id));
-      }
-      const reactErr = await deleteByIds("chat_reactions", "message_id", allMsgIds);
-      if (reactErr) failedTables.push(reactErr);
-    }
-
-    // ── Phase 2: 부모 ID 조회 후 자식 테이블 삭제 ──
-    for (const group of CHILD_DELETE_GROUPS) {
-      tick(group.parent + " 자식");
-      const parentIds = await fetchIds(group.parent);
-      for (const child of group.children) {
-        const err = await deleteByIds(child.table, child.fk, parentIds);
-        if (err) failedTables.push(err);
-      }
-    }
-
-    // ── Phase 3: company_id로 직접 삭제 (토폴로지 순서) ──
-    for (const table of DIRECT_DELETE_TABLES) {
-      tick(table);
-      const { error } = await db.from(table).delete().eq("company_id", companyId);
-      if (error) failedTables.push(`${table}: ${error.message}`);
-    }
-
-    // ── Phase 2.5: 멤버 정리 — employees / employee_invitations / 회사 소속 끊기 ──
-    // users 직접 삭제는 chat_participants/messages 등 FK 위반 가능 → company_id=NULL 로 detach.
-    // owner/admin 은 보존 (회사 운영 주체). 본인은 어쨌든 owner/admin 라 자동 보존.
-    tick("멤버 + 초대 정리");
-    try {
-      await db.from("employees").delete().eq("company_id", companyId);
-      await db.from("employee_invitations").delete().eq("company_id", companyId);
-      await db.from("partner_invitations").delete().eq("company_id", companyId);
-      const { error: uErr } = await db
-        .from("users")
-        .update({ company_id: null })
-        .eq("company_id", companyId)
-        .in("role", ["employee", "partner"]);
-      if (uErr) failedTables.push(`users detach: ${uErr.message}`);
-    } catch (e: any) {
-      failedTables.push(`멤버 정리: ${e?.message || e}`);
-    }
-
-    // ── Phase 3: companies 레코드 부가 필드 초기화 ──
-    tick("companies");
+    // ── 회사 레코드 부가 필드 초기화 (companies 레코드 자체는 보존) ──
+    tick("회사 정보 초기화");
     await db
       .from("companies")
       .update({
