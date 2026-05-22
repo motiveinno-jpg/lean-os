@@ -114,6 +114,8 @@ export default function ProjectsPage() {
   const { role, loading } = useUser();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   // 2026-05-22 하위호환: 옛 ?deal=<id> 딥링크 → 새 상세 페이지 /projects/<id> 로 리다이렉트
   const legacyDeal = searchParams.get("deal");
   useEffect(() => {
@@ -122,6 +124,24 @@ export default function ProjectsPage() {
       router.replace(action ? `/projects/${legacyDeal}?action=${action}` : `/projects/${legacyDeal}`);
     }
   }, [legacyDeal, searchParams, router]);
+
+  // ── 새 프로젝트 모달: state 단일 소스. URL ?create 의존 제거.
+  //   2026-05-22 핫픽스: 기존엔 "+ 새 프로젝트"가 ?create=1 로 URL push → period 파라미터가 날아가
+  //   ProjectsInner→PeriodPicker 분기가 뒤집히며 모달이 언마운트(깜빡임 후 사라짐)되었다.
+  //   이제 모달은 분기보다 위(ProjectsPage)에 마운트 → 어느 화면에서 열든 안 사라진다.
+  const [showCreate, setShowCreate] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
+  // ?create=1 딥링크 1회 수용 후 URL 정리 (state 로 전환).
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setShowCreate(true);
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("create");
+      const qs = sp.toString();
+      router.replace(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (role !== "owner" && role !== "admin" && role !== "employee") {
@@ -133,16 +153,33 @@ export default function ProjectsPage() {
   if (legacyDeal) {
     return <div className="p-8 text-sm text-[var(--text-muted)]">이동 중...</div>;
   }
-  // ?create=1(새 프로젝트 모달) 진입은 기간 없어도 ProjectsInner 로 — 모달 표시.
-  const hasCreate = searchParams.get("create") === "1";
-  // 기간 파라미터도 create 도 없으면 → 기간 선택기 먼저
-  if (!dateFilter && !hasCreate) {
-    return <PeriodPicker isEmployeeLimited={isEmployeeLimited} />;
-  }
-  return <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} />;
+
+  const createModal = showCreate && companyId ? (
+    <NewProjectModal
+      companyId={companyId}
+      onClose={() => setShowCreate(false)}
+      onCreated={() => {
+        queryClient.invalidateQueries({ queryKey: ["deals"] });
+        queryClient.invalidateQueries({ queryKey: ["projects-cards"] });
+        queryClient.invalidateQueries({ queryKey: ["partners"] });
+        toast("프로젝트가 생성되었습니다", "success");
+        setShowCreate(false);
+      }}
+    />
+  ) : null;
+
+  // 기간 파라미터 없으면 → 기간 선택기 먼저 (모달은 분기 밖에서 항상 마운트)
+  return (
+    <>
+      {!dateFilter
+        ? <PeriodPicker isEmployeeLimited={isEmployeeLimited} onCreate={() => setShowCreate(true)} />
+        : <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} onCreate={() => setShowCreate(true)} />}
+      {createModal}
+    </>
+  );
 }
 
-function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmployeeLimited?: boolean; dateFilter?: DateFilter }) {
+function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate }: { isEmployeeLimited?: boolean; dateFilter?: DateFilter; onCreate: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -150,23 +187,6 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
-
-  // ?create=1 → 새 프로젝트 모달 (인라인) — /deals 점프 차단
-  //   2026-05-22 fix: URL 즉시 클리어하면 create=1 사라져 ProjectsPage 가 PeriodPicker 로 빠지며
-  //   ProjectsInner(모달) 가 언마운트됨 → 모달이 안 뜸. 클리어는 모달 닫을 때(closeCreateModal)로 미룬다.
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  useEffect(() => {
-    if (searchParams.get("create") === "1") setShowCreateModal(true);
-  }, [searchParams]);
-  const closeCreateModal = () => {
-    setShowCreateModal(false);
-    if (searchParams.get("create") === "1") {
-      const sp = new URLSearchParams(searchParams.toString());
-      sp.delete("create");
-      const qs = sp.toString();
-      router.replace(qs ? `/projects?${qs}` : "/projects", { scroll: false });
-    }
-  };
 
   // ── URL ?deal=<id>&action=<key> → 슬라이드 패널 (PR3.5) ──
   //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
@@ -447,12 +467,13 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
           >
             ← 기존 /deals
           </Link>
-          <Link
-            href="/projects?create=1"
+          <button
+            type="button"
+            onClick={onCreate}
             className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition"
           >
             + 새 프로젝트
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -581,7 +602,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
       )}
 
       {!dealsLoading && filteredCards.length === 0 && (
-        <EmptyState />
+        <EmptyState onCreate={onCreate} />
       )}
 
       {!dealsLoading && filteredCards.length > 0 && view === "kanban" && (
@@ -614,21 +635,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
       )}
 
       {/* 프로젝트 상세는 독립 페이지 /projects/[id] 로 이동 (슬라이드 패널 제거) */}
-
-      {/* 새 프로젝트 모달 (?create=1 진입 시) — /deals 점프 차단 */}
-      {showCreateModal && companyId && (
-        <NewProjectModal
-          companyId={companyId}
-          onClose={closeCreateModal}
-          onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["deals"] });
-            queryClient.invalidateQueries({ queryKey: ["projects-cards"] });
-            queryClient.invalidateQueries({ queryKey: ["partners"] });
-            toast("프로젝트가 생성되었습니다", "success");
-            closeCreateModal();
-          }}
-        />
-      )}
+      {/* 새 프로젝트 모달은 ProjectsPage 레벨로 승격 (분기 언마운트 방지) */}
     </div>
   );
 }
@@ -894,18 +901,19 @@ function NewProjectModal({
 }
 
 // ── EmptyState ──
-function EmptyState() {
+function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-10 text-center">
       <div className="text-4xl mb-3">📋</div>
       <h2 className="text-base font-bold text-[var(--text)] mb-1">아직 프로젝트가 없습니다</h2>
       <p className="text-xs text-[var(--text-muted)] mb-5">첫 프로젝트를 만들고 5단계 진행 상태를 한눈에 관리해보세요.</p>
-      <Link
-        href="/projects?create=1"
+      <button
+        type="button"
+        onClick={onCreate}
         className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold transition active:scale-[0.98]"
       >
         + 새 프로젝트 만들기
-      </Link>
+      </button>
     </div>
   );
 }
@@ -1286,7 +1294,7 @@ function StageModal({
 //   상단 토글 [년 / 분기 / 월] (기본 분기) + 년도 드롭다운
 //   카드 그리드: 년=3장, 분기=4장, 월=12장 — 각 카드에 그 기간 활성 프로젝트 건수
 // ────────────────────────────────────────────────
-function PeriodPicker({ isEmployeeLimited = false }: { isEmployeeLimited?: boolean }) {
+function PeriodPicker({ isEmployeeLimited = false, onCreate }: { isEmployeeLimited?: boolean; onCreate: () => void }) {
   const router = useRouter();
   const [unit, setUnit] = useState<"year" | "quarter" | "month">("quarter");
   const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -1353,9 +1361,18 @@ function PeriodPicker({ isEmployeeLimited = false }: { isEmployeeLimited?: boole
 
   return (
     <div className="p-4 sm:p-6 max-w-[1200px] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 — 기간 선택</h1>
-        <p className="text-xs text-[var(--text-muted)] mt-1">기간을 선택하면 그 기간에 활성이었던 프로젝트만 칸반에 표시됩니다.</p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 — 기간 선택</h1>
+          <p className="text-xs text-[var(--text-muted)] mt-1">기간을 선택하면 그 기간에 활성이었던 프로젝트만 칸반에 표시됩니다.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onCreate}
+          className="shrink-0 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition"
+        >
+          + 새 프로젝트
+        </button>
       </div>
 
       {/* 단위 토글 + 년도 드롭다운 */}
