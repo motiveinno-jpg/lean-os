@@ -1283,6 +1283,7 @@ export async function createVaultAsset(params: {
   location?: string;
   notes?: string;
   usefulLifeMonths?: number;
+  attachmentUrl?: string;
 }) {
   const { data, error } = await supabase
     .from('vault_assets')
@@ -1295,6 +1296,7 @@ export async function createVaultAsset(params: {
       location: params.location,
       notes: params.notes,
       useful_life_months: params.usefulLifeMonths ?? null,
+      attachment_url: params.attachmentUrl ?? null,
       status: 'in_use',
     } as never)
     .select()

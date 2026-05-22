@@ -88,7 +88,7 @@ export default function VaultPage() {
   });
   // Asset form
   const [assetForm, setAssetForm] = useState({
-    type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "",
+    type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "",
   });
   // Doc form
   const [docForm, setDocForm] = useState({
@@ -145,12 +145,13 @@ export default function VaultPage() {
       location: assetForm.location || undefined,
       notes: assetForm.notes || undefined,
       usefulLifeMonths: assetForm.usefulLifeMonths ? Number(assetForm.usefulLifeMonths) : undefined,
+      attachmentUrl: assetForm.attachmentUrl || undefined,
     }),
     onSuccess: () => {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" });
+      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" });
     },
     onError: (err: any) => toast(`자산 추가 실패: ${err.message || err}`, "error"),
   });
@@ -204,12 +205,13 @@ export default function VaultPage() {
       location: assetForm.location || null,
       notes: assetForm.notes || null,
       useful_life_months: assetForm.usefulLifeMonths ? Number(assetForm.usefulLifeMonths) : null,
+      attachment_url: assetForm.attachmentUrl || null,
     }),
     onSuccess: () => {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" });
+      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" });
     },
     onError: (err: any) => toast(`자산 수정 실패: ${err.message || err}`, "error"),
   });
@@ -463,7 +465,7 @@ export default function VaultPage() {
           )}
           {tab !== "discovery" && (
             <button
-              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
+              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
               className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
             >
               + 추가
@@ -784,6 +786,29 @@ export default function VaultPage() {
               <input value={assetForm.notes} onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
+            <div className="col-span-3">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">증빙 문서 (영수증·계약서 등)</label>
+              {assetForm.attachmentUrl ? (
+                <div className="flex items-center gap-2">
+                  <a href={assetForm.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-[var(--primary)] hover:underline truncate flex-1">📎 첨부된 문서 보기</a>
+                  <button type="button" onClick={() => setAssetForm({ ...assetForm, attachmentUrl: "" })} className="text-[10px] text-red-400 hover:underline">제거</button>
+                </div>
+              ) : (
+                <input type="file" disabled={fileUploading}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f || !companyId || !userId) return;
+                    setFileUploading(true);
+                    try {
+                      const res = await uploadFile({ companyId, bucket: "company-assets", file: f, userId });
+                      setAssetForm((prev) => ({ ...prev, attachmentUrl: res.fileUrl }));
+                    } catch (err) { toast(`업로드 실패: ${friendlyError(err, "파일 업로드 실패")}`, "error"); }
+                    setFileUploading(false);
+                  }}
+                  className="w-full text-xs text-[var(--text-muted)] file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-[var(--bg-surface)] file:text-[var(--text)] file:text-xs" />
+              )}
+              {fileUploading && <div className="text-[10px] text-[var(--text-dim)] mt-1">업로드 중...</div>}
+            </div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => { if (!assetForm.name.trim()) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name.trim() || createAssetMut.isPending || updateAssetMut.isPending}
@@ -1051,9 +1076,14 @@ export default function VaultPage() {
                 {vault.assets.map((a: any) => {
                   const bv = computeBookValue(a.value, a.purchase_date, a.useful_life_months);
                   return (
-                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(a.id); setAssetForm({ type: a.type || "tangible", name: a.name || "", purchaseDate: a.purchase_date || "", value: String(a.value || ""), location: a.location || "", notes: a.notes || "", usefulLifeMonths: a.useful_life_months ? String(a.useful_life_months) : "" }); setShowForm(true); }}>
+                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(a.id); setAssetForm({ type: a.type || "tangible", name: a.name || "", purchaseDate: a.purchase_date || "", value: String(a.value || ""), location: a.location || "", notes: a.notes || "", usefulLifeMonths: a.useful_life_months ? String(a.useful_life_months) : "", attachmentUrl: a.attachment_url || "" }); setShowForm(true); }}>
                     <td className="p-4">
-                      <div className="font-semibold">{a.name}</div>
+                      <div className="font-semibold flex items-center gap-1.5">
+                        {a.name}
+                        {a.attachment_url && (
+                          <a href={a.attachment_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서">📎</a>
+                        )}
+                      </div>
                       {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
                     </td>
                     <td className="p-4 text-center">
