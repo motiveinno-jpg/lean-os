@@ -30,17 +30,6 @@ export interface PayslipParams {
   holidayHours?: number;
   /** 통상시급(원) */
   hourlyWage?: number;
-  /** 추가 지급 항목 (지급내역 6칸 그리드의 추가) */
-  extraEarnings?: { label: string; amount: number }[];
-  /** 추가 공제 항목 */
-  extraDeductions?: { label: string; amount: number }[];
-  /**
-   * L 수당 카탈로그 — 해당 월 활성 allowance_entries (display_order ASC).
-   *   주어지면 지급내역에 동적 라인으로 자동 추가 (extraEarnings 보다 먼저).
-   *   amount<=0 인 행은 자동 제외.
-   *   law-mandatory 식별을 위해 code 도 전달 가능 (UI 가 라벨 결정).
-   */
-  allowanceEntries?: { label: string; amount: number; code?: string }[];
   /** PDF 비밀번호 (생년월일 YYYYMMDD 권장). 설정 시 PDF 열 때 입력 필요. */
   password?: string;
 }
@@ -81,8 +70,14 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
     item, companyName, periodLabel, department, position, paymentDate,
     employeeCode, birthDate, payGrade,
     overtimeHours, nightHours, holidayHours, hourlyWage,
-    extraEarnings, extraDeductions, allowanceEntries, password,
+    password,
   } = params;
+
+  // 2026-05-22 PDF = 화면 단일 진실. 임의 수당/공제는 item.extras 에서만 읽고,
+  //   합계는 previewPayroll 이 만든 item.netPay/deductionsTotal 을 그대로 신뢰(재계산 0).
+  const itemExtras = Array.isArray(item.extras) ? item.extras : [];
+  const extraEarnings = itemExtras.filter((e) => e.type === 'allowance' && e.amount > 0).map((e) => ({ label: e.name, amount: e.amount }));
+  const extraDeductions = itemExtras.filter((e) => e.type === 'deduction' && e.amount > 0).map((e) => ({ label: e.name, amount: e.amount }));
 
   const doc = new jsPDF({
     orientation: 'p',
@@ -175,24 +170,17 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 5) 지급내역 / 공제내역 표 (6칸 그리드) ──
-  // 지급내역 항목 구성 — 기본급, 식대(비과세 분리) + L 수당 카탈로그 동적 라인 + extraEarnings
+  // 지급내역 항목 구성 — 기본급, 식대(비과세 분리) + 임의 수당(item.extras)
+  //   ※ 화면(구성원 탭 급여)에 없는 근태기반 자동수당(allowance_entries)은 표시하지 않는다.
+  //      → PDF 합계가 화면 실수령(item.netPay)과 1원도 어긋나지 않게.
   const earnings: { label: string; amount: number }[] = [];
   const taxableBase = item.baseSalary - item.nonTaxableAmount;
   earnings.push({ label: '기본급', amount: taxableBase });
   if (item.nonTaxableAmount > 0) {
     earnings.push({ label: '식대', amount: item.nonTaxableAmount });
   }
-  // L 수당 — allowance_entries 의 display_order ASC 순서로 라인 추가 (amount > 0 만).
-  //   label 은 호출자가 allowance_types.name (법정행은 한국어 고정 라벨) 으로 미리 매핑해서 넘겨준다.
-  if (allowanceEntries) {
-    for (const a of allowanceEntries) {
-      if (a.amount > 0) earnings.push({ label: a.label, amount: a.amount });
-    }
-  }
-  if (extraEarnings) {
-    for (const e of extraEarnings) {
-      if (e.amount > 0) earnings.push(e);
-    }
+  for (const e of extraEarnings) {
+    earnings.push(e);
   }
   // 지급내역 6칸씩 채워서 빈 칸 자동 패딩
   function padToGrid<T extends { label: string; amount: number }>(rows: T[], gridSize = 6): Array<Array<{ label: string; amount: number } | null>> {
@@ -215,10 +203,8 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   if (item.employmentInsurance > 0) deductions.push({ label: '고용보험', amount: item.employmentInsurance });
   if (item.incomeTax > 0) deductions.push({ label: '소득세', amount: item.incomeTax });
   if (item.localIncomeTax > 0) deductions.push({ label: '지방소득세', amount: item.localIncomeTax });
-  if (extraDeductions) {
-    for (const d of extraDeductions) {
-      if (d.amount > 0) deductions.push(d);
-    }
+  for (const d of extraDeductions) {
+    deductions.push(d);
   }
   const deductionsGrid = padToGrid(deductions);
 
@@ -292,13 +278,13 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 6) 합계 표 ──
-  //   합계 = 기본급(baseSalary, 비과세 포함) + L 수당 + extraEarnings
-  const allowanceTotal = (allowanceEntries || []).reduce((s, e) => s + (e.amount || 0), 0);
-  const earningsTotal = item.baseSalary
-    + allowanceTotal
-    + (extraEarnings || []).reduce((s, e) => s + (e.amount || 0), 0);
-  const deductionsTotal = item.deductionsTotal + (extraDeductions || []).reduce((s, d) => s + (d.amount || 0), 0);
-  const netPay = earningsTotal - deductionsTotal;
+  //   2026-05-22 PDF = 화면 단일 진실. previewPayroll 이 만든 item 값을 그대로 신뢰(재계산 0).
+  //     · 차인지급액(netPay) = item.netPay (화면 실수령과 동일)
+  //     · 공제총액 = item.deductionsTotal (item.extras 공제분 이미 포함)
+  //     · 지급총액 = netPay + 공제총액 (= 기본급 + 임의수당, 지급내역 표 합과 일치)
+  const netPay = item.netPay;
+  const deductionsTotal = item.deductionsTotal;
+  const earningsTotal = netPay + deductionsTotal;
 
   autoTable(doc, {
     startY: y,

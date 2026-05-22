@@ -553,19 +553,6 @@ export async function approveBatch(batchId: string, userId: string): Promise<voi
   }
 }
 
-// L 수당 — 법정 시스템 코드 → 한국어 고정 라벨.
-//   custom 코드는 allowance_types.name 그대로 사용.
-function legalAllowanceLabel(code: string): string | null {
-  switch (code) {
-    case 'overtime': return '연장수당';
-    case 'night': return '야간수당';
-    case 'holiday': return '휴일수당';
-    case 'holiday_over_8h': return '휴일수당(8h초과)';
-    case 'on_duty': return '당직비';
-    default: return null;
-  }
-}
-
 // ── Send payslip emails to all employees in a payroll batch ──
 
 export async function sendPayslipEmails(
@@ -613,20 +600,6 @@ export async function sendPayslipEmails(
   const monthKey = monthMatch
     ? `${monthMatch[1]}-${String(Number(monthMatch[2])).padStart(2, '0')}`
     : null;
-  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number }> = {};
-  if (monthKey) {
-    const { data: overrides } = await db
-      .from('payslip_overrides')
-      .select('employee_id, base_salary, non_taxable_amount')
-      .eq('company_id', companyId)
-      .eq('period_month', monthKey);
-    (overrides || []).forEach((o: any) => {
-      overrideMap[o.employee_id] = {
-        base_salary: Number(o.base_salary),
-        non_taxable_amount: Number(o.non_taxable_amount),
-      };
-    });
-  }
 
   // Get auth session for EF call
   const { data: { session } } = await supabase.auth.getSession();
@@ -637,60 +610,35 @@ export async function sendPayslipEmails(
   let failed = 0;
   const errors: string[] = [];
 
-  // PDF 생성기 동적 import — 번들 분리
+  // PDF 생성기 + 미리보기 엔진 동적 import — 번들 분리 + 순환참조 회피
   const { generatePayslipPDF, birthDateToPassword } = await import('./payslip-pdf');
+  const { previewPayroll } = await import('./payroll');
 
-  // L 수당: 해당 월 전 직원 allowance_entries + allowance_types (display_order)
-  //   payroll_month = 'YYYY-MM' = monthKey 와 동일.
-  const allowanceByEmp = new Map<string, Array<{ label: string; amount: number; code: string; order: number }>>();
-  if (monthKey) {
-    const { data: allowEntries } = await db
-      .from('allowance_entries')
-      .select('employee_id, amount, allowance_type_id, allowance_types!inner(name, code, display_order, is_active)')
-      .eq('company_id', companyId)
-      .eq('payroll_month', monthKey);
-    for (const e of (allowEntries || [])) {
-      const t = (e as any).allowance_types;
-      if (!t || !t.is_active) continue;
-      const amt = Number(e.amount || 0);
-      if (amt <= 0) continue;
-      const empArr = allowanceByEmp.get((e as any).employee_id) || [];
-      empArr.push({
-        label: legalAllowanceLabel(t.code) || t.name,
-        amount: amt,
-        code: t.code,
-        order: Number(t.display_order || 100),
-      });
-      allowanceByEmp.set((e as any).employee_id, empArr);
-    }
-    for (const arr of allowanceByEmp.values()) {
-      arr.sort((a, b) => a.order - b.order);
-    }
+  // 2026-05-22 메일 PDF = 화면 단일 진실.
+  //   기존엔 calculatePayroll 을 재호출(extras 미반영) → 화면·다운로드 PDF 와 금액 불일치.
+  //   이제 화면이 쓰는 previewPayroll(임의 수당/공제 extras 반영) item 을 그대로 발송.
+  const preview = await previewPayroll(companyId, monthKey || undefined);
+  let payItems = preview.items;
+  if (options?.employeeIds && options.employeeIds.length > 0) {
+    const set = new Set(options.employeeIds);
+    payItems = payItems.filter((it) => set.has(it.employeeId));
   }
 
-  for (const emp of employees as any[]) {
-    if (!emp.email) { failed++; errors.push(`${emp.name}: 이메일 없음`); continue; }
+  // 직원 메타(email/생년월일/부서/직책) 맵 — PDF 비밀번호·헤더용
+  const empMeta = new Map<string, any>();
+  for (const e of employees as any[]) empMeta.set(e.id, e);
 
-    const ov = overrideMap[emp.id];
-    const salary = ov ? ov.base_salary : Number(emp.salary || 0);
-    if (salary <= 0) { failed++; errors.push(`${emp.name}: 급여 0`); continue; }
-
-    const payroll = calculatePayroll(salary, emp.name, emp.id, {
-      nonTaxableAmount: ov
-        ? ov.non_taxable_amount
-        : (emp.meal_allowance_included ? 200_000 : 0),
-      dependents: 1,
-    });
+  for (const item of payItems) {
+    const emp = empMeta.get(item.employeeId);
+    if (!emp) { continue; }
+    if (!emp.email) { failed++; errors.push(`${item.employeeName}: 이메일 없음`); continue; }
 
     // PDF 생성 — 비밀번호 = 생년월일 (YYYYMMDD)
     const password = birthDateToPassword(emp.birth_date);
-    const empAllowances = (allowanceByEmp.get(emp.id) || []).map((a) => ({
-      label: a.label, amount: a.amount, code: a.code,
-    }));
     let pdfBase64: string | undefined;
     try {
       const doc = await generatePayslipPDF({
-        item: payroll,
+        item, // ← previewPayroll 산출 item (화면과 동일). extras 는 PDF 가 직접 분해.
         companyName: company?.name || '',
         representative: (company as any)?.representative || undefined,
         periodLabel: monthLabel,
@@ -698,14 +646,13 @@ export async function sendPayslipEmails(
         position: emp.position || undefined,
         employeeCode: emp.id ? String(emp.id).slice(-4).toUpperCase() : undefined,
         birthDate: emp.birth_date || undefined,
-        allowanceEntries: empAllowances,
         password,
       });
       // jsPDF 의 base64 output
       const dataUri = doc.output('datauristring');
       pdfBase64 = dataUri.split(',')[1]; // "data:application/pdf;base64,..." → base64 only
     } catch (e: any) {
-      errors.push(`${emp.name}: PDF 생성 실패 ${e.message || ''}`);
+      errors.push(`${item.employeeName}: PDF 생성 실패 ${e.message || ''}`);
     }
 
     try {
@@ -717,21 +664,13 @@ export async function sendPayslipEmails(
         },
         body: JSON.stringify({
           email: emp.email,
-          employeeName: emp.name,
+          employeeName: item.employeeName,
           companyName: company?.name || '',
           monthLabel,
-          baseSalary: payroll.baseSalary,
-          nationalPension: payroll.nationalPension,
-          healthInsurance: payroll.healthInsurance,
-          longTermCareInsurance: payroll.longTermCareInsurance || 0,
-          employmentInsurance: payroll.employmentInsurance,
-          incomeTax: payroll.incomeTax,
-          localIncomeTax: payroll.localIncomeTax,
-          deductionsTotal: payroll.deductionsTotal,
-          netPay: payroll.netPay,
-          // 첨부: 비밀번호 걸린 PDF (base64)
+          // 2026-05-22 본문에서 급여 금액 전부 제거 — PDF(비밀번호 보호) 첨부만 발송.
+          //   금액 필드를 보내지 않으므로 메일 본문엔 수령자 안내 + 비밀번호 안내만 노출.
           pdfBase64,
-          pdfFilename: `급여명세서_${emp.name}_${monthLabel.replace(/[^\w]/g, '')}.pdf`,
+          pdfFilename: `급여명세서_${item.employeeName}_${monthLabel.replace(/[^\w]/g, '')}.pdf`,
           hasPassword: !!password,
         }),
       });
@@ -739,11 +678,11 @@ export async function sendPayslipEmails(
       else {
         failed++;
         const errBody = await res.text().catch(() => '');
-        errors.push(`${emp.name}: HTTP ${res.status} ${errBody.slice(0, 200)}`);
+        errors.push(`${item.employeeName}: HTTP ${res.status} ${errBody.slice(0, 200)}`);
       }
     } catch (e: any) {
       failed++;
-      errors.push(`${emp.name}: ${e.message || 'fetch 실패'}`);
+      errors.push(`${item.employeeName}: ${e.message || 'fetch 실패'}`);
     }
   }
 

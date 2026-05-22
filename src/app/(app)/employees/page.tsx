@@ -4737,54 +4737,14 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
-  // L 수당 — 한국어 고정 라벨 (PDF/명세서 표시용)
-  const legalLabelFor = (code: string): string | null => {
-    switch (code) {
-      case "overtime": return "연장수당";
-      case "night": return "야간수당";
-      case "holiday": return "휴일수당";
-      case "holiday_over_8h": return "휴일수당(8h초과)";
-      case "on_duty": return "당직비";
-      default: return null;
-    }
-  };
-
-  const fetchAllowanceLines = async (employeeId: string): Promise<{ label: string; amount: number; code: string }[]> => {
-    try {
-      const { data } = await (supabase as any)
-        .from("allowance_entries")
-        .select("amount, allowance_types!inner(name, code, display_order, is_active)")
-        .eq("company_id", companyId!)
-        .eq("employee_id", employeeId)
-        .eq("payroll_month", periodMonth);
-      const list = ((data || []) as any[])
-        .filter((r) => r.allowance_types?.is_active && Number(r.amount || 0) > 0)
-        .map((r) => ({
-          label: legalLabelFor(r.allowance_types.code) || r.allowance_types.name,
-          amount: Number(r.amount || 0),
-          code: r.allowance_types.code as string,
-          order: Number(r.allowance_types.display_order || 100),
-        }))
-        .sort((a, b) => a.order - b.order)
-        .map(({ label, amount, code }) => ({ label, amount, code }));
-      return list;
-    } catch {
-      return [];
-    }
-  };
-
   const downloadOne = async (item: PayrollItem) => {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
       const meta = (empMap as Record<string, { department: string | null; position: string | null; birthDate: string | null }>)[item.employeeId] || {} as any;
       // 사원코드 — employee.id 의 끝 4자리(UUID 접미)를 사용
       const employeeCode = item.employeeId ? item.employeeId.slice(-4).toUpperCase() : undefined;
-      // v4 H1: 임의 수당/공제 항목을 PDF 의 extraEarnings/extraDeductions 로 전달
-      const itemExtras = item.extras || [];
-      const extraEarnings = itemExtras.filter((e) => e.type === 'allowance').map((e) => ({ label: e.name, amount: e.amount }));
-      const extraDeductions = itemExtras.filter((e) => e.type === 'deduction').map((e) => ({ label: e.name, amount: e.amount }));
-      // L 수당 카탈로그 — allowance_entries 동적 라인
-      const allowanceEntries = await fetchAllowanceLines(item.employeeId);
+      // 2026-05-22 PDF = 화면 단일 진실. 임의 수당/공제는 PDF 가 item.extras 에서 직접 읽고
+      //   합계는 item.netPay 를 그대로 신뢰 — 여기서 별도 변환·전달 불필요.
       await downloadPayslipPDF({
         item,
         companyName: companyMeta?.name || "회사",
@@ -4794,9 +4754,6 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         position: meta.position || undefined,
         employeeCode,
         birthDate: meta.birthDate || undefined,
-        extraEarnings: extraEarnings.length > 0 ? extraEarnings : undefined,
-        extraDeductions: extraDeductions.length > 0 ? extraDeductions : undefined,
-        allowanceEntries,
       });
       toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
     } catch (err: any) {
