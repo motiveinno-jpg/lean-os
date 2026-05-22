@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { calculateRetirementPay } from './payment-batch';
+import { getMonthlyTotalSalary } from './payroll';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { loadKoreanFont } from './pdf-korean-font';
@@ -531,6 +532,111 @@ export async function getMonthlyBudgetOverview(
       netProfit: cumulativeNet,
     };
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Fixed/Variable Cost Breakdown by Category (연간)
+//   2026-05-22 사장님 요청 — 고정비/변동비 category별 세부내역.
+//   소스 (prod 스키마 검증 반영):
+//     · 고정비 = recurring_payments(is_active) category별 + 급여(employees)
+//       - fixed_costs 테이블은 prod 미존재 → 제외 (getMonthlyBudgetOverview 와 동일하게 사실상 미반영)
+//     · 변동비 = card_transactions category별 (연 범위)
+//       - payment_queue 는 due_date 컬럼 부재 → 제외 (월별표 변동비와 정합 유지: card 만 집계됨)
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface CostCategoryRow {
+  category: string;
+  label: string;
+  amount: number;   // 연간 합계
+  monthly: number;  // 월 환산
+}
+
+export interface CostBreakdown {
+  year: number;
+  fixed: CostCategoryRow[];
+  variable: CostCategoryRow[];
+  fixedTotal: number;
+  variableTotal: number;
+}
+
+function mapRecurringCategory(cat: string | null): string {
+  const c = (cat || '').toLowerCase();
+  if (/rent|임대|임차|office|사무/.test(c)) return 'office';
+  if (/insur|보험|4대/.test(c)) return 'insurance';
+  if (/loan|대출|이자/.test(c)) return 'loan';
+  if (/salary|급여|월급|인건/.test(c)) return 'salary';
+  if (/subscri|구독|정기|software|telecom|util/.test(c)) return 'subscription';
+  if (/tax|세금|부가/.test(c)) return 'tax';
+  if (FIXED_COST_CATEGORIES.some((f) => f.value === c)) return c;
+  return 'other';
+}
+
+function mapVariableCategory(cat: string | null): string {
+  const c = (cat || '').toLowerCase();
+  if (/market|광고|마케팅/.test(c)) return 'marketing';
+  if (/out|외주/.test(c)) return 'outsourcing';
+  if (/consult|컨설|수수료|지급수수료/.test(c)) return 'consulting';
+  if (/suppl|소모|비품|office_supplies|사무용품/.test(c)) return 'supplies';
+  if (VARIABLE_COST_CATEGORIES.some((v) => v.value === c)) return c;
+  return 'other_variable';
+}
+
+export async function getCostBreakdown(
+  companyId: string,
+  year: number,
+): Promise<CostBreakdown> {
+  const startDate = `${year}-01-01`;
+  const endDate = `${year}-12-31`;
+
+  const [recurringRes, salaryTotal, cardRes] = await Promise.all([
+    db.from('recurring_payments')
+      .select('amount, category, is_active')
+      .eq('company_id', companyId)
+      .eq('is_active', true),
+    getMonthlyTotalSalary(companyId).catch(() => 0),
+    db.from('card_transactions')
+      .select('amount, category, transaction_date')
+      .eq('company_id', companyId)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate),
+  ]);
+
+  // 고정비: 월액 → 연 환산(*12)
+  const fixedMonthly: Record<string, number> = {};
+  for (const rp of (recurringRes.data || [])) {
+    const k = mapRecurringCategory(rp.category);
+    fixedMonthly[k] = (fixedMonthly[k] || 0) + Number(rp.amount || 0);
+  }
+  // 급여(employees) — recurring_payments 에 급여를 따로 등록하지 않는 한 중복 없음.
+  //   fixed_costs 테이블 부재로 중복 위험 0 (prod 검증).
+  if (salaryTotal > 0) {
+    fixedMonthly['salary'] = (fixedMonthly['salary'] || 0) + Number(salaryTotal);
+  }
+
+  // 변동비: 카드 실지출 연 합계
+  const variableYear: Record<string, number> = {};
+  for (const t of (cardRes.data || [])) {
+    const k = mapVariableCategory(t.category);
+    variableYear[k] = (variableYear[k] || 0) + Number(t.amount || 0);
+  }
+
+  const fixed: CostCategoryRow[] = FIXED_COST_CATEGORIES
+    .map((f) => ({ category: f.value, label: f.label, monthly: fixedMonthly[f.value] || 0, amount: (fixedMonthly[f.value] || 0) * 12 }))
+    .filter((r) => r.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  const variable: CostCategoryRow[] = VARIABLE_COST_CATEGORIES
+    .map((v) => ({ category: v.value, label: v.label, amount: variableYear[v.value] || 0, monthly: Math.round((variableYear[v.value] || 0) / 12) }))
+    .filter((r) => r.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  return {
+    year,
+    fixed,
+    variable,
+    fixedTotal: fixed.reduce((s, r) => s + r.amount, 0),
+    variableTotal: variable.reduce((s, r) => s + r.amount, 0),
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
