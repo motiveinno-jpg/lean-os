@@ -957,6 +957,7 @@ export type Database = {
           deal_id: string | null
           description: string | null
           id: string
+          is_auto_transfer: boolean | null
           is_fixed_cost: boolean | null
           mapped_at: string | null
           mapped_by: string | null
@@ -981,6 +982,7 @@ export type Database = {
           deal_id?: string | null
           description?: string | null
           id?: string
+          is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null
@@ -1005,6 +1007,7 @@ export type Database = {
           deal_id?: string | null
           description?: string | null
           id?: string
+          is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null

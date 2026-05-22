@@ -152,14 +152,24 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     enabled: !!companyId,
   });
 
-  // bank_transactions 의 is_fixed_cost 토글 mutation
+  // bank_transactions 의 is_fixed_cost(고정비 — 비용 성격) 토글 mutation
   const toggleFixedMut = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
       const { error } = await (supabase as any).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
-    onError: (e: any) => toast(`고정지출 변경 실패: ${e.message}`, 'error'),
+    onError: (e: any) => toast(`고정비 변경 실패: ${e.message}`, 'error'),
+  });
+
+  // 2026-05-22 자동이체(is_auto_transfer — 결제 방식) 토글 mutation. 고정비와 독립.
+  const toggleAutoMut = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await (supabase as any).from('bank_transactions').update({ is_auto_transfer: value }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
+    onError: (e: any) => toast(`자동이체 변경 실패: ${e.message}`, 'error'),
   });
 
   // 통장 목록 (codef sync 한 결과로부터)
@@ -742,7 +752,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   }
 
   // 자동이체 매칭 휴리스틱: 활성 반복결제와 거래처/수취인명이 겹치고 금액이 ±5% 이내면 "자동(자동이체)" 로 본다.
-  // is_fixed_cost(수동 체크) 가 켜져 있으면 항상 "자동" 으로 표시(라벨/의미 통일).
+  // 2026-05-22 is_auto_transfer(수동 체크) 가 켜져 있으면 항상 "자동이체" 로 표시 (고정비와 무관).
   const activeRecurring = (() => {
     const list: { keys: string[]; amount: number }[] = [];
     for (const r of (recurringPayments as any[])) {
@@ -757,7 +767,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     return list;
   })();
   const isAutoTransferTx = (tx: any): boolean => {
-    if (tx?.is_fixed_cost === true) return true;
+    if (tx?.is_auto_transfer === true) return true;
     if (tx?.type !== 'expense') return false;
     const cp = String(tx?.counterparty || '').trim().toLowerCase();
     const desc = String(tx?.description || '').trim().toLowerCase();
@@ -976,7 +986,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   toast(`자동이체 ${r.marked}건 자동 인식 완료 (학습 패턴 ${r.learned}건)`, 'success');
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
                 } else if (r.learned === 0) {
-                  toast('학습할 자동이체가 없습니다. 먼저 자동이체 거래에 고정비 체크를 1회만 해주세요.', 'info');
+                  toast('학습할 자동이체가 없습니다. 먼저 자동이체 거래에 자동이체 체크를 1회만 해주세요.', 'info');
                 } else {
                   toast(`새로 인식할 거래 없음 (패턴 ${r.learned}건 학습 중)`, 'info');
                 }
@@ -985,7 +995,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               }
             }}
             disabled={!companyId}
-            title="이미 고정비 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
+            title="이미 자동이체 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
           >
             🔁 자동이체 자동 인식
@@ -1520,7 +1530,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     <th className="text-left px-4 py-3 font-medium">적요</th>
                     <th className="text-right px-4 py-3 font-medium">금액</th>
                     <th className="text-right px-4 py-3 font-medium hidden md:table-cell">잔액</th>
-                    <th className="text-center px-4 py-3 font-medium" title="자동이체(반복결제 연결) — 체크 시 수동으로 자동이체 표시">자동</th>
+                    <th className="text-center px-4 py-3 font-medium" title="자동이체(결제 방식) · 고정비(비용 성격) — 독립 체크">자동이체 / 고정비</th>
                     <th className="text-center px-4 py-3 font-medium">상태</th>
                     <th className="text-center px-4 py-3 font-medium">분류</th>
                   </tr>
@@ -1559,32 +1569,38 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         ₩{Number(tx.balance_after || 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1">
-                          <input
-                            type="checkbox"
-                            checked={!!tx.is_fixed_cost}
-                            onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
-                            disabled={toggleFixedMut.isPending}
-                            className="accent-orange-500 cursor-pointer"
-                            title={tx.is_fixed_cost ? '고정비/자동이체로 표시됨 — 클릭해서 해제' : '고정비(자동이체)로 표시'}
-                          />
-                          {/* V5: 체크 시 '고정비' 라벨이 안 보이던 문제 — 명시 배지 */}
-                          {tx.is_fixed_cost && (
-                            <span
-                              className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap"
-                              title="고정비/자동이체로 표시됨 · 정기결제내역에 반영"
-                            >
-                              고정비
-                            </span>
-                          )}
-                          {!tx.is_fixed_cost && isAutoTransferTx(tx) && (
-                            <span
-                              className="text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 whitespace-nowrap"
-                              title="등록된 자동이체(반복결제)와 거래처·금액이 일치 — 자동 감지됨"
-                            >
-                              자동
-                            </span>
-                          )}
+                        {/* 2026-05-22 자동이체(결제 방식) · 고정비(비용 성격) 독립 2개 토글 */}
+                        <div className="flex flex-col items-center gap-1">
+                          <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
+                            <input
+                              type="checkbox"
+                              checked={!!tx.is_auto_transfer}
+                              onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })}
+                              disabled={toggleAutoMut.isPending}
+                              className="accent-sky-500 cursor-pointer"
+                            />
+                            {tx.is_auto_transfer ? (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
+                            ) : isAutoTransferTx(tx) ? (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체(반복결제)와 거래처·금액 일치 — 자동 감지">자동감지</span>
+                            ) : (
+                              <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>
+                            )}
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨 — 클릭해서 해제' : '고정비(비용 성격)로 표시 · 정기결제내역/분석에 반영'}>
+                            <input
+                              type="checkbox"
+                              checked={!!tx.is_fixed_cost}
+                              onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
+                              disabled={toggleFixedMut.isPending}
+                              className="accent-orange-500 cursor-pointer"
+                            />
+                            {tx.is_fixed_cost ? (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
+                            ) : (
+                              <span className="text-[9px] text-[var(--text-dim)]">고정비</span>
+                            )}
+                          </label>
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-center">

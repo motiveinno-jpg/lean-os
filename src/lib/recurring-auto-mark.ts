@@ -46,7 +46,7 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
     .from("bank_transactions")
     .select("counterparty, amount")
     .eq("company_id", companyId)
-    .eq("is_fixed_cost", true)
+    .eq("is_auto_transfer", true)
     .gte("transaction_date", fromDate)
     .limit(2000);
 
@@ -68,9 +68,9 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   // 2) 마킹 대상 — is_fixed_cost IS NULL 거래 중 패턴 매칭 (false 는 보존)
   const { data: candRows } = await db
     .from("bank_transactions")
-    .select("id, counterparty, amount, is_fixed_cost")
+    .select("id, counterparty, amount, is_auto_transfer")
     .eq("company_id", companyId)
-    .is("is_fixed_cost", null)
+    .is("is_auto_transfer", null)
     .gte("transaction_date", fromDate)
     .limit(2000);
 
@@ -91,7 +91,7 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
       const chunk = toMarkIds.slice(i, i + 500);
       const { count } = await db
         .from("bank_transactions")
-        .update({ is_fixed_cost: true })
+        .update({ is_auto_transfer: true })
         .in("id", chunk)
         .eq("company_id", companyId)
         .select("id", { count: "exact", head: true });

@@ -37,11 +37,11 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
   });
 
   const items = useMemo(() => {
-    // is_fixed_cost = true (고정지출/자동이체 연결) 만, 중복 제거
+    // 2026-05-22 자동이체 내역 = is_auto_transfer = true 만 (고정비와 분리), 중복 제거
     const seen = new Set<string>();
     const out: any[] = [];
     for (const r of rows as any[]) {
-      if (!r.is_fixed_cost) continue;
+      if (!r.is_auto_transfer) continue;
       const key = `${r.transaction_date || ""}|${(r.counterparty || "").trim()}|${Math.abs(Number(r.amount || 0))}`;
       if (seen.has(key)) continue;
       seen.add(key);

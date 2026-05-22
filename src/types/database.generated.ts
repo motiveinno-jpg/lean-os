@@ -1006,6 +1006,7 @@ export type Database = {
           description: string | null
           external_id: string | null
           id: string
+          is_auto_transfer: boolean | null
           is_fixed_cost: boolean | null
           mapped_at: string | null
           mapped_by: string | null
@@ -1031,6 +1032,7 @@ export type Database = {
           description?: string | null
           external_id?: string | null
           id?: string
+          is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null
@@ -1056,6 +1058,7 @@ export type Database = {
           description?: string | null
           external_id?: string | null
           id?: string
+          is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null
