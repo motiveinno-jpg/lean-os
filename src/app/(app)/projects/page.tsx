@@ -152,17 +152,21 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
   // ?create=1 → 새 프로젝트 모달 (인라인) — /deals 점프 차단
+  //   2026-05-22 fix: URL 즉시 클리어하면 create=1 사라져 ProjectsPage 가 PeriodPicker 로 빠지며
+  //   ProjectsInner(모달) 가 언마운트됨 → 모달이 안 뜸. 클리어는 모달 닫을 때(closeCreateModal)로 미룬다.
   const [showCreateModal, setShowCreateModal] = useState(false);
   useEffect(() => {
+    if (searchParams.get("create") === "1") setShowCreateModal(true);
+  }, [searchParams]);
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
     if (searchParams.get("create") === "1") {
-      setShowCreateModal(true);
-      // URL 클리어 (?create=1 1회 적용 후, history 안 늘림)
       const sp = new URLSearchParams(searchParams.toString());
       sp.delete("create");
       const qs = sp.toString();
       router.replace(qs ? `/projects?${qs}` : "/projects", { scroll: false });
     }
-  }, [searchParams, router]);
+  };
 
   // ── URL ?deal=<id>&action=<key> → 슬라이드 패널 (PR3.5) ──
   //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
@@ -615,13 +619,13 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
       {showCreateModal && companyId && (
         <NewProjectModal
           companyId={companyId}
-          onClose={() => setShowCreateModal(false)}
+          onClose={closeCreateModal}
           onCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["deals"] });
             queryClient.invalidateQueries({ queryKey: ["projects-cards"] });
             queryClient.invalidateQueries({ queryKey: ["partners"] });
-            setShowCreateModal(false);
             toast("프로젝트가 생성되었습니다", "success");
+            closeCreateModal();
           }}
         />
       )}
