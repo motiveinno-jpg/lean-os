@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState, useMemo, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+
+// 2026-05-22 문서 본문에 글자 서식 + PDF 페이지 이미지 삽입 (사장님 요청).
+const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
+  ssr: false,
+  loading: () => <div className="min-h-[400px] bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
+});
 import { friendlyError } from "@/lib/friendly-error";
 import { getCurrentUser, getDocuments, getDocTemplates, getDeals, getTaxInvoices, getDocument, getDocRevisions, getDocApprovals } from "@/lib/queries";
 import { createBlankDocument, createFromTemplate, DOC_TYPES, DOC_STATUS } from "@/lib/documents";
@@ -358,14 +365,22 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     bankInfo: bankAcct ? { bankName: bankAcct.bank_name, accountNumber: bankAcct.account_number, accountHolder: bankAcct.alias || companyName } : undefined,
                     deliveryDate: cj.deliveryDate || undefined,
                   });
-                } else if (cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) {
-                  // 계약서 HTML → 브라우저 인쇄 PDF 변환
+                } else if ((cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) || editContent.includes('<img')) {
+                  // 2026-05-22 이미지(PDF 페이지 삽입 등) 포함 문서는 브라우저 인쇄 PDF 로 변환 —
+                  //   jspdf 경로는 <img> 를 제거하므로 그래프·표 이미지 보존을 위해 인쇄 경로 사용.
+                  const isFullDoc = editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html');
                   const printWindow = window.open('', '_blank');
                   if (printWindow) {
-                    printWindow.document.write(editContent);
+                    const html = isFullDoc
+                      ? editContent
+                      : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${doc.name}</title>` +
+                        `<style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;max-width:820px;margin:0 auto;line-height:1.7;color:#111}` +
+                        `img{max-width:100%;height:auto;display:block;margin:12px auto}h1{font-size:22px}@media print{body{padding:0}}</style></head>` +
+                        `<body><h1>${doc.name}</h1>${editContent}</body></html>`;
+                    printWindow.document.write(html);
                     printWindow.document.close();
                     printWindow.focus();
-                    printWindow.print();
+                    setTimeout(() => printWindow.print(), 400); // 이미지 로드 대기
                   } else {
                     toast('팝업 차단을 해제해주세요', 'error');
                   }
@@ -1044,21 +1059,25 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <span className="text-xs text-[var(--text-dim)] font-medium">문서 내용</span>
               {canEdit && (
-                <span className="text-[10px] text-[var(--text-dim)]">Markdown 지원</span>
+                <span className="text-[10px] text-[var(--text-dim)]">서식 · PDF 삽입 지원</span>
               )}
             </div>
             <div className="p-5">
               {canEdit ? (
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full min-h-[400px] bg-transparent text-sm leading-relaxed focus:outline-none resize-y font-mono"
-                  placeholder="문서 내용을 작성하세요..."
+                <RichEditor
+                  content={editContent}
+                  onChange={setEditContent}
+                  placeholder="문서 내용을 작성하세요... 📎 PDF 버튼으로 PDF 페이지를 그대로 삽입할 수 있습니다."
+                  onUploadImage={async (file) => {
+                    if (!companyId || !userId) throw new Error("회사 정보를 불러오는 중입니다");
+                    const res = await uploadFile({ companyId, bucket: "company-assets", file, userId, context: { documentId: id } });
+                    return res.fileUrl;
+                  }}
                 />
               ) : (
-                editContent && (editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html') || editContent.trim().startsWith('<div') || editContent.trim().startsWith('<h')) ? (
+                editContent && (editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html') || editContent.trim().startsWith('<div') || editContent.trim().startsWith('<h') || editContent.trim().startsWith('<p') || editContent.trim().startsWith('<ul') || editContent.trim().startsWith('<ol') || editContent.trim().startsWith('<img') || editContent.trim().startsWith('<blockquote')) ? (
                   <div
-                    className="text-sm leading-relaxed text-[var(--text-muted)] document-html-content"
+                    className="text-sm leading-relaxed text-[var(--text-muted)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2"
                     dangerouslySetInnerHTML={{ __html: editContent }}
                   />
                 ) : (
