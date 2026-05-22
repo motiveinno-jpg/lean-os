@@ -106,8 +106,7 @@ export function OwnerDashboardSection() {
     <div className="space-y-6 mb-8">
       <KpiSection data={data} />
       <StageDistributionSection data={data.stage_distribution} />
-      <ProjectTrendSection fallback={data.quarterly_trend} />
-      <InProgressListSection data={data.in_progress} />
+      {/* 2026-05-22 사장님 요청 — 프로젝트 추이·진행 중 프로젝트 섹션 제거 */}
       <CompletedReportsSection data={data.completed_reports} />
     </div>
   );

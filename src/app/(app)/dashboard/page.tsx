@@ -842,86 +842,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 출/퇴근 · 전자결재 위젯 (기존 카드 컴포넌트 재사용) ═══ */}
-      {((isWidgetVisible('my_attendance') || isWidgetVisible('my_approvals')) && companyId && userId) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          {isWidgetVisible('my_attendance') && (
-            <div id="widget-my_attendance">
-              <MyAttendanceCard companyId={companyId} userId={userId} />
-            </div>
-          )}
-          {isWidgetVisible('my_approvals') && (
-            <div id="widget-my_approvals">
-              <QuickApprovalCard companyId={companyId} userId={userId} />
-            </div>
-          )}
-        </div>
-      )}
+      {/* 2026-05-22 대표 대시보드 — 출/퇴근·전자결재 2열 위젯 제거(사장님 요청) */}
 
       {/* R8: '빠른 이동' 위젯을 출퇴근·전자결재 바로 아래로 이동 (직원 요청) */}
       {isWidgetVisible('quick_nav') && (
         <div id="widget-quick_nav" className="mb-4"><QuickNavWidget /></div>
       )}
 
-      {/* ═══ [Grid 2열] 좌: 승인+액션 | 우: 펄스+위험 ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* ── 좌측 칼럼: 즉시 행동 영역 ── */}
-        <div className="space-y-4">
-          {/* 승인센터 */}
-          {isWidgetVisible('approval_center') && companyId && userId && (
-            <div id="widget-approval_center"><ApprovalCenterWidget companyId={companyId} userId={userId} /></div>
-          )}
-
-          {/* 오늘의 액션 */}
-          {isWidgetVisible('today_actions') && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-                <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">오늘의 액션</h2>
-              </div>
-              <TodayActions dashboard={dashboard} />
-            </div>
-          )}
-        </div>
-
-        {/* ── 우측 칼럼: 현금 + 위험 ── */}
-        <div className="space-y-4">
-          {/* 현금 펄스 */}
-          {isWidgetVisible('cash_pulse') && cashPulse && (
-            <div id="widget-cash_pulse"><CashPulseWidget pulse={cashPulse} /></div>
-          )}
-
-          {/* 위험 구역 — 실제 위험 있는 항목만 표시 */}
-          {isWidgetVisible('risk_zone') && (
-            <div id="widget-risk_zone">
-              <div className="flex items-center gap-2 mb-3">
-                <div className={`w-2 h-2 rounded-full ${hasActiveRisks ? 'bg-[var(--danger)] animate-pulse-danger' : 'bg-[var(--success)]'}`} />
-                <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">위험 구역</h2>
-                <span className="text-[10px] text-[var(--text-dim)]">{dashboard.risks.length}건</span>
-              </div>
-              {hasActiveRisks ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {(Object.keys(RISK_LABELS) as RiskLabel[])
-                    .filter(label => dashboard.riskCounts[label] > 0)
-                    .map(label => (
-                      <RiskCard
-                        key={label}
-                        label={label}
-                        items={dashboard.risks.filter(r => r.label === label)}
-                        count={dashboard.riskCounts[label]}
-                      />
-                    ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-[var(--success)]/20 bg-[var(--success)]/[.03] p-4 text-center">
-                  <div className="text-xs font-semibold text-[var(--success)]">현재 감지된 위험 없음</div>
-                  <div className="text-[10px] text-[var(--text-muted)] mt-1">마진, 마감, 미수금, 외주비 모두 정상</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* 2026-05-22 대표 대시보드 — 승인·오늘액션·현금펄스·위험 2열 영역 제거(사장님 요청) */}
 
       {/* ═══ 데이터 없음 — 시작 CTA ═══ */}
       {!hasData && (
