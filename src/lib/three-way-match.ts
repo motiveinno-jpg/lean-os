@@ -43,6 +43,9 @@ export interface MatchedInvoice {
   bankCounterparty: string;
   bankAmount: number;
   bankDate: string;
+  // 2026-05-22 연결된 프로젝트(deal) — 있으면 행 클릭 시 /projects?deal= 진입
+  dealId: string | null;
+  dealName: string | null;
 }
 
 // 미매칭 세금계산서 목록 — 좌측 패널
@@ -154,7 +157,7 @@ export async function listMatchedInvoices(
   // bank_transactions 에서 tax_invoice_id NOT NULL + 회사격리, 세금계산서 join
   let q = db
     .from('bank_transactions')
-    .select('id, counterparty, amount, transaction_date, tax_invoice_id, tax_invoices!inner(id, type, counterparty_name, total_amount, issue_date, status)')
+    .select('id, counterparty, amount, transaction_date, tax_invoice_id, tax_invoices!inner(id, type, counterparty_name, total_amount, issue_date, status, deal_id, deals:deal_id(id, name))')
     .eq('company_id', companyId)
     .not('tax_invoice_id', 'is', null)
     .order('transaction_date', { ascending: false })
@@ -172,6 +175,8 @@ export async function listMatchedInvoices(
     bankCounterparty: row.counterparty || '',
     bankAmount: Number(row.amount || 0),
     bankDate: row.transaction_date,
+    dealId: row.tax_invoices?.deal_id || row.tax_invoices?.deals?.id || null,
+    dealName: row.tax_invoices?.deals?.name || null,
   }));
 }
 

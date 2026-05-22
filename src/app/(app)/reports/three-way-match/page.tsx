@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
@@ -34,6 +35,7 @@ export default function ThreeWayMatchPage() {
 function Inner() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const router = useRouter();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'all' | 'sales' | 'purchase'>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<ThreeWayInvoice | null>(null);
@@ -219,7 +221,7 @@ function Inner() {
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <div>
               <div className="text-sm font-bold">✅ 매칭됨 ({matched.length})</div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">확정 → 행 클릭 시 해제 가능</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">행 클릭 → 연결 프로젝트 진입 · ✕ 로 해제</div>
             </div>
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
@@ -231,17 +233,20 @@ function Inner() {
               <ul className="divide-y divide-[var(--border)]/50">
                 {matched.map((m) => {
                   const diff = Math.abs(m.invoiceTotal - m.bankAmount);
+                  const hasDeal = !!m.dealId;
+                  const enterProject = () => {
+                    if (m.dealId) router.push(`/projects?deal=${m.dealId}`);
+                  };
                   return (
                     <li key={m.bankTxId}>
-                      <button
-                        onClick={() => {
-                          if (confirm(`이 매칭을 해제하시겠습니까?\n\n세금계산서: ${m.invoiceCounterparty || '거래처'} ₩${m.invoiceTotal.toLocaleString()}\n입출금: ${m.bankCounterparty} ₩${m.bankAmount.toLocaleString()}`)) {
-                            unmatchMut.mutate({ bankTxId: m.bankTxId, invoiceId: m.invoiceId });
-                          }
-                        }}
-                        disabled={unmatchMut.isPending}
-                        className="w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
-                        title="클릭 시 매칭 해제"
+                      {/* 행 본체 — deal 연결 시 클릭하면 프로젝트 진입. 해제는 우측 ✕ 버튼 분리. */}
+                      <div
+                        onClick={hasDeal ? enterProject : undefined}
+                        role={hasDeal ? "button" : undefined}
+                        tabIndex={hasDeal ? 0 : undefined}
+                        onKeyDown={hasDeal ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterProject(); } } : undefined}
+                        className={`px-4 py-3 transition ${hasDeal ? 'cursor-pointer hover:bg-[var(--bg-surface)]' : ''}`}
+                        title={hasDeal ? `클릭 시 '${m.dealName}' 프로젝트로 이동` : '연결된 프로젝트 없음'}
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${m.invoiceType === 'sales' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-orange-500/15 text-orange-400'}`}>
@@ -249,6 +254,20 @@ function Inner() {
                           </span>
                           <span className="text-xs font-semibold truncate flex-1">{m.invoiceCounterparty || '거래처'}</span>
                           <span className="text-[9px] text-emerald-400">✓</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`이 매칭을 해제하시겠습니까?\n\n세금계산서: ${m.invoiceCounterparty || '거래처'} ₩${m.invoiceTotal.toLocaleString()}\n입출금: ${m.bankCounterparty} ₩${m.bankAmount.toLocaleString()}`)) {
+                                unmatchMut.mutate({ bankTxId: m.bankTxId, invoiceId: m.invoiceId });
+                              }
+                            }}
+                            disabled={unmatchMut.isPending}
+                            className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 shrink-0"
+                            title="매칭 해제"
+                          >
+                            ✕ 해제
+                          </button>
                         </div>
                         <div className="flex items-center justify-between text-[10px] mb-1">
                           <span className="text-[var(--text-muted)]">📄 {m.invoiceDate || '—'}</span>
@@ -259,9 +278,19 @@ function Inner() {
                           <span className="text-[var(--text)] font-semibold">₩{m.bankAmount.toLocaleString()}</span>
                         </div>
                         {diff > 0 && (
-                          <div className="text-[9px] text-amber-400">차이 ₩{diff.toLocaleString()}</div>
+                          <div className="text-[9px] text-amber-400 mb-1">차이 ₩{diff.toLocaleString()}</div>
                         )}
-                      </button>
+                        {hasDeal && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); enterProject(); }}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary)] hover:underline mt-0.5"
+                            title={`'${m.dealName}' 프로젝트로 이동`}
+                          >
+                            🔗 {m.dealName} →
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
