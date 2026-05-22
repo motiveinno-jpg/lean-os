@@ -71,7 +71,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
       // /matching 은 사이드바에서 제거 — 분석(/reports) 허브에서만 진입.
       //   라우트 자체는 유지 (owner 가 직접 URL 입력 시 접근 — 라우트 게이트 그대로).
-      { href: "/vault", label: "자산 / 구독", icon: "shield", roles: ["owner"] },
+      { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
+      { href: "/subscriptions", label: "구독", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/import-hub", label: "엑셀 가져오기", icon: "upload", roles: ["owner", "admin"] },
     ],
   },

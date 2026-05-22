@@ -1207,6 +1207,8 @@ export async function createVaultAccount(params: {
   renewalDate?: string;
   ownerId?: string;
   notes?: string;
+  category?: string;
+  billingCycle?: string;
 }) {
   // Encrypt the password server-side before storing
   const encryptedPw = params.loginPassword
@@ -1228,9 +1230,11 @@ export async function createVaultAccount(params: {
       renewal_date: params.renewalDate,
       owner_id: params.ownerId,
       notes: params.notes,
+      category: params.category ?? null,
+      billing_cycle: params.billingCycle ?? 'monthly',
       status: 'active',
       source: 'manual',
-    })
+    } as never)
     .select()
     .single();
   if (error) throw error;
