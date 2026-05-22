@@ -174,8 +174,20 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         // 페이지 구분 헤더 (2페이지 이상일 때만)
         if (total > 1) parts.push(`<p><strong>— ${i} / ${total} 페이지 —</strong></p>`);
 
+        // 3) 텍스트가 있으면 편집 가능한 문단으로 (혼합 페이지에서도 글자는 수정 가능하게).
+        if (trimmedText.length > 0) {
+          const paras = trimmedText
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((l) => `<p>${escapeHtml(l)}</p>`)
+            .join("");
+          parts.push(paras);
+        }
+
+        // 4) 그래픽(표·그래프·이미지) 포함 또는 텍스트 거의 없는 페이지 → 페이지 이미지도 삽입.
+        //    사장님 선택: 혼합 페이지는 "글자=편집가능 텍스트 + 표=이미지" 둘 다 제공.
         if (hasGraphic || trimmedText.length < 10) {
-          // 그래픽(표·그래프·이미지) 페이지 → 페이지 이미지로 (레이아웃 그대로, 텍스트 중복 안 넣음).
           const viewport = page.getViewport({ scale: 2.0 });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
@@ -192,17 +204,12 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
             } else {
               src = canvas.toDataURL("image/png");
             }
+            // 표·그래프만 참조하도록 안내 (글자는 위 텍스트에서 수정).
+            if (trimmedText.length >= 10) {
+              parts.push(`<p><em style="color:#888;font-size:12px">↓ 위 글자는 편집 가능 · 아래 이미지의 표·그래프는 원본 보존</em></p>`);
+            }
             parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
           }
-        } else if (trimmedText.length > 0) {
-          // 텍스트 위주 페이지 → 편집 가능한 문단.
-          const paras = trimmedText
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean)
-            .map((l) => `<p>${escapeHtml(l)}</p>`)
-            .join("");
-          parts.push(paras);
         }
       }
 
