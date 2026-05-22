@@ -1032,13 +1032,24 @@ export default function PartnersPage() {
                 {/* 2026-05-22 파트너 포털 링크 발급/복사 — 외부 거래처가 로그인 없이 서류 확인 */}
                 <button
                   onClick={async () => {
+                    let token: string | null = null;
                     try {
                       const { data, error } = await (supabase as any).rpc("generate_partner_portal_token", { p_partner_id: detailPartner.id });
-                      if (error || !data) { toast("포털 링크 발급 실패", "error"); return; }
-                      const url = `${window.location.origin}/portal/${data}`;
+                      if (error) { toast("포털 링크 발급 실패: " + (error.message || error.code || ""), "error"); return; }
+                      if (!data) { toast("포털 링크 발급 실패 (빈 응답)", "error"); return; }
+                      token = String(data);
+                    } catch (e: any) {
+                      toast("포털 링크 발급 실패: " + (e?.message || ""), "error");
+                      return;
+                    }
+                    const url = `${window.location.origin}/portal/${token}`;
+                    // 발급은 성공 — 복사 실패해도 링크는 prompt 로 제공
+                    try {
                       await navigator.clipboard.writeText(url);
                       toast("포털 링크 복사됨 — 거래처에 전달하세요", "success");
-                    } catch { toast("포털 링크 발급 실패", "error"); }
+                    } catch {
+                      window.prompt("포털 링크 (아래를 복사해 거래처에 전달하세요)", url);
+                    }
                   }}
                   className="px-3 py-1.5 text-xs bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded-lg hover:bg-violet-500/20 transition flex items-center gap-1"
                   title="로그인 없이 견적·계약을 확인할 수 있는 포털 링크를 발급·복사합니다">
