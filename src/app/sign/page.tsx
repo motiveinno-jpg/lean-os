@@ -8,6 +8,7 @@ import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail, getAuditTrail, generateAuditTrailCertificateHTML } from "@/lib/audit-trail";
 import { verifyDocumentIntegrity, generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { generateDocumentPDF } from "@/lib/document-generator";
+import { injectContractInlineStyles } from "@/lib/signatures";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -957,7 +958,7 @@ function SignContent() {
                 ))}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(cj.body)) }} />
+                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(cj.body))) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {stripSignatureBlock(String(cj.body))}
@@ -1134,7 +1135,7 @@ function SignContent() {
             ))}
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
-                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
+                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}
@@ -1178,7 +1179,7 @@ function SignContent() {
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: stripSignatureBlock(String(content.body)) }} />
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {stripSignatureBlock(String(content.body))}

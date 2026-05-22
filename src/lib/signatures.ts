@@ -362,6 +362,23 @@ export function normalizeVariableTokens(html: string): string {
   });
 }
 
+// 2026-05-22 계약서 본문 표·이미지에 인라인 스타일 주입 — 외부 서명 페이지·메일·PDF 어디서나
+//   표 테두리·이미지가 보이게. RichEditor 표는 style="min-width:..." 만 있어 테두리가 없으므로
+//   기존 style 에 border 를 append (스킵하지 않음).
+export function injectContractInlineStyles(html: string): string {
+  if (!html) return html;
+  const append = (attrs: string, base: string): string => {
+    if (/style\s*=/i.test(attrs)) {
+      return attrs.replace(/style\s*=\s*(["'])([\s\S]*?)\1/i, (_m, q, s) => `style=${q}${s};${base}${q}`);
+    }
+    return `${attrs} style="${base}"`;
+  };
+  return html
+    .replace(/<table([^>]*)>/gi, (_m, attrs) => `<table${append(attrs, "border-collapse:collapse;width:100%;margin:12px 0")}>`)
+    .replace(/<(td|th)([^>]*)>/gi, (_m, tag, attrs) => `<${tag}${append(attrs, "border:1px solid #cbd5e1;padding:8px;vertical-align:top")}>`)
+    .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
+}
+
 export async function createBulkSignatureRequestsToOrgs(params: {
   companyId: string;
   createdBy: string;
@@ -552,13 +569,8 @@ export async function createBulkSignatureRequestsToOrgs(params: {
         let html = /^\s*</.test(filledText)
           ? filledText
           : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-        // 2026-05-22 표·이미지 인라인 스타일 주입 — 외부 서명 페이지·메일·PDF 어디서나 표 테두리·이미지 보이게
-        //   (RichEditor 표/이미지는 클래스 기반이라 외부 렌더 시 CSS 없으면 깨짐).
-        html = html
-          .replace(/<table(?![^>]*style=)/gi, '<table style="border-collapse:collapse;width:100%;margin:12px 0"')
-          .replace(/<(td|th)(?![^>]*style=)/gi, '<$1 style="border:1px solid #cbd5e1;padding:8px;vertical-align:top"')
-          .replace(/<img(?![^>]*style=)/gi, '<img style="max-width:100%;height:auto;display:block;margin:8px 0"');
-        snapshotHtml = html;
+        // 표·이미지 인라인 스타일 주입 (RichEditor 표는 min-width 만 있어 테두리 없음 → append).
+        snapshotHtml = injectContractInlineStyles(html);
       }
 
       // partner_id/batch_id/batch_seq + 만료 + 본문 snapshot
