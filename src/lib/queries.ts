@@ -1278,6 +1278,7 @@ export async function createVaultAsset(params: {
   value?: number;
   location?: string;
   notes?: string;
+  usefulLifeMonths?: number;
 }) {
   const { data, error } = await supabase
     .from('vault_assets')
@@ -1289,8 +1290,9 @@ export async function createVaultAsset(params: {
       value: params.value || 0,
       location: params.location,
       notes: params.notes,
+      useful_life_months: params.usefulLifeMonths ?? null,
       status: 'in_use',
-    })
+    } as never)
     .select()
     .single();
   if (error) throw error;

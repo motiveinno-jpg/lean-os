@@ -35,6 +35,17 @@ function fmtW(n: number): string {
   return `${sign}${abs.toLocaleString()}`;
 }
 
+// 2026-05-22 정액법 감가상각 장부가. 내용연수·취득일 없으면 취득가 유지(감가 미설정).
+function computeBookValue(value: number, purchaseDate: string | null | undefined, usefulLifeMonths: number | null | undefined): { book: number; depreciated: boolean } {
+  const v = Number(value || 0);
+  if (!usefulLifeMonths || usefulLifeMonths <= 0 || !purchaseDate) return { book: v, depreciated: false };
+  const start = new Date(purchaseDate).getTime();
+  if (isNaN(start)) return { book: v, depreciated: false };
+  const monthsElapsed = Math.max(0, (Date.now() - start) / (1000 * 60 * 60 * 24 * 30.44));
+  const ratio = Math.min(monthsElapsed / usefulLifeMonths, 1);
+  return { book: Math.max(Math.round(v * (1 - ratio)), 0), depreciated: true };
+}
+
 const ACCOUNT_STATUS: Record<string, { label: string; color: string; bg: string; text: string }> = {
   active: { label: "활성", color: "green", bg: "bg-green-500/10", text: "text-green-400" },
   paused: { label: "일시중지", color: "yellow", bg: "bg-yellow-500/10", text: "text-yellow-400" },
@@ -61,7 +72,7 @@ export default function VaultPage() {
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("accounts");
+  const [tab, setTab] = useState<Tab>("assets");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fileUploading, setFileUploading] = useState(false);
@@ -74,7 +85,7 @@ export default function VaultPage() {
   });
   // Asset form
   const [assetForm, setAssetForm] = useState({
-    type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "",
+    type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "",
   });
   // Doc form
   const [docForm, setDocForm] = useState({
@@ -130,12 +141,13 @@ export default function VaultPage() {
       value: Number(assetForm.value) || 0,
       location: assetForm.location || undefined,
       notes: assetForm.notes || undefined,
+      usefulLifeMonths: assetForm.usefulLifeMonths ? Number(assetForm.usefulLifeMonths) : undefined,
     }),
     onSuccess: () => {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
+      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" });
     },
     onError: (err: any) => toast(`자산 추가 실패: ${err.message || err}`, "error"),
   });
@@ -188,12 +200,13 @@ export default function VaultPage() {
       value: Number(assetForm.value) || 0,
       location: assetForm.location || null,
       notes: assetForm.notes || null,
+      useful_life_months: assetForm.usefulLifeMonths ? Number(assetForm.usefulLifeMonths) : null,
     }),
     onSuccess: () => {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" });
+      setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" });
     },
     onError: (err: any) => toast(`자산 수정 실패: ${err.message || err}`, "error"),
   });
@@ -415,10 +428,10 @@ export default function VaultPage() {
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const visibleAlerts = renewalAlerts.filter((a) => !dismissedAlerts.has(a.id));
 
+  // 2026-05-22 자산 전용으로 축소 — 구독/계정·문서 탭은 /subscriptions 통합 화면으로 이동(PR3).
+  //   자동 탐지는 자산 관련 발견만 (구독 발견은 구독 화면에서).
   const TABS: { key: Tab; label: string; count: number }[] = [
-    { key: "accounts", label: "구독/계정", count: vault?.accounts?.length || 0 },
     { key: "assets", label: "자산", count: vault?.assets?.length || 0 },
-    { key: "docs", label: "문서", count: vault?.docs?.length || 0 },
     { key: "discovery", label: "자동 탐지", count: stats.pendingDiscoveryCount },
   ];
 
@@ -430,9 +443,9 @@ export default function VaultPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold">구독/자산 관리</h1>
+          <h1 className="text-2xl font-extrabold">자산 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            구독/자산/문서 통합 관리 + AI 반복결제 자동 탐지
+            회사 유형/무형 자산 대장 — 감가상각 장부가 + 자동 탐지 (구독은 구독 메뉴에서)
           </p>
         </div>
         <div className="flex gap-2">
@@ -447,7 +460,7 @@ export default function VaultPage() {
           )}
           {tab !== "discovery" && (
             <button
-              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
+              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
               className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
             >
               + 추가
@@ -754,6 +767,11 @@ export default function VaultPage() {
                 placeholder="사무실 / 클라우드" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">내용연수 (개월)</label>
+              <input type="number" min={0} value={assetForm.usefulLifeMonths} onChange={(e) => setAssetForm({ ...assetForm, usefulLifeMonths: e.target.value })}
+                placeholder="예: 60 (5년) · 비우면 감가 미적용" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            </div>
+            <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">메모</label>
               <input value={assetForm.notes} onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
@@ -979,7 +997,30 @@ export default function VaultPage() {
 
       {/* ═══ Assets Tab ═══ */}
       {tab === "assets" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+        <>
+          {/* 요약 — 총 취득가 / 총 장부가 */}
+          {!!vault?.assets?.length && (() => {
+            const active = (vault.assets as any[]).filter((a) => a.status !== "disposed");
+            const acquire = active.reduce((s, a) => s + Number(a.value || 0), 0);
+            const book = active.reduce((s, a) => s + computeBookValue(a.value, a.purchase_date, a.useful_life_months).book, 0);
+            return (
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 취득가</div>
+                  <div className="text-xl font-extrabold mt-1">{fmtW(acquire)}</div>
+                </div>
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 장부가 (감가 후)</div>
+                  <div className="text-xl font-extrabold mt-1 text-[var(--primary)]">{fmtW(book)}</div>
+                </div>
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">누적 감가상각</div>
+                  <div className="text-xl font-extrabold mt-1 text-amber-500">{fmtW(acquire - book)}</div>
+                </div>
+              </div>
+            );
+          })()}
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
           {!vault?.assets?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📦</div>
@@ -987,20 +1028,22 @@ export default function VaultPage() {
               <div className="text-sm text-[var(--text-muted)]">유형/무형 자산을 등록하세요</div>
             </div>
           ) : (
-            <table className="w-full text-sm min-w-[700px]">
+            <table className="w-full text-sm min-w-[760px]">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">유형</th>
-                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">가치</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">위치</th>
+                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">취득가</th>
+                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">장부가</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">취득일</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
                 </tr>
               </thead>
               <tbody>
-                {vault.assets.map((a: any) => (
-                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(a.id); setAssetForm({ type: a.type || "tangible", name: a.name || "", purchaseDate: a.purchase_date || "", value: String(a.value || ""), location: a.location || "", notes: a.notes || "" }); setShowForm(true); }}>
+                {vault.assets.map((a: any) => {
+                  const bv = computeBookValue(a.value, a.purchase_date, a.useful_life_months);
+                  return (
+                  <tr key={a.id} className="border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition cursor-pointer" onClick={() => { setEditingId(a.id); setAssetForm({ type: a.type || "tangible", name: a.name || "", purchaseDate: a.purchase_date || "", value: String(a.value || ""), location: a.location || "", notes: a.notes || "", usefulLifeMonths: a.useful_life_months ? String(a.useful_life_months) : "" }); setShowForm(true); }}>
                     <td className="p-4">
                       <div className="font-semibold">{a.name}</div>
                       {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
@@ -1012,8 +1055,11 @@ export default function VaultPage() {
                         {ASSET_TYPES[a.type] || a.type}
                       </span>
                     </td>
-                    <td className="p-4 text-right font-bold mono-number">{(a.value || 0).toLocaleString()}원</td>
-                    <td className="p-4 text-center text-xs text-[var(--text-muted)]">{a.location || "—"}</td>
+                    <td className="p-4 text-right text-[var(--text-muted)] mono-number">{(a.value || 0).toLocaleString()}원</td>
+                    <td className="p-4 text-right font-bold mono-number">
+                      {bv.book.toLocaleString()}원
+                      {!bv.depreciated && <div className="text-[9px] text-[var(--text-dim)] font-normal">감가 미설정</div>}
+                    </td>
                     <td className="p-4 text-center text-xs text-[var(--text-muted)]">
                       {a.purchase_date ? new Date(a.purchase_date).toLocaleDateString("ko") : "—"}
                     </td>
@@ -1027,11 +1073,13 @@ export default function VaultPage() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {/* ═══ Docs Tab ═══ */}
