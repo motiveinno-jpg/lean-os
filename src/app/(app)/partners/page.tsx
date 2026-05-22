@@ -132,6 +132,8 @@ export default function PartnersPage() {
   const [importing, setImporting] = useState(false);
   // 2026-05-22 휴면 거래처 감지(④) + 담당자 리마인더(⑤)
   const [detecting, setDetecting] = useState(false);
+  // 2026-05-22 포털 링크 발급 결과 모달
+  const [portalModal, setPortalModal] = useState<{ url: string; partnerName: string } | null>(null);
   const runDormancyDetect = async () => {
     if (!companyId) return;
     setDetecting(true);
@@ -1043,13 +1045,9 @@ export default function PartnersPage() {
                       return;
                     }
                     const url = `${window.location.origin}/portal/${token}`;
-                    // 발급은 성공 — 복사 실패해도 링크는 prompt 로 제공
-                    try {
-                      await navigator.clipboard.writeText(url);
-                      toast("포털 링크 복사됨 — 거래처에 전달하세요", "success");
-                    } catch {
-                      window.prompt("포털 링크 (아래를 복사해 거래처에 전달하세요)", url);
-                    }
+                    // 자동 복사(보조) 후 발급 결과 모달을 주 피드백으로 표시
+                    try { await navigator.clipboard.writeText(url); } catch { /* 모달에서 수동 복사 */ }
+                    setPortalModal({ url, partnerName: detailPartner.name });
                   }}
                   className="px-3 py-1.5 text-xs bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded-lg hover:bg-violet-500/20 transition flex items-center gap-1"
                   title="로그인 없이 견적·계약을 확인할 수 있는 포털 링크를 발급·복사합니다">
@@ -1648,6 +1646,74 @@ export default function PartnersPage() {
           </div>
         </div>
       )}
+
+      {/* 포털 링크 발급 결과 모달 */}
+      {portalModal && (
+        <PortalLinkModal url={portalModal.url} partnerName={portalModal.partnerName} onClose={() => setPortalModal(null)} />
+      )}
+    </div>
+  );
+}
+
+// ── 포털 링크 발급 결과 모달 (2026-05-22) ──
+function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerName: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("포털 링크 (복사해 거래처에 전달하세요)", url);
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <h2 className="text-base font-bold text-[var(--text)]">✅ 포털 링크가 발급되었습니다</h2>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-sm text-[var(--text-muted)]">
+            <span className="font-semibold text-[var(--text)]">{partnerName}</span> 에게 아래 링크를 전달하세요.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="flex-1 min-w-0 px-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] font-mono"
+            />
+            <button
+              onClick={copy}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                copied ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" : "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]"
+              }`}
+            >
+              {copied ? "복사됨 ✓" : "📋 복사"}
+            </button>
+          </div>
+          <ul className="text-[11px] text-[var(--text-dim)] space-y-1 leading-relaxed">
+            <li>• 거래처는 <span className="text-[var(--text-muted)]">로그인 없이</span> 견적·계약 서류를 확인할 수 있습니다.</li>
+            <li>• 이 링크는 <span className="text-amber-500">타인과 공유하지 마세요</span> (링크 자체가 접근 권한입니다).</li>
+            <li>• 다시 발급하면 같은 링크가 유지됩니다 (재발급 시 동일 토큰).</li>
+          </ul>
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border)]">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">
+            닫기
+          </button>
+          <button onClick={copy} className="px-4 py-2 text-sm font-semibold rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
+            {copied ? "복사됨 ✓" : "📋 복사하기"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
