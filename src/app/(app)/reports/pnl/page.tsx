@@ -175,9 +175,11 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     fetchAllPaginated<any>((from, to) =>
       supabase
         .from("tax_invoices")
-        .select("type, supply_amount, tax_amount, total_amount, issue_date")
+        .select("type, supply_amount, tax_amount, total_amount, issue_date, status")
         .eq("company_id", companyId)
         .gte("issue_date", startDate)
+        // 2026-05-22 무효(void) 세금계산서는 매출/매입에서 제외 (발생주의 — matched 등 나머지는 모두 인식)
+        .neq("status", "void")
         .range(from, to)
     ),
     supabase
@@ -210,9 +212,9 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     if (!allMonths.includes(month)) continue;
     const amt = Math.abs(tx.amount);
 
-    if (tx.type === "income" || tx.type === "입금") {
-      revenue[month] += amt;
-    } else if (tx.type === "expense" || tx.type === "출금") {
+    // 2026-05-22 매출은 세금계산서(sales) 기준으로 통일 → bank 입금(income)은 매출로 잡지 않음.
+    //   비용(expense) 분류만 거래내역에서 수행.
+    if (tx.type === "expense" || tx.type === "출금") {
       // 1) 매출원가 (외주/인프라) 먼저 분리
       const cogs = isCogs(tx.counterparty, tx.description, tx.category);
       if (cogs.is) {
@@ -254,11 +256,11 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     if (monthlyInsurance > (insuranceRow[m] || 0)) insuranceRow[m] = monthlyInsurance;
   }
 
-  // Cross-reference: if tax invoice sales > bank income, use tax invoice figure
+  // 2026-05-22 손익계산서 매출 = 세금계산서(sales) 공급가액 기준 (사장님 요청).
+  //   기존 cross-reference(세금계산서 초과분 → 기타수익) 제거. revenue = salesRevenue.
+  //   otherRevenue 는 0 유지(영업외수익 별도 소스 없음).
   for (const m of allMonths) {
-    if (salesRevenue[m] > revenue[m]) {
-      otherRevenue[m] += salesRevenue[m] - revenue[m];
-    }
+    revenue[m] = salesRevenue[m];
   }
 
   return {
@@ -371,9 +373,7 @@ export default function PnlPage() {
       lines.push([label, ...vals, total].join(","));
     };
 
-    addLine("매출", data.revenue);
-    addLine("기타수익", data.otherRevenue);
-    addLine("총 매출", computed.totalRevenue);
+    addLine("매출 (세금계산서 기준)", data.revenue);
     lines.push("");
     addLine("외주비", data.outsourcing);
     addLine("인프라비용", data.infrastructure);
@@ -928,11 +928,9 @@ export default function PnlPage() {
             </tr>
           </thead>
           <tbody>
-            {/* Revenue Section */}
+            {/* Revenue Section — 2026-05-22 세금계산서(sales) 공급가액 기준. 기타수익 분리 제거. */}
             {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출", data.revenue, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
-            {renderRow("기타수익", data.otherRevenue, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.otherRevenue) : undefined })}
-            {renderRow("총 매출", computed.totalRevenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? computed.prevTotals.totalRevenue : undefined })}
+            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
 
             {renderDivider(months, "div-1")}
 
