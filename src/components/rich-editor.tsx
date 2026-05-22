@@ -8,6 +8,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { TextStyle, Color, FontSize, FontFamily } from "@tiptap/extension-text-style";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+import { TableKit } from "@tiptap/extension-table";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
 export interface RichEditorRef {
@@ -68,6 +69,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       FontFamily,
       Highlight.configure({ multicolor: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      TableKit.configure({ table: { resizable: true } }),
     ],
     content,
     editable,
@@ -204,10 +206,6 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
             } else {
               src = canvas.toDataURL("image/png");
             }
-            // 표·그래프만 참조하도록 안내 (글자는 위 텍스트에서 수정).
-            if (trimmedText.length >= 10) {
-              parts.push(`<p><em style="color:#888;font-size:12px">↓ 위 글자는 편집 가능 · 아래 이미지의 표·그래프는 원본 보존</em></p>`);
-            }
             parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
           }
         }
@@ -279,8 +277,22 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {/* 삽입 */}
           <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={btnCls(false)} title="구분선">─</button>
           <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnCls(editor.isActive("blockquote"))} title="인용">" 인용</button>
-          <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지 삽입">🖼 이미지</button>
-          <button type="button" onClick={() => pdfInputRef.current?.click()} className={btnCls(false)} title="PDF 페이지 삽입 (그래프·표 그대로)">📎 PDF</button>
+          <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지/그래프 삽입 (그래프 이미지를 넣으세요)">🖼 이미지</button>
+          <button type="button" onClick={() => pdfInputRef.current?.click()} className={btnCls(false)} title="PDF 내용 삽입 (글자+표+그래프)">📎 PDF</button>
+          <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
+
+          {/* 표 */}
+          <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={btnCls(false)} title="표 삽입 (3×3)">▦ 표</button>
+          {editor.isActive("table") && (
+            <>
+              <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className={btnCls(false)} title="열 추가">+열</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className={btnCls(false)} title="열 삭제">-열</button>
+              <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className={btnCls(false)} title="행 추가">+행</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className={btnCls(false)} title="행 삭제">-행</button>
+              <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className={btnCls(false)} title="머리행 토글">머리</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className={btnCls(false)} title="표 삭제">표✕</button>
+            </>
+          )}
 
           <input ref={imgInputRef} type="file" accept="image/*" className="hidden"
             onChange={async (e) => { const f = e.target.files?.[0]; if (f) { try { await insertImageFromFile(f); } catch { alert("이미지 삽입 실패"); } } e.target.value = ""; }} />
@@ -292,7 +304,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       )}
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"
+        className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"
       />
     </div>
   );
