@@ -1029,6 +1029,21 @@ export default function PartnersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* 2026-05-22 파트너 포털 링크 발급/복사 — 외부 거래처가 로그인 없이 서류 확인 */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await (supabase as any).rpc("generate_partner_portal_token", { p_partner_id: detailPartner.id });
+                      if (error || !data) { toast("포털 링크 발급 실패", "error"); return; }
+                      const url = `${window.location.origin}/portal/${data}`;
+                      await navigator.clipboard.writeText(url);
+                      toast("포털 링크 복사됨 — 거래처에 전달하세요", "success");
+                    } catch { toast("포털 링크 발급 실패", "error"); }
+                  }}
+                  className="px-3 py-1.5 text-xs bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded-lg hover:bg-violet-500/20 transition flex items-center gap-1"
+                  title="로그인 없이 견적·계약을 확인할 수 있는 포털 링크를 발급·복사합니다">
+                  🔗 포털 링크
+                </button>
                 {detailPartner.contact_email && (
                   <a href={`mailto:${detailPartner.contact_email}`}
                     className="px-3 py-1.5 text-xs bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition flex items-center gap-1"
