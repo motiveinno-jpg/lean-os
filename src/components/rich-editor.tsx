@@ -150,31 +150,32 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         } catch { /* 텍스트 없는 페이지 무시 */ }
         const trimmedText = pageText.trim();
 
-        // 2) 그래픽(이미지·표·그래프) 포함 여부 판정
-        let hasGraphic = false;
+        // 2) 그래픽 판정 — 이미지뿐 아니라 벡터 path(표·그래프는 선/사각형으로 그려짐)도 포함.
+        //    표는 paintImage* 가 아니라 constructPath/stroke/fill/rectangle 로 그려지므로
+        //    벡터 op 가 일정 수 이상이면 그래픽 페이지로 간주 → 이미지로 보존.
+        let imageOps = 0;
+        let vectorOps = 0;
         try {
           const ops = await page.getOperatorList();
-          hasGraphic = (ops.fnArray as number[]).some((fn) =>
-            fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject ||
-            fn === OPS.paintImageMaskXObject || fn === OPS.paintInlineImageXObject);
+          for (const fn of ops.fnArray as number[]) {
+            if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject ||
+                fn === OPS.paintImageMaskXObject || fn === OPS.paintInlineImageXObject) {
+              imageOps++;
+            } else if (fn === OPS.constructPath || fn === OPS.stroke || fn === OPS.fill ||
+                       fn === OPS.eoFill || fn === OPS.fillStroke || fn === OPS.eoFillStroke ||
+                       fn === OPS.rectangle) {
+              vectorOps++;
+            }
+          }
         } catch { /* ignore */ }
+        // 임계값 5: 일반 텍스트 페이지의 밑줄·구분선(0~few)은 텍스트 유지, 표/그래프(다수 선)는 이미지.
+        const hasGraphic = imageOps > 0 || vectorOps >= 5;
 
         // 페이지 구분 헤더 (2페이지 이상일 때만)
         if (total > 1) parts.push(`<p><strong>— ${i} / ${total} 페이지 —</strong></p>`);
 
-        // 3) 텍스트가 있으면 편집 가능한 문단으로
-        if (trimmedText.length > 0) {
-          const paras = trimmedText
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean)
-            .map((l) => `<p>${escapeHtml(l)}</p>`)
-            .join("");
-          parts.push(paras);
-        }
-
-        // 4) 그래픽 포함 페이지(또는 텍스트가 거의 없는 페이지)는 페이지 이미지도 삽입 (표·그래프 그대로 보존)
         if (hasGraphic || trimmedText.length < 10) {
+          // 그래픽(표·그래프·이미지) 페이지 → 페이지 이미지로 (레이아웃 그대로, 텍스트 중복 안 넣음).
           const viewport = page.getViewport({ scale: 2.0 });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
@@ -193,6 +194,15 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
             }
             parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
           }
+        } else if (trimmedText.length > 0) {
+          // 텍스트 위주 페이지 → 편집 가능한 문단.
+          const paras = trimmedText
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((l) => `<p>${escapeHtml(l)}</p>`)
+            .join("");
+          parts.push(paras);
         }
       }
 
