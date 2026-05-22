@@ -867,6 +867,17 @@ function OrgBulkWizard({
   // Step 4: 발송자 / 만료
   const [expiresInDays, setExpiresInDays] = useState(14);
   const [sendNow, setSendNow] = useState(true);
+  // 2026-05-22 발송 전 우리(갑) 직인 적용 — 거래처가 받는 계약서에 우리 도장 미리 찍힘.
+  const [applyOurSeal, setApplyOurSeal] = useState(true);
+  const [hasCompanySeal, setHasCompanySeal] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await (supabase as any).from("companies").select("seal_url").eq("id", companyId).maybeSingle();
+      if (alive) setHasCompanySeal(!!data?.seal_url);
+    })();
+    return () => { alive = false; };
+  }, [companyId]);
 
   // Step 5: 미리보기
   const previewPartner = selectedPartners[0] || null;
@@ -947,6 +958,7 @@ function OrgBulkWizard({
         commonVariables,
         perPartnerOverrides,
         sendEmails: sendNow,
+        applyOurSeal: applyOurSeal && hasCompanySeal === true,
         onProgress: (info) => setProgress(info),
       });
       // 실패/스킵이 있으면 첫 1~2건 사유까지 toast 에 포함 (사용자가 어디서 막혔는지 즉시 인지)
@@ -1302,6 +1314,29 @@ function OrgBulkWizard({
               <input type="checkbox" checked={sendNow} onChange={(e) => setSendNow(e.target.checked)} />
               생성 즉시 이메일 발송
             </label>
+
+            {/* 우리(갑) 직인 적용 */}
+            <div className="pt-3 border-t border-[var(--border)]">
+              <label className={`flex items-center gap-2 text-sm ${hasCompanySeal === false ? "text-[var(--text-dim)]" : "text-[var(--text)]"}`}>
+                <input
+                  type="checkbox"
+                  checked={applyOurSeal && hasCompanySeal !== false}
+                  disabled={hasCompanySeal === false}
+                  onChange={(e) => setApplyOurSeal(e.target.checked)}
+                />
+                발송 전 우리 직인(도장) 적용 — 거래처가 받는 계약서에 우리 도장이 미리 찍힙니다
+              </label>
+              {hasCompanySeal === false && (
+                <div className="mt-1.5 text-[11px] text-amber-500">
+                  회사 직인이 등록되지 않았습니다. 회사 설정 → 직인에서 먼저 등록하세요. (지금은 우리 도장 없이 발송됩니다)
+                </div>
+              )}
+              {hasCompanySeal === true && applyOurSeal && (
+                <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                  계약서 갑(수행기관) 서명란에 직인이 합성되어 발송됩니다. 거래처는 을 서명만 하면 양방향 완성.
+                </div>
+              )}
+            </div>
           </div>
         )}
 

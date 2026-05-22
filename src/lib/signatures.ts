@@ -395,6 +395,25 @@ export async function createBulkSignatureRequests(params: {
 //   sendSignatureEmail 한 곳에서만 호출 (엣지 무수정).
 export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_email'|'contact_phone'|'business_number'|'address';
 
+// 2026-05-22 단체 일괄발송 — 우리(갑) 직인을 발송 전 본문에 합성.
+//   갑 sig-box[data-role="갑"] 우선, 없으면(자유 양식) 본문 끝 "수행기관(갑) 직인" 블록 append.
+//   거래처는 받는 즉시 우리 도장이 찍힌 계약서를 보고, 을 서명만 하면 양방향 완성.
+export function injectOurSeal(html: string | null | undefined, sealUrl: string, companyName?: string | null): string {
+  if (!html || !sealUrl) return html || '';
+  const sealImg = `<img src="${sealUrl}" alt="직인" style="width:64px;height:64px;object-fit:contain;display:inline-block"/>`;
+  const gabBoxRe = /(<span class="sig-box" data-role="갑"[^>]*>)([\s\S]*?)(<\/span>)/;
+  if (gabBoxRe.test(html)) {
+    return html.replace(gabBoxRe, `$1${sealImg}$3`);
+  }
+  return html + `
+<div style="margin-top:32px;text-align:right;page-break-inside:avoid">
+  <div style="display:inline-block;text-align:center">
+    <div style="font-size:11px;color:#6b7280;margin-bottom:4px">${companyName || '수행기관(갑)'} (인)</div>
+    ${sealImg}
+  </div>
+</div>`;
+}
+
 // 2026-05-22 변수 토큰 정규화 — RichEditor 에서 {{단체명}} 입력 시 글자별 서식(span)이 끼어
 //   {{</span><span ...>단체명</span>...}} 처럼 토큰이 HTML 태그로 분절되면 변수 치환이 실패함.
 //   {{ ... }} 사이의 모든 HTML 태그·엔티티를 제거해 순수 변수명({{단체명}})으로 복구.
@@ -438,6 +457,8 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   commonVariables?: Record<string, string>;
   perPartnerOverrides?: Record<string /*partnerId*/, Record<string /*varName*/, string>>;
   sendEmails?: boolean;
+  // 2026-05-22 발송 전 우리(갑) 직인을 본문에 미리 합성 (회사 seal_url 사용).
+  applyOurSeal?: boolean;
   /**
    * chunk 완료마다 진행률 콜백 (100개+ 대량 발송 UI 진행률 바 용).
    *   done: 지금까지 처리한 행 수 (성공+실패 포함)
@@ -464,6 +485,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     commonVariables = {},
     perPartnerOverrides = {},
     sendEmails = true,
+    applyOurSeal = false,
     onProgress,
   } = params;
 
@@ -494,9 +516,11 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     .maybeSingle();
   const { data: companyRow } = await db
     .from('companies')
-    .select('name, business_number, representative, address')
+    .select('name, business_number, representative, address, seal_url')
     .eq('id', companyId)
     .maybeSingle();
+  // 우리 직인 적용 — seal_url 있을 때만 (없으면 조용히 미적용)
+  const ourSealUrl: string | null = applyOurSeal ? (companyRow?.seal_url || null) : null;
 
   // 1) 회사 격리 가드 + 데이터 한 번에 조회
   const { data: partners, error: pErr } = await db
@@ -619,6 +643,10 @@ export async function createBulkSignatureRequestsToOrgs(params: {
           : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
         // 표·이미지 인라인 스타일 주입 (RichEditor 표는 min-width 만 있어 테두리 없음 → append).
         snapshotHtml = injectContractInlineStyles(html);
+        // 발송 전 우리(갑) 직인 합성 — 거래처가 받는 즉시 우리 도장이 찍힌 계약서를 봄.
+        if (ourSealUrl) {
+          snapshotHtml = injectOurSeal(snapshotHtml, ourSealUrl, companyRow?.name);
+        }
       }
 
       // partner_id/batch_id/batch_seq + 만료 + 본문 snapshot
