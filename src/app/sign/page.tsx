@@ -5,7 +5,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ToastProvider, useToast } from "@/components/toast";
-import { logAuditTrail, getAuditTrail, generateAuditTrailCertificateHTML } from "@/lib/audit-trail";
+import { logAuditTrail } from "@/lib/audit-trail";
 import { verifyDocumentIntegrity, generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { generateDocumentPDF } from "@/lib/document-generator";
 import { injectContractInlineStyles } from "@/lib/signatures";
@@ -764,47 +764,6 @@ function SignContent() {
   }
 
   // ── Helpers for completed view ──
-  async function handleViewAuditTrail() {
-    if (!pkg) return;
-    try {
-      const auditEntries = await getAuditTrail(pkg.id);
-      // Extract hash from notes
-      let packageHash = 'N/A';
-      if (pkg.notes) {
-        try {
-          const meta = JSON.parse(pkg.notes);
-          packageHash = meta.document_hash || 'N/A';
-        } catch { /* ignore */ }
-      }
-      // Re-fetch notes to get latest hash
-      try {
-        const { data: freshPkg } = await db
-          .from("hr_contract_packages")
-          .select("notes")
-          .eq("id", pkg.id)
-          .maybeSingle();
-        if (freshPkg?.notes) {
-          const meta = JSON.parse(freshPkg.notes);
-          if (meta.document_hash) packageHash = meta.document_hash;
-        }
-      } catch { /* ignore */ }
-
-      const html = generateAuditTrailCertificateHTML({
-        packageTitle: pkg.title,
-        companyName: pkg.companies?.name || '',
-        employeeName: pkg.employees?.name || '',
-        signerEmail: pkg.employees?.email || '',
-        documentNames: pkg.items.map((i) => i.title),
-        auditEntries,
-        documentHash: packageHash,
-      });
-      const w = window.open('', '_blank');
-      if (w) { w.document.write(html); w.document.close(); }
-    } catch (e) {
-      console.error('Audit trail error:', e);
-      toast('감사추적인증서를 불러오는 중 오류가 발생했습니다.', "error");
-    }
-  }
 
   async function handleDownloadSignedPDF() {
     if (!pkg) return;
@@ -824,10 +783,14 @@ function SignContent() {
         if (!doc?.content_json) continue;
         const cj = doc.content_json;
         if (cj.title) allSections.push(cj.title);
-        if (cj.sections) {
+        // 2026-05-22 빈 sections([]) 도 truthy 라 본문(body) 분기를 못 타던 버그 → length>0 체크.
+        //   필드명 fallback (heading|title, body|content) — 화면 렌더(sections.length===0 면 body)와 동일 소스.
+        if (cj.sections && Array.isArray(cj.sections) && cj.sections.length > 0) {
           for (const sec of cj.sections) {
-            if (sec.heading) allSections.push(`\n${sec.heading}`);
-            if (sec.body) allSections.push(sec.body);
+            const h = sec.heading || sec.title;
+            const b = sec.body || sec.content;
+            if (h) allSections.push(`\n${h}`);
+            if (b) allSections.push(b);
           }
         } else if (cj.body) {
           // Built-in/사용자 편집 템플릿: 단일 body — HTML 이면 plain text 로 변환 + 서명 블록 strip
@@ -980,17 +943,6 @@ function SignContent() {
               </div>
             );
           })}
-
-          {/* Audit trail certificate button */}
-          <button
-            onClick={handleViewAuditTrail}
-            className="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            감사추적인증서 보기
-          </button>
 
           {/* Signed document PDF download */}
           <button
