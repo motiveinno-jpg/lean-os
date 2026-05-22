@@ -363,6 +363,19 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
     return out;
   }, [filteredCards]);
 
+  // 2026-05-22 기간 칸반 요약 — 기간 필터된 cards 기준 client 집계 (추가 fetch 0).
+  const summary = useMemo(() => {
+    const byStageCount: Record<string, number> = {};
+    let total = 0;
+    for (const c of cards) {
+      const st = c.stage || "estimate";
+      byStageCount[st] = (byStageCount[st] || 0) + 1;
+      total += c.contract_total ?? 0;
+    }
+    const doneCount = (byStageCount["completed"] || 0) + (byStageCount["settlement"] || 0);
+    return { count: cards.length, total, byStageCount, doneCount };
+  }, [cards]);
+
   return (
     <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
       {/* Header */}
@@ -406,6 +419,37 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null }: { isEmp
           </Link>
         </div>
       </div>
+
+      {/* 기간 요약 칩 — 기간 칸반에서만. 직원은 금액 가림(건수·단계만) */}
+      {dateFilter && summary.count > 0 && (
+        <div className="flex flex-wrap items-stretch gap-2 mb-4">
+          <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
+            <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약</div>
+            <div className="text-base font-extrabold text-[var(--text)] tabular-nums">{summary.count}건</div>
+          </div>
+          {!isEmployeeLimited && (
+            <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
+              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약금액</div>
+              <div className="text-base font-extrabold text-[var(--text)] tabular-nums">₩{summary.total.toLocaleString("ko-KR")}</div>
+            </div>
+          )}
+          <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-3 py-2">
+            <div className="text-[10px] text-emerald-500/80 uppercase tracking-wide">완료·정산</div>
+            <div className="text-base font-extrabold text-emerald-500 tabular-nums">{summary.doneCount}건</div>
+          </div>
+          {/* 단계별 분포 */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
+            {STAGE_ORDER.map((s) => {
+              const n = summary.byStageCount[s] || 0;
+              return (
+                <span key={s} className={`text-[11px] whitespace-nowrap ${n > 0 ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>
+                  {STAGE_LABEL[s as Stage] || s} <span className="font-bold tabular-nums">{n}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-3 mb-4">
