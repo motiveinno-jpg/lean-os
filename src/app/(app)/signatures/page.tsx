@@ -19,6 +19,7 @@ import {
   getSignatureRequests,
   createBulkSignatureRequests,
   createBulkSignatureRequestsToOrgs,
+  normalizeVariableTokens,
   type PartnerVarColumn,
   sendSignatureReminder,
   bulkSendReminders,
@@ -732,6 +733,8 @@ function extractTokens(...sources: any[]): string[] {
     else {
       try { s = JSON.stringify(src); } catch { continue; }
     }
+    // 2026-05-22 RichEditor 서식 span 으로 분절된 {{변수}} 복구 후 추출.
+    s = normalizeVariableTokens(s);
     let m: RegExpExecArray | null;
     while ((m = re.exec(s))) {
       const name = m[1].trim();

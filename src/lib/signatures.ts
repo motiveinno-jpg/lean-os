@@ -347,6 +347,21 @@ export async function createBulkSignatureRequests(params: {
 //   sendSignatureEmail 한 곳에서만 호출 (엣지 무수정).
 export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_email'|'contact_phone'|'business_number'|'address';
 
+// 2026-05-22 변수 토큰 정규화 — RichEditor 에서 {{단체명}} 입력 시 글자별 서식(span)이 끼어
+//   {{</span><span ...>단체명</span>...}} 처럼 토큰이 HTML 태그로 분절되면 변수 치환이 실패함.
+//   {{ ... }} 사이의 모든 HTML 태그·엔티티를 제거해 순수 변수명({{단체명}})으로 복구.
+export function normalizeVariableTokens(html: string): string {
+  if (!html) return html;
+  return html.replace(/\{\{([\s\S]*?)\}\}/g, (_m, inner) => {
+    const clean = String(inner)
+      .replace(/<[^>]*>/g, "")          // HTML 태그 제거
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&[a-zA-Z]+;|&#\d+;/g, "") // 기타 엔티티 제거
+      .trim();
+    return `{{${clean}}}`;
+  });
+}
+
 export async function createBulkSignatureRequestsToOrgs(params: {
   companyId: string;
   createdBy: string;
@@ -479,7 +494,8 @@ export async function createBulkSignatureRequestsToOrgs(params: {
       // 본문 snapshot: documents.content_json.body 의 토큰을 partner + company 데이터로 치환
       //   /sign 외부 페이지 fillBody 와 동일 매핑 (server-side mirror)
       let snapshotHtml: string | null = null;
-      const docBody = (docRow?.content_json as { body?: string } | null)?.body;
+      // 토큰 정규화 — 서식 span 으로 분절된 {{변수}} 복구 후 치환.
+      const docBody = normalizeVariableTokens((docRow?.content_json as { body?: string } | null)?.body || '');
       if (typeof docBody === 'string' && docBody.trim()) {
         const c = companyRow || {};
         const pn = p;
@@ -517,15 +533,32 @@ export async function createBulkSignatureRequestsToOrgs(params: {
           '오늘': new Date().toLocaleDateString('ko-KR'),
           '계약일': new Date().toLocaleDateString('ko-KR'),
         };
+        // 사용자가 변수 매핑 단계에서 지정한 값 우선 반영 (거래처 컬럼 / 공통값 / 개별 덮어쓰기).
+        for (const [token, col] of Object.entries(variableMap || {})) {
+          if (col) replacements[token] = String((pn as any)[col] ?? '');
+        }
+        for (const [token, val] of Object.entries(commonVariables)) {
+          if (val) replacements[token] = val;
+        }
+        for (const [token, val] of Object.entries(perPartnerOverrides[p.id] || {})) {
+          if (val) replacements[token] = val;
+        }
         const filledText = docBody.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
           const k = String(key).trim();
           if (k in replacements) return replacements[k];
           return full;
         });
         // text → HTML (개행 보존). 양식이 이미 HTML 이면 그대로.
-        snapshotHtml = /^\s*</.test(filledText)
+        let html = /^\s*</.test(filledText)
           ? filledText
           : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+        // 2026-05-22 표·이미지 인라인 스타일 주입 — 외부 서명 페이지·메일·PDF 어디서나 표 테두리·이미지 보이게
+        //   (RichEditor 표/이미지는 클래스 기반이라 외부 렌더 시 CSS 없으면 깨짐).
+        html = html
+          .replace(/<table(?![^>]*style=)/gi, '<table style="border-collapse:collapse;width:100%;margin:12px 0"')
+          .replace(/<(td|th)(?![^>]*style=)/gi, '<$1 style="border:1px solid #cbd5e1;padding:8px;vertical-align:top"')
+          .replace(/<img(?![^>]*style=)/gi, '<img style="max-width:100%;height:auto;display:block;margin:8px 0"');
+        snapshotHtml = html;
       }
 
       // partner_id/batch_id/batch_seq + 만료 + 본문 snapshot
