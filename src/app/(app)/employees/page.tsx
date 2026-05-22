@@ -3892,6 +3892,30 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     return { todayList, monthTop };
   }, [records, activeEmployees, isEmployeeRole]);
 
+  // 2026-05-22 오늘 출퇴근 현황 — KST 오늘 기준 출근/지각/휴가 집계 (records 의존 X, 별도 fetch).
+  const kstToday = useMemo(() => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), []);
+  const { data: todayStatus } = useQuery({
+    queryKey: ["today-attendance-status", companyId, kstToday],
+    queryFn: async () => {
+      const [attRes, leaveRes] = await Promise.all([
+        (supabase as any).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
+        (supabase as any).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
+      ]);
+      const present = new Set<string>();
+      const late = new Set<string>();
+      for (const r of (attRes.data || []) as any[]) {
+        if (r.is_late || r.status === "late") late.add(r.employee_id);
+        else present.add(r.employee_id);
+      }
+      const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));
+      // 휴가자는 출근/지각 집계에서 제외(중복 방지)
+      for (const id of leaveSet) { present.delete(id); late.delete(id); }
+      return { present: present.size, late: late.size, leave: leaveSet.size };
+    },
+    enabled: !!companyId && !isEmployeeRole,
+    staleTime: 60_000,
+  });
+
   return (
     <div>
       {/* L 근태 — C-3 관리자: 수정 요청 인박스 */}
@@ -3989,27 +4013,43 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               </div>
             )}
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base">📊</span>
-              <span className="text-xs text-[var(--text-dim)]">이번 달 지각 누적 Top 5</span>
-            </div>
-            {lateAdminSummary.monthTop.length === 0 ? (
-              <div className="text-sm text-[var(--text-muted)]">이번 달 지각 기록 없음</div>
-            ) : (
-              <div className="space-y-1">
-                {lateAdminSummary.monthTop.map((x, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--text)] flex items-center gap-1.5">
-                      <span className="text-[var(--text-muted)] tabular-nums">{i + 1}.</span>
-                      {x.name}
-                    </span>
-                    <span className="text-yellow-400 font-semibold tabular-nums">{x.count}회</span>
+          {/* 2026-05-22 지각 누적 Top5 → 오늘 출퇴근 현황 */}
+          {(() => {
+            const total = activeEmployees.length;
+            const present = todayStatus?.present ?? 0;
+            const late = todayStatus?.late ?? 0;
+            const leave = todayStatus?.leave ?? 0;
+            const absent = Math.max(0, total - present - late - leave);
+            const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+            return (
+              <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">📋</span>
+                  <span className="text-xs text-[var(--text-dim)]">오늘 출퇴근 현황</span>
+                  <span className="ml-auto text-[10px] text-[var(--text-dim)]">{kstToday} · 총원 {total}명</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-500/90">🟢 출근</span>
+                    <span className="text-base font-extrabold text-emerald-500 tabular-nums">{present}</span>
                   </div>
-                ))}
+                  <div className="rounded-lg bg-yellow-500/8 border border-yellow-500/20 px-3 py-2 flex items-center justify-between">
+                    <span className="text-[11px] text-yellow-500/90">🟡 지각</span>
+                    <span className="text-base font-extrabold text-yellow-500 tabular-nums">{late}</span>
+                  </div>
+                  <div className="rounded-lg bg-sky-500/8 border border-sky-500/20 px-3 py-2 flex items-center justify-between">
+                    <span className="text-[11px] text-sky-500/90">🔵 휴가</span>
+                    <span className="text-base font-extrabold text-sky-500 tabular-nums">{leave}</span>
+                  </div>
+                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)]">⚪ 미출근</span>
+                    <span className="text-base font-extrabold text-[var(--text-muted)] tabular-nums">{absent}</span>
+                  </div>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] text-right">출근율 {rate}%</div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 
