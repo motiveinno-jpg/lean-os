@@ -330,8 +330,8 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   });
   y = (doc as any).lastAutoTable.finalY + 8;
 
-  // ── 7) 계산방법 (간단히 기본급 + 식대만) ──
-  if (taxableBase > 0 || item.nonTaxableAmount > 0) {
+  // ── 7) 계산방법 (기본급 + 식대 + 과세 수당 라인) ──
+  if (taxableBase > 0 || item.nonTaxableAmount > 0 || extraEarnings.length > 0) {
     doc.setFontSize(9);
     setKoreanFont(doc, 'bold');
     doc.setTextColor(...COLOR_TEXT);
@@ -341,8 +341,10 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
       startY: y,
       head: [['구분', '산출식 또는 산출방법', '지급액']],
       body: [
-        ...(taxableBase > 0 ? [['기본급', '월 기본급', fmt(taxableBase)]] : []),
-        ...(item.nonTaxableAmount > 0 ? [['식대', '비과세 식대', fmt(item.nonTaxableAmount)]] : []),
+        ...(taxableBase > 0 ? [['기본급', '월 기본급 (과세)', fmt(taxableBase)]] : []),
+        ...(item.nonTaxableAmount > 0 ? [['식대', '식대 (비과세)', fmt(item.nonTaxableAmount)]] : []),
+        // 임의 수당(item.extras allowance) — 야근수당·당직수당 등. 모두 과세 대상.
+        ...extraEarnings.map((e) => [e.label, `${e.label} (과세)`, fmt(e.amount)]),
       ],
       theme: 'grid',
       styles: { font: 'NanumGothic', fontSize: 9, cellPadding: 2.5, lineColor: COLOR_BORDER, lineWidth: 0.2, textColor: COLOR_TEXT },

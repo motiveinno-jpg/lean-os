@@ -4737,6 +4737,68 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
+  // L 수당 — 법정 시스템 코드 → 한국어 고정 라벨
+  const legalLabelFor = (code: string): string | null => {
+    switch (code) {
+      case "overtime": return "연장수당";
+      case "night": return "야간수당";
+      case "holiday": return "휴일수당";
+      case "holiday_over_8h": return "휴일수당(8h초과)";
+      case "on_duty": return "당직비";
+      default: return null;
+    }
+  };
+
+  // 2026-05-22 급여대장 작성(편집모드)에서 해당 월 산정된 수당(allowance_entries)을 불러와
+  //   각 직원의 임의수당(extras allowance)으로 채운다. 근태 재계산(recompute)은 하지 않고
+  //   이미 산정된 값만 조회 (무거운 RPC 자동호출 금지 — 504 패턴 회피).
+  const [loadingAllowances, setLoadingAllowances] = useState(false);
+  const loadAllowances = async () => {
+    if (!companyId || !preview) return;
+    setLoadingAllowances(true);
+    try {
+      const { data } = await (supabase as any)
+        .from("allowance_entries")
+        .select("employee_id, amount, allowance_types!inner(name, code, display_order, is_active)")
+        .eq("company_id", companyId)
+        .eq("payroll_month", periodMonth);
+      // 직원별 수당 그룹 (활성 + 금액>0, display_order 정렬)
+      const byEmp = new Map<string, { name: string; amount: number; order: number }[]>();
+      for (const r of (data || []) as any[]) {
+        const t = r.allowance_types;
+        if (!t?.is_active || Number(r.amount || 0) <= 0) continue;
+        const label = legalLabelFor(t.code) || t.name;
+        const arr = byEmp.get(r.employee_id) || [];
+        arr.push({ name: label, amount: Math.round(Number(r.amount)), order: Number(t.display_order || 100) });
+        byEmp.set(r.employee_id, arr);
+      }
+      let filled = 0;
+      setEditValues((prev) => {
+        const next = { ...prev };
+        for (const it of preview.items) {
+          const allowances = (byEmp.get(it.employeeId) || []).sort((a, b) => a.order - b.order);
+          if (allowances.length === 0) continue;
+          const cur = next[it.employeeId] || { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount, extras: [] };
+          // 기존 공제는 유지 + 불러온 수당과 이름이 겹치지 않는 기존 수당 유지 → 불러온 수당 추가(중복 방지)
+          const kept = (cur.extras || []).filter(
+            (e) => e.type === "deduction" || !allowances.some((a) => a.name === e.name),
+          );
+          next[it.employeeId] = {
+            ...cur,
+            extras: [...kept, ...allowances.map((a) => ({ type: "allowance" as const, name: a.name, amount: a.amount }))],
+          };
+          filled++;
+        }
+        return next;
+      });
+      if (filled > 0) toast(`${filled}명 수당 불러오기 완료 (저장하려면 '편집 저장')`, "success");
+      else toast(`${periodLabel} 산정된 수당이 없습니다. 근태 화면에서 수당을 먼저 산정하세요.`, "info");
+    } catch (err: any) {
+      toast("수당 불러오기 실패: " + (err.message || ""), "error");
+    }
+    setLoadingAllowances(false);
+  };
+
   const downloadOne = async (item: PayrollItem) => {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
@@ -4906,6 +4968,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             <>
               {editMode ? (
                 <>
+                  <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-blue-500/10 text-blue-500 border border-blue-500/30 hover:bg-blue-500/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
+                    {loadingAllowances ? "불러오는 중..." : "📥 수당 불러오기"}
+                  </button>
                   <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
                     {savingEdit ? "저장 중..." : "💾 편집 저장"}
                   </button>
