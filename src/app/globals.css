@@ -259,6 +259,11 @@ input, textarea, [contenteditable="true"] {
   nav, .sidebar, .no-print, button, [role="tablist"] { display: none !important; }
   .print-area table { border-collapse: collapse; width: 100%; }
   .print-area th, .print-area td { border: 1px solid #ddd; padding: 4px 8px; }
+  /* 2026-05-26 PDF 앞 빈 페이지 제거 — min-h-screen 등 화면높이 컨테이너가
+     visibility:hidden 상태로도 공간을 차지해 앞쪽 빈 페이지(1~6p)를 만드는 문제 해소.
+     .print-area 는 position:absolute 로 흐름서 분리돼 영향 없음. @media print 안이라 화면 회귀 0. */
+  html, body { height: auto !important; min-height: 0 !important; }
+  [class*="min-h-screen"], [class*="min-h-["] { min-height: 0 !important; height: auto !important; }
   @page { margin: 15mm; }
 }
 
