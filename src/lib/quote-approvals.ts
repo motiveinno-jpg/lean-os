@@ -128,15 +128,42 @@ export async function sendApproval(params: {
   const now = new Date();
   const expires = new Date(now.getTime() + days * 86400000);
 
+  // 2026-05-26 단건 발송에도 우리(갑) 직인을 발송 전 본문에 합성 (단체일괄과 동일 — injectOurSeal).
+  //   payload.template_snapshot_html 에 갑 sig-box 우선/없으면 본문 끝 직인 블록 append.
+  //   회사 seal_url 없으면 조용히 미적용(단체일괄과 동일 정책).
+  const updatePatch: Record<string, unknown> = {
+    status: 'sent',
+    sent_at: now.toISOString(),
+    expires_at: expires.toISOString(),
+    recipient_email: params.recipientEmail,
+    recipient_name: params.recipientName ?? null,
+  };
+  try {
+    const { data: row } = await db
+      .from('quote_approvals')
+      .select('payload, company_id')
+      .eq('id', params.approvalId)
+      .maybeSingle();
+    const payload = (row?.payload || {}) as { template_snapshot_html?: string };
+    if (row?.company_id && payload.template_snapshot_html) {
+      const { data: co } = await db
+        .from('companies')
+        .select('name, seal_url')
+        .eq('id', row.company_id)
+        .maybeSingle();
+      if (co?.seal_url) {
+        const { injectOurSeal } = await import('./signatures');
+        const sealed = injectOurSeal(payload.template_snapshot_html, co.seal_url, co.name);
+        if (sealed && sealed !== payload.template_snapshot_html) {
+          updatePatch.payload = { ...payload, template_snapshot_html: sealed };
+        }
+      }
+    }
+  } catch { /* 직인 합성 실패해도 발송은 진행(조용히 미적용) */ }
+
   const { error } = await db
     .from('quote_approvals')
-    .update({
-      status: 'sent',
-      sent_at: now.toISOString(),
-      expires_at: expires.toISOString(),
-      recipient_email: params.recipientEmail,
-      recipient_name: params.recipientName ?? null,
-    })
+    .update(updatePatch)
     .eq('id', params.approvalId);
   if (error) throw error;
 }
