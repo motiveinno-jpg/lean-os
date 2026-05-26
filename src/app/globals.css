@@ -264,6 +264,9 @@ input, textarea, [contenteditable="true"] {
      .print-area 는 position:absolute 로 흐름서 분리돼 영향 없음. @media print 안이라 화면 회귀 0. */
   html, body { height: auto !important; min-height: 0 !important; }
   [class*="min-h-screen"], [class*="min-h-["] { min-height: 0 !important; height: auto !important; }
+  /* 모든 요소 min-height 0 — visibility:hidden 잔여 흐름(앞 빈 페이지) 완전 제거.
+     print-area 는 absolute 로 흐름 분리, 내용 height 는 auto 라 본문 누락 없음. */
+  body * { min-height: 0 !important; }
   @page { margin: 15mm; }
 }
 
