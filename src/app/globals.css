@@ -84,6 +84,25 @@ body {
   color: var(--primary-foreground) !important;
 }
 
+/* 2026-05-26 다크모드 하드코딩 라이트색 일괄 보정 — 다크에서 안 보이던 글씨/흰 박스 전수.
+   [data-theme="dark"] 스코프라 라이트모드·외부 라이트고정 페이지 무영향.
+   .print-area(PDF/계약서 인쇄 — 흰배경 의도)·.landing-root(자체 스타일) 는 제외. */
+[data-theme="dark"] :is(.text-gray-900, .text-gray-950, .text-black, .text-slate-900, .text-slate-800, .text-zinc-900):not(.landing-root *):not(.print-area):not(.print-area *) {
+  color: var(--text) !important;
+}
+[data-theme="dark"] :is(.text-gray-800, .text-gray-700, .text-slate-700, .text-zinc-700, .text-zinc-800):not(.landing-root *):not(.print-area):not(.print-area *) {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] :is(.bg-white, .bg-gray-50, .bg-gray-100, .bg-slate-50, .bg-zinc-50):not(.landing-root *):not(.print-area):not(.print-area *) {
+  background-color: var(--bg-card) !important;
+}
+[data-theme="dark"] :is(.border-gray-200, .border-gray-300, .border-slate-200, .border-zinc-200):not(.landing-root *):not(.print-area):not(.print-area *) {
+  border-color: var(--border) !important;
+}
+/* placeholder 다크 가독성 */
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: var(--text-dim); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
