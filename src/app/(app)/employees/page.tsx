@@ -881,7 +881,7 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
 
 // ── Employee Detail Panel ──
 function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
-  const [detailTab, setDetailTab] = useState<"info" | "files" | "onboarding" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
@@ -926,26 +926,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
       return data;
     },
     enabled: !!employeeId,
-  });
-
-  // Fetch employee files
-  const { data: files = [] } = useQuery({
-    queryKey: ["employee-files", employeeId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("employee_files").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
-      return data || [];
-    },
-    enabled: !!employeeId && detailTab === "files",
-  });
-
-  // Fetch onboarding checklist
-  const { data: checklist = [] } = useQuery({
-    queryKey: ["onboarding-checklist", employeeId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("onboarding_checklist_items").select("*").eq("employee_id", employeeId).order("item_key");
-      return data || [];
-    },
-    enabled: !!employeeId && detailTab === "onboarding",
   });
 
   // Fetch employee contracts (Flex-style 계약서 탭)
@@ -1007,11 +987,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
     kakao: "카카오뱅크", toss: "토스뱅크", kbank: "케이뱅크",
   };
 
-  const FILE_CAT_LABELS: Record<string, string> = {
-    resume: "이력서", id_copy: "신분증 사본", bank_copy: "통장 사본",
-    resident_reg: "주민등록등본", portfolio: "포트폴리오", other: "기타",
-  };
-
   if (!emp) return null;
 
   return (
@@ -1051,8 +1026,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
           { key: "contracts", label: "계약서" },
           { key: "certificates", label: "증명서" },
           { key: "leave", label: "휴가" },
-          { key: "files", label: "서류" },
-          { key: "onboarding", label: "온보딩" },
           { key: "docs", label: "입사서류" },
           { key: "notes", label: "노트" },
           { key: "history", label: "발령" },
@@ -1255,94 +1228,6 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
         )}
 
         {/* Files Tab */}
-        {detailTab === "files" && (
-          <div className="space-y-2">
-            {/* 파일 업로드 버튼 */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-[var(--text-dim)]">총 {files.length}건</span>
-              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold cursor-pointer transition">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                </svg>
-                서류 업로드
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.hwp"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    try {
-                      await uploadEmployeeFile({ companyId, employeeId, category: "other", file });
-                      queryClient.invalidateQueries({ queryKey: ["employee-files", employeeId] });
-                      toast("파일이 업로드되었습니다", "success");
-                    } catch (err: any) {
-                      toast(friendlyError(err, "업로드 실패"), "error");
-                    }
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-            {files.length === 0 ? (
-              <div className="text-center py-8 text-sm text-[var(--text-dim)]">제출된 서류가 없습니다</div>
-            ) : (
-              files.map((f: any) => (
-                <div key={f.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <svg className="w-4 h-4 text-[var(--primary)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium truncate">{f.file_name}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">{FILE_CAT_LABELS[f.category] || f.category} · {(f.file_size / 1024).toFixed(0)}KB</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {f.verified ? (
-                      <span className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full">확인됨</span>
-                    ) : (
-                      <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-full">미확인</span>
-                    )}
-                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">보기</a>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Onboarding Tab */}
-        {detailTab === "onboarding" && (
-          <div className="space-y-2">
-            {emp.onboarding_completed_at ? (
-              <div className="text-center py-4">
-                <div className="text-green-500 text-sm font-semibold mb-1">온보딩 완료</div>
-                <div className="text-xs text-[var(--text-dim)]">{new Date(emp.onboarding_completed_at).toLocaleDateString("ko-KR")}</div>
-              </div>
-            ) : (
-              <div className="text-center py-2 mb-3">
-                <span className="text-xs px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full font-medium">온보딩 진행 중</span>
-              </div>
-            )}
-            {checklist.length === 0 && !emp.onboarding_completed_at ? (
-              <div className="text-center py-4 text-sm text-[var(--text-dim)]">아직 온보딩을 시작하지 않았습니다</div>
-            ) : (
-              checklist.map((item: any) => (
-                <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
-                  {item.completed ? (
-                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-[var(--text-dim)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></svg>
-                  )}
-                  <span className={`text-xs ${item.completed ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{item.label}</span>
-                  {item.completed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(item.completed_at).toLocaleDateString("ko-KR")}</span>}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
         {/* 입사서류 Tab — Onboarding Document Checklist */}
         {detailTab === "docs" && (
           <OnboardingDocsSection employeeId={employeeId} companyId={companyId} emp={emp} queryClient={queryClient} />
