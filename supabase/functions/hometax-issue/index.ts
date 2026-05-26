@@ -207,7 +207,7 @@ serve(async (req) => {
       try {
         const token0 = await getCodefToken(clientId0, clientSecret0);
         // 1) 제휴사 회원가입 (이미 가입돼 있으면 code 로 구분 — 실패해도 cert-url 진행)
-        const joinResp = await codefRequest(token0, "/v1/kr/public/bz/v1/bc/pop-bill/join-member", {
+        const joinResp = await codefRequest(token0, "/v1/kr/public/a/pop-bill/join-member", {
           corpNum,
           CEOName: comp.representative || "",
           corpName: comp.name || "",
@@ -221,7 +221,7 @@ serve(async (req) => {
         });
         const joinCode = joinResp?.data?.code ?? joinResp?.result?.code;
         // 2) 인증서 등록 URL 발급
-        const certResp = await codefRequest(token0, "/v1/kr/public/bz/v1/bc/pop-bill/cert-url", { corpNum });
+        const certResp = await codefRequest(token0, "/v1/kr/public/a/pop-bill/tax-cert-url", { corpNum });
         const certURL = certResp?.data?.certURL || "";
         if (!certURL) {
           return new Response(JSON.stringify({
