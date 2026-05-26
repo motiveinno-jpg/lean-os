@@ -627,7 +627,6 @@ function OurSignatureModal({
         )}
 
         <SignatureCapture
-          defaultTypeName={companyInfo.representative || ""}
           onChange={(m, u) => { setUsingDefaultSeal(false); onCapture(m, u); }}
         />
 
