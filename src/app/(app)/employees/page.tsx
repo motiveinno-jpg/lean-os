@@ -249,7 +249,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
-  const [showFlexSync, setShowFlexSync] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "orgchart">("list");
 
   const currentYear = new Date().getFullYear();
@@ -271,27 +270,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const leaveBalanceMap: Record<string, number> = {};
   leaveBalancesForList.forEach((b: any) => {
     leaveBalanceMap[b.employee_id] = b.remaining_days ?? (Number(b.total_days || 0) - Number(b.used_days || 0));
-  });
-
-  // Flex 직원 데이터 (DB에서 조회)
-  const { data: FLEX_EMPLOYEES = [] } = useQuery({
-    queryKey: ["flex-employees", companyId],
-    queryFn: async () => {
-      // Try flex_sync_employees table first, fallback to showing current employees as preview
-      const { data: flexData } = await (supabase as any)
-        .from('employees')
-        .select('name, position, department, employee_number, hire_date')
-        .eq('company_id', companyId)
-        .order('employee_number', { ascending: true });
-      return (flexData || []).map((e: any) => ({
-        name: e.name || '',
-        position: e.position || '',
-        department: e.department || '',
-        employeeNumber: e.employee_number || '',
-        hireDate: e.hire_date || '',
-      }));
-    },
-    enabled: !!companyId && showFlexSync,
   });
 
   // 초대 목록
@@ -439,10 +417,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           {pendingInvites.length > 0 && <span className="text-amber-500 font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowFlexSync(!showFlexSync)} className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Flex 직원 동기화
-          </button>
           <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
         </div>
       </div>
@@ -505,43 +479,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
               EDI 파일 생성 (4건 다운로드)
             </button>
           )}
-        </div>
-      )}
-
-      {/* Flex 직원 동기화 패널 */}
-      {showFlexSync && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-purple-500/20 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="text-sm font-bold flex items-center gap-2">
-                <span className="w-5 h-5 rounded bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">F</span>
-                Flex 직원 동기화
-              </h4>
-              <p className="text-xs text-[var(--text-dim)] mt-0.5">Flex에서 가져온 구성원 데이터를 미리봅니다</p>
-            </div>
-            <button onClick={() => setShowFlexSync(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
-          </div>
-          <div className="space-y-2 mb-4">
-            {FLEX_EMPLOYEES.map((fe: any) => (
-              <div key={fe.employeeNumber} className="flex items-center justify-between px-4 py-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-600/10 flex items-center justify-center text-purple-400 font-bold text-sm">{(fe.name || '?')[0]}</div>
-                  <div>
-                    <div className="text-sm font-medium">{fe.name}</div>
-                    <div className="text-[10px] text-[var(--text-dim)]">{fe.department} · {fe.position} · 사번{fe.employeeNumber}</div>
-                  </div>
-                </div>
-                <div className="text-xs text-[var(--text-muted)]">입사 {fe.hireDate}</div>
-              </div>
-            ))}
-          </div>
-          <button
-            disabled
-            className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed"
-          >
-            동기화 실행 (준비 중)
-          </button>
-          <p className="text-[10px] text-[var(--text-dim)] mt-2">Flex API 연동이 완료되면 자동으로 직원 데이터를 동기화합니다.</p>
         </div>
       )}
 
