@@ -65,7 +65,7 @@ function ContractSignatureFooter(props: {
           <div>사업자등록번호: {businessNumber || "—"}</div>
           <div className="flex items-center gap-3 mt-1">
             <span>대표자: {representative || "—"} (인)</span>
-            {sealUrl && sealAppliedAt ? (
+            {sealUrl ? (
               <img src={sealUrl} alt="회사 직인" className="h-12 inline-block" />
             ) : (
               <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">직인</span>
@@ -408,6 +408,13 @@ function SignContent() {
           }
         } catch { /* notes not JSON */ }
       }
+      // 2026-05-26 갑 직인 fallback — notes.seal_url 누락 시 회사 등록 직인(companies.seal_url) 사용.
+      //   sealAppliedAt 도 없으면 발송 시각(sent_at)/현재로 채워 푸터가 직인 img 를 렌더하게.
+      const companySeal = (p.companies as any)?.seal_url || null;
+      if (!sealUrl && companySeal) {
+        sealUrl = companySeal;
+        sealAppliedAt = sealAppliedAt || p.sent_at || p.created_at || new Date().toISOString();
+      }
       setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta });
 
       // Load saved signature from employee
@@ -633,7 +640,7 @@ function SignContent() {
 
       // HR 계약은 Edge Function 에서 이미 documents lock + 패키지 상태 + 알림까지 처리.
       // 일반 문서만 별도 lock 필요.
-      if (item.documents && isGeneralDoc) {
+      if (item.documents && isGeneralDoc && (item as any).document_id) {
         await db
           .from("documents")
           .update({ status: "locked", locked_at: new Date().toISOString() })

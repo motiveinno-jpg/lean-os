@@ -50,19 +50,18 @@ export async function logAuditTrail(
   packageId: string,
   entry: AuditTrailEntry,
 ): Promise<void> {
+  // 2026-05-26 best-effort — 감사추적 실패가 서명/본문 렌더를 막지 않게(외부 anon RLS 0행 등).
+  if (!packageId) return;
   // 1. Fetch current package record
   const { data: pkg, error: fetchError } = await db
     .from('hr_contract_packages')
     .select('id, notes')
     .eq('id', packageId)
-    .single();
+    .maybeSingle();
 
-  if (fetchError) {
-    throw new Error(`감사추적 기록 실패 — 패키지 조회 오류: ${fetchError.message}`);
-  }
-
-  if (!pkg) {
-    throw new Error(`감사추적 기록 실패 — 패키지를 찾을 수 없습니다: ${packageId}`);
+  if (fetchError || !pkg) {
+    console.warn('감사추적 기록 스킵 — 패키지 조회 불가:', packageId);
+    return;
   }
 
   // 2. Parse existing notes as JSON — may contain { audit_trail: [...], ...other }
@@ -115,15 +114,12 @@ export async function logAuditTrail(
 // ── Get Audit Trail ──
 
 export async function getAuditTrail(packageId: string): Promise<AuditTrailEntry[]> {
-  const { data: pkg, error } = await db
+  if (!packageId) return [];
+  const { data: pkg } = await db
     .from('hr_contract_packages')
     .select('notes')
     .eq('id', packageId)
-    .single();
-
-  if (error) {
-    throw new Error(`감사추적 조회 실패: ${error.message}`);
-  }
+    .maybeSingle();
 
   if (!pkg?.notes) return [];
 
