@@ -426,7 +426,6 @@ export default function SignedContractPage() {
             <div className="p-5">
               <SignatureCapture
                 onChange={(m, d) => { setOurSigMethod(m); setOurSigDataUrl(d); }}
-                defaultTypeName={row.companies?.representative || ''}
               />
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">

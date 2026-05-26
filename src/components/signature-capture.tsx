@@ -3,13 +3,13 @@
 // L 계약: 외부 /quote/[token] 페이지의 stage='contract' 승인 시 사용하는
 // 서명·도장 캡처 컴포넌트.
 //
-// 3 모드:
+// 2 모드 (타이핑 서명은 본문 합성 미적용 이슈로 제거 — 2026-05-26):
 //   - draw: <canvas> 손글씨 → toDataURL('image/png')
-//   - type: 텍스트 입력 → canvas 에 손글씨 폰트 렌더 → toDataURL
 //   - upload: 이미지(PNG/JPG, 도장 등) → FileReader.readAsDataURL
 //
 // 결과는 onChange(method, dataUrl) 콜백으로 부모에게 전달.
 // 기존 /sign 페이지(employee contract)의 canvas 패턴 차용 (단순화 버전).
+// SignatureMethod union 의 "type" 은 과거 타이핑 서명 데이터 표시 호환 위해 유지.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -17,13 +17,10 @@ export type SignatureMethod = "draw" | "type" | "upload";
 
 interface Props {
   onChange: (method: SignatureMethod | null, dataUrl: string | null) => void;
-  /** 작성자 이름 — type 모드 기본값 (예: 거래처 담당자명) */
-  defaultTypeName?: string;
 }
 
-export function SignatureCapture({ onChange, defaultTypeName = "" }: Props) {
+export function SignatureCapture({ onChange }: Props) {
   const [mode, setMode] = useState<SignatureMethod>("draw");
-  const [typed, setTyped] = useState(defaultTypeName);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
   // draw mode
@@ -115,30 +112,6 @@ export function SignatureCapture({ onChange, defaultTypeName = "" }: Props) {
     onChange(null, null);
   }
 
-  // type mode — 입력값을 canvas 에 손글씨 폰트로 렌더 후 dataUrl
-  useEffect(() => {
-    if (mode !== "type") return;
-    const text = typed.trim();
-    if (!text) { onChange(null, null); return; }
-    const c = document.createElement("canvas");
-    const dpr = window.devicePixelRatio || 1;
-    c.width = 600 * dpr;
-    c.height = 180 * dpr;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, 600, 180);
-    // 한글 손글씨 느낌 — Nanum Myeongjo (이미 globals.css 에 로드됨)
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "italic bold 72px 'Nanum Myeongjo','Noto Serif KR',serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, 300, 90);
-    onChange("type", c.toDataURL("image/png"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, typed]);
-
   // upload mode
   function handleUpload(file: File) {
     if (!file) return;
@@ -161,7 +134,6 @@ export function SignatureCapture({ onChange, defaultTypeName = "" }: Props) {
       <div className="flex gap-1.5">
         {[
           { v: "draw" as const, label: "✍️ 손글씨" },
-          { v: "type" as const, label: "🖊 타이핑" },
           { v: "upload" as const, label: "🟥 도장 업로드" },
         ].map((opt) => (
           <button
@@ -196,31 +168,6 @@ export function SignatureCapture({ onChange, defaultTypeName = "" }: Props) {
             <span className="text-[10px] text-gray-400">{drawDirty ? "✓ 서명 입력됨" : "서명 미입력"}</span>
             <button type="button" onClick={clearDraw} className="text-[11px] text-gray-500 hover:text-gray-800 underline">지우기</button>
           </div>
-        </div>
-      )}
-
-      {/* type */}
-      {mode === "type" && (
-        <div>
-          <div className="text-[11px] text-gray-500 mb-1">서명자 이름을 입력하면 손글씨 폰트로 변환됩니다</div>
-          <input
-            type="text"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder="홍길동"
-            maxLength={20}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
-          />
-          {typed.trim() && (
-            <div className="mt-2 bg-white border border-gray-200 rounded-lg p-3 text-center">
-              <span
-                className="text-3xl"
-                style={{ fontFamily: "'Nanum Myeongjo','Noto Serif KR',serif", fontStyle: "italic", fontWeight: 700, color: "#0f172a" }}
-              >
-                {typed}
-              </span>
-            </div>
-          )}
         </div>
       )}
 

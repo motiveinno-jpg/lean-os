@@ -172,8 +172,7 @@ function SignContent() {
   const [invalid, setInvalid] = useState(false);
   const [pkg, setPkg] = useState<PackageData | null>(null);
   const [activeItem, setActiveItem] = useState<number>(0);
-  const [signMode, setSignMode] = useState<"draw" | "type" | "saved" | null>(null);
-  const [typedName, setTypedName] = useState("");
+  const [signMode, setSignMode] = useState<"draw" | "saved" | null>(null);
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
@@ -605,9 +604,6 @@ function SignContent() {
         return;
       }
       sigData = { type: "draw", data: canvas.toDataURL("image/png") };
-    } else if (signMode === "type") {
-      if (!typedName.trim()) return;
-      sigData = { type: "type", data: typedName.trim() };
     } else {
       return;
     }
@@ -746,7 +742,6 @@ function SignContent() {
         setActiveItem(nextUnsigned);
         setSignMode(null);
         clearCanvas();
-        setTypedName("");
       }
     } catch (err: any) {
       toast("서명 처리 중 오류: " + (friendlyError(err, "알 수 없는 오류")), "error");
@@ -1087,26 +1082,15 @@ function SignContent() {
                       )}
                     </button>
                   )}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setSignMode("draw")}
-                      className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
-                    >
-                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                      </svg>
-                      <span className="text-xs font-medium text-gray-600">직접 그리기</span>
-                    </button>
-                    <button
-                      onClick={() => setSignMode("type")}
-                      className="flex-1 py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
-                    >
-                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                      </svg>
-                      <span className="text-xs font-medium text-gray-600">텍스트 입력</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setSignMode("draw")}
+                    className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
+                  >
+                    <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                    </svg>
+                    <span className="text-xs font-medium text-gray-600">직접 그리기</span>
+                  </button>
                 </div>
               )}
 
@@ -1206,34 +1190,6 @@ function SignContent() {
                 </div>
               )}
 
-              {signMode === "type" && (
-                <div>
-                  <input
-                    type="text"
-                    value={typedName}
-                    onChange={(e) => setTypedName(e.target.value)}
-                    placeholder="서명할 이름을 입력하세요"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg text-center mb-3 focus:outline-none focus:border-blue-500"
-                    style={{ fontFamily: "cursive, serif", fontSize: "24px" }}
-                  />
-                  <p className="text-xs text-gray-400 mb-4">서명으로 사용할 이름을 입력하세요</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { setSignMode(null); setTypedName(""); }}
-                      className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={handleSign}
-                      disabled={signing || !typedName.trim()}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
-                    >
-                      {signing ? "처리 중..." : "서명 완료"}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}

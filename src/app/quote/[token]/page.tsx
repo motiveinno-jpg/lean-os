@@ -653,7 +653,6 @@ export default function QuoteApprovalPage() {
 
             <div className="text-[11px] font-semibold text-gray-700 mb-2">서명 / 도장</div>
             <SignatureCapture
-              defaultTypeName={signerRepresentative || row?.recipient_name || ""}
               onChange={(m, url) => { setSignatureMethod(m); setSignatureDataUrl(url); }}
             />
 
