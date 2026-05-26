@@ -555,7 +555,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
     <div className="flex flex-col gap-4">
       {/* 다음 액션 CTA */}
       <Link
-        href={action.href || `/deals?detail=${deal.id}`}
+        href={action.href || `/projects/${deal.id}`}
         className={`block px-4 py-3 rounded-xl border ${actionColor} transition`}
         title={action.reason}
       >

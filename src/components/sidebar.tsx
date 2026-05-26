@@ -29,7 +29,7 @@ const NAV_GROUPS: NavGroup[] = [
       //   /deals 는 partner 만 (편집·생성·외주 상세 + 외부 협력업체 view).
       //   employee 는 /projects 에서 isEmployeeLimited 가드로 재무 가림 + 본인 담당만 노출.
       { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin", "employee"] },
-      { href: "/deals", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
+      { href: "/projects", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],

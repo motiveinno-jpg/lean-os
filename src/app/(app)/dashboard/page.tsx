@@ -2337,7 +2337,7 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
     actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovals}건 — 검토/승인 필요` });
   }
   if (dashboard.riskCounts.LOW_MARGIN > 0) {
-    actions.push({ priority: 'high', text: `마진위험 프로젝트 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/deals' });
+    actions.push({ priority: 'high', text: `마진위험 프로젝트 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/projects' });
   }
   if (dashboard.riskCounts.DUE_SOON > 0) {
     actions.push({ priority: 'high', text: `마감 임박 ${dashboard.riskCounts.DUE_SOON}건 — 진행 확인` });
@@ -2473,7 +2473,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     { key: "company" as const, href: "/settings", label: "회사 정보 등록", desc: "사업자등록번호와 회사 정보를 입력하세요", icon: "🏢" },
     { key: "bank" as const, href: "/settings", label: "법인통장 연결", desc: "메인 계좌를 등록하면 잔고가 자동 추적됩니다", icon: "🏦" },
     { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "최소 1개 이상의 매출처/매입처를 추가하세요", icon: "🤝" },
-    { key: "deal" as const, href: "/deals", label: "첫 프로젝트 생성", desc: "수주 한 건을 등록하면 매출/원가 추적이 시작됩니다", icon: "📋" },
+    { key: "deal" as const, href: "/projects", label: "첫 프로젝트 생성", desc: "수주 한 건을 등록하면 매출/원가 추적이 시작됩니다", icon: "📋" },
     { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하면 결재/급여를 사용할 수 있습니다", icon: "👥" },
     { key: "transaction" as const, href: "/import-hub", label: "거래내역 가져오기", desc: "엑셀 또는 자동 동기화로 첫 거래를 입력하세요", icon: "💸" },
   ];
@@ -2724,7 +2724,7 @@ const TYPE_CONFIG: Record<PendingActionType, { label: string; icon: string; colo
   document:  { label: '문서',   icon: '📄', color: '#8b5cf6', href: '/documents' },
   leave:     { label: '휴가',   icon: '🏖️', color: '#06b6d4', href: '/employees' },
   signature: { label: '서명',   icon: '✍️', color: '#ec4899', href: '/documents' },
-  cost:      { label: '비용',   icon: '📊', color: '#ef4444', href: '/deals' },
+  cost:      { label: '비용',   icon: '📊', color: '#ef4444', href: '/projects' },
   approval:  { label: '결재',   icon: '📋', color: '#10b981', href: '/approvals' },
 };
 
@@ -3672,7 +3672,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
   }
 
   const cards = [
-    { label: "진행 중 프로젝트", count: dealCount, href: "/deals", icon: "📋", color: "#2563EB", desc: "현황 확인 및 진행 상태" },
+    { label: "진행 중 프로젝트", count: dealCount, href: "/projects", icon: "📋", color: "#2563EB", desc: "현황 확인 및 진행 상태" },
     { label: "서명 대기", count: signCount, href: "/documents", icon: "📄", color: "#7C3AED", desc: "계약서, 견적서 검토 및 서명" },
     { label: "안읽은 메시지", count: unreadCount, href: "/chat", icon: "💬", color: "#059669", desc: "실시간 문의 및 파일 공유" },
   ];

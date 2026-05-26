@@ -26,7 +26,7 @@ const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
   ],
   partner: [
     { href: "/dashboard", label: "홈", emoji: "🏠" },
-    { href: "/deals", label: "프로젝트", emoji: "📋" },
+    { href: "/projects", label: "프로젝트", emoji: "📋" },
     { href: "/documents", label: "문서/계약", emoji: "📄" },
   ],
 };

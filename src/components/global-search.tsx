@@ -10,7 +10,7 @@ const TYPE_LABELS: Record<string, string> = {
   bankTransactions: "거래내역", chatMessages: "채팅", employees: "인력",
 };
 const TYPE_ROUTES: Record<string, string> = {
-  deals: "/deals", documents: "/documents", partners: "/partners",
+  deals: "/projects", documents: "/documents", partners: "/partners",
   taxInvoices: "/transactions", bankTransactions: "/transactions",
   chatMessages: "/chat", employees: "/employees",
 };

@@ -16,7 +16,7 @@ import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
-  { href: "/deals", label: "프로젝트", icon: "briefcase" },
+  { href: "/projects", label: "프로젝트", icon: "briefcase" },
   { href: "/documents", label: "서류", icon: "file" },
   { href: "/chat", label: "채팅", icon: "chat" },
   { href: "/guide", label: "가이드", icon: "book" },
@@ -83,13 +83,12 @@ function MobileBottomNav() {
 
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
-  partner: ["/dashboard", "/deals", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/board", "/error-logs", "/operator-users"],
+  partner: ["/dashboard", "/projects", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/board", "/error-logs", "/operator-users"],
   // 직원 화면 — 홈 / 나의 업무 / 소통·도움말 로 압축. 거래처·프로젝트·회계 미노출.
   //   /employees 는 사이드바에서 제거됐지만 경비·증명서 딥링크 fallback 으로 접근 허용.
   employee: [
     "/dashboard",
     "/schedule",       // 일정 / 할 일
-    "/deals",          // 호환 차원 유지 (옛 알림·딥링크 fallback) — 페이지 내부 isLimitedView 가드
     "/projects",       // 직원 통일 (관리자와 동일 화면, /projects 안 isEmployeeLimited 가드로 재무 가림 + 본인 담당만)
     "/announcements",  // 공지사항 (전체 공개, 운영자만 작성)
     "/board",          // 회사 게시판 (구성원 글·댓글)

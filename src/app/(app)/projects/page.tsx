@@ -461,12 +461,6 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/deals"
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition"
-          >
-            ← 기존 /deals
-          </Link>
           <button
             type="button"
             onClick={onCreate}

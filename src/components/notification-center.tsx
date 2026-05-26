@@ -307,7 +307,7 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
     switch (entityType) {
       case "document": return entityId ? `/documents?id=${entityId}` : "/documents";
       case "deal":
-      case "milestone": return entityId ? `/deals?id=${entityId}` : "/deals";
+      case "milestone": return entityId ? `/projects/${entityId}` : "/projects";
       case "signature": return "/documents?tab=signatures";
       case "chat":
       case "chat_channel":
@@ -359,7 +359,7 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
   if (t.includes("schedule") || t.includes("event") || t.includes("todo") || t.includes("일정")) return "/schedule";
   if (t.includes("bank") || t.includes("통장")) return "/transactions";
   if (t.includes("card") || t.includes("카드")) return "/cards";
-  if (t.includes("deal") || t.includes("프로젝트")) return "/deals";
+  if (t.includes("deal") || t.includes("프로젝트")) return "/projects";
   if (t.includes("partner") || t.includes("거래처")) return "/partners";
   if (t.includes("employee") || t.includes("직원") || t.includes("급여")) return "/employees";
   if (t.includes("signature") || t.includes("서명")) return entityId ? `/documents?id=${entityId}` : "/documents?tab=signatures";
