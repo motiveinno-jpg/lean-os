@@ -44,7 +44,16 @@ export default function ProjectDetailPage() {
       isEmployeeLimited={role === "employee"}
       pendingAction={pendingAction}
       onActionConsumed={() => setPendingAction(null)}
-      onClose={() => router.push("/projects")}
+      onClose={() => {
+        // 직전 화면(필터·스크롤 유지된 목록 등)으로 복귀. 편집 모달은 같은 페이지 state 라
+        //   히스토리에 안 쌓여 back() 이 정확히 직전 목록으로 감.
+        //   외부 직접진입(알림·북마크 — 히스토리 없음)이면 목록으로 fallback.
+        if (typeof window !== "undefined" && window.history.length > 1) {
+          router.back();
+        } else {
+          router.push("/projects");
+        }
+      }}
     />
   );
 }

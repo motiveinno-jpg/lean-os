@@ -269,8 +269,8 @@ function PanelBody({
       <>
         <div className="sticky top-0 z-20 bg-[var(--bg-card)] border-b border-[var(--border)]">
           <div className="max-w-6xl mx-auto px-6 pt-4">
-            <button onClick={onClose} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] mb-2 inline-flex items-center gap-1 transition">
-              ← 프로젝트 목록
+            <button onClick={onClose} className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] mt-1 mb-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 -ml-2 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">
+              <span className="text-sm leading-none">←</span> 프로젝트 목록
             </button>
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="min-w-0 flex-1">
