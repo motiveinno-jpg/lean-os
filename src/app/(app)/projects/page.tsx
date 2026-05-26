@@ -16,6 +16,7 @@ import { getCurrentUser, getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { ClassificationBadge } from "@/components/classification-badge";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 // PR4 lib 사용 (PR2 의 project-badges 는 lib 안에서 재export 됨)
@@ -56,6 +57,7 @@ interface DealRow {
   company_id: string | null;
   status: string | null;
   created_at: string | null;
+  classification?: string | null; // B2B / B2C / B2G (자유 text, 기본 B2B)
 }
 
 interface PartnerLite { id: string; name: string }
@@ -71,6 +73,7 @@ interface ProjectCard extends DealRow {
 
 // 기간 필터 — null 이면 전체 표시, 아니면 [from, to] 범위와 겹치는 deal 만
 export type DateFilter = { from: Date; to: Date; label: string } | null;
+
 
 function dealInPeriod(deal: { start_date?: string | null; end_date?: string | null; created_at?: string | null }, filter: DateFilter): boolean {
   if (!filter) return true;
@@ -168,10 +171,13 @@ export default function ProjectsPage() {
     />
   ) : null;
 
-  // 기간 파라미터 없으면 → 기간 선택기 먼저 (모달은 분기 밖에서 항상 마운트)
+  // 2026-05-26 사장님 요청: 기본 진입 = 전체기간 칸반(기간 선택기 먼저 X).
+  //   ?period=picker 로 명시 진입할 때만 PeriodPicker. dateFilter=null = 전체기간(dealInPeriod 미적용).
+  //   ?period=year&year=.. 등은 그 기간 칸반. 기간 선택기는 헤더 "기간 선택" 버튼으로 접근 유지.
+  const showPicker = searchParams.get("period") === "picker";
   return (
     <>
-      {!dateFilter
+      {showPicker
         ? <PeriodPicker isEmployeeLimited={isEmployeeLimited} onCreate={() => setShowCreate(true)} />
         : <ProjectsInner isEmployeeLimited={isEmployeeLimited} dateFilter={dateFilter} onCreate={() => setShowCreate(true)} />}
       {createModal}
@@ -320,6 +326,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   const [filterAmount, setFilterAmount] = useState<"all" | "1m" | "10m">("all");
   const [filterManager, setFilterManager] = useState<string>("");
   const [filterPartner, setFilterPartner] = useState<string>("");
+  const [filterClass, setFilterClass] = useState<string>("all"); // 전체 / B2B / B2C / B2G
   const [view, setView] = useState<"kanban" | "list">("kanban");
 
   // 필터 적용
@@ -328,6 +335,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
     return cards.filter((c) => {
       if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterPartner && c.partner_id !== filterPartner) return false;
+      if (filterClass !== "all" && (c.classification || "B2B").toUpperCase() !== filterClass) return false;
       if (filterManager) {
         const mid = managerByDeal.get(c.id);
         if (mid !== filterManager) return false;
@@ -342,7 +350,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
       }
       return true;
     });
-  }, [cards, search, filterDue, filterAmount, filterManager, filterPartner, managerByDeal]);
+  }, [cards, search, filterDue, filterAmount, filterManager, filterPartner, filterClass, managerByDeal]);
 
   // ── 단계 변경 모달 ──
   const [stageModal, setStageModal] = useState<{ deal: ProjectCard } | null>(null);
@@ -440,7 +448,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] font-semibold">신규</span>
-            {dateFilter && (
+            {dateFilter ? (
               <>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-semibold">
                   📅 {dateFilter.label}
@@ -449,7 +457,19 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
                   onClick={() => router.push("/projects")}
                   className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
                 >
-                  ← 기간 선택으로
+                  전체 기간으로
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold">
+                  📅 전체 기간
+                </span>
+                <button
+                  onClick={() => router.push("/projects?period=picker")}
+                  className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+                >
+                  기간 선택
                 </button>
               </>
             )}
@@ -457,7 +477,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           <p className="text-xs text-[var(--text-muted)]">
             {dateFilter
               ? `${dateFilter.from.toISOString().slice(0,10)} ~ ${dateFilter.to.toISOString().slice(0,10)} 활성 프로젝트만 표시`
-              : "5단계 칸반·리스트로 진행 상태를 한눈에"}
+              : "전체 기간 · 5단계 칸반·리스트로 진행 상태를 한눈에"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -570,6 +590,16 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
             {partners.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
+          </select>
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs focus:outline-none"
+          >
+            <option value="all">분류 전체</option>
+            <option value="B2B">B2B</option>
+            <option value="B2C">B2C</option>
+            <option value="B2G">B2G</option>
           </select>
           <div className="ml-auto flex items-center gap-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl p-1">
             <button
@@ -995,6 +1025,7 @@ function ProjectCardView({
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            {card.classification && <ClassificationBadge classification={card.classification} />}
             {card.badge.key !== "none" && (
               <span
                 className="text-[9px] px-1.5 py-0.5 rounded font-semibold inline-flex items-center gap-0.5"
