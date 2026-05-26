@@ -17,6 +17,7 @@ import { getPartners } from "@/lib/partners";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { ProjectSlideOver } from "@/components/project-slide-over";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 // PR4 lib 사용 (PR2 의 project-badges 는 lib 안에서 재export 됨)
@@ -194,20 +195,16 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
-  // ── URL ?deal=<id>&action=<key> → 슬라이드 패널 (PR3.5) ──
-  //   action 쿼리는 패널이 1회 적용 후 자동 클리어 (router.replace, history 안 늘림).
-  const dealParam = searchParams.get("deal");
+  // ── 프로젝트 상세/편집 → 화면 중앙 모달 팝업 (2026-05-26 사장님 요청, 페이지 이동 X) ──
+  //   카드 클릭/"편집 →" 시 /projects/[id] 페이지 이동 대신 중앙 모달. 닫으면 보던 목록 그대로.
+  //   외부 ?deal= 딥링크는 상위(ProjectsPage)가 /projects/[id] 로 리다이렉트(fallback 유지).
   const actionParam = searchParams.get("action");
-  // 2026-05-22 슬라이드 패널 → 독립 페이지(/projects/[id])로 이동.
+  const [slideDeal, setSlideDeal] = useState<{ id: string; action?: string } | null>(null);
   function openSlide(dealId: string, action?: string) {
-    router.push(action ? `/projects/${dealId}?action=${action}` : `/projects/${dealId}`);
+    setSlideDeal({ id: dealId, action });
   }
   function closeSlide() {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.delete("deal");
-    sp.delete("action");
-    const qs = sp.toString();
-    router.push(qs ? `/projects?${qs}` : "/projects", { scroll: false });
+    setSlideDeal(null);
   }
   // PR3.5: action 1회 적용 후 URL 클리어 (open 은 유지).
   //   pendingAction 상태로 전달 후, useEffect 가 action 만 URL 에서 제거.
@@ -736,7 +733,18 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         />
       )}
 
-      {/* 프로젝트 상세는 독립 페이지 /projects/[id] 로 이동 (슬라이드 패널 제거) */}
+      {/* 프로젝트 상세/편집 — 화면 중앙 모달 팝업 (2026-05-26, 페이지 이동 대신) */}
+      {slideDeal && companyId && (
+        <ProjectSlideOver
+          dealId={slideDeal.id}
+          companyId={companyId}
+          variant="slide"
+          isEmployeeLimited={isEmployeeLimited}
+          pendingAction={slideDeal.action ?? null}
+          onActionConsumed={() => setSlideDeal((s) => (s ? { ...s, action: undefined } : null))}
+          onClose={closeSlide}
+        />
+      )}
       {/* 새 프로젝트 모달은 ProjectsPage 레벨로 승격 (분기 언마운트 방지) */}
     </div>
   );

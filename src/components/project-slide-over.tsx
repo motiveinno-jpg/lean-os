@@ -148,18 +148,18 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
     );
   }
 
-  // ── 슬라이드 모드 (기존) ──
+  // ── 모달 모드 (2026-05-26 화면 중앙 팝업 — 우측 슬라이드 → 중앙 모달) ──
   return (
-    <div className="fixed inset-0 z-40 flex" aria-modal="true" role="dialog">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" aria-modal="true" role="dialog">
       {/* Backdrop */}
       <button
         type="button"
         onClick={onClose}
         aria-label="닫기"
-        className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
       />
-      {/* Panel — 모바일 전체, sm+ 우측 슬라이드 */}
-      <div className="relative ml-auto w-full sm:max-w-2xl bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col h-full overflow-hidden">
+      {/* Panel — 모바일 전체, sm+ 화면 중앙 모달 */}
+      <div className="relative w-full max-w-3xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {isLoading && (
           <div className="flex-1 flex items-center justify-center text-sm text-[var(--text-muted)]">
             불러오는 중...
