@@ -388,6 +388,16 @@ function SignContent() {
             expired,
             companies: company || { name: "" },
             employees: { name: sigReq.signer_name, email: sigReq.signer_email, department: "", position: "" },
+            // 갑 직인 — ctx.company.seal_url (거래처 서명 완료 화면 갑 박스 직인 표시)
+            seal_url: company?.seal_url || null,
+            // 을(거래처) 회사정보 — partner 있으면 footer 가 회사 구조(회사명/사업자번호/대표자)로 분기
+            contract_meta: partner
+              ? {
+                  "을_회사명": String(partner.name || ""),
+                  "을_사업자번호": String(partner.business_number || ""),
+                  "을_대표자": String(partner.representative || ""),
+                }
+              : null,
             items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0 }] : [],
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
