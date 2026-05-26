@@ -191,7 +191,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   };
 
   // 앱 진입 시 전역 자동 동기화 — CODEF 한 번이라도 연결된 회사면
-  // 페이지 무관하게 오너뷰를 켜면 통장+카드 자동 동기화 (10분 주기 유지).
+  // 페이지 무관하게 오너뷰를 켜면 통장+카드 자동 동기화 (30분 주기, 최근 14일 증분).
   const companyId = user?.company_id ?? null;
   useEffect(() => {
     if (!companyId) return;
@@ -218,11 +218,15 @@ function AppContent({ children }: { children: React.ReactNode }) {
     const runOne = async (syncType: "bank" | "card") => {
       const tKey = `codef-autosync-${companyId}-${syncType}`;
       const last = Number(localStorage.getItem(tKey) || 0);
-      if (Date.now() - last < 5 * 60 * 1000) return; // 5분 throttle
+      if (Date.now() - last < 25 * 60 * 1000) return; // 25분 throttle (탭 다중·새로고침 우회 차단)
       localStorage.setItem(tKey, String(Date.now()));
       try {
         const { syncCodefData } = await import("@/lib/data-sync");
-        const result = await syncCodefData(companyId, syncType);
+        // 증분 동기화 — 자동 호출은 최근 14일만 조회(기본 3개월 전체 재조회 방지).
+        //   upsert(onConflict)라 신규 거래만 반영. 전체 이력은 수동 동기화 버튼이 담당.
+        const d = new Date(); d.setDate(d.getDate() - 14);
+        const start = d.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+        const result = await syncCodefData(companyId, syncType, start);
         if (result?.success && !stopped) {
           localStorage.setItem(connectedKey, "1");
           window.dispatchEvent(new Event("ownerview:codef-synced"));
@@ -237,7 +241,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
     };
 
     runAll(); // 앱 켜면 1회
-    const iv = setInterval(runAll, 10 * 60 * 1000); // 10분마다
+    const iv = setInterval(runAll, 30 * 60 * 1000); // 30분마다 (요청량 절감)
     return () => { stopped = true; clearInterval(iv); };
   }, [companyId]);
 
