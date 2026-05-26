@@ -2814,15 +2814,17 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   };
 
   const handleIssue = async () => {
-    if (inv.status !== 'draft') return;
+    // 이미 국세청 발행(승인번호 보유)된 건만 차단. draft·내부발행(issued+미발행) 모두 실제 발행 시도 허용.
+    if (inv.nts_confirm_no) { toast('이미 국세청에 발행된 세금계산서입니다.', 'error'); return; }
     setIssueLoading(true);
     try {
-      await issueTaxInvoice(inv.id);
-      toast('세금계산서가 발행되었습니다', 'success');
+      const r: any = await issueTaxInvoice(inv.id);
+      toast(r?.nts_confirm_no ? `홈택스 발행 완료 (승인번호 ${r.nts_confirm_no})` : '세금계산서가 발행되었습니다', 'success');
       queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['tax-invoices-full'] });
       onClose();
     } catch (err: any) {
-      toast(`발행 실패: ${err.message}`, 'error');
+      toast(`발행 실패: ${err.message}${err.hint ? ' — ' + err.hint : ''}`, 'error');
     }
     setIssueLoading(false);
   };
@@ -2951,10 +2953,18 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
 
           {/* Actions */}
           <div className="space-y-3 mt-4">
-            {/* 매출인데 국세청 미발행(nts_confirm_no 없음) — 오해 방지 경고 */}
+            {/* 매출인데 국세청 미발행(nts_confirm_no 없음) — 오해 방지 경고 + 실제 발행 버튼 */}
             {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
               <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5 text-xs text-red-500 leading-relaxed">
-                ⚠️ 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음). 거래처에 정식 발행하려면 홈택스(hometax.go.kr)에서 직접 발행하거나, CODEF 전자세금계산서 발행 연동을 활성화하세요.
+                <div>⚠️ 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
+                <button
+                  onClick={handleIssue}
+                  disabled={issueLoading}
+                  className="mt-2 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition disabled:opacity-50"
+                >
+                  {issueLoading ? '발행 중...' : '지금 홈택스 발행'}
+                </button>
+                <span className="ml-2 text-[10px] text-red-400/80">또는 홈택스(hometax.go.kr)에서 직접 발행</span>
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">
