@@ -2073,6 +2073,10 @@ export default function TaxInvoicesPage() {
                         >
                           {sc.label}
                         </span>
+                        {/* 매출 미발행(국세청 승인번호 없음) 경고 — status='발행'이어도 실제 홈택스 미발행 */}
+                        {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
+                          <div className="mt-1 text-[9px] text-red-500 font-semibold">홈택스 미발행</div>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         {isDraft && (
@@ -2828,9 +2832,17 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
       <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-lg font-black">세금계산서</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
+            {/* 매출 — 실제 국세청 발행 여부(nts_confirm_no)로 별도 표시. status='issued'는 앱 내부 상태일 뿐. */}
+            {inv.type === 'sales' && (
+              inv.nts_confirm_no ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-500" title={`국세청 승인번호 ${inv.nts_confirm_no}`}>홈택스 발행완료</span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-500">홈택스 미발행</span>
+              )
+            )}
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl transition">&times;</button>
         </div>
@@ -2939,6 +2951,12 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
 
           {/* Actions */}
           <div className="space-y-3 mt-4">
+            {/* 매출인데 국세청 미발행(nts_confirm_no 없음) — 오해 방지 경고 */}
+            {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
+              <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5 text-xs text-red-500 leading-relaxed">
+                ⚠️ 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음). 거래처에 정식 발행하려면 홈택스(hometax.go.kr)에서 직접 발행하거나, CODEF 전자세금계산서 발행 연동을 활성화하세요.
+              </div>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               {inv.status === 'draft' && (
                 <button
