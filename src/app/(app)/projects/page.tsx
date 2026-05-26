@@ -328,6 +328,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   const [filterPartner, setFilterPartner] = useState<string>("");
   const [filterClass, setFilterClass] = useState<string>("all"); // 전체 / B2B / B2C / B2G
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [chipDetail, setChipDetail] = useState<"count" | "contract" | "revenue" | "cost" | "margin" | "done" | null>(null); // 요약 칩 출처 팝업
 
   // 필터 적용
   const filteredCards: ProjectCard[] = useMemo(() => {
@@ -436,7 +437,8 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
       }, 0);
       return { revenue, cost };
     },
-    enabled: !!companyId && !!dateFilter && !isEmployeeLimited && dealIds.length > 0,
+    // 2026-05-26 전체기간(dateFilter=null)에도 수익/비용/마진 칩 표시 — dealIds 기준 집계라 기간 무관.
+    enabled: !!companyId && !isEmployeeLimited && dealIds.length > 0,
     staleTime: 60_000,
   });
 
@@ -491,18 +493,18 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         </div>
       </div>
 
-      {/* 기간 요약 칩 — 기간 칸반에서만. 직원은 금액 가림(건수·단계만) */}
-      {dateFilter && summary.count > 0 && (
+      {/* 요약 칩 — 전체기간/특정기간 모두 표시. 직원은 금액 가림(건수·단계만). 클릭 시 출처·계산식 팝업 */}
+      {summary.count > 0 && (
         <div className="flex flex-wrap items-stretch gap-2 mb-4">
-          <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
-            <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약</div>
+          <button type="button" onClick={() => setChipDetail("count")} title="현재 보이는 프로젝트 건수 — 클릭하면 단계별 분포·출처" className="text-left rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 hover:border-[var(--primary)]/50 transition cursor-pointer">
+            <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약 ⓘ</div>
             <div className="text-base font-extrabold text-[var(--text)] tabular-nums">{summary.count}건</div>
-          </div>
+          </button>
           {!isEmployeeLimited && (
-            <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
-              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약금액</div>
+            <button type="button" onClick={() => setChipDetail("contract")} title="프로젝트 계약금액 합계 — 클릭하면 출처·상위 프로젝트" className="text-left rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 hover:border-[var(--primary)]/50 transition cursor-pointer">
+              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약금액 ⓘ</div>
               <div className="text-base font-extrabold text-[var(--text)] tabular-nums">₩{summary.total.toLocaleString("ko-KR")}</div>
-            </div>
+            </button>
           )}
           {/* 정밀 수익/비용/마진 — 직원 가림 */}
           {!isEmployeeLimited && periodPnl && (() => {
@@ -510,28 +512,28 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
             const marginPct = periodPnl.revenue > 0 ? Math.round((margin / periodPnl.revenue) * 100) : 0;
             return (
               <>
-                <div className="rounded-xl bg-cyan-500/8 border border-cyan-500/20 px-3 py-2">
-                  <div className="text-[10px] text-cyan-500/80 uppercase tracking-wide">총 수익(수금)</div>
+                <button type="button" onClick={() => setChipDetail("revenue")} title="수금 완료 금액 합계 — 클릭하면 출처" className="text-left rounded-xl bg-cyan-500/8 border border-cyan-500/20 px-3 py-2 hover:border-cyan-500/50 transition cursor-pointer">
+                  <div className="text-[10px] text-cyan-500/80 uppercase tracking-wide">총 수익(수금) ⓘ</div>
                   <div className="text-base font-extrabold text-cyan-500 tabular-nums">₩{periodPnl.revenue.toLocaleString("ko-KR")}</div>
-                </div>
-                <div className="rounded-xl bg-rose-500/8 border border-rose-500/20 px-3 py-2">
-                  <div className="text-[10px] text-rose-500/80 uppercase tracking-wide">총 비용</div>
+                </button>
+                <button type="button" onClick={() => setChipDetail("cost")} title="비용+외주비 합계 — 클릭하면 출처" className="text-left rounded-xl bg-rose-500/8 border border-rose-500/20 px-3 py-2 hover:border-rose-500/50 transition cursor-pointer">
+                  <div className="text-[10px] text-rose-500/80 uppercase tracking-wide">총 비용 ⓘ</div>
                   <div className="text-base font-extrabold text-rose-500 tabular-nums">₩{periodPnl.cost.toLocaleString("ko-KR")}</div>
-                </div>
-                <div className={`rounded-xl px-3 py-2 border ${margin >= 0 ? "bg-emerald-500/8 border-emerald-500/20" : "bg-rose-500/8 border-rose-500/20"}`}>
-                  <div className={`text-[10px] uppercase tracking-wide ${margin >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}>마진 · 마진율</div>
+                </button>
+                <button type="button" onClick={() => setChipDetail("margin")} title="총 수익 − 총 비용 — 클릭하면 계산식" className={`text-left rounded-xl px-3 py-2 border transition cursor-pointer ${margin >= 0 ? "bg-emerald-500/8 border-emerald-500/20 hover:border-emerald-500/50" : "bg-rose-500/8 border-rose-500/20 hover:border-rose-500/50"}`}>
+                  <div className={`text-[10px] uppercase tracking-wide ${margin >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}>마진 · 마진율 ⓘ</div>
                   <div className={`text-base font-extrabold tabular-nums ${margin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                     ₩{margin.toLocaleString("ko-KR")} <span className="text-xs">({marginPct}%)</span>
                   </div>
-                </div>
+                </button>
               </>
             );
           })()}
-          <div className="rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-3 py-2">
-            <div className="text-[10px] text-emerald-500/80 uppercase tracking-wide">완료·정산</div>
+          <button type="button" onClick={() => setChipDetail("done")} title="완료·정산 건수 — 클릭하면 출처" className="text-left rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 hover:border-emerald-500/50 transition cursor-pointer">
+            <div className="text-[10px] text-emerald-500/80 uppercase tracking-wide">완료·정산 ⓘ</div>
             <div className="text-base font-extrabold text-emerald-500 tabular-nums">{summary.doneCount}건</div>
-          </div>
-          {/* 단계별 분포 */}
+          </button>
+          {/* 단계별 분포 — 표시만 */}
           <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
             {STAGE_ORDER.map((s) => {
               const n = summary.byStageCount[s] || 0;
@@ -544,6 +546,82 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           </div>
         </div>
       )}
+
+      {/* 요약 칩 출처·계산식 팝업 — 비전공자도 "어디서 어떻게 나온 값"인지 알게 */}
+      {chipDetail && (() => {
+        const stageLabels = STAGE_ORDER.map((s) => `${STAGE_LABEL[s as Stage] || s} ${summary.byStageCount[s] || 0}`).join(" · ");
+        const topContract = [...cards].sort((a, b) => (b.contract_total ?? 0) - (a.contract_total ?? 0)).slice(0, 5);
+        const margin = periodPnl ? periodPnl.revenue - periodPnl.cost : 0;
+        const marginPct = periodPnl && periodPnl.revenue > 0 ? Math.round((margin / periodPnl.revenue) * 100) : 0;
+        const INFO = {
+          count: {
+            title: "총 계약 (건수)",
+            desc: "현재 화면에 보이는 프로젝트의 개수입니다. (선택한 기간·필터 기준)",
+            formula: `프로젝트 ${summary.count}건`,
+            extra: <div className="text-[11px] text-[var(--text-muted)]">단계별 분포: {stageLabels}</div>,
+          },
+          contract: {
+            title: "총 계약금액",
+            desc: `프로젝트 ${summary.count}건에 입력된 계약금액을 모두 더한 값입니다.`,
+            formula: `Σ 프로젝트 계약금액 = ₩${summary.total.toLocaleString("ko-KR")}`,
+            extra: topContract.length > 0 ? (
+              <div className="space-y-1">
+                <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">상위 기여 프로젝트</div>
+                {topContract.map((c) => (
+                  <div key={c.id} className="flex justify-between text-[11px]">
+                    <span className="truncate mr-2 text-[var(--text-muted)]">{c.name}</span>
+                    <span className="tabular-nums font-semibold text-[var(--text)]">₩{(c.contract_total ?? 0).toLocaleString("ko-KR")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null,
+          },
+          revenue: {
+            title: "총 수익 (수금)",
+            desc: "실제로 입금이 완료된 금액의 합계입니다. 수금 일정 중 '완료(paid)' 처리된 것만 더합니다.",
+            formula: `Σ 수금 완료액 = ₩${(periodPnl?.revenue ?? 0).toLocaleString("ko-KR")}`,
+            extra: null as React.ReactNode,
+          },
+          cost: {
+            title: "총 비용",
+            desc: "프로젝트에 들어간 비용과 외주비(하도급)의 합계입니다.",
+            formula: `Σ (프로젝트 비용 + 외주비) = ₩${(periodPnl?.cost ?? 0).toLocaleString("ko-KR")}`,
+            extra: null as React.ReactNode,
+          },
+          margin: {
+            title: "마진 · 마진율",
+            desc: "총 수익에서 총 비용을 뺀, 실제로 남는 돈입니다. 마진율은 수익 대비 남는 비율입니다.",
+            formula: `₩${(periodPnl?.revenue ?? 0).toLocaleString("ko-KR")} − ₩${(periodPnl?.cost ?? 0).toLocaleString("ko-KR")} = ₩${margin.toLocaleString("ko-KR")} (마진율 ${marginPct}%)`,
+            extra: null as React.ReactNode,
+          },
+          done: {
+            title: "완료 · 정산",
+            desc: "마무리된 프로젝트 수입니다. 완료 단계와 정산 단계를 합칩니다.",
+            formula: `완료 ${summary.byStageCount["completed"] || 0}건 + 정산 ${summary.byStageCount["settlement"] || 0}건 = ${summary.doneCount}건`,
+            extra: null as React.ReactNode,
+          },
+        };
+        const info = INFO[chipDetail];
+        if (!info) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setChipDetail(null)}>
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+                <div className="text-sm font-bold text-[var(--text)]">{info.title} — 어떻게 나온 값?</div>
+                <button onClick={() => setChipDetail(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+              </div>
+              <div className="p-5 space-y-3">
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">{info.desc}</p>
+                <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2.5">
+                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide mb-1">계산식</div>
+                  <div className="text-xs font-semibold text-[var(--text)] tabular-nums break-keep">{info.formula}</div>
+                </div>
+                {info.extra}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Filter Bar */}
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-3 mb-4">
