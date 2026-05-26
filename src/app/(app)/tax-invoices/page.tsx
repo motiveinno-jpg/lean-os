@@ -22,6 +22,7 @@ import {
   INVOICE_TYPES,
   INVOICE_STATUS,
   issueTaxInvoice,
+  registerHometaxIssuer,
 } from "@/lib/tax-invoice";
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
@@ -2717,6 +2718,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [issueLoading, setIssueLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
   const myCompany = companyInfo?.name || '(주)우리회사';
@@ -2827,6 +2829,19 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
       toast(`발행 실패: ${err.message}${err.hint ? ' — ' + err.hint : ''}`, 'error');
     }
     setIssueLoading(false);
+  };
+
+  // 발행 등록(최초 1회): 팝빌 회원가입 + 인증서 등록 URL → 새 창
+  const handleRegisterIssuer = async () => {
+    setRegisterLoading(true);
+    try {
+      const { certURL, message } = await registerHometaxIssuer(inv.company_id);
+      window.open(certURL, '_blank', 'noopener');
+      toast(message || '인증서 등록 페이지를 열었습니다. 등록 후 다시 발행하세요.', 'success');
+    } catch (err: any) {
+      toast(`발행 등록 실패: ${err.message}`, 'error');
+    }
+    setRegisterLoading(false);
   };
 
   return (
@@ -2957,14 +2972,24 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
             {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
               <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5 text-xs text-red-500 leading-relaxed">
                 <div>⚠️ 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
-                <button
-                  onClick={handleIssue}
-                  disabled={issueLoading}
-                  className="mt-2 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition disabled:opacity-50"
-                >
-                  {issueLoading ? '발행 중...' : '지금 홈택스 발행'}
-                </button>
-                <span className="ml-2 text-[10px] text-red-400/80">또는 홈택스(hometax.go.kr)에서 직접 발행</span>
+                <div className="mt-1 text-[10px] text-red-400/90">전자발행은 최초 1회 <b>발행 등록(회원가입+인증서)</b>이 필요합니다. ① 발행 등록 → 인증서 등록 완료 후 → ② 홈택스 발행.</div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleRegisterIssuer}
+                    disabled={registerLoading}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold transition disabled:opacity-50"
+                  >
+                    {registerLoading ? '등록 페이지 여는 중...' : '① 발행 등록 (회원가입+인증서)'}
+                  </button>
+                  <button
+                    onClick={handleIssue}
+                    disabled={issueLoading}
+                    className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition disabled:opacity-50"
+                  >
+                    {issueLoading ? '발행 중...' : '② 지금 홈택스 발행'}
+                  </button>
+                  <span className="text-[10px] text-red-400/80">또는 홈택스에서 직접 발행</span>
+                </div>
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">

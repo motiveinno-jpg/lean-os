@@ -105,7 +105,9 @@ function buildIssuePayload(args: {
   const buyerNumDigits = String(buyerCorpNum || "").replace(/\D/g, "");
   const invoiceeType = buyerNumDigits.length === 13 ? "개인" : "사업자";
 
+  const myCorpNum = (company.business_number || "").replace(/\D/g, "");
   return {
+    corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
     issueType: "정발행",
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
     purposeType,                // "영수"(결제완료) / "청구"
@@ -178,7 +180,66 @@ serve(async (req) => {
       });
     }
 
-    const { invoice_id } = await req.json();
+    const body = await req.json();
+    const { invoice_id, action } = body;
+
+    // ── 발행 등록(최초 1회): 팝빌 제휴사 회원가입 + 인증서 등록 URL 발급 ──
+    //   발행 PDF 선행 절차. action='register-issuer', companyId 필요.
+    if (action === "register-issuer") {
+      const companyId = body.companyId;
+      if (!companyId) {
+        return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: uRow } = await supabase.from("users").select("company_id, email").eq("auth_id", user.id).maybeSingle();
+      if (!uRow || uRow.company_id !== companyId) {
+        return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: comp } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
+      if (!comp?.business_number) {
+        return new Response(JSON.stringify({ error: "회사 사업자등록번호가 없습니다. 설정 → 회사 정보에서 입력하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const corpNum = String(comp.business_number).replace(/\D/g, "");
+      const clientId0 = Deno.env.get("CODEF_CLIENT_ID");
+      const clientSecret0 = Deno.env.get("CODEF_CLIENT_SECRET");
+      if (!clientId0 || !clientSecret0) {
+        return new Response(JSON.stringify({ error: "CODEF API 인증정보가 없습니다." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      try {
+        const token0 = await getCodefToken(clientId0, clientSecret0);
+        // 1) 제휴사 회원가입 (이미 가입돼 있으면 code 로 구분 — 실패해도 cert-url 진행)
+        const joinResp = await codefRequest(token0, "/v1/kr/public/bz/v1/bc/pop-bill/join-member", {
+          corpNum,
+          CEOName: comp.representative || "",
+          corpName: comp.name || "",
+          corpAddress: comp.address || "",
+          bizType: comp.business_type || "",
+          bizClass: comp.business_category || "",
+          contactName: comp.representative || comp.name || "담당자",
+          contactTEL: comp.phone || "",
+          contactEmail: comp.automation_settings?.invoicer_email || uRow.email || "",
+          contactFAX: "",
+        });
+        const joinCode = joinResp?.data?.code ?? joinResp?.result?.code;
+        // 2) 인증서 등록 URL 발급
+        const certResp = await codefRequest(token0, "/v1/kr/public/bz/v1/bc/pop-bill/cert-url", { corpNum });
+        const certURL = certResp?.data?.certURL || "";
+        if (!certURL) {
+          return new Response(JSON.stringify({
+            error: "인증서 등록 URL 발급 실패",
+            joinResult: joinResp?.result, certResult: certResp?.result,
+          }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({
+          success: true,
+          joinCode,                 // "1"=가입(또는 이미가입)
+          certURL,                  // 팝빌 인증서 등록 페이지 (Windows, 30초 유효)
+          message: "인증서 등록 페이지로 이동하세요 (30초 이내). 등록 후 발행이 가능합니다.",
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: "발행 등록 실패: " + (err.message || "") }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     if (!invoice_id) {
       return new Response(JSON.stringify({ error: "invoice_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
