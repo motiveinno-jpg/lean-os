@@ -12,7 +12,7 @@
 //
 // Pure display component — 데이터는 부모가 넘겨준다.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
@@ -56,6 +56,19 @@ function formatTodayKorean(d: Date): string {
   const date = d.getDate();
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
   return `${month}월 ${date}일 ${weekdays[d.getDay()]}요일`;
+}
+
+// 금액·핵심 수치 강조 — 의미별 색(토큰). primary=중요/중립, success=긍정·증가, danger=주의·감소·위험.
+//   다크/라이트 양쪽 토큰 사용 → 대비 자동 확보.
+type HlTone = "primary" | "success" | "danger";
+function hl(text: string, tone: HlTone = "primary") {
+  const color =
+    tone === "success" ? "var(--success)" : tone === "danger" ? "var(--danger)" : "var(--primary)";
+  return (
+    <strong className="font-bold" style={{ color }}>
+      {text}
+    </strong>
+  );
 }
 
 // ── 본문 ────────────────────────────────────────────
@@ -106,58 +119,101 @@ export function MorningBrief({
   const monthRevenue = dashboard?.growth.monthRevenue ?? 0;
   const monthTarget = dashboard?.growth.monthTarget ?? 0;
 
-  // 1문장: 현재 잔고 + 톤
-  const line1 = `오늘 아침 통장에는 ${formatKrwWords(balance)}이 있습니다.`;
+  // 1문장: 현재 잔고 + 톤 — 잔고 강조
+  const line1: ReactNode = <>오늘 아침 통장에는 {hl(formatKrwWords(balance))}이 있습니다.</>;
 
-  // 2문장: 30일 전망
-  let line2 = "";
+  // 2문장: 30일 전망 — 증감액(증가=초록/감소=빨강) + 전망잔고 강조
+  let line2: ReactNode = "";
   const delta30 = forecast30 - balance;
   if (Math.abs(delta30) < balance * 0.02) {
     line2 = "이번 한 달은 들어오는 돈과 나가는 돈이 비슷해서 잔고는 크게 변하지 않을 전망입니다.";
   } else if (delta30 > 0) {
-    line2 = `30일 뒤에는 ${formatKrwWords(delta30)} 정도 늘어나 ${formatKrwWords(forecast30)}이 될 것으로 보입니다.`;
+    line2 = (
+      <>
+        30일 뒤에는 {hl(formatKrwWords(delta30), "success")} 정도 늘어나{" "}
+        {hl(formatKrwWords(forecast30))}이 될 것으로 보입니다.
+      </>
+    );
   } else {
-    line2 = `다만 30일 뒤에는 ${formatKrwWords(-delta30)} 정도 줄어 ${formatKrwWords(forecast30)}이 남을 것으로 보입니다.`;
+    line2 = (
+      <>
+        다만 30일 뒤에는 {hl(formatKrwWords(-delta30), "danger")} 정도 줄어{" "}
+        {hl(formatKrwWords(forecast30))}이 남을 것으로 보입니다.
+      </>
+    );
   }
 
-  // 3문장: 런웨이 / 장기 경고
-  let line3 = "";
+  // 3문장: 런웨이 / 장기 경고 — 기간·위험 강조
+  let line3: ReactNode = "";
   if (forecast90 < 0) {
-    line3 = "이 속도로는 90일 안에 현금이 바닥날 수 있으니, 지출을 조정하거나 수금을 서두르는 판단이 필요합니다.";
+    line3 = (
+      <>
+        이 속도로는 {hl("90일 안에 현금이 바닥", "danger")}날 수 있으니, 지출을 조정하거나 수금을
+        서두르는 판단이 필요합니다.
+      </>
+    );
   } else if (runwayMonths > 0 && runwayMonths < 3) {
-    line3 = `현재 고정비 기준으로 약 ${runwayMonths.toFixed(1)}개월 버틸 수 있는 수준이라 여유가 많지는 않습니다.`;
+    line3 = (
+      <>
+        현재 고정비 기준으로 {hl(`약 ${runwayMonths.toFixed(1)}개월`, "danger")} 버틸 수 있는
+        수준이라 여유가 많지는 않습니다.
+      </>
+    );
   } else if (runwayMonths >= 6) {
-    line3 = `현재 고정비 기준으로 ${Math.floor(runwayMonths)}개월 이상 버틸 수 있어 자금 여력은 안정적입니다.`;
+    line3 = (
+      <>
+        현재 고정비 기준으로 {hl(`${Math.floor(runwayMonths)}개월 이상`, "success")} 버틸 수 있어
+        자금 여력은 안정적입니다.
+      </>
+    );
   } else if (runwayMonths >= 3) {
-    line3 = `현재 고정비 기준으로 약 ${runwayMonths.toFixed(1)}개월분 자금이 확보되어 있습니다.`;
+    line3 = (
+      <>
+        현재 고정비 기준으로 {hl(`약 ${runwayMonths.toFixed(1)}개월분`)} 자금이 확보되어 있습니다.
+      </>
+    );
   }
 
-  // 4문장: 해야 할 일 (최대 1개만)
-  const actionParts: string[] = [];
+  // 4문장: 해야 할 일 (최대 1개만) — 건수·미수금 강조
+  const actionParts: ReactNode[] = [];
   if (pendingApprovals > 0) {
-    actionParts.push(`승인을 기다리는 건이 ${pendingApprovals}건 있습니다`);
+    actionParts.push(<>승인을 기다리는 건이 {hl(`${pendingApprovals}건`)} 있습니다</>);
   }
   if (riskCount > 0) {
-    actionParts.push(`주의가 필요한 프로젝트가 ${riskCount}건 잡혀 있습니다`);
+    actionParts.push(<>주의가 필요한 프로젝트가 {hl(`${riskCount}건`, "danger")} 잡혀 있습니다</>);
   }
   if (arOver30 > 0) {
-    actionParts.push(`30일 넘게 밀린 미수금 ${formatKrwWords(arOver30)}원이 남아 있습니다`);
+    actionParts.push(
+      <>30일 넘게 밀린 미수금 {hl(`${formatKrwWords(arOver30)}원`, "danger")}이 남아 있습니다</>,
+    );
   }
-  const line4 =
-    actionParts.length > 0
-      ? `오늘은 ${actionParts.slice(0, 2).join(", 그리고 ")}. 먼저 살펴보시는 것을 권해 드립니다.`
-      : "오늘은 긴급하게 결정해야 할 사안은 없습니다. 평소대로 진행하셔도 좋습니다.";
+  const shownActions = actionParts.slice(0, 2);
+  const line4: ReactNode =
+    actionParts.length > 0 ? (
+      <>
+        오늘은{" "}
+        {shownActions.map((p, i) => (
+          <span key={i}>
+            {i > 0 && ", 그리고 "}
+            {p}
+          </span>
+        ))}
+        . 먼저 살펴보시는 것을 권해 드립니다.
+      </>
+    ) : (
+      "오늘은 긴급하게 결정해야 할 사안은 없습니다. 평소대로 진행하셔도 좋습니다."
+    );
 
-  // 부가 라인: 월 매출 진척 (있을 때만)
-  let progressLine = "";
+  // 부가 라인: 월 매출 진척 (있을 때만) — 달성률 강조(100%+=초록)
+  let progressLine: ReactNode = "";
   if (monthTarget > 0) {
     const pct = Math.round((monthRevenue / monthTarget) * 100);
     if (pct >= 100) {
-      progressLine = `이번 달 목표 매출은 이미 ${pct}% 달성했습니다.`;
+      progressLine = <>이번 달 목표 매출은 이미 {hl(`${pct}%`, "success")} 달성했습니다.</>;
     } else if (pct >= 70) {
-      progressLine = `이번 달 목표 매출의 ${pct}%까지 올라왔습니다.`;
+      progressLine = <>이번 달 목표 매출의 {hl(`${pct}%`)}까지 올라왔습니다.</>;
     } else {
-      progressLine = `이번 달 목표 매출은 현재 ${pct}% 진행 중입니다.`;
+      progressLine = <>이번 달 목표 매출은 현재 {hl(`${pct}%`)} 진행 중입니다.</>;
     }
   }
 
