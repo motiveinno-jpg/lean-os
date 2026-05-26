@@ -563,7 +563,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           contract: {
             title: "총 계약금액",
             desc: `프로젝트 ${summary.count}건에 입력된 계약금액을 모두 더한 값입니다.`,
-            formula: `Σ 프로젝트 계약금액 = ₩${summary.total.toLocaleString("ko-KR")}`,
+            formula: `프로젝트 계약금액 합계 = ₩${summary.total.toLocaleString("ko-KR")}`,
             extra: topContract.length > 0 ? (
               <div className="space-y-1">
                 <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">상위 기여 프로젝트</div>
@@ -579,13 +579,13 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           revenue: {
             title: "총 수익 (수금)",
             desc: "실제로 입금이 완료된 금액의 합계입니다. 수금 일정 중 '완료(paid)' 처리된 것만 더합니다.",
-            formula: `Σ 수금 완료액 = ₩${(periodPnl?.revenue ?? 0).toLocaleString("ko-KR")}`,
+            formula: `수금 완료액 합계 = ₩${(periodPnl?.revenue ?? 0).toLocaleString("ko-KR")}`,
             extra: null as React.ReactNode,
           },
           cost: {
             title: "총 비용",
             desc: "프로젝트에 들어간 비용과 외주비(하도급)의 합계입니다.",
-            formula: `Σ (프로젝트 비용 + 외주비) = ₩${(periodPnl?.cost ?? 0).toLocaleString("ko-KR")}`,
+            formula: `프로젝트 비용 + 외주비 = ₩${(periodPnl?.cost ?? 0).toLocaleString("ko-KR")}`,
             extra: null as React.ReactNode,
           },
           margin: {
@@ -607,7 +607,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setChipDetail(null)}>
             <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                <div className="text-sm font-bold text-[var(--text)]">{info.title} — 어떻게 나온 값?</div>
+                <div className="text-sm font-bold text-[var(--text)]">{info.title}</div>
                 <button onClick={() => setChipDetail(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
               </div>
               <div className="p-5 space-y-3">
