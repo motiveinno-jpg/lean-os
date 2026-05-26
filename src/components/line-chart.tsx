@@ -72,7 +72,7 @@ export function LineChart({
           </div>
 
           <svg
-            className="absolute inset-0 w-full h-full overflow-visible"
+            className="absolute inset-0 w-full h-full overflow-hidden"
             viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="none"
           >

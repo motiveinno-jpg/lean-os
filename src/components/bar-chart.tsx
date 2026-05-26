@@ -20,33 +20,40 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
 
   if (data.length === 0) return <div className="text-xs text-[var(--text-dim)] text-center py-8">데이터 없음</div>;
 
-  // Find max value for scaling
+  // 스케일: bars(양수)와 trendLine(순이익 — 음수 가능)을 [axisMin, axisMax] 공통 축으로 정규화.
+  //   axisMin 은 0 이하만(음수 trend 수용), 양수만 있으면 0 → 기존 동작과 동일(회귀 0).
   const allValues = data.flatMap(g => g.values.map(v => v.value));
-  const trendMax = trendLine ? Math.max(...trendLine) : 0;
-  const maxVal = Math.max(...allValues, trendMax, 1);
+  const trendVals = trendLine && trendLine.length ? trendLine : [];
+  const axisMax = Math.max(...allValues, ...trendVals, 1);
+  const axisMin = Math.min(...allValues, ...trendVals, 0);
+  const range = (axisMax - axisMin) || 1;
+  const clampPct = (n: number) => Math.max(0, Math.min(100, n));
+  // 값 → y(0=상단,100=하단), 화면 밖 안 나가게 clamp.
+  const yOf = (v: number) => clampPct(100 - ((v - axisMin) / range) * 100);
+  const baseY = clampPct(100 - ((0 - axisMin) / range) * 100); // 0 기준선 위치
 
   // SVG trend line points
   const barWidth = 100 / data.length;
   const trendPoints = trendLine
     ? trendLine.map((v, i) => {
         const x = barWidth * i + barWidth / 2;
-        const y = 100 - (v / maxVal) * 100;
+        const y = yOf(v);
         return `${x},${y}`;
       }).join(' ')
     : null;
 
   return (
     <div className="relative" style={{ height }}>
-      {/* Y-axis labels */}
+      {/* Y-axis labels — min~max(음수 포함) 반영 */}
       <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number">
-        <span>{fmtShort(maxVal)}</span>
-        <span>{fmtShort(maxVal / 2)}</span>
-        <span>0</span>
+        <span>{fmtShort(axisMax)}</span>
+        <span>{fmtShort((axisMax + axisMin) / 2)}</span>
+        <span>{fmtShort(axisMin)}</span>
       </div>
 
       {/* Chart area */}
       <div className="ml-12 h-full flex flex-col">
-        <div className="flex-1 flex items-end gap-1 relative">
+        <div className="flex-1 flex gap-1 relative">
           {/* Grid lines */}
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
             {[0, 1, 2].map(i => (
@@ -54,23 +61,36 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
             ))}
           </div>
 
-          {/* Bars */}
+          {/* 0 기준선 — 음수 값이 있을 때만 (양/음 구분) */}
+          {axisMin < 0 && (
+            <div
+              className="absolute left-0 right-0 border-t border-dashed border-[var(--text-dim)] opacity-60 pointer-events-none z-[1]"
+              style={{ top: `${baseY}%` }}
+            />
+          )}
+
+          {/* Bars — 0 기준선에서 위(양수)/아래(음수)로. 절대배치 + clamp 로 컨테이너 밖 안 나감 */}
           {data.map((group, gi) => (
             <div
               key={gi}
-              className={`flex-1 flex items-end gap-0.5 cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-[var(--bg-surface)]' : ''}`}
+              className={`flex-1 flex gap-0.5 h-full relative cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-[var(--bg-surface)]' : ''}`}
               onClick={() => onBarClick?.(gi)}
               onMouseEnter={() => setHover(gi)}
               onMouseLeave={() => setHover(null)}
             >
               {group.values.map((v, vi) => {
-                const pct = maxVal > 0 ? (v.value / maxVal) * 100 : 0;
+                const yv = yOf(v.value);
+                const topY = Math.min(yv, baseY);
+                const bottomY = Math.max(yv, baseY);
+                const hPct = Math.max(bottomY - topY, v.value !== 0 ? 1 : 0);
+                const botPct = 100 - bottomY;
                 return (
-                  <div key={vi} className="flex-1 flex flex-col items-center justify-end relative group">
+                  <div key={vi} className="flex-1 relative h-full group">
                     <div
-                      className="w-full rounded-t transition-all duration-300"
+                      className="absolute left-0 right-0 rounded-t transition-all duration-300"
                       style={{
-                        height: `${Math.max(pct, 1)}%`,
+                        bottom: `${botPct}%`,
+                        height: `${hPct}%`,
                         background: v.color,
                         opacity: hover === gi ? 1 : 0.85,
                         minHeight: 2,
@@ -88,9 +108,9 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
             </div>
           ))}
 
-          {/* SVG Trend Line Overlay */}
+          {/* SVG Trend Line Overlay — overflow-hidden + clamp 로 화면 밖 삐침 차단 */}
           {trendPoints && (
-            <svg className="absolute inset-0 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <svg className="absolute inset-0 overflow-hidden pointer-events-none z-[2]" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polyline
                 points={trendPoints}
                 fill="none"
@@ -102,7 +122,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
               />
               {trendLine!.map((v, i) => {
                 const x = barWidth * i + barWidth / 2;
-                const y = 100 - (v / maxVal) * 100;
+                const y = yOf(v);
                 return <circle key={i} cx={x} cy={y} r="1.2" fill={trendColor} vectorEffect="non-scaling-stroke" />;
               })}
             </svg>
@@ -126,7 +146,9 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
 }
 
 function fmtShort(n: number): string {
-  if (n >= 1e8) return `${(n / 1e8).toFixed(0)}억`;
-  if (n >= 1e4) return `${Math.round(n / 1e4)}만`;
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(0)}억`;
+  if (abs >= 1e4) return `${sign}${Math.round(abs / 1e4)}만`;
   return n.toLocaleString();
 }
