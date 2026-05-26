@@ -48,8 +48,10 @@ function stripBodySignatureArea(rawHtml: string): string {
     doc.querySelectorAll('div[style*="display:inline-block"], div[style*="display: inline-block"]')
       .forEach((el) => {
         const hasDataImg = !!el.querySelector('img[src^="data:image"]');
+        // 갑 직인 append 블록(injectOurSeal) — <img alt="직인"> + "회사명 (인)". 본문 중복 제거, 하단 푸터에만 표시.
+        const hasSealImg = !!el.querySelector('img[alt="직인"]');
         const hasSigText = /거래처\s*서명/.test(el.textContent || '');
-        if (hasDataImg || hasSigText) {
+        if (hasDataImg || hasSealImg || hasSigText) {
           // wrapper 의 외부 부모가 text-align:right 라면 그 부모까지 같이 제거 (실제 sig 카드 구조)
           const parent = el.parentElement;
           if (parent && /text-align:\s*right/i.test(parent.getAttribute('style') || '')) {
