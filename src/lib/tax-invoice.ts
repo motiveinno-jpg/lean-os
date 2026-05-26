@@ -275,13 +275,13 @@ export async function issueTaxInvoice(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error('Supabase URL 미설정');
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/hometax-issue`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ invoice_id: invoiceId }),
+    body: JSON.stringify({ action: 'issue', invoice_id: invoiceId }),
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -307,16 +307,22 @@ export async function registerHometaxIssuer(companyId: string): Promise<{ certUR
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error('Supabase URL 미설정');
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/hometax-issue`, {
+  // 팝빌 직접: 회원사 가입(join) → 인증서 등록 URL(cert-url)
+  await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-    body: JSON.stringify({ action: 'register-issuer', companyId }),
+    body: JSON.stringify({ action: 'join', companyId }),
+  }).catch(() => {});
+  const res = await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+    body: JSON.stringify({ action: 'cert-url', companyId }),
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok || !result.certURL) {
     throw new Error(result.error || `발행 등록 실패 (HTTP ${res.status})`);
   }
-  return { certURL: result.certURL, joinCode: result.joinCode, message: result.message };
+  return { certURL: result.certURL, message: result.message };
 }
 
 // ── Period Aggregation (월/분기/연간) ──
