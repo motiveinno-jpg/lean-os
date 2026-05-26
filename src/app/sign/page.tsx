@@ -47,9 +47,14 @@ function ContractSignatureFooter(props: {
   sealAppliedAt?: string | null;
   employeeName?: string;
   birthDate?: string;
+  // 을이 거래처(회사)인 경우 — 있으면 회사 구조(회사명/사업자번호/대표자), 없으면 개인(성명/생년월일)
+  signerCompanyName?: string;
+  signerBusinessNumber?: string | null;
+  signerRepresentative?: string;
   signature?: { type: "draw" | "type"; data: string } | null;
 }) {
-  const { contractDate, companyName, representative, businessNumber, sealUrl, sealAppliedAt, employeeName, birthDate, signature } = props;
+  const { contractDate, companyName, representative, businessNumber, sealUrl, sealAppliedAt, employeeName, birthDate, signerCompanyName, signerBusinessNumber, signerRepresentative, signature } = props;
+  const signerIsCompany = !!(signerCompanyName && signerCompanyName.trim());
   const fmtDate = (d?: string): string => {
     if (!d) return "";
     const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -76,8 +81,26 @@ function ContractSignatureFooter(props: {
       </div>
       {/* 을 (서명자) */}
       <div>
-        <div className="text-sm font-bold mb-2">을 (서명자)</div>
+        <div className="text-sm font-bold mb-2">을 ({signerIsCompany ? "회사" : "서명자"})</div>
         <div className="text-xs space-y-1.5 text-gray-900">
+          {signerIsCompany ? (
+            <>
+              <div>회사명: {signerCompanyName || "—"}</div>
+              <div>사업자등록번호: {signerBusinessNumber || "—"}</div>
+              <div className="flex items-center gap-3 mt-1">
+                <span>대표자: {signerRepresentative || "—"} (인)</span>
+                {signature?.type === "draw" && typeof signature.data === "string" ? (
+                  <img src={signature.data} alt="서명" className="h-12 inline-block" />
+                ) : signature?.type === "type" ? (
+                  <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
+                ) : (
+                  <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">서명</span>
+                )}
+              </div>
+              {contractDate && <div className="text-[10px] text-gray-500 mt-1">{fmtDate(contractDate)}</div>}
+            </>
+          ) : (
+          <>
           <div>성명: {employeeName || "—"}</div>
           <div>생년월일: {fmtDate(birthDate) || "—"}</div>
           <div className="flex items-center gap-3 mt-1">
@@ -91,6 +114,8 @@ function ContractSignatureFooter(props: {
             )}
           </div>
           {contractDate && <div className="text-[10px] text-gray-500 mt-1">{fmtDate(contractDate)}</div>}
+          </>
+          )}
         </div>
       </div>
     </div>
@@ -843,6 +868,9 @@ function SignContent() {
                     sealAppliedAt={pkg.seal_applied_at}
                     employeeName={pkg.contract_meta?.["구성원 이름"] || pkg.contract_meta?.["직원명"] || pkg.employees?.name}
                     birthDate={pkg.contract_meta?.["생년월일"] || pkg.contract_meta?.["birth_date"] || (pkg.employees as any)?.birth_date}
+                    signerCompanyName={pkg.contract_meta?.["을_회사명"] || pkg.contract_meta?.["거래처명"] || pkg.contract_meta?.["거래처 회사명"] || undefined}
+                    signerBusinessNumber={pkg.contract_meta?.["을_사업자번호"] || pkg.contract_meta?.["을_사업자등록번호"] || pkg.contract_meta?.["거래처 사업자번호"]}
+                    signerRepresentative={pkg.contract_meta?.["을_대표자"] || pkg.contract_meta?.["거래처 대표자"]}
                     signature={sig as { type: 'draw' | 'type'; data: string }}
                   />
                 )}
