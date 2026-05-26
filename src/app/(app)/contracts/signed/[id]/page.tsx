@@ -112,7 +112,7 @@ interface SignedRow {
   } | null;
   deals: { id: string; name: string } | null;
   // companies(갑): business_number 포함
-  companies: { name: string; representative: string | null; business_number: string | null } | null;
+  companies: { name: string; representative: string | null; business_number: string | null; seal_url?: string | null } | null;
   batch_id?: string | null;
   signer_email?: string | null;
   // partner(을) — signature_requests 분기에서 별도 fetch
@@ -171,7 +171,7 @@ export default function SignedContractPage() {
         const { data: qa } = await db
           .from("quote_approvals")
           .select(
-            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, payload, deals(id, name), companies(name, representative, business_number)",
+            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, payload, deals(id, name), companies(name, representative, business_number, seal_url)",
           )
           .eq("id", id)
           .maybeSingle();
@@ -195,7 +195,7 @@ export default function SignedContractPage() {
         const { data: sr } = await db
           .from("signature_requests")
           .select(
-            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, partner_id, companies(name, representative, business_number), documents(name)",
+            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, partner_id, companies(name, representative, business_number, seal_url), documents(name)",
           )
           .eq("id", id)
           .maybeSingle();
@@ -344,11 +344,11 @@ export default function SignedContractPage() {
         {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
         {!/class="sig-box"/.test(html) && (
           <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
-            {/* 갑 (우리 회사) */}
+            {/* 갑 (우리 회사) — 2026-05-26 우리 서명 없으면 회사 직인(seal_url) fallback 표시(을 손글씨와 대칭) */}
             <div>
               <div className="text-sm font-bold mb-2 flex items-center gap-2">
                 <span>갑</span>
-                {!row.our_signature_data_url && (
+                {!row.our_signature_data_url && !row.companies?.seal_url && (
                   <button
                     onClick={() => setShowOurSignModal(true)}
                     className="px-2 py-0.5 text-[10px] bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold print:hidden"
@@ -363,7 +363,7 @@ export default function SignedContractPage() {
                 <div>사업자등록번호: {row.companies?.business_number || "—"}</div>
                 <div className="flex items-center gap-3 mt-1">
                   <span>대표자: {row.companies?.representative || "—"} (인)</span>
-                  <SignatureBox dataUrl={row.our_signature_data_url} />
+                  <SignatureBox dataUrl={row.our_signature_data_url || row.companies?.seal_url || null} />
                 </div>
                 {row.our_signed_at && (
                   <div className="text-[10px] text-gray-500 mt-1">
