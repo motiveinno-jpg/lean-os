@@ -28,6 +28,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
+import { useDocumentViewer } from "@/contexts/document-viewer-context";
 
 const db = supabase as any;
 
@@ -48,7 +49,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [reminderSendingId, setReminderSendingId] = useState<string | null>(null);
   // 진행 리스트 각 행 클릭 → /contracts/signed dual mode 진입 (signature_requests.id 지원)
-  const detailRouter = useRouter();
+  const { open: openDocViewer } = useDocumentViewer();
   const [tab, setTab] = useState<"content" | "revisions" | "approvals">("content");
   // 품목/결제조건/직인 상태
   const [editItems, setEditItems] = useState<any[]>([]);
@@ -701,7 +702,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 return (
                   <div
                     key={sig.id}
-                    onClick={() => detailRouter.push(`/contracts/signed/${sig.id}`)}
+                    onClick={() => openDocViewer({ type: 'contract', id: sig.id })}
                     className="flex items-center justify-between text-xs px-2 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition cursor-pointer group"
                     title="이 계약서 보기 / PDF 다운로드"
                   >

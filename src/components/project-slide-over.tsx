@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { getProjectDetail, getCompanyUsers } from "@/lib/queries";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
+import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useUser } from "@/components/user-context";
 import {
   getProjectBadge,
@@ -1298,6 +1299,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   //   돈 탭이 아니라 활동 탭 최상단에서 ProjectQuoteStages 렌더.
   //   companyId 는 본문 아래의 기존 const (data.deal.company_id) 사용 — 동일 값.
   const approvalStage = dealStageToApprovalStage(data.deal.stage);
+  const { open: openDocViewer } = useDocumentViewer();
 
   // quote_approvals — 견적/계약/진척/완료 stage 의 sent/viewed/decided/our_signed 이벤트 + 서명본 PDF
   const { data: approvals = [] } = useQuery<ApprovalRow[]>({
@@ -1595,10 +1597,10 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                 key={`signed-${f.id}`}
                 className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
               >
-                <Link href={f.href} className="flex items-center gap-2 min-w-0 hover:underline flex-1">
+                <button onClick={() => openDocViewer({ type: 'contract', id: f.id })} className="flex items-center gap-2 min-w-0 hover:underline flex-1 text-left">
                   <span>{f.icon}</span>
                   <span className="text-[var(--text)] truncate">{f.name}</span>
-                </Link>
+                </button>
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">
                   {f.status}
                 </span>

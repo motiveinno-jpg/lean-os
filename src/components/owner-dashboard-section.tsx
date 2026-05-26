@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { STAGE_LABEL, STAGE_COLOR, type ProjectStage } from "@/lib/project-rules";
@@ -398,6 +399,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
 
 // ─────────── 6. 완료 보고서 보관함 ───────────
 function CompletedReportsSection({ data }: { data: DoneReport[] }) {
+  const { open: openDocViewer } = useDocumentViewer();
   // 분기별 grouping
   const groups = useMemo(() => {
     const map = new Map<string, DoneReport[]>();
@@ -462,22 +464,22 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                         </div>
                         <div className="flex gap-1 shrink-0">
                           {r.settlement_id && (
-                            <Link
-                              href={`/contracts/signed/${r.settlement_id}`}
+                            <button
+                              onClick={() => openDocViewer({ type: 'contract', id: r.settlement_id! })}
                               className="text-[10px] px-2 py-1 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20"
                               title="정산서 보기"
                             >
                               📄 정산서
-                            </Link>
+                            </button>
                           )}
                           {r.completion_id && (
-                            <Link
-                              href={`/contracts/signed/${r.completion_id}`}
+                            <button
+                              onClick={() => openDocViewer({ type: 'contract', id: r.completion_id! })}
                               className="text-[10px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-500 font-semibold hover:bg-emerald-500/20"
                               title="완료확인서 보기"
                             >
                               📄 완료
-                            </Link>
+                            </button>
                           )}
                           {!r.settlement_id && !r.completion_id && (
                             <span className="text-[10px] text-[var(--text-dim)] px-2 py-1">서명본 없음</span>

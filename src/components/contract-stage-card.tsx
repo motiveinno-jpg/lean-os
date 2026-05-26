@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
+import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import {
   createApproval,
   sendApproval,
@@ -650,6 +651,7 @@ function OurSignatureModal({
 }
 
 function SignedContractCard({ approval }: { approval: ApprovalLite }) {
+  const { open: openDocViewer } = useDocumentViewer();
   const method = approval.signature_method || "none";
   const methodLabel = method === "draw" ? "✍️ 손글씨 서명"
                      : method === "type" ? "🖊 타이핑 서명"
@@ -674,14 +676,12 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
       </div>
       <div className="flex flex-wrap gap-1.5 pt-1">
         {hasHtml && (
-          <a
-            href={`/contracts/signed/${approval.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => openDocViewer({ type: 'contract', id: approval.id })}
             className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-semibold transition"
           >
             📄 서명된 계약서 보기
-          </a>
+          </button>
         )}
         {hasPdfUrl && (
           <a
