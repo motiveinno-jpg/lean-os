@@ -879,10 +879,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 위기모드 전용 위젯 (시나리오/미수금/번레이트) ═══ */}
-      {isWidgetVisible('scenario_simulator') && cashPulse && (
-        <div id="widget-scenario_simulator"><ScenarioSimulator pulse={cashPulse} /></div>
-      )}
+      {/* ═══ 위기모드 전용 위젯 (미수금/번레이트) ═══ */}
       {isWidgetVisible('my_todos') && userId && (
         <div id="widget-my_todos"><MyTodosWidget userId={userId} /></div>
       )}
@@ -1247,66 +1244,6 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
           ))}
         </div>
       </details>
-    </div>
-  );
-}
-
-function ScenarioSimulator({ pulse }: { pulse: CashPulseResult }) {
-  const [addEmployees, setAddEmployees] = useState(0);
-  const [revenueChange, setRevenueChange] = useState(0);
-  const [cutExpenses, setCutExpenses] = useState(0);
-
-  const currentBurn = pulse.monthlyBurn || 0;
-  const currentBalance = pulse.currentBalance || 0;
-  const avgSalary = 4500000; // 평균 급여 추정
-
-  const newBurn = Math.max(0, currentBurn + (addEmployees * avgSalary) - cutExpenses);
-  const estimatedRevenue = Math.max(0, (currentBurn * 0.8) * (1 + revenueChange / 100));
-  const netBurn = Math.max(1, newBurn - estimatedRevenue);
-  const runway = Math.round(currentBalance / netBurn);
-
-  return (
-    <div className="mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-base">🔮</span>
-        <h3 className="text-sm font-bold text-[var(--text)]">시나리오 시뮬레이터</h3>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-medium">What-if</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <label className="block">
-          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">직원 추가</span>
-          <input type="number" value={addEmployees} onChange={e => setAddEmployees(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
-        </label>
-        <label className="block">
-          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">매출 변동 (%)</span>
-          <input type="number" value={revenueChange} onChange={e => setRevenueChange(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
-        </label>
-        <label className="block">
-          <span className="text-[11px] text-[var(--text-muted)] mb-1 block">비용 절감 (원)</span>
-          <input type="number" value={cutExpenses} onChange={e => setCutExpenses(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
-        </label>
-      </div>
-      <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-surface)]">
-        <div>
-          <div className="text-[11px] text-[var(--text-muted)]">예상 월 지출</div>
-          <div className="text-sm font-bold text-[var(--text)]">{(newBurn/10000).toFixed(0)}만원</div>
-        </div>
-        <div className="w-px h-8 bg-[var(--border)]" />
-        <div>
-          <div className="text-[11px] text-[var(--text-muted)]">예상 런웨이</div>
-          <div className={`text-sm font-bold ${runway <= 3 ? 'text-red-500' : runway <= 6 ? 'text-yellow-500' : 'text-green-500'}`}>{runway}개월</div>
-        </div>
-        <div className="w-px h-8 bg-[var(--border)]" />
-        <div>
-          <div className="text-[11px] text-[var(--text-muted)]">순 현금흐름</div>
-          <div className={`text-sm font-bold ${estimatedRevenue - newBurn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {((estimatedRevenue - newBurn)/10000).toFixed(0)}만원/월
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,25 +1,23 @@
 /**
  * Widget Registry — 위젯 정의 + 역할 프리셋 + 상황별 뷰
- * 대시보드 위젯 ID, 기본 설정, 프리셋 뷰 4개, 역할 프리셋 4개
+ * 대시보드(대표 뷰) 위젯 ID, 기본 설정, 프리셋 뷰 4개, 역할 프리셋 4개
+ *
+ * 2026-05-26 토글↔렌더 정합 (사장님 요청 "체크해도 안 나오는 거 없애줘"):
+ *   대표 대시보드(owner 뷰)에 실제 렌더 분기가 있는 위젯만 등록 → 설정 체크박스 = 화면 1:1.
+ *   제거: cash_pulse·approval_center·today_actions·risk_zone·closing_checklist·my_attendance·
+ *         my_approvals (owner 뷰 렌더 분기 0 — 일부는 admin 뷰 고정 영역에만 존재) + scenario_simulator.
+ *   admin/employee/partner 대시보드의 고정 위젯은 이 레지스트리와 무관(영향 없음).
  */
 
 export type WidgetId =
-  | 'cash_pulse'
-  | 'approval_center'
-  | 'today_actions'
-  | 'risk_zone'
+  | 'summary_kpis'
+  | 'quick_nav'
+  | 'my_todos'
   | 'growth_tracking'
-  | 'financial_overview'
-  | 'closing_checklist'
-  | 'automation_status'
-  | 'scenario_simulator'
   | 'overdue_receivables'
   | 'burn_rate_trend'
-  | 'summary_kpis'
-  | 'my_todos'
-  | 'my_attendance'
-  | 'my_approvals'
-  | 'quick_nav'
+  | 'financial_overview'
+  | 'automation_status'
 ;
 
 export interface WidgetDef {
@@ -32,22 +30,14 @@ export interface WidgetDef {
 }
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
-  { id: 'cash_pulse',        name: '현금 펄스',     description: 'D+7~90 현금 예측과 브리핑',      category: 'cash', defaultVisible: true,  defaultOrder: 0 },
-  { id: 'approval_center',   name: '승인센터',      description: '결재 대기 건 목록과 일괄 승인',   category: 'ops',  defaultVisible: true,  defaultOrder: 1 },
-  { id: 'today_actions',     name: '오늘의 액션',   description: '오늘 처리해야 할 항목',           category: 'ops',  defaultVisible: true,  defaultOrder: 2 },
-  { id: 'risk_zone',         name: '위험 구역',     description: '마진·마감·미수금·외주비 위험 감지', category: 'deal', defaultVisible: true,  defaultOrder: 3 },
-  { id: 'growth_tracking',   name: '성장 영역',     description: '월/분기/연 매출 목표 진행률',     category: 'deal', defaultVisible: true,  defaultOrder: 4 },
-  { id: 'financial_overview', name: '재무 현황',    description: '월별 수입/지출 차트와 드릴다운',   category: 'cash', defaultVisible: false, defaultOrder: 5 },
-  { id: 'closing_checklist', name: '월 마감',       description: '월 마감 체크리스트',              category: 'tax',  defaultVisible: false, defaultOrder: 6 },
-  { id: 'automation_status', name: '자동화 엔진',   description: '15개 자동화 실행 상태',           category: 'ops',  defaultVisible: false, defaultOrder: 7 },
-  { id: 'scenario_simulator', name: '시나리오 시뮬레이터', description: 'What-if 런웨이 시뮬레이션', category: 'cash', defaultVisible: false, defaultOrder: 8 },
-  { id: 'overdue_receivables', name: '미수금 현황', description: '미수금/연체 상세 현황', category: 'cash', defaultVisible: false, defaultOrder: 9 },
-  { id: 'burn_rate_trend', name: '번레이트 추이', description: '월별 지출 추이와 런웨이 변화', category: 'cash', defaultVisible: false, defaultOrder: 10 },
-  { id: 'summary_kpis', name: '요약 위젯', description: '승인대기·통장잔고·미수금·월고정비 한눈에', category: 'ops', defaultVisible: true, defaultOrder: 11 },
-  { id: 'my_todos', name: '내 할일', description: '할일에 추가한 항목 (마감 임박 우선)', category: 'ops', defaultVisible: true, defaultOrder: 12 },
-  { id: 'my_attendance', name: '출/퇴근', description: '오늘 출근/퇴근 상태와 원클릭 처리', category: 'ops', defaultVisible: true, defaultOrder: 13 },
-  { id: 'my_approvals', name: '전자결재', description: '내 결재 대기/진행 건수와 빠른 작성', category: 'ops', defaultVisible: true, defaultOrder: 14 },
-  { id: 'quick_nav', name: '빠른 이동', description: '자주 가는 메뉴 바로가기', category: 'ops', defaultVisible: true, defaultOrder: 15 },
+  { id: 'summary_kpis',        name: '요약 위젯',   description: '승인대기·통장잔고·미수금·월고정비 한눈에', category: 'ops',  defaultVisible: true,  defaultOrder: 0 },
+  { id: 'quick_nav',           name: '빠른 이동',   description: '자주 가는 메뉴 바로가기',                category: 'ops',  defaultVisible: true,  defaultOrder: 1 },
+  { id: 'my_todos',            name: '내 할일',     description: '할일에 추가한 항목 (마감 임박 우선)',     category: 'ops',  defaultVisible: true,  defaultOrder: 2 },
+  { id: 'growth_tracking',     name: '성장 영역',   description: '월/분기/연 매출 목표 진행률',            category: 'deal', defaultVisible: true,  defaultOrder: 3 },
+  { id: 'overdue_receivables', name: '미수금 현황', description: '미수금/연체 상세 현황',                  category: 'cash', defaultVisible: false, defaultOrder: 4 },
+  { id: 'burn_rate_trend',     name: '번레이트 추이', description: '월별 지출 추이와 런웨이 변화',         category: 'cash', defaultVisible: false, defaultOrder: 5 },
+  { id: 'financial_overview',  name: '재무 현황',   description: '월별 수입/지출 차트와 드릴다운',          category: 'cash', defaultVisible: false, defaultOrder: 6 },
+  { id: 'automation_status',   name: '자동화 엔진', description: '15개 자동화 실행 상태',                 category: 'ops',  defaultVisible: false, defaultOrder: 7 },
 ];
 
 // ── Widget config per view ──
@@ -77,32 +67,28 @@ export const PRESET_VIEWS: PresetView[] = [
     id: 'default',
     name: '기본 뷰',
     widgets: makeConfigs([
-      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
-      'cash_pulse', 'approval_center', 'today_actions',
-      'risk_zone', 'growth_tracking', 'my_todos',
+      'summary_kpis', 'quick_nav', 'my_todos', 'growth_tracking',
     ]),
   },
   {
     id: 'crisis',
     name: '위기 모드',
     widgets: makeConfigs([
-      'cash_pulse', 'scenario_simulator', 'risk_zone',
-      'overdue_receivables', 'burn_rate_trend',
-      'today_actions', 'approval_center',
+      'summary_kpis', 'overdue_receivables', 'burn_rate_trend',
     ]),
   },
   {
     id: 'monthend',
     name: '월말 마감',
     widgets: makeConfigs([
-      'financial_overview', 'closing_checklist', 'automation_status',
+      'financial_overview', 'automation_status',
     ]),
   },
   {
     id: 'sales',
     name: '영업 집중',
     widgets: makeConfigs([
-      'growth_tracking', 'risk_zone', 'today_actions', 'approval_center',
+      'summary_kpis', 'growth_tracking',
     ]),
   },
 ];
@@ -125,9 +111,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     description: '대표이사, 경영자 — 핵심 KPI와 현금흐름 중심',
     icon: '👔',
     defaultWidgets: [
-      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
-      'cash_pulse', 'approval_center', 'today_actions',
-      'risk_zone', 'growth_tracking', 'my_todos',
+      'summary_kpis', 'quick_nav', 'my_todos', 'growth_tracking',
     ],
   },
   {
@@ -136,18 +120,16 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     description: '회계담당자, CFO — 거래내역과 마감 중심',
     icon: '🧮',
     defaultWidgets: [
-      'cash_pulse', 'financial_overview', 'closing_checklist',
-      'overdue_receivables', 'burn_rate_trend', 'automation_status',
+      'financial_overview', 'overdue_receivables', 'burn_rate_trend', 'automation_status',
     ],
   },
   {
     id: 'hr',
     label: '인사/총무',
-    description: '인사담당자, 총무 — 승인과 일정 중심',
+    description: '인사담당자, 총무 — 요약과 할 일 중심',
     icon: '📋',
     defaultWidgets: [
-      'summary_kpis', 'my_attendance', 'my_approvals', 'quick_nav',
-      'approval_center', 'today_actions', 'my_todos',
+      'summary_kpis', 'quick_nav', 'my_todos',
     ],
   },
   {
@@ -156,7 +138,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     description: '영업담당자, PM — 딜과 성장 중심',
     icon: '🎯',
     defaultWidgets: [
-      'growth_tracking', 'risk_zone', 'today_actions', 'approval_center',
+      'summary_kpis', 'growth_tracking',
     ],
   },
 ];
