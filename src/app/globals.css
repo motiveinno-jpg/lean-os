@@ -23,6 +23,7 @@
   --primary: #18181B;           /* zinc-900 — Granter 스타일 (검정 기반) */
   --primary-hover: #27272A;
   --primary-light: #F4F4F5;     /* zinc-100 */
+  --primary-foreground: #FAFAFA; /* primary 배경 위 글씨 — light: 검정배경+흰글씨 */
   --accent: #FACC15;            /* yellow-400 — Granter 시그니처 노란색 */
   --accent-dim: #FEF9C3;        /* yellow-100 */
   --success: #059669;           /* emerald-600 */
@@ -51,6 +52,7 @@
   --primary: #FAFAFA;           /* dark 모드에선 흰색 = primary */
   --primary-hover: #E4E4E7;
   --primary-light: rgba(250,250,250,0.10);
+  --primary-foreground: #18181B; /* primary 배경 위 글씨 — dark: 흰배경+검정글씨 */
   --accent: #FACC15;
   --accent-dim: rgba(250,204,21,0.15);
   --success: #34D399;
@@ -73,6 +75,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.005em;
+}
+
+/* 2026-05-26 다크모드 가독성 — primary 배경 버튼 글씨를 대비색으로 강제.
+   다크모드 primary=#FAFAFA(흰)인데 버튼들이 text-white 하드코딩 → 흰배경+흰글씨로 안 보이던 문제.
+   [class~] 정확 토큰 매칭이라 bg-[var(--primary)]/10 같은 연한 배경(칩)은 제외됨. .landing-root 는 자체 스타일이라 제외. */
+[class~="bg-[var(--primary)]"]:not(.landing-root *) {
+  color: var(--primary-foreground) !important;
 }
 
 /* Scrollbar */
