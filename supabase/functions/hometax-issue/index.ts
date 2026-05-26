@@ -1,16 +1,11 @@
 // hometax-issue: 홈택스(국세청) 전자세금계산서 정발행
 //
-// 현재 issueTaxInvoice / process-invoice-queue 는 DB의 status 만 'issued' 로 마킹.
-// 실제 홈택스에는 발행 안 됨. 이 함수가 CODEF popbill 발행 API를 호출해서
-// 진짜 전자발행을 수행하고 승인번호(nts_confirm_no)를 받아 저장.
+// CODEF 발행 API(/v1/kr/public/a/tax-invoice/regist-invoicer-trustee) 호출 →
+// 국세청 전자발행 + 승인번호(ntsconfirmNum, 24자리) 수신 → nts_confirm_no 저장.
+// 명세: 발행 API PDF(2026-05) 기준 — 한글 코드값(정발행/과세/영수/사업자), sendToNtsYn=Y.
 //
-// ⚠️ TODO: CODEF 발행 product (popbill-taxinvoice-regist-invoicer-trustee) 가
-// 회사 계정에 활성화되어야 동작. 미활성화면 CF-00003/CF-00401 반환되며
-// 사용자에게 "CODEF 대시보드에서 발행 product 신청" 안내가 뜸.
-//
-// ⚠️ TODO: 정확한 endpoint URL/필드명은 CODEF 문서 확인 후 ISSUE_PATH 와
-// buildIssuePayload() 의 필드명을 확정해야 함. 현재는 POPBiLL 표준 + CODEF 패턴
-// 추정값. 활성화 후 첫 호출 시 응답 코드/메시지 보고 정확히 맞춤.
+// 전제: CODEF 대시보드에서 "전자세금계산서 발행" 상품 활성화 + 회사 codef_connected_id 등록.
+// 미활성화면 CF-00003/CF-00401 반환 → codefErrorHint 로 안내.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -29,9 +24,8 @@ const CODEF_BASE = CODEF_ENV === "production"
     : "https://sandbox.codef.io";
 const CODEF_TOKEN_URL = "https://oauth.codef.io/oauth/token";
 
-// ⚠️ best-guess endpoint. 실제 URL 은 CODEF 대시보드(상품 → 개발 가이드)에서 확인 후 교체.
-const ISSUE_PATH = "/v1/kr/public/nt/popbill/taxinvoice/regist-invoicer-trustee";
-const HOMETAX_ORG = "0001"; // ⚠️ POPBiLL 발행 product 의 org 코드. 조회용 0004 와 다를 수 있음 — 활성화 후 확정.
+// CODEF 전자세금계산서 발행 API (정발행/위수탁). 명세: 승인내역 PDF 기준.
+const ISSUE_PATH = "/v1/kr/public/a/tax-invoice/regist-invoicer-trustee";
 
 // Token cache
 let tokenCache: { token: string; expiresAt: number } | null = null;
@@ -80,8 +74,7 @@ function toYmd(d: string | null): string {
   return d.replaceAll("-", "").slice(0, 8);
 }
 
-// CODEF 발행 payload 구성. POPBiLL 표준 필드명 추정.
-// ⚠️ 활성화 후 실제 응답 보고 필드명/형식 확정 필요.
+// CODEF 발행 payload 구성 — 발행 API PDF 명세 기준 (한글 코드값).
 function buildIssuePayload(args: {
   invoice: any;
   company: any;
@@ -104,42 +97,48 @@ function buildIssuePayload(args: {
   const buyerBizType = invoice.counterparty_business_item || partner?.business_item || "";
   const buyerEmail = partner?.contact_email || "";
 
+  // CODEF 발행 API(/a/tax-invoice/regist-invoicer-trustee) 명세는 한글 코드값을 받는다.
+  //   issueType "정발행"/"위수탁", taxType "과세"/"영세"/"면세", purposeType "영수"/"청구",
+  //   invoiceeType "사업자"/"개인"/"외국인". (organization/connectedId/chargeDirection 미사용)
+  const purposeType = (invoice.label || "").includes("청구") ? "청구" : "영수";
+  // 공급받는자 구분: 사업자번호 10자리=사업자, 그 외 길이는 개인/외국인 대응(기본 사업자).
+  const buyerNumDigits = String(buyerCorpNum || "").replace(/\D/g, "");
+  const invoiceeType = buyerNumDigits.length === 13 ? "개인" : "사업자";
+
   return {
-    organization: HOMETAX_ORG,
-    connectedId,
-    issueType: "01",            // 01=정발행
-    chargeDirection: "01",      // 01=정과금 (영수)
-    purposeType: "02",          // 02=영수 (현금/계좌이체 결제 완료) / 01=청구
-    taxType: "01",              // 01=과세 / 02=영세 / 03=면세
+    issueType: "정발행",
+    taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
+    purposeType,                // "영수"(결제완료) / "청구"
+    sendToNtsYn: "Y",           // 국세청 즉시 전송
     writeDate,                  // YYYYMMDD
 
-    // 공급자 (회사 본인)
-    invoicerCorpNum: company.business_number || "",
+    // 공급자 (회사 본인) — invoicerCorpNum 으로 발행 주체 식별
+    invoicerCorpNum: (company.business_number || "").replace(/\D/g, ""),
     invoicerCorpName: company.name || "",
     invoicerCEOName: company.representative || "",
     invoicerAddr: company.address || "",
-    invoicerBizClass: company.business_type || "",
-    invoicerBizType: company.business_category || "",
+    invoicerBizType: company.business_type || "",       // 업태
+    invoicerBizClass: company.business_category || "",   // 종목
     invoicerEmail,
 
     // 공급받는자
-    invoiceeType: "01",         // 01=사업자 / 02=개인 / 03=외국인
-    invoiceeCorpNum: buyerCorpNum,
+    invoiceeType,
+    invoiceeCorpNum: buyerNumDigits,
     invoiceeCorpName: buyerCorpName,
     invoiceeCEOName: buyerCEO,
     invoiceeAddr: buyerAddr,
-    invoiceeBizClass: buyerBizClass,
-    invoiceeBizType: buyerBizType,
+    invoiceeBizType: buyerBizType,       // 업태
+    invoiceeBizClass: buyerBizClass,     // 종목
     invoiceeEmail1: buyerEmail,
 
-    // 합계
+    // 합계 (문자열)
     supplyCostTotal: supply,
     taxTotal: tax,
     totalAmount: total,
 
     // 품목 (1줄)
     detailList: [{
-      serialNum: 1,
+      serialNum: "1",
       purchaseDT: writeDate,
       itemName: invoice.item_name || invoice.label || invoice.expense_category || "용역",
       spec: "",
@@ -297,8 +296,9 @@ serve(async (req) => {
     // 9) 결과 처리
     const resultCode = codefResp?.result?.code;
     if (resultCode === "CF-00000") {
-      // 승인번호 추출 — POPBiLL 응답 필드 추정 (ntsConfirmNum, resIssueNum, resApprovalNo 등 가능)
+      // 승인번호 추출 — CODEF 발행 응답: ntsconfirmNum(24자리, 소문자 c). 폴백 다수 유지.
       const ntsConfirmNum =
+        codefResp.data?.ntsconfirmNum ||
         codefResp.data?.ntsConfirmNum ||
         codefResp.data?.resIssueNum ||
         codefResp.data?.resApprovalNo ||
