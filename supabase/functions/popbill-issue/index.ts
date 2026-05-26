@@ -86,11 +86,14 @@ serve(async (req) => {
       return json({ success: true, joined });
     }
 
-    // ── 회원사 가입 ──
-    if (action === "join") {
+    // 팝빌 회원 ID — 영숫자만(언더스코어 등 제외). 가입/인증서/발행에서 동일 사용.
+    const popUserId = `motive${corpNum}`;
+
+    // ── 회원사 가입 + 인증서 등록 URL (통합) ──
+    if (action === "join" || action === "register" || action === "cert-url") {
       const joinForm = {
-        ID: `motive_${corpNum}`,
-        Password: crypto.randomUUID().slice(0, 16) + "!A1",
+        ID: popUserId,
+        Password: "Mtv!" + crypto.randomUUID().replace(/-/g, "").slice(0, 12),
         LinkID: Deno.env.get("POPBILL_LINK_ID") || "",
         CorpNum: corpNum,
         CEOName: comp.representative || "",
@@ -102,19 +105,25 @@ serve(async (req) => {
         ContactEmail: comp.automation_settings?.invoicer_email || uRow.email || "",
         ContactTEL: comp.phone || "",
       };
+      let joinNote = "";
       try {
-        const r = await call<any>((ok, ng) => ti.joinMember(joinForm, ok, ng));
-        return json({ success: true, joined: true, result: r });
+        await call<any>((ok, ng) => ti.joinMember(joinForm, ok, ng));
+        joinNote = "가입 완료";
       } catch (e: any) {
-        // 이미 가입된 회원이면 그대로 진행 가능
-        return json({ success: true, joined: true, note: "이미 가입되어 있거나 가입 처리됨", detail: e?.message || String(e) });
+        joinNote = "가입 skip: " + (e?.message || String(e));
       }
-    }
-
-    // ── 공인인증서 등록 URL ──
-    if (action === "cert-url") {
-      const url = await call<string>((ok, ng) => ti.getTaxCertURL(corpNum, `motive_${corpNum}`, ok, ng));
-      return json({ success: true, certURL: url, message: "팝빌 인증서 등록 페이지로 이동하세요. 등록 후 발행 가능합니다." });
+      // 인증서 등록 URL — 여러 UserID 후보로 시도 (이미 가입된 회원의 ID 불일치 대응)
+      const idCandidates = [popUserId, `motive_${corpNum}`, "", corpNum];
+      const errs: string[] = [];
+      for (const uid of idCandidates) {
+        try {
+          const url = await call<string>((ok, ng) => ti.getTaxCertURL(corpNum, uid, ok, ng));
+          if (url) return json({ success: true, certURL: url, joinNote, usedId: uid, message: "팝빌 인증서 등록 페이지로 이동하세요. 등록 후 발행 가능합니다." });
+        } catch (e: any) {
+          errs.push(`${uid || "(빈값)"}: ${e?.message || String(e)}`);
+        }
+      }
+      return json({ error: `인증서 URL 발급 실패 — 모든 ID 후보 실패 [${errs.join(" | ")}] (회원가입: ${joinNote})` }, 400);
     }
 
     // ── 발행 (RegistIssue) ──
@@ -174,9 +183,21 @@ serve(async (req) => {
 
       await supabase.from("tax_invoices").update({ nts_issue_status: "pending", nts_request_payload: taxinvoice, nts_error_code: null, nts_error_message: null }).eq("id", invoiceId);
 
-      try {
-        // registIssue(CorpNum, Taxinvoice, WriteSpecification, Memo, ForceIssue, DealInvoiceMgtKey, EmailSubject, UserID, success, error)
-        const r = await call<any>((ok, ng) => ti.registIssue(corpNum, taxinvoice, false, "", false, "", "", `motive_${corpNum}`, ok, ng));
+      // registIssue(CorpNum, Taxinvoice, WriteSpecification, Memo, ForceIssue, DealInvoiceMgtKey, EmailSubject, UserID, success, error)
+      // 회원 ID 불일치 대응: 여러 UserID 후보로 시도 (아이디 에러일 때만 다음 후보)
+      const idCandidates = [popUserId, `motive_${corpNum}`, "", corpNum];
+      let r: any = null; let lastErr = ""; const tried: string[] = [];
+      for (const uid of idCandidates) {
+        try {
+          r = await call<any>((ok, ng) => ti.registIssue(corpNum, taxinvoice, false, "", false, "", "", uid, ok, ng));
+          break;
+        } catch (e: any) {
+          lastErr = e?.message || String(e);
+          tried.push(`${uid || "(빈값)"}: ${lastErr}`);
+          if (!/아이디|아닙니다|member|MEMBER/i.test(lastErr)) break; // 아이디 문제가 아니면 즉시 중단
+        }
+      }
+      if (r) {
         const ntsNo = r?.ntsConfirmNum || r?.ntsconfirmNum || "";
         await supabase.from("tax_invoices").update({
           nts_issue_status: "issued",
@@ -186,11 +207,9 @@ serve(async (req) => {
           status: "issued",
         }).eq("id", invoiceId);
         return json({ success: true, nts_confirm_no: ntsNo, mgtKey, message: ntsNo ? `발행 완료 (승인번호 ${ntsNo})` : "발행 완료 (국세청 전송 대기)", result: r });
-      } catch (e: any) {
-        const msg = e?.message || String(e);
-        await supabase.from("tax_invoices").update({ nts_issue_status: "failed", nts_error_message: msg, nts_response_payload: { error: msg } }).eq("id", invoiceId);
-        return json({ error: "발행 실패: " + msg }, 400);
       }
+      await supabase.from("tax_invoices").update({ nts_issue_status: "failed", nts_error_message: lastErr, nts_response_payload: { tried } }).eq("id", invoiceId);
+      return json({ error: "발행 실패: " + lastErr + ` [시도: ${tried.join(" | ")}]` }, 400);
     }
 
     return json({ error: "알 수 없는 action" }, 400);
