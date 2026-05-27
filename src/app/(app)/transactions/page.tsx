@@ -1470,179 +1470,103 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 </div>
               </div>
             ) : (
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
-                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    {tab === 'inbox' && <th className="text-center px-2 py-3 font-medium w-8">
+              <div className="overflow-auto max-h-[600px] space-y-2.5 pr-1">
+                {/* 정렬·전체선택 툴바 (시안) */}
+                <div className="flex items-center gap-2 pb-1 text-xs">
+                  {tab === 'inbox' && (
+                    <label className="flex items-center gap-1.5 text-[var(--text-muted)] cursor-pointer mr-1">
                       <input type="checkbox"
                         checked={selectedIds.size > 0 && selectedIds.size === filteredBankTx.filter((t: any) => t.mapping_status === 'unmapped').length}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedIds(new Set(filteredBankTx.filter((t: any) => t.mapping_status === 'unmapped').map((t: any) => t.id)));
-                          } else {
-                            setSelectedIds(new Set());
-                          }
-                        }}
-                        className="accent-[var(--primary)]"
-                      />
-                    </th>}
-                    <th
-                      onClick={() => toggleBankSort('transaction_date')}
-                      className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"
-                      title="클릭해서 날짜 정렬"
-                    >
-                      날짜 {bankSortBy === 'transaction_date' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium">통장</th>
-                    <th
-                      onClick={() => toggleBankSort('counterparty')}
-                      className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"
-                      title="클릭해서 거래처 이름순 정렬"
-                    >
-                      거래처 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
-                    </th>
-                    <th className="text-left px-4 py-3 font-medium">적요</th>
-                    <th className="text-right px-4 py-3 font-medium">금액</th>
-                    <th className="text-right px-4 py-3 font-medium hidden md:table-cell">잔액</th>
-                    <th className="text-center px-4 py-3 font-medium" title="자동이체(결제 방식) · 고정비(비용 성격) — 독립 체크">자동이체 / 고정비</th>
-                    <th className="text-center px-4 py-3 font-medium">상태</th>
-                    <th className="text-center px-4 py-3 font-medium">분류</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBankTx.map((tx: any) => (
-                    <tr
-                      key={tx.id}
-                      onClick={() => setMapModal(tx)}
-                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
-                      title="클릭해서 분류·매핑"
-                    >
+                        onChange={e => { if (e.target.checked) { setSelectedIds(new Set(filteredBankTx.filter((t: any) => t.mapping_status === 'unmapped').map((t: any) => t.id))); } else { setSelectedIds(new Set()); } }}
+                        className="accent-[var(--primary)]" />
+                      전체 선택
+                    </label>
+                  )}
+                  <button onClick={() => toggleBankSort('transaction_date')} className={`px-2.5 py-1 rounded-lg font-semibold transition ${bankSortBy === 'transaction_date' ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>
+                    날짜순 {bankSortBy === 'transaction_date' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </button>
+                  <button onClick={() => toggleBankSort('counterparty')} className={`px-2.5 py-1 rounded-lg font-semibold transition ${bankSortBy === 'counterparty' ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>
+                    거래처순 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </button>
+                </div>
+
+                {/* 거래 카드 행 (시안) */}
+                {filteredBankTx.map((tx: any) => {
+                  const isIncome = tx.type === 'income';
+                  const mapMeta = tx.mapping_status === 'unmapped' ? { c: 'bg-[var(--warning)]/10 text-[var(--warning)]', t: '미매핑' }
+                    : tx.mapping_status === 'auto_mapped' ? { c: 'bg-[var(--brand-info)]/10 text-[var(--brand-info)]', t: '자동' }
+                    : tx.mapping_status === 'manual_mapped' ? { c: 'bg-[var(--success)]/10 text-[var(--success)]', t: '수동' }
+                    : { c: 'bg-[var(--text-muted)]/10 text-[var(--text-muted)]', t: '무시' };
+                  return (
+                    <div key={tx.id} onClick={() => setMapModal(tx)} title="클릭해서 분류·매핑"
+                      className="group glass-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md">
                       {tab === 'inbox' && tx.mapping_status === 'unmapped' && (
-                        <td className="text-center px-2 py-2.5 w-8" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" checked={selectedIds.has(tx.id)}
-                            onChange={e => {
-                              const next = new Set(selectedIds);
-                              if (e.target.checked) next.add(tx.id); else next.delete(tx.id);
-                              setSelectedIds(next);
-                            }}
-                            className="accent-[var(--primary)]"
-                          />
-                        </td>
+                        <input type="checkbox" checked={selectedIds.has(tx.id)} onClick={e => e.stopPropagation()}
+                          onChange={e => { const next = new Set(selectedIds); if (e.target.checked) next.add(tx.id); else next.delete(tx.id); setSelectedIds(next); }}
+                          className="accent-[var(--primary)] shrink-0" />
                       )}
-                      {tab === 'inbox' && tx.mapping_status !== 'unmapped' && <td className="w-8" />}
-                      <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
-                      <td className="px-4 py-2.5 text-[10px] text-[var(--text-dim)] mono-number whitespace-nowrap">
-                        {tx.bank_accounts?.alias || tx.raw_data?.accountNo?.slice(-4) || "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-sm">{tx.counterparty || "—"}</td>
-                      <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] max-w-[180px] truncate">{tx.description || "—"}</td>
-                      <td className={`px-4 py-2.5 text-sm text-right font-medium mono-number ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                        {tx.type === 'income' ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)] mono-number hidden md:table-cell">
-                        ₩{Number(tx.balance_after || 0).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
-                        {/* 2026-05-22 자동이체(결제 방식) · 고정비(비용 성격) 독립 2개 토글 */}
-                        <div className="flex flex-col items-center gap-1">
-                          <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
-                            <input
-                              type="checkbox"
-                              checked={!!tx.is_auto_transfer}
-                              onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })}
-                              disabled={toggleAutoMut.isPending}
-                              className="accent-sky-500 cursor-pointer"
-                            />
-                            {tx.is_auto_transfer ? (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
-                            ) : isAutoTransferTx(tx) ? (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체(반복결제)와 거래처·금액 일치 — 자동 감지">자동감지</span>
-                            ) : (
-                              <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>
-                            )}
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨 — 클릭해서 해제' : '고정비(비용 성격)로 표시 · 정기결제내역/분석에 반영'}>
-                            <input
-                              type="checkbox"
-                              checked={!!tx.is_fixed_cost}
-                              onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })}
-                              disabled={toggleFixedMut.isPending}
-                              className="accent-orange-500 cursor-pointer"
-                            />
-                            {tx.is_fixed_cost ? (
-                              <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
-                            ) : (
-                              <span className="text-[9px] text-[var(--text-dim)]">고정비</span>
-                            )}
-                          </label>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          tx.mapping_status === 'unmapped' ? 'bg-yellow-500/10 text-yellow-400' :
-                          tx.mapping_status === 'auto_mapped' ? 'bg-blue-500/10 text-blue-400' :
-                          tx.mapping_status === 'manual_mapped' ? 'bg-green-500/10 text-green-400' :
-                          'bg-gray-500/10 text-gray-400'
-                        }`}>
-                          {tx.mapping_status === 'unmapped' ? '미매핑' :
-                           tx.mapping_status === 'auto_mapped' ? '자동' :
-                           tx.mapping_status === 'manual_mapped' ? '수동' : '무시'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <div className="flex flex-col items-center gap-0.5">
+                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${isIncome ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' : 'M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6'} />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-semibold text-[var(--text)] truncate max-w-[220px]">{tx.counterparty || tx.description || '—'}</span>
                           {tx.classification && <ClassificationBadge classification={tx.classification} />}
-                          {tx.category && (
-                            <span className="text-[10px] text-[var(--text-muted)]">{tx.category}</span>
-                          )}
-                          {tx.deals?.name && (
-                            <span className="text-[9px] text-[var(--text-dim)]">{tx.deals.name}</span>
-                          )}
-                          {!tx.classification && !tx.category && !tx.deals?.name && (
-                            <span className="text-[10px] text-[var(--text-dim)]">—</span>
-                          )}
+                          {tx.category && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{tx.category}</span>}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-dim)] mt-1 flex-wrap">
+                          <span className="mono-number">{tx.transaction_date}</span>
+                          <span>·</span>
+                          <span>{tx.bank_accounts?.alias || tx.raw_data?.accountNo?.slice(-4) || '—'}</span>
+                          <span className={`px-1.5 py-0.5 rounded-full ${mapMeta.c}`}>{mapMeta.t}</span>
+                          {tx.deals?.name && <span className="truncate max-w-[100px]">· {tx.deals.name}</span>}
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
+                          <input type="checkbox" checked={!!tx.is_auto_transfer} onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleAutoMut.isPending} className="accent-sky-500 cursor-pointer" />
+                          {tx.is_auto_transfer ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
+                            : isAutoTransferTx(tx) ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체와 일치 — 자동 감지">자동감지</span>
+                            : <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>}
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨 — 클릭해서 해제' : '고정비(비용 성격)로 표시'}>
+                          <input type="checkbox" checked={!!tx.is_fixed_cost} onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleFixedMut.isPending} className="accent-orange-500 cursor-pointer" />
+                          {tx.is_fixed_cost ? <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
+                            : <span className="text-[9px] text-[var(--text-dim)]">고정비</span>}
+                        </label>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className={`text-base font-bold mono-number ${isIncome ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
+                          {isIncome ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
                 {(() => {
                   const sumIncome = filteredBankTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
                   const sumExpense = filteredBankTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
                   const net = sumIncome - sumExpense;
-                  const selectedTx = filteredBankTx.filter((t: any) => selectedIds.has(t.id));
-                  const selSum = selectedTx.reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+                  const selSum = filteredBankTx.filter((t: any) => selectedIds.has(t.id)).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
                   return (
-                    <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-card)] border-t border-[var(--border)]">
-                      <tr className="text-[11px]">
-                        {tab === 'inbox' && <td className="w-8" />}
-                        <td className="px-4 py-2 text-[var(--text-dim)] uppercase tracking-wider" colSpan={4}>
-                          합계 ({filteredBankTx.length}건)
-                          {selectedIds.size > 0 && (
-                            <span className="ml-2 text-[var(--primary)] font-semibold">
-                              · 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <div className="text-[10px] text-[var(--text-dim)]">입금</div>
-                          <div className="text-green-400 font-bold mono-number">+₩{sumIncome.toLocaleString()}</div>
-                        </td>
-                        <td className="px-4 py-2 text-right hidden md:table-cell">
-                          <div className="text-[10px] text-[var(--text-dim)]">출금</div>
-                          <div className="text-red-400 font-bold mono-number">-₩{sumExpense.toLocaleString()}</div>
-                        </td>
-                        <td className="px-4 py-2 text-right" colSpan={3}>
-                          <div className="text-[10px] text-[var(--text-dim)]">순합계</div>
-                          <div className={`font-bold mono-number ${net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {net >= 0 ? '+' : ''}₩{net.toLocaleString()}
-                          </div>
-                        </td>
-                      </tr>
-                    </tfoot>
+                    <div className="sticky bottom-0 glass-card p-3 flex flex-wrap items-center justify-between gap-2 text-xs mt-1">
+                      <span className="text-[var(--text-dim)] uppercase tracking-wider">
+                        합계 ({filteredBankTx.length}건)
+                        {selectedIds.size > 0 && <span className="ml-2 text-[var(--primary)] font-semibold">· 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}</span>}
+                      </span>
+                      <span className="flex items-center gap-4 mono-number">
+                        <span className="text-[var(--success)] font-bold">+₩{sumIncome.toLocaleString()}</span>
+                        <span className="text-[var(--danger)] font-bold">-₩{sumExpense.toLocaleString()}</span>
+                        <span className={`font-bold ${net >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>{net >= 0 ? '+' : ''}₩{net.toLocaleString()}</span>
+                      </span>
+                    </div>
                   );
                 })()}
-              </table></div>
+              </div>
             )}
           </div>
 
