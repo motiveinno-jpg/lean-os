@@ -35,8 +35,8 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data } = await db.from("bank_accounts").select("alias, bank_name, balance")
         .eq("company_id", companyId).order("balance", { ascending: false });
-      const list = (data || []).map((a: any) => ({ name: a.alias || a.bank_name || "계좌", amount: Number(a.balance || 0) }));
-      return { list, total: list.reduce((s: number, a: any) => s + a.amount, 0), count: list.length };
+      const list: { name: string; amount: number }[] = (data || []).map((a: any) => ({ name: a.alias || a.bank_name || "계좌", amount: Number(a.balance || 0) }));
+      return { list, total: list.reduce((s, a) => s + a.amount, 0), count: list.length };
     },
     enabled: !!companyId, staleTime: 60_000,
   });
