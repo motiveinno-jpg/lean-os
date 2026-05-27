@@ -13,6 +13,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
+import { DashboardFinancialHero } from "@/components/dashboard-financial-hero";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
@@ -615,6 +616,14 @@ export default function DashboardPage() {
       {(dashView === 'manage' || !(role === "owner" || role === "admin")) && (<>
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
       <div className="mb-4">
+        {/* 2026-05-27 새 디자인 시안 — 메인 재무 요약(총자금 + 고정/변동/기타 3열). owner/admin 만. */}
+        {(role === "owner" || role === "admin") && (
+          <DashboardFinancialHero
+            balance={cashPulse?.currentBalance ?? null}
+            fixedCost={realBurnData ?? null}
+            variableCost={realVariableData ?? null}
+          />
+        )}
         {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
         {(role === "owner" || role === "admin") && <OwnerDashboardSection />}
 
