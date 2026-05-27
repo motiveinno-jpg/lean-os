@@ -513,6 +513,12 @@ export function NotificationCenter() {
       }
     }
 
+    // 알림에 명시적 link 가 있으면 우선 사용 (서명 완료 등 entity 라우팅이 모호한 알림).
+    if (notification.link) {
+      router.push(notification.link);
+      setOpen(false);
+      return;
+    }
     const route = getEntityRoute(notification.entity_type, notification.entity_id, notification.type);
     router.push(route);
     setOpen(false);
