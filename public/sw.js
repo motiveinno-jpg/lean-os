@@ -1,4 +1,6 @@
-const CACHE_NAME = "ownerview-v1";
+// 2026-05-27 캐시 버전 v2 — 시안 디자인(인디고/글래스/배경) 배포 후에도 옛 v1 캐시(precached
+//   /dashboard/ HTML 등)가 안 지워져 사용자 화면이 stale 하던 문제 해소. activate 시 v1 purge.
+const CACHE_NAME = "ownerview-v2";
 const PRECACHE_URLS = ["/dashboard/", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
