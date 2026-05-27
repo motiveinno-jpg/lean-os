@@ -9,6 +9,7 @@ import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
 
 const TYPE_OPTIONS = [
@@ -692,6 +693,30 @@ export default function PartnersPage() {
             + 새 거래처
           </button>
         </div>
+      </div>
+
+      {/* 시안 통계 4 (거래처) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {(() => {
+          const all = rawPartners as any[];
+          const active = all.filter((p) => p.is_active).length;
+          const dormant = all.filter((p) => p.is_dormant).length;
+          const cards: { tone: "brand" | "success" | "warning" | "info"; icon: string; label: string; value: string }[] = [
+            { tone: "brand", icon: "building", label: "전체 거래처", value: `${all.length.toLocaleString()}곳` },
+            { tone: "success", icon: "check", label: "활성", value: `${active.toLocaleString()}곳` },
+            { tone: "warning", icon: "clock", label: "휴면", value: `${dormant.toLocaleString()}곳` },
+            { tone: "info", icon: "card", label: "표시 중", value: `${partners.length.toLocaleString()}곳` },
+          ];
+          return cards.map((s) => (
+            <div key={s.label} className="glass-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</p>
+                <IconTile tone={s.tone} size={34}><TileIcon name={s.icon} className="w-4 h-4 text-white" /></IconTile>
+              </div>
+              <p className="text-2xl font-bold text-[var(--text)] mono-number">{s.value}</p>
+            </div>
+          ));
+        })()}
       </div>
 
       {/* Filter Bar */}
