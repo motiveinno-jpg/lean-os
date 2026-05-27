@@ -169,7 +169,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
   return (
     <div className="space-y-4">
       {/* 상단 요약 바 */}
-      <div className="glass-card p-4 sm:p-5">
+      <div className="glass-card p-5 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <IconTile tone="danger" size={48}><TileIcon name="card" className="w-6 h-6 text-white" /></IconTile>

@@ -1681,7 +1681,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Cards Tab */}
       {tab === 'cards' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Card Query Error */}
           {cardError && (
             <div className="p-3 rounded-lg text-sm bg-red-500/10 text-red-400">
@@ -1718,7 +1718,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
           {/* ═══ 상세: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
           {companyId && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <CardBillingSummary
                 companyId={companyId}
                 onSelectCard={(id) => {

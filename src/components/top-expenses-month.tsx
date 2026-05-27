@@ -86,7 +86,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
   };
 
   return (
-    <div className="mb-3 glass-card p-4">
+    <div className="mb-3 glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="danger" size={38}><TileIcon name="trendingDown" /></IconTile>
@@ -117,7 +117,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
           이번달 지출 내역이 없습니다.
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {top.map((t: any, i: number) => {
             const amount = Math.abs(Number(t.amount || 0));
             const dateStr = t.transaction_date || '';

@@ -59,7 +59,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
   );
 
   return (
-    <div className="mb-3 glass-card p-4">
+    <div className="mb-3 glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
@@ -82,7 +82,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
           <div className="text-[10px] mt-1">통장 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {items.map((t: any) => {
             const amount = Math.abs(Number(t.amount || 0));
             const dateStr = t.transaction_date || "";

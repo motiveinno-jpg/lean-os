@@ -85,7 +85,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   }, [rows]);
 
   return (
-    <div className="glass-card p-4">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="danger" size={38}><TileIcon name="card" /></IconTile>
@@ -110,7 +110,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       {top.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">최근 30일 카드 지출이 없습니다.</div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {top.map((t: any, i: number) => {
             const amount = Number(t.amount || 0);
             const dStr = t.transaction_date || '';
@@ -207,7 +207,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
   const total = useMemo(() => items.reduce((s, r) => s + Number(r.amount || 0), 0), [items]);
 
   return (
-    <div className="glass-card p-4">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
@@ -232,7 +232,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
           <div className="text-[10px] mt-1">카드 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {items.map((t: any) => {
             const amount = Number(t.amount || 0);
             const dStr = t.transaction_date || '';
@@ -396,7 +396,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
   const grandTotal = months.reduce((s, m) => s + (totals[m] || 0), 0);
 
   return (
-    <div className="glass-card p-4">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="brand" size={38}><TileIcon name="trendingUp" /></IconTile>

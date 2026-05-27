@@ -123,7 +123,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   const totalAmount = items.reduce((s, it) => s + it.amount, 0);
 
   return (
-    <div className="mb-3 glass-card p-4">
+    <div className="mb-3 glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <IconTile tone="warning" size={38}><TileIcon name="clock" /></IconTile>
@@ -148,7 +148,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           </a>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {items.map((it) => (
             <div key={it.id}
               className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
