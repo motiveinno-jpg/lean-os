@@ -308,7 +308,9 @@ function getEntityRoute(entityType?: string, entityId?: string, notifType?: stri
       case "document": return entityId ? `/documents?id=${entityId}` : "/documents";
       case "deal":
       case "milestone": return entityId ? `/projects/${entityId}` : "/projects";
-      case "signature": return "/documents?tab=signatures";
+      // 거래처 서명 완료 알림(entity_id = signature_requests.id) → 서명된 계약서 직접 보기.
+      //   ContractViewer 가 dual-mode 로 signature_requests 조회. entity_id 없으면 전자서명 탭.
+      case "signature": return entityId ? `/contracts/signed/${entityId}` : "/documents?tab=signatures";
       case "chat":
       case "chat_channel":
       case "chat_message": return entityId ? `/chat?channel=${entityId}` : "/chat";
@@ -513,12 +515,6 @@ export function NotificationCenter() {
       }
     }
 
-    // 알림에 명시적 link 가 있으면 우선 사용 (서명 완료 등 entity 라우팅이 모호한 알림).
-    if (notification.link) {
-      router.push(notification.link);
-      setOpen(false);
-      return;
-    }
     const route = getEntityRoute(notification.entity_type, notification.entity_id, notification.type);
     router.push(route);
     setOpen(false);
