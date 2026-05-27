@@ -10,19 +10,20 @@ import { useQuery } from "@tanstack/react-query";
 import { getCardSpendByCompany, type CardSpendCard } from "@/lib/card-transactions";
 
 // 카드사 브랜드색 매핑 상수 (하드코딩 금지 규칙 — 브랜드색은 매핑 상수 허용)
-const COMPANY_STYLE: Record<string, { color: string; initial: string; fg?: string }> = {
-  국민카드: { color: "#FFBC00", initial: "KB", fg: "#1a1a1a" },
-  현대카드: { color: "#111111", initial: "현대" },
-  삼성카드: { color: "#1428A0", initial: "삼성" },
-  신한카드: { color: "#0046FF", initial: "신한" },
-  BC카드: { color: "#EA002C", initial: "BC" },
-  롯데카드: { color: "#DA291C", initial: "롯데" },
-  하나카드: { color: "#008485", initial: "하나" },
-  우리카드: { color: "#0067AC", initial: "우리" },
-  농협카드: { color: "#00A64F", initial: "NH" },
-  카카오뱅크: { color: "#FEE500", initial: "kakao", fg: "#1a1a1a" },
-  토스: { color: "#0064FF", initial: "toss" },
-  씨티카드: { color: "#0560B0", initial: "씨티" },
+//   logo: public/card-logos/{logo} 파일이 있으면 로고 이미지 표시, 없으면(404) 색상 이니셜로 자동 폴백.
+const COMPANY_STYLE: Record<string, { color: string; initial: string; fg?: string; logo?: string }> = {
+  국민카드: { color: "#FFBC00", initial: "KB", fg: "#1a1a1a", logo: "kb.svg" },
+  현대카드: { color: "#111111", initial: "현대", logo: "hyundai.svg" },
+  삼성카드: { color: "#1428A0", initial: "삼성", logo: "samsung.svg" },
+  신한카드: { color: "#0046FF", initial: "신한", logo: "shinhan.svg" },
+  BC카드: { color: "#EA002C", initial: "BC", logo: "bc.svg" },
+  롯데카드: { color: "#DA291C", initial: "롯데", logo: "lotte.svg" },
+  하나카드: { color: "#008485", initial: "하나", logo: "hana.svg" },
+  우리카드: { color: "#0067AC", initial: "우리", logo: "woori.svg" },
+  농협카드: { color: "#00A64F", initial: "NH", logo: "nh.svg" },
+  카카오뱅크: { color: "#FEE500", initial: "kakao", fg: "#1a1a1a", logo: "kakao.svg" },
+  토스: { color: "#0064FF", initial: "toss", logo: "toss.svg" },
+  씨티카드: { color: "#0560B0", initial: "씨티", logo: "citi.svg" },
   기타: { color: "var(--text-muted)", initial: "카드" },
 };
 
@@ -30,6 +31,37 @@ const TYPE_LABEL: Record<string, string> = { credit: "신용", check: "체크", 
 
 function styleFor(company: string) {
   return COMPANY_STYLE[company] || COMPANY_STYLE["기타"];
+}
+
+// 카드사 아이콘: 로고 이미지 우선, 로드 실패 시 색상 이니셜로 폴백.
+function CardCompanyIcon({ company, size = 40 }: { company: string; size?: number }) {
+  const st = styleFor(company);
+  const [imgFailed, setImgFailed] = useState(false);
+  if (st.logo && !imgFailed) {
+    return (
+      <span
+        className="rounded-lg shrink-0 flex items-center justify-center overflow-hidden bg-white border border-[var(--border)]"
+        style={{ width: size, height: size }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/card-logos/${st.logo}`}
+          alt={company}
+          className="object-contain"
+          style={{ width: size * 0.7, height: size * 0.7 }}
+          onError={() => setImgFailed(true)}
+        />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rounded-lg shrink-0 flex items-center justify-center text-[10px] font-extrabold"
+      style={{ width: size, height: size, background: st.color, color: st.fg || "#fff" }}
+    >
+      {st.initial}
+    </span>
+  );
 }
 
 function fmtWon(n: number): string {
@@ -42,11 +74,24 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// 최근 3개월(이번 달 포함) 윈도우
+function parseYmd(s: string): Date | null {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+// 월 이동(일자 보존, 말일 오버플로 방지)
+function addMonths(d: Date, delta: number): Date {
+  const target = new Date(d.getFullYear(), d.getMonth() + delta, 1);
+  const dim = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), dim));
+}
+
+// 기본: 이번 달(1일~말일)
 function defaultRange(): { from: Date; to: Date } {
   const now = new Date();
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0); // 이번 달 말일
-  const from = new Date(now.getFullYear(), now.getMonth() - 2, 1); // 2개월 전 1일
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return { from, to };
 }
 
@@ -69,11 +114,9 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
     enabled: !!companyId,
   });
 
+  // 1개월 단위 이동 (현재 기간 폭 유지)
   const shiftMonths = (delta: number) => {
-    setRange((r) => ({
-      from: new Date(r.from.getFullYear(), r.from.getMonth() + delta, 1),
-      to: new Date(r.to.getFullYear(), r.to.getMonth() + delta + 1, 0),
-    }));
+    setRange((r) => ({ from: addMonths(r.from, delta), to: addMonths(r.to, delta) }));
   };
 
   // 검색·정렬 적용 후 그룹
@@ -133,11 +176,27 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* 기간 네비게이션 */}
+            {/* 기간 네비게이션 — 1개월 단위 이동 + 날짜 직접 선택 */}
             <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
-              <button onClick={() => shiftMonths(-3)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 기간">◀</button>
-              <span className="text-xs font-semibold text-[var(--text)] mono-number px-1 whitespace-nowrap">{fromStr} ~ {toStr}</span>
-              <button onClick={() => shiftMonths(3)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="다음 기간">▶</button>
+              <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>
+              <input
+                type="date"
+                value={fromStr}
+                max={toStr}
+                onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, from: d })); }}
+                className="bg-transparent text-xs font-semibold text-[var(--text)] mono-number px-1 outline-none"
+                aria-label="시작일"
+              />
+              <span className="text-[var(--text-dim)] text-xs">~</span>
+              <input
+                type="date"
+                value={toStr}
+                min={fromStr}
+                onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, to: d })); }}
+                className="bg-transparent text-xs font-semibold text-[var(--text)] mono-number px-1 outline-none"
+                aria-label="종료일"
+              />
+              <button onClick={() => shiftMonths(1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="다음 달">▶</button>
             </div>
             <button onClick={() => refetch()} disabled={isFetching}
               className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]/50 transition disabled:opacity-50">
@@ -145,7 +204,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
             </button>
             <button onClick={handleDownload}
               className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]/50 transition">
-              ⤓ 다운로드
+              다운로드
             </button>
           </div>
         </div>
@@ -196,13 +255,9 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
                       onClick={() => onSelectCard(cardClickPayload(c))}
                       className="flex items-center gap-3 p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/60 hover:bg-[var(--bg-surface)] transition text-left"
                     >
-                      {/* 카드사 색 아이콘 */}
-                      <span
-                        className="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-extrabold"
-                        style={{ background: st.color, color: st.fg || "#fff" }}
-                      >
-                        {st.initial}
-                      </span>
+                      {/* 카드사 아이콘 (로고 이미지 우선, 없으면 색상 이니셜) */}
+                      <CardCompanyIcon company={g.company} />
+
                       {/* 카드명 + 사용액 */}
                       <span className="flex-1 min-w-0">
                         <span className="flex items-center gap-1.5">
