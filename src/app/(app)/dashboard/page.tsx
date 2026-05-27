@@ -13,7 +13,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
-import { DashboardFinancialHero } from "@/components/dashboard-financial-hero";
+import { DashboardSiyanHero } from "@/components/dashboard-siyan-hero";
 import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
@@ -627,12 +627,17 @@ export default function DashboardPage() {
       {/* ═══ 시안 메인 — 재무 요약 히어로 + 하단 3카드. owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
       {(role === "owner" || role === "admin") && companyId && (
         <>
-          <DashboardFinancialHero
+          <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
-            fixedCost={realBurnData ?? null}
-            variableCost={realVariableData ?? null}
-            fixedBreakdown={costBreakdown?.fixed}
-            variableBreakdown={costBreakdown?.variable}
+            monthRevenue={dashboard.growth.monthRevenue}
+            monthTarget={dashboard.growth.monthTarget}
+            fixedCost={realBurnData ?? 0}
+            variableCost={realVariableData ?? 0}
+            arTotal={dashboard.sixPack.arTotal}
+            arOver30={dashboard.sixPack.arOver30}
+            pendingApprovals={dashboard.sixPack.pendingApprovals}
+            netCashflow={dashboard.sixPack.netCashflow}
+            costBreakdown={costBreakdown}
           />
           <DashboardBottomCards companyId={companyId} />
         </>
