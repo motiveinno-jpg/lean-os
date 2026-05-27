@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -245,9 +246,9 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   if (billings.length === 0) {
     return (
       <div className="glass-card p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-base">🧾</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">이용대금 / 청구서</h2>
+        <div className="flex items-center gap-2.5 mb-2">
+          <IconTile tone="warning" size={38}><TileIcon name="wallet" /></IconTile>
+          <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
         </div>
         <div className="text-[11px] text-[var(--text-dim)]">
           등록된 신용카드가 없습니다. 상단 "+ 카드 등록" 으로 추가하면 청구 사이클이 자동 계산됩니다.
@@ -262,9 +263,9 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🧾</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">이용대금 / 청구서</h2>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="warning" size={38}><TileIcon name="wallet" /></IconTile>
+          <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
           <span className="text-[10px] text-[var(--text-dim)]">신용 {billings.length}개</span>
         </div>
         <div className="text-right">

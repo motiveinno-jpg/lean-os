@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getCardSpendByCompany, type CardSpendCard } from "@/lib/card-transactions";
 
 // 카드사 브랜드색 매핑 상수 (하드코딩 금지 규칙 — 브랜드색은 매핑 상수 허용)
@@ -170,10 +171,13 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
       {/* 상단 요약 바 */}
       <div className="glass-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[11px] text-[var(--text-dim)] mb-1">기간 내 카드 지출</div>
-            <div className={`text-2xl sm:text-3xl font-extrabold mono-number ${total > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-              {fmtWon(total)}
+          <div className="flex items-center gap-3">
+            <IconTile tone="danger" size={48}><TileIcon name="card" className="w-6 h-6 text-white" /></IconTile>
+            <div>
+              <div className="text-[11px] text-[var(--text-dim)] mb-1">기간 내 카드 지출</div>
+              <div className={`text-2xl sm:text-3xl font-extrabold mono-number ${total > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+                {fmtWon(total)}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

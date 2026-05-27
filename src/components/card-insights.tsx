@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -86,10 +87,12 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">💳</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">최근 90일 카드 큰 지출 TOP 5</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">{dateFrom} ~ {dateTo}</span>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="danger" size={38}><TileIcon name="card" /></IconTile>
+          <div>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">최근 90일 카드 큰 지출 TOP 5</h2>
+            <span className="text-[10px] text-[var(--text-dim)]">{dateFrom} ~ {dateTo}</span>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">90일 사용액</div>
@@ -206,9 +209,9 @@ export function CardAutoTransferHistory({ companyId }: Props) {
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🔁</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">정기결제내역</h2>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
+          <h2 className="text-[15px] font-bold text-[var(--text)]">정기결제내역</h2>
           <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
         </div>
         {items.length > 0 && (
@@ -395,10 +398,12 @@ export function CardMonthlyUsage({ companyId }: Props) {
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">📊</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">카드 월별 사용금액</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">최근 6개월</span>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="brand" size={38}><TileIcon name="trendingUp" /></IconTile>
+          <div>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">카드 월별 사용금액</h2>
+            <span className="text-[10px] text-[var(--text-dim)]">최근 6개월</span>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">6개월 합계</div>
