@@ -17,6 +17,7 @@ import { getPartners } from "@/lib/partners";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ClassificationBadge } from "@/components/classification-badge";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { ProjectSlideOver } from "@/components/project-slide-over";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
@@ -489,6 +490,26 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           </button>
         </div>
       </div>
+
+      {/* 시안 통계 4 (프로젝트) — 헤드라인. 상세 드릴다운은 아래 요약 칩에서. */}
+      {summary.count > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          {([
+            { tone: "brand", icon: "building", label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
+            { tone: "info", icon: "clock", label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
+            { tone: "success", icon: "check", label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
+            ...(!isEmployeeLimited ? [{ tone: "warning" as const, icon: "wallet", label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
+          ] as { tone: "brand" | "info" | "success" | "warning"; icon: string; label: string; value: string }[]).map((s) => (
+            <div key={s.label} className="glass-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</p>
+                <IconTile tone={s.tone} size={34}><TileIcon name={s.icon} className="w-4 h-4 text-white" /></IconTile>
+              </div>
+              <p className="text-xl font-bold text-[var(--text)] mono-number truncate">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 요약 칩 — 전체기간/특정기간 모두 표시. 직원은 금액 가림(건수·단계만). 클릭 시 출처·계산식 팝업 */}
       {summary.count > 0 && (
