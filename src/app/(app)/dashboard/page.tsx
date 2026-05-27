@@ -37,6 +37,7 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { AiBriefing } from "@/components/ai-briefing";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
+import { DashboardAnalytics } from "@/components/dashboard-analytics";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -87,6 +88,8 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
 
   const [userLoadFailed, setUserLoadFailed] = useState(false);
+  // granter 분석 뷰(기본) / 기존 경영 위젯 뷰 토글 (owner)
+  const [dashView, setDashView] = useState<'analytics' | 'manage'>('analytics');
 
   useEffect(() => {
     let retries = 0;
@@ -591,6 +594,25 @@ export default function DashboardPage() {
         <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
       )}
 
+      {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner/admin ═══ */}
+      {(role === "owner" || role === "admin") && (
+        <div className="flex items-center gap-1 mb-4 bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)] w-fit">
+          {([['analytics', '분석'], ['manage', '경영']] as ['analytics' | 'manage', string][]).map(([k, label]) => (
+            <button key={k} onClick={() => setDashView(k)}
+              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition ${dashView === k ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ 분석 뷰 (granter 스타일) ═══ */}
+      {dashView === 'analytics' && (role === "owner" || role === "admin") && companyId && (
+        <DashboardAnalytics companyId={companyId} />
+      )}
+
+      {/* ═══ 경영 뷰 (기존 owner 위젯) — analytics 가 아니거나 토글이 없는 경우 ═══ */}
+      {(dashView === 'manage' || !(role === "owner" || role === "admin")) && (<>
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
       <div className="mb-4">
         {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
@@ -901,6 +923,7 @@ export default function DashboardPage() {
 
       {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
 
+      </>)}
     </div>
   );
 }
