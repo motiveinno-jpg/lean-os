@@ -264,9 +264,12 @@ input, textarea, [contenteditable="true"] {
      .print-area 는 position:absolute 로 흐름서 분리돼 영향 없음. @media print 안이라 화면 회귀 0. */
   html, body { height: auto !important; min-height: 0 !important; }
   [class*="min-h-screen"], [class*="min-h-["] { min-height: 0 !important; height: auto !important; }
-  /* 모든 요소 min-height 0 — visibility:hidden 잔여 흐름(앞 빈 페이지) 완전 제거.
-     print-area 는 absolute 로 흐름 분리, 내용 height 는 auto 라 본문 누락 없음. */
   body * { min-height: 0 !important; }
+  /* usePrintIsolation: print-area 조상 경로 외 형제를 흐름에서 완전 제거(앞 빈 페이지 0).
+     visibility:hidden(공간 유지) 으로 부족했던 케이스를 display:none(공간 제거) 으로 확실히 해소. */
+  [data-print-hidden] { display: none !important; }
+  /* print-area 를 정상 흐름(static)으로 — absolute 의 멀티페이지 분할 이슈 회피, 1페이지부터 자연 분할. */
+  .print-area { position: static !important; }
   @page { margin: 15mm; }
 }
 

@@ -11,6 +11,7 @@ import { friendlyError, reportError } from "@/lib/friendly-error";
 // 갑(우리) 서명·도장 추가 모달 — 거래처 서명 모달 동일 컴포넌트 재사용
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useToast } from "@/components/toast";
+import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -112,6 +113,7 @@ interface SignedRow {
 }
 
 export function ContractViewer({ id, backHref }: { id: string; backHref?: string }) {
+  usePrintIsolation();
   const [row, setRow] = useState<SignedRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);

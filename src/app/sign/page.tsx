@@ -8,6 +8,7 @@ import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { injectContractInlineStyles } from "@/lib/signatures";
+import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -164,6 +165,7 @@ export default function SignPage() {
 }
 
 function SignContent() {
+  usePrintIsolation();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
