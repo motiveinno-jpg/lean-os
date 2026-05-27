@@ -19,6 +19,7 @@ import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardMonthlyUsage, CardAutoTransferHistory } from "@/components/card-insights";
 import { CardsOverview } from "@/components/cards-overview";
+import { BankAccountsOverview } from "@/components/bank-accounts-overview";
 import { AccessDenied } from "@/components/access-denied";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
@@ -1352,41 +1353,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
-          {/* ═══ 메인: 통장 잔액 + 다가오는 자동이체 ═══ */}
-          {/* 통장별 잔액 카드 + 총잔액 */}
-          {bankAccountsList.length > 0 && (
-            <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-              <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-gradient-to-br from-[var(--primary)]/15 to-[var(--primary)]/5 rounded-xl p-3 border border-[var(--primary)]/20">
-                <div className="text-[10px] text-[var(--primary)] font-semibold uppercase tracking-wider">총 잔액</div>
-                <div className="text-lg font-black mt-1 mono-number">
-                  ₩{bankAccountsList.reduce((s, a) => s + (a.balance || 0), 0).toLocaleString()}
-                </div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{bankAccountsList.length}개 통장</div>
-              </div>
-              {bankAccountsList.slice(0, 8).map((a) => {
-                const display = a.alias || (a.accountNo.length >= 12
-                  ? `${a.accountNo.slice(0,3)}-${a.accountNo.slice(3,9)}-${a.accountNo.slice(9,11)}-${a.accountNo.slice(11)}`
-                  : a.accountNo);
-                const isSelected = selectedAccountNo === a.accountNo;
-                return (
-                  <button
-                    key={a.accountNo}
-                    onClick={() => setSelectedAccountNo(isSelected ? '' : a.accountNo)}
-                    className={`text-left rounded-xl p-3 border transition ${
-                      isSelected
-                        ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 ring-1 ring-[var(--primary)]/30'
-                        : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-surface)]'
-                    }`}
-                    title={`클릭해서 ${isSelected ? '해제' : '필터'}`}
-                  >
-                    <div className="text-[10px] text-[var(--text-dim)] truncate">{a.bankName || ''}</div>
-                    <div className="text-[11px] font-semibold mono-number truncate">{display}</div>
-                    <div className="text-sm font-bold mono-number mt-1">₩{(a.balance || 0).toLocaleString()}</div>
-                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{a.count}건</div>
-                  </button>
-                );
-              })}
-            </div>
+          {/* ═══ granter 계좌 스타일 통장 개요: 전체 잔액 + 증감 + 은행별 그룹 + 3열 그리드 (2026-05-27) ═══ */}
+          {companyId && (
+            <BankAccountsOverview
+              companyId={companyId}
+              selectedAccountNo={selectedAccountNo}
+              onSelect={(no) => setSelectedAccountNo(no)}
+            />
           )}
 
           {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 (엑셀 다운로드) */}

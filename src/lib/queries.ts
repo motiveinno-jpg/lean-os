@@ -735,6 +735,58 @@ export async function deleteBankAccount(id: string) {
   if (error) throw error;
 }
 
+// 계좌 별칭만 안전하게 변경 — 기존 row 는 alias 만 UPDATE(role/balance 무클로버),
+// 없으면(codef-only 미등록 계좌) 최소 INSERT (role 기본 OPERATING, balance 보존).
+export async function setBankAccountAlias(
+  companyId: string,
+  accountNumber: string,
+  alias: string,
+  opts?: { bankName?: string; balance?: number },
+) {
+  const trimmed = alias.trim();
+  const { data: updated } = await supabase
+    .from('bank_accounts')
+    .update({ alias: trimmed || null })
+    .eq('company_id', companyId)
+    .eq('account_number', accountNumber)
+    .select('id');
+  if (updated && updated.length > 0) return;
+  const { error } = await supabase.from('bank_accounts').insert({
+    company_id: companyId,
+    account_number: accountNumber,
+    bank_name: opts?.bankName || '기타',
+    alias: trimmed || null,
+    balance: opts?.balance ?? 0,
+  });
+  if (error) throw error;
+}
+
+// 기간 내 계좌별 증감 = Σ(income) − Σ(expense). accountNo(raw_data.accountNo) 기준.
+//   잔액 계산(syncBankBalances) 무변경 — 표시용 증감만 별도 집계.
+export async function getBankAccountChanges(
+  companyId: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<{ byAccount: Record<string, number>; total: number }> {
+  const { data } = await supabase
+    .from('bank_transactions')
+    .select('raw_data, amount, type')
+    .eq('company_id', companyId)
+    .gte('transaction_date', dateFrom)
+    .lte('transaction_date', dateTo)
+    .limit(50000);
+  const byAccount: Record<string, number> = {};
+  let total = 0;
+  for (const r of (data || []) as Array<{ raw_data?: { accountNo?: string }; amount: number; type: string }>) {
+    const acct = r.raw_data?.accountNo;
+    if (!acct) continue;
+    const signed = r.type === 'expense' ? -Math.abs(Number(r.amount || 0)) : Math.abs(Number(r.amount || 0));
+    byAccount[acct] = (byAccount[acct] || 0) + signed;
+    total += signed;
+  }
+  return { byAccount, total };
+}
+
 // ── Routing Rules ──
 export async function getRoutingRules(companyId: string) {
   const { data } = await supabase
