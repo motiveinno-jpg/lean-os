@@ -18,6 +18,7 @@ import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardMonthlyUsage, CardAutoTransferHistory } from "@/components/card-insights";
+import { CardsOverview } from "@/components/cards-overview";
 import { AccessDenied } from "@/components/access-denied";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
@@ -1722,7 +1723,27 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          {/* ═══ 메인: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
+          {/* ═══ granter 스타일 카드 개요: 전체 지출 + 카드사별 그룹 + 3열 그리드 (2026-05-27) ═══ */}
+          {companyId && (
+            <CardsOverview
+              companyId={companyId}
+              onSelectCard={(id) => {
+                if (id.startsWith('codef:')) {
+                  setSelectedCardId('');
+                  setSelectedCardName(id.slice('codef:'.length));
+                } else {
+                  setSelectedCardId(id);
+                  setSelectedCardName('');
+                }
+                // 선택 시 아래 상세(거래내역) 로 스크롤
+                if (typeof window !== 'undefined') {
+                  setTimeout(() => document.getElementById('card-tx-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                }
+              }}
+            />
+          )}
+
+          {/* ═══ 상세: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
           {companyId && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <CardBillingSummary
@@ -1748,7 +1769,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           {/* 카드 월별 사용금액 (카드별/합계) */}
           {companyId && <CardMonthlyUsage companyId={companyId} />}
 
-          {/* Card 별 사용액 (CODEF sync 거래) */}
+          {/* Card 별 사용액 (CODEF sync 거래) — 별명 편집·미식별 매핑 안내 (granter 개요의 상세) */}
           {codefCards.length > 0 && (() => {
             // 끝번호(숫자4자리) 없이 카드사명만 있는 항목 = CODEF 응답에 카드 식별자 없는 미식별 거래 묶음.
             // 사용자가 어떤 카드인지 알 수 없으므로 경고 + 클릭해서 안의 거래 확인 가능하게 안내.
@@ -1756,7 +1777,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             const unidentifiedCards = codefCards.filter((c: any) => isUnidentified(c.card_name));
             const unidentifiedCount = unidentifiedCards.reduce((s: number, c: any) => s + Number(c.count || 0), 0);
             return (
-              <div>
+              <div id="card-tx-detail">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold text-[var(--text-muted)]">카드별 사용액 (카드번호 끝 4자리)</div>
                   {selectedCardName && (

@@ -113,6 +113,127 @@ export async function getDistinctCardNames(companyId: string) {
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
+// ── 카드사별 사용액 집계 (granter 스타일 카드 개요) ──
+// 기간 내 card_transactions 를 카드별로 합산하고 카드사(card_company)별로 묶는다.
+// 등록 카드(corporate_cards)는 메타(card_company·type·번호) 사용, CODEF-only 카드는 card_name 에서 카드사·끝4자리 추론.
+
+const CARD_COMPANY_PATTERNS: { label: string; re: RegExp }[] = [
+  { label: '국민카드', re: /국민|kb/i },
+  { label: '현대카드', re: /현대|hyundai/i },
+  { label: '삼성카드', re: /삼성|samsung/i },
+  { label: '신한카드', re: /신한|shinhan/i },
+  { label: 'BC카드', re: /비씨|bc/i },
+  { label: '롯데카드', re: /롯데|lotte/i },
+  { label: '하나카드', re: /하나|hana/i },
+  { label: '우리카드', re: /우리|woori/i },
+  { label: '농협카드', re: /농협|nh\b/i },
+  { label: '카카오뱅크', re: /카카오|kakao/i },
+  { label: '토스', re: /토스|toss/i },
+  { label: '씨티카드', re: /씨티|citi/i },
+];
+
+export function inferCardCompany(name: string | null | undefined): string {
+  const n = (name || '').trim();
+  if (!n) return '기타';
+  for (const p of CARD_COMPANY_PATTERNS) if (p.re.test(n)) return p.label;
+  return '기타';
+}
+
+function extractLast4(cardName: string | null, cardNumber: string | null): string | null {
+  const fromNum = (cardNumber || '').replace(/\D/g, '');
+  if (fromNum.length >= 4) return fromNum.slice(-4);
+  const m = (cardName || '').match(/(\d{4})\s*\)?\s*$/);
+  return m ? m[1] : null;
+}
+
+export interface CardSpendCard {
+  key: string;            // card_id ?? card_name
+  cardId: string | null;
+  cardName: string;
+  last4: string | null;
+  cardType: string | null;
+  company: string;
+  spend: number;          // 기간 내 순지출(취소 반영). 양수 = 지출
+  count: number;
+  registered: boolean;
+}
+export interface CardSpendGroup { company: string; cards: CardSpendCard[]; total: number; count: number }
+
+export async function getCardSpendByCompany(
+  companyId: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<{ groups: CardSpendGroup[]; total: number }> {
+  const cards = await getCorporateCards(companyId);
+  // 등록카드 메타: card_name → {company, type, number}, id → 동일
+  const byName = new Map<string, any>();
+  const byId = new Map<string, any>();
+  for (const c of cards as any[]) {
+    if (c.card_name) byName.set(c.card_name, c);
+    if (c.id) byId.set(c.id, c);
+  }
+
+  let q = supabase
+    .from('card_transactions')
+    .select('card_id, card_name, amount')
+    .eq('company_id', companyId);
+  if (dateFrom) q = q.gte('transaction_date', dateFrom);
+  if (dateTo) q = q.lte('transaction_date', dateTo);
+  const { data: txs } = await q.limit(50000);
+
+  const map = new Map<string, CardSpendCard>();
+  // 등록 카드는 거래가 없어도 0원으로 노출
+  for (const c of cards as any[]) {
+    const key = c.id as string;
+    map.set(key, {
+      key,
+      cardId: c.id,
+      cardName: c.card_name || '카드',
+      last4: extractLast4(c.card_name, c.card_number),
+      cardType: c.card_type || null,
+      company: c.card_company || inferCardCompany(c.card_name),
+      spend: 0,
+      count: 0,
+      registered: true,
+    });
+  }
+
+  for (const tx of (txs || []) as any[]) {
+    const reg = tx.card_id ? byId.get(tx.card_id) : (tx.card_name ? byName.get(tx.card_name) : null);
+    const key = (tx.card_id as string) || (reg?.id as string) || (tx.card_name as string) || '미분류';
+    let item = map.get(key);
+    if (!item) {
+      item = {
+        key,
+        cardId: tx.card_id || reg?.id || null,
+        cardName: reg?.card_name || tx.card_name || '카드 미지정',
+        last4: extractLast4(reg?.card_name || tx.card_name, reg?.card_number || null),
+        cardType: reg?.card_type || null,
+        company: reg?.card_company || inferCardCompany(tx.card_name),
+        spend: 0,
+        count: 0,
+        registered: !!reg,
+      };
+      map.set(key, item);
+    }
+    item.spend += Number(tx.amount || 0);
+    item.count += 1;
+  }
+
+  // 카드사별 그룹화
+  const groupMap = new Map<string, CardSpendGroup>();
+  for (const card of map.values()) {
+    const g = groupMap.get(card.company) || { company: card.company, cards: [], total: 0, count: 0 };
+    g.cards.push(card);
+    g.total += card.spend;
+    g.count += 1;
+    groupMap.set(card.company, g);
+  }
+  const groups = Array.from(groupMap.values()).sort((a, b) => b.total - a.total);
+  const total = groups.reduce((s, g) => s + g.total, 0);
+  return { groups, total };
+}
+
 // 카드 별명 upsert (사용자가 카드 그리드에서 별명 편집 시 호출).
 export async function upsertCardAlias(params: {
   companyId: string;
