@@ -76,7 +76,7 @@ export default function MyAllowanceCard({
   const total = rows.reduce((s, r) => s + Number(r.entry?.amount || 0), 0);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold">이번 달 수당 ({yyyymm})</h3>
         <span className="text-[10px] text-[var(--text-dim)]">예상 — 실제 지급은 명세서 확인</span>

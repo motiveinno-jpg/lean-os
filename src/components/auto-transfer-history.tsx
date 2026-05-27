@@ -58,7 +58,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
   );
 
   return (
-    <div className="mb-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+    <div className="mb-3 glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">🔁</span>

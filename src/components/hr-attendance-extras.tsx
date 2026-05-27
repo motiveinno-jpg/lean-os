@@ -52,14 +52,14 @@ export function ExtraPaySummaryCard({
 
   if (isLoading || !result) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+      <div className="glass-card p-4">
         <p className="text-xs text-[var(--text-muted)]">가산수당 산정 중…</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold">이번 달 가산수당 (예상)</h3>
         {result.cap_exceeded && (
@@ -240,7 +240,7 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
   if (requests.length === 0) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-4">
+    <div className="glass-card p-4 mb-4">
       <h3 className="text-sm font-bold mb-3">근태 수정 요청 ({requests.length}건)</h3>
       <div className="space-y-2">
         {requests.map((r: any) => {

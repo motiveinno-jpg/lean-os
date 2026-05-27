@@ -428,23 +428,23 @@ export default function DashboardPage() {
 
         {/* 핵심 지표 4개 (admin용 경량) — 클릭 시 해당 페이지 이동 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <Link href="/approvals" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/approvals" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
             <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
               {sp.pendingApprovals}건
             </div>
           </Link>
-          <Link href="/transactions" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/transactions" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">통장 잔고</div>
             <div className="text-lg font-black">₩{fmtW(sp.cashBalance)}</div>
           </Link>
-          <Link href="/tax-invoices" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/tax-invoices" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미수금</div>
             <div className="text-lg font-black" style={{ color: sp.arTotal > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
               ₩{fmtW(sp.arTotal)}
             </div>
           </Link>
-          <Link href="/payments?tab=fixed" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
+          <Link href="/payments?tab=fixed" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
             {sp.monthlyBurn > 0 ? (
               <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
@@ -498,7 +498,7 @@ export default function DashboardPage() {
               { href: "/documents", label: "문서/계약", icon: "📄", desc: "문서 승인 및 서명" },
             ].map(card => (
               <Link key={card.href} href={card.href}
-                className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+                className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
                 <div className="text-xl mb-1.5">{card.icon}</div>
                 <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
                 <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
@@ -521,7 +521,7 @@ export default function DashboardPage() {
               { href: "/reports", label: "분석", icon: "📊", desc: "손익·비용 리포트" },
             ].map(card => (
               <Link key={card.href} href={card.href}
-                className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+                className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
                 <div className="text-xl mb-1.5">{card.icon}</div>
                 <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
                 <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
@@ -1519,7 +1519,7 @@ function GrowthSection({ growth }: { growth: FounderDashboardData['growth'] }) {
       {metrics.map(m => {
         const pct = m.target > 0 ? Math.min(100, (m.revenue / m.target) * 100) : 0;
         return (
-          <div key={m.label} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div key={m.label} className="glass-card p-4">
             <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
               {m.label} 매출
             </div>
@@ -1702,15 +1702,15 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+        <div className="glass-card p-3">
           <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">총 매출</div>
           <div className="text-sm font-black mono-number text-[var(--primary)]">₩{fmtW(finData.totalRevenue)}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+        <div className="glass-card p-3">
           <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">총 비용</div>
           <div className="text-sm font-black mono-number text-[var(--danger)]">₩{fmtW(finData.totalExpense)}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+        <div className="glass-card p-3">
           <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">순이익</div>
           <div className={`text-sm font-black mono-number ${finData.netIncome >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
             ₩{fmtW(finData.netIncome)}
@@ -1720,7 +1720,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 
       {/* Bar Chart */}
       {barData.length > 0 && (
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-3">
+        <div className="glass-card p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-[var(--text-dim)]">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
             <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
@@ -1747,7 +1747,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       {/* Monthly Revenue Trend (Line) + Cash Flow (Area) */}
       {sliced.length > 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[var(--text)]">월별 매출 추이</span>
               <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
@@ -1769,7 +1769,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
             />
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[var(--text)]">현금흐름 (누적)</span>
               <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
@@ -1801,7 +1801,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       {/* Pipeline Funnel + Upcoming Schedule */}
       {companyId && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[var(--text)]">프로젝트 진행 현황</span>
               <Link href="/projects" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">전체 보기 →</Link>
@@ -1814,7 +1814,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 
       {/* Classification Breakdown */}
       {finData.classificationBreakdown.length > 0 && (
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-3">
+        <div className="glass-card p-4 mb-3">
           <div className="text-[10px] text-[var(--text-dim)] mb-2 uppercase tracking-wider font-semibold">분류별 현황</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {finData.classificationBreakdown.map(cb => (
@@ -2111,7 +2111,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
         {autoClosed && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)]">자동마감</span>}
       </div>
 
-      <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+      <div className="glass-card p-4">
         {/* Progress bar */}
         <div className="flex items-center gap-2 mb-3">
           <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
@@ -2276,21 +2276,21 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
         <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 진행중</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        <Link href="/projects" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/projects" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">진행 현황 총액</div>
           <div className="text-sm font-bold text-blue-400 mt-0.5">{totalPipeline > 0 ? `₩${totalPipeline.toLocaleString()}` : '—'}</div>
         </Link>
-        <Link href="/projects" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/projects" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">미수금 예정</div>
           <div className={`text-sm font-bold mt-0.5 ${overdue.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{pendingAmount > 0 ? `₩${pendingAmount.toLocaleString()}` : '—'}</div>
           {overdue.length > 0 && <div className="text-[9px] text-red-400 mt-0.5">{overdue.length}건 연체</div>}
         </Link>
-        <Link href="/documents" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/documents" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">문서 대기</div>
           <div className="text-sm font-bold text-yellow-400 mt-0.5">{draftDocs > 0 ? `${draftDocs}건 초안` : '—'}</div>
           {reviewDocs > 0 && <div className="text-[9px] text-purple-400 mt-0.5">{reviewDocs}건 검토/발송</div>}
         </Link>
-        <Link href="/signatures" className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 hover:border-[var(--primary)]/50 transition">
+        <Link href="/signatures" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
           <div className="text-[10px] text-[var(--text-dim)]">서명 요청</div>
           <div className="text-sm font-bold text-purple-400 mt-0.5">{reviewDocs > 0 ? `${reviewDocs}건` : '—'}</div>
         </Link>
@@ -3550,7 +3550,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
           ].map(card => (
             <Link key={card.href} href={card.href}
-              className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
+              className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
               <div className="text-xl mb-1.5">{card.icon}</div>
               <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>

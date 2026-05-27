@@ -302,22 +302,22 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     <>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
+        <div className="glass-card p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
           <div className="text-lg font-bold text-yellow-400 mt-1 truncate">{stats?.pendingCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
+        <div className="glass-card p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">승인 완료</div>
           <div className="text-lg font-bold text-blue-400 mt-1 truncate">{stats?.approvedCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
+        <div className="glass-card p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">실행 완료</div>
           <div className="text-lg font-bold text-green-400 mt-1 truncate">{stats?.executedCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 overflow-hidden">
+        <div className="glass-card p-4 overflow-hidden">
           <div className="text-xs text-[var(--text-dim)]">통장 총 잔고</div>
           <div className="text-lg font-bold mt-1 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
           <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">{bankAccounts.length}개 통장</div>
@@ -1871,22 +1871,22 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
     <>
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
           <div className="text-lg font-bold text-yellow-400 mt-1">{pendingCount}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">승인 완료 (미지급)</div>
           <div className="text-lg font-bold text-blue-400 mt-1">₩{approvedTotal.toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">이번달 지출</div>
           <div className="text-lg font-bold text-green-400 mt-1">
             ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
               .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">전체</div>
           <div className="text-lg font-bold mt-1">{expenses.length}건</div>
         </div>

@@ -129,7 +129,7 @@ function ProgramCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/40 transition group"
+      className="w-full text-left glass-card p-4 hover:border-[var(--primary)]/40 transition group"
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
@@ -524,7 +524,7 @@ function SpreadsheetTable({
   }, [statusDropdown]);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+    <div className="glass-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-xs min-w-[600px]">
           <thead>
@@ -809,7 +809,7 @@ function ColumnSettingsPanel({
   };
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-4">
+    <div className="glass-card p-5 mb-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold">컬럼 설정</h3>
         <button onClick={onClose} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
@@ -1442,19 +1442,19 @@ export function ProgramDashboard({
       {/* Billing View */}
       {tab === "billing" && stats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-muted)]">총 예산</div>
             <div className="text-lg font-bold mt-1">
               {formatAmount(program.total_budget)}원
             </div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-green-400">수금 완료</div>
             <div className="text-lg font-bold mt-1 text-green-400">
               {formatAmount(stats.totalCollected)}원
             </div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-red-400">미수금</div>
             <div className="text-lg font-bold mt-1 text-red-400">
               {formatAmount(stats.totalOutstanding)}원
@@ -1549,7 +1549,7 @@ export function ProgramDashboard({
                 <div
                   key={d.id}
                   onClick={() => onSelectDeal?.(d.id)}
-                  className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 cursor-pointer hover:border-[var(--primary)]/40 transition"
+                  className="glass-card p-4 cursor-pointer hover:border-[var(--primary)]/40 transition"
                 >
                   <div className="flex items-start gap-3">
                     <input
@@ -1639,7 +1639,7 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="text-xs text-[var(--text-muted)]">{label}</div>
       <div className={`text-lg font-bold mt-1 ${color || ""}`}>{value}</div>
       {sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{sub}</div>}
@@ -1664,7 +1664,7 @@ function ProgramSettings({
   const [status, setStatus] = useState(program.status);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-6">
+    <div className="glass-card p-5 mb-6">
       <h3 className="text-sm font-bold mb-4">프로젝트 설정</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
@@ -1751,7 +1751,7 @@ function CsvUploadSection({
   onClose: () => void;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-4">
+    <div className="glass-card p-5 mb-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold">CSV 일괄 등록</h3>
         <button

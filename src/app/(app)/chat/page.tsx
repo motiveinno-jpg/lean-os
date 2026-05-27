@@ -1426,7 +1426,7 @@ function ChannelItem({ ch, unreadMap, router }: { ch: any; unreadMap: any; route
   const isDeal = !!ch.deal_id;
   return (
     <button onClick={() => router.push(`/chat?channel=${ch.id}`)}
-      className="w-full text-left block bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 transition group">
+      className="w-full text-left block glass-card p-4 hover:border-[var(--primary)]/30 transition group">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
@@ -1624,7 +1624,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         )}
 
         {dealChannels.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+          <div className="glass-card p-8 text-center">
             <div className="text-4xl mb-3">💬</div>
             <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어 소통을 시작하세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트를 생성하면 자동으로 채널이 만들어집니다</div>
@@ -1665,7 +1665,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         )}
 
         {teamChannels.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+          <div className="glass-card p-8 text-center">
             <div className="text-4xl mb-3">👥</div>
             <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">부서별, 프로젝트별 소통 공간을 만들 수 있습니다</div>
@@ -1712,7 +1712,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         )}
 
         {dmChannels.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+          <div className="glass-card p-8 text-center">
             <div className="text-4xl mb-3">✉️</div>
             <div className="text-sm font-medium text-[var(--text)]">팀원에게 DM을 보내보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1">1:1 대화로 빠르게 소통할 수 있습니다</div>

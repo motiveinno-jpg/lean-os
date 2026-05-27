@@ -162,19 +162,19 @@ export default function ApprovalsPage() {
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">대기 중</div>
           <div className="text-lg font-bold text-yellow-500 mt-1">{stats?.pending ?? 0}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">승인 완료</div>
           <div className="text-lg font-bold text-green-500 mt-1">{stats?.approved ?? 0}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">반려</div>
           <div className="text-lg font-bold text-red-500 mt-1">{stats?.rejected ?? 0}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-xs text-[var(--text-dim)]">전체 요청</div>
           <div className="text-lg font-bold mt-1">{stats?.total ?? 0}건</div>
         </div>

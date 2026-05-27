@@ -666,7 +666,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         const pendingCount = (docSignatures as any[]).filter((s) => s.status === "sent" || s.status === "viewed" || s.status === "pending").length;
         const pct = Math.round((signedCount / total) * 100);
         return (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6">
+          <div className="glass-card p-4 mb-6">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <h4 className="text-xs font-bold text-[var(--text-muted)]">서명 진행 ({signedCount}/{total})</h4>
@@ -2704,7 +2704,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
   const decisionColor: Record<string, string> = { approved: 'text-green-500', hold: 'text-yellow-500', rejected: 'text-red-500' };
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 mb-6">
+    <div className="glass-card p-4 mb-6">
       <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3">공유 현황</h4>
       <div className="space-y-2">
         {activeShares.map((share: any) => {

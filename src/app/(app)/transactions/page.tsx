@@ -1262,7 +1262,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {showRuleForm && (
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 space-y-3">
+            <div className="glass-card p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">규칙명 *</label>
@@ -1330,7 +1330,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           ) : (
             <div className="space-y-2">
               {rules.map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                <div key={r.id} className="flex items-center justify-between px-4 py-3 glass-card">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{r.rule_name}</span>
@@ -2126,7 +2126,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
 function StatCard({ label, value, color }: { label: string; value: number | string; color?: string }) {
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3">
+    <div className="glass-card p-3">
       <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
       <div className="text-sm font-black mono-number" style={{ color: color || 'var(--text)' }}>{value}</div>
     </div>

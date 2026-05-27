@@ -208,11 +208,15 @@ body {
    배경 그라데이션+orbs 위에 카드가 떠 보이는 granter/시안 룩. */
 .glass-card {
   background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-glass);
+  /* 라이트 모드에서도 카드가 확실히 떠 보이도록 그림자 강화(흰 배경 위 흰 카드 대비 확보). */
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.15), 0 3px 10px -4px rgba(0,0,0,0.08);
+}
+[data-theme="dark"] .glass-card {
+  box-shadow: 0 16px 40px -12px rgba(0,0,0,0.55), 0 4px 12px -4px rgba(0,0,0,0.4);
 }
 
 /* Card Hover */

@@ -115,7 +115,7 @@ function Inner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
         {/* 좌측 — 미매칭 세금계산서 */}
-        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="lg:col-span-2 glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <div className="text-sm font-bold">미매칭 세금계산서 ({invoices.length})</div>
           </div>
@@ -151,7 +151,7 @@ function Inner() {
         </div>
 
         {/* 가운데 — 매칭 후보 */}
-        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="lg:col-span-2 glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)]">
             <div className="text-sm font-bold">매칭 후보 추천</div>
             {selectedInvoice ? (
@@ -217,7 +217,7 @@ function Inner() {
         </div>
 
         {/* 우측 — 매칭됨 (확정된 결과) */}
-        <div className="lg:col-span-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="lg:col-span-2 glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <div>
               <div className="text-sm font-bold">✅ 매칭됨 ({matched.length})</div>

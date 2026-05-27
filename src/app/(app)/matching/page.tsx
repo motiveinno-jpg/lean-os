@@ -494,7 +494,7 @@ export default function MatchingPage() {
 
       {/* ── Matching Statistics Dashboard ── */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 거래 건수</div>
           <div className="text-xl font-extrabold mt-1">{transactions.length}</div>
           <div className="text-[10px] text-[var(--text-dim)] mt-0.5">전체 거래</div>
@@ -559,21 +559,21 @@ export default function MatchingPage() {
 
           {/* Summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">미매칭 거래</div>
               <div className="text-lg font-bold mt-1">
                 {transactions.filter((t) => !t.matched).length}건
               </div>
             </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">자동 매칭</div>
               <div className="text-lg font-bold text-green-400 mt-1">{autoCount}건</div>
             </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">검토 필요</div>
               <div className="text-lg font-bold text-[var(--warning)] mt-1">{reviewCount}건</div>
             </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">미매칭</div>
               <div className="text-lg font-bold text-red-400 mt-1">{unmatchedCount}건</div>
             </div>
@@ -746,7 +746,7 @@ export default function MatchingPage() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 미수금</div>
               <div className="text-lg font-bold mt-1">
                 ₩{Math.round(totalReceivable).toLocaleString()}
@@ -775,7 +775,7 @@ export default function MatchingPage() {
 
           {/* ── Receivables Aging Chart ── */}
           {receivableItems.length > 0 && (
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 mb-6">
+            <div className="glass-card p-5 mb-6">
               <div className="text-sm font-semibold mb-4">연체 구간별 미수금 분포</div>
               <svg width="100%" height={agingBuckets.length * 48 + 8} viewBox={`0 0 600 ${agingBuckets.length * 48 + 8}`} className="overflow-visible">
                 {agingBuckets.map((bucket, idx) => {

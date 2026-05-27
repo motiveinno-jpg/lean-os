@@ -176,7 +176,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
   const visible = expanded ? items : items.slice(0, 5);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold text-[var(--text)]">이번 달 주요 일정</span>

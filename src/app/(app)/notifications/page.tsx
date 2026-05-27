@@ -136,7 +136,7 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="text-center py-12 text-sm text-[var(--text-dim)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
-        <div className="text-center py-16 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+        <div className="text-center py-16 glass-card">
           <div className="text-3xl mb-2">🔔</div>
           <div className="text-sm text-[var(--text)]">알림이 없습니다</div>
           <div className="text-[11px] text-[var(--text-dim)] mt-1">새 알림이 도착하면 여기에 표시됩니다.</div>

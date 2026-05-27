@@ -210,7 +210,7 @@ export default function AllowanceAdminTab({
         </div>
       </div>
 
-      <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           {entriesLoading ? (
             <div className="p-6 text-xs text-[var(--text-muted)]">불러오는 중…</div>

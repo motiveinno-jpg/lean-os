@@ -634,24 +634,24 @@ export default function VaultPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">구독 서비스</div>
           <div className="text-xl font-black">{stats.activeSubscriptions}개</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">월 {fmtW(stats.totalMonthlyCost)}원</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자산 가치</div>
           <div className="text-xl font-black">{fmtW(stats.totalAssetValue)}원</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">{vault?.assets?.length || 0}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">보관 문서</div>
           <div className="text-xl font-black">{stats.totalDocs}건</div>
           {stats.expiringDocsCount > 0 && (
             <div className="text-xs text-yellow-400 mt-1">만료 임박 {stats.expiringDocsCount}건</div>
           )}
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자동 탐지</div>
           <div className={`text-xl font-black ${stats.pendingDiscoveryCount > 0 ? "text-purple-400" : ""}`}>
             {stats.pendingDiscoveryCount}건

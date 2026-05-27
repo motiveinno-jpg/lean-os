@@ -166,20 +166,20 @@ export default function EmployeesPage() {
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">재직 인원</div>
             <div className="text-lg font-bold mt-1">{activeCount}명</div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">연 인건비</div>
             <div className="text-lg font-bold text-red-400 mt-1">₩{(totalSalary * 12).toLocaleString()}</div>
             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">퇴직충당금</div>
             <div className="text-lg font-bold text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">미결 경비</div>
             <div className="text-lg font-bold text-yellow-400 mt-1">
               {expenses.filter((e: any) => e.status === "pending").length}건
@@ -1270,7 +1270,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
               ) : (
                 <div className="space-y-1.5">
                   {empCertLogs.map((log: any) => (
-                    <div key={log.id} className="flex items-center justify-between px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                    <div key={log.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
                       <div>
                         <div className="text-xs font-medium">{log.certificate_type}</div>
                         <div className="text-[10px] text-[var(--text-dim)]">{log.certificate_number} · {new Date(log.created_at).toLocaleDateString("ko-KR")}</div>
@@ -1292,15 +1292,15 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
             {/* Leave balance summary */}
             {empLeaveBalance ? (
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                <div className="glass-card p-3 text-center">
                   <div className="text-[10px] text-[var(--text-dim)]">총 부여</div>
                   <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
                 </div>
-                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                <div className="glass-card p-3 text-center">
                   <div className="text-[10px] text-[var(--text-dim)]">사용</div>
                   <div className="text-lg font-bold text-red-400 mt-0.5">{empLeaveBalance.used_days}일</div>
                 </div>
-                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-3 text-center">
+                <div className="glass-card p-3 text-center">
                   <div className="text-[10px] text-[var(--text-dim)]">잔여</div>
                   <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-green-400"}`}>
                     {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
@@ -1308,7 +1308,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                 </div>
               </div>
             ) : (
-              <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 text-center text-xs text-[var(--text-dim)]">
+              <div className="glass-card p-4 text-center text-xs text-[var(--text-dim)]">
                 {currentYear}년 연차가 아직 설정되지 않았습니다
               </div>
             )}
@@ -1345,7 +1345,7 @@ function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: s
                       rejected: "text-red-400 bg-red-500/10",
                     };
                     return (
-                      <div key={r.id} className="flex items-center justify-between px-4 py-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                      <div key={r.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
                         <div>
                           <div className="text-xs font-medium">{typeLabel} · {r.days}일</div>
                           <div className="text-[10px] text-[var(--text-dim)]">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
@@ -1613,7 +1613,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   return (
     <div className="space-y-4">
       {/* Progress summary */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+      <div className="flex items-center justify-between px-4 py-3 glass-card">
         <div className="flex items-center gap-2">
           <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -1753,7 +1753,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
       ) : (
         <div className="space-y-2">
           {[...notes].reverse().map((n, i) => (
-            <div key={i} className="px-4 py-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+            <div key={i} className="px-4 py-3 glass-card">
               <div className="text-sm text-[var(--text)] whitespace-pre-wrap">{n.text}</div>
               <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-dim)]">
                 <span>{n.author}</span>
@@ -1809,7 +1809,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
 
       {/* 발령 등록 폼 */}
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">부서 *</label>
@@ -2636,7 +2636,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
               { key: "bank_cert", label: "통장사본", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", desc: "법인 통장 사본" },
               { key: "etc_docs", label: "기타 문서", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", desc: "기타 회사 필수 문서" },
             ].map(doc => (
-              <div key={doc.key} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 transition group">
+              <div key={doc.key} className="glass-card p-5 hover:border-[var(--primary)]/30 transition group">
                 <div className="flex items-start justify-between mb-3">
                   <svg className="w-6 h-6 text-[var(--text-dim)] group-hover:text-[var(--primary)] transition" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={doc.icon} /></svg>
                   <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition">
@@ -3112,7 +3112,7 @@ function ContractTab({ employees, contracts, companyId, queryClient }: any) {
           {filteredContracts.map((p: any) => {
             const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
             return (
-              <div key={p.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <div key={p.id} className="glass-card p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     {p.status === "draft" && (
@@ -3779,28 +3779,28 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span className="text-xs text-[var(--text-dim)]">출근률</span>
           </div>
           <div className="text-lg font-bold text-green-400">{attendanceRate}%</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span className="text-xs text-[var(--text-dim)]">지각률</span>
           </div>
           <div className="text-lg font-bold text-yellow-400">{lateRate}%</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             <span className="text-xs text-[var(--text-dim)]">평균근무시간</span>
           </div>
           <div className="text-lg font-bold text-blue-400">{avgHours}h</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             <span className="text-xs text-[var(--text-dim)]">이번 달 기록</span>
@@ -3812,7 +3812,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5) */}
       {!isEmployeeRole && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-base">🔴</span>
               <span className="text-xs text-[var(--text-dim)]">오늘 지각자</span>
@@ -3844,7 +3844,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             const absent = Math.max(0, total - present - late - leave);
             const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
             return (
-              <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+              <div className="glass-card p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-base">📋</span>
                   <span className="text-xs text-[var(--text-dim)]">오늘 출퇴근 현황</span>
@@ -4872,15 +4872,15 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 급여 (세전)</div>
               <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalGross)}</div>
             </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 공제액</div>
               <div className="text-lg font-bold text-red-400 mt-1">-{fmtKRW(preview.totalDeductions)}</div>
             </div>
-            <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+            <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 실수령액</div>
               <div className="text-lg font-bold text-green-400 mt-1">{fmtKRW(preview.totalNet)}</div>
             </div>
@@ -5279,7 +5279,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">휴가 유형</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {leaveTypeSummary.map(lt => (
-            <div key={lt.value} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 transition">
+            <div key={lt.value} className="glass-card p-4 hover:border-[var(--primary)]/30 transition">
               <div className="text-xs text-[var(--text-dim)]">{lt.label}</div>
               <div className="flex items-end gap-1.5 mt-1">
                 <span className="text-lg font-bold">{lt.defaultDays}일</span>
@@ -5293,7 +5293,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
 
       {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
       {!isEmployee && (
-        <div className="mb-5 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+        <div className="mb-5 glass-card p-4">
           {!grantEditing ? (
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs text-[var(--text-muted)]">
@@ -5415,7 +5415,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         )}
 
         {balances.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">
+          <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">
             연차 데이터가 없습니다. 위 &quot;입사일 기준 자동 부여&quot; 를 눌러주세요.
           </div>
         ) : (
@@ -5428,7 +5428,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               const underOneYear = calc ? calc.yearsWorked < 1 : false;
               const isEditing = editingBalanceId === b.id;
               return (
-                <div key={b.id} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
+                <div key={b.id} className="glass-card p-4">
                   <div className="text-sm font-medium mb-1">{b.employees?.name || "—"}</div>
                   <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
                     {b.employees?.department || "미배정"}
@@ -5950,7 +5950,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               )}
 
               {promotionCandidates.length === 0 && (
-                <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-8 text-center">
+                <div className="glass-card p-8 text-center">
                   <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
                 </div>
               )}
