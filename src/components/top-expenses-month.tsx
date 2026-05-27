@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
 import { exportBankTransactionsExcel } from "@/lib/excel-export";
 
@@ -87,10 +88,12 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
   return (
     <div className="mb-3 glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">💸</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">이번달 큰 지출 TOP {topN}</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">{monthLabel}</span>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="danger" size={38}><TileIcon name="trendingDown" /></IconTile>
+          <div>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 큰 지출 TOP {topN}</h2>
+            <span className="text-[10px] text-[var(--text-dim)]">{monthLabel}</span>
+          </div>
         </div>
         <button
           onClick={handleExcel}

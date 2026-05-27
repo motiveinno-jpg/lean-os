@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
 
 interface Props {
@@ -60,10 +61,12 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
   return (
     <div className="mb-3 glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🔁</span>
-          <h2 className="text-sm font-bold text-[var(--text)]">자동이체 연결 내역</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
+        <div className="flex items-center gap-2.5">
+          <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
+          <div>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">자동이체 연결 내역</h2>
+            <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
+          </div>
         </div>
         {items.length > 0 && (
           <div className="text-right">
