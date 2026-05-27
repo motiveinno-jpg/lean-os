@@ -215,12 +215,12 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
       {/* ── 인원 탭 ── */}
       {tab === "people" && (
         <StatPanel
-          title="인원별 지출"
+          title="인원별 급여"
           big="자세히 보기"
           bigColor="var(--primary)"
-          rows={[{ label: "담당자·인원별 비용 집계", value: "리포트 연계" }]}
+          rows={[{ label: "직원별 급여 집계", value: "리포트 연계" }]}
           href="/reports/by-person"
-          hrefLabel="인원별 리포트 보기 →"
+          hrefLabel="인원별 급여 보기 →"
         />
       )}
     </div>

@@ -1,12 +1,11 @@
 "use client";
 
-/* 인원별 카드+급여 스택 막대.
+/* 인원별 급여 막대.
    reports/pnl/pnl-chart.tsx 의 막대/그리드 패턴 재사용 (인원 축으로 변형). */
 
 interface Row { [person: string]: number }
 interface ByPersonChartProps {
   people: string[];
-  cardByPerson: Row;
   payByPerson: Row;
 }
 
@@ -28,18 +27,16 @@ function shortName(s: string): string {
   return s.length > 5 ? s.slice(0, 5) + "…" : s;
 }
 
-export default function ByPersonChart({ people, cardByPerson, payByPerson }: ByPersonChartProps) {
-  // 합계 기준 상위 MAX_BARS 명만 (나머지는 표에서 확인)
+export default function ByPersonChart({ people, payByPerson }: ByPersonChartProps) {
+  // 급여 기준 상위 MAX_BARS 명만 (나머지는 표에서 확인)
   const ranked = [...people]
-    .map((p) => ({ p, total: (cardByPerson[p] || 0) + (payByPerson[p] || 0) }))
+    .map((p) => ({ p, total: payByPerson[p] || 0 }))
     .sort((a, b) => b.total - a.total)
     .slice(0, MAX_BARS)
     .map((x) => x.p);
 
-  const card = ranked.map((p) => cardByPerson[p] || 0);
   const pay = ranked.map((p) => payByPerson[p] || 0);
-  const stacked = ranked.map((_, i) => card[i] + pay[i]);
-  const yMax = Math.max(...stacked, 1) * 1.12;
+  const yMax = Math.max(...pay, 1) * 1.12;
   const toY = (v: number) => PT + DRAW_H * (1 - v / yMax);
   const n = ranked.length || 1;
 
@@ -54,8 +51,8 @@ export default function ByPersonChart({ people, cardByPerson, payByPerson }: ByP
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 p-5 shadow-sm">
       <div className="mb-4">
-        <h3 className="text-sm font-bold text-[var(--text)]">인원별 카드 + 급여</h3>
-        <p className="text-[10px] text-[var(--text-dim)] mt-0.5">상위 {MAX_BARS}명 · 아래쪽 = 급여, 위쪽 = 카드 사용액</p>
+        <h3 className="text-sm font-bold text-[var(--text)]">인원별 급여</h3>
+        <p className="text-[10px] text-[var(--text-dim)] mt-0.5">상위 {MAX_BARS}명 · 연 급여 합계</p>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
         <defs>
@@ -86,11 +83,9 @@ export default function ByPersonChart({ people, cardByPerson, payByPerson }: ByP
           const bx = gx + BAR_GAP;
           const baseY = toY(0);
           const payTop = toY(pay[i]);
-          const totTop = toY(pay[i] + card[i]);
           return (
             <g key={i}>
               <rect x={bx} y={payTop} width={bw} height={Math.max(baseY - payTop, 0)} rx={3} fill="url(#bpPayGrad)" />
-              <rect x={bx} y={totTop} width={bw} height={Math.max(payTop - totTop, 0)} rx={3} fill="url(#bpCardGrad)" />
             </g>
           );
         })}
@@ -116,9 +111,6 @@ export default function ByPersonChart({ people, cardByPerson, payByPerson }: ByP
       <div className="flex flex-wrap gap-2 justify-center mt-3">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-orange-500/30 bg-orange-500/10 text-orange-500">
           <span className="w-2 h-2 rounded-full bg-orange-500" />급여
-        </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-violet-500/30 bg-violet-500/10 text-violet-500">
-          <span className="w-2 h-2 rounded-full bg-violet-500" />카드 사용액
         </span>
       </div>
     </div>

@@ -50,22 +50,9 @@ function monthRange(year: number): string[] {
    3순위: 원본 card_name */
 async function loadByPerson(companyId: string, year: number): Promise<PersonRow[]> {
   const months = monthRange(year);
-  const start = `${year}-01-01`;
-  const end = `${year}-12-31`;
 
-  const [cardTxRes, cardsRes, aliasRes, empRes, overrideRes] = await Promise.all([
-    db.from("card_transactions")
-      .select("card_name, amount, transaction_date")
-      .eq("company_id", companyId)
-      .gte("transaction_date", start)
-      .lte("transaction_date", end)
-      .limit(50000),
-    db.from("corporate_cards")
-      .select("card_name, holder_name")
-      .eq("company_id", companyId),
-    db.from("card_aliases")
-      .select("source_card_name, alias")
-      .eq("company_id", companyId),
+  // 급여만 집계 — 카드 사용액 제외 (사용자 요청 2026-05-27).
+  const [empRes, overrideRes] = await Promise.all([
     db.from("employees")
       .select("id, name, salary, status, hire_date, contract_end_date")
       .eq("company_id", companyId)
@@ -77,21 +64,7 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
       .lte("period_month", months[11]),
   ]);
 
-  // card_name → 표시 라벨
-  const holderByCard = new Map<string, string>();
-  for (const c of cardsRes.data || []) {
-    if (c.card_name && c.holder_name) holderByCard.set(c.card_name, String(c.holder_name).trim());
-  }
-  const aliasByCard = new Map<string, string>();
-  for (const a of aliasRes.data || []) {
-    if (a.source_card_name && a.alias) aliasByCard.set(a.source_card_name, String(a.alias).trim());
-  }
-  const labelForCard = (cardName: string | null): string => {
-    if (!cardName) return "미지정 카드";
-    return holderByCard.get(cardName) || aliasByCard.get(cardName) || cardName;
-  };
-
-  // 직원: id → name, 그리고 name 기준 정규화 맵 (카드 소유자명과 매칭)
+  // 직원: id → name, 그리고 name 기준 정규화 맵
   // R1: 재직 기간 밖(입사 전·계약종료 후) 월에 급여가 추정 합산되던 버그 →
   //   hireMonth/endMonth 를 함께 보관해 추정 루프에서 기간 필터.
   const empById = new Map<string, { name: string; salary: number; hireMonth: string | null; endMonth: string | null }>();
@@ -116,17 +89,6 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
     if (!r.byMonth[m]) r.byMonth[m] = { card: 0, pay: 0 };
     return r.byMonth[m];
   };
-
-  // ── 카드 사용액 ── (취소/환불은 음수 → 절댓값 합산 X, 순지출 = 부호 그대로 합)
-  for (const tx of cardTxRes.data || []) {
-    const m = String(tx.transaction_date || "").slice(0, 7);
-    if (!m || !m.startsWith(String(year))) continue;
-    const label = labelForCard(tx.card_name);
-    const r = ensure(label);
-    const amt = Number(tx.amount || 0);
-    r.cardSpend += amt;
-    bucket(r, m).card += amt;
-  }
 
   // ── 급여 ── (payslip_overrides 우선, 없으면 직원 기본 salary 를 해당월 추정치로)
   // override 가 있는 (직원,월) 조합 기록
@@ -209,17 +171,17 @@ export default function ByPersonPage() {
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
-      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 분석 허브
+      <Link href="/dashboard" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
+        ← 대시보드
       </Link>
       {/* V3: 스크롤해도 제목 상단 고정 (sticky) */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, paddingTop: 8, paddingBottom: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
-            인원별 지출
+            인원별 급여
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
-            직원(법인카드 소유자)별로 카드 사용액과 급여를 합산해 인당 비용을 봅니다.
+            직원별 급여(명세서 기준, 없으면 기본급여 추정)를 봅니다.
           </p>
         </div>
         <select
@@ -245,7 +207,7 @@ export default function ByPersonPage() {
 
       {!isLoading && !error && rows && rows.length === 0 && (
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>
-          {year}년 집계할 카드 사용액·급여 데이터가 없습니다.
+          {year}년 집계할 급여 데이터가 없습니다.
         </div>
       )}
 
@@ -253,14 +215,15 @@ export default function ByPersonPage() {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 22 }}>
             {[
-              { label: `${year}년 카드 사용액`, value: totals.card, color: "#8b5cf6", hint: "법인카드 소유자별 사용액 합계" },
               { label: `${year}년 급여 합계`, value: totals.pay, color: "#f97316", hint: "명세서 기준(없으면 기본급여 추정)" },
-              { label: `${year}년 인건 관련 총비용`, value: totals.total, color: "var(--primary)", hint: "카드 + 급여" },
+              { label: "인원 수", value: rows.length, color: "var(--primary)", hint: "급여가 집계된 인원", count: true },
             ].map((c) => (
               <div key={c.label} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)" }}>
                 <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{c.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: c.color, marginTop: 6 }}>
-                  {fmtKrw(c.value)}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>원</span>
+                  {"count" in c && c.count
+                    ? <>{c.value}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>명</span></>
+                    : <>{fmtKrw(c.value)}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>원</span></>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.5 }}>{c.hint}</div>
               </div>
@@ -269,7 +232,6 @@ export default function ByPersonPage() {
 
           <ByPersonChart
             people={rows.map((r) => r.key)}
-            cardByPerson={Object.fromEntries(rows.map((r) => [r.key, r.cardSpend]))}
             payByPerson={Object.fromEntries(rows.map((r) => [r.key, r.payroll]))}
           />
 
@@ -279,34 +241,21 @@ export default function ByPersonPage() {
               <thead>
                 <tr style={{ background: "var(--bg-surface)" }}>
                   <th style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>인원</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>카드 사용액</th>
                   <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>급여</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>합계</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.key} style={{ borderTop: "1px solid var(--border)" }}>
-                    <td style={{ padding: "11px 16px", color: "var(--text)" }}>
-                      {r.key}
-                      {!r.hasEmployee && (
-                        <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 6, background: "var(--bg-surface)", color: "var(--text-dim)", border: "1px solid var(--border)" }}>
-                          카드만
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: "11px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>{fmtKrw(r.cardSpend)}</td>
+                    <td style={{ padding: "11px 16px", color: "var(--text)" }}>{r.key}</td>
                     <td style={{ padding: "11px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.payroll)}</td>
-                    <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>{fmtKrw(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
                   <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--text)" }}>합계</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "#8b5cf6" }}>{fmtKrw(totals.card)}</td>
                   <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "#f97316" }}>{fmtKrw(totals.pay)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "var(--text)" }}>{fmtKrw(totals.total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -314,7 +263,7 @@ export default function ByPersonPage() {
 
           {/* 월추이 표 (인원 x 월, 카드+급여 합) */}
           <div style={{ marginTop: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>월별 추이 (인원별 카드+급여 합)</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>월별 급여 추이</h3>
             <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
                 <thead>
@@ -331,7 +280,7 @@ export default function ByPersonPage() {
                       <td style={{ padding: "9px 14px", color: "var(--text)", whiteSpace: "nowrap", position: "sticky", left: 0, background: "var(--bg-card)" }}>{r.key}</td>
                       {months.map((m) => {
                         const b = r.byMonth[m];
-                        const v = b ? b.card + b.pay : 0;
+                        const v = b ? b.pay : 0;
                         return (
                           <td key={m} style={{ padding: "9px 14px", textAlign: "right", color: v ? "var(--text)" : "var(--text-dim)" }}>
                             {fmtKrw(v)}
@@ -359,11 +308,9 @@ export default function ByPersonPage() {
           >
             <strong style={{ color: "var(--text-muted)" }}>참고</strong>
             <br />
-            - 카드 사용액은 법인카드의 소유자명(카드 설정의 소유자 또는 별명)을 기준으로 합산합니다.
-            <br />
             - 급여는 월별 명세서 값이 있으면 그 값을, 없으면 직원 기본 월급여를 추정치로 사용합니다(미래 월 제외).
             <br />
-            - &lsquo;카드만&rsquo; 표시는 직원으로 매칭되지 않은 카드(예: 대표·공용카드)입니다. 카드 소유자명을 직원 이름과 동일하게 맞추면 자동 합산됩니다.
+            - 재직 기간(입사월~계약종료월) 밖의 달은 급여에 산입하지 않습니다.
           </div>
         </>
       )}
