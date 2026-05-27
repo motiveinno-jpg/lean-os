@@ -272,12 +272,6 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-extrabold">{doc.name}</h1>
-            <span className={`text-xs px-2.5 py-1 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
-            {autoTypeInfo && (
-              <span className={`text-xs px-2.5 py-1 rounded-full ${autoTypeInfo.color}`}>
-                {autoTypeInfo.label}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
             <span>v{doc.version}</span>
