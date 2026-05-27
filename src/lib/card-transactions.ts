@@ -149,7 +149,8 @@ function extractLast4(cardName: string | null, cardNumber: string | null): strin
 export interface CardSpendCard {
   key: string;            // card_id ?? card_name
   cardId: string | null;
-  cardName: string;
+  cardName: string;       // 원본 카드명 (필터/식별용)
+  displayName: string;    // 사용자 별명(card_aliases) 우선, 없으면 원본
   last4: string | null;
   cardType: string | null;
   company: string;
@@ -173,6 +174,17 @@ export async function getCardSpendByCompany(
     if (c.id) byId.set(c.id, c);
   }
 
+  // 사용자 별명(card_aliases) — 하단 카드별 사용액 그리드에서 설정한 이름을 상단 개요에도 반영.
+  const aliasMap = new Map<string, string>();
+  const { data: aliases } = await (supabase as any)
+    .from('card_aliases')
+    .select('source_card_name, alias')
+    .eq('company_id', companyId);
+  for (const a of (aliases || [])) {
+    if (a.source_card_name && a.alias) aliasMap.set(a.source_card_name, a.alias);
+  }
+  const displayOf = (rawName: string) => aliasMap.get(rawName) || rawName;
+
   let q = supabase
     .from('card_transactions')
     .select('card_id, card_name, amount')
@@ -185,10 +197,12 @@ export async function getCardSpendByCompany(
   // 등록 카드는 거래가 없어도 0원으로 노출
   for (const c of cards as any[]) {
     const key = c.id as string;
+    const rawName = c.card_name || '카드';
     map.set(key, {
       key,
       cardId: c.id,
-      cardName: c.card_name || '카드',
+      cardName: rawName,
+      displayName: displayOf(rawName),
       last4: extractLast4(c.card_name, c.card_number),
       cardType: c.card_type || null,
       company: c.card_company || inferCardCompany(c.card_name),
@@ -203,10 +217,12 @@ export async function getCardSpendByCompany(
     const key = (tx.card_id as string) || (reg?.id as string) || (tx.card_name as string) || '미분류';
     let item = map.get(key);
     if (!item) {
+      const rawName = reg?.card_name || tx.card_name || '카드 미지정';
       item = {
         key,
         cardId: tx.card_id || reg?.id || null,
-        cardName: reg?.card_name || tx.card_name || '카드 미지정',
+        cardName: rawName,
+        displayName: displayOf(rawName),
         last4: extractLast4(reg?.card_name || tx.card_name, reg?.card_number || null),
         cardType: reg?.card_type || null,
         company: reg?.card_company || inferCardCompany(tx.card_name),

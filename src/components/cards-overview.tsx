@@ -129,13 +129,14 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
         if (q) {
           cards = cards.filter(
             (c) =>
+              c.displayName.toLowerCase().includes(q) ||
               c.cardName.toLowerCase().includes(q) ||
               (c.last4 || "").includes(q) ||
               c.company.toLowerCase().includes(q),
           );
         }
         cards = [...cards].sort((a, b) =>
-          sortBy === "amount" ? Math.abs(b.spend) - Math.abs(a.spend) : a.cardName.localeCompare(b.cardName, "ko"),
+          sortBy === "amount" ? Math.abs(b.spend) - Math.abs(a.spend) : a.displayName.localeCompare(b.displayName, "ko"),
         );
         return { ...g, cards };
       })
@@ -149,7 +150,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
     for (const g of groups) {
       for (const c of g.cards) {
         rows.push(
-          [g.company, `"${c.cardName.replace(/"/g, "'")}"`, c.last4 || "", TYPE_LABEL[c.cardType || ""] || "", Math.round(c.spend), c.count].join(","),
+          [g.company, `"${c.displayName.replace(/"/g, "'")}"`, c.last4 || "", TYPE_LABEL[c.cardType || ""] || "", Math.round(c.spend), c.count].join(","),
         );
       }
     }
@@ -262,7 +263,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
                       <span className="flex-1 min-w-0">
                         <span className="flex items-center gap-1.5">
                           <span className="text-sm font-semibold text-[var(--text)] truncate" title={c.cardName}>
-                            {c.cardName}
+                            {c.displayName}
                           </span>
                           {c.cardType && (
                             <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)]">
