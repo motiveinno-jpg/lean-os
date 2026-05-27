@@ -286,7 +286,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    // 새 디자인 시스템(시안) — 전 페이지 공통 페이지 그라데이션 배경(--page-from/via/to).
+    //   토큰이 라이트/다크 양쪽 정의돼 자동 대응. 사이드바는 자체 솔리드 배경이라 영향 없음.
+    //   카드(bg-card 솔리드)가 이 그라데이션 위에 떠 보이는 granter/시안 룩을 전 페이지에 일괄 부여.
+    <div className="flex min-h-screen bg-gradient-to-br from-[var(--page-from)] via-[var(--page-via)] to-[var(--page-to)]">
       <Sidebar />
       {/* Top header bar (mobile: hamburger + notification, desktop: notification only) */}
       <div
