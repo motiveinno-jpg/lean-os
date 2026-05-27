@@ -608,16 +608,12 @@ export default function DashboardPage() {
           <div className="flex items-center gap-1.5 justify-end -mt-2 mb-2">
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
-                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 flex items-center gap-1 ${
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
                   syncing
                     ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
                     : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20'
                 }`}>
-                <svg className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                {syncing ? '...' : '동기화'}
+                {syncing ? '동기화 중...' : '동기화'}
               </button>
             )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
@@ -1585,7 +1581,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               <button
                 key={p}
                 onClick={() => { setPeriod(p); setDrillMonth(null); }}
-                className={`px-3 py-2 text-[10px] font-semibold min-h-[44px] transition ${
+                className={`flex-1 px-3 py-2 text-[10px] font-semibold min-h-[44px] transition ${
                   period === p ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--border)]'
                 }`}
               >
