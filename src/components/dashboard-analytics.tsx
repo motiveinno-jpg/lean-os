@@ -102,7 +102,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition ${
-                tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                tab === t.key ? "bg-[var(--info)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
               {t.label}
@@ -258,7 +258,7 @@ function CostColumn({ title, accent, total, share, items }: {
             </div>
           ))}
           {sorted.length > 4 && (
-            <button onClick={() => setExpanded((v) => !v)} className="text-[11px] font-semibold text-[var(--primary)] hover:underline pt-1">
+            <button onClick={() => setExpanded((v) => !v)} className="text-[11px] font-semibold text-[var(--info)] hover:underline pt-1">
               {expanded ? "접기" : `${sorted.length}개 카테고리 보기`}
             </button>
           )}
@@ -274,11 +274,11 @@ function SummaryCard({ title, total, accent, href, allLabel, children }: {
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 flex flex-col">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-bold text-[var(--text)]">{title}</span>
+        <span className="text-sm font-bold text-[var(--info)]">{title}</span>
         <span className="text-base font-extrabold mono-number" style={{ color: accent }}>{total}</span>
       </div>
       <div className="space-y-1 flex-1">{children}</div>
-      <Link href={href} className="mt-3 text-[11px] font-semibold text-[var(--primary)] hover:underline">{allLabel} →</Link>
+      <Link href={href} className="mt-3 text-[11px] font-semibold text-[var(--info)] hover:underline">{allLabel} →</Link>
     </div>
   );
 }
@@ -312,7 +312,7 @@ function StatPanel({ title, big, bigColor, rows, href, hrefLabel }: {
           </div>
         ))}
       </div>
-      <Link href={href} className="inline-block mt-4 text-xs font-semibold text-[var(--primary)] hover:underline">{hrefLabel}</Link>
+      <Link href={href} className="inline-block mt-4 text-xs font-semibold text-[var(--info)] hover:underline">{hrefLabel}</Link>
     </div>
   );
 }

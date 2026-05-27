@@ -178,7 +178,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
             <div className="text-[11px] text-[var(--text-dim)] mb-1">전체 계좌 잔액</div>
             <div className="text-2xl sm:text-3xl font-extrabold mono-number text-[var(--text)]">{won(totalBalance)}</div>
             {Math.round(totalChange) !== 0 && (
-              <div className="text-xs font-semibold mt-1" style={{ color: totalChange > 0 ? "var(--primary)" : "var(--danger)" }}>
+              <div className="text-xs font-semibold mt-1" style={{ color: totalChange > 0 ? "var(--info)" : "var(--danger)" }}>
                 기간 내 {changeStr(totalChange)}
               </div>
             )}
@@ -257,7 +257,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
                         </div>
                         <div className={`text-sm font-bold mono-number mt-0.5 ${bal === 0 ? "text-[var(--text-dim)]" : bal < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(bal)}</div>
                         {Math.round(chg) !== 0 && (
-                          <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: chg > 0 ? "var(--primary)" : "var(--danger)" }}>
+                          <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: chg > 0 ? "var(--info)" : "var(--danger)" }}>
                             {chg > 0 ? "+" : "-"}₩{Math.abs(Math.round(chg)).toLocaleString("ko-KR")}
                           </div>
                         )}

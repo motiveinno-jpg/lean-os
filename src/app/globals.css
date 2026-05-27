@@ -26,6 +26,8 @@
   --primary-foreground: #FAFAFA; /* primary 배경 위 글씨 — light: 검정배경+흰글씨 */
   --accent: #FACC15;            /* yellow-400 — Granter 시그니처 노란색 */
   --accent-dim: #FEF9C3;        /* yellow-100 */
+  --info: #2563EB;              /* blue-600 — 증가/긍정·대시보드 메인 강조 (2026-05-27) */
+  --info-dim: #DBEAFE;          /* blue-100 */
   --success: #059669;           /* emerald-600 */
   --success-dim: #D1FAE5;
   --warning: #D97706;
@@ -55,6 +57,8 @@
   --primary-foreground: #18181B; /* primary 배경 위 글씨 — dark: 흰배경+검정글씨 */
   --accent: #FACC15;
   --accent-dim: rgba(250,204,21,0.15);
+  --info: #60A5FA;              /* blue-400 — 다크모드 대비 */
+  --info-dim: rgba(96,165,250,0.15);
   --success: #34D399;
   --success-dim: rgba(52,211,153,0.15);
   --warning: #FBBF24;
