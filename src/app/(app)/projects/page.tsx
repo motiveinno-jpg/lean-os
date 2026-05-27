@@ -511,59 +511,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         </div>
       )}
 
-      {/* 요약 칩 — 전체기간/특정기간 모두 표시. 직원은 금액 가림(건수·단계만). 클릭 시 출처·계산식 팝업 */}
-      {summary.count > 0 && (
-        <div className="flex flex-wrap items-stretch gap-2 mb-4">
-          <button type="button" onClick={() => setChipDetail("count")} title="현재 보이는 프로젝트 건수 — 클릭하면 단계별 분포·출처" className="text-left rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 hover:border-[var(--primary)]/50 transition cursor-pointer">
-            <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약 ⓘ</div>
-            <div className="text-base font-extrabold text-[var(--text)] tabular-nums">{summary.count}건</div>
-          </button>
-          {!isEmployeeLimited && (
-            <button type="button" onClick={() => setChipDetail("contract")} title="프로젝트 계약금액 합계 — 클릭하면 출처·상위 프로젝트" className="text-left rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 hover:border-[var(--primary)]/50 transition cursor-pointer">
-              <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wide">총 계약금액 ⓘ</div>
-              <div className="text-base font-extrabold text-[var(--text)] tabular-nums">₩{summary.total.toLocaleString("ko-KR")}</div>
-            </button>
-          )}
-          {/* 정밀 수익/비용/마진 — 직원 가림 */}
-          {!isEmployeeLimited && periodPnl && (() => {
-            const margin = periodPnl.revenue - periodPnl.cost;
-            const marginPct = periodPnl.revenue > 0 ? Math.round((margin / periodPnl.revenue) * 100) : 0;
-            return (
-              <>
-                <button type="button" onClick={() => setChipDetail("revenue")} title="수금 완료 금액 합계 — 클릭하면 출처" className="text-left rounded-xl bg-cyan-500/8 border border-cyan-500/20 px-3 py-2 hover:border-cyan-500/50 transition cursor-pointer">
-                  <div className="text-[10px] text-cyan-500/80 uppercase tracking-wide">총 수익(수금) ⓘ</div>
-                  <div className="text-base font-extrabold text-cyan-500 tabular-nums">₩{periodPnl.revenue.toLocaleString("ko-KR")}</div>
-                </button>
-                <button type="button" onClick={() => setChipDetail("cost")} title="비용+외주비 합계 — 클릭하면 출처" className="text-left rounded-xl bg-rose-500/8 border border-rose-500/20 px-3 py-2 hover:border-rose-500/50 transition cursor-pointer">
-                  <div className="text-[10px] text-rose-500/80 uppercase tracking-wide">총 비용 ⓘ</div>
-                  <div className="text-base font-extrabold text-rose-500 tabular-nums">₩{periodPnl.cost.toLocaleString("ko-KR")}</div>
-                </button>
-                <button type="button" onClick={() => setChipDetail("margin")} title="총 수익 − 총 비용 — 클릭하면 계산식" className={`text-left rounded-xl px-3 py-2 border transition cursor-pointer ${margin >= 0 ? "bg-emerald-500/8 border-emerald-500/20 hover:border-emerald-500/50" : "bg-rose-500/8 border-rose-500/20 hover:border-rose-500/50"}`}>
-                  <div className={`text-[10px] uppercase tracking-wide ${margin >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}>마진 · 마진율 ⓘ</div>
-                  <div className={`text-base font-extrabold tabular-nums ${margin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                    ₩{margin.toLocaleString("ko-KR")} <span className="text-xs">({marginPct}%)</span>
-                  </div>
-                </button>
-              </>
-            );
-          })()}
-          <button type="button" onClick={() => setChipDetail("done")} title="완료·정산 건수 — 클릭하면 출처" className="text-left rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 hover:border-emerald-500/50 transition cursor-pointer">
-            <div className="text-[10px] text-emerald-500/80 uppercase tracking-wide">완료·정산 ⓘ</div>
-            <div className="text-base font-extrabold text-emerald-500 tabular-nums">{summary.doneCount}건</div>
-          </button>
-          {/* 단계별 분포 — 표시만 */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
-            {STAGE_ORDER.map((s) => {
-              const n = summary.byStageCount[s] || 0;
-              return (
-                <span key={s} className={`text-[11px] whitespace-nowrap ${n > 0 ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>
-                  {STAGE_LABEL[s as Stage] || s} <span className="font-bold tabular-nums">{n}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* (요약 칩 행 제거 — 상단 시안 통계 4카드로 대체. 드릴다운 팝업은 보존) */}
 
       {/* 요약 칩 출처·계산식 팝업 — 비전공자도 "어디서 어떻게 나온 값"인지 알게 */}
       {chipDetail && (() => {
