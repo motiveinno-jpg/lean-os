@@ -14,6 +14,7 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { DashboardFinancialHero } from "@/components/dashboard-financial-hero";
+import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
@@ -623,6 +624,10 @@ export default function DashboardPage() {
             fixedCost={realBurnData ?? null}
             variableCost={realVariableData ?? null}
           />
+        )}
+        {/* 시안 하단 3카드 — 카드/자산/매출 (실데이터) */}
+        {(role === "owner" || role === "admin") && companyId && (
+          <DashboardBottomCards companyId={companyId} />
         )}
         {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
         {(role === "owner" || role === "admin") && <OwnerDashboardSection />}
