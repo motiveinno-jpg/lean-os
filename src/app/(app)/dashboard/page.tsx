@@ -742,7 +742,7 @@ export default function DashboardPage() {
           </button>
         ))}
         {activeViewId === 'custom' && (
-          <span className="px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-amber-500/10 text-amber-600 border border-amber-500/20">
+          <span className="px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-amber-500/10 text-amber-600">
             커스텀
           </span>
         )}
@@ -1592,7 +1592,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           {/* Excel Download */}
           <button
             onClick={() => exportFinancialReport(sliced.map(m => ({ month: m.month, revenue: m.revenue, expense: m.expense, netIncome: m.netIncome })))}
-            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] border border-[var(--border)] bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition"
+            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] min-w-[56px] inline-flex items-center justify-center border border-[var(--border)] bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition"
           >
             Excel
           </button>
@@ -1625,7 +1625,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
                 })),
               });
             }}
-            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] border border-[var(--border)] bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition"
+            className="px-3 py-2 rounded-lg text-[10px] font-semibold min-h-[44px] min-w-[56px] inline-flex items-center justify-center border border-[var(--border)] bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition"
           >
             PDF
           </button>
