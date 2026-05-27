@@ -20,10 +20,13 @@
   --text: #18181B;              /* zinc-900 — 부드러운 검정 */
   --text-muted: #52525B;        /* zinc-600 */
   --text-dim: #A1A1AA;          /* zinc-400 */
-  --primary: #18181B;           /* zinc-900 — Granter 스타일 (검정 기반) */
-  --primary-hover: #27272A;
-  --primary-light: #F4F4F5;     /* zinc-100 */
-  --primary-foreground: #FAFAFA; /* primary 배경 위 글씨 — light: 검정배경+흰글씨 */
+  /* 2026-05-27 전 앱 인디고 리브랜드 — --primary 토큰 자체를 검정→인디고로 전환.
+     전 페이지가 var(--primary) 를 쓰므로 39개 라우트 1차버튼·활성색·강조가 일괄 인디고화.
+     --brand(#4F46E5)와 정렬해 재무 히어로와 동일 정체성. */
+  --primary: #4F46E5;           /* indigo-600 — 새 브랜드 정체성 */
+  --primary-hover: #4338CA;     /* indigo-700 */
+  --primary-light: #EEF2FF;     /* indigo-50 — 사이드바 활성/칩 배경 틴트 */
+  --primary-foreground: #FFFFFF; /* primary(인디고) 배경 위 글씨 = 흰색 */
   --accent: #FACC15;            /* yellow-400 — Granter 시그니처 노란색 */
   --accent-dim: #FEF9C3;        /* yellow-100 */
   --info: #2563EB;              /* blue-600 — 증가/긍정·대시보드 메인 강조 (2026-05-27) */
@@ -64,10 +67,11 @@
   --text: #FAFAFA;
   --text-muted: #A1A1AA;
   --text-dim: #71717A;
-  --primary: #FAFAFA;           /* dark 모드에선 흰색 = primary */
-  --primary-hover: #E4E4E7;
-  --primary-light: rgba(250,250,250,0.10);
-  --primary-foreground: #18181B; /* primary 배경 위 글씨 — dark: 흰배경+검정글씨 */
+  /* 인디고 리브랜드 다크 대응 — 약간 밝은 인디고(--brand 다크와 정렬), 글씨는 흰색 유지 */
+  --primary: #6366F1;           /* indigo-500 — 다크 대비 */
+  --primary-hover: #4F46E5;     /* indigo-600 */
+  --primary-light: rgba(99,102,241,0.18);
+  --primary-foreground: #FFFFFF; /* 인디고 배경 위 흰 글씨 (다크에서도 흰색) */
   --accent: #FACC15;
   --accent-dim: rgba(250,204,21,0.15);
   --info: #60A5FA;              /* blue-400 — 다크모드 대비 */
