@@ -46,7 +46,7 @@ export function EmptyState({ icon, title, description, action }: {
   action?: { label: string; onClick: () => void };
 }) {
   return (
-    <div className="p-12 text-center bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+    <div className="p-12 text-center glass-card">
       <div className="text-4xl mb-3">{icon}</div>
       <div className="text-base font-bold mb-1">{title}</div>
       {description && <div className="text-xs text-[var(--text-muted)] mb-4">{description}</div>}

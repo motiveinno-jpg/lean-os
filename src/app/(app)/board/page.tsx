@@ -758,7 +758,7 @@ export default function BoardPage() {
           불러오는 중...
         </div>
       ) : posts.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+        <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-3">📝</div>
           <div className="text-sm text-[var(--text-muted)]">
             등록된 글이 없습니다. 첫 글을 작성해보세요.

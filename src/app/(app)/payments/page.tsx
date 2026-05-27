@@ -333,7 +333,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       </div>
 
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">수동 결제 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -410,7 +410,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       )}
 
       {/* Queue */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">💳</div>
@@ -759,7 +759,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
       )}
 
       {/* Batch history */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {batches.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-3xl mb-3">💰</div>
@@ -888,7 +888,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         />
       )}
 
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {batches.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-3xl mb-3">🏢</div>
@@ -985,7 +985,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
       onClick={onClose}
     >
       <div
-        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-2xl my-8 shadow-xl"
+        className="glass-card w-full max-w-2xl my-8 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -1109,7 +1109,7 @@ function RecurringDetailModal({
       onClick={onClose}
     >
       <div
-        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-3xl my-8 shadow-xl"
+        className="glass-card w-full max-w-3xl my-8 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -1401,7 +1401,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
 
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -1486,7 +1486,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
 
       {/* List */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {recurring.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-3xl mb-3">🔄</div>
@@ -1626,7 +1626,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
   return (
     <div className="mb-6 space-y-3">
       {/* Pipeline visualization */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+      <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-bold text-[var(--text)]">자동화 진행 현황</span>
           <span className="text-[10px] text-[var(--text-dim)]">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
@@ -1912,7 +1912,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
 
       {/* Create Form */}
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <div className="flex gap-2 mb-4">
             <button onClick={() => setRequestType('expense')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${requestType === 'expense' ? 'bg-blue-500 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
@@ -2098,7 +2098,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       )}
 
       {/* List */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {expenses.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">📄</div>

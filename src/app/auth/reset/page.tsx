@@ -124,7 +124,7 @@ function ResetPasswordContent() {
 
         {/* Card */}
         <div
-          className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8"
+          className="glass-card p-8"
           style={{ boxShadow: "var(--shadow-lg)" }}
         >
           {error && (

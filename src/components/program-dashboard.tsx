@@ -242,7 +242,7 @@ export function CreateProgramModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold mb-4">새 프로젝트 생성</h2>
 
         <div className="space-y-4">
@@ -1507,7 +1507,7 @@ export function ProgramDashboard({
           로딩 중...
         </div>
       ) : filteredDeals.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center">
+        <div className="glass-card p-12 text-center">
           <div className="text-3xl mb-3">📋</div>
           <div className="text-sm font-bold mb-2">
             {search || Object.values(labelFilters).some((s) => s.size > 0)

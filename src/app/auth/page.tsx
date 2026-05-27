@@ -245,7 +245,7 @@ export default function AuthPage() {
           </div>
 
           {/* Card */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8"
+          <div className="glass-card p-8"
             style={{ boxShadow: 'var(--shadow-lg)' }}>
             <div className="text-center">
               {/* 이메일 아이콘 */}
@@ -364,7 +364,7 @@ export default function AuthPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-8"
+        <div className="glass-card p-8"
           style={{ boxShadow: 'var(--shadow-lg)' }}>
           {/* Tabs */}
           <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6">

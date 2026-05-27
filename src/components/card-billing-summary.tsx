@@ -244,7 +244,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
   if (billings.length === 0) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+      <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-base">🧾</span>
           <h2 className="text-sm font-bold text-[var(--text)]">이용대금 / 청구서</h2>
@@ -260,7 +260,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   const grand = billings.reduce((s, b) => s + b.totalAmount, 0);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">🧾</span>

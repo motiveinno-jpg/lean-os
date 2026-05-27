@@ -580,7 +580,7 @@ export default function MatchingPage() {
           </div>
 
           {results.length === 0 ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+            <div className="glass-card p-16 text-center">
               <div className="text-4xl mb-4">🔗</div>
               <div className="text-sm font-medium text-[var(--text)]">{transactions.length === 0 ? "거래내역이 등록되면 자동 매칭이 시작됩니다" : "매칭을 실행하세요"}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1">
@@ -863,7 +863,7 @@ export default function MatchingPage() {
 
           {/* Receivables Table */}
           {filteredReceivables.length === 0 ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+            <div className="glass-card p-16 text-center">
               <div className="text-4xl mb-4">&#x1f4b0;</div>
               <div className="text-lg font-bold mb-2">미수금이 없습니다</div>
               <div className="text-sm text-[var(--text-muted)]">
@@ -871,7 +871,7 @@ export default function MatchingPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">

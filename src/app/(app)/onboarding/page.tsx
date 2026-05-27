@@ -546,7 +546,7 @@ export default function OnboardingPage() {
         )}
 
         {/* Step content */}
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="p-6 min-h-[380px] sm:min-h-[360px]">
             {step === 1 && (
               <Step1Company data={company} onChange={setCompany} isCompleted={status.companyInfo} />

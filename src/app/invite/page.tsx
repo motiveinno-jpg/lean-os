@@ -150,7 +150,7 @@ function InviteContent() {
 
         {/* Card */}
         <div
-          className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 md:p-8"
+          className="glass-card p-6 md:p-8"
           style={{ boxShadow: "var(--shadow-lg)" }}
         >
           {/* Invite Badge */}

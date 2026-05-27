@@ -269,14 +269,14 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {pendingApprovals.length === 0 ? (
-        <div className="text-center py-16 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+        <div className="text-center py-16 glass-card">
           <div className="text-3xl mb-3">&#10003;</div>
           <div className="text-[var(--text-muted)] text-sm">처리할 결재가 없습니다</div>
         </div>
       ) : (
         <div className="space-y-3">
           {pendingApprovals.map((item: any) => (
-            <div key={item.stepId} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div key={item.stepId} className="glass-card overflow-hidden">
               <div className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div
@@ -335,7 +335,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       {/* Approve/Reject Modal */}
       {actionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setActionModal(null)}>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-1">
               {actionModal.action === "approve" ? "결재 승인" : "결재 반려"}
             </h3>
@@ -415,13 +415,13 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {requests.length === 0 ? (
-        <div className="text-center py-16 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+        <div className="text-center py-16 glass-card">
           <div className="text-[var(--text-muted)] text-sm">제출한 결재 요청이 없습니다</div>
         </div>
       ) : (
         <div className="space-y-3">
           {requests.map((req: any) => (
-            <div key={req.id} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div key={req.id} className="glass-card overflow-hidden">
               <div
                 className="p-5 cursor-pointer hover:bg-[var(--bg-surface)] transition"
                 onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
@@ -543,7 +543,7 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
       </div>
 
       {/* Table */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+      <div className="glass-card overflow-x-auto">
         <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
@@ -865,7 +865,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Form */}
       <div className="lg:col-span-2">
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="glass-card p-6">
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 
           <div className="space-y-4">
@@ -1167,7 +1167,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       <div className="space-y-4">
         {/* Auto-generated document preview (leave) */}
         {isLeave && leaveForm.startDate && (
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+          <div className="glass-card p-5">
             <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">문서 미리보기</h4>
             <pre className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]">
               {leaveDescription}
@@ -1176,7 +1176,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         )}
 
         {/* Policy Preview */}
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 sticky top-4">
+        <div className="glass-card p-5 sticky top-4">
           <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">결재 흐름 미리보기</h4>
 
           {matchedPolicy ? (
@@ -1350,7 +1350,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
       {/* Policy Form */}
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">{editingPolicy ? "정책 수정" : "새 결재 정책"}</h3>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
@@ -1447,14 +1447,14 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
       {/* Policy List */}
       {policies.length === 0 && !showForm ? (
-        <div className="text-center py-16 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+        <div className="text-center py-16 glass-card">
           <div className="text-[var(--text-muted)] text-sm mb-2">등록된 결재 정책이 없습니다</div>
           <div className="text-xs text-[var(--text-dim)]">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
         </div>
       ) : (
         <div className="space-y-3">
           {policies.map((policy: ApprovalPolicy) => (
-            <div key={policy.id} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+            <div key={policy.id} className="glass-card p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

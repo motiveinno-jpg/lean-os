@@ -208,7 +208,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
   const failureCount = results.filter((r) => !r.isSuccess).length;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+    <div className="glass-card p-6 space-y-5">
       <div>
         <h2 className="text-sm font-bold">대량 초대</h2>
         <p className="text-xs text-[var(--text-dim)] mt-0.5">

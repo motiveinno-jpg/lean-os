@@ -99,7 +99,7 @@ export default function MyPage() {
       <p className="text-sm text-[var(--text-muted)] mb-6">내 정보 및 연차 현황</p>
 
       {/* 기본 정보 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+      <div className="glass-card p-6 mb-4">
         <h2 className="text-sm font-bold mb-4">기본 정보</h2>
         <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
           <div>
@@ -123,7 +123,7 @@ export default function MyPage() {
 
       {/* 직원 정보 */}
       {employee && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+        <div className="glass-card p-6 mb-4">
           <h2 className="text-sm font-bold mb-4">인사 정보</h2>
           <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
             <div>
@@ -159,7 +159,7 @@ export default function MyPage() {
       )}
 
       {/* 연차 현황 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+      <div className="glass-card p-6 mb-4">
         <h2 className="text-sm font-bold mb-4">{currentYear}년 연차 현황</h2>
         {leaveBalance ? (
           <div className="grid grid-cols-3 gap-4 mb-4">

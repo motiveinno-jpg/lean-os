@@ -28,7 +28,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
   });
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+    <div className="glass-card p-5 md:p-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />

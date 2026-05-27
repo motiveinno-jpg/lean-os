@@ -338,7 +338,7 @@ export default function BillingPage() {
               { label: "거래처", used: usage.partners, limit: lim.partners, icon: "🏢" },
             ];
             return (
-              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+              <div className="glass-card p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-[var(--text)]">이번 달 사용량</h3>
                   <span className="text-xs text-[var(--text-muted)]">{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}</span>
@@ -505,7 +505,7 @@ export default function BillingPage() {
       {/* Payment Tab */}
       {tab === "payment" && (
         <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h3 className="font-bold text-[var(--text)] mb-4">결제 수단</h3>
             {hasStripeSubscription ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
@@ -533,7 +533,7 @@ export default function BillingPage() {
             )}
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h3 className="font-bold text-[var(--text)] mb-3">결제 안내</h3>
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
               <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
@@ -548,7 +548,7 @@ export default function BillingPage() {
 
       {/* Invoices Tab */}
       {tab === "invoices" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           <div className="p-4 border-b border-[var(--border)]">
             <h3 className="font-bold text-[var(--text)]">청구서 내역</h3>
           </div>
@@ -626,7 +626,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
       {/* Referral & Feedback Tab */}
       {tab === "referral" && (
         <div className="space-y-6">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h3 className="font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">친구가 가입하면 양쪽 모두 ₩10,000 크레딧!</p>
 
@@ -672,7 +672,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
             )}
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h3 className="font-bold text-[var(--text)] mb-1">피드백</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
 

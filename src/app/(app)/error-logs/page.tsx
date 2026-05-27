@@ -208,7 +208,7 @@ export default function ErrorLogsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+        <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-3">✅</div>
           <div className="text-sm text-[var(--text-muted)]">
             {filter === "unresolved" ? "미해결 에러가 없습니다" : "에러 로그가 없습니다"}

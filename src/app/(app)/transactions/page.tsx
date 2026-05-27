@@ -1112,7 +1112,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Manual Entry Tab */}
       {tab === 'manual' && (
         <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h3 className="text-sm font-bold mb-4">거래내역 직접 등록</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
@@ -1214,7 +1214,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {/* Recently added manual entries */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold">수기 입력 내역</h3>
               <button onClick={async () => {
@@ -1458,7 +1458,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : filteredBankTx.length === 0 ? (
@@ -1869,7 +1869,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               CODEF 카드별 사용액(위)에서 이미 모든 카드 정보가 노출되어 중복. 수정/삭제는 청구서 카드 상세에서. */}
 
           {/* Card Transactions Table */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {cardTxLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : displayCardTx.length === 0 ? (

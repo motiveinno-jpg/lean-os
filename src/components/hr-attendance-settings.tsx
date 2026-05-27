@@ -118,7 +118,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
 
   if (!form) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <p className="text-sm text-[var(--text-muted)]">불러오는 중…</p>
       </div>
     );
@@ -133,7 +133,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
   return (
     <div className="space-y-4">
       {/* 근무시간 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold">근무시간</h2>
           <span className="text-[10px] text-[var(--text-dim)]">
@@ -221,7 +221,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
       </div>
 
       {/* 가산수당 정책 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">가산수당 정책</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -294,7 +294,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
       <HrAllowanceCatalogPanel companyId={companyId} />
 
       {/* 휴일 캘린더 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold">휴일 관리 ({year}년)</h2>
           <div className="flex items-center gap-2">

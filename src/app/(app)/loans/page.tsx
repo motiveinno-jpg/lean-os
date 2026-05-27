@@ -375,7 +375,7 @@ export default function LoansPage() {
 
       {/* List Tab */}
       {tab === "list" && (<>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {loans.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🏦</div>
@@ -450,7 +450,7 @@ export default function LoansPage() {
         {loans.length > 0 && (
           <div className="mt-4 space-y-4">
             {/* Portfolio Summary */}
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+            <div className="glass-card p-5">
               <h3 className="text-sm font-bold mb-3">상환 현황</h3>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
@@ -531,7 +531,7 @@ export default function LoansPage() {
 
             {/* Repayment Schedule Projection */}
             {repaymentSchedule.length > 0 && (
-              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mt-4">
+              <div className="glass-card p-5 mt-4">
                 <h3 className="text-sm font-bold mb-3">상환 스케줄 (향후 6개월 예상)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px]">
@@ -594,7 +594,7 @@ export default function LoansPage() {
 
           {/* Payment form */}
           {showPayForm && (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+            <div className="glass-card p-5">
               <h3 className="text-sm font-bold mb-3">상환 기록 추가</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                 <div>
@@ -639,7 +639,7 @@ export default function LoansPage() {
           )}
 
           {/* Payments table */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {allPayments.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="text-4xl mb-4">📋</div>
@@ -716,7 +716,7 @@ export default function LoansPage() {
             </button>
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {matchCandidates.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="text-4xl mb-4">🔍</div>
@@ -808,7 +808,7 @@ export default function LoansPage() {
 
       {/* Register Tab */}
       {tab === "register" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+        <div className="glass-card p-6">
           <h3 className="text-sm font-bold mb-4">새 대출 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>

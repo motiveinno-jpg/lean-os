@@ -125,7 +125,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
       {/* ── 소비 탭 ── */}
       {tab === "consume" && (
         <>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+          <div className="glass-card p-4 sm:p-5">
             <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 총 지출</div>
             <div className="text-2xl sm:text-3xl font-extrabold mono-number text-[var(--danger)]">{wonOut(totalExpense)}</div>
           </div>
@@ -235,7 +235,7 @@ function CostColumn({ title, accent, total, share, items }: {
   const sorted = [...items].sort((a, b) => b.amount - a.amount);
   const shown = expanded ? sorted : sorted.slice(0, 4);
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: accent }} />
@@ -272,7 +272,7 @@ function SummaryCard({ title, total, accent, href, allLabel, children }: {
   title: string; total: string; accent: string; href: string; allLabel: string; children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 flex flex-col">
+    <div className="glass-card p-4 flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-bold text-[var(--info)]">{title}</span>
         <span className="text-base font-extrabold mono-number" style={{ color: accent }}>{total}</span>
@@ -301,7 +301,7 @@ function StatPanel({ title, big, bigColor, rows, href, hrefLabel }: {
   rows: { label: string; value: string }[]; href: string; hrefLabel: string;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 max-w-xl">
+    <div className="glass-card p-5 max-w-xl">
       <div className="text-[11px] text-[var(--text-dim)] mb-1">{title}</div>
       <div className="text-2xl sm:text-3xl font-extrabold mono-number mb-4" style={{ color: bigColor }}>{big}</div>
       <div className="space-y-2">

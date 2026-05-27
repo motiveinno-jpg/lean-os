@@ -172,7 +172,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   return (
     <div className="space-y-4">
       {/* 상단 요약 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+      <div className="glass-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] text-[var(--text-dim)] mb-1">전체 계좌 잔액</div>
@@ -217,7 +217,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
 
       {/* 은행별 그룹 */}
       {groups.length === 0 ? (
-        <div className="p-12 text-center bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+        <div className="p-12 text-center glass-card">
           <div className="text-4xl mb-3">🏦</div>
           <div className="text-sm text-[var(--text-muted)]">{search ? "검색 결과가 없습니다." : "표시할 계좌가 없습니다."}</div>
         </div>

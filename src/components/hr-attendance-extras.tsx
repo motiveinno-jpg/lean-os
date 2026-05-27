@@ -155,7 +155,7 @@ export function AttendanceEditRequestDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-[420px] max-w-[90vw]"
+        className="glass-card p-6 w-[420px] max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-sm font-bold mb-4">근태 수정 요청</h3>

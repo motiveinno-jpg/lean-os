@@ -228,7 +228,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       </p>
 
       {/* Calendar Grid */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {/* Weekday header */}
         <div className="grid grid-cols-7 border-b border-[var(--border)] bg-[var(--bg-surface)]">
           {["일", "월", "화", "수", "목", "금", "토"].map((w, i) => (
@@ -343,7 +343,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           onClick={() => setActionEvent(null)}
         >
           <div
-            className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-xs shadow-xl p-5"
+            className="glass-card w-full max-w-xs shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-sm font-bold mb-1 truncate">{actionEvent.title}</div>
@@ -443,7 +443,7 @@ function EventModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md my-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-md my-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">{form.id ? "일정 수정" : "일정 추가"}</h3>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]" aria-label="닫기">✕</button>
@@ -638,7 +638,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
       </div>
 
       {/* Add form */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+      <div className="glass-card p-4">
         <div className="flex gap-2 flex-wrap items-end">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">새 할 일</label>
@@ -675,7 +675,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
       </label>
 
       {/* List */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {todos.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-3xl mb-3">✓</div>
@@ -752,7 +752,7 @@ function TodoEditModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">할 일 수정</h3>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]">✕</button>

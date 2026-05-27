@@ -1518,7 +1518,7 @@ export default function TaxInvoicesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4" data-print-area>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
             이번 달 매출
           </div>
@@ -1532,7 +1532,7 @@ export default function TaxInvoicesPage() {
             )}
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
             이번 달 매입
           </div>
@@ -1546,7 +1546,7 @@ export default function TaxInvoicesPage() {
             )}
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
             미매칭 건수
           </div>
@@ -1563,7 +1563,7 @@ export default function TaxInvoicesPage() {
               : "모든 세금계산서 매칭 완료"}
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
             예상 부가세 납부액
           </div>
@@ -1638,7 +1638,7 @@ export default function TaxInvoicesPage() {
 
       {/* Registration Form */}
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -1966,7 +1966,7 @@ export default function TaxInvoicesPage() {
 
       {/* Sales / Purchase Table */}
       {(tab === "sales" || tab === "purchase") && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
               불러오는 중...
@@ -2201,7 +2201,7 @@ export default function TaxInvoicesPage() {
       {/* Queue Tab (자동발행 대기) */}
       {tab === "queue" && (
         <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mb-2">
+          <div className="glass-card p-5 mb-2">
             <div className="text-xs text-[var(--text-muted)] leading-relaxed">
               <strong className="text-[var(--text)]">자동발행 큐</strong>: 프로젝트 매출 스케줄이 확정되면 세금계산서가 자동으로 큐에 등록됩니다.
               거래처 희망일이 설정된 경우 해당일까지 대기 후 발행됩니다. <span className="text-orange-400">승인 필요</span> 건은 확인 후 승인해주세요.
@@ -2211,13 +2211,13 @@ export default function TaxInvoicesPage() {
           {queueLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queueItems.length === 0 ? (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+            <div className="glass-card p-16 text-center">
               <div className="text-4xl mb-4">⚡</div>
               <div className="text-lg font-bold mb-2">대기 중인 자동발행 없음</div>
               <div className="text-sm text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
             </div>
           ) : (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -2340,7 +2340,7 @@ export default function TaxInvoicesPage() {
             </div>
           )}
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+          <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -2403,7 +2403,7 @@ export default function TaxInvoicesPage() {
           </div>
 
           {/* Sync Logs */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="px-5 py-3 border-b border-[var(--border)]">
               <span className="text-sm font-bold">동기화 이력</span>
             </div>
@@ -2452,7 +2452,7 @@ export default function TaxInvoicesPage() {
       {/* 계약 상세 팝업 모달 */}
       {matchDealPopup && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMatchDealPopup(null)}>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold">계약 ↔ 세금계산서 매칭 상세</h3>
               <button onClick={() => setMatchDealPopup(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">&times;</button>
@@ -2533,7 +2533,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
         ))}
       </div>
 
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {periodSummary.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">📊</div>
@@ -2589,7 +2589,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
       {cardDeductions.length > 0 && (
         <div className="mt-6">
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">법인카드 매입세액 공제 추정</h3>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -2633,7 +2633,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 
   return (
     <div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 mb-6">
+      <div className="glass-card p-5 mb-6">
         <div className="text-xs text-[var(--text-muted)] leading-relaxed">
           <strong className="text-[var(--text)]">VAT 미리보기</strong>: 분기별 부가가치세 납부/환급 예상액입니다.
           매출세액 - 매입세액 - 카드매입세액공제 = 최종 납부세액
@@ -2642,15 +2642,15 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 
       {/* Annual Total Card */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 매출세액</div>
           <div className="text-xl font-black text-green-500">₩{vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 매입세액 + 카드공제</div>
           <div className="text-xl font-black text-orange-500">₩{vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 예상 납부세액</div>
           <div className={`text-xl font-black ${totalVAT >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
             ₩{totalVAT.toLocaleString()}
@@ -2660,7 +2660,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       </div>
 
       {/* Quarterly Breakdown */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -2846,7 +2846,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-[90vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3 flex-wrap">
@@ -3068,7 +3068,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
   const [submitting, setSubmitting] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">수정세금계산서 발행</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">

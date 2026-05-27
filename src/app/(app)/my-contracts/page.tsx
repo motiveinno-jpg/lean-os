@@ -131,7 +131,7 @@ export default function MyContractsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-16 text-center">
+        <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-3">✍️</div>
           <div className="text-sm text-[var(--text-muted)]">
             {filter === "pending"
@@ -156,7 +156,7 @@ export default function MyContractsPage() {
             return (
               <div
                 key={p.id}
-                className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 hover:border-[var(--primary)]/30 transition"
+                className="glass-card p-5 hover:border-[var(--primary)]/30 transition"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

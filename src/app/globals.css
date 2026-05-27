@@ -203,6 +203,18 @@ body {
   border-left: 3px solid var(--success);
 }
 
+/* 2026-05-27 시안 글래스 카드 — 솔리드 bg-card 컨테이너(rounded-2xl)를 전 페이지 일괄 글래스화.
+   --glass-bg/--glass-border/--shadow-glass/--radius-card 토큰으로 라이트·다크 자동 대응.
+   배경 그라데이션+orbs 위에 카드가 떠 보이는 granter/시안 룩. */
+.glass-card {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-glass);
+}
+
 /* Card Hover */
 .card-hover {
   transition: all 0.2s ease;

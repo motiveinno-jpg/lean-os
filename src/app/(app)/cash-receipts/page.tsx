@@ -376,7 +376,7 @@ export default function CashReceiptsPage() {
       {/* Summary cards */}
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-[10px] text-[var(--text-dim)] font-medium">매출 발행</div>
             <div className="text-lg font-black text-blue-400 mt-1">
               {summary.incomeCount}건
@@ -385,7 +385,7 @@ export default function CashReceiptsPage() {
               ₩{summary.incomeTotal.toLocaleString()}
             </div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-[10px] text-[var(--text-dim)] font-medium">매입 수취</div>
             <div className="text-lg font-black text-green-400 mt-1">
               {summary.expenseCount}건
@@ -394,14 +394,14 @@ export default function CashReceiptsPage() {
               ₩{summary.expenseTotal.toLocaleString()}
             </div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-[10px] text-[var(--text-dim)] font-medium">매입세액 공제</div>
             <div className="text-lg font-black text-[var(--primary)] mt-1">
               ₩{summary.expenseTax.toLocaleString()}
             </div>
             <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+          <div className="glass-card p-4">
             <div className="text-[10px] text-[var(--text-dim)] font-medium">합계</div>
             <div className="text-lg font-black mt-1">
               {summary.incomeCount + summary.expenseCount}건
@@ -458,7 +458,7 @@ export default function CashReceiptsPage() {
 
       {/* Register tab */}
       {tab === "register" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-4">
+        <div className="glass-card p-6 space-y-4">
           <h2 className="text-sm font-bold">현금영수증 수동 등록</h2>
 
           <div className="flex gap-2">
@@ -649,7 +649,7 @@ export default function CashReceiptsPage() {
 
       {/* List tabs */}
       {tab !== "register" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
               불러오는 중...

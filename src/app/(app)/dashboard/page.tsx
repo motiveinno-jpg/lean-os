@@ -2965,7 +2965,7 @@ function EmployeeProjectsWidget() {
           <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 (담당·참여)</span>
         )}
       </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {isLoading ? (
           <div className="p-6 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
         ) : deals.length === 0 ? (
@@ -3266,7 +3266,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       </div>
 
       {/* ─ 오늘 할 일 — 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
-      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+      <div className="mb-4 glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-base">✅</span>
@@ -3419,7 +3419,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       )}
 
       {/* 전자결재 — 자주 쓰는 결재 빠른 작성 */}
-      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+      <div className="mb-4 glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
@@ -3478,7 +3478,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       </div>
 
       {/* 이번 달 급여 */}
-      <div className="mb-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 md:p-5">
+      <div className="mb-4 glass-card p-4 md:p-5">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="text-base">💰</span>
@@ -3518,7 +3518,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
             <span className="text-[10px] text-orange-500 font-bold">{notifications.length}건</span>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+          <div className="glass-card divide-y divide-[var(--border)]">
             {notifications.map((n: any) => (
               <div key={n.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="text-base shrink-0">🔔</span>
@@ -3725,7 +3725,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
           <Link
             key={card.label}
             href={card.href}
-            className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
+            className="glass-card p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
           >
             <div className="text-3xl md:mb-3 shrink-0 relative">
               {card.icon}
@@ -3754,7 +3754,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
             <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">최근 활동</h2>
           </div>
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+          <div className="glass-card divide-y divide-[var(--border)]">
             {recentActivity.map((act, i) => (
               <Link key={i} href={act.href} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition">
                 <span className="text-base shrink-0">{act.type === "chat" ? "💬" : "📄"}</span>

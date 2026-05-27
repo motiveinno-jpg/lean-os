@@ -168,7 +168,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
   return (
     <div className="space-y-4">
       {/* 상단 요약 바 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+      <div className="glass-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] text-[var(--text-dim)] mb-1">기간 내 카드 지출</div>
@@ -230,7 +230,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
       {isLoading ? (
         <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : groups.length === 0 ? (
-        <div className="p-12 text-center bg-[var(--bg-card)] rounded-2xl border border-[var(--border)]">
+        <div className="p-12 text-center glass-card">
           <div className="text-4xl mb-3">💳</div>
           <div className="text-sm text-[var(--text-muted)]">{search ? "검색 결과가 없습니다." : "이 기간에 카드 사용 내역이 없습니다."}</div>
         </div>

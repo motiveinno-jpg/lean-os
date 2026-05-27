@@ -56,7 +56,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
   const others = files.filter((f) => !isImg(f) && !isPdf(f));
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
+    <div className="glass-card overflow-hidden flex-1 overflow-y-auto">
       {files.length === 0 ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">파일이 없습니다</div>
       ) : (
@@ -901,7 +901,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       )}
 
       {tab === "participants" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
+        <div className="glass-card overflow-hidden flex-1 overflow-y-auto">
           {/* 초대 버튼 */}
           <div className="px-5 py-3 border-b border-[var(--border)]">
             <button
@@ -951,7 +951,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
           {/* 초대 모달 */}
           {showInvite && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowInvite(false)}>
-              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="glass-card w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 {/* 모달 헤더 */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
                   <h3 className="text-base font-bold text-[var(--text)]">멤버 초대</h3>
@@ -1108,7 +1108,7 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
       )}
 
       {tab === "events" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden flex-1 overflow-y-auto">
+        <div className="glass-card overflow-hidden flex-1 overflow-y-auto">
           {events.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">이벤트가 없습니다</div>
           ) : (
@@ -1299,7 +1299,7 @@ function GuestChatView({ token }: { token: string }) {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-10 text-center max-w-md">
+        <div className="glass-card p-10 text-center max-w-md">
           <div className="text-3xl mb-4">🔒</div>
           <div className="text-lg font-bold mb-2 text-red-400">접근 불가</div>
           <div className="text-sm text-[var(--text-muted)]">{error}</div>
@@ -1589,7 +1589,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         </div>
 
         {showForm && (
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+          <div className="glass-card p-6 mb-4">
             <h3 className="text-sm font-bold mb-4">새 프로젝트 채널</h3>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
@@ -1649,7 +1649,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         </div>
 
         {showTeamForm && (
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+          <div className="glass-card p-6 mb-4">
             <h3 className="text-sm font-bold mb-4">새 팀 채널</h3>
             <div className="mb-4">
               <label className="block text-xs text-[var(--text-muted)] mb-1">채널명 *</label>
@@ -1691,7 +1691,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
         </div>
 
         {showDMForm && (
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+          <div className="glass-card p-6 mb-4">
             <h3 className="text-sm font-bold mb-4">새 DM</h3>
             <div className="mb-4">
               <label className="block text-xs text-[var(--text-muted)] mb-1">대상 멤버 *</label>

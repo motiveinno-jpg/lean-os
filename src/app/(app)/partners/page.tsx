@@ -773,7 +773,7 @@ export default function PartnersPage() {
       )}
 
       {/* Table */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {isLoading ? (
           <div className="p-16 text-center">
             <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>

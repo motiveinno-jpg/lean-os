@@ -679,7 +679,7 @@ export default function VaultPage() {
 
       {/* ── Account Form ── */}
       {showForm && tab === "accounts" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+        <div className="glass-card p-6 mb-4">
           <h3 className="text-sm font-bold mb-4">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
@@ -745,7 +745,7 @@ export default function VaultPage() {
 
       {/* ── Asset Form ── */}
       {showForm && tab === "assets" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+        <div className="glass-card p-6 mb-4">
           <h3 className="text-sm font-bold mb-4">{editingId ? "자산 수정" : "자산 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
@@ -822,7 +822,7 @@ export default function VaultPage() {
 
       {/* ── Doc Form ── */}
       {showForm && tab === "docs" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+        <div className="glass-card p-6 mb-4">
           <h3 className="text-sm font-bold mb-4">{editingId ? "문서 수정" : "문서 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
@@ -896,7 +896,7 @@ export default function VaultPage() {
 
       {/* ═══ Accounts Tab ═══ */}
       {tab === "accounts" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+        <div className="glass-card overflow-x-auto">
           {!vault?.accounts?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🔐</div>
@@ -1038,22 +1038,22 @@ export default function VaultPage() {
             const book = active.reduce((s, a) => s + computeBookValue(a.value, a.purchase_date, a.useful_life_months).book, 0);
             return (
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                <div className="glass-card p-4">
                   <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 취득가</div>
                   <div className="text-xl font-extrabold mt-1">{fmtW(acquire)}</div>
                 </div>
-                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                <div className="glass-card p-4">
                   <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 장부가 (감가 후)</div>
                   <div className="text-xl font-extrabold mt-1 text-[var(--primary)]">{fmtW(book)}</div>
                 </div>
-                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+                <div className="glass-card p-4">
                   <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">누적 감가상각</div>
                   <div className="text-xl font-extrabold mt-1 text-amber-500">{fmtW(acquire - book)}</div>
                 </div>
               </div>
             );
           })()}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+          <div className="glass-card overflow-x-auto">
           {!vault?.assets?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📦</div>
@@ -1122,7 +1122,7 @@ export default function VaultPage() {
 
       {/* ═══ Docs Tab ═══ */}
       {tab === "docs" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+        <div className="glass-card overflow-x-auto">
           {!vault?.docs?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📄</div>
@@ -1186,7 +1186,7 @@ export default function VaultPage() {
           <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
           에 추가됩니다.
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🔍</div>
@@ -1255,7 +1255,7 @@ export default function VaultPage() {
         const opens = (u.opens || []).slice().reverse();
         return (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAccessLogId(null)}>
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <div>
                   <div className="text-sm font-bold">{acc?.service_name} 접근 로그</div>

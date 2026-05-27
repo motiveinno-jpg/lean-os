@@ -91,7 +91,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
   });
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold">수당 관리</h2>
         <button
@@ -323,7 +323,7 @@ function AllowanceTypeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 w-[520px] max-w-[92vw] max-h-[88vh] overflow-y-auto"
+        className="glass-card p-6 w-[520px] max-w-[92vw] max-h-[88vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-sm font-bold mb-4">{isEdit ? "수당 수정" : "수당 추가"}</h3>

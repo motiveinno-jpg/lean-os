@@ -49,14 +49,14 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="text-sm text-[var(--text-muted)] text-center py-4">불러오는 중…</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+    <div className="glass-card p-6 space-y-5">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">계약서 양식 관리</h3>

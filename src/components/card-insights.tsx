@@ -84,7 +84,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   }, [rows]);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">💳</span>
@@ -204,7 +204,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
   const total = useMemo(() => items.reduce((s, r) => s + Number(r.amount || 0), 0), [items]);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">🔁</span>
@@ -393,7 +393,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
   const grandTotal = months.reduce((s, m) => s + (totals[m] || 0), 0);
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+    <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">📊</span>

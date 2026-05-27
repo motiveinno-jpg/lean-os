@@ -109,14 +109,14 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
 
   if (empLoading) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 text-sm text-[var(--text-muted)]">
+      <div className="glass-card p-5 text-sm text-[var(--text-muted)]">
         출퇴근 정보 불러오는 중...
       </div>
     );
   }
   if (!employeeId) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+      <div className="glass-card p-5">
         <div className="text-sm font-bold text-[var(--text)] mb-1">내 출퇴근</div>
         <div className="text-xs text-[var(--text-muted)]">
           내 계정이 구성원(직원) 레코드와 연결돼 있지 않아 출퇴근을 기록할 수 없습니다.
@@ -127,7 +127,7 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
   }
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />

@@ -208,7 +208,7 @@ export default function SettingsPage() {
       {mainTab === "general" && (
         <>
           {/* Cash Snapshot */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <h2 className="text-sm font-bold mb-4">현금 현황</h2>
             <div className="space-y-4">
               {/* 연동 통장 합산 (자동, read-only) */}
@@ -281,7 +281,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Bank Accounts */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-sm font-bold">법인 통장 관리</h2>
@@ -425,7 +425,7 @@ export default function SettingsPage() {
           <DealClassificationManager companyId={companyId} />
 
           {/* Routing Rules */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+          <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-sm font-bold">비용 라우팅 규칙</h2>
@@ -745,7 +745,7 @@ function NotificationsTab({ companyId }: { companyId: string | null }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-base font-bold mb-1">알림 설정</h2>
         <p className="text-xs text-[var(--text-muted)]">
           이메일 · 푸시 · 텔레그램 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
@@ -860,7 +860,7 @@ function NotificationsTab({ companyId }: { companyId: string | null }) {
       </ChannelSection>
 
       {/* Quiet Hours */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-bold">방해금지 시간대</h3>
@@ -1015,7 +1015,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
   if (!loaded) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -1190,7 +1190,7 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
   if (!loaded) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+    <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -1276,7 +1276,7 @@ function ChannelSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 ${disabled ? "opacity-60" : ""}`}>
+    <div className={`glass-card p-6 ${disabled ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between mb-4 gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-bold">{title}</h3>
@@ -1591,7 +1591,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
   if (!companyId) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>
       </div>
     );
@@ -1599,7 +1599,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
   if (isLoading) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="text-center py-8">
           <div className="w-6 h-6 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <div className="text-sm text-[var(--text-muted)]">회사 정보 로딩 중...</div>
@@ -1634,7 +1634,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       )}
 
       {/* Company Basic Info */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">기본 정보</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1723,7 +1723,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Seal & Logo Upload */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">직인 및 로고</h2>
         {uploadError && (
           <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-xs mb-4">{uploadError}</div>
@@ -2073,7 +2073,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
 
   if (!companyId) {
     return (
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>
       </div>
     );
@@ -2082,7 +2082,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
   return (
     <div className="space-y-6">
       {/* Policy List */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-bold">승인 정책 관리</h2>
@@ -2493,7 +2493,7 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-bold">팀 관리</h2>
@@ -2784,7 +2784,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
   if (!companyId) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-bold">프로젝트 분류 관리</h2>
@@ -3119,7 +3119,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+    <div className="glass-card p-6">
       <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
       <p className="text-xs text-[var(--text-dim)] mb-4">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
 
@@ -3610,7 +3610,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
   return (
     <div className="space-y-6">
       {/* 금융 연결 상태 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold">금융 데이터 연동</h2>
@@ -3837,7 +3837,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
       <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchConnection(); }} />
 
       {/* 수동 등록 계좌 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">수동 등록 계좌</h2>
         {bankAccounts.length === 0 ? (
           <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>
@@ -3863,7 +3863,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
       </div>
 
       {/* 이체 자동화 설정 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">이체 자동화 설정</h2>
         <div className="space-y-4">
           <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
@@ -3953,7 +3953,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   );
   return (
     <div className="space-y-6">
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">세금계산서 자동발행</h2>
         <div className="space-y-3">
           <Tog label="프로젝트 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
@@ -3962,14 +3962,14 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">발행 주기</label><select value={settings.issue_schedule} onChange={(e) => setSettings({ ...settings, issue_schedule: e.target.value })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="immediate">거래 즉시</option><option value="weekly">매주 월요일</option><option value="monthly">매월 말일</option></select></div>
         </div>
       </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">취소/수정 규칙</h2>
         <div className="space-y-3">
           <Tog label="환불 시 수정세금계산서" desc="환불 발생 시 수정본 자동 발행" checked={settings.auto_cancel_on_refund} onChange={(v) => setSettings({ ...settings, auto_cancel_on_refund: v })} />
           <Tog label="계약 취소 시 자동 취소" desc="프로젝트 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
         </div>
       </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">결제/매칭 설정</h2>
         <div className="space-y-4">
           <div>
@@ -3984,7 +3984,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           </div>
         </div>
       </div>
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
           <div>
@@ -4543,7 +4543,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 공동인증서 파일 업로드 — 위치 자동 탐색 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg">📜</div>
           <div>
@@ -4563,7 +4563,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 은행 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg">🏦</div>
@@ -4634,7 +4634,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 홈택스 (레거시 — 신규 등록은 위의 "금융기관 연결" 섹션에서 "홈택스" 선택) */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
           <div>
@@ -4683,7 +4683,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 카드 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg">💳</div>
@@ -4754,7 +4754,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* 자동서명 규칙 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <h2 className="text-sm font-bold mb-4">자동서명 규칙</h2>
         <div className="space-y-3">
           <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
@@ -4857,7 +4857,7 @@ function AccountTab() {
   return (
     <div className="space-y-6">
       {/* 계정 정보 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg">👤</div>
           <div>
@@ -4868,7 +4868,7 @@ function AccountTab() {
       </div>
 
       {/* 비밀번호 변경 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+      <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-lg">🔑</div>
           <div>

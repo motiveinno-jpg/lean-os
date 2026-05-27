@@ -805,7 +805,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* ── 품목 편집 테이블 (견적서/계약서) ── */}
           {(contentType === 'invoice' || contentType === 'quote' || contentType === 'contract') && editItems.length > 0 && (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                 <span className="text-xs text-[var(--text-dim)] font-medium">품목 목록</span>
                 {canEdit && (
@@ -898,7 +898,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* ── 결제조건 편집 테이블 (계약서) ── */}
           {contentType === 'contract' && editPaymentSchedule.length > 0 && (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                 <span className="text-xs text-[var(--text-dim)] font-medium">결제조건</span>
                 {canEdit && (
@@ -978,7 +978,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           )}
 
           {/* ── 직인/서명 패널 ── */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+          <div className="glass-card p-5">
             <div className="flex items-center gap-4 mb-3">
               <span className="text-xs font-bold text-[var(--text-dim)]">직인 / 서명</span>
               {(doc as any).seal_applied && (
@@ -1050,7 +1050,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             )}
           </div>
 
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <span className="text-xs text-[var(--text-dim)] font-medium">문서 내용</span>
               {canEdit && (
@@ -1099,7 +1099,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       )}
 
       {tab === "revisions" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {revisions.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">수정 이력이 없습니다</div>
           ) : (
@@ -1128,7 +1128,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       )}
 
       {tab === "approvals" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {approvals.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">승인 기록이 없습니다</div>
           ) : (
@@ -1532,7 +1532,7 @@ function DocumentsPageInner() {
 
       {/* Doc Form */}
       {showDocForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">새 문서 생성</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
@@ -1590,7 +1590,7 @@ function DocumentsPageInner() {
 
       {/* Invoice Form */}
       {showInvForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -1643,7 +1643,7 @@ function DocumentsPageInner() {
 
       {/* Documents List */}
       {tab === "docs" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {filteredDocuments.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📄</div>
@@ -1716,7 +1716,7 @@ function DocumentsPageInner() {
       {tab === "contracts" && (
         <div className="space-y-6">
           {/* 진행중 계약서 */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-sm font-bold">진행중 계약서</h2>
               <span className="text-xs text-[var(--text-dim)]">{contractDocuments.length}건</span>
@@ -1801,7 +1801,7 @@ function DocumentsPageInner() {
           </div>
 
           {/* 계약서 보관함 */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold">계약서 보관함</h2>
@@ -1968,7 +1968,7 @@ function DocumentsPageInner() {
 
       {/* Tax Invoices List */}
       {tab === "invoices" && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="glass-card overflow-hidden">
           {invoices.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🧾</div>
@@ -2122,7 +2122,7 @@ function DocumentsPageInner() {
           )}
 
           {/* Signature Requests List */}
-          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="glass-card overflow-hidden">
             {signatureRequests.length === 0 ? (
               <div className="p-16 text-center">
                 <svg className="w-12 h-12 mx-auto mb-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.2} viewBox="0 0 24 24">
@@ -2247,7 +2247,7 @@ function DocumentsPageInner() {
 
           {/* Signature Detail Panel */}
           {selectedSignature && (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6">
+            <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold">서명 상세 정보</h3>
                 <button
@@ -2573,7 +2573,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
       {/* Left: Folder Tree */}
       <div className="w-full md:w-[240px] shrink-0">
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[var(--text)]">폴더</span>
             <button
@@ -2664,7 +2664,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         />
 
         {/* File list */}
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <FileList
             files={filteredFiles.map((f: any) => ({
               id: f.id,
@@ -3212,7 +3212,7 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
       )}
 
       {/* Templates List */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         {templates.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">📝</div>

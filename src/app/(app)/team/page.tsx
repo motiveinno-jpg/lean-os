@@ -75,7 +75,7 @@ export default function TeamPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-12 text-center text-sm text-[var(--text-muted)]">
+        <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">
           {search ? "검색 결과가 없습니다" : "등록된 구성원이 없습니다"}
         </div>
       ) : (
@@ -89,7 +89,7 @@ export default function TeamPage() {
                 {list.map((e) => (
                   <div
                     key={e.id}
-                    className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 hover:border-[var(--primary)]/30 transition"
+                    className="glass-card p-4 hover:border-[var(--primary)]/30 transition"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold flex items-center justify-center shrink-0">

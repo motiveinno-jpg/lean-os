@@ -159,7 +159,7 @@ export default function OperatorUsersPage() {
 
       {/* 후보 목록 */}
       {result && !result.found && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+        <div className="glass-card p-5">
           {result.candidates && result.candidates.length > 0 ? (
             <>
               <div className="text-xs text-[var(--text-muted)] mb-2">정확히 일치하는 계정이 없습니다. 유사 계정:</div>
@@ -188,7 +188,7 @@ export default function OperatorUsersPage() {
           {/* 회원 조회 탭 */}
           {tab === "view" && (
             <>
-              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+              <div className="glass-card p-5">
                 <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">📋 계정 정보</div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Info label="이름" value={u.name || "-"} />
@@ -210,7 +210,7 @@ export default function OperatorUsersPage() {
               </div>
 
               {/* 에러 발생 이력 */}
-              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5">
+              <div className="glass-card p-5">
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <div className="text-xs font-bold text-[var(--text-muted)] uppercase">⚠️ 에러 발생 이력</div>
                   {errors?.stats && (

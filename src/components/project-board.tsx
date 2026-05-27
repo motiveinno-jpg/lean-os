@@ -360,7 +360,7 @@ export default function ProjectBoard({ dealId, nodes, revenue = [], milestones =
   // ── Render ──
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden mb-6">
+    <div className="glass-card overflow-hidden mb-6">
       {/* Header */}
       <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
         <div className="flex items-center gap-3">

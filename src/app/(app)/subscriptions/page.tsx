@@ -169,19 +169,19 @@ export default function SubscriptionsPage() {
 
       {/* 요약 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">월 총 구독비</div>
           <div className="text-xl font-extrabold mt-1 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">연 환산</div>
           <div className="text-xl font-extrabold mt-1">{fmtW(totalMonthly * 12)}</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">외부 구독</div>
           <div className="text-xl font-extrabold mt-1">{activeAccounts.length}개</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4">
+        <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">카테고리</div>
           <div className="text-xs mt-1.5 space-y-0.5">
             {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => (
@@ -196,7 +196,7 @@ export default function SubscriptionsPage() {
 
       {/* 등록/수정 폼 */}
       {showForm && canEdit && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-6 mb-4">
+        <div className="glass-card p-6 mb-4">
           <h3 className="text-sm font-bold mb-4">{editingId ? "구독 수정" : "구독 추가"}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -269,7 +269,7 @@ export default function SubscriptionsPage() {
       )}
 
       {/* 목록 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-x-auto">
+      <div className="glass-card overflow-x-auto">
         <table className="w-full text-sm min-w-[760px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
