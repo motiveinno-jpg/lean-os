@@ -1,9 +1,12 @@
-// 2026-05-27 v3 — 캐싱 전면 중단 + 기존 캐시 전부 삭제.
-//   배경: 디자인 변경(인디고/글래스/아이콘타일/여백)을 여러 번 배포했으나 사용자 화면이 계속
-//   stale("그대로") — SW 가 옛 자산/HTML 을 잡고 있던 게 주원인으로 판단. 오너뷰는 네트워크
-//   기반(Supabase) 앱이라 오프라인 precache 의 가치보다 정합성(항상 최신)이 우선.
-//   조치: precache 제거, fetch 가로채기 제거(브라우저 기본 네트워크 처리 = 항상 최신 + 해시 자산),
-//   activate 에서 모든 캐시 삭제 + claim. SW 는 등록 상태만 유지(PWA 설치 가능).
+// 2026-05-27 v4 — 캐싱 전면 중단 + 기존 캐시 삭제 + SW 교체 시 열린 탭 자동 새로고침.
+//   배경: v3(캐싱 중단)을 배포했으나 SW 교체는 "2회 로드"가 필요해 사용자가 1회 새로고침 시
+//   여전히 옛 SW 가 stale 화면 서빙 → "그대로" 반복. 오너뷰는 네트워크 기반 앱이라 오프라인
+//   캐시보다 항상-최신 정합성 우선.
+//   조치: precache 제거, fetch no-op(브라우저 기본 네트워크=항상 최신 해시 자산),
+//   activate 에서 모든 캐시 삭제 + claim + 열린 window 자동 navigate(=강제 새로고침, SW 버전당 1회).
+//   → 사용자가 사이트를 한 번만 열면, 새 SW 가 활성화되며 탭을 최신으로 자동 재로드.
+const SW_VERSION = "v4";
+
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -11,15 +14,21 @@ self.addEventListener("install", () => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      // 1) 옛 캐시 전부 제거
       const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k))); // 옛 캐시 전부 제거
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      // 2) 현재 페이지들 제어권 확보
       await self.clients.claim();
+      // 3) 열린 탭을 최신으로 강제 새로고침 (activate 는 SW 버전당 1회만 → 새로고침 루프 없음)
+      const clients = await self.clients.matchAll({ type: "window" });
+      for (const client of clients) {
+        try { client.navigate(client.url); } catch { /* noop */ }
+      }
     })()
   );
 });
 
-// fetch 핸들러에서 respondWith 호출하지 않음 → 브라우저 기본 네트워크 경로(항상 최신).
-// (핸들러 자체를 두지 않으면 패스스루. 명시적으로 비워 의도를 분명히 함.)
+// fetch 가로채지 않음 → 브라우저 기본 네트워크 경로(항상 최신). SW 가 stale 자산을 절대 서빙하지 않음.
 self.addEventListener("fetch", () => {
-  // no-op: 네트워크 그대로. SW 가 stale 자산을 절대 서빙하지 않음.
+  // no-op
 });
