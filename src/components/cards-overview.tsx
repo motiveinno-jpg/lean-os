@@ -96,6 +96,43 @@ function defaultRange(): { from: Date; to: Date } {
   return { from, to };
 }
 
+// 시안 — 증감 화살표(지출 기준: 증가=danger 빨강, 감소=success 초록)
+function TrendArrow({ up }: { up: boolean }) {
+  return (
+    <svg className={`w-3.5 h-3.5 ${up ? "text-[var(--danger)]" : "text-[var(--success)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={up ? "M5 11l7-7 7 7M12 4v16" : "M19 13l-7 7-7-7M12 20V4"} />
+    </svg>
+  );
+}
+
+// 시안 — 상단 통계 카드
+function StatCard({ tone, icon, label, value, trend }: {
+  tone: "danger" | "brand" | "info" | "warning";
+  icon: string;
+  label: string;
+  value: string;
+  trend: number | null;
+}) {
+  return (
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{label}</p>
+        <IconTile tone={tone} size={34}><TileIcon name={icon} className="w-4 h-4 text-white" /></IconTile>
+      </div>
+      <p className="text-2xl font-bold text-[var(--text)] mono-number mb-1">{value}</p>
+      {trend != null ? (
+        <div className="flex items-center gap-1">
+          <TrendArrow up={trend >= 0} />
+          <span className={`text-xs font-medium ${trend >= 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{Math.abs(trend).toFixed(1)}%</span>
+          <span className="text-[11px] text-[var(--text-dim)]">전월 대비</span>
+        </div>
+      ) : (
+        <p className="text-[11px] text-[var(--text-dim)]">기간 합계</p>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   companyId: string;
   onSelectCard: (payload: string) => void;
@@ -166,19 +203,66 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
 
   const cardClickPayload = (c: CardSpendCard) => (c.cardId ? c.cardId : `codef:${c.cardName}`);
 
+  // ── 시안 표시 전용(기존 쿼리·로직 무관, 레이아웃/표시만) ──
+  const [activeTab, setActiveTab] = useState<"all" | "credit" | "check" | "debit">("all");
+
+  // 전월(직전 동일 길이) 사용액 — 카드별/전체 증감 표시용
+  const prevRange = useMemo(() => ({ from: addMonths(range.from, -1), to: addMonths(range.to, -1) }), [range]);
+  const { data: prevData } = useQuery({
+    queryKey: ["card-spend-prev", companyId, ymd(prevRange.from), ymd(prevRange.to)],
+    queryFn: () => getCardSpendByCompany(companyId, ymd(prevRange.from), ymd(prevRange.to)),
+    enabled: !!companyId,
+  });
+  const prevByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of prevData?.groups || []) for (const c of g.cards) m.set(c.key, c.spend);
+    return m;
+  }, [prevData]);
+  const trendOf = (key: string, cur: number): number | null => {
+    const p = prevByKey.get(key);
+    if (p == null || p === 0) return null;
+    return ((cur - p) / p) * 100;
+  };
+
+  // 탭(카드 종류) 필터 + 평탄화 — 기존 groups(검색·정렬 반영) 재사용
+  const flatCards = useMemo(() => {
+    const out: CardSpendCard[] = [];
+    for (const g of groups) for (const c of g.cards) {
+      if (activeTab !== "all" && (c.cardType || "other") !== activeTab) continue;
+      out.push(c);
+    }
+    return out;
+  }, [groups, activeTab]);
+
+  // 통계 4개(표시용 집계)
+  const stats = useMemo(() => {
+    let cardCount = 0, txCount = 0, unreg = 0;
+    for (const g of data?.groups || []) for (const c of g.cards) { cardCount++; txCount += c.count; if (!c.registered) unreg++; }
+    const prevTotal = prevData?.total ?? 0;
+    const trend = prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : null;
+    return { total, cardCount, txCount, unreg, trend };
+  }, [data, prevData, total]);
+
   return (
-    <div className="space-y-4">
-      {/* 상단 요약 바 */}
-      <div className="glass-card p-5 sm:p-5">
+    <div className="space-y-6">
+      {/* 상단 통계 4개 (시안) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard tone="danger" icon="card" label="기간 카드 사용액" value={fmtWon(stats.total)} trend={stats.trend} />
+        <StatCard tone="brand" icon="wallet" label="등록 카드" value={`${stats.cardCount}개`} trend={null} />
+        <StatCard tone="info" icon="trendingUp" label="거래 건수" value={`${stats.txCount.toLocaleString("ko-KR")}건`} trend={null} />
+        <StatCard tone="warning" icon="card" label="미등록 카드" value={`${stats.unreg}개`} trend={null} />
+      </div>
+
+      {/* 컨트롤 바 — 탭(카드 종류) + 기간/새로고침/다운로드 + 검색/정렬 */}
+      <div className="glass-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <IconTile tone="danger" size={48}><TileIcon name="card" className="w-6 h-6 text-white" /></IconTile>
-            <div>
-              <div className="text-[11px] text-[var(--text-dim)] mb-1">기간 내 카드 지출</div>
-              <div className={`text-2xl sm:text-3xl font-extrabold mono-number ${total > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-                {fmtWon(total)}
-              </div>
-            </div>
+          <div className="flex gap-1.5 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide">
+            {([["all", "전체"], ["credit", "신용"], ["check", "체크"], ["debit", "직불"]] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setActiveTab(id)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition ${activeTab === id ? "bg-[var(--primary)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}>
+                {label}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* 기간 네비게이션 — 1개월 단위 이동 + 날짜 직접 선택 */}
@@ -230,66 +314,67 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
         </div>
       </div>
 
-      {/* 카드사별 그룹 */}
+      {/* 카드 그리드 (시안) */}
       {isLoading ? (
         <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-      ) : groups.length === 0 ? (
-        <div className="p-12 text-center glass-card">
-          <div className="text-4xl mb-3">💳</div>
-          <div className="text-sm text-[var(--text-muted)]">{search ? "검색 결과가 없습니다." : "이 기간에 카드 사용 내역이 없습니다."}</div>
+      ) : flatCards.length === 0 ? (
+        <div className="flex items-center justify-center py-16 glass-card">
+          <div className="text-center">
+            <svg className="w-12 h-12 text-[var(--text-dim)] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" strokeWidth={2} />
+              <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" />
+            </svg>
+            <p className="text-[var(--text)] font-medium">{search || activeTab !== "all" ? "조건에 맞는 카드가 없습니다" : "이 기간에 카드 사용 내역이 없습니다"}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{search || activeTab !== "all" ? "검색어·필터를 조정해보세요" : "카드를 등록하거나 기간을 바꿔보세요"}</p>
+          </div>
         </div>
       ) : (
-        groups.map((g) => {
-          const st = styleFor(g.company);
-          return (
-            <div key={g.company}>
-              {/* 그룹 헤더 */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: st.color }} />
-                <span className="text-sm font-bold text-[var(--text)]">{g.company}</span>
-                <span className="text-xs text-[var(--text-dim)]">{g.cards.length}개</span>
-                <span className="ml-auto text-xs font-semibold mono-number text-[var(--danger)]">{fmtWon(g.total)}</span>
-              </div>
-              {/* 3열 그리드 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {g.cards.map((c) => {
-                  const zero = Math.round(c.spend) === 0;
-                  return (
-                    <button
-                      key={c.key}
-                      onClick={() => onSelectCard(cardClickPayload(c))}
-                      className="flex items-center gap-3 p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/60 hover:bg-[var(--bg-surface)] transition text-left"
-                    >
-                      {/* 카드사 아이콘 (로고 이미지 우선, 없으면 색상 이니셜) */}
-                      <CardCompanyIcon company={g.company} />
-
-                      {/* 카드명 + 사용액 */}
-                      <span className="flex-1 min-w-0">
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold text-[var(--text)] truncate" title={c.cardName}>
-                            {c.displayName}
-                          </span>
-                          {c.cardType && (
-                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)]">
-                              {TYPE_LABEL[c.cardType] || c.cardType}
-                            </span>
-                          )}
-                          {!c.registered && (
-                            <span className="shrink-0 text-[9px] px-1 py-0.5 rounded text-[var(--text-dim)] border border-[var(--border)]">미등록</span>
-                          )}
-                        </span>
-                        <span className={`block text-sm font-bold mono-number mt-0.5 ${zero ? "text-[var(--text-dim)]" : "text-[var(--danger)]"}`}>
-                          {fmtWon(c.spend)}
-                          <span className="ml-1.5 text-[10px] font-normal text-[var(--text-dim)]">{c.count}건</span>
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {flatCards.map((c) => {
+            const zero = Math.round(c.spend) === 0;
+            const tr = trendOf(c.key, c.spend);
+            return (
+              <button
+                key={c.key}
+                onClick={() => onSelectCard(cardClickPayload(c))}
+                className="group glass-card p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CardCompanyIcon company={c.company} size={44} />
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-[var(--text)] truncate" title={c.cardName}>{c.displayName}</h3>
+                      <p className="text-xs text-[var(--text-dim)] truncate">{c.company}{c.last4 ? ` ·${c.last4}` : ""}</p>
+                    </div>
+                  </div>
+                  <span className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium ${c.registered ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--text-muted)]/10 text-[var(--text-muted)]"}`}>
+                    {c.registered ? (TYPE_LABEL[c.cardType || ""] || "활성") : "미등록"}
+                  </span>
+                </div>
+                <div className="mb-4">
+                  <p className={`text-2xl font-bold mono-number mb-1 ${zero ? "text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{fmtWon(c.spend)}</p>
+                  <div className="flex items-center gap-1">
+                    {tr != null ? (
+                      <>
+                        <TrendArrow up={tr >= 0} />
+                        <span className={`text-sm font-medium ${tr >= 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{Math.abs(tr).toFixed(1)}%</span>
+                        <span className="text-xs text-[var(--text-dim)]">전월 대비</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-[var(--text-dim)]">{c.count}건 사용</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+                  <span className="text-xs text-[var(--text-dim)]">{c.count}건</span>
+                  <svg className="w-4 h-4 text-[var(--text-dim)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
