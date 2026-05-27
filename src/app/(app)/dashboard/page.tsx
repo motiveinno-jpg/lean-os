@@ -218,6 +218,34 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
+  // 시안 히어로 세부행 — 고정비(급여/정기지출/기타) + 변동비(카드별). realBurnData/realVariableData 와 동일 소스.
+  const { data: costBreakdown } = useQuery({
+    queryKey: ["dash-cost-breakdown", companyId],
+    queryFn: async () => {
+      const db: any = supabase;
+      const monthPrefix = new Date().toISOString().slice(0, 7);
+      const [recurring, totalSalary, snapshot, cardsRes] = await Promise.all([
+        getRecurringPayments(companyId!),
+        getMonthlyTotalSalary(companyId!),
+        db.from('cash_snapshot').select('monthly_fixed_cost').eq('company_id', companyId!).maybeSingle(),
+        db.from('card_transactions').select('card_name, amount').eq('company_id', companyId!)
+          .gte('transaction_date', `${monthPrefix}-01`).lte('transaction_date', `${monthPrefix}-31`),
+      ]);
+      const recurringTotal = (recurring || []).filter((r: any) => r.is_active).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const manualFixed = Number(snapshot.data?.monthly_fixed_cost || 0);
+      const fixed = [
+        { label: '급여', amount: totalSalary },
+        { label: '정기지출', amount: recurringTotal },
+        { label: '기타 고정비', amount: manualFixed },
+      ];
+      const byCard: Record<string, number> = {};
+      (cardsRes.data || []).forEach((t: any) => { const k = t.card_name || '기타'; byCard[k] = (byCard[k] || 0) + Number(t.amount || 0); });
+      const variable = Object.entries(byCard).map(([label, amount]) => ({ label, amount: amount as number })).sort((a, b) => b.amount - a.amount);
+      return { fixed, variable };
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+
   // 결재 대기 건수 — 전자결재 카드용
   const { data: approvalsPending = 0 } = useQuery({
     queryKey: ['approvals-pending-dashboard', companyId],
@@ -596,6 +624,20 @@ export default function DashboardPage() {
         <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
       )}
 
+      {/* ═══ 시안 메인 — 재무 요약 히어로 + 하단 3카드. owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
+      {(role === "owner" || role === "admin") && companyId && (
+        <>
+          <DashboardFinancialHero
+            balance={cashPulse?.currentBalance ?? null}
+            fixedCost={realBurnData ?? null}
+            variableCost={realVariableData ?? null}
+            fixedBreakdown={costBreakdown?.fixed}
+            variableBreakdown={costBreakdown?.variable}
+          />
+          <DashboardBottomCards companyId={companyId} />
+        </>
+      )}
+
       {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner/admin ═══ */}
       {(role === "owner" || role === "admin") && (
         <div className="flex items-center gap-1 mb-4 bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)] w-fit">
@@ -616,19 +658,8 @@ export default function DashboardPage() {
       {/* ═══ 경영 뷰 (기존 owner 위젯) — analytics 가 아니거나 토글이 없는 경우 ═══ */}
       {(dashView === 'manage' || !(role === "owner" || role === "admin")) && (<>
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
+      {/* (시안 재무 히어로 + 하단 3카드는 위 토글 상단으로 이동 — 기본 노출) */}
       <div className="mb-4">
-        {/* 2026-05-27 새 디자인 시안 — 메인 재무 요약(총자금 + 고정/변동/기타 3열). owner/admin 만. */}
-        {(role === "owner" || role === "admin") && (
-          <DashboardFinancialHero
-            balance={cashPulse?.currentBalance ?? null}
-            fixedCost={realBurnData ?? null}
-            variableCost={realVariableData ?? null}
-          />
-        )}
-        {/* 시안 하단 3카드 — 카드/자산/매출 (실데이터) */}
-        {(role === "owner" || role === "admin") && companyId && (
-          <DashboardBottomCards companyId={companyId} />
-        )}
         {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
         {(role === "owner" || role === "admin") && <OwnerDashboardSection />}
 

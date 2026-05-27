@@ -1,8 +1,8 @@
 "use client";
 
-// 대시보드 메인 재무 요약 — 2026-05-27 새 디자인 시안 적용(1차).
-//   총자금(그라데이션 숫자) + 고정비/변동비/기타 3열(총액·비중 pill). 글래스 카드.
-//   데이터는 owner 대시보드 기존 값 재사용(잔고/월고정비/이번달변동비). 항목 세부·카드/자산/매출은 2차.
+// 대시보드 메인 재무 요약 — 2026-05-27 새 디자인 시안 적용.
+//   총자금(그라데이션 숫자) + 고정비/변동비/기타 3열(총액·비중 pill + 항목별 세부행). 글래스 카드.
+//   데이터는 owner 대시보드 기존 값 재사용(잔고/월고정비/이번달변동비) + 세부행은 호출처에서 breakdown 전달.
 //   직원 금액 가림은 호출처에서 제어(owner/admin 만 렌더).
 
 import { Card } from "@/components/ui/card";
@@ -11,20 +11,40 @@ import { Badge } from "@/components/ui/badge";
 
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
+type BreakdownItem = { label: string; amount: number };
+
+function SubRow({ label, amount, dim }: { label: string; amount: number; dim?: boolean }) {
+  return (
+    <div className="flex justify-between text-[13px] bg-[var(--bg-card)]/50 p-2 rounded-lg">
+      <span className={dim ? "text-[var(--text-dim)]" : "text-[var(--text-muted)]"}>{label}</span>
+      <span className={`${dim ? "text-[var(--text-dim)]" : "text-[var(--text)]"} font-medium tabular-nums`}>
+        {amount === 0 && dim ? "-" : fmtW(amount)}
+      </span>
+    </div>
+  );
+}
+
 export function DashboardFinancialHero({
   balance,
   fixedCost,
   variableCost,
+  fixedBreakdown,
+  variableBreakdown,
 }: {
   balance: number | null;
   fixedCost: number | null;
   variableCost: number | null;
+  fixedBreakdown?: BreakdownItem[];
+  variableBreakdown?: BreakdownItem[];
 }) {
   const fixed = fixedCost ?? 0;
   const variable = variableCost ?? 0;
   const totalCost = fixed + variable;
   const fixedPct = totalCost > 0 ? Math.round((fixed / totalCost) * 100) : 0;
   const variablePct = totalCost > 0 ? 100 - fixedPct : 0;
+
+  const fixedRows = (fixedBreakdown || []).filter((r) => r.amount > 0).slice(0, 3);
+  const variableRows = (variableBreakdown || []).filter((r) => r.amount > 0).slice(0, 3);
 
   return (
     <Card className="p-6 sm:p-8 mb-6 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]">
@@ -57,8 +77,12 @@ export function DashboardFinancialHero({
             </div>
             <Badge tone="danger">{fixedPct}%</Badge>
           </div>
-          <FinancialNumber size="medium" tone="danger">-{fmtW(fixed)}</FinancialNumber>
-          <div className="text-[11px] text-[var(--text-dim)] mt-2">급여·정기지출·임대료 등 월 고정비</div>
+          <FinancialNumber size="medium" tone="danger" className="mb-4">-{fmtW(fixed)}</FinancialNumber>
+          <div className="space-y-2.5">
+            {fixedRows.length > 0
+              ? fixedRows.map((r) => <SubRow key={r.label} label={r.label} amount={r.amount} />)
+              : <div className="text-[11px] text-[var(--text-dim)]">급여·정기지출·임대료 등 월 고정비</div>}
+          </div>
         </div>
 
         {/* 변동비 */}
@@ -72,8 +96,12 @@ export function DashboardFinancialHero({
             </div>
             <Badge tone="info">{variablePct}%</Badge>
           </div>
-          <FinancialNumber size="medium" tone="info">-{fmtW(variable)}</FinancialNumber>
-          <div className="text-[11px] text-[var(--text-dim)] mt-2">이번 달 카드 사용액 등</div>
+          <FinancialNumber size="medium" tone="info" className="mb-4">-{fmtW(variable)}</FinancialNumber>
+          <div className="space-y-2.5">
+            {variableRows.length > 0
+              ? variableRows.map((r) => <SubRow key={r.label} label={r.label} amount={r.amount} />)
+              : <div className="text-[11px] text-[var(--text-dim)]">이번 달 카드 사용액 등</div>}
+          </div>
         </div>
 
         {/* 기타 */}
@@ -87,8 +115,10 @@ export function DashboardFinancialHero({
             </div>
             <Badge tone="muted">0%</Badge>
           </div>
-          <FinancialNumber size="medium" tone="muted">₩0</FinancialNumber>
-          <div className="text-[11px] text-[var(--text-dim)] mt-2">미분류 항목</div>
+          <FinancialNumber size="medium" tone="muted" className="mb-4">₩0</FinancialNumber>
+          <div className="space-y-2.5">
+            <SubRow label="미분류 항목" amount={0} dim />
+          </div>
         </div>
       </div>
     </Card>

@@ -286,10 +286,24 @@ function AppContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    // 새 디자인 시스템(시안) — 전 페이지 공통 페이지 그라데이션 배경(--page-from/via/to).
-    //   토큰이 라이트/다크 양쪽 정의돼 자동 대응. 사이드바는 자체 솔리드 배경이라 영향 없음.
-    //   카드(bg-card 솔리드)가 이 그라데이션 위에 떠 보이는 granter/시안 룩을 전 페이지에 일괄 부여.
-    <div className="flex min-h-screen bg-gradient-to-br from-[var(--page-from)] via-[var(--page-via)] to-[var(--page-to)]">
+    // 새 디자인 시스템(시안) — 전 페이지 공통 배경: 그라데이션 + 점 패턴 + 그라데이션 orbs.
+    //   fixed/-z-10/pointer-events-none 레이어라 스크롤·클릭·레이아웃 무영향, 39개 전 페이지 공통.
+    //   카드(bg-card 솔리드)가 이 배경 위에 떠 보이는 granter/시안 룩을 일괄 부여.
+    <div className="relative flex min-h-screen">
+      {/* 시안 배경 레이어 — 콘텐츠 뒤(-z-10). 라이트/다크 토큰 자동 대응. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-gradient-to-br from-[var(--page-from)] via-[var(--page-via)] to-[var(--page-to)]"
+      >
+        {/* 점 패턴 */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: "radial-gradient(circle at 1px 1px, var(--brand) 1px, transparent 0)", backgroundSize: "40px 40px" }}
+        />
+        {/* 그라데이션 orbs */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-[var(--brand)]/10 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[var(--success)]/10 to-transparent rounded-full blur-3xl" />
+      </div>
       <Sidebar />
       {/* Top header bar (mobile: hamburger + notification, desktop: notification only) */}
       <div
