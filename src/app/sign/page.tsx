@@ -1178,19 +1178,8 @@ function SignContent() {
             ))}
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
-                hasSignerInputs ? (
-                  // 본문 토큰 자리에 라디오/텍스트 input 인라인 mount (서명 진행 중 시안 UX).
-                  <BodyWithInlineFields
-                    html={injectContractInlineStyles(stripSignatureBlock(String(content.body)))}
-                    fields={signerFields}
-                    signerInputs={signerInputs}
-                    setSignerInputs={setSignerInputs}
-                    className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                  />
-                ) : (
-                  // 토큰 없는 일반 서식 — 평소대로 렌더.
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
-                )
+                // 서명 완료 상태 — 저장된 signer_inputs 로 ☑/☐ 정적 합성(편집 불가).
+                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}
@@ -1234,8 +1223,20 @@ function SignContent() {
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  // read-only fallback(서명 진행 외 상태) — 옛 signer_inputs 있으면 ☑ 합성, 없으면 토큰 그대로.
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
+                  hasSignerInputs ? (
+                    // 라이브 서명 화면 — 본문 토큰 자리에 라디오/텍스트 input 인라인 mount(Portal).
+                    // 라디오 클릭 → state 업데이트 → "서명 완료" 활성 가드와 자동 연동.
+                    <BodyWithInlineFields
+                      html={injectContractInlineStyles(stripSignatureBlock(String(content.body)))}
+                      fields={signerFields}
+                      signerInputs={signerInputs}
+                      setSignerInputs={setSignerInputs}
+                      className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                    />
+                  ) : (
+                    // 토큰 없는 일반 서식 — 평소대로 렌더.
+                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
+                  )
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {stripSignatureBlock(String(content.body))}
