@@ -2026,7 +2026,7 @@ export default function TaxInvoicesPage() {
                   작성중 전체 선택
                 </label>
               )}
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                 {currentList.map((inv: any) => {
                   const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
                   const isDraft = inv.status === 'draft';
@@ -2036,9 +2036,21 @@ export default function TaxInvoicesPage() {
                         {isDraft && draftInCurrentList.length > 0 && (
                           <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)} onClick={(e) => e.stopPropagation()} className="mt-1.5 w-3.5 h-3.5 rounded accent-[var(--primary)] shrink-0" />
                         )}
-                        <span className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                        </span>
+                        {/* 좌측 세로 스택: 유형 아이콘 타일 + (작성중) 발행 버튼(동일 크기) */}
+                        <div className="flex flex-col items-center gap-2 shrink-0">
+                          <span className={`w-11 h-11 rounded-xl flex items-center justify-center text-white shadow bg-gradient-to-br ${inv.type === 'purchase' ? 'from-indigo-500 to-purple-500' : 'from-emerald-500 to-teal-500'}`} title={inv.type === 'purchase' ? '매입' : '매출'}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          </span>
+                          {isDraft && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSingleIssue(inv.id); }}
+                              className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white text-[11px] font-bold shadow hover:shadow-lg hover:shadow-blue-500/30 transition flex items-center justify-center"
+                              title="홈택스 발행"
+                            >
+                              발행
+                            </button>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -2058,9 +2070,6 @@ export default function TaxInvoicesPage() {
                                 <div className="mt-1 text-[10px] text-red-500 font-semibold">⚠ 홈택스 미발행</div>
                               )}
                             </div>
-                            {isDraft && (
-                              <button onClick={(e) => { e.stopPropagation(); handleSingleIssue(inv.id); }} className="shrink-0 px-2.5 py-1 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-lg text-[11px] font-semibold transition">발행</button>
-                            )}
                           </div>
                           <div className="grid grid-cols-3 gap-2 mt-3">
                             <div className="rounded-lg p-2.5 bg-blue-500/10">
@@ -2516,7 +2525,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                 <th className="text-left px-5 py-3 font-medium">기간</th>
                 <th className="text-center px-5 py-3 font-medium">매출 건수</th>
@@ -2637,7 +2646,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       {/* Quarterly Breakdown */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
             <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left px-5 py-3 font-medium">분기</th>
               <th className="text-right px-5 py-3 font-medium">매출세액</th>
