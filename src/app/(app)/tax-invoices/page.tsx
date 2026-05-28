@@ -1518,68 +1518,67 @@ export default function TaxInvoicesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4" data-print-area>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            이번 달 매출
-          </div>
-          <div className="text-xl font-black text-green-400">{fmt(totalSales)}</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            {salesInvoices.length}건
-            {salesInvoices.length > 0 && (
-              <span className="ml-1 text-[var(--text-dim)]">
-                (공급가 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            이번 달 매입
-          </div>
-          <div className="text-xl font-black text-orange-400">{fmt(totalPurchase)}</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            {purchaseInvoices.length}건
-            {purchaseInvoices.length > 0 && (
-              <span className="ml-1 text-[var(--text-dim)]">
-                (공급가 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
-              </span>
-            )}
+        {/* 시안 — 그라데이션 톤. 항목·값·서브텍스트·계산식 그대로(매출/매입/미매칭/부가세). */}
+        <div className="rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br from-emerald-600 to-green-500">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">이번 달 매출</div>
+              <div className="text-2xl font-black mono-number">{fmt(totalSales)}</div>
+              <div className="text-xs text-white/75 mt-1">
+                {salesInvoices.length}건
+                {salesInvoices.length > 0 && (
+                  <span className="ml-1 text-white/60">
+                    (공급가 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none">📈</span>
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            미매칭 건수
-          </div>
-          <div
-            className={`text-xl font-black ${
-              unmatched > 0 ? "text-red-400" : "text-green-400"
-            }`}
-          >
-            {unmatched}건
-          </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            {unmatched > 0
-              ? `전체 ${invoices.length}건 중 매칭 필요`
-              : "모든 세금계산서 매칭 완료"}
+        <div className="rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br from-orange-500 to-red-500">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">이번 달 매입</div>
+              <div className="text-2xl font-black mono-number">{fmt(totalPurchase)}</div>
+              <div className="text-xs text-white/75 mt-1">
+                {purchaseInvoices.length}건
+                {purchaseInvoices.length > 0 && (
+                  <span className="ml-1 text-white/60">
+                    (공급가 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none">📉</span>
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1 uppercase tracking-wider font-medium">
-            예상 부가세 납부액
+        <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${unmatched > 0 ? "from-red-500 to-rose-500" : "from-emerald-600 to-green-500"}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">미매칭 건수</div>
+              <div className="text-2xl font-black mono-number">{unmatched}건</div>
+              <div className="text-xs text-white/75 mt-1">
+                {unmatched > 0 ? `전체 ${invoices.length}건 중 매칭 필요` : "모든 세금계산서 매칭 완료"}
+              </div>
+            </div>
+            <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none">🔗</span>
           </div>
-          <div
-            className={`text-xl font-black ${
-              vatEstimate >= 0 ? "text-[var(--primary)]" : "text-red-400"
-            }`}
-          >
-            {fmt(Math.abs(vatEstimate))}
-          </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
-            <span className="text-[var(--text-dim)] ml-1">
-              (매출세액 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))}
-              {" - "}매입세액 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))})
-            </span>
+        </div>
+        <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${vatEstimate >= 0 ? "from-indigo-600 to-purple-500" : "from-amber-500 to-orange-500"}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">예상 부가세 납부액</div>
+              <div className="text-2xl font-black mono-number">{fmt(Math.abs(vatEstimate))}</div>
+              <div className="text-xs text-white/75 mt-1">
+                {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
+                <span className="text-white/60 ml-1">
+                  (매출세액 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))}
+                  {" - "}매입세액 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))})
+                </span>
+              </div>
+            </div>
+            <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none">🧾</span>
           </div>
         </div>
       </div>
@@ -2070,8 +2069,9 @@ export default function TaxInvoicesPage() {
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}
+                          className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${sc.bg} ${sc.text}`}
                         >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
                           {sc.label}
                         </span>
                         {/* 매출 미발행(국세청 승인번호 없음) 경고 — status='발행'이어도 실제 홈택스 미발행 */}
