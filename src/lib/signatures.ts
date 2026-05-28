@@ -473,15 +473,41 @@ export function injectContractInlineStyles(html: string): string {
     }
     return `${attrs} style="${base}"`;
   };
+  // style 안의 특정 width 계열 속성만 골라 제거 (다른 색·padding 등은 보존)
+  const stripWidthProps = (styleStr: string): string =>
+    styleStr
+      .replace(/(^|;)\s*(min-width|max-width|width)\s*:[^;]*/gi, '')
+      .replace(/^\s*;+/, '')
+      .replace(/;\s*;+/g, ';')
+      .trim();
+  const stripStyleAttrWidths = (attrs: string): string =>
+    attrs.replace(/(\sstyle\s*=\s*)(["'])([\s\S]*?)\2/gi, (_m, pre, q, s) => {
+      const cleaned = stripWidthProps(s);
+      return cleaned ? `${pre}${q}${cleaned}${q}` : '';
+    });
+
   return html
-    // 2026-05-28 RichEditor 가 <colgroup><col style="width:79px"> 같은 임의 컬럼 폭을 박아 짧은 텍스트 셀은 비대하고
-    //   긴 텍스트 셀은 좁아서 3줄로 깨지는 문제. col 의 width/min-width style 을 제거해 콘텐츠 길이로 자동 분배.
+    // 2026-05-28 RichEditor 가 <colgroup><col style="width:79px"> + <table style="min-width:179px"> +
+    //   <td colwidth="0,0,79,0,0"> 같은 임의 컬럼 폭 메타데이터를 박아, 콘텐츠가 짧은 셀은 비대하고
+    //   긴 셀("(주)한국중소벤처기업유통원")은 좁아서 3줄로 깨지는 현상.
+    //   해결: 강제 폭 메타데이터(col style/width, table min/max/width, td colwidth) 전부 제거하고
+    //   table-layout:auto + 한글 word-break:keep-all 로 콘텐츠 길이 기반 자동 분배 + 단어 안 깨짐.
     .replace(/<col\b([^>]*?)>/gi, (_m, attrs) => {
-      const cleaned = String(attrs).replace(/\sstyle\s*=\s*(["'])[^"']*\1/gi, '').replace(/\swidth\s*=\s*(["'])[^"']*\1/gi, '');
+      const cleaned = String(attrs)
+        .replace(/\sstyle\s*=\s*(["'])[^"']*\1/gi, '')
+        .replace(/\swidth\s*=\s*(["'])[^"']*\1/gi, '');
       return `<col${cleaned}>`;
     })
-    .replace(/<table([^>]*)>/gi, (_m, attrs) => `<table${append(attrs, "border-collapse:collapse;width:100%;margin:12px 0;table-layout:auto")}>`)
-    .replace(/<(td|th)([^>]*)>/gi, (_m, tag, attrs) => `<${tag}${append(attrs, "border:1px solid #cbd5e1;padding:8px;vertical-align:top")}>`)
+    .replace(/<table([^>]*)>/gi, (_m, attrs) => {
+      const noWidths = stripStyleAttrWidths(attrs);
+      return `<table${append(noWidths, "border-collapse:collapse;width:100%;margin:12px 0;table-layout:auto;word-break:keep-all")}>`;
+    })
+    .replace(/<(td|th)([^>]*)>/gi, (_m, tag, attrs) => {
+      // colwidth 속성(tiptap 메타) 제거 + style 안의 width 계열만 제거
+      const noColwidth = String(attrs).replace(/\scolwidth\s*=\s*(["'])[^"']*\1/gi, '');
+      const noWidths = stripStyleAttrWidths(noColwidth);
+      return `<${tag}${append(noWidths, "border:1px solid #cbd5e1;padding:8px;vertical-align:top;word-break:keep-all")}>`;
+    })
     .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
 }
 
