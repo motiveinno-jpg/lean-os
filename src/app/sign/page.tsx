@@ -371,6 +371,8 @@ function SignContent() {
             };
             return body.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
               const k = String(key).trim();
+              // 2026-05-28 ?-prefix 토큰(라디오/텍스트)은 서명자 입력 — 변수 치환 대상 아님, 원형 유지.
+              if (k.startsWith('?라디오') || k.startsWith('?텍스트')) return full;
               if (k in replacements) return replacements[k];
               return full; // 매핑 없는 토큰(예: {{계약금액}}) 은 원형 유지
             });

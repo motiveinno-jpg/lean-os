@@ -417,15 +417,22 @@ export function injectOurSeal(html: string | null | undefined, sealUrl: string, 
 // 2026-05-22 변수 토큰 정규화 — RichEditor 에서 {{단체명}} 입력 시 글자별 서식(span)이 끼어
 //   {{</span><span ...>단체명</span>...}} 처럼 토큰이 HTML 태그로 분절되면 변수 치환이 실패함.
 //   {{ ... }} 사이의 모든 HTML 태그·엔티티를 제거해 순수 변수명({{단체명}})으로 복구.
+// 2026-05-28 ?-prefix 토큰({{?라디오:...}}, {{?텍스트:...}}) 보호 — `|` 와 `when=` 의미 보존.
+//   라디오 옵션 사이 공백은 보존하되 연속 공백·줄바꿈만 단일 공백으로 압축.
 export function normalizeVariableTokens(html: string): string {
   if (!html) return html;
   return html.replace(/\{\{([\s\S]*?)\}\}/g, (_m, inner) => {
-    const clean = String(inner)
+    const stripped = String(inner)
       .replace(/<[^>]*>/g, "")          // HTML 태그 제거
       .replace(/&nbsp;/gi, " ")
-      .replace(/&[a-zA-Z]+;|&#\d+;/g, "") // 기타 엔티티 제거
-      .trim();
-    return `{{${clean}}}`;
+      .replace(/&[a-zA-Z]+;|&#\d+;/g, ""); // 기타 엔티티 제거
+    const trimmed = stripped.trim();
+    // ?-prefix 토큰 (라디오/텍스트) 은 `|` / `when=` / 옵션 라벨 공백 보존
+    if (trimmed.startsWith('?라디오') || trimmed.startsWith('?텍스트')) {
+      const clean = trimmed.replace(/[ \t]*\r?\n[ \t]*/g, ' '); // 줄바꿈만 공백으로
+      return `{{${clean}}}`;
+    }
+    return `{{${trimmed}}}`;
   });
 }
 

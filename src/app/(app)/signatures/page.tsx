@@ -681,7 +681,10 @@ function extractTokens(...sources: any[]): string[] {
     let m: RegExpExecArray | null;
     while ((m = re.exec(s))) {
       const name = m[1].trim();
-      if (name) seen.add(name);
+      if (!name) continue;
+      // 2026-05-28 ?-prefix 토큰(라디오/텍스트) 은 서명자 입력용 — 발송측 변수 매핑 대상 아님.
+      if (name.startsWith('?라디오') || name.startsWith('?텍스트')) continue;
+      seen.add(name);
     }
   }
   return Array.from(seen);
