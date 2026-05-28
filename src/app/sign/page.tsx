@@ -8,7 +8,7 @@ import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { injectContractInlineStyles } from "@/lib/signatures";
-import { parseSiyanFields, validateInputs, isFieldActive, type SignerField } from "@/lib/signature-fields";
+import { parseSiyanFields, validateInputs, isFieldActive, applySignerInputsToHtml, type SignerField } from "@/lib/signature-fields";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -405,6 +405,11 @@ function SignContent() {
             ? { ...sigReq.documents, content_json: filledContentJson }
             : sigReq.documents;
 
+          // 2026-05-28 옛 서명 — DB 에 저장된 signer_inputs 복원 (서명본 모달·완료화면 합성용)
+          if (sigReq.signer_inputs && typeof sigReq.signer_inputs === 'object') {
+            try { setSignerInputs(sigReq.signer_inputs as Record<string, string>); } catch { /* noop */ }
+          }
+
           setPkg({
             id: sigReq.id,
             title: sigReq.title,
@@ -642,7 +647,14 @@ function SignContent() {
         // General document signing: update signature_requests table
         const { saveSignature } = await import("@/lib/signatures");
         // 외부(anon) 서명 — sign_token 전달로 SECDEF RPC 경로 사용 (RLS 우회).
-        await saveSignature((pkg as any)._signatureRequestId, sigData, undefined, token);
+        // 2026-05-28 본문 라디오/조건부 텍스트 입력값을 jsonb 컬럼+합성본 HTML 에 반영.
+        await saveSignature(
+          (pkg as any)._signatureRequestId,
+          sigData,
+          undefined,
+          token,
+          signerFields.length > 0 ? signerInputs : null,
+        );
       } else {
         // HR contract package — Edge Function 으로 처리 (익명 이메일 링크도 동일 경로)
         // service role 이 RLS 우회하여 item 업데이트 + 전체 완료 시 알림까지 한 번에 수행.
@@ -880,7 +892,7 @@ function SignContent() {
                 ))}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(cj.body))) }} />
+                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {stripSignatureBlock(String(cj.body))}
@@ -1038,7 +1050,7 @@ function SignContent() {
             ))}
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
-                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
+                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}

@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { logAudit } from './audit-log';
+import { applySignerInputsToHtml } from './signature-fields';
 
 const db = supabase as any;
 
@@ -185,24 +186,32 @@ export async function updateSignatureStatus(
 
 // ── Save Signature Data ──
 // 서명 이미지를 본문 스냅샷에 합성 — sig-box[data-role="을"] 우선, 없으면 본문 끝 append.
+// 2026-05-28 signerInputs(라디오/조건부 텍스트) 가 있으면 본문 ?-prefix 토큰을 결과로 합성.
 function buildSignedContractHtml(
   snapshotHtml: string | null | undefined,
   signatureData: { type: 'draw' | 'type' | 'upload'; data: string },
   signerName?: string | null,
+  signerInputs?: Record<string, string> | null,
 ): string | null {
   if (!snapshotHtml) return null;
+  // 1) 본문 토큰 합성 (signer_inputs 있을 때만 의미 있음 — 없으면 토큰 그대로 폴백)
+  let html = snapshotHtml;
+  if (signerInputs && Object.keys(signerInputs).length > 0) {
+    // 동적 import 회피 — 같은 lib 폴더이므로 정적 import 사용
+    html = applySignerInputsToHtml(html, signerInputs);
+  }
   const signedAtKst = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   const sigInline = signatureData.type === 'type'
     ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${signatureData.data}</span>`
     : `<img src="${signatureData.data}" alt="서명" style="width:100%;height:100%;object-fit:contain"/>`;
   const sigBoxRe = /(<span class="sig-box" data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
-  if (sigBoxRe.test(snapshotHtml)) {
-    return snapshotHtml.replace(sigBoxRe, `$1${sigInline}$3`);
+  if (sigBoxRe.test(html)) {
+    return html.replace(sigBoxRe, `$1${sigInline}$3`);
   }
   const sigImgBlock = signatureData.type === 'type'
     ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
     : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
-  return snapshotHtml + `
+  return html + `
 <div style="margin-top:40px;text-align:right;page-break-inside:avoid">
   <div style="display:inline-block">
     <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
@@ -221,6 +230,8 @@ export async function saveSignature(
   ipAddress?: string,
   // 2026-05-22 외부 서명 페이지(anon) 경로 — sign_token 있으면 SECDEF RPC 로 제출(RLS 우회).
   signToken?: string,
+  // 2026-05-28 본문 라디오/조건부 텍스트 입력값 — 있으면 합성본 HTML 에도 반영하고 jsonb 컬럼에 저장.
+  signerInputs?: Record<string, string> | null,
 ) {
   if (signToken) {
     // anon 경로: get_signature_request_by_token 으로 검증·스냅샷 조회 → submit_signature_by_token 으로 저장.
@@ -228,7 +239,7 @@ export async function saveSignature(
     if (!ex) throw new Error('서명 요청을 찾을 수 없습니다');
     if (ex.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
     if (ex.expires_at && new Date(ex.expires_at) < new Date()) throw new Error('서명 요청이 만료되었습니다');
-    const signedContractHtml = buildSignedContractHtml(ex.template_snapshot_html, signatureData, ex.signer_name);
+    const signedContractHtml = buildSignedContractHtml(ex.template_snapshot_html, signatureData, ex.signer_name, signerInputs);
     const { error } = await db.rpc('submit_signature_by_token', {
       p_token: signToken,
       p_signature_data: signatureData,
@@ -238,6 +249,15 @@ export async function saveSignature(
       p_ip: ipAddress || null,
     });
     if (error) throw error;
+    // signer_inputs 저장 — 별도 SECDEF RPC(save_signer_inputs_by_token) 사용 (anon RLS UPDATE 우회).
+    // 마이그레이션 미적용 시 best-effort fail (서명 자체는 이미 성공 — 입력값만 누락).
+    if (signerInputs && Object.keys(signerInputs).length > 0) {
+      try {
+        await db.rpc('save_signer_inputs_by_token', { p_token: signToken, p_inputs: signerInputs });
+      } catch (e) {
+        console.warn('save_signer_inputs_by_token failed (RPC may not be deployed yet):', e);
+      }
+    }
     return { id: ex.id, status: 'signed' };
   }
   // Check if signature request exists and is not expired + 본문 스냅샷 같이 조회
@@ -265,15 +285,19 @@ export async function saveSignature(
   const sigBoxRe = /(<span class="sig-box" data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
   let signedContractHtml: string | null = null;
   if (existing.template_snapshot_html) {
-    if (sigBoxRe.test(existing.template_snapshot_html)) {
+    // 2026-05-28 본문 ?-prefix 토큰(라디오/조건부 텍스트) 합성 — signerInputs 있을 때만 적용
+    const tplHtml = signerInputs && Object.keys(signerInputs).length > 0
+      ? applySignerInputsToHtml(existing.template_snapshot_html, signerInputs)
+      : existing.template_snapshot_html;
+    if (sigBoxRe.test(tplHtml)) {
       // 시스템 양식 — sig-box[data-role="을"] 안에 서명 삽입
-      signedContractHtml = existing.template_snapshot_html.replace(sigBoxRe, `$1${sigInline}$3`);
+      signedContractHtml = tplHtml.replace(sigBoxRe, `$1${sigInline}$3`);
     } else {
       // 옛 양식 / 커스텀 양식 — 본문 끝에 append (회귀 fallback)
       const sigImgBlock = signatureData.type === 'type'
         ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
         : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
-      signedContractHtml = existing.template_snapshot_html + `
+      signedContractHtml = tplHtml + `
 <div style="margin-top:40px;text-align:right;page-break-inside:avoid">
   <div style="display:inline-block">
     <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
@@ -294,6 +318,8 @@ export async function saveSignature(
       signature_method: signatureData.type,
       signature_data_url: signatureData.data,
       signed_contract_html: signedContractHtml,
+      // 2026-05-28 라디오/조건부 텍스트 입력값 — 없으면 null 유지
+      ...(signerInputs && Object.keys(signerInputs).length > 0 ? { signer_inputs: signerInputs } : {}),
       ip_address: ipAddress || null,
     })
     .eq('id', id)
