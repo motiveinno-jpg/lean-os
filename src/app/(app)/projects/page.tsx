@@ -590,7 +590,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
       })()}
 
       {/* Filter Bar */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-3 mb-4">
+      <div className="glass-card p-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <input
             value={search}
@@ -1015,7 +1015,7 @@ function KanbanView({
         const cards = byStage[s.key] || [];
         const sum = cards.reduce((acc, c) => acc + (c.contract_total ?? 0), 0);
         return (
-          <div key={s.key} className="bg-[var(--bg-surface)] rounded-2xl p-3 min-h-[300px]">
+          <div key={s.key} className="glass-card p-3 min-h-[300px]">
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
