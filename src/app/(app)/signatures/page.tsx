@@ -55,7 +55,8 @@ export default function SignaturesDashboardPage() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
-  const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string } | null>(null);
+  // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
+  const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {
@@ -300,7 +301,7 @@ export default function SignaturesDashboardPage() {
                       )}
                       <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20" title="이 계약서 보기 / PDF 다운로드">📄</button>
                       {r.status === 'signed' && (
-                        <button onClick={() => setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: (r as any).signature_data || null, title: r.title })} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" title="서명본 보기">✅</button>
+                        <button onClick={() => setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: (r as any).signature_data || null, title: r.title, signer_inputs: (r as any).signer_inputs || null })} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
                         <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" title="취소(만료 처리)">✕</button>
@@ -434,6 +435,20 @@ export default function SignaturesDashboardPage() {
                   <div className="text-xs text-[var(--text-muted)] text-center py-6">서명 이미지가 저장되어 있지 않습니다.</div>
                 )}
               </div>
+              {/* 2026-05-28 서명자 입력값(라디오/조건부 텍스트) — signer_inputs 가 있을 때만 노출 */}
+              {viewSignedRow.signer_inputs && Object.keys(viewSignedRow.signer_inputs).length > 0 && (
+                <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--bg-surface)]/50">
+                  <div className="text-[10px] text-[var(--text-muted)] mb-2">서명자 입력값</div>
+                  <div className="space-y-1.5 text-xs">
+                    {Object.entries(viewSignedRow.signer_inputs).map(([k, v]) => (
+                      <div key={k} className="flex items-start gap-2">
+                        <span className="text-[var(--text-muted)] min-w-[80px]">{k}:</span>
+                        <span className="font-semibold text-[var(--text)] flex-1">{String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <a
