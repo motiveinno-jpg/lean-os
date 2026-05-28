@@ -11,7 +11,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
-import { getBankAccountChanges, getDistinctBankAccountNos } from "@/lib/queries";
+import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
@@ -38,6 +38,24 @@ export default function BankPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
+  // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
+  const [selectedAccountNo, setSelectedAccountNo] = useState<string>("");
+  const [selectedAccountLabel, setSelectedAccountLabel] = useState<string>("");
+
+  // 통장 이름 편집 — BankAccountsOverview 와 동일한 setBankAccountAlias 사용. 빈 문자열이면 별칭 해제.
+  const handleEditAlias = async (accountNo: string, currentAlias: string | undefined, bankName: string | undefined, balance: number) => {
+    if (typeof window === "undefined") return;
+    const next = window.prompt("통장 이름(별칭)", currentAlias || "");
+    if (next === null) return; // 취소
+    try {
+      await setBankAccountAlias(companyId!, accountNo, next.trim(), { bankName, balance });
+      queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct"] });
+      toast(next.trim() ? `이름을 "${next.trim()}"으로 변경` : "별칭 해제 완료", "success");
+    } catch (e: any) {
+      toast(friendlyError(e, "이름 변경 실패"), "error");
+    }
+  };
 
   // 통장 연동(CODEF 은행 sync + 잔액 재계산) — /transactions 의 동일 흐름 재사용.
   const handleSyncBank = async () => {
@@ -128,15 +146,17 @@ export default function BankPage() {
     enabled: !!companyId,
   });
 
-  // 시안 거래내역 표 — 최근 50건 read-only (탭 클릭 시에만).
+  // 시안 거래내역 표 — 최근 50건 read-only (탭 클릭 시에만). selectedAccountNo 있으면 그 계좌만.
   const { data: recentTx = [] } = useQuery({
-    queryKey: ["bank-page-recent-tx", companyId],
+    queryKey: ["bank-page-recent-tx", companyId, selectedAccountNo],
     queryFn: async () => {
-      const { data } = await db.from("bank_transactions")
+      let q = db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(50);
+      if (selectedAccountNo) q = q.eq("raw_data->>accountNo", selectedAccountNo);
+      const { data } = await q;
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "transactions",
@@ -299,16 +319,35 @@ export default function BankPage() {
             const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
             const bal = Number(a.balance || 0);
             return (
-              <div key={a.accountNo} className="glass-card p-6 hover:shadow-xl transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[var(--text)] truncate">{name}</h3>
-                  {Math.round(change) !== 0 && (
-                    change >= 0 ? (
-                      <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
-                    ) : (
-                      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
-                    )
-                  )}
+              <div
+                key={a.accountNo}
+                role="button"
+                tabIndex={0}
+                onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); } }}
+                className="glass-card p-6 hover:shadow-xl transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-4 gap-2">
+                  <h3 className="text-lg font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* 통장 이름 편집(연필) — 카드 클릭과 분리(stopPropagation) */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }}
+                      className="opacity-0 group-hover:opacity-100 transition p-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)]"
+                      title="이름 변경"
+                      aria-label="이름 변경"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                    </button>
+                    {Math.round(change) !== 0 && (
+                      change >= 0 ? (
+                        <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
+                      )
+                    )}
+                  </div>
                 </div>
                 <p className="text-2xl font-bold text-[var(--text)] mb-2 mono-number">{fmtW(bal)}</p>
                 {Math.round(change) !== 0 ? (
@@ -320,14 +359,30 @@ export default function BankPage() {
                     변화 없음
                   </div>
                 )}
+                <p className="text-[11px] text-[var(--text-dim)] mt-3">클릭 → 이 통장 거래내역</p>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* 거래내역 — 시안 표 (거래/분류/금액/날짜/상태) 최근 50건 */}
+      {/* 거래내역 — 시안 표 (거래/분류/금액/날짜/상태) 최근 50건. selectedAccountNo 있으면 그 통장만. */}
       {tab === "transactions" && (
+        <>
+          {selectedAccountNo && (
+            <div className="mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+              <span className="text-sm text-[var(--text)]">
+                <b className="text-[var(--primary)]">{selectedAccountLabel || selectedAccountNo}</b> 거래내역만 표시 중
+              </span>
+              <button
+                type="button"
+                onClick={() => { setSelectedAccountNo(""); setSelectedAccountLabel(""); }}
+                className="px-3 py-1 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition"
+              >
+                ✕ 전체 보기
+              </button>
+            </div>
+          )}
         <div className="glass-card overflow-hidden">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full">
@@ -373,6 +428,7 @@ export default function BankPage() {
             </table>
           </div>
         </div>
+        </>
       )}
     </div>
   );
