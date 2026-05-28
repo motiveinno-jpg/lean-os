@@ -17,7 +17,7 @@ import { getPartners } from "@/lib/partners";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ClassificationBadge } from "@/components/classification-badge";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { ProjectSlideOver } from "@/components/project-slide-over";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
@@ -491,21 +491,21 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         </div>
       </div>
 
-      {/* 시안 통계 4 (프로젝트) — 헤드라인. 상세 드릴다운은 아래 요약 칩에서. */}
+      {/* 시안 통계 4 (프로젝트) — 그라데이션 카드. trend 는 실데이터 없어 미표시(가짜 금지). */}
       {summary.count > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
           {([
-            { tone: "brand", icon: "building", label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
-            { tone: "info", icon: "clock", label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
-            { tone: "success", icon: "check", label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
-            ...(!isEmployeeLimited ? [{ tone: "warning" as const, icon: "wallet", label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
-          ] as { tone: "brand" | "info" | "success" | "warning"; icon: string; label: string; value: string }[]).map((s) => (
-            <div key={s.label} className="glass-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</p>
-                <IconTile tone={s.tone} size={34}><TileIcon name={s.icon} className="w-4 h-4 text-white" /></IconTile>
+            { grad: "from-blue-600 to-cyan-500", icon: "building", label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
+            { grad: "from-indigo-600 to-purple-500", icon: "clock", label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
+            { grad: "from-emerald-600 to-green-500", icon: "check", label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
+            ...(!isEmployeeLimited ? [{ grad: "from-orange-500 to-red-500", icon: "wallet", label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
+          ] as { grad: string; icon: string; label: string; value: string }[]).map((s) => (
+            <div key={s.label} className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${s.grad}`}>
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-[11px] font-semibold text-white/80 uppercase tracking-wide pt-1">{s.label}</p>
+                <span className="p-2 bg-white/20 rounded-lg shrink-0"><TileIcon name={s.icon} className="w-4 h-4 text-white" /></span>
               </div>
-              <p className="text-xl font-bold text-[var(--text)] mono-number truncate">{s.value}</p>
+              <p className="text-2xl font-bold mono-number truncate">{s.value}</p>
             </div>
           ))}
         </div>
@@ -645,18 +645,18 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
             <option value="B2C">B2C</option>
             <option value="B2G">B2G</option>
           </select>
-          <div className="ml-auto flex items-center gap-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl p-1">
+          <div className="ml-auto flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-full p-1">
             <button
               type="button"
               onClick={() => setView("kanban")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${view === "kanban" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition ${view === "kanban" ? "bg-gradient-to-r from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}
             >
               칸반
             </button>
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${view === "list" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition ${view === "list" ? "bg-gradient-to-r from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}
             >
               리스트
             </button>
@@ -1070,16 +1070,32 @@ function ProjectCardView({
     [card],
   );
   const showCriticalAction = action.level === "critical";
+  // 시안 — stage 색 기반 악센트(진척% 없음, stage 단계만). 5-enum 매칭.
+  const stageMeta = STAGES.find((s) => s.key === card.stage);
+  const stageColor = stageMeta?.color || "#94A3B8";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-left bg-[var(--bg-card)] hover:bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)]/40 rounded-xl p-3 transition active:scale-[0.99] w-full"
+      className="text-left bg-[var(--bg-card)] hover:bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)]/40 rounded-xl p-3 transition active:scale-[0.99] w-full overflow-hidden"
+      style={{ borderLeft: `3px solid ${stageColor}` }}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
+      <div className="flex items-start gap-2.5 mb-2">
+        {/* 시안 — stage 색 아이콘 타일 */}
+        <span
+          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow"
+          style={{ background: `linear-gradient(135deg, ${stageColor}, color-mix(in srgb, ${stageColor} 55%, #ffffff))` }}
+        >
+          <TileIcon name="building" className="w-4 h-4 text-white" />
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            {stageMeta && (
+              <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold" style={{ color: stageColor, backgroundColor: `${stageColor}1a` }}>
+                {stageMeta.label}
+              </span>
+            )}
             {card.classification && <ClassificationBadge classification={card.classification} />}
             {card.badge.key !== "none" && (
               <span
