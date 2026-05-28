@@ -3884,16 +3884,16 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
           />
-          <div className="flex gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border)]">
+          <div className="flex gap-1 bg-[var(--bg-surface)] rounded-full p-1 border border-[var(--border)]">
             <button
               onClick={() => setViewMode("calendar")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${viewMode === "calendar" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)]"}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "calendar" ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
             >
               캘린더
             </button>
             <button
               onClick={() => setViewMode("table")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${viewMode === "table" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)]"}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "table" ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
             >
               테이블
             </button>
@@ -4067,7 +4067,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </div>
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">직원</th>
                   <th className="text-left px-5 py-3 font-medium">날짜</th>
@@ -4240,7 +4240,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             )}
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">직원</th>
                     <th className="text-center px-5 py-3 font-medium">출근일</th>
