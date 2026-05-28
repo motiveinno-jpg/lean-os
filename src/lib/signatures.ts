@@ -843,6 +843,16 @@ export async function cancelSignature(id: string) {
   return data;
 }
 
+// ── Delete (영구 삭제) ── 취소(soft, status=expired)와 별개로 행을 완전 삭제.
+//   RLS: signature_requests_delete (company_id = get_my_company_id()) 로 회사 격리.
+export async function deleteSignatureRequest(id: string) {
+  const { error } = await db
+    .from('signature_requests')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // ── Apply Company Seal (직인 적용) ──
 export async function applyCompanySeal(params: {
   documentId: string;

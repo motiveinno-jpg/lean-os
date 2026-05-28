@@ -23,6 +23,7 @@ import {
   sendSignatureReminder,
   bulkSendReminders,
   cancelSignature,
+  deleteSignatureRequest,
   getSignatureStatusInfo,
   SIGNATURE_STATUS,
   type SignatureStatusValue,
@@ -130,6 +131,17 @@ export default function SignaturesDashboardPage() {
       qc.invalidateQueries({ queryKey: ["signature-requests"] });
     },
     onError: (err: any) => toast("서명 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  });
+
+  // 영구 삭제 — 취소(soft)와 별개. 행 완전 삭제 + 선택목록에서 제거.
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteSignatureRequest(id),
+    onSuccess: (_d, id) => {
+      toast("삭제되었습니다", "success");
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      qc.invalidateQueries({ queryKey: ["signature-requests"] });
+    },
+    onError: (err: any) => toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   const toggleSel = (id: string) => {
@@ -291,8 +303,9 @@ export default function SignaturesDashboardPage() {
                         <button onClick={() => setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: (r as any).signature_data || null, title: r.title })} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
-                        <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" title="취소">✕</button>
+                        <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" title="취소(만료 처리)">✕</button>
                       )}
+                      <button onClick={() => { if (confirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.")) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="px-2 py-1 text-xs bg-red-500/15 text-red-600 rounded-lg hover:bg-red-500/25 disabled:opacity-50" title="영구 삭제">🗑</button>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
