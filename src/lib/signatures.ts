@@ -500,13 +500,17 @@ export function injectContractInlineStyles(html: string): string {
     })
     .replace(/<table([^>]*)>/gi, (_m, attrs) => {
       const noWidths = stripStyleAttrWidths(attrs);
-      return `<table${append(noWidths, "border-collapse:collapse;width:100%;margin:12px 0;table-layout:auto;word-break:keep-all")}>`;
+      // 2026-05-28 표를 콘텐츠 합 폭만큼만 차지하게 + 페이지 가운데 정렬.
+      //   width:100% 이면 짧은 셀("이태식")이 같은 컬럼의 긴 셀(긴 회사명) 폭 따라 비대해짐.
+      //   fit-content + max-width:100% → 콘텐츠 자연 폭, 단 컨테이너 초과 시 100% 로 제한.
+      return `<table${append(noWidths, "border-collapse:collapse;width:fit-content;max-width:100%;margin:12px auto;table-layout:auto;word-break:keep-all")}>`;
     })
     .replace(/<(td|th)([^>]*)>/gi, (_m, tag, attrs) => {
       // colwidth 속성(tiptap 메타) 제거 + style 안의 width 계열만 제거
       const noColwidth = String(attrs).replace(/\scolwidth\s*=\s*(["'])[^"']*\1/gi, '');
       const noWidths = stripStyleAttrWidths(noColwidth);
-      return `<${tag}${append(noWidths, "border:1px solid #cbd5e1;padding:8px;vertical-align:top;word-break:keep-all")}>`;
+      // padding 8px → 6px·10px (세로 6 가로 10) 로 살짝 콤팩트 — 짧은 텍스트 셀 비대 느낌 완화.
+      return `<${tag}${append(noWidths, "border:1px solid #cbd5e1;padding:6px 10px;vertical-align:top;word-break:keep-all")}>`;
     })
     .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
 }
