@@ -65,11 +65,13 @@ function TextInline({ field, value, onChange, active }: {
       placeholder={`${field.key} 입력`}
       style={{
         display: "inline-block",
-        minWidth: 200,
-        padding: "2px 8px",
+        // 2026-05-28 모바일 반응형 — 화면 폭 초과 방지(maxWidth 100%) + 모바일에서 최소폭 줄임.
+        minWidth: 140,
+        maxWidth: "100%",
+        padding: "4px 8px",
         border: "1px solid #cbd5e1",
         borderRadius: 4,
-        fontSize: 13,
+        fontSize: 14,
         verticalAlign: "middle",
         outline: "none",
         marginLeft: 4,
@@ -1035,7 +1037,7 @@ function SignContent() {
                 ))}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
+                    <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {stripSignatureBlock(String(cj.body))}
@@ -1194,7 +1196,7 @@ function SignContent() {
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
                 // 서명 완료 상태 — 저장된 signer_inputs 로 ☑/☐ 정적 합성(편집 불가).
-                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
+                <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}
@@ -1241,7 +1243,7 @@ function SignContent() {
                   // 라이브 서명 화면 — html-react-parser 로 본문을 React tree 로 변환.
                   // 토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 직접 mount.
                   // 토큰 없는 일반 서식도 parse() 결과는 동일(라이브러리 자동 재구성).
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none">
+                  <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto">
                     {renderSignerBody(stripSignatureBlock(String(content.body)), signerInputs, setSignerInputs)}
                   </div>
                 ) : (
