@@ -27,6 +27,10 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   document: (id) => `/documents?id=${id}`,           // 견적서/계약서 상세
   document_share: (id) => `/documents?id=${id}`,     // 공유 피드백 → 문서 상세
   signature_request: () => `/signatures`,
+  // 외부 거래처 서명 완료 알림(entity_type='signature', entity_id=signature_requests.id)
+  //   → 서명된 계약서 직접 보기. 기존엔 entity_type 매칭 실패 → TYPE_HREF 폴백의 '/sign?id=' 로 빠져
+  //   "유효하지 않은 링크"(2026-05-28 수정). bell dropdown 의 getEntityRoute 매핑과 일치.
+  signature: (id) => `/contracts/signed/${id}`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/employees?tab=leave`,
   attendance_edit_request: () => `/employees?tab=attendance`,
@@ -48,7 +52,9 @@ function stageToAction(stage: string | null | undefined): 'quote' | 'contract' {
 const TYPE_HREF: Record<string, (id: string | null) => string> = {
   document: (id) => id ? `/documents?id=${id}` : `/documents`,
   document_feedback: (id) => id ? `/documents?id=${id}` : `/documents`,
-  signature_request: (id) => id ? `/sign?id=${id}` : `/signatures`,
+  // /sign 은 외부용 토큰 페이지 — 내부 알림에서는 절대 사용 금지(id로는 못 열림 → "유효하지 않은 링크").
+  //   서명 완료(거래처 서명본)는 ENTITY_HREF.signature 가 우선 매칭. 폴백은 서명 목록.
+  signature_request: (id) => id ? `/contracts/signed/${id}` : `/signatures`,
   deal_update: (id) => id ? `/projects/${id}` : `/projects`,
   payment_due: () => `/payments`,
   expense_request: () => `/payments?tab=expenses`,
