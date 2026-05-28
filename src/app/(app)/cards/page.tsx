@@ -20,29 +20,31 @@ import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } f
 const db = supabase as any;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
-// 카드사 → 그라데이션 매핑. 매핑 없으면 indigo 기본.
+// 카드사 → 그라데이션 매핑. 2026-05-28 OwnerView 메인색(인디고 #4F46E5) 통일 — 인디고/블루/퍼플 계열 변주.
+//   그라데이션 효과 자체는 유지(시각적 구분), 빨강/노랑/녹색/회색은 브랜드 외 색이라 제거.
 const CARD_GRADIENTS: Record<string, string> = {
-  "삼성": "from-blue-700 via-blue-600 to-cyan-500",
-  "신한": "from-blue-700 via-blue-500 to-blue-400",
-  "KB": "from-yellow-600 via-orange-500 to-amber-500",
-  "국민": "from-yellow-600 via-orange-500 to-amber-500",
-  "현대": "from-slate-700 via-slate-800 to-zinc-900",
-  "롯데": "from-red-600 via-red-500 to-rose-500",
-  "BC": "from-purple-600 via-purple-500 to-pink-500",
-  "하나": "from-emerald-600 via-emerald-500 to-teal-500",
-  "우리": "from-blue-600 via-indigo-500 to-purple-500",
-  "NH": "from-green-600 via-emerald-500 to-teal-500",
-  "농협": "from-green-600 via-emerald-500 to-teal-500",
-  "카카오": "from-yellow-500 via-amber-400 to-orange-400",
-  "토스": "from-blue-500 via-blue-400 to-sky-300",
-  "씨티": "from-blue-500 via-cyan-500 to-teal-500",
+  "삼성": "from-indigo-600 via-blue-600 to-blue-500",
+  "신한": "from-blue-600 via-indigo-600 to-indigo-700",
+  "KB":   "from-indigo-500 via-indigo-600 to-purple-600",
+  "국민": "from-indigo-500 via-indigo-600 to-purple-600",
+  "현대": "from-indigo-800 via-indigo-700 to-blue-700",
+  "롯데": "from-indigo-600 via-purple-600 to-indigo-700",
+  "BC":   "from-indigo-700 via-purple-600 to-indigo-600",
+  "하나": "from-indigo-500 via-blue-600 to-indigo-700",
+  "우리": "from-blue-600 via-indigo-500 to-purple-600",
+  "NH":   "from-indigo-600 via-blue-600 to-indigo-500",
+  "농협": "from-indigo-600 via-blue-600 to-indigo-500",
+  "카카오": "from-indigo-400 via-indigo-500 to-blue-500",
+  "토스": "from-indigo-400 via-blue-500 to-indigo-500",
+  "씨티": "from-blue-500 via-indigo-500 to-indigo-700",
 };
+const DEFAULT_CARD_GRADIENT = "from-indigo-500 via-indigo-600 to-indigo-700";
 function getCardGradient(company: string | null | undefined): string {
-  if (!company) return "from-indigo-600 via-indigo-500 to-purple-600";
+  if (!company) return DEFAULT_CARD_GRADIENT;
   for (const key in CARD_GRADIENTS) {
     if (company.includes(key)) return CARD_GRADIENTS[key];
   }
-  return "from-indigo-600 via-indigo-500 to-purple-600";
+  return DEFAULT_CARD_GRADIENT;
 }
 
 // 카테고리 키워드 → 이모지(실 카테고리에 키워드 매칭). 매핑 없으면 기본 💳.
@@ -285,13 +287,13 @@ export default function CardsPage() {
       <SiyanPageHeader
         title="카드 관리"
         subtitle={`안녕하세요, ${welcomeName}님 — 모든 카드를 한곳에서 관리하세요`}
-        gradient="from-blue-600 to-cyan-500"
+        gradient="from-indigo-600 to-purple-600"
         actions={
           <button
             type="button"
             onClick={handleSyncCards}
             disabled={syncing || !companyId}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50"
             title="CODEF 카드 연동으로 최근 카드 거래를 불러옵니다"
           >
             {syncing ? (
@@ -324,7 +326,7 @@ export default function CardsPage() {
             onClick={() => setTab(t.k)}
             className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition ${
               tab === t.k
-                ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md"
+                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md"
                 : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}
           >
@@ -485,10 +487,10 @@ export default function CardsPage() {
         <div className="space-y-6">
           {/* Stat 4 — 가짜 trend 없음 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Stat tone="from-blue-500 to-cyan-500" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
+            <Stat tone="from-indigo-500 to-blue-600" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
             {hasLimits ? (
               <Stat
-                tone="from-purple-500 to-pink-500"
+                tone="from-indigo-600 to-purple-600"
                 label="사용 가능 한도"
                 value={fmtW(Math.max(0, totalLimit - totalUsage))}
                 sub={`총 한도 ${fmtW(totalLimit)}`}
@@ -497,8 +499,8 @@ export default function CardsPage() {
             ) : (
               <Stat tone="from-slate-500 to-slate-600" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
             )}
-            <Stat tone="from-emerald-500 to-green-500" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
-            <Stat tone="from-orange-500 to-red-500" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
+            <Stat tone="from-indigo-500 to-indigo-700" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
+            <Stat tone="from-blue-600 to-indigo-700" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
           </div>
 
           {/* 카테고리별 지출 */}
@@ -512,7 +514,7 @@ export default function CardsPage() {
                   <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">{c.name}</div>
                   <div className="flex-1">
                     <div className="w-full bg-[var(--bg-surface)] rounded-full h-3 overflow-hidden">
-                      <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full" style={{ width: `${c.pct}%` }} />
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full" style={{ width: `${c.pct}%` }} />
                     </div>
                   </div>
                   <div className="w-32 text-right shrink-0">
@@ -546,7 +548,7 @@ function BigCard({ card }: { card: any | null }) {
   const last4Display = last4 || "----";
   const gradient = getCardGradient(card.card_company);
   return (
-    <div className={`relative h-56 sm:h-64 bg-gradient-to-br ${gradient} rounded-3xl shadow-2xl p-6 sm:p-8 text-white overflow-hidden`}>
+    <div className={`relative h-44 sm:h-52 bg-gradient-to-br ${gradient} rounded-2xl shadow-xl p-5 sm:p-6 text-white overflow-hidden`}>
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl" />
@@ -602,7 +604,7 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
           <span>한도 {fmtW(limit)}</span>
         </div>
         <div className="w-full bg-[var(--bg-surface)] rounded-full h-2 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
     );
@@ -641,10 +643,10 @@ function MiniCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (!isEditing && e.key === "Enter") onClick(); }}
-      className={`relative h-40 bg-gradient-to-br ${gradient} rounded-2xl p-5 transition-all overflow-hidden group ${
+      className={`relative h-32 sm:h-36 bg-gradient-to-br ${gradient} rounded-xl p-4 transition-all overflow-hidden group ${
         isEditing ? "cursor-default" : "cursor-pointer"
       } ${
-        selected ? "ring-2 ring-cyan-300 scale-105 shadow-2xl" : "hover:shadow-xl opacity-80 hover:opacity-100"
+        selected ? "ring-2 ring-indigo-300 scale-105 shadow-xl" : "hover:shadow-lg opacity-80 hover:opacity-100"
       }`}
     >
       <div className="absolute inset-0 opacity-10">
