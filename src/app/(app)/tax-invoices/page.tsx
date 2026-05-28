@@ -1248,7 +1248,7 @@ export default function TaxInvoicesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold">세금계산서</h1>
+          <h1 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">세금계산서</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             매출/매입 세금계산서 관리 및 3-Way 매칭
           </p>
@@ -1267,7 +1267,7 @@ export default function TaxInvoicesPage() {
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="no-print px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+            className="no-print px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-xl text-sm font-semibold transition hover:shadow-lg hover:shadow-emerald-500/30"
           >
             + 세금계산서 등록
           </button>
@@ -1583,6 +1583,44 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
+      {/* 시안 알림 2박스 — 실데이터 파생(가짜 텍스트 없음) */}
+      {(() => {
+        const draftCount = invoices.filter((i: any) => i.status === "draft").length;
+        const unissued = invoices.filter((i: any) => i.type === "sales" && i.status !== "draft" && !i.nts_confirm_no).length;
+        const warn: string[] = [];
+        if (unmatched > 0) warn.push(`미매칭 ${unmatched}건 — 거래/입금 매칭 필요`);
+        if (draftCount > 0) warn.push(`작성 중(미발행) ${draftCount}건 — 발행 권장`);
+        if (unissued > 0) warn.push(`홈택스 미발행 ${unissued}건 — 국세청 승인번호 없음`);
+        const must: string[] = [`예상 부가세 ${vatEstimate >= 0 ? "납부" : "환급"}액 ${fmt(Math.abs(vatEstimate))}`];
+        if (unmatched > 0) must.push(`미매칭 ${unmatched}건 회수·매칭 확인`);
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 no-print">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+              <div className="flex items-start gap-3">
+                <span className="p-2 rounded-lg bg-amber-500/15 text-amber-500 shrink-0 text-base leading-none">⚠️</span>
+                <div className="min-w-0">
+                  <p className="font-bold text-[var(--text)] mb-1.5">주의할 계산서</p>
+                  <ul className="space-y-1 text-sm text-[var(--text-muted)]">
+                    {warn.length > 0 ? warn.map((w, i) => <li key={i} className="flex gap-2"><span className="text-amber-500 shrink-0">•</span><span>{w}</span></li>) : <li className="text-[var(--text-dim)]">주의 항목 없음 — 이상 없음</li>}
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5">
+              <div className="flex items-start gap-3">
+                <span className="p-2 rounded-lg bg-rose-500/15 text-rose-500 shrink-0 text-base leading-none">📌</span>
+                <div className="min-w-0">
+                  <p className="font-bold text-[var(--text)] mb-1.5">필수 확인사항</p>
+                  <ul className="space-y-1 text-sm text-[var(--text-muted)]">
+                    {must.map((m, i) => <li key={i} className="flex gap-2"><span className="text-rose-500 shrink-0">•</span><span>{m}</span></li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Monthly Trend Mini Chart */}
       <div className="mb-4 no-print">
         <MonthlyTrendChart invoices={sixMonthInvoices} />
@@ -1892,10 +1930,10 @@ export default function TaxInvoicesPage() {
           <button
             key={t.key}
             onClick={() => setTab(t.key as any)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
               tab === t.key
-                ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md"
+                : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)]"
             }`}
           >
             {t.label}
@@ -1981,162 +2019,99 @@ export default function TaxInvoicesPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  {draftInCurrentList.length > 0 && (
-                    <th className="w-10 px-3 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0}
-                        onChange={toggleSelectAll}
-                        className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
-                        title="전체 선택"
-                      />
-                    </th>
-                  )}
-                  <th className="text-left px-5 py-3 font-medium">거래처명</th>
-                  <th className="text-left px-5 py-3 font-medium">구분</th>
-                  <th className="text-right px-5 py-3 font-medium">공급가</th>
-                  <th className="text-right px-5 py-3 font-medium">세액</th>
-                  <th className="text-right px-5 py-3 font-medium">합계</th>
-                  <th className="text-left px-5 py-3 font-medium">프로젝트</th>
-                  <th className="text-left px-5 py-3 font-medium">발행일</th>
-                  <th className="text-center px-5 py-3 font-medium">상태</th>
-                  <th className="text-center px-5 py-3 font-medium">액션</th>
-                </tr>
-              </thead>
-              <tbody>
+            <div>
+              {draftInCurrentList.length > 0 && (
+                <label className="flex items-center gap-2 px-1 pb-2 text-xs text-[var(--text-muted)] cursor-pointer">
+                  <input type="checkbox" checked={selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0} onChange={toggleSelectAll} className="w-3.5 h-3.5 rounded accent-[var(--primary)]" />
+                  작성중 전체 선택
+                </label>
+              )}
+              <div className="space-y-3">
                 {currentList.map((inv: any) => {
-                  const sc =
-                    (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+                  const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
                   const isDraft = inv.status === 'draft';
                   return (
-                    <tr
-                      key={inv.id}
-                      onClick={() => setSelectedInvoice(inv)}
-                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
-                    >
-                      {draftInCurrentList.length > 0 && (
-                        <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                          {isDraft && (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(inv.id)}
-                              onChange={() => toggleSelect(inv.id)}
-                              className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
-                            />
-                          )}
-                        </td>
-                      )}
-                      <td className="px-5 py-3 text-sm font-medium">
-                        {inv.counterparty_name}
-                      </td>
-                      <td className="px-5 py-3 text-xs">
-                        {inv.label ? (
-                          <span className="font-medium text-[var(--text)]">{inv.label}</span>
-                        ) : (
-                          <span className="text-[var(--text-dim)]">—</span>
+                    <div key={inv.id} onClick={() => setSelectedInvoice(inv)} className="group glass-card p-4 cursor-pointer hover:shadow-md transition-all">
+                      <div className="flex items-start gap-3">
+                        {isDraft && draftInCurrentList.length > 0 && (
+                          <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)} onClick={(e) => e.stopPropagation()} className="mt-1.5 w-3.5 h-3.5 rounded accent-[var(--primary)] shrink-0" />
                         )}
-                        {inv.auto_issued && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]">자동</span>
-                        )}
-                        {inv.source === 'hometax_sync' ? (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 text-[10px]">홈택스</span>
-                        ) : inv.hometax_synced_at ? (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]" title={`전송: ${new Date(inv.hometax_synced_at).toLocaleDateString('ko-KR')}`}>전송완료</span>
-                        ) : (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 text-[10px]">미전송</span>
-                        )}
-                        {inv.original_invoice_id && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 text-[10px]">수정</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right">
-                        ₩{Number(inv.supply_amount).toLocaleString("ko")}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)]">
-                        ₩{Number(inv.tax_amount).toLocaleString("ko")}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-right font-semibold">
-                        ₩{Number(inv.total_amount).toLocaleString("ko")}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
-                        {(inv as any).deals?.name || "—"}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
-                        {inv.issue_date}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${sc.bg} ${sc.text}`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                          {sc.label}
+                        <span className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                         </span>
-                        {/* 매출 미발행(국세청 승인번호 없음) 경고 — status='발행'이어도 실제 홈택스 미발행 */}
-                        {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
-                          <div className="mt-1 text-[9px] text-red-500 font-semibold">홈택스 미발행</div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        {isDraft && (
-                          <button
-                            onClick={() => handleSingleIssue(inv.id)}
-                            className="px-2.5 py-1 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-lg text-[11px] font-semibold transition"
-                          >
-                            발행
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                <span className="text-sm font-semibold text-[var(--text)] truncate">{inv.counterparty_name}</span>
+                                <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${sc.bg} ${sc.text}`}><span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />{sc.label}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                {inv.label && <span className="font-medium text-[var(--text-muted)]">{inv.label}</span>}
+                                {inv.auto_issued && <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">자동</span>}
+                                {inv.source === 'hometax_sync' ? <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">홈택스</span> : inv.hometax_synced_at ? <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400" title={`전송: ${new Date(inv.hometax_synced_at).toLocaleDateString('ko-KR')}`}>전송완료</span> : <span className="px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400">미전송</span>}
+                                {inv.original_invoice_id && <span className="px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">수정</span>}
+                                {(inv as any).deals?.name && <span className="text-[var(--text-dim)]">· {(inv as any).deals.name}</span>}
+                                <span className="text-[var(--text-dim)]">· {inv.issue_date}</span>
+                              </div>
+                              {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
+                                <div className="mt-1 text-[10px] text-red-500 font-semibold">⚠ 홈택스 미발행</div>
+                              )}
+                            </div>
+                            {isDraft && (
+                              <button onClick={(e) => { e.stopPropagation(); handleSingleIssue(inv.id); }} className="shrink-0 px-2.5 py-1 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-lg text-[11px] font-semibold transition">발행</button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div className="rounded-lg p-2.5 bg-blue-500/10">
+                              <p className="text-[10px] text-blue-500/90 mb-0.5">공급가액</p>
+                              <p className="text-sm font-bold text-[var(--text)] mono-number">₩{Number(inv.supply_amount).toLocaleString("ko")}</p>
+                            </div>
+                            <div className="rounded-lg p-2.5 bg-orange-500/10">
+                              <p className="text-[10px] text-orange-500/90 mb-0.5">세액</p>
+                              <p className="text-sm font-bold text-[var(--text)] mono-number">₩{Number(inv.tax_amount).toLocaleString("ko")}</p>
+                            </div>
+                            <div className="rounded-lg p-2.5 bg-emerald-500/10">
+                              <p className="text-[10px] text-emerald-500/90 mb-0.5">합계</p>
+                              <p className="text-sm font-bold text-[var(--text)] mono-number">₩{Number(inv.total_amount).toLocaleString("ko")}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-              {/* Footer totals — 스크롤 무관 하단 고정 */}
-              <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
-                <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
-                  <td
-                    colSpan={draftInCurrentList.length > 0 ? 3 : 2}
-                    className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
-                  >
-                    합계 ({currentList.length}건)
-                  </td>
-                  <td className="px-5 py-3 text-sm text-right font-bold">
-                    ₩
-                    {currentList
-                      .reduce(
-                        (s: number, inv: any) =>
-                          s + Number(inv.supply_amount || 0),
-                        0
-                      )
-                      .toLocaleString("ko")}
-                  </td>
-                  <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)]">
-                    ₩
-                    {currentList
-                      .reduce(
-                        (s: number, inv: any) =>
-                          s + Number(inv.tax_amount || 0),
-                        0
-                      )
-                      .toLocaleString("ko")}
-                  </td>
-                  <td className="px-5 py-3 text-sm text-right font-bold">
-                    ₩
-                    {currentList
-                      .reduce(
-                        (s: number, inv: any) =>
-                          s + Number(inv.total_amount || 0),
-                        0
-                      )
-                      .toLocaleString("ko")}
-                  </td>
-                  <td colSpan={4} />
-                </tr>
-              </tfoot>
-            </table></div>
+              </div>
+              {/* sticky 합계 (tfoot 대체 — 동일 계산) */}
+              <div className="sticky bottom-0 z-10 mt-3 glass-card px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-[var(--text-muted)]">합계 ({currentList.length}건)</span>
+                <span className="flex items-center gap-4 mono-number flex-wrap">
+                  <span className="text-[var(--text-muted)]">공급가 <b className="text-[var(--text)]">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</b></span>
+                  <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)]">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}</b></span>
+                  <span className="text-[var(--text-muted)]">합계 <b className="text-[var(--text)]">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</b></span>
+                </span>
+              </div>
+            </div>
           )}
+        </div>
+      )}
+
+      {/* 시안 — 하단 일괄 처리 바 (기존 더존 CSV 핸들러 재사용, 가짜 이메일 버튼 없음) */}
+      {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
+        <div className="no-print mt-6 rounded-2xl p-6 text-white bg-gradient-to-r from-emerald-600 to-teal-500 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold mb-1">계산서 일괄 처리</h3>
+            <p className="text-emerald-50/90 text-sm">현재 보이는 {currentList.length}건을 더존 Smart-A 양식 CSV로 내보냅니다</p>
+          </div>
+          <button
+            onClick={async () => {
+              const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+              exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+            }}
+            className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-lg hover:bg-emerald-50 transition inline-flex items-center gap-2 shrink-0"
+          >
+            📄 더존 CSV 내보내기
+          </button>
         </div>
       )}
 
