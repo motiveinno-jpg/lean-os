@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -14,22 +15,149 @@ import { usePrintIsolation } from "@/lib/use-print-isolation";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-// 2026-05-28 본문에서 ?-prefix 토큰({{?라디오:...}}, {{?텍스트:...}}) 자리를 시각적으로 표시.
-//   별도 "추가 입력" 섹션이 본문 아래에 따로 렌더되므로, 본문 안 토큰 자리는 회색 자리표시로 치환.
-//   서명 완료 후엔 applySignerInputsToHtml 로 합성된 결과가 들어감.
-function stripSignerFieldTokens(body: string): string {
+// 2026-05-28 본문 토큰({{?라디오:...}}, {{?텍스트:...}}) 을 mount-point placeholder 로 치환.
+//   서명 페이지에서 React portal 로 그 자리에 실제 input 을 인라인 렌더.
+//   data-siyan-token 속성으로 React가 mount 위치 식별. key 는 URL-encoded 로 안전 처리.
+function injectFieldPlaceholders(body: string): string {
   if (!body) return body;
   return body
     .replace(/\{\{\s*\?라디오\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
       const key = String(inner).split('|')[0]?.trim() || '항목';
-      return `<span style="display:inline-block;padding:2px 8px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:4px;color:#475569;font-size:12px">[아래 입력] ${key}</span>`;
+      return `<span data-siyan-token="radio:${encodeURIComponent(key)}" style="display:inline"></span>`;
     })
     .replace(/\{\{\s*\?텍스트\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
       const innerStr = String(inner);
       const whenIdx = innerStr.search(/\swhen\s*=/i);
       const key = (whenIdx >= 0 ? innerStr.slice(0, whenIdx) : innerStr).trim() || '항목';
-      return `<span style="display:inline-block;padding:2px 8px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:4px;color:#475569;font-size:12px">[아래 입력] ${key}</span>`;
+      return `<span data-siyan-token="text:${encodeURIComponent(key)}" style="display:inline"></span>`;
     });
+}
+
+// 라디오 인라인 — 본문 토큰 자리에 그대로 mount. 옵션 수평 wrap.
+function RadioInline({ field, value, onChange }: {
+  field: SignerField & { kind: "radio" };
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "6px 14px", verticalAlign: "middle" }}>
+      {field.options.map((opt) => (
+        <label key={opt} style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 13, userSelect: "none" }}>
+          <input
+            type="radio"
+            name={field.key}
+            value={opt}
+            checked={value === opt}
+            onChange={() => onChange(opt)}
+            style={{ accentColor: "#4f46e5", margin: 0 }}
+          />
+          <span style={{ color: value === opt ? "#4f46e5" : "#334155", fontWeight: value === opt ? 600 : 400 }}>{opt}</span>
+        </label>
+      ))}
+    </span>
+  );
+}
+
+// 텍스트 인라인 — when 조건은 호출처에서 active 판단 후 mount.
+function TextInline({ field, value, onChange }: {
+  field: SignerField & { kind: "text" };
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={`${field.key} 입력`}
+      style={{
+        display: "inline-block",
+        minWidth: 200,
+        padding: "2px 8px",
+        border: "1px solid #cbd5e1",
+        borderRadius: 4,
+        fontSize: 13,
+        verticalAlign: "middle",
+        outline: "none",
+      }}
+    />
+  );
+}
+
+// 본문(HTML) + 토큰 자리에 React input portal mount.
+//   1) injectFieldPlaceholders 로 토큰을 data-siyan-token span 치환.
+//   2) dangerouslySetInnerHTML 로 본문 렌더(HTML 무결성 유지 — table/p 등 깨짐 0).
+//   3) useEffect 에서 placeholder span 모두 찾아 createPortal 로 input mount.
+function BodyWithInlineFields({
+  html,
+  fields,
+  signerInputs,
+  setSignerInputs,
+  className,
+}: {
+  html: string;
+  fields: SignerField[];
+  signerInputs: Record<string, string>;
+  setSignerInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const htmlWithPlaceholders = useMemo(() => injectFieldPlaceholders(html), [html]);
+  const [mountTargets, setMountTargets] = useState<Array<{ el: Element; kind: "radio" | "text"; key: string }>>([]);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const els = Array.from(ref.current.querySelectorAll<HTMLElement>("[data-siyan-token]"));
+    const next = els.map((el) => {
+      const token = el.getAttribute("data-siyan-token") || "";
+      const [kind, encKey] = token.split(":");
+      const key = decodeURIComponent(encKey || "");
+      // mount-point 비우기(중복 mount 방지)
+      el.innerHTML = "";
+      return { el, kind: kind as "radio" | "text", key };
+    });
+    setMountTargets(next);
+  }, [htmlWithPlaceholders, fields.length]);
+
+  const fieldMap = useMemo(() => {
+    const m = new Map<string, SignerField>();
+    for (const f of fields) m.set(f.key, f);
+    return m;
+  }, [fields]);
+
+  return (
+    <>
+      <div ref={ref} className={className} dangerouslySetInnerHTML={{ __html: htmlWithPlaceholders }} />
+      {mountTargets.map((t) => {
+        const field = fieldMap.get(t.key);
+        if (!field) return null;
+        if (field.kind === "radio" && t.kind === "radio") {
+          return createPortal(
+            <RadioInline
+              field={field}
+              value={signerInputs[t.key] || ""}
+              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [t.key]: v }))}
+            />,
+            t.el,
+            t.key,
+          );
+        }
+        if (field.kind === "text" && t.kind === "text") {
+          if (!isFieldActive(field, signerInputs)) return null;
+          return createPortal(
+            <TextInline
+              field={field}
+              value={signerInputs[t.key] || ""}
+              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [t.key]: v }))}
+            />,
+            t.el,
+            t.key,
+          );
+        }
+        return null;
+      })}
+    </>
+  );
 }
 
 // 본문 끝의 서명 텍스트 블록 제거 — Flex 스타일 footer 로 별도 렌더하기 위해
@@ -1050,7 +1178,19 @@ function SignContent() {
             ))}
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
-                <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
+                hasSignerInputs ? (
+                  // 본문 토큰 자리에 라디오/텍스트 input 인라인 mount (서명 진행 중 시안 UX).
+                  <BodyWithInlineFields
+                    html={injectContractInlineStyles(stripSignatureBlock(String(content.body)))}
+                    fields={signerFields}
+                    signerInputs={signerInputs}
+                    setSignerInputs={setSignerInputs}
+                    className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                  />
+                ) : (
+                  // 토큰 없는 일반 서식 — 평소대로 렌더.
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
+                )
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}
@@ -1094,10 +1234,11 @@ function SignContent() {
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignerFieldTokens(stripSignatureBlock(String(content.body)))) }} />
+                  // read-only fallback(서명 진행 외 상태) — 옛 signer_inputs 있으면 ☑ 합성, 없으면 토큰 그대로.
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {stripSignerFieldTokens(stripSignatureBlock(String(content.body)))}
+                    {stripSignatureBlock(String(content.body))}
                   </div>
                 )
               )}
@@ -1108,56 +1249,14 @@ function SignContent() {
               )}
             </div>
 
-            {/* 2026-05-28 서명자 입력 — 본문 ?-prefix 토큰 라디오/조건부 텍스트 */}
-            {hasSignerInputs && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
-                <h3 className="text-sm font-bold text-gray-800 mb-1">추가 입력</h3>
-                <p className="text-[11px] text-gray-500 mb-4">서명 전에 아래 항목을 모두 선택·입력해 주세요.</p>
-                <div className="space-y-5">
-                  {signerFields.map((f: SignerField) => {
-                    if (!isFieldActive(f, signerInputs)) return null;
-                    if (f.kind === 'radio') {
-                      return (
-                        <div key={f.key}>
-                          <div className="text-xs font-semibold text-gray-700 mb-2">{f.key} <span className="text-red-500">*</span></div>
-                          <div className="space-y-2">
-                            {f.options.map((opt) => (
-                              <label key={opt} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 border border-transparent has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50">
-                                <input
-                                  type="radio"
-                                  name={f.key}
-                                  value={opt}
-                                  checked={signerInputs[f.key] === opt}
-                                  onChange={(e) => setSignerInputs((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>{opt}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    // text (when 만족시만 활성)
-                    return (
-                      <div key={f.key}>
-                        <div className="text-xs font-semibold text-gray-700 mb-2">{f.key} <span className="text-red-500">*</span></div>
-                        <input
-                          type="text"
-                          value={signerInputs[f.key] || ''}
-                          onChange={(e) => setSignerInputs((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                          placeholder={`${f.key} 입력`}
-                          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                {!inputsOk && (
-                  <div className="mt-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-                    아직 입력하지 않은 항목이 있습니다: <strong>{inputsValidation.missing.join(', ')}</strong>
-                  </div>
-                )}
+            {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(BodyWithInlineFields).
+                별도 입력 카드 제거. 미입력 항목만 작은 알림 바로 표시(서명 완료 가드). */}
+            {hasSignerInputs && !inputsOk && (
+              <div className="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+                <span className="text-base leading-none mt-0.5">⚠️</span>
+                <span>
+                  본문에서 <strong>{inputsValidation.missing.join(", ")}</strong> 항목을 선택·입력해 주세요.
+                </span>
               </div>
             )}
 
