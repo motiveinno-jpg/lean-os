@@ -5,7 +5,6 @@
 //   sixPack·growth) 를 props 로 받아 표시만. 계산/fetch 무변경. owner/admin 만(호출처 게이트).
 //   포인트색=인디고 토큰 / 다크 잔액카드·Alerts 의미색(amber/green/blue)만 유지.
 
-import Link from "next/link";
 import { useState } from "react";
 import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 
@@ -175,19 +174,6 @@ export function DashboardSiyanHero({
         })}
       </div>
 
-      {/* 리포트 CTA */}
-      <div className="rounded-2xl p-6 sm:p-8 text-white bg-gradient-to-r from-[var(--brand)] to-[var(--brand-to)]">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-bold mb-1">재무 리포트 생성</h3>
-            <p className="text-white/80 text-sm">손익·현금흐름·비용 상세를 리포트로 확인하고 내보내세요</p>
-          </div>
-          <Link href="/reports" className="px-5 py-3 bg-white text-[var(--brand)] font-semibold rounded-lg hover:bg-white/90 transition inline-flex items-center gap-2 shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-            리포트 보기
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

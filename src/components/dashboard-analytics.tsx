@@ -14,6 +14,9 @@ import { supabase } from "@/lib/supabase";
 import { getCostBreakdown } from "@/lib/cash-budget";
 import { getCardSpendByCompany } from "@/lib/card-transactions";
 import { getDistinctBankAccountNos } from "@/lib/queries";
+import { loadSalaryByPerson, type PersonSalaryRow } from "@/lib/by-person";
+import { BankAccountsOverview } from "@/components/bank-accounts-overview";
+import ByPersonChart from "@/app/(app)/reports/by-person/by-person-chart";
 
 const TABS = [
   { key: "consume", label: "소비" },
@@ -75,6 +78,32 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
     },
     enabled: !!companyId,
   });
+
+  // 손익 탭 — 월별 매출·비용 (monthly_financials)
+  const { data: monthlyPnl = [] } = useQuery({
+    queryKey: ["analytics-monthly-pnl", companyId, year],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("monthly_financials")
+        .select("month, revenue, expense")
+        .eq("company_id", companyId);
+      return ((data || []) as Array<{ month: string; revenue: number; expense: number }>)
+        .filter((r) => String(r.month || "").startsWith(String(year)))
+        .map((r) => ({ month: String(r.month).slice(0, 7), revenue: Number(r.revenue || 0), expense: Number(r.expense || 0) }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+    },
+    enabled: !!companyId,
+  });
+
+  // 인원 탭 — 직원별 급여 (loadSalaryByPerson, 카드 사용액 제외)
+  const { data: salaryRows = [] } = useQuery<PersonSalaryRow[]>({
+    queryKey: ["analytics-salary-by-person", companyId, year],
+    queryFn: () => loadSalaryByPerson(companyId, year),
+    enabled: !!companyId,
+  });
+
+  // 자산 탭 — BankAccountsOverview 내부 선택 상태(시각용)
+  const [assetSelected, setAssetSelected] = useState<string>("");
 
   const fixedTotal = breakdown?.fixedTotal ?? 0;
   const variableTotal = breakdown?.variableTotal ?? 0;
@@ -168,39 +197,24 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
         </>
       )}
 
-      {/* ── 손익 탭 ── */}
+      {/* ── 손익 탭 — 인라인 상세 (매출/총비용/고정/변동 + 월별 P&L 표) ── */}
       {tab === "pnl" && (
-        <StatPanel
-          title={`${year}년 손익`}
-          big={won(revenue - totalExpense)}
-          bigColor={revenue - totalExpense >= 0 ? "var(--success)" : "var(--danger)"}
-          rows={[
-            { label: "매출", value: won(revenue) },
-            { label: "총 비용", value: wonOut(totalExpense) },
-            { label: "고정비", value: wonOut(fixedTotal) },
-            { label: "변동비", value: wonOut(variableTotal) },
-          ]}
-          href="/reports/pnl"
-          hrefLabel="손익계산서 자세히 보기 →"
+        <PnlDetail
+          year={year}
+          revenue={revenue}
+          totalExpense={totalExpense}
+          fixedTotal={fixedTotal}
+          variableTotal={variableTotal}
+          monthly={monthlyPnl}
         />
       )}
 
-      {/* ── 자산 탭 ── */}
+      {/* ── 자산 탭 — 인라인 (BankAccountsOverview 직접 렌더) ── */}
       {tab === "asset" && (
-        <StatPanel
-          title="자산 현황"
-          big={won(bankTotal)}
-          bigColor="var(--text)"
-          rows={[
-            { label: "계좌 잔액 합", value: won(bankTotal) },
-            { label: "계좌 수", value: `${bankAccounts.length}개` },
-          ]}
-          href="/vault"
-          hrefLabel="자산(보관함) 자세히 보기 →"
-        />
+        <BankAccountsOverview companyId={companyId} selectedAccountNo={assetSelected} onSelect={setAssetSelected} />
       )}
 
-      {/* ── 태그 탭 ── */}
+      {/* ── 태그 탭 — 후속 확장 예정 ── */}
       {tab === "tag" && (
         <StatPanel
           title="태그별 분석"
@@ -212,16 +226,9 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
         />
       )}
 
-      {/* ── 인원 탭 ── */}
+      {/* ── 인원 탭 — 인라인 (직원별 급여 표 + 차트, 카드 제외) ── */}
       {tab === "people" && (
-        <StatPanel
-          title="인원별 급여"
-          big="자세히 보기"
-          bigColor="var(--primary)"
-          rows={[{ label: "직원별 급여 집계", value: "리포트 연계" }]}
-          href="/reports/by-person"
-          hrefLabel="인원별 급여 보기 →"
-        />
+        <PeopleDetail year={year} rows={salaryRows} />
       )}
     </div>
   );
@@ -313,6 +320,128 @@ function StatPanel({ title, big, bigColor, rows, href, hrefLabel }: {
         ))}
       </div>
       <Link href={href} className="inline-block mt-4 text-xs font-semibold text-[var(--info)] hover:underline">{hrefLabel}</Link>
+    </div>
+  );
+}
+
+// ── 손익 인라인 상세: 큰 영업이익 + 4 stat + 월별 표 ──
+function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, monthly }: {
+  year: number;
+  revenue: number;
+  totalExpense: number;
+  fixedTotal: number;
+  variableTotal: number;
+  monthly: { month: string; revenue: number; expense: number }[];
+}) {
+  const profit = revenue - totalExpense;
+  return (
+    <div className="space-y-4">
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+        <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 영업이익</div>
+        <div className="text-2xl sm:text-3xl font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
+          {won(profit)}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <PnlStat label="매출" value={won(revenue)} color="var(--success)" />
+          <PnlStat label="총 비용" value={wonOut(totalExpense)} color="var(--danger)" />
+          <PnlStat label="고정비" value={wonOut(fixedTotal)} color="#f97316" />
+          <PnlStat label="변동비" value={wonOut(variableTotal)} color="#8b5cf6" />
+        </div>
+      </div>
+
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold text-[var(--info)]">월별 손익</div>
+          <Link href="/reports/pnl" className="text-[11px] font-semibold text-[var(--info)] hover:underline">손익계산서 자세히 →</Link>
+        </div>
+        {monthly.length === 0 ? (
+          <div className="p-8 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 손익 데이터가 없습니다.</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--bg-surface)]">
+              <tr className="text-[var(--text-muted)]">
+                <th className="text-left px-4 py-2 font-semibold">월</th>
+                <th className="text-right px-4 py-2 font-semibold">매출</th>
+                <th className="text-right px-4 py-2 font-semibold">비용</th>
+                <th className="text-right px-4 py-2 font-semibold">이익</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthly.map((m) => {
+                const p = m.revenue - m.expense;
+                return (
+                  <tr key={m.month} className="border-t border-[var(--border)]/60">
+                    <td className="px-4 py-2 text-[var(--text)]">{parseInt(m.month.split("-")[1], 10)}월</td>
+                    <td className="px-4 py-2 text-right mono-number text-[var(--success)]">{won(m.revenue)}</td>
+                    <td className="px-4 py-2 text-right mono-number text-[var(--danger)]">{wonOut(m.expense)}</td>
+                    <td className="px-4 py-2 text-right mono-number font-semibold" style={{ color: p >= 0 ? "var(--success)" : "var(--danger)" }}>{won(p)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PnlStat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--bg-surface)]/50">
+      <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">{label}</div>
+      <div className="text-base font-bold mono-number mt-1" style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
+// ── 인원 인라인 상세: 직원별 급여 표 + 차트 (카드 제외) ──
+function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] }) {
+  const total = rows.reduce((s, r) => s + r.payroll, 0);
+  return (
+    <div className="space-y-4">
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+        <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 급여 합계</div>
+        <div className="text-2xl sm:text-3xl font-extrabold mono-number text-[var(--text)]">{won(total)}</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">{rows.length}명 · 명세서 기준(없으면 기본급여 추정)</div>
+      </div>
+
+      {rows.length > 0 && (
+        <ByPersonChart people={rows.map((r) => r.key)} payByPerson={Object.fromEntries(rows.map((r) => [r.key, r.payroll]))} />
+      )}
+
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold text-[var(--info)]">인원별 급여</div>
+          <Link href="/reports/by-person" className="text-[11px] font-semibold text-[var(--info)] hover:underline">전체 월추이 →</Link>
+        </div>
+        {rows.length === 0 ? (
+          <div className="p-8 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 급여 데이터가 없습니다.</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--bg-surface)]">
+              <tr className="text-[var(--text-muted)]">
+                <th className="text-left px-4 py-2 font-semibold">인원</th>
+                <th className="text-right px-4 py-2 font-semibold">급여</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key} className="border-t border-[var(--border)]/60">
+                  <td className="px-4 py-2 text-[var(--text)]">{r.key}</td>
+                  <td className="px-4 py-2 text-right mono-number font-semibold" style={{ color: "#f97316" }}>{won(r.payroll)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)]">
+                <td className="px-4 py-2 font-bold text-[var(--text)]">합계</td>
+                <td className="px-4 py-2 text-right mono-number font-bold" style={{ color: "#f97316" }}>{won(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
