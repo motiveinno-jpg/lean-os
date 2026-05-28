@@ -474,7 +474,13 @@ export function injectContractInlineStyles(html: string): string {
     return `${attrs} style="${base}"`;
   };
   return html
-    .replace(/<table([^>]*)>/gi, (_m, attrs) => `<table${append(attrs, "border-collapse:collapse;width:100%;margin:12px 0")}>`)
+    // 2026-05-28 RichEditor 가 <colgroup><col style="width:79px"> 같은 임의 컬럼 폭을 박아 짧은 텍스트 셀은 비대하고
+    //   긴 텍스트 셀은 좁아서 3줄로 깨지는 문제. col 의 width/min-width style 을 제거해 콘텐츠 길이로 자동 분배.
+    .replace(/<col\b([^>]*?)>/gi, (_m, attrs) => {
+      const cleaned = String(attrs).replace(/\sstyle\s*=\s*(["'])[^"']*\1/gi, '').replace(/\swidth\s*=\s*(["'])[^"']*\1/gi, '');
+      return `<col${cleaned}>`;
+    })
+    .replace(/<table([^>]*)>/gi, (_m, attrs) => `<table${append(attrs, "border-collapse:collapse;width:100%;margin:12px 0;table-layout:auto")}>`)
     .replace(/<(td|th)([^>]*)>/gi, (_m, tag, attrs) => `<${tag}${append(attrs, "border:1px solid #cbd5e1;padding:8px;vertical-align:top")}>`)
     .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
 }
