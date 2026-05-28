@@ -5,11 +5,13 @@
 //   표시 전용 — 새 mutation·RPC 0. read-only 쿼리만.
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
-import { getBankAccountChanges } from "@/lib/queries";
+import { getBankAccountChanges, getDistinctBankAccountNos } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
@@ -33,6 +35,49 @@ export default function BankPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
   const [tab, setTab] = useState<Tab>("accounts");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  // 통장 연동(CODEF 은행 sync + 잔액 재계산) — /transactions 의 동일 흐름 재사용.
+  const handleSyncBank = async () => {
+    if (!companyId) return;
+    setSyncing(true);
+    try {
+      const { syncCodefData, syncBankBalances } = await import("@/lib/data-sync");
+      const result = await syncCodefData(companyId, "bank");
+      if (!result.success && result.status !== "partial") {
+        toast(result.error || "통장 연동 실패", "error");
+        return;
+      }
+      try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
+      const synced = result.bankSynced ?? 0;
+      const balResult = await syncBankBalances(companyId);
+      // 통장·거래·잔액 모두 새로 받아오기
+      queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+      try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
+      const balMsg = balResult.status === "success" ? ` · ${balResult.message}` : "";
+      const blockerNote = [...(result.errors || []), ...(result.notes || [])].find((n: any) =>
+        n.code === "NO_DEMAND_DEPOSIT" || n.code === "CF-00401" || n.code === "CF-00003" || n.code === "CF-13021",
+      );
+      if (synced > 0) {
+        toast(`통장 거래 ${synced}건 불러옴${balMsg}`, "success");
+      } else if (blockerNote) {
+        toast(`통장 연동 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ""}`, "info");
+      } else {
+        toast(`통장 연동 완료 — 새 거래 없음${balMsg}`, "info");
+      }
+    } catch (e: any) {
+      toast(friendlyError(e, "통장 연동 오류"), "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // 기간 — 이번 달 KST · 전월 동일(증감 계산용).
   const ranges = useMemo(() => {
@@ -43,16 +88,12 @@ export default function BankPage() {
     return { curFrom: ymd(cur.from), curTo: ymd(cur.to), prevFrom: ymd(prev.from), prevTo: ymd(prev.to) };
   }, []);
 
-  // 통장 목록 (시안 portfolio 카드 — 이름·잔액·이번달 증감).
+  // 통장 목록 — BankAccountsOverview 와 동일 소스(`getDistinctBankAccountNos`).
+  //   bank_accounts 테이블 직접 read 는 빈 회사가 많아 거래에서 derive 한 distinct 가 정합.
+  //   반환 shape: { accountNo, count, balance, alias?, bankName? }
   const { data: accounts = [] } = useQuery({
-    queryKey: ["bank-page-accounts-v2", companyId],
-    queryFn: async () => {
-      const { data } = await db.from("bank_accounts")
-        .select("id, alias, bank_name, account_number, balance, currency")
-        .eq("company_id", companyId)
-        .order("balance", { ascending: false });
-      return (data || []) as { id: string; alias: string | null; bank_name: string | null; account_number: string | null; balance: number | null; currency: string | null }[];
-    },
+    queryKey: ["bank-page-accounts-distinct", companyId],
+    queryFn: () => getDistinctBankAccountNos(companyId!),
     enabled: !!companyId,
   });
 
@@ -153,6 +194,27 @@ export default function BankPage() {
         title="통장"
         subtitle={`안녕하세요, ${welcomeName}님 — 잔액·수입·지출·분류를 한눈에`}
         gradient="from-blue-600 to-cyan-500"
+        actions={
+          <button
+            type="button"
+            onClick={handleSyncBank}
+            disabled={syncing || !companyId}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50"
+            title="CODEF 은행 연동으로 최근 거래·잔액을 불러옵니다"
+          >
+            {syncing ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                연동 중...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                통장 연동
+              </>
+            )}
+          </button>
+        }
       />
 
       {/* 시안 stat 4 그라데이션 카드 */}
@@ -218,17 +280,26 @@ export default function BankPage() {
       {tab === "accounts" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {accounts.length === 0 ? (
-            <div className="md:col-span-2 glass-card p-12 text-center text-sm text-[var(--text-muted)]">
+            <div className="md:col-span-2 glass-card p-12 text-center">
               <div className="text-4xl mb-3">🏦</div>
-              등록된 통장이 없습니다
+              <p className="text-sm font-medium text-[var(--text)] mb-1">통장이 아직 연동되지 않았습니다</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
+              <button
+                type="button"
+                onClick={handleSyncBank}
+                disabled={syncing}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg transition disabled:opacity-50"
+              >
+                {syncing ? "연동 중..." : "🏦 통장 연동하기"}
+              </button>
             </div>
           ) : accounts.map((a) => {
-            const accNo = a.account_number || "";
+            const accNo = a.accountNo || "";
             const change = changeByAcct[accNo] || 0;
-            const name = a.alias || (a.bank_name ? `${a.bank_name}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
+            const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
             const bal = Number(a.balance || 0);
             return (
-              <div key={a.id} className="glass-card p-6 hover:shadow-xl transition-all cursor-pointer">
+              <div key={a.accountNo} className="glass-card p-6 hover:shadow-xl transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-[var(--text)] truncate">{name}</h3>
                   {Math.round(change) !== 0 && (
