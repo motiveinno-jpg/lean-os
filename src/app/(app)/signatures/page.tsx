@@ -178,23 +178,23 @@ export default function SignaturesDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
         <button
           onClick={() => setStatusFilter("all")}
-          className={`p-3 rounded-lg border text-left transition ${
+          className={`p-3 rounded-xl text-left transition ${
             statusFilter === "all"
-              ? "bg-[var(--primary)]/10 border-[var(--primary)]"
-              : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--text-muted)]"
+              ? "bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md"
+              : "glass-card hover:-translate-y-0.5"
           }`}
         >
-          <div className="text-[10px] text-[var(--text-muted)]">전체</div>
-          <div className="text-xl font-bold text-[var(--text)]">{counts.all || 0}</div>
+          <div className={`text-[10px] ${statusFilter === "all" ? "text-white/80" : "text-[var(--text-muted)]"}`}>전체</div>
+          <div className={`text-xl font-bold ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
         </button>
         {SIGNATURE_STATUS.map((s) => (
           <button
             key={s.value}
             onClick={() => setStatusFilter(s.value)}
-            className={`p-3 rounded-lg border text-left transition ${
+            className={`p-3 rounded-xl text-left transition ${
               statusFilter === s.value
-                ? `${s.bg} border-current ${s.text}`
-                : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--text-muted)]"
+                ? `${s.bg} ${s.text} ring-2 ring-current/30`
+                : "glass-card hover:-translate-y-0.5"
             }`}
           >
             <div className={`text-[10px] flex items-center gap-1 ${s.text}`}>
@@ -208,12 +208,15 @@ export default function SignaturesDashboardPage() {
 
       {/* 검색 / 일괄 액션 */}
       <div className="flex items-center gap-2 flex-wrap">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="제목·서명자 검색..."
-          className="flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)]"
-        />
+        <div className="relative flex-1 min-w-[200px]">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" /></svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="제목·서명자 검색..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-transparent transition"
+          />
+        </div>
         {selectedIds.size > 0 && (
           <>
             <span className="text-xs text-[var(--text-muted)]">{selectedIds.size}건 선택됨</span>
@@ -234,177 +237,104 @@ export default function SignaturesDashboardPage() {
         )}
       </div>
 
-      {/* 테이블 */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
-            <tr className="text-left">
-              <th className="p-3 w-10">
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && filtered.every((r: any) => selectedIds.has(r.id))}
-                  onChange={(e) => {
-                    if (e.target.checked) setSelectedIds(new Set(filtered.map((r: any) => r.id)));
-                    else setSelectedIds(new Set());
-                  }}
-                />
-              </th>
-              <th className="p-3 text-xs font-semibold">상태</th>
-              <th className="p-3 text-xs font-semibold">제목</th>
-              <th className="p-3 text-xs font-semibold">서명자</th>
-              <th className="p-3 text-xs font-semibold">요청일</th>
-              <th className="p-3 text-xs font-semibold">만료일</th>
-              <th className="p-3 text-xs font-semibold">리마인더</th>
-              <th className="p-3 text-xs font-semibold text-right">액션</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan={8} className="p-8 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-12 text-center"><div className="text-4xl mb-3">✍️</div><div className="text-sm font-medium text-[var(--text)]">문서에 서명을 요청해보세요</div><div className="text-xs text-[var(--text-muted)] mt-1">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div><button onClick={() => setShowInviteModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button></td></tr>
-            ) : (
-              filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
-                const info = getSignatureStatusInfo(r.status);
-                const expired = r.expires_at && new Date(r.expires_at) < new Date();
-                const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
-                return (
-                  <tr key={r.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-surface)]/40">
-                    <td className="p-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(r.id)}
-                        onChange={() => toggleSel(r.id)}
-                      />
-                    </td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${info.bg} ${info.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
-                        {info.label}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      {r.document_id ? (
-                        <Link href={`/documents?id=${r.document_id}`} className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">
-                          {r.title}
-                        </Link>
-                      ) : (
-                        <span className="text-[var(--text)]">{r.title}</span>
-                      )}
-                      {r.documents?.name && (
-                        <div className="text-[10px] text-[var(--text-dim)]">{r.documents.name}</div>
-                      )}
-                      {r.batch_id && (
-                        <span
-                          className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)]"
-                          title={`묶음 발송 #${r.batch_seq ?? "?"}`}
-                        >
-                          📦 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
+      {/* 서명 요청 카드 리스트 (시안) */}
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <div className="text-4xl mb-3">✍️</div>
+            <div className="text-sm font-medium text-[var(--text)]">문서에 서명을 요청해보세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
+            <button onClick={() => setShowInviteModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button>
+          </div>
+        ) : (
+          filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
+            const info = getSignatureStatusInfo(r.status);
+            const expired = r.expires_at && new Date(r.expires_at) < new Date();
+            const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
+            return (
+              <div key={r.id} className="group glass-card p-4 flex items-start gap-3">
+                <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="mt-1.5 accent-[var(--primary)] shrink-0" aria-label="선택" />
+                <span className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${info.bg} ${info.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />{info.label}
                         </span>
+                        {r.batch_id && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)]" title={`묶음 발송 #${r.batch_seq ?? "?"}`}>
+                            📦 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      {r.document_id ? (
+                        <Link href={`/documents?id=${r.document_id}`} className="block text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate">{r.title}</Link>
+                      ) : (
+                        <span className="block text-sm font-semibold text-[var(--text)] truncate">{r.title}</span>
                       )}
-                    </td>
-                    <td className="p-3">
-                      <div className="text-[var(--text)]">{r.signer_name}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">{r.signer_email}</div>
-                    </td>
-                    <td className="p-3 text-xs text-[var(--text-muted)]">
-                      {r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "—"}
-                    </td>
-                    <td className={`p-3 text-xs ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-muted)]"}`}>
-                      {r.expires_at ? new Date(r.expires_at).toLocaleDateString("ko-KR") : "—"}
-                    </td>
-                    <td className="p-3 text-xs text-[var(--text-muted)]">
-                      {r.reminder_count ? `${r.reminder_count}회` : "—"}
-                    </td>
-                    <td className="p-3 text-right space-x-1">
+                      {r.documents?.name && <div className="text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</div>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
                       {canRemind && (
-                        <button
-                          onClick={() => reminderMut.mutate(r.id)}
-                          disabled={reminderMut.isPending}
-                          className="px-2 py-1 text-xs bg-yellow-500/10 text-yellow-500 rounded hover:bg-yellow-500/20"
-                          title="리마인더 발송"
-                        >
-                          🔔
-                        </button>
+                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="px-2 py-1 text-xs bg-yellow-500/10 text-yellow-500 rounded-lg hover:bg-yellow-500/20" title="리마인더 발송">🔔</button>
                       )}
                       {r.sign_token && r.status !== 'signed' && (
-                        <a
-                          href={`/sign?token=${r.sign_token}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2 py-1 text-xs bg-[var(--primary)]/10 text-[var(--primary)] rounded hover:bg-[var(--primary)]/20 inline-block"
-                          title="서명 링크"
-                        >
-                          🔗
-                        </a>
+                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 inline-block" title="서명 링크">🔗</a>
                       )}
-                      {/* 단체일괄 개별 행 → /contracts/signed dual mode 진입 (변수 치환 본문 + PDF) */}
-                      <button
-                        onClick={() => openDocViewer({ type: 'contract', id: r.id })}
-                        className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded hover:bg-blue-500/20"
-                        title="이 계약서 보기 / PDF 다운로드"
-                      >
-                        📄
-                      </button>
+                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20" title="이 계약서 보기 / PDF 다운로드">📄</button>
                       {r.status === 'signed' && (
-                        <button
-                          onClick={() => setViewSignedRow({
-                            id: r.id,
-                            signer_name: r.signer_name,
-                            signed_at: r.signed_at,
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            signature_data: (r as any).signature_data || null,
-                            title: r.title,
-                          })}
-                          className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded hover:bg-green-500/20"
-                          title="서명본 보기"
-                        >
-                          ✅
-                        </button>
+                        <button onClick={() => setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: (r as any).signature_data || null, title: r.title })} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
-                        <button
-                          onClick={() => {
-                            if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id);
-                          }}
-                          className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded hover:bg-red-500/20"
-                          title="취소"
-                        >
-                          ✕
-                        </button>
+                        <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" title="취소">✕</button>
                       )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-        {/* U4 페이지네이션 푸터 */}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="inline-flex items-center gap-2 bg-[var(--bg-surface)]/60 rounded-lg px-2.5 py-1">
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{(r.signer_name || "?").slice(0, 1)}</span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium text-[var(--text)] truncate">{r.signer_name}</span>
+                        <span className="block text-[10px] text-[var(--text-dim)] truncate">{r.signer_email}</span>
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "—"}</span>
+                    <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? new Date(r.expires_at).toLocaleDateString("ko-KR") : "—"}</span>
+                    {r.reminder_count ? <span className="text-[11px] text-[var(--text-dim)]">리마인더 {r.reminder_count}회</span> : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {/* 페이지네이션 */}
         {filtered.length > 0 && (() => {
           const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
           const curPage = Math.min(page, totalPages);
           return (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs">
+            <div className="glass-card flex items-center justify-between px-4 py-3 text-xs">
               <div className="text-[var(--text-muted)]">
                 전체 {filtered.length}건 중 {(curPage - 1) * pageSize + 1}–{Math.min(curPage * pageSize, filtered.length)}
               </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-[var(--text-muted)]">
                   페이지당
-                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]">
+                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]">
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                   </select>
                 </label>
                 <div className="flex items-center gap-1">
-                  <button disabled={curPage === 1} onClick={() => setPage(curPage - 1)}
-                    className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">←</button>
+                  <button disabled={curPage === 1} onClick={() => setPage(curPage - 1)} className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">←</button>
                   <span className="px-2 font-semibold">{curPage} / {totalPages}</span>
-                  <button disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)}
-                    className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">→</button>
+                  <button disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)} className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">→</button>
                 </div>
               </div>
             </div>
