@@ -3790,11 +3790,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {!isEmployeeRole && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
           <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-base">🔴</span>
-              <span className="text-xs text-[var(--text-dim)]">오늘 지각자</span>
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-base shadow shrink-0">⏰</span>
+              <span className="text-sm font-semibold text-[var(--text)]">오늘 지각자</span>
               {lateAdminSummary.todayList.length > 0 && (
-                <span className="ml-auto text-xs text-yellow-400 font-semibold">{lateAdminSummary.todayList.length}명</span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 font-semibold">{lateAdminSummary.todayList.length}명</span>
               )}
             </div>
             {lateAdminSummary.todayList.length === 0 ? (
@@ -3822,9 +3822,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
             return (
               <div className="glass-card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-base">📋</span>
-                  <span className="text-xs text-[var(--text-dim)]">오늘 출퇴근 현황</span>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-base shadow shrink-0">📋</span>
+                  <span className="text-sm font-semibold text-[var(--text)]">오늘 출퇴근 현황</span>
                   <span className="ml-auto text-[10px] text-[var(--text-dim)]">{kstToday} · 총원 {total}명</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-2">
@@ -3864,9 +3864,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
               }`}
             >
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
+              <span className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shadow shrink-0 bg-gradient-to-br ${w.level === "danger" ? "from-red-500 to-rose-500" : "from-yellow-500 to-orange-500"}`}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </span>
               <span className="text-sm font-medium">
                 {w.level === "danger" ? "[52시간 초과]" : "[48시간 경고]"} {w.name} - 이번 주 {w.hours}시간 근무
               </span>
@@ -4033,10 +4035,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                             ? `${r.name}: 🔴 지각 ${r.lateMin}분`
                             : `${r.name}: ${statusLabel(r.status)}`
                         }
-                        className="inline-flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] leading-none"
+                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] leading-none"
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusColor(r.status)}`} />
-                        <span className="truncate max-w-[2.5em]">{(r.name || '').slice(0, 2)}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor(r.status)}`} />
+                        <span className="truncate max-w-[2.5em] text-[var(--text)] font-medium">{(r.name || '').slice(0, 2)}</span>
                       </span>
                     ))}
                   </div>
@@ -4045,13 +4047,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             })}
           </div>
 
-          {/* Legend */}
-          <div className="flex gap-4 p-3 border-t border-[var(--border)]">
+          {/* Legend — 시안 pill 톤 */}
+          <div className="flex gap-2 flex-wrap p-3 border-t border-[var(--border)]">
             {ATTENDANCE_STATUS.map((s) => (
-              <div key={s.value} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                <div className={`w-2.5 h-2.5 rounded-full ${statusColor(s.value)}`} />
+              <span key={s.value} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">
+                <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
                 {s.label}
-              </div>
+              </span>
             ))}
           </div>
         </div>
