@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { friendlyError } from "@/lib/friendly-error";
+import { SiyanStatCard } from "@/components/siyan";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts, createContract,
   CONTRACT_TYPES, updateEmployee,
@@ -3777,36 +3778,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* 2026-05-21 사장님 요청: 직원 근태관리에서 수당 카드 (ExtraPaySummaryCard / MyAllowanceCard) 제거.
           관리자 영역 (EditRequestInbox, MonthlyRecomputeButton, AllowanceAdminTab) 은 그대로 유지. */}
 
-      {/* Stats cards */}
+      {/* Stats cards — 시안 그라데이션 톤 (값/계산 무변경) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span className="text-xs text-[var(--text-dim)]">출근률</span>
-          </div>
-          <div className="text-lg font-bold text-green-400">{attendanceRate}%</div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span className="text-xs text-[var(--text-dim)]">지각률</span>
-          </div>
-          <div className="text-lg font-bold text-yellow-400">{lateRate}%</div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            <span className="text-xs text-[var(--text-dim)]">평균근무시간</span>
-          </div>
-          <div className="text-lg font-bold text-blue-400">{avgHours}h</div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            <span className="text-xs text-[var(--text-dim)]">이번 달 기록</span>
-          </div>
-          <div className="text-lg font-bold">{totalRecords}건</div>
-        </div>
+        <SiyanStatCard tone="green" label="출근률" value={`${attendanceRate}%`} icon={<span>✓</span>} />
+        <SiyanStatCard tone="amber" label="지각률" value={`${lateRate}%`} icon={<span>⏰</span>} />
+        <SiyanStatCard tone="blue" label="평균근무시간" value={`${avgHours}h`} icon={<span>⚡</span>} />
+        <SiyanStatCard tone="indigo" label="이번 달 기록" value={`${totalRecords}건`} icon={<span>📋</span>} />
       </div>
 
       {/* 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5) */}
