@@ -409,132 +409,9 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Admin Dashboard (경량 뷰: 승인센터 + 인사 + 최근 요청) ──
-  if (role === "admin") {
-    return (
-      <div className="max-w-[1100px]">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-lg font-bold tracking-tight">관리자 현황판</h1>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">관리자</span>
-            </div>
-            <p className="text-[11px] text-[var(--text-dim)]">
-              {companyName} · {userName} · {new Date().toLocaleDateString('ko-KR')}
-            </p>
-          </div>
-        </div>
-
-        {/* 핵심 지표 4개 (admin용 경량) — 클릭 시 해당 페이지 이동 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <Link href="/approvals" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
-            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">승인 대기</div>
-            <div className="text-lg font-black" style={{ color: sp.pendingApprovals > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-              {sp.pendingApprovals}건
-            </div>
-          </Link>
-          <Link href="/transactions" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
-            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">통장 잔고</div>
-            <div className="text-lg font-black">₩{fmtW(sp.cashBalance)}</div>
-          </Link>
-          <Link href="/tax-invoices" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
-            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">미수금</div>
-            <div className="text-lg font-black" style={{ color: sp.arTotal > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-              ₩{fmtW(sp.arTotal)}
-            </div>
-          </Link>
-          <Link href="/payments?tab=fixed" className="glass-card p-3 hover:border-[var(--primary)]/50 transition cursor-pointer">
-            <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">월 고정비</div>
-            {sp.monthlyBurn > 0 ? (
-              <div className="text-lg font-black">₩{fmtW(sp.monthlyBurn)}</div>
-            ) : (
-              <div className="text-xs font-semibold text-[var(--primary)] mt-1">결제 → 고정비 등록 →</div>
-            )}
-          </Link>
-        </div>
-
-        {/* 내 출퇴근 + 전자결재 — 관리자도 직원과 동일 (2열) */}
-        {companyId && userId && (
-          <div className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <MyAttendanceCard companyId={companyId} userId={userId} />
-            <QuickApprovalCard companyId={companyId} userId={userId} />
-          </div>
-        )}
-
-        {/* 승인센터 */}
-        {companyId && userId && (
-          <ApprovalCenterWidget companyId={companyId} userId={userId} />
-        )}
-
-        {/* V4: 내 할일 — 관리자 모드에도 노출(직원만 되던 것 보강) */}
-        {userId && (
-          <div className="mb-5"><MyTodosWidget userId={userId} /></div>
-        )}
-
-        {/* 오늘의 액션 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">오늘의 액션</h2>
-          </div>
-          <TodayActions dashboard={dashboard} />
-        </div>
-
-        {/* 프로젝트 진행 현황 요약 */}
-        {companyId && <DealPipelineSummary companyId={companyId} />}
-
-        {/* 바로가기 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">빠른 이동</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { href: "/employees", label: "인사/급여", icon: "👤", desc: "직원 관리 및 급여" },
-              { href: "/approvals", label: "결재함", icon: "📋", desc: "결재 요청 처리" },
-              { href: "/payments", label: "결제 관리", icon: "💳", desc: "결제 큐 및 배치" },
-              { href: "/documents", label: "문서/계약", icon: "📄", desc: "문서 승인 및 서명" },
-            ].map(card => (
-              <Link key={card.href} href={card.href}
-                className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-                <div className="text-xl mb-1.5">{card.icon}</div>
-                <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* P1-1: 회계 바로가기 — 관리자는 회계관리 풀권한인데 대시보드 진입로가
-            인사·결재·결제·문서뿐이라 회계 진입 0이던 갭 해소 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">회계 바로가기</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { href: "/cards", label: "법인카드", icon: "💳", desc: "카드 사용·승인 내역" },
-              { href: "/tax-invoices", label: "세금계산서", icon: "🧾", desc: "매출·매입 세금계산서" },
-              { href: "/reports", label: "분석", icon: "📊", desc: "손익·비용 리포트" },
-            ].map(card => (
-              <Link key={card.href} href={card.href}
-                className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-                <div className="text-xl mb-1.5">{card.icon}</div>
-                <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
-                <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* 자동화 엔진 */}
-        <AutomationWidget companyId={companyId} />
-      </div>
-    );
-  }
+  // 2026-05-28 사장님 요청 — 관리자 대시보드를 대표 화면과 동일하게 통합.
+  // 단, 출퇴근+결재(mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4) 블록은 유지하고,
+  // 경영(manage) 탭은 관리자에게 숨김. (아래 owner UI 안에서 role 분기 처리)
 
   // ── 유저 로딩 실패 안내 ──
   if (userLoadFailed) {
@@ -643,8 +520,16 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner/admin ═══ */}
-      {(role === "owner" || role === "admin") && (
+      {/* 2026-05-28 관리자 — 내 출퇴근 + 전자결재 (2열) 유지(사장님 명시 요청). owner 는 hide. */}
+      {role === "admin" && companyId && userId && (
+        <div className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MyAttendanceCard companyId={companyId} userId={userId} />
+          <QuickApprovalCard companyId={companyId} userId={userId} />
+        </div>
+      )}
+
+      {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner 전용(관리자는 경영탭 없음) ═══ */}
+      {role === "owner" && (
         <div className="flex items-center gap-1 mb-4 bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)] w-fit">
           {([['analytics', '분석'], ['manage', '경영']] as ['analytics' | 'manage', string][]).map(([k, label]) => (
             <button key={k} onClick={() => setDashView(k)}
@@ -655,13 +540,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 분석 뷰 (granter 스타일) ═══ */}
-      {dashView === 'analytics' && (role === "owner" || role === "admin") && companyId && (
+      {/* ═══ 분석 뷰 (granter 스타일) — owner 는 dashView 따라, admin 은 항상 ═══ */}
+      {((role === "owner" && dashView === 'analytics') || role === "admin") && companyId && (
         <DashboardAnalytics companyId={companyId} />
       )}
 
-      {/* ═══ 경영 뷰 (기존 owner 위젯) — analytics 가 아니거나 토글이 없는 경우 ═══ */}
-      {(dashView === 'manage' || !(role === "owner" || role === "admin")) && (<>
+      {/* ═══ 경영 뷰 (기존 owner 위젯) — owner 의 manage 탭에서만 노출. admin 은 진입 불가. ═══ */}
+      {role === "owner" && dashView === 'manage' && (<>
       {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
       {/* (시안 재무 히어로 + 하단 3카드는 위 토글 상단으로 이동 — 기본 노출) */}
       <div className="mb-4">
