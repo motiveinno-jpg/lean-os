@@ -525,6 +525,9 @@ function SignContent() {
               "연락처": String(pn.contact_phone || ""),
               "전화": String(pn.contact_phone || ""),
               "전화번호": String(pn.contact_phone || ""),
+              "휴대폰": String(pn.contact_phone || ""),
+              "핸드폰": String(pn.contact_phone || ""),
+              "휴대전화": String(pn.contact_phone || ""),
               // 공통값
               "날짜": new Date().toLocaleDateString('ko-KR'),
               "오늘": new Date().toLocaleDateString('ko-KR'),
