@@ -82,8 +82,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/mypage", label: "내 계정", icon: "user" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
-      { href: "/error-logs", label: "에러 모니터링", icon: "alert-triangle", operatorOnly: true },
-      { href: "/operator-users", label: "유저 계정 관리", icon: "user-cog", operatorOnly: true },
     ],
   },
 ];
