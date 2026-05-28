@@ -8,10 +8,29 @@ import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { injectContractInlineStyles } from "@/lib/signatures";
+import { parseSiyanFields, validateInputs, isFieldActive, type SignerField } from "@/lib/signature-fields";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
+
+// 2026-05-28 본문에서 ?-prefix 토큰({{?라디오:...}}, {{?텍스트:...}}) 자리를 시각적으로 표시.
+//   별도 "추가 입력" 섹션이 본문 아래에 따로 렌더되므로, 본문 안 토큰 자리는 회색 자리표시로 치환.
+//   서명 완료 후엔 applySignerInputsToHtml 로 합성된 결과가 들어감.
+function stripSignerFieldTokens(body: string): string {
+  if (!body) return body;
+  return body
+    .replace(/\{\{\s*\?라디오\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
+      const key = String(inner).split('|')[0]?.trim() || '항목';
+      return `<span style="display:inline-block;padding:2px 8px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:4px;color:#475569;font-size:12px">[아래 입력] ${key}</span>`;
+    })
+    .replace(/\{\{\s*\?텍스트\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
+      const innerStr = String(inner);
+      const whenIdx = innerStr.search(/\swhen\s*=/i);
+      const key = (whenIdx >= 0 ? innerStr.slice(0, whenIdx) : innerStr).trim() || '항목';
+      return `<span style="display:inline-block;padding:2px 8px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:4px;color:#475569;font-size:12px">[아래 입력] ${key}</span>`;
+    });
+}
 
 // 본문 끝의 서명 텍스트 블록 제거 — Flex 스타일 footer 로 별도 렌더하기 위해
 // 매칭: "{{contract_date}}" / 한국어 날짜 / 서명(인) / {{employee_seal}} 등 마커가 있는 마지막 섹션
@@ -178,6 +197,8 @@ function SignContent() {
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
+  // 2026-05-28 본문 라디오/조건부 텍스트 토큰 입력값 — fieldKey -> 입력 문자열
+  const [signerInputs, setSignerInputs] = useState<Record<string, string>>({});
 
   // Canvas ref for drawing (high-quality signature pad)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -916,6 +937,20 @@ function SignContent() {
   const signedCount = pkg.items.filter((i) => i.status === "signed").length;
   const content = currentItem?.documents?.content_json;
 
+  // 2026-05-28 본문 토큰 파싱 — 라디오/조건부 텍스트 필드 추출.
+  //   sections 가 있으면 합쳐 검사, 없으면 body 단독.
+  const bodySrc: string = (() => {
+    if (!content) return '';
+    if (Array.isArray(content.sections) && content.sections.length > 0) {
+      return content.sections.map((s: any) => `${s.heading || ''}\n${s.body || ''}`).join('\n');
+    }
+    return typeof content.body === 'string' ? content.body : '';
+  })();
+  const { fields: signerFields } = parseSiyanFields(bodySrc);
+  const inputsValidation = validateInputs(signerFields, signerInputs);
+  const hasSignerInputs = signerFields.length > 0;
+  const inputsOk = inputsValidation.ok;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1047,10 +1082,10 @@ function SignContent() {
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignerFieldTokens(stripSignatureBlock(String(content.body)))) }} />
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {stripSignatureBlock(String(content.body))}
+                    {stripSignerFieldTokens(stripSignatureBlock(String(content.body)))}
                   </div>
                 )
               )}
@@ -1060,6 +1095,59 @@ function SignContent() {
                 </div>
               )}
             </div>
+
+            {/* 2026-05-28 서명자 입력 — 본문 ?-prefix 토큰 라디오/조건부 텍스트 */}
+            {hasSignerInputs && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
+                <h3 className="text-sm font-bold text-gray-800 mb-1">추가 입력</h3>
+                <p className="text-[11px] text-gray-500 mb-4">서명 전에 아래 항목을 모두 선택·입력해 주세요.</p>
+                <div className="space-y-5">
+                  {signerFields.map((f: SignerField) => {
+                    if (!isFieldActive(f, signerInputs)) return null;
+                    if (f.kind === 'radio') {
+                      return (
+                        <div key={f.key}>
+                          <div className="text-xs font-semibold text-gray-700 mb-2">{f.key} <span className="text-red-500">*</span></div>
+                          <div className="space-y-2">
+                            {f.options.map((opt) => (
+                              <label key={opt} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-2 py-1.5 border border-transparent has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50">
+                                <input
+                                  type="radio"
+                                  name={f.key}
+                                  value={opt}
+                                  checked={signerInputs[f.key] === opt}
+                                  onChange={(e) => setSignerInputs((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span>{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    // text (when 만족시만 활성)
+                    return (
+                      <div key={f.key}>
+                        <div className="text-xs font-semibold text-gray-700 mb-2">{f.key} <span className="text-red-500">*</span></div>
+                        <input
+                          type="text"
+                          value={signerInputs[f.key] || ''}
+                          onChange={(e) => setSignerInputs((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          placeholder={`${f.key} 입력`}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {!inputsOk && (
+                  <div className="mt-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                    아직 입력하지 않은 항목이 있습니다: <strong>{inputsValidation.missing.join(', ')}</strong>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Signature Area */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -1117,7 +1205,7 @@ function SignContent() {
                     </button>
                     <button
                       onClick={handleSign}
-                      disabled={signing}
+                      disabled={signing || !inputsOk}
                       className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
                     >
                       {signing ? "처리 중..." : "서명 완료"}
@@ -1185,7 +1273,7 @@ function SignContent() {
                     </button>
                     <button
                       onClick={handleSign}
-                      disabled={signing || !hasInk}
+                      disabled={signing || !hasInk || !inputsOk}
                       className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-40"
                     >
                       {signing ? "처리 중..." : "서명 완료"}
