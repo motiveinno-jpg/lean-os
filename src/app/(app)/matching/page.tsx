@@ -475,7 +475,7 @@ export default function MatchingPage() {
     <div className="max-w-[1000px]" id="matching-print-area">
       <style dangerouslySetInnerHTML={{ __html: PRINT_STYLE }} />
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-8">
+      <div className="page-sticky-header flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">매칭 엔진</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">

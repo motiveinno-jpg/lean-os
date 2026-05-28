@@ -173,7 +173,9 @@ export default function SettingsPage() {
   return (
     <div className="max-w-[700px] space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <h1 className="text-2xl font-extrabold mb-2">설정</h1>
+      <div className="page-sticky-header">
+        <h1 className="text-2xl font-extrabold mb-1">설정</h1>
+      </div>
 
       {/* Main Tab Bar — horizontal scroll */}
       <div className="mb-6 -mx-6 px-6">

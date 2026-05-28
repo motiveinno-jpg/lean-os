@@ -157,7 +157,7 @@ export default function EmployeesPage() {
   return (
     <div className="max-w-[var(--content-max-wide)] print-area" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">{isEmployee ? "근태 / 급여" : "인사관리"}</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">{isEmployee ? "출퇴근 + 휴가 + 경비 + 증명서" : "직원관리 · 급여 · 계약서 · 경비 · 휴가 · 증명서"}</p>

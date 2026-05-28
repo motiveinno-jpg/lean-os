@@ -3148,7 +3148,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
             {(userName || "E").charAt(0)}
           </div>
-          <div>
+          <div className="page-sticky-header">
             <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
             <p className="text-xs text-[var(--text-muted)]">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
           </div>
@@ -3578,7 +3578,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
             {(userName || "P").charAt(0)}
           </div>
-          <div>
+          <div className="page-sticky-header">
             <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
             <p className="text-xs text-[var(--text-muted)]">{companyName || "파트너"} 협업 포털</p>
           </div>

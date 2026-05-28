@@ -57,7 +57,7 @@ export default function TeamPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="page-sticky-header mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold">구성원</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">

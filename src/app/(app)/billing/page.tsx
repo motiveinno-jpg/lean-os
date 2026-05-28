@@ -264,7 +264,7 @@ export default function BillingPage() {
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="mb-6">
+      <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">구독 & 결제</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">요금제 관리, 결제 수단, 청구서 확인</p>
       </div>

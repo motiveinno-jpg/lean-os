@@ -43,7 +43,7 @@ function LeavePageInner() {
 
   return (
     <div className="max-w-[var(--content-max)]">
-      <div className="mb-6">
+      <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold">휴가 신청</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
           {isEmployee

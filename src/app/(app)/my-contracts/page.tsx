@@ -83,7 +83,7 @@ export default function MyContractsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="page-sticky-header mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold">내 서명 요청</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">

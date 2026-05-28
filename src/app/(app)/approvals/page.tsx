@@ -153,7 +153,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="max-w-[1100px]">
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">결재 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">다단계 결재 워크플로우 + 승인/반려 + 정책 관리</p>

@@ -410,7 +410,7 @@ export default function ImportHubPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 헤더 */}
-      <div>
+      <div className="page-sticky-header">
         <h1 className="text-xl font-bold text-[var(--text)]">데이터 통합 가져오기</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
           Excel/CSV 파일을 업로드하면 자동으로 유형을 감지하고 데이터를 등록합니다

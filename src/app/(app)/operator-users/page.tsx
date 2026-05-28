@@ -112,7 +112,7 @@ export default function OperatorUsersPage() {
 
   return (
     <div data-theme="light" className="max-w-3xl bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
-      <div className="mb-6">
+      <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold">유저 계정 관리</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
           이메일 또는 계정 ID 로 회원을 조회해 상세 정보·에러 이력 확인 (수정은 관리자 키 필요)

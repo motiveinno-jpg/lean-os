@@ -872,7 +872,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-extrabold">거래내역</h1>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 프로젝트/분류 매핑</p>

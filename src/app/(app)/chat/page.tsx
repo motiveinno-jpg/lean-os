@@ -1564,7 +1564,7 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
   return (
     <div className="max-w-[800px]">
-      <div className="flex items-center justify-between mb-8">
+      <div className="page-sticky-header flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-extrabold">
             프로젝트룸 채팅

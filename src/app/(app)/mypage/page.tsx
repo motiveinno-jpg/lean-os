@@ -95,8 +95,10 @@ export default function MyPage() {
 
   return (
     <div className="max-w-[700px]">
-      <h1 className="text-2xl font-extrabold mb-1">마이페이지</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">내 정보 및 연차 현황</p>
+      <div className="page-sticky-header mb-6">
+        <h1 className="text-2xl font-extrabold mb-1">마이페이지</h1>
+        <p className="text-sm text-[var(--text-muted)]">내 정보 및 연차 현황</p>
+      </div>
 
       {/* 기본 정보 */}
       <div className="glass-card p-6 mb-4">

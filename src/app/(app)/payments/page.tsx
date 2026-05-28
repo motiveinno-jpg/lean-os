@@ -78,7 +78,7 @@ export default function PaymentsPage() {
   return (
     <div className="max-w-[1100px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold break-keep">결제 관리</h1>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">결제 큐 + 급여/고정비 배치 + 반복결제</p>

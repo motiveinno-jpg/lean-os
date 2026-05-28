@@ -39,12 +39,22 @@ const CARD_GRADIENTS: Record<string, string> = {
   "씨티": "from-blue-500 via-indigo-500 to-indigo-700",
 };
 const DEFAULT_CARD_GRADIENT = "from-indigo-500 via-indigo-600 to-indigo-700";
-function getCardGradient(company: string | null | undefined): string {
+// 체크·직불은 종류 색 통일(한눈에 구분), 신용카드는 카드사별 색 매핑.
+function getCardGradient(company: string | null | undefined, cardType?: string | null): string {
+  if (cardType === "check") return "from-emerald-600 via-emerald-500 to-teal-500";
+  if (cardType === "debit") return "from-fuchsia-600 via-purple-500 to-violet-500";
   if (!company) return DEFAULT_CARD_GRADIENT;
   for (const key in CARD_GRADIENTS) {
     if (company.includes(key)) return CARD_GRADIENTS[key];
   }
   return DEFAULT_CARD_GRADIENT;
+}
+
+// 카드 종류 배지 색 — 카드 헤더의 종류 라벨을 더 눈에 띄게.
+function cardTypeBadgeClass(cardType?: string | null): string {
+  if (cardType === "check") return "bg-emerald-400/30 text-white border border-emerald-200/40";
+  if (cardType === "debit") return "bg-fuchsia-400/30 text-white border border-fuchsia-200/40";
+  return "bg-blue-400/30 text-white border border-blue-200/40";
 }
 
 // 카테고리 키워드 → 이모지(실 카테고리에 키워드 매칭). 매핑 없으면 기본 💳.
@@ -350,16 +360,20 @@ export default function CardsPage() {
               <div className="lg:col-span-2">
                 <BigCard card={currentCard} />
               </div>
-              <div className="space-y-4">
-                <UsagePanel
-                  card={currentCard}
-                  monthSpend={currentSpend}
-                  showBalance={showBalance}
-                  onToggle={() => setShowBalance((v) => !v)}
-                />
-                <div className="glass-card p-4">
-                  <p className="text-xs text-[var(--text-muted)] mb-2">이번 달 거래</p>
-                  <p className="text-2xl font-bold text-[var(--text)] mono-number">{currentTxCount}건</p>
+              {/* 우측 사이드 패널 — 좌측 BigCard(h-44 sm:h-52)와 동일 높이.
+                  내부: UsagePanel 이 늘어나고 거래수는 슬림한 라인 카드. */}
+              <div className="h-44 sm:h-52 flex flex-col gap-2">
+                <div className="flex-1 min-h-0">
+                  <UsagePanel
+                    card={currentCard}
+                    monthSpend={currentSpend}
+                    showBalance={showBalance}
+                    onToggle={() => setShowBalance((v) => !v)}
+                  />
+                </div>
+                <div className="glass-card px-3 py-2 shrink-0 flex items-center justify-between">
+                  <p className="text-xs text-[var(--text-muted)]">이번 달 거래</p>
+                  <p className="text-base font-bold text-[var(--text)] mono-number">{currentTxCount}건</p>
                 </div>
               </div>
             </div>
@@ -546,7 +560,8 @@ function BigCard({ card }: { card: any | null }) {
   if (!card) return null;
   const last4 = (card.card_number || "").slice(-4);
   const last4Display = last4 || "----";
-  const gradient = getCardGradient(card.card_company);
+  const gradient = getCardGradient(card.card_company, card.card_type);
+  const badgeClass = cardTypeBadgeClass(card.card_type);
   return (
     <div className={`relative h-44 sm:h-52 bg-gradient-to-br ${gradient} rounded-2xl shadow-xl p-5 sm:p-6 text-white overflow-hidden`}>
       <div className="absolute inset-0 opacity-10">
@@ -555,9 +570,14 @@ function BigCard({ card }: { card: any | null }) {
       </div>
       <div className="relative z-10 h-full flex flex-col justify-between">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-white/70 text-xs mb-1">CARD HOLDER</p>
-            <p className="text-base sm:text-lg font-semibold">{(card.card_company || "법인").toUpperCase()} · {cardTypeLabel(card.card_type)}</p>
+          <div className="flex items-center gap-2">
+            <div>
+              <p className="text-white/70 text-xs mb-1">CARD HOLDER</p>
+              <p className="text-base sm:text-lg font-semibold">{(card.card_company || "법인").toUpperCase()}</p>
+            </div>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
+              {cardTypeLabel(card.card_type)}
+            </span>
           </div>
           <span className="text-3xl">💳</span>
         </div>
@@ -585,9 +605,9 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
 
   if (limit > 0) {
     return (
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-[var(--text-muted)]">사용 가능 금액</h3>
+      <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-medium text-[var(--text-muted)]">사용 가능 금액</h3>
           <button type="button" onClick={onToggle} className="p-1 rounded-lg hover:bg-[var(--bg-surface)]" aria-label="잔액 표시 토글">
             {showBalance ? (
               <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
@@ -596,25 +616,25 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
             )}
           </button>
         </div>
-        <p className="text-3xl font-bold text-[var(--text)] mb-4 mono-number">
+        <p className="text-2xl sm:text-3xl font-bold text-[var(--text)] mb-2 mono-number">
           {showBalance ? fmtW(remaining) : "••••••"}
         </p>
-        <div className="text-xs text-[var(--text-muted)] mb-2 flex justify-between mono-number">
+        <div className="text-[11px] text-[var(--text-muted)] mb-1.5 flex justify-between mono-number">
           <span>사용 {fmtW(monthSpend)}</span>
           <span>한도 {fmtW(limit)}</span>
         </div>
-        <div className="w-full bg-[var(--bg-surface)] rounded-full h-2 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="w-full bg-[var(--bg-surface)] rounded-full h-1.5 overflow-hidden mt-auto">
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
     );
   }
   // 한도 정보 없음 — 이번 달 사용액만 표시(가짜 한도 진행률 금지)
   return (
-    <div className="glass-card p-6">
-      <h3 className="text-sm font-medium text-[var(--text-muted)] mb-3">이번 달 사용액</h3>
-      <p className="text-3xl font-bold text-[var(--text)] mono-number">{fmtW(monthSpend)}</p>
-      <p className="text-xs text-[var(--text-dim)] mt-2">{card.card_type === "credit" ? "한도 미설정" : "체크/직불 — 한도 개념 없음"}</p>
+    <div className="glass-card p-4 sm:p-5 h-full flex flex-col justify-center">
+      <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">이번 달 사용액</h3>
+      <p className="text-2xl sm:text-3xl font-bold text-[var(--text)] mono-number">{fmtW(monthSpend)}</p>
+      <p className="text-[11px] text-[var(--text-dim)] mt-1">{card.card_type === "credit" ? "한도 미설정" : "체크/직불 — 한도 개념 없음"}</p>
     </div>
   );
 }
@@ -634,7 +654,8 @@ function MiniCard({
   onCancelEdit: () => void;
 }) {
   const last4 = (card.card_number || "").slice(-4) || "----";
-  const gradient = getCardGradient(card.card_company);
+  const gradient = getCardGradient(card.card_company, card.card_type);
+  const badgeClass = cardTypeBadgeClass(card.card_type);
   // 등록 카드(corporate_cards.id 존재)만 이름 편집 가능. CODEF 미식별 묶음은 hide.
   const canEditName = !!card.id;
   return (
@@ -653,7 +674,9 @@ function MiniCard({
         <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl" />
       </div>
       <div className="relative z-10 h-full flex flex-col justify-between text-white">
-        <p className="text-xs font-medium opacity-80">{cardTypeLabel(card.card_type)}</p>
+        <span className={`self-start px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
+          {cardTypeLabel(card.card_type)}
+        </span>
         <div>
           {isEditing ? (
             <input

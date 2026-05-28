@@ -22,7 +22,7 @@ export default function AllowanceAdminPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold">수당 명세</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
           월별 직원 × 수당 매트릭스. 자동 재계산·수동 수정·CSV export.

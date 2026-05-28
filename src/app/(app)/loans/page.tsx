@@ -324,7 +324,7 @@ export default function LoansPage() {
       <QueryErrorBanner error={mainError} onRetry={refetch} />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">대출 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">대출 현황, 상환 이력, 잔금 추적</p>

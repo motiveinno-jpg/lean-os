@@ -446,7 +446,7 @@ export default function VaultPage() {
     <div className="max-w-[900px]">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">자산 관리</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
