@@ -10,6 +10,7 @@ import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { injectContractInlineStyles } from "@/lib/signatures";
 import { parseSiyanFields, validateInputs, isFieldActive, applySignerInputsToHtml, type SignerField } from "@/lib/signature-fields";
+import { buildPartnerReplacements, applyTokenReplacements } from "@/lib/signer-replacements";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -484,64 +485,11 @@ function SignContent() {
           const partner = ctx?.partner || null;
 
           // 본문 변수 치환 — content_json.body 안의 토큰을 회사(갑)·거래처(을) 데이터로 채움.
-          //   사용자 양식 토큰 패턴 매우 다양 ({{갑_회사명}}, {{갑}}, {{사업자등록번호}}, {{대표자명}} 등).
-          //   매핑 없는 토큰은 원형 유지 (오타 발견용).
-          //   주의: {{사업자등록번호}} / {{대표자명}} 처럼 갑/을 구분 없는 단독 토큰은 모호.
-          //         양식 작성 시 사용자가 양쪽 다 같은 토큰 쓰면 동일 값 표시 — 정공은 {{갑_*}}/{{을_*}} 권장.
-          //         단독 토큰은 partner(을) 우선 매핑 (계약서의 lead party 가 일반적으로 을).
+          //   2026-05-28 sign/page.tsx 와 /documents 미리보기가 공유하는 헬퍼로 추출 — 단일 매핑 소스.
           const fillBody = (body: unknown): unknown => {
             if (typeof body !== "string") return body;
-            const c = company || {};
-            const pn = partner || {};
-            const replacements: Record<string, string> = {
-              // ─── 갑 (우리 회사) — 명시 접두사 ───
-              "갑_회사명": String(c.name || ""),
-              "갑_사업자번호": String(c.business_number || ""),
-              "갑_대표자": String(c.representative || ""),
-              "갑_주소": String(c.address || ""),
-              "company_name": String(c.name || ""),
-              // ─── 을 (거래처) — 명시 접두사 ───
-              "을_회사명": String(pn.name || ""),
-              "을_단체명": String(pn.name || ""),
-              "을_사업자번호": String(pn.business_number || ""),
-              "을_대표자": String(pn.representative || ""),
-              "을_담당자": String(pn.contact_name || ""),
-              "을_이메일": String(pn.contact_email || ""),
-              "을_연락처": String(pn.contact_phone || ""),
-              "을_전화": String(pn.contact_phone || ""),
-              "을_주소": String(pn.address || ""),
-              "partner_name": String(pn.name || ""),
-              // ─── 단독 토큰 (사용자 자유 양식) ───
-              "갑": String(c.name || ""),
-              "을": String(pn.name || ""),
-              // 갑/을 구분 없는 단독 토큰 — 을(거래처) 우선 매핑
-              "회사명": String(pn.name || ""),
-              "단체명": String(pn.name || ""),
-              "사업자등록번호": String(pn.business_number || c.business_number || ""),
-              "사업자번호": String(pn.business_number || c.business_number || ""),
-              "대표자명": String(pn.representative || c.representative || ""),
-              "대표자": String(pn.representative || c.representative || ""),
-              "주소": String(pn.address || c.address || ""),
-              "담당자": String(pn.contact_name || ""),
-              "이메일": String(pn.contact_email || ""),
-              "연락처": String(pn.contact_phone || ""),
-              "전화": String(pn.contact_phone || ""),
-              "전화번호": String(pn.contact_phone || ""),
-              "휴대폰": String(pn.contact_phone || ""),
-              "핸드폰": String(pn.contact_phone || ""),
-              "휴대전화": String(pn.contact_phone || ""),
-              // 공통값
-              "날짜": new Date().toLocaleDateString('ko-KR'),
-              "오늘": new Date().toLocaleDateString('ko-KR'),
-              "계약일": new Date().toLocaleDateString('ko-KR'),
-            };
-            return body.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
-              const k = String(key).trim();
-              // 2026-05-28 ?-prefix 토큰(라디오/텍스트)은 서명자 입력 — 변수 치환 대상 아님, 원형 유지.
-              if (k.startsWith('?라디오') || k.startsWith('?텍스트')) return full;
-              if (k in replacements) return replacements[k];
-              return full; // 매핑 없는 토큰(예: {{계약금액}}) 은 원형 유지
-            });
+            const replacements = buildPartnerReplacements(company, partner);
+            return applyTokenReplacements(body, replacements);
           };
           const filledContentJson = sigReq.documents?.content_json
             ? { ...sigReq.documents.content_json, body: fillBody(sigReq.documents.content_json.body) }
