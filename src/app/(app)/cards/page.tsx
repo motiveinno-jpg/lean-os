@@ -7,9 +7,11 @@
 //   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
@@ -70,12 +72,23 @@ type Tab = "cards" | "transactions" | "analysis";
 
 export default function CardsPage() {
   const { user } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const companyId = user?.company_id ?? null;
   const [tab, setTab] = useState<Tab>("cards");
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [showBalance, setShowBalance] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCardId, setFilterCardId] = useState<string>("");
+  // CODEF 카드 동기화
+  const [syncing, setSyncing] = useState(false);
+  // 카드 클릭 → 그 카드의 거래내역 영역(카드 탭 하단 #card-tx-detail) 필터
+  //   등록 카드: corporate_cards.id 로 필터 / CODEF 미식별 묶음: card_name 으로 필터
+  const [selectedCardId, setSelectedCardId] = useState<string>("");
+  const [selectedCardName, setSelectedCardName] = useState<string>("");
+  // 카드명 인라인 편집(corporate_cards.card_name UPDATE)
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   // 이번 달 KST 범위
   const monthRange = useMemo(() => {
@@ -110,6 +123,23 @@ export default function CardsPage() {
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
         .limit(50000);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  // 카드 탭 — 선택된 카드의 거래내역(#card-tx-detail). 선택 없으면 전체 카드 최근 200건.
+  const { data: cardTx = [] } = useQuery({
+    queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName],
+    queryFn: async () => {
+      let q = db.from("card_transactions")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
+        .eq("company_id", companyId)
+        .order("transaction_date", { ascending: false })
+        .limit(200);
+      if (selectedCardId) q = q.eq("card_id", selectedCardId);
+      else if (selectedCardName) q = q.eq("card_name", selectedCardName);
+      const { data } = await q;
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -182,12 +212,103 @@ export default function CardsPage() {
 
   const welcomeName = user?.email?.split("@")[0] || "사용자";
 
+  // CODEF 카드 동기화 — /bank 의 handleSyncBank 와 동일 패턴(card 인자).
+  const handleSyncCards = async () => {
+    if (!companyId || syncing) return;
+    setSyncing(true);
+    try {
+      const { syncCodefData } = await import("@/lib/data-sync");
+      const result = await syncCodefData(companyId, "card");
+      if (!result.success && result.status !== "partial") {
+        toast(result.error || "카드 연동 실패", "error");
+        return;
+      }
+      try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
+      const synced = result.cardSynced ?? 0;
+      // 카드 페이지 모든 카드 관련 쿼리 invalidate
+      queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-month-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+      // 다른 페이지(transactions/dashboard 등)도 카드 변경 감지하게
+      queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
+      try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
+      if (synced > 0) toast(`카드 거래 ${synced}건 불러옴`, "success");
+      else toast("카드 연동 완료 — 새 거래 없음", "info");
+    } catch (e) {
+      toast(friendlyError(e, "카드 연동 오류"), "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // 카드명 인라인 편집 저장(corporate_cards.card_name UPDATE).
+  const handleSaveName = async (cardId: string) => {
+    const trimmed = editingName.trim();
+    setEditingCardId(null);
+    if (!trimmed) { setEditingName(""); return; }
+    try {
+      const { error } = await db.from("corporate_cards").update({ card_name: trimmed }).eq("id", cardId);
+      if (error) throw error;
+      toast("카드명 변경됨", "success");
+      queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] });
+      queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
+    } catch (e) {
+      toast(friendlyError(e, "카드명 변경 실패"), "error");
+    } finally {
+      setEditingName("");
+    }
+  };
+
+  // 카드 그리드 클릭 → 그 카드의 거래내역 영역으로 스크롤 + filter
+  const handleSelectCardForTx = (card: any, idx: number) => {
+    setSelectedCardIdx(idx);
+    if (card.id) {
+      setSelectedCardId(card.id);
+      setSelectedCardName("");
+    } else {
+      setSelectedCardId("");
+      setSelectedCardName(card.card_name || "");
+    }
+    setTimeout(() => {
+      document.getElementById("card-tx-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const selectedCardLabel = selectedCardId
+    ? (cards.find((c: any) => c.id === selectedCardId)?.card_name || "선택 카드")
+    : selectedCardName || "";
+
   return (
     <div>
       <SiyanPageHeader
         title="카드 관리"
         subtitle={`안녕하세요, ${welcomeName}님 — 모든 카드를 한곳에서 관리하세요`}
         gradient="from-blue-600 to-cyan-500"
+        actions={
+          <button
+            type="button"
+            onClick={handleSyncCards}
+            disabled={syncing || !companyId}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50"
+            title="CODEF 카드 연동으로 최근 카드 거래를 불러옵니다"
+          >
+            {syncing ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                연동 중...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                카드 연동
+              </>
+            )}
+          </button>
+        }
       />
 
       {/* Tabs (시안 pill bar) */}
@@ -241,7 +362,7 @@ export default function CardsPage() {
               </div>
             </div>
 
-            {/* 카드 미니 그리드 */}
+            {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             <div>
               <h3 className="text-lg font-bold text-[var(--text)] mb-4">내 카드</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -250,11 +371,60 @@ export default function CardsPage() {
                     key={card.id}
                     card={card}
                     selected={idx === selectedCardIdx}
-                    onClick={() => setSelectedCardIdx(idx)}
+                    onClick={() => handleSelectCardForTx(card, idx)}
+                    isEditing={editingCardId === card.id}
+                    editingName={editingName}
+                    onStartEdit={() => { setEditingCardId(card.id); setEditingName(card.card_name || ""); }}
+                    onEditChange={setEditingName}
+                    onSaveEdit={() => handleSaveName(card.id)}
+                    onCancelEdit={() => { setEditingCardId(null); setEditingName(""); }}
                   />
                 ))}
               </div>
             </div>
+
+            {/* 카드 선택 시 그 카드 거래내역, 선택 안 했으면 전체 카드 최근 거래 */}
+            <section id="card-tx-detail" className="scroll-mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold text-[var(--text)]">
+                  {(selectedCardId || selectedCardName) ? `${selectedCardLabel} 거래내역` : "전체 카드 거래내역"}
+                </h3>
+                {(selectedCardId || selectedCardName) && (
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCardId(""); setSelectedCardName(""); }}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+                  >
+                    ✕ 전체 보기
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {cardTx.length === 0 ? (
+                  <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">
+                    {(selectedCardId || selectedCardName) ? "이 카드의 거래내역이 없습니다" : "최근 카드 거래가 없습니다"}
+                  </div>
+                ) : cardTx.slice(0, 50).map((tx: any) => (
+                  <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
+                        {categoryEmoji(tx.classification || tx.category)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
+                        <p className="text-xs text-[var(--text-muted)] truncate">{(tx.classification || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <p className="text-sm sm:text-base font-bold text-[var(--text)] mono-number">
+                        -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
+                      </p>
+                      <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         )
       )}
@@ -447,16 +617,33 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
   );
 }
 
-function MiniCard({ card, selected, onClick }: { card: any; selected: boolean; onClick: () => void }) {
+function MiniCard({
+  card, selected, onClick,
+  isEditing, editingName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit,
+}: {
+  card: any;
+  selected: boolean;
+  onClick: () => void;
+  isEditing: boolean;
+  editingName: string;
+  onStartEdit: () => void;
+  onEditChange: (v: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+}) {
   const last4 = (card.card_number || "").slice(-4) || "----";
   const gradient = getCardGradient(card.card_company);
+  // 등록 카드(corporate_cards.id 존재)만 이름 편집 가능. CODEF 미식별 묶음은 hide.
+  const canEditName = !!card.id;
   return (
     <div
-      onClick={onClick}
+      onClick={isEditing ? undefined : onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === "Enter") onClick(); }}
-      className={`relative h-40 bg-gradient-to-br ${gradient} rounded-2xl p-5 cursor-pointer transition-all overflow-hidden ${
+      onKeyDown={(e) => { if (!isEditing && e.key === "Enter") onClick(); }}
+      className={`relative h-40 bg-gradient-to-br ${gradient} rounded-2xl p-5 transition-all overflow-hidden group ${
+        isEditing ? "cursor-default" : "cursor-pointer"
+      } ${
         selected ? "ring-2 ring-cyan-300 scale-105 shadow-2xl" : "hover:shadow-xl opacity-80 hover:opacity-100"
       }`}
     >
@@ -466,7 +653,37 @@ function MiniCard({ card, selected, onClick }: { card: any; selected: boolean; o
       <div className="relative z-10 h-full flex flex-col justify-between text-white">
         <p className="text-xs font-medium opacity-80">{cardTypeLabel(card.card_type)}</p>
         <div>
-          <p className="text-sm font-bold mb-1 truncate">{card.card_name}</p>
+          {isEditing ? (
+            <input
+              autoFocus
+              type="text"
+              value={editingName}
+              onChange={(e) => onEditChange(e.target.value)}
+              onBlur={onSaveEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); onSaveEdit(); }
+                if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full bg-white/20 text-white text-sm font-bold mb-1 px-2 py-1 rounded outline-none border border-white/40 placeholder-white/50"
+              placeholder="카드명"
+            />
+          ) : (
+            <div className="flex items-center gap-1.5 mb-1">
+              <p className="text-sm font-bold truncate flex-1">{card.card_name}</p>
+              {canEditName && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
+                  className="opacity-0 group-hover:opacity-80 hover:opacity-100 transition shrink-0 text-xs"
+                  title="카드명 변경"
+                  aria-label="카드명 변경"
+                >
+                  ✏️
+                </button>
+              )}
+            </div>
+          )}
           <p className="text-xs opacity-80 font-mono">•••• {last4}</p>
         </div>
         <p className="text-xs opacity-80 truncate">{card.card_company || ""}</p>
