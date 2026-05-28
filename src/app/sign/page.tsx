@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
+import parse, { type HTMLReactParserOptions } from "html-react-parser";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -15,27 +15,18 @@ import { usePrintIsolation } from "@/lib/use-print-isolation";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-// 2026-05-28 본문 토큰({{?라디오:...}}, {{?텍스트:...}}) 을 mount-point placeholder 로 치환.
-//   서명 페이지에서 React portal 로 그 자리에 실제 input 을 인라인 렌더.
-//   data-siyan-token 속성으로 React가 mount 위치 식별. key 는 URL-encoded 로 안전 처리.
-function injectFieldPlaceholders(body: string): string {
-  if (!body) return body;
-  return body
-    .replace(/\{\{\s*\?라디오\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
-      const key = String(inner).split('|')[0]?.trim() || '항목';
-      return `<span data-siyan-token="radio:${encodeURIComponent(key)}" style="display:inline"></span>`;
-    })
-    .replace(/\{\{\s*\?텍스트\s*:\s*([^}]+?)\s*\}\}/g, (_m, inner) => {
-      const innerStr = String(inner);
-      const whenIdx = innerStr.search(/\swhen\s*=/i);
-      const key = (whenIdx >= 0 ? innerStr.slice(0, whenIdx) : innerStr).trim() || '항목';
-      return `<span data-siyan-token="text:${encodeURIComponent(key)}" style="display:inline"></span>`;
-    });
-}
+// 2026-05-28 라이브 서명 본문 렌더 — html-react-parser 로 본문 HTML 을 React tree 로 변환.
+//   토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 컴포넌트 직접 mount.
+//   table/span/strong/img 등 RichEditor 서식은 라이브러리가 자동 보존. portal/anchor span 불필요.
+//   PDF·서명본 모달의 ☑/☐ 정적 합성(applySignerInputsToHtml)은 별도 경로로 유지.
+
+// 토큰 정규식 (signature-fields.ts 와 동일 문법, parser 안에서 사용)
+const RADIO_TOKEN_RE_LOCAL = /\{\{\s*\?라디오\s*:\s*([^}]+?)\s*\}\}/g;
+const TEXT_TOKEN_RE_LOCAL = /\{\{\s*\?텍스트\s*:\s*([^}]+?)\s*\}\}/g;
 
 // 라디오 인라인 — 본문 토큰 자리에 그대로 mount. 옵션 수평 wrap.
 function RadioInline({ field, value, onChange }: {
-  field: SignerField & { kind: "radio" };
+  field: { key: string; options: string[]; required: boolean };
   value: string;
   onChange: (v: string) => void;
 }) {
@@ -59,11 +50,13 @@ function RadioInline({ field, value, onChange }: {
 }
 
 // 텍스트 인라인 — when 조건은 호출처에서 active 판단 후 mount.
-function TextInline({ field, value, onChange }: {
-  field: SignerField & { kind: "text" };
+function TextInline({ field, value, onChange, active }: {
+  field: { key: string; when?: { key: string; value: string }; required: boolean };
   value: string;
   onChange: (v: string) => void;
+  active: boolean;
 }) {
+  if (!active) return null;
   return (
     <input
       type="text"
@@ -79,85 +72,104 @@ function TextInline({ field, value, onChange }: {
         fontSize: 13,
         verticalAlign: "middle",
         outline: "none",
+        marginLeft: 4,
       }}
     />
   );
 }
 
-// 본문(HTML) + 토큰 자리에 React input portal mount.
-//   1) injectFieldPlaceholders 로 토큰을 data-siyan-token span 치환.
-//   2) dangerouslySetInnerHTML 로 본문 렌더(HTML 무결성 유지 — table/p 등 깨짐 0).
-//   3) useEffect 에서 placeholder span 모두 찾아 createPortal 로 input mount.
-function BodyWithInlineFields({
-  html,
-  fields,
-  signerInputs,
-  setSignerInputs,
-  className,
-}: {
-  html: string;
-  fields: SignerField[];
-  signerInputs: Record<string, string>;
-  setSignerInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const htmlWithPlaceholders = useMemo(() => injectFieldPlaceholders(html), [html]);
-  const [mountTargets, setMountTargets] = useState<Array<{ el: Element; kind: "radio" | "text"; key: string }>>([]);
+// 토큰 inner 파싱 헬퍼.
+function parseRadioInner(inner: string): { key: string; options: string[] } {
+  const norm = String(inner).replace(/\s+/g, " ").trim();
+  const parts = norm.split("|").map((s) => s.trim()).filter(Boolean);
+  return { key: parts[0] || "", options: parts.slice(1) };
+}
+function parseTextInner(inner: string): { key: string; when?: { key: string; value: string } } {
+  const norm = String(inner).replace(/\s+/g, " ").trim();
+  const whenIdx = norm.search(/\swhen\s*=/i);
+  if (whenIdx >= 0) {
+    const key = norm.slice(0, whenIdx).trim();
+    const whenStr = norm.slice(whenIdx).replace(/^\s*when\s*=\s*/i, "").trim();
+    const eq = whenStr.indexOf("=");
+    if (eq > 0) return { key, when: { key: whenStr.slice(0, eq).trim(), value: whenStr.slice(eq + 1).trim() } };
+    return { key };
+  }
+  return { key: norm };
+}
 
-  useEffect(() => {
-    if (!ref.current) return;
-    const els = Array.from(ref.current.querySelectorAll<HTMLElement>("[data-siyan-token]"));
-    const next = els.map((el) => {
-      const token = el.getAttribute("data-siyan-token") || "";
-      const [kind, encKey] = token.split(":");
-      const key = decodeURIComponent(encKey || "");
-      // mount-point 비우기(중복 mount 방지)
-      el.innerHTML = "";
-      return { el, kind: kind as "radio" | "text", key };
-    });
-    setMountTargets(next);
-  }, [htmlWithPlaceholders, fields.length]);
+// 본문 HTML → React tree (토큰 자리는 RadioInline/TextInline 로 교체).
+function renderSignerBody(
+  rawHtml: string,
+  signerInputs: Record<string, string>,
+  setSignerInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>,
+): React.ReactNode {
+  const styled = injectContractInlineStyles(rawHtml);
 
-  const fieldMap = useMemo(() => {
-    const m = new Map<string, SignerField>();
-    for (const f of fields) m.set(f.key, f);
-    return m;
-  }, [fields]);
+  const replaceTokensInText = (text: string): React.ReactNode[] => {
+    type M = { idx: number; len: number; type: "radio" | "text"; inner: string };
+    const all: M[] = [];
+    RADIO_TOKEN_RE_LOCAL.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = RADIO_TOKEN_RE_LOCAL.exec(text))) all.push({ idx: m.index, len: m[0].length, type: "radio", inner: m[1] });
+    TEXT_TOKEN_RE_LOCAL.lastIndex = 0;
+    while ((m = TEXT_TOKEN_RE_LOCAL.exec(text))) all.push({ idx: m.index, len: m[0].length, type: "text", inner: m[1] });
+    all.sort((a, b) => a.idx - b.idx);
 
-  return (
-    <>
-      <div ref={ref} className={className} dangerouslySetInnerHTML={{ __html: htmlWithPlaceholders }} />
-      {mountTargets.map((t) => {
-        const field = fieldMap.get(t.key);
-        if (!field) return null;
-        if (field.kind === "radio" && t.kind === "radio") {
-          return createPortal(
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    for (const match of all) {
+      if (match.idx > cursor) parts.push(text.slice(cursor, match.idx));
+      if (match.type === "radio") {
+        const { key, options } = parseRadioInner(match.inner);
+        if (key && options.length > 0) {
+          parts.push(
             <RadioInline
-              field={field}
-              value={signerInputs[t.key] || ""}
-              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [t.key]: v }))}
+              key={`r-${key}-${match.idx}`}
+              field={{ key, options, required: true }}
+              value={signerInputs[key] || ""}
+              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [key]: v }))}
             />,
-            t.el,
-            t.key,
           );
         }
-        if (field.kind === "text" && t.kind === "text") {
-          if (!isFieldActive(field, signerInputs)) return null;
-          return createPortal(
+      } else {
+        const { key, when } = parseTextInner(match.inner);
+        if (key) {
+          const active = !when || signerInputs[when.key] === when.value;
+          parts.push(
             <TextInline
-              field={field}
-              value={signerInputs[t.key] || ""}
-              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [t.key]: v }))}
+              key={`t-${key}-${match.idx}`}
+              field={{ key, when, required: !!when }}
+              value={signerInputs[key] || ""}
+              onChange={(v) => setSignerInputs((prev) => ({ ...prev, [key]: v }))}
+              active={active}
             />,
-            t.el,
-            t.key,
           );
         }
-        return null;
-      })}
-    </>
-  );
+      }
+      cursor = match.idx + match.len;
+    }
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return parts;
+  };
+
+  const options: HTMLReactParserOptions = {
+    replace: (node) => {
+      // 텍스트 노드 안에 토큰이 있으면 split → React 노드 배열
+      if ((node as { type?: string }).type === "text") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const text = (node as any).data as string;
+        if (text && (RADIO_TOKEN_RE_LOCAL.test(text) || TEXT_TOKEN_RE_LOCAL.test(text))) {
+          RADIO_TOKEN_RE_LOCAL.lastIndex = 0;
+          TEXT_TOKEN_RE_LOCAL.lastIndex = 0;
+          return <>{replaceTokensInText(text)}</>;
+        }
+      }
+      // 다른 모든 노드(table/td/span/strong/img 등)는 라이브러리가 자동 재구성
+      return undefined;
+    },
+  };
+
+  return parse(styled, options);
 }
 
 // 본문 끝의 서명 텍스트 블록 제거 — Flex 스타일 footer 로 별도 렌더하기 위해
@@ -1223,20 +1235,12 @@ function SignContent() {
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
                 /^\s*</.test(String(content.body)) ? (
-                  hasSignerInputs ? (
-                    // 라이브 서명 화면 — 본문 토큰 자리에 라디오/텍스트 input 인라인 mount(Portal).
-                    // 라디오 클릭 → state 업데이트 → "서명 완료" 활성 가드와 자동 연동.
-                    <BodyWithInlineFields
-                      html={injectContractInlineStyles(stripSignatureBlock(String(content.body)))}
-                      fields={signerFields}
-                      signerInputs={signerInputs}
-                      setSignerInputs={setSignerInputs}
-                      className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                    />
-                  ) : (
-                    // 토큰 없는 일반 서식 — 평소대로 렌더.
-                    <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(stripSignatureBlock(String(content.body))) }} />
-                  )
+                  // 라이브 서명 화면 — html-react-parser 로 본문을 React tree 로 변환.
+                  // 토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 직접 mount.
+                  // 토큰 없는 일반 서식도 parse() 결과는 동일(라이브러리 자동 재구성).
+                  <div className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none">
+                    {renderSignerBody(stripSignatureBlock(String(content.body)), signerInputs, setSignerInputs)}
+                  </div>
                 ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {stripSignatureBlock(String(content.body))}
@@ -1250,7 +1254,7 @@ function SignContent() {
               )}
             </div>
 
-            {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(BodyWithInlineFields).
+            {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(html-react-parser).
                 별도 입력 카드 제거. 미입력 항목만 작은 알림 바로 표시(서명 완료 가드). */}
             {hasSignerInputs && !inputsOk && (
               <div className="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
