@@ -310,6 +310,21 @@ export type Database = {
         }
         Relationships: []
       }
+      applied_migrations: {
+        Row: {
+          applied_at: string
+          version: string
+        }
+        Insert: {
+          applied_at?: string
+          version: string
+        }
+        Update: {
+          applied_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       approval_policies: {
         Row: {
           auto_approve: boolean | null
@@ -493,100 +508,6 @@ export type Database = {
           },
         ]
       }
-      attendance_records: {
-        Row: {
-          attendance_type: string | null
-          check_in: string | null
-          check_out: string | null
-          company_id: string
-          created_at: string | null
-          date: string
-          edited_at: string | null
-          edited_by: string | null
-          employee_id: string
-          holiday_minutes: number | null
-          id: string
-          is_holiday: boolean | null
-          is_late: boolean | null
-          late_minutes: number | null
-          night_minutes: number | null
-          note: string | null
-          overtime_hours: number | null
-          overtime_minutes: number | null
-          regular_minutes: number | null
-          status: string | null
-          work_hours: number | null
-        }
-        Insert: {
-          attendance_type?: string | null
-          check_in?: string | null
-          check_out?: string | null
-          company_id: string
-          created_at?: string | null
-          date: string
-          edited_at?: string | null
-          edited_by?: string | null
-          employee_id: string
-          holiday_minutes?: number | null
-          id?: string
-          is_holiday?: boolean | null
-          is_late?: boolean | null
-          late_minutes?: number | null
-          night_minutes?: number | null
-          note?: string | null
-          overtime_hours?: number | null
-          overtime_minutes?: number | null
-          regular_minutes?: number | null
-          status?: string | null
-          work_hours?: number | null
-        }
-        Update: {
-          attendance_type?: string | null
-          check_in?: string | null
-          check_out?: string | null
-          company_id?: string
-          created_at?: string | null
-          date?: string
-          edited_at?: string | null
-          edited_by?: string | null
-          employee_id?: string
-          holiday_minutes?: number | null
-          id?: string
-          is_holiday?: boolean | null
-          is_late?: boolean | null
-          late_minutes?: number | null
-          night_minutes?: number | null
-          note?: string | null
-          overtime_hours?: number | null
-          overtime_minutes?: number | null
-          regular_minutes?: number | null
-          status?: string | null
-          work_hours?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_records_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_records_edited_by_fkey"
-            columns: ["edited_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_records_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       attendance_edit_requests: {
         Row: {
           attendance_record_id: string
@@ -651,6 +572,113 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_records: {
+        Row: {
+          attendance_type: string | null
+          auto_clocked_out: boolean
+          check_in: string | null
+          check_out: string | null
+          company_id: string
+          created_at: string | null
+          date: string
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          holiday_minutes: number | null
+          id: string
+          is_holiday: boolean | null
+          is_late: boolean | null
+          late_minutes: number | null
+          night_minutes: number | null
+          note: string | null
+          overtime_hours: number | null
+          overtime_minutes: number | null
+          overtime_request_id: string | null
+          regular_minutes: number | null
+          status: string | null
+          work_hours: number | null
+        }
+        Insert: {
+          attendance_type?: string | null
+          auto_clocked_out?: boolean
+          check_in?: string | null
+          check_out?: string | null
+          company_id: string
+          created_at?: string | null
+          date: string
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id: string
+          holiday_minutes?: number | null
+          id?: string
+          is_holiday?: boolean | null
+          is_late?: boolean | null
+          late_minutes?: number | null
+          night_minutes?: number | null
+          note?: string | null
+          overtime_hours?: number | null
+          overtime_minutes?: number | null
+          overtime_request_id?: string | null
+          regular_minutes?: number | null
+          status?: string | null
+          work_hours?: number | null
+        }
+        Update: {
+          attendance_type?: string | null
+          auto_clocked_out?: boolean
+          check_in?: string | null
+          check_out?: string | null
+          company_id?: string
+          created_at?: string | null
+          date?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id?: string
+          holiday_minutes?: number | null
+          id?: string
+          is_holiday?: boolean | null
+          is_late?: boolean | null
+          late_minutes?: number | null
+          night_minutes?: number | null
+          note?: string | null
+          overtime_hours?: number | null
+          overtime_minutes?: number | null
+          overtime_request_id?: string | null
+          regular_minutes?: number | null
+          status?: string | null
+          work_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_overtime_request_id_fkey"
+            columns: ["overtime_request_id"]
+            isOneToOne: false
+            referencedRelation: "overtime_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1194,6 +1222,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "board_comments"
             referencedColumns: ["id"]
           },
           {
@@ -1774,6 +1809,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_channels_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -2551,6 +2593,75 @@ export type Database = {
           },
         ]
       }
+      contract_templates: {
+        Row: {
+          body_html: string | null
+          body_markdown: string | null
+          code: string | null
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          body_html?: string | null
+          body_markdown?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          body_html?: string | null
+          body_markdown?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_cards: {
         Row: {
           billing_day: number | null
@@ -2603,6 +2714,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      db_integrity_checks: {
+        Row: {
+          id: number
+          payload: Json
+          run_at: string
+          severity: string
+        }
+        Insert: {
+          id?: number
+          payload?: Json
+          run_at?: string
+          severity: string
+        }
+        Update: {
+          id?: number
+          payload?: Json
+          run_at?: string
+          severity?: string
+        }
+        Relationships: []
       }
       deal_assignments: {
         Row: {
@@ -3037,13 +3169,13 @@ export type Database = {
           is_dormant: boolean | null
           last_activity_at: string | null
           name: string
+          next_action_text: string | null
           partner_company_id: string | null
           partner_id: string | null
           priority: string | null
-          next_action_text: string | null
           program_id: string | null
           risk_level: string | null
-          stage: string
+          stage: string | null
           start_date: string | null
           status: string | null
           vat_type: string
@@ -3071,7 +3203,7 @@ export type Database = {
           priority?: string | null
           program_id?: string | null
           risk_level?: string | null
-          stage?: string
+          stage?: string | null
           start_date?: string | null
           status?: string | null
           vat_type?: string
@@ -3099,7 +3231,7 @@ export type Database = {
           priority?: string | null
           program_id?: string | null
           risk_level?: string | null
-          stage?: string
+          stage?: string | null
           start_date?: string | null
           status?: string | null
           vat_type?: string
@@ -3153,6 +3285,7 @@ export type Database = {
         Row: {
           approver_id: string
           comment: string | null
+          company_id: string | null
           created_at: string | null
           document_id: string
           id: string
@@ -3162,6 +3295,7 @@ export type Database = {
         Insert: {
           approver_id: string
           comment?: string | null
+          company_id?: string | null
           created_at?: string | null
           document_id: string
           id?: string
@@ -3171,6 +3305,7 @@ export type Database = {
         Update: {
           approver_id?: string
           comment?: string | null
+          company_id?: string | null
           created_at?: string | null
           document_id?: string
           id?: string
@@ -4489,6 +4624,51 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          date: string
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          id?: string
+          name: string
+          type?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holidays_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hometax_sync_jobs: {
         Row: {
           company_id: string
@@ -4622,51 +4802,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      holidays: {
-        Row: {
-          company_id: string
-          created_at: string | null
-          created_by: string | null
-          date: string
-          id: string
-          name: string
-          type: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string | null
-          created_by?: string | null
-          date: string
-          id?: string
-          name: string
-          type?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string | null
-          created_by?: string | null
-          date?: string
-          id?: string
-          name?: string
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "holidays_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "holidays_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -5405,6 +5540,151 @@ export type Database = {
           },
         ]
       }
+      operator_actions: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_user_id: string
+          context: Json | null
+          created_at: string
+          id: string
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_user_id: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_user_id?: string
+          context?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      operator_incidents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          occurred_at: string
+          prevention: string | null
+          related_commit: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          severity: string
+          symptoms: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          occurred_at?: string
+          prevention?: string | null
+          related_commit?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          symptoms?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          occurred_at?: string
+          prevention?: string | null
+          related_commit?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          symptoms?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      overtime_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string
+          rejected_reason: string | null
+          requested_date: string
+          requested_end_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          reason: string
+          rejected_reason?: string | null
+          requested_date: string
+          requested_end_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          reason?: string
+          rejected_reason?: string | null
+          requested_date?: string
+          requested_end_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overtime_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_communications: {
         Row: {
           comm_date: string
@@ -5529,10 +5809,13 @@ export type Database = {
           contact_phone: string | null
           created_at: string | null
           default_expense_category: string | null
+          dormancy_detected_at: string | null
           id: string
           is_active: boolean | null
+          is_dormant: boolean | null
           name: string
           notes: string | null
+          portal_token: string | null
           preferred_invoice_day: number | null
           representative: string | null
           source_deal_id: string | null
@@ -5555,10 +5838,13 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           default_expense_category?: string | null
+          dormancy_detected_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_dormant?: boolean | null
           name: string
           notes?: string | null
+          portal_token?: string | null
           preferred_invoice_day?: number | null
           representative?: string | null
           source_deal_id?: string | null
@@ -5581,10 +5867,13 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           default_expense_category?: string | null
+          dormancy_detected_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_dormant?: boolean | null
           name?: string
           notes?: string | null
+          portal_token?: string | null
           preferred_invoice_day?: number | null
           representative?: string | null
           source_deal_id?: string | null
@@ -5846,6 +6135,7 @@ export type Database = {
           deductions_total: number | null
           employee_id: string
           employment_insurance: number | null
+          extras: Json | null
           health_insurance: number | null
           id: string
           income_tax: number | null
@@ -5863,6 +6153,7 @@ export type Database = {
           deductions_total?: number | null
           employee_id: string
           employment_insurance?: number | null
+          extras?: Json | null
           health_insurance?: number | null
           id?: string
           income_tax?: number | null
@@ -5880,6 +6171,7 @@ export type Database = {
           deductions_total?: number | null
           employee_id?: string
           employment_insurance?: number | null
+          extras?: Json | null
           health_insurance?: number | null
           id?: string
           income_tax?: number | null
@@ -5911,6 +6203,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           employee_id: string
+          extras: Json | null
           id: string
           non_taxable_amount: number
           period_month: string
@@ -5921,6 +6214,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           employee_id: string
+          extras?: Json | null
           id?: string
           non_taxable_amount?: number
           period_month: string
@@ -5931,6 +6225,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           employee_id?: string
+          extras?: Json | null
           id?: string
           non_taxable_amount?: number
           period_month?: string
@@ -6139,6 +6434,141 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_approvals: {
+        Row: {
+          approval_token: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          decided_at: string | null
+          decision_note: string | null
+          expires_at: string | null
+          fully_signed_contract_url: string | null
+          id: string
+          our_signature_data_url: string | null
+          our_signature_method: string | null
+          our_signed_at: string | null
+          our_signer_user_id: string | null
+          partner_id: string | null
+          payload: Json
+          recipient_email: string | null
+          recipient_name: string | null
+          sent_at: string | null
+          signature_data_url: string | null
+          signature_method: string | null
+          signed_at_external: string | null
+          signed_contract_html: string | null
+          signed_contract_url: string | null
+          signer_ip: string | null
+          signer_user_agent: string | null
+          stage: string
+          status: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          approval_token: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          decided_at?: string | null
+          decision_note?: string | null
+          expires_at?: string | null
+          fully_signed_contract_url?: string | null
+          id?: string
+          our_signature_data_url?: string | null
+          our_signature_method?: string | null
+          our_signed_at?: string | null
+          our_signer_user_id?: string | null
+          partner_id?: string | null
+          payload?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          signature_data_url?: string | null
+          signature_method?: string | null
+          signed_at_external?: string | null
+          signed_contract_html?: string | null
+          signed_contract_url?: string | null
+          signer_ip?: string | null
+          signer_user_agent?: string | null
+          stage: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          approval_token?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          expires_at?: string | null
+          fully_signed_contract_url?: string | null
+          id?: string
+          our_signature_data_url?: string | null
+          our_signature_method?: string | null
+          our_signed_at?: string | null
+          our_signer_user_id?: string | null
+          partner_id?: string | null
+          payload?: Json
+          recipient_email?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          signature_data_url?: string | null
+          signature_method?: string | null
+          signed_at_external?: string | null
+          signed_contract_html?: string | null
+          signed_contract_url?: string | null
+          signer_ip?: string | null
+          signer_user_agent?: string | null
+          stage?: string
+          status?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_approvals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_our_signer_user_id_fkey"
+            columns: ["our_signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
@@ -6587,18 +7017,30 @@ export type Database = {
           created_by: string | null
           document_id: string
           expires_at: string | null
+          fully_signed_contract_url: string | null
           id: string
           ip_address: string | null
+          our_signature_data_url: string | null
+          our_signature_method: string | null
+          our_signed_at: string | null
+          our_signed_contract_html: string | null
+          our_signer_user_id: string | null
           partner_id: string | null
           reminder_count: number | null
           sent_at: string | null
           sign_token: string | null
           signature_data: Json | null
+          signature_data_url: string | null
+          signature_method: string | null
           signed_at: string | null
+          signed_contract_html: string | null
+          signed_contract_url: string | null
           signer_email: string
+          signer_inputs: Json | null
           signer_name: string
           signer_phone: string | null
           status: string | null
+          template_snapshot_html: string | null
           title: string
           viewed_at: string | null
         }
@@ -6610,18 +7052,30 @@ export type Database = {
           created_by?: string | null
           document_id: string
           expires_at?: string | null
+          fully_signed_contract_url?: string | null
           id?: string
           ip_address?: string | null
+          our_signature_data_url?: string | null
+          our_signature_method?: string | null
+          our_signed_at?: string | null
+          our_signed_contract_html?: string | null
+          our_signer_user_id?: string | null
           partner_id?: string | null
           reminder_count?: number | null
           sent_at?: string | null
           sign_token?: string | null
           signature_data?: Json | null
+          signature_data_url?: string | null
+          signature_method?: string | null
           signed_at?: string | null
+          signed_contract_html?: string | null
+          signed_contract_url?: string | null
           signer_email: string
+          signer_inputs?: Json | null
           signer_name: string
           signer_phone?: string | null
           status?: string | null
+          template_snapshot_html?: string | null
           title: string
           viewed_at?: string | null
         }
@@ -6633,18 +7087,30 @@ export type Database = {
           created_by?: string | null
           document_id?: string
           expires_at?: string | null
+          fully_signed_contract_url?: string | null
           id?: string
           ip_address?: string | null
+          our_signature_data_url?: string | null
+          our_signature_method?: string | null
+          our_signed_at?: string | null
+          our_signed_contract_html?: string | null
+          our_signer_user_id?: string | null
           partner_id?: string | null
           reminder_count?: number | null
           sent_at?: string | null
           sign_token?: string | null
           signature_data?: Json | null
+          signature_data_url?: string | null
+          signature_method?: string | null
           signed_at?: string | null
+          signed_contract_html?: string | null
+          signed_contract_url?: string | null
           signer_email?: string
+          signer_inputs?: Json | null
           signer_name?: string
           signer_phone?: string | null
           status?: string | null
+          template_snapshot_html?: string | null
           title?: string
           viewed_at?: string | null
         }
@@ -6671,102 +7137,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "signature_requests_our_signer_user_id_fkey"
+            columns: ["our_signer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "signature_requests_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quote_approvals: {
-        Row: {
-          approval_token: string
-          company_id: string
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          decided_at: string | null
-          decision_note: string | null
-          expires_at: string | null
-          id: string
-          partner_id: string | null
-          payload: Json
-          recipient_email: string | null
-          recipient_name: string | null
-          sent_at: string | null
-          stage: string
-          status: string
-          updated_at: string
-          viewed_at: string | null
-        }
-        Insert: {
-          approval_token: string
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          decided_at?: string | null
-          decision_note?: string | null
-          expires_at?: string | null
-          id?: string
-          partner_id?: string | null
-          payload?: Json
-          recipient_email?: string | null
-          recipient_name?: string | null
-          sent_at?: string | null
-          stage: string
-          status?: string
-          updated_at?: string
-          viewed_at?: string | null
-        }
-        Update: {
-          approval_token?: string
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          decided_at?: string | null
-          decision_note?: string | null
-          expires_at?: string | null
-          id?: string
-          partner_id?: string | null
-          payload?: Json
-          recipient_email?: string | null
-          recipient_name?: string | null
-          sent_at?: string | null
-          stage?: string
-          status?: string
-          updated_at?: string
-          viewed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quote_approvals_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_approvals_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_approvals_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quote_approvals_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -7635,7 +8016,9 @@ export type Database = {
       }
       vault_accounts: {
         Row: {
+          billing_cycle: string | null
           billing_day: number | null
+          category: string | null
           company_id: string
           created_at: string | null
           encrypted_password: string | null
@@ -7653,7 +8036,9 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          billing_cycle?: string | null
           billing_day?: number | null
+          category?: string | null
           company_id: string
           created_at?: string | null
           encrypted_password?: string | null
@@ -7671,7 +8056,9 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          billing_cycle?: string | null
           billing_day?: number | null
+          category?: string | null
           company_id?: string
           created_at?: string | null
           encrypted_password?: string | null
@@ -7707,8 +8094,10 @@ export type Database = {
       }
       vault_assets: {
         Row: {
+          attachment_url: string | null
           company_id: string
           created_at: string | null
+          depreciation_method: string | null
           id: string
           location: string | null
           name: string
@@ -7720,8 +8109,10 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          attachment_url?: string | null
           company_id: string
           created_at?: string | null
+          depreciation_method?: string | null
           id?: string
           location?: string | null
           name: string
@@ -7733,8 +8124,10 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          attachment_url?: string | null
           company_id?: string
           created_at?: string | null
+          depreciation_method?: string | null
           id?: string
           location?: string | null
           name?: string
@@ -7885,34 +8278,29 @@ export type Database = {
       }
     }
     Functions: {
+      _seed_legal_allowances_internal: {
+        Args: { p_company_id: string }
+        Returns: number
+      }
+      approve_overtime: { Args: { p_request_id: string }; Returns: undefined }
+      auto_clock_out_at_work_end: { Args: never; Returns: number }
+      check_can_clock_in_after_hours: {
+        Args: { p_employee_id: string }
+        Returns: {
+          allowed: boolean
+          overtime_request_id: string
+          reason: string
+        }[]
+      }
+      current_app_employee_id: { Args: never; Returns: string }
+      current_app_user_email: { Args: never; Returns: string }
+      current_app_user_id: { Args: never; Returns: string }
+      current_employee_id: { Args: never; Returns: string }
+      daily_db_integrity_check: { Args: never; Returns: Json }
       decrypt_credential: { Args: { p_ciphertext: string }; Returns: string }
       decrypt_json_credentials: { Args: { p_creds: Json }; Returns: Json }
       encrypt_credential: { Args: { p_plaintext: string }; Returns: string }
       encrypt_json_credentials: { Args: { p_creds: Json }; Returns: Json }
-      generate_approval_token: { Args: never; Returns: string }
-      get_quote_approval_by_token: {
-        Args: { p_token: string }
-        Returns: {
-          id: string
-          stage: string
-          status: string
-          payload: Json
-          recipient_name: string | null
-          recipient_email: string | null
-          sent_at: string | null
-          expires_at: string | null
-          decided_at: string | null
-          decision_note: string | null
-          deal_id: string
-          deal_name: string
-          contract_total: number | null
-          company_name: string
-          company_representative: string | null
-        }[]
-      }
-      mark_quote_approval_viewed: { Args: { p_token: string }; Returns: boolean }
-      resend_quote_approval: { Args: { p_prev_id: string; p_payload?: Json }; Returns: string }
-      submit_quote_decision: { Args: { p_token: string; p_decision: string; p_note?: string }; Returns: Json }
       find_auth_user_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -7922,59 +8310,347 @@ export type Database = {
         }[]
       }
       fn_process_invoice_queue: { Args: never; Returns: number }
-      get_company_plan_slug: { Args: never; Returns: string }
+      generate_approval_token: { Args: never; Returns: string }
+      generate_partner_portal_token: {
+        Args: { p_partner_id: string }
+        Returns: string
+      }
       get_company_directory: {
         Args: never
         Returns: {
-          department: string | null
-          email: string | null
-          hire_date: string | null
+          department: string
+          email: string
+          hire_date: string
           id: string
           name: string
-          phone: string | null
-          position: string | null
-          status: string | null
+          phone: string
+          position: string
+          status: string
         }[]
       }
+      get_company_overview: { Args: { p_company_id: string }; Returns: Json }
+      get_company_plan_slug: { Args: never; Returns: string }
       get_credential_key: { Args: never; Returns: string }
       get_my_assigned_deals: {
         Args: never
         Returns: {
+          created_at: string
           id: string
+          my_role: string
           name: string
-          status: string | null
-          my_role: string | null
-          created_at: string | null
+          status: string
         }[]
       }
       get_my_company_id: { Args: never; Returns: string }
       get_my_email: { Args: never; Returns: string }
-      is_channel_member: {
-        Args: { p_channel_id: string; p_user_id: string }
-        Returns: boolean
+      get_owner_dashboard_summary: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
       }
+      get_owner_project_trend: { Args: { p_period?: string }; Returns: Json }
+      get_partner_portal_context: { Args: { p_token: string }; Returns: Json }
       get_poll_results: {
         Args: { p_post_id: string }
         Returns: {
+          is_anonymous: boolean
           option_index: number
           vote_count: number
-          is_anonymous: boolean
-          voter_user_ids: string[] | null
+          voter_user_ids: string[]
         }[]
+      }
+      get_quote_approval_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          company_name: string
+          company_representative: string
+          contract_total: number
+          deal_id: string
+          deal_name: string
+          decided_at: string
+          decision_note: string
+          expires_at: string
+          id: string
+          payload: Json
+          recipient_email: string
+          recipient_name: string
+          sent_at: string
+          stage: string
+          status: string
+        }[]
+      }
+      get_signature_context_by_token: {
+        Args: { p_sign_token: string }
+        Returns: Json
+      }
+      get_signature_request_by_token: {
+        Args: { p_token: string }
+        Returns: Json
       }
       has_min_plan: { Args: { min_plan: string }; Returns: boolean }
       increment_share_view_count: {
         Args: { share_id_param: string }
         Returns: undefined
       }
+      is_channel_member: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_company_admin: { Args: never; Returns: boolean }
       is_company_owner: { Args: never; Returns: boolean }
       is_partner_user: { Args: never; Returns: boolean }
+      is_platform_operator: { Args: never; Returns: boolean }
+      is_user_assigned_to_deal: {
+        Args: { p_deal_id: string }
+        Returns: boolean
+      }
+      mark_attendance_late: {
+        Args: {
+          p_date: string
+          p_employee_id: string
+          p_is_holiday?: boolean
+          p_is_late: boolean
+          p_late_minutes: number
+        }
+        Returns: boolean
+      }
       mark_dormant_deals: { Args: never; Returns: number }
+      mark_quote_approval_viewed: {
+        Args: { p_token: string }
+        Returns: boolean
+      }
+      mark_signature_viewed_by_token: {
+        Args: { p_token: string }
+        Returns: undefined
+      }
+      operator_dependencies_health: { Args: never; Returns: Json }
+      operator_financial_averages: {
+        Args: { p_month?: string }
+        Returns: {
+          avg_value: number
+          label: string
+          max_value: number
+          median_value: number
+          metric: string
+          min_value: number
+          p25_value: number
+          p75_value: number
+          sample_size: number
+          stddev_value: number
+        }[]
+      }
+      operator_financial_averages_by_industry: {
+        Args: { p_industry?: string; p_month?: string }
+        Returns: {
+          avg_value: number
+          label: string
+          max_value: number
+          median_value: number
+          metric: string
+          min_value: number
+          p25_value: number
+          p75_value: number
+          sample_size: number
+        }[]
+      }
+      operator_financial_months: {
+        Args: never
+        Returns: {
+          company_count: number
+          month: string
+        }[]
+      }
+      operator_industry_distribution: {
+        Args: never
+        Returns: {
+          company_count: number
+          industry: string
+        }[]
+      }
+      operator_list_actions: {
+        Args: { p_hours?: number; p_limit?: number }
+        Returns: {
+          action: string
+          actor_email: string
+          actor_user_id: string
+          context: Json
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+        }[]
+      }
+      operator_log_action: {
+        Args: {
+          p_action: string
+          p_context?: Json
+          p_target_id?: string
+          p_target_type?: string
+        }
+        Returns: string
+      }
+      operator_recent_errors: {
+        Args: { p_hours?: number; p_limit?: number }
+        Returns: {
+          company_id: string
+          company_name: string
+          context: Json
+          created_at: string
+          error_type: string
+          id: string
+          message: string
+          resolved: boolean
+          source: string
+          stack: string
+          url: string
+          user_email: string
+          user_name: string
+        }[]
+      }
+      operator_resolve_error: {
+        Args: { p_id: string; p_resolved?: boolean }
+        Returns: boolean
+      }
+      operator_set_company_industry: {
+        Args: { p_company_id: string; p_industry: string }
+        Returns: Json
+      }
+      operator_unclassified_companies: {
+        Args: never
+        Returns: {
+          business_number: string
+          created_at: string
+          id: string
+          name: string
+        }[]
+      }
+      operator_upsert_incident: {
+        Args: {
+          p_id?: string
+          p_occurred_at?: string
+          p_prevention?: string
+          p_related_commit?: string
+          p_resolved_at?: string
+          p_root_cause?: string
+          p_severity?: string
+          p_symptoms?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
       plan_rank: { Args: { slug: string }; Returns: number }
+      portal_leave_message: {
+        Args: { p_message: string; p_token: string }
+        Returns: boolean
+      }
+      recalculate_late_status_recent: {
+        Args: { p_company_id?: string; p_days?: number }
+        Returns: {
+          demoted_to_present: number
+          promoted_to_late: number
+          updated_count: number
+        }[]
+      }
+      recompute_bank_balances: { Args: { p_company: string }; Returns: number }
+      recompute_monthly_financials: {
+        Args: { p_company_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      reject_overtime: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: undefined
+      }
+      request_overtime: {
+        Args: {
+          p_reason: string
+          p_requested_date: string
+          p_requested_end_time: string
+        }
+        Returns: string
+      }
+      resend_quote_approval: {
+        Args: { p_payload?: Json; p_prev_id: string }
+        Returns: string
+      }
+      reset_company_data: { Args: { p_company_id: string }; Returns: Json }
+      save_signer_inputs_by_token: {
+        Args: { p_inputs: Json; p_token: string }
+        Returns: Json
+      }
       seed_korean_legal_holidays: { Args: { p_year?: number }; Returns: number }
+      seed_legal_allowances: { Args: { p_company_id: string }; Returns: number }
+      set_attendance_minutes: {
+        Args: {
+          p_holiday_minutes: number
+          p_is_holiday: boolean
+          p_is_late: boolean
+          p_late_minutes: number
+          p_night_minutes: number
+          p_overtime_minutes: number
+          p_record_id: string
+          p_regular_minutes: number
+        }
+        Returns: boolean
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      stage_label_ko: { Args: { p_stage: string }; Returns: string }
+      submit_our_signature: {
+        Args: {
+          p_approval_id: string
+          p_fully_signed_contract_url?: string
+          p_signature_data_url: string
+          p_signature_method: string
+          p_signed_contract_html?: string
+        }
+        Returns: Json
+      }
+      submit_our_signature_bulk: {
+        Args: {
+          p_apply_to?: string
+          p_signature_data_url: string
+          p_signature_method: string
+          p_signature_request_ids: string[]
+        }
+        Returns: Json
+      }
+      submit_our_signature_for_request: {
+        Args: {
+          p_fully_signed_contract_url?: string
+          p_our_signed_contract_html?: string
+          p_signature_data_url: string
+          p_signature_method: string
+          p_signature_request_id: string
+        }
+        Returns: Json
+      }
+      submit_quote_decision: {
+        Args: {
+          p_decision: string
+          p_note?: string
+          p_signature_data_url?: string
+          p_signature_method?: string
+          p_signed_contract_html?: string
+          p_signed_contract_url?: string
+          p_signer_business_number?: string
+          p_signer_company_name?: string
+          p_signer_ip?: string
+          p_signer_representative?: string
+          p_signer_user_agent?: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      submit_signature_by_token: {
+        Args: {
+          p_ip?: string
+          p_signature_data: Json
+          p_signature_data_url?: string
+          p_signature_method?: string
+          p_signed_contract_html?: string
+          p_token: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

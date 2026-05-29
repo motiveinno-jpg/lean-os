@@ -29,7 +29,7 @@ serve(async (req) => {
       });
     }
 
-    const { action, companyId, employeeId, status, date } = await req.json();
+    const { action, companyId, employeeId, status, date, overtimeRequestId } = await req.json();
 
     if (!companyId || !employeeId) {
       return new Response(JSON.stringify({ error: "companyId, employeeId required" }), {
@@ -84,6 +84,10 @@ serve(async (req) => {
         lateMinutes = Math.max(0, ciKstMin - workStartMin);
       }
 
+      // overtime_request_id: 클라이언트가 check_can_clock_in_after_hours 게이트 통과 시 전달.
+      //   NO_WORK_END / BEFORE_WORK_END 케이스에서는 null 로 전달돼 정상 처리.
+      const otReqId = typeof overtimeRequestId === "string" && overtimeRequestId ? overtimeRequestId : null;
+
       const { data, error } = await admin.from("attendance_records")
         .insert({
           company_id: companyId,
@@ -95,6 +99,7 @@ serve(async (req) => {
           late_minutes: lateMinutes,
           work_hours: 0,
           overtime_hours: 0,
+          overtime_request_id: otReqId,
         })
         .select()
         .single();

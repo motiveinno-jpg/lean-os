@@ -31,7 +31,7 @@ import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
-type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies";
+type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "overtime";
 
 // ── Status config ──
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -143,11 +143,26 @@ export default function ApprovalsPage() {
 
   const isAdmin = userRole === "admin" || userRole === "owner";
 
+  // 연장근무 pending 수 — admin/owner 만. 회사 격리는 RLS 자동.
+  const { data: overtimePendingCount = 0 } = useQuery<number>({
+    queryKey: ["overtime-pending-count", companyId],
+    queryFn: async () => {
+      const { count } = await db
+        .from("overtime_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      return count || 0;
+    },
+    enabled: !!companyId && isAdmin,
+    staleTime: 30_000,
+  });
+
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: "my-approvals", label: "내 결재함", count: myPendingCount },
     { key: "my-requests", label: "내 요청" },
     ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황" }] : []),
     { key: "new-request", label: "새 요청" },
+    ...(isAdmin ? [{ key: "overtime" as Tab, label: "연장근무", count: overtimePendingCount }] : []),
     ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리" }] : []),
   ];
 
@@ -215,6 +230,152 @@ export default function ApprovalsPage() {
       )}
       {tab === "policies" && companyId && (
         <PoliciesTab companyId={companyId} invalidate={invalidate} />
+      )}
+      {tab === "overtime" && companyId && isAdmin && (
+        <OvertimeApprovalsTab companyId={companyId} />
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// Tab: 연장근무 승인 (admin/owner)
+// ══════════════════════════════════════════════
+// pending overtime_requests 만 표시. 직원명은 employees JOIN 으로 fetch.
+// 승인: rpc('approve_overtime'). 반려: rpc('reject_overtime', p_reason ≥ 3자)
+// RLS 가 회사 격리 자동 처리.
+function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: rows = [], isLoading } = useQuery<any[]>({
+    queryKey: ["overtime-pending", companyId],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("overtime_requests")
+        .select("id, requested_date, requested_end_time, reason, status, created_at, employee_id, employees(name)")
+        .eq("status", "pending")
+        .order("requested_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId,
+    staleTime: 30_000,
+  });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["overtime-pending"] });
+    qc.invalidateQueries({ queryKey: ["overtime-pending-count"] });
+  };
+
+  const approveMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.rpc("approve_overtime", { p_request_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast("연장근무 승인 처리 완료", "success");
+      refresh();
+    },
+    onError: (err: any) => toast(friendlyError(err, "승인 처리 실패"), "error"),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await db.rpc("reject_overtime", { p_request_id: id, p_reason: reason });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast("연장근무 반려 처리 완료", "success");
+      refresh();
+    },
+    onError: (err: any) => toast(friendlyError(err, "반려 처리 실패"), "error"),
+  });
+
+  const handleReject = (id: string) => {
+    const reason = window.prompt("반려 사유를 입력하세요 (3자 이상)");
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 3) {
+      toast("반려 사유는 3자 이상 입력해 주세요", "error");
+      return;
+    }
+    rejectMut.mutate({ id, reason: trimmed });
+  };
+
+  // KST 표시
+  const fmtDateKst = (s: string | null) => (s ? s : "-");
+  const fmtTimeHhmm = (t: string | null) => (t ? String(t).slice(0, 5) : "-");
+  const fmtCreated = (ts: string | null) =>
+    ts
+      ? new Date(ts).toLocaleString("ko-KR", {
+          year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+        })
+      : "-";
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
+  }
+
+  return (
+    <div>
+      {rows.length === 0 ? (
+        <div className="text-center py-16 glass-card">
+          <div className="text-3xl mb-3">&#10003;</div>
+          <div className="text-[var(--text-muted)] text-sm">대기 중인 연장근무 신청이 없습니다</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => {
+            const empName: string = row?.employees?.name || "(이름 없음)";
+            return (
+              <div key={row.id} className="glass-card p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                        연장근무
+                      </span>
+                      <span className="text-[11px] text-[var(--text-dim)]">신청일 {fmtCreated(row.created_at)}</span>
+                    </div>
+                    <div className="font-semibold text-sm text-[var(--text)] mb-1">{empName}</div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)] mb-2">
+                      <span>
+                        예정일 <span className="font-mono text-[var(--text)]">{fmtDateKst(row.requested_date)}</span>
+                      </span>
+                      <span>
+                        종료시각 <span className="font-mono text-[var(--text)]">~{fmtTimeHhmm(row.requested_end_time)}</span>
+                      </span>
+                    </div>
+                    <div
+                      className="px-3 py-2 bg-[var(--bg-surface)] rounded-lg text-xs text-[var(--text-muted)] whitespace-pre-wrap line-clamp-3"
+                      title={row.reason}
+                    >
+                      {row.reason}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                    <button
+                      onClick={() => approveMut.mutate(row.id)}
+                      disabled={approveMut.isPending}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                    >
+                      승인
+                    </button>
+                    <button
+                      onClick={() => handleReject(row.id)}
+                      disabled={rejectMut.isPending}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                    >
+                      반려
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

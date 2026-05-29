@@ -200,7 +200,7 @@ export const LEAVE_REQUEST_STATUS = {
 } as const;
 
 // ── Attendance Edge Function helper (bypasses RLS) ──
-async function invokeAttendance(action: string, params: Record<string, string>) {
+async function invokeAttendance(action: string, params: Record<string, string | null | undefined>) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("로그인이 필요합니다");
 
@@ -750,7 +750,41 @@ export async function checkIn(companyId: string, employeeId: string, status: str
     const mins = nowKstMinutes();
     status = isLate(mins, policy) ? "late" : "present";
   }
-  const result = await invokeAttendance("checkin", { companyId, employeeId, status });
+
+  // 연장근무 게이트 — work_end_time 이후 출근은 승인된 연장근무 신청이 있어야 가능.
+  //   정규 시간/회사 work_end_time 미설정/승인된 연장 시간 안 이면 통과 (allowed=true).
+  //   차단 시 친화 메시지로 throw → 호출자 toast(friendlyError).
+  //   본 게이트는 단일 진입점(이 함수)에서 처리해 모든 출근 경로(MyAttendanceCard, dashboard,
+  //   employees QuickAttendanceButtons) 가 자동 보호되게 한다.
+  let overtimeRequestId: string | null = null;
+  try {
+    const { data: gate, error: gateErr } = await db.rpc("check_can_clock_in_after_hours", {
+      p_employee_id: employeeId,
+    });
+    if (gateErr) throw gateErr;
+    const first = Array.isArray(gate) ? gate[0] : gate;
+    if (first && first.allowed === false) {
+      const reasonCode = String(first.reason || "");
+      const map: Record<string, string> = {
+        NO_OVERTIME_REQUEST: "회사 퇴근시간 이후 출근은 연장근무 신청 승인이 필요합니다",
+        OVERTIME_EXPIRED: "승인된 연장 종료시각을 지났습니다",
+        EMPLOYEE_NOT_FOUND: "직원 등록이 안 되어 있습니다 — 관리자에게 문의",
+      };
+      throw new Error(map[reasonCode] || reasonCode || "출근 차단됨");
+    }
+    overtimeRequestId = (first?.overtime_request_id as string | null | undefined) ?? null;
+  } catch (e: any) {
+    // 게이트 RPC 자체가 실패한 경우(네트워크/RLS) — 차단 메시지면 throw 그대로 재전파.
+    // RPC 오류(예: 함수 미배포)는 안전 fallback 으로 출근 계속 진행 (회귀 0).
+    if (e?.message && /(연장근무|승인|차단|관리자|종료시각)/.test(e.message)) {
+      throw e;
+    }
+    if (typeof window !== "undefined") {
+      console.warn("[checkIn] gate RPC 실패 — fallback 출근 진행:", e);
+    }
+  }
+
+  const result = await invokeAttendance("checkin", { companyId, employeeId, status, overtimeRequestId });
   // 갭④: 출근 즉시 is_late·late_minutes 채움 (퇴근 전에도 직원 본인 화면에서 배지 노출).
   //   recomputeAttendance 는 check_out 있을 때만 분 컬럼 풀 산정 — 본 chain 은 퇴근 전
   //   late 만 즉시 갱신. 연장/야간/휴일은 퇴근 시 recomputeAttendance(checkOut chain) 처리.

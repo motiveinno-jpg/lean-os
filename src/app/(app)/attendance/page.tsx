@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { SiyanPageHeader, SiyanStatCard, SiyanAlertBox } from "@/components/siyan";
 import { AttendanceTab } from "@/app/(app)/employees/page";
+import { OvertimeRequestCard } from "@/components/overtime-request-card";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
 //   래퍼 시안 리스킨 (공용 컴포넌트 사용, 표시 전용). AttendanceTab 본체(6342줄) 무변경.
@@ -114,6 +115,13 @@ export default function AttendancePage() {
             items={pendingLeave > 0 ? [`미검토 휴가 신청 ${pendingLeave}건 — 빠른 확인 및 결재를 부탁드립니다`] : []}
           />
         </div>
+      )}
+
+      {/* 직원 본인 — 연장근무 신청 카드 (AttendanceTab 본문 무수정 가드: 래퍼 레벨 1줄 호출).
+          신청·승인 흐름은 RPC 가드(request_overtime / approve_overtime / reject_overtime) +
+          check_can_clock_in_after_hours 게이트가 통합. */}
+      {isEmployee && userId && (
+        <OvertimeRequestCard companyId={companyId} userId={userId} />
       )}
 
       <AttendanceTab
