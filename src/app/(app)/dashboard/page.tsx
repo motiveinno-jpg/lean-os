@@ -3308,64 +3308,12 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       )}
 
-      {/* 전자결재 — 자주 쓰는 결재 빠른 작성 */}
-      <div className="mb-4 glass-card p-5 md:p-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-            <span className="text-sm font-bold text-[var(--text)]">전자결재</span>
-            {approvalsPending > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-violet-500/15 text-violet-500 text-[10px] font-bold">
-                {approvalsPending}건 대기
-              </span>
-            )}
-          </div>
-          <Link href="/approvals" className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition">
-            모두 보기 →
-          </Link>
+      {/* 전자결재 — QuickApprovalCard 컴포넌트로 단일 소스 통합(글자/이모지 정렬 일관) */}
+      {companyId && userId && (
+        <div className="mb-4">
+          <QuickApprovalCard companyId={companyId} userId={userId} />
         </div>
-
-        <div className="mb-4 text-xs text-[var(--text-dim)]">자주 사용하는 결재를 빠르게 작성하세요</div>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <Link href="/approvals?new=expense"
-            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition group">
-            <span className="text-lg">💳</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)]">경비 청구</div>
-              <div className="text-[10px] text-[var(--text-dim)]">영수증 첨부 + 승인</div>
-            </div>
-          </Link>
-          <Link href="/approvals?new=payment"
-            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition group">
-            <span className="text-lg">📝</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)]">지출 결의서</div>
-              <div className="text-[10px] text-[var(--text-dim)]">자금 집행 결재</div>
-            </div>
-          </Link>
-          <Link href="/leave?new=1"
-            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition group">
-            <span className="text-lg">🏖</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)]">연차 신청</div>
-              <div className="text-[10px] text-[var(--text-dim)]">휴가 · 반차 · 특별휴가</div>
-            </div>
-          </Link>
-          <Link href="/approvals?new=general"
-            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition group">
-            <span className="text-lg">📋</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-[var(--text)]">일반 결재</div>
-              <div className="text-[10px] text-[var(--text-dim)]">사유서 · 품의서 등</div>
-            </div>
-          </Link>
-        </div>
-
-        <div className="text-[10px] text-[var(--text-dim)] pt-3 border-t border-[var(--border)]">
-          💡 항목 클릭 → 결재 페이지에서 양식 작성 → 승인자 지정 → 결재 요청 발송
-        </div>
-      </div>
+      )}
 
       {/* 이번 달 급여 */}
       <div className="mb-4 glass-card p-4 md:p-5">
