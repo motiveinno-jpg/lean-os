@@ -9,6 +9,54 @@ import { applySignerInputsToHtml } from './signature-fields';
 
 const db = supabase as any;
 
+// ── Email Send Failure Classification ──
+// 발송 실패 사유를 사전 정의된 코드로 분류해 signature_send_failures 에 저장.
+// 라벨 매핑은 signatures 페이지 패널에서 사람이 읽는 형태로 변환.
+function classifyEmailError(err: unknown): string {
+  const raw = (() => {
+    if (!err) return '';
+    if (typeof err === 'string') return err;
+    const e = err as { message?: string; error?: string; status?: number };
+    return e.message || e.error || String(err);
+  })();
+  const msg = raw.toLowerCase();
+  if (!msg) return 'UNKNOWN';
+  if (msg.includes('invalid email') || msg.includes('email format') || msg.includes('not a valid')) return 'INVALID_EMAIL';
+  if (msg.includes('missing email') || msg.includes('no recipient') || msg.includes('empty')) return 'MISSING_EMAIL';
+  if (msg.includes('timeout') || msg.includes('etimedout') || msg.includes('econnreset')) return 'SMTP_TIMEOUT';
+  if (msg.includes('bounce') || msg.includes('user unknown') || msg.includes('mailbox') || msg.includes('does not exist')) return 'BOUNCED';
+  if (msg.includes('unauthorized') || msg.includes('forbidden') || msg.includes('401') || msg.includes('403') || msg.includes('domain not verified')) return 'UNAUTHORIZED';
+  if (msg.includes('rate limit') || msg.includes('429') || msg.includes('quota') || msg.includes('too many')) return 'RATE_LIMIT';
+  return 'UNKNOWN';
+}
+
+// 발송 실패 로깅 — log_signature_send_failure RPC 래퍼.
+// 로깅 자체 실패는 silent — 본 발송 흐름을 절대 깨지 않게 try/catch.
+async function logSendFailure(args: {
+  signatureRequestId: string | null;
+  batchId: string | null;
+  partnerId: string | null;
+  recipientEmail: string;
+  recipientName: string | null;
+  sendType: 'initial' | 'reminder' | 'bulk_initial';
+  err: unknown;
+}): Promise<void> {
+  try {
+    await db.rpc('log_signature_send_failure', {
+      p_signature_request_id: args.signatureRequestId,
+      p_batch_id: args.batchId,
+      p_partner_id: args.partnerId,
+      p_recipient_email: args.recipientEmail,
+      p_recipient_name: args.recipientName,
+      p_send_type: args.sendType,
+      p_error_code: classifyEmailError(args.err),
+      p_error_message: String((args.err as { message?: string })?.message ?? args.err ?? ''),
+    });
+  } catch {
+    /* 로깅 자체 실패는 silent — 발송 흐름 보호 */
+  }
+}
+
 // ── Signature Status Constants ──
 export const SIGNATURE_STATUS = [
   { value: 'pending', label: '대기', bg: 'bg-gray-500/10', text: 'text-gray-500', dot: 'bg-gray-400' },
@@ -121,6 +169,19 @@ export async function sendSignatureEmail(signatureRequestId: string): Promise<{ 
   }
   // 끝까지 실패 — 링크는 생성됐으므로 status='sent' 로 유지(기존 정책)
   await updateSignatureStatus(signatureRequestId, 'sent');
+  // 실패 로깅 (signature_send_failures) — 단건/단체일괄/일반bulk 모두 sendSignatureEmail 한 곳에서 로깅.
+  //   send_type 은 batch_id 유무로 자동 결정: 있으면 'bulk_initial' (단체 일괄), 없으면 'initial' (단건/일반).
+  //   리마인더는 sendSignatureReminder 에서 별도 'reminder' 행 추가 로깅 (성공/실패 분기).
+  //   중복 INSERT 방지를 위해 호출처에서는 추가 로깅하지 않음.
+  void logSendFailure({
+    signatureRequestId,
+    batchId: (req as any).batch_id ?? null,
+    partnerId: (req as any).partner_id ?? null,
+    recipientEmail: req.signer_email,
+    recipientName: req.signer_name ?? null,
+    sendType: (req as any).batch_id ? 'bulk_initial' : 'initial',
+    err: lastErr,
+  });
   return { success: false, error: `이메일 발송 실패 (서명 링크는 생성됨, 재시도 필요): ${lastErr?.message || lastErr || '알 수 없는 오류'}` };
 }
 
@@ -836,6 +897,20 @@ export async function sendSignatureReminder(signatureRequestId: string): Promise
   if (currentCount >= 5) return { success: false, error: '리마인더 발송 횟수가 최대(5회)에 도달했습니다.' };
 
   const r = await sendSignatureEmail(signatureRequestId);
+
+  // 리마인더 실패 — sendSignatureEmail 의 'initial'/'bulk_initial' 로깅과 별개로
+  //   'reminder' send_type 행을 1건 추가. 패널에서 리마인더 실패 통계를 별도로 볼 수 있게 함.
+  if (!r.success) {
+    void logSendFailure({
+      signatureRequestId,
+      batchId: (req as any).batch_id ?? null,
+      partnerId: (req as any).partner_id ?? null,
+      recipientEmail: req.signer_email,
+      recipientName: req.signer_name ?? null,
+      sendType: 'reminder',
+      err: r.error || '리마인더 발송 실패',
+    });
+  }
 
   // 리마인더 카운터 증가 + 감사 로그
   try {
