@@ -7152,6 +7152,86 @@ export type Database = {
           },
         ]
       }
+      signature_send_failures: {
+        Row: {
+          batch_id: string | null
+          company_id: string
+          error_code: string
+          error_message: string
+          failed_at: string
+          id: string
+          partner_id: string | null
+          recipient_email: string
+          recipient_name: string | null
+          retried: boolean
+          retried_at: string | null
+          retried_request_id: string | null
+          send_type: string
+          signature_request_id: string | null
+        }
+        Insert: {
+          batch_id?: string | null
+          company_id: string
+          error_code: string
+          error_message: string
+          failed_at?: string
+          id?: string
+          partner_id?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          retried?: boolean
+          retried_at?: string | null
+          retried_request_id?: string | null
+          send_type: string
+          signature_request_id?: string | null
+        }
+        Update: {
+          batch_id?: string | null
+          company_id?: string
+          error_code?: string
+          error_message?: string
+          failed_at?: string
+          id?: string
+          partner_id?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          retried?: boolean
+          retried_at?: string | null
+          retried_request_id?: string | null
+          send_type?: string
+          signature_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_send_failures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_send_failures_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_send_failures_retried_request_id_fkey"
+            columns: ["retried_request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_send_failures_signature_request_id_fkey"
+            columns: ["signature_request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_deals: {
         Row: {
           bank_account_id: string | null
@@ -8378,6 +8458,14 @@ export type Database = {
           status: string
         }[]
       }
+      get_recent_send_failures_summary: {
+        Args: { p_days?: number }
+        Returns: {
+          count: number
+          error_code: string
+          latest_failed_at: string
+        }[]
+      }
       get_signature_context_by_token: {
         Args: { p_sign_token: string }
         Returns: Json
@@ -8403,6 +8491,38 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: boolean
       }
+      list_send_failures_by_code: {
+        Args: { p_days?: number; p_error_code: string }
+        Returns: {
+          batch_id: string | null
+          company_id: string
+          error_code: string
+          error_message: string
+          failed_at: string
+          id: string
+          partner_id: string | null
+          recipient_email: string
+          recipient_name: string | null
+          retried: boolean
+          retried_at: string | null
+          retried_request_id: string | null
+          send_type: string
+          signature_request_id: string | null
+        }[]
+      }
+      log_signature_send_failure: {
+        Args: {
+          p_batch_id: string
+          p_error_code: string
+          p_error_message: string
+          p_partner_id: string
+          p_recipient_email: string
+          p_recipient_name: string
+          p_send_type: string
+          p_signature_request_id: string
+        }
+        Returns: string
+      }
       mark_attendance_late: {
         Args: {
           p_date: string
@@ -8414,6 +8534,10 @@ export type Database = {
         Returns: boolean
       }
       mark_dormant_deals: { Args: never; Returns: number }
+      mark_failure_retried: {
+        Args: { p_failure_id: string; p_new_request_id: string }
+        Returns: undefined
+      }
       mark_quote_approval_viewed: {
         Args: { p_token: string }
         Returns: boolean
