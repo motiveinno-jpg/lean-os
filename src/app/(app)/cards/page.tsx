@@ -167,7 +167,7 @@ export default function CardsPage() {
     enabled: !!companyId,
   });
 
-  // 카드 탭 — 선택된 카드의 거래내역(#card-tx-detail). 선택 없으면 전체 카드 최근 200건.
+  // 카드 탭 — 선택된 카드의 거래내역(#card-tx-detail). 선택돼 있을 때만 fetch.
   const { data: cardTx = [] } = useQuery({
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName],
     queryFn: async () => {
@@ -181,7 +181,7 @@ export default function CardsPage() {
       const { data } = await q;
       return (data || []) as any[];
     },
-    enabled: !!companyId,
+    enabled: !!companyId && (!!selectedCardId || !!selectedCardName),
   });
 
   // 거래내역 탭 — 최근 100건. 탭 진입 시에만 fetch.
@@ -426,48 +426,47 @@ export default function CardsPage() {
               </div>
             </div>
 
-            {/* 카드 선택 시 그 카드 거래내역, 선택 안 했으면 전체 카드 최근 거래 */}
-            <section id="card-tx-detail" className="scroll-mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold text-[var(--text)]">
-                  {(selectedCardId || selectedCardName) ? `${selectedCardLabel} 거래내역` : "전체 카드 거래내역"}
-                </h3>
-                {(selectedCardId || selectedCardName) && (
+            {/* 카드 선택 시에만 그 카드 거래내역 노출. 닫기 → 영역 자체 hide.
+                전체 카드 거래는 별도 거래내역 탭에서 제공하므로 미선택 시 영역 없음. */}
+            {(selectedCardId || selectedCardName) && (
+              <section id="card-tx-detail" className="scroll-mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-[var(--text)]">
+                    {selectedCardLabel} 거래내역
+                  </h3>
                   <button
                     type="button"
                     onClick={() => { setSelectedCardId(""); setSelectedCardName(""); }}
                     className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
                   >
-                    ✕ 전체 보기
+                    ✕ 닫기
                   </button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {cardTx.length === 0 ? (
-                  <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">
-                    {(selectedCardId || selectedCardName) ? "이 카드의 거래내역이 없습니다" : "최근 카드 거래가 없습니다"}
-                  </div>
-                ) : cardTx.slice(0, 50).map((tx: any) => (
-                  <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
-                        {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
+                </div>
+                <div className="space-y-2">
+                  {cardTx.length === 0 ? (
+                    <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">이 카드의 거래내역이 없습니다</div>
+                  ) : cardTx.slice(0, 50).map((tx: any) => (
+                    <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
+                          {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
+                          <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
-                        <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <p className="text-sm sm:text-base font-bold text-[var(--text)] mono-number">
+                          -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
+                        </p>
+                        <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                      <p className="text-sm sm:text-base font-bold text-[var(--text)] mono-number">
-                        -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
-                      </p>
-                      <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )
       )}

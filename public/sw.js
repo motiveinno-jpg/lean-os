@@ -5,7 +5,7 @@
 //   조치: precache 제거, fetch no-op(브라우저 기본 네트워크=항상 최신 해시 자산),
 //   activate 에서 모든 캐시 삭제 + claim + 열린 window 자동 navigate(=강제 새로고침, SW 버전당 1회).
 //   → 사용자가 사이트를 한 번만 열면, 새 SW 가 활성화되며 탭을 최신으로 자동 재로드.
-const SW_VERSION = "v41";
+const SW_VERSION = "v42";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
