@@ -46,37 +46,38 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
 
       <div className="mb-4 text-xs text-[var(--text-dim)]">자주 사용하는 결재를 빠르게 작성하세요</div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      {/* 4개 항목 일관 정렬 — 이모지 고정 박스(w-9 h-9) + 동일 카드 높이(min-h-[60px]) + 텍스트 leading 통일. */}
+      <div className="grid grid-cols-2 gap-2 mb-3 items-stretch">
         <Link href="/approvals?new=expense"
-          className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition">
-          <span className="text-lg">💳</span>
+          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition">
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-emerald-500/10 text-base leading-none">💳</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-[var(--text)]">경비 청구</div>
-            <div className="text-[10px] text-[var(--text-dim)]">영수증 첨부 + 승인</div>
+            <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">경비 청구</div>
+            <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">영수증 첨부 + 승인</div>
           </div>
         </Link>
         <Link href="/approvals?new=payment"
-          className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition">
-          <span className="text-lg">📝</span>
+          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition">
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-blue-500/10 text-base leading-none">📝</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-[var(--text)]">지출 결의서</div>
-            <div className="text-[10px] text-[var(--text-dim)]">자금 집행 결재</div>
+            <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">지출 결의서</div>
+            <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">자금 집행 결재</div>
           </div>
         </Link>
         <Link href="/leave?new=1"
-          className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition">
-          <span className="text-lg">🏖</span>
+          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition">
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-orange-500/10 text-base leading-none">🏖</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-[var(--text)]">연차 신청</div>
-            <div className="text-[10px] text-[var(--text-dim)]">휴가 · 반차 · 특별휴가</div>
+            <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">연차 신청</div>
+            <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">휴가 · 반차 · 특별휴가</div>
           </div>
         </Link>
         <Link href="/approvals?new=general"
-          className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition">
-          <span className="text-lg">📋</span>
+          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition">
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-violet-500/10 text-base leading-none">📋</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-[var(--text)]">일반 결재</div>
-            <div className="text-[10px] text-[var(--text-dim)]">사유서 · 품의서 등</div>
+            <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">일반 결재</div>
+            <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">사유서 · 품의서 등</div>
           </div>
         </Link>
       </div>
