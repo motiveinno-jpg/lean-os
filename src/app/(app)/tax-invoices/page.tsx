@@ -1246,7 +1246,7 @@ export default function TaxInvoicesPage() {
     <div className="max-w-[1200px]" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="page-sticky-header flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">세금계산서</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
