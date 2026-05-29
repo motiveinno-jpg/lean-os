@@ -78,6 +78,26 @@ function categoryEmoji(category: string | null | undefined): string {
   return "💳";
 }
 
+// classification 컬럼은 jsonb — {"label":"...","confidence":"low","reason":"..."} 객체 또는 그것의
+// 문자열화 결과 또는 평문일 수 있음. UI 에는 label 만 표시(JSON 그대로 노출 금지).
+function classificationLabel(c: unknown): string {
+  if (!c) return "";
+  if (typeof c === "object") {
+    const obj = c as { label?: string };
+    return String(obj.label || "");
+  }
+  const s = String(c).trim();
+  if (s.startsWith("{") && s.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(s);
+      return String(parsed?.label || "");
+    } catch {
+      return "";
+    }
+  }
+  return s;
+}
+
 const cardTypeLabel = (t?: string | null) => t === "credit" ? "신용" : t === "check" ? "체크" : t === "debit" ? "직불" : "카드";
 
 type Tab = "cards" | "transactions" | "analysis";
@@ -191,7 +211,7 @@ export default function CardsPage() {
     for (const tx of monthTx) {
       const amt = Math.abs(Number(tx.amount || 0));
       if (amt <= 0) continue;
-      const cat = tx.classification || tx.category || "미분류";
+      const cat = classificationLabel(tx.classification) || tx.category || "미분류";
       m[cat] = (m[cat] || 0) + amt;
     }
     const entries = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -219,7 +239,7 @@ export default function CardsPage() {
     const q = search.trim().toLowerCase();
     return (tx.merchant_name || "").toLowerCase().includes(q)
       || (tx.card_name || "").toLowerCase().includes(q)
-      || (tx.classification || tx.category || "").toLowerCase().includes(q);
+      || (classificationLabel(tx.classification) || tx.category || "").toLowerCase().includes(q);
   });
 
   const welcomeName = user?.email?.split("@")[0] || "사용자";
@@ -424,11 +444,11 @@ export default function CardsPage() {
                   <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
-                        {categoryEmoji(tx.classification || tx.category)}
+                        {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
-                        <p className="text-xs text-[var(--text-muted)] truncate">{(tx.classification || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
+                        <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
@@ -475,12 +495,12 @@ export default function CardsPage() {
               <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div className="w-12 h-12 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-xl shrink-0">
-                    {categoryEmoji(tx.classification || tx.category)}
+                    {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
                     <p className="text-xs text-[var(--text-muted)] truncate">
-                      {(tx.classification || tx.category || "미분류")} · {tx.card_name || "카드"}
+                      {(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}
                     </p>
                   </div>
                 </div>
