@@ -57,6 +57,13 @@ function cardTypeBadgeClass(cardType?: string | null): string {
   return "bg-blue-400/30 text-white border border-blue-200/40";
 }
 
+// 흰 배경 카드(MiniCard) 위 종류 칩 — 라이트/다크 양쪽 잘 보이는 톤.
+function cardTypeChipClass(cardType?: string | null): string {
+  if (cardType === "check") return "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400";
+  if (cardType === "debit") return "bg-fuchsia-500/15 text-fuchsia-600 border border-fuchsia-500/30 dark:text-fuchsia-400";
+  return "bg-blue-500/15 text-blue-600 border border-blue-500/30 dark:text-blue-400";
+}
+
 // 카테고리 키워드 → 이모지(실 카테고리에 키워드 매칭). 매핑 없으면 기본 💳.
 const CATEGORY_EMOJI: Array<[RegExp, string]> = [
   [/구독|넷플릭스|스포티파이|netflix|spotify/i, "🎵"],
@@ -674,65 +681,60 @@ function MiniCard({
   onCancelEdit: () => void;
 }) {
   const last4 = (card.card_number || "").slice(-4) || "----";
-  const gradient = getCardGradient(card.card_company, card.card_type);
-  const badgeClass = cardTypeBadgeClass(card.card_type);
+  const chipClass = cardTypeChipClass(card.card_type);
   // 등록 카드(corporate_cards.id 존재)만 이름 편집 가능. CODEF 미식별 묶음은 hide.
   const canEditName = !!card.id;
+  // 2026-05-29 통장 카드와 동일한 흰색 glass-card 스타일. BigCard 만 색 그라데이션 유지.
   return (
     <div
       onClick={isEditing ? undefined : onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (!isEditing && e.key === "Enter") onClick(); }}
-      className={`relative h-32 sm:h-36 bg-gradient-to-br ${gradient} rounded-xl p-4 transition-all overflow-hidden group ${
+      className={`glass-card p-4 transition-all group ${
         isEditing ? "cursor-default" : "cursor-pointer"
       } ${
-        selected ? "ring-2 ring-indigo-300 scale-105 shadow-xl" : "hover:shadow-lg opacity-80 hover:opacity-100"
+        selected ? "ring-2 ring-[var(--primary)] shadow-lg" : "hover:shadow-md"
       }`}
     >
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl" />
-      </div>
-      <div className="relative z-10 h-full flex flex-col justify-between text-white">
-        <span className={`self-start px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
+      <div className="flex items-start justify-between mb-2 gap-2">
+        {isEditing ? (
+          <input
+            autoFocus
+            type="text"
+            value={editingName}
+            onChange={(e) => onEditChange(e.target.value)}
+            onBlur={onSaveEdit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); onSaveEdit(); }
+              if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 bg-[var(--bg-surface)] text-[var(--text)] text-sm font-semibold px-2 py-1 rounded outline-none border border-[var(--border)] focus:border-[var(--primary)]"
+            placeholder="카드명"
+          />
+        ) : (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[var(--text)] truncate">{card.card_name}</p>
+            {canEditName && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
+                className="opacity-0 group-hover:opacity-100 transition shrink-0 text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
+                title="카드명 변경"
+                aria-label="카드명 변경"
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        )}
+        <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${chipClass}`}>
           {cardTypeLabel(card.card_type)}
         </span>
-        <div>
-          {isEditing ? (
-            <input
-              autoFocus
-              type="text"
-              value={editingName}
-              onChange={(e) => onEditChange(e.target.value)}
-              onBlur={onSaveEdit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); onSaveEdit(); }
-                if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full bg-white/20 text-white text-sm font-bold mb-1 px-2 py-1 rounded outline-none border border-white/40 placeholder-white/50"
-              placeholder="카드명"
-            />
-          ) : (
-            <div className="flex items-center gap-1.5 mb-1">
-              <p className="text-sm font-bold truncate flex-1">{card.card_name}</p>
-              {canEditName && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
-                  className="opacity-0 group-hover:opacity-80 hover:opacity-100 transition shrink-0 text-xs"
-                  title="카드명 변경"
-                  aria-label="카드명 변경"
-                >
-                  ✏️
-                </button>
-              )}
-            </div>
-          )}
-          <p className="text-xs opacity-80 font-mono">•••• {last4}</p>
-        </div>
-        <p className="text-xs opacity-80 truncate">{card.card_company || ""}</p>
       </div>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-1">•••• {last4}</p>
+      <p className="text-[11px] text-[var(--text-dim)] truncate">{card.card_company || ""}</p>
     </div>
   );
 }
