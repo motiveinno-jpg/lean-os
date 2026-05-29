@@ -296,19 +296,19 @@ export default function BankPage() {
         </div>
       )}
 
-      {/* 통장 — 시안 portfolio 카드(이름·잔액·이번달 증감) 2열 그리드 */}
+      {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
       {tab === "accounts" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {accounts.length === 0 ? (
-            <div className="md:col-span-2 glass-card p-12 text-center">
-              <div className="text-4xl mb-3">🏦</div>
+            <div className="sm:col-span-2 lg:col-span-3 glass-card p-10 text-center">
+              <div className="text-3xl mb-2">🏦</div>
               <p className="text-sm font-medium text-[var(--text)] mb-1">통장이 아직 연동되지 않았습니다</p>
-              <p className="text-xs text-[var(--text-muted)] mb-4">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
+              <p className="text-xs text-[var(--text-muted)] mb-3">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
               <button
                 type="button"
                 onClick={handleSyncBank}
                 disabled={syncing}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-xs shadow hover:shadow-lg transition disabled:opacity-50"
               >
                 {syncing ? "연동 중..." : "🏦 통장 연동하기"}
               </button>
@@ -325,41 +325,41 @@ export default function BankPage() {
                 tabIndex={0}
                 onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); }}
                 onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); } }}
-                className="glass-card p-6 hover:shadow-xl transition-all cursor-pointer group"
+                className="glass-card p-4 hover:shadow-lg transition-all cursor-pointer group"
               >
-                <div className="flex items-start justify-between mb-4 gap-2">
-                  <h3 className="text-lg font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <h3 className="text-sm font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
+                  <div className="flex items-center gap-1 shrink-0">
                     {/* 통장 이름 편집(연필) — 카드 클릭과 분리(stopPropagation) */}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }}
-                      className="opacity-0 group-hover:opacity-100 transition p-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)]"
+                      className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)]"
                       title="이름 변경"
                       aria-label="이름 변경"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                     </button>
                     {Math.round(change) !== 0 && (
                       change >= 0 ? (
-                        <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
+                        <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
                       ) : (
-                        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
                       )
                     )}
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-[var(--text)] mb-2 mono-number">{fmtW(bal)}</p>
+                <p className="text-lg font-bold text-[var(--text)] mb-1.5 mono-number">{fmtW(bal)}</p>
                 {Math.round(change) !== 0 ? (
-                  <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${change >= 0 ? "bg-emerald-500/15 text-emerald-600" : "bg-red-500/15 text-red-600"}`}>
+                  <div className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${change >= 0 ? "bg-emerald-500/15 text-emerald-600" : "bg-red-500/15 text-red-600"}`}>
                     {change >= 0 ? "+" : "-"}{fmtW(Math.abs(change))}
                   </div>
                 ) : (
-                  <div className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                  <div className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-surface)] text-[var(--text-muted)]">
                     변화 없음
                   </div>
                 )}
-                <p className="text-[11px] text-[var(--text-dim)] mt-3">클릭 → 이 통장 거래내역</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-2">클릭 → 이 통장 거래내역</p>
               </div>
             );
           })}
