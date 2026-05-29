@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { notifyOvertimeRequest } from "@/lib/notifications";
 
 const db = supabase as any;
 
@@ -131,11 +132,20 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
       if (error) throw error;
       return data as string;
     },
-    onSuccess: () => {
+    onSuccess: (requestId: string) => {
       toast("연장근무 신청이 접수되었습니다", "success");
       setReason("");
       qc.invalidateQueries({ queryKey: ["ot-my-history"] });
       refetchHistory();
+      // 회사 admin/owner 알림 — 실패해도 신청 자체는 성공이라 fire-and-forget.
+      void notifyOvertimeRequest({
+        companyId,
+        requestId,
+        employeeName: emp?.name || "직원",
+        requestedDate: date,
+        requestedEndTime: endTime,
+        reason: reason.trim(),
+      }).catch(() => { /* 알림 실패는 silent */ });
     },
     onError: (err: any) => {
       const code = err?.code || "";

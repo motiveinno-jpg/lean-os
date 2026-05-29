@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
+import { notifyOvertimeDecision } from "@/lib/notifications";
 import {
   getApprovalPolicies,
   upsertApprovalPolicy,
@@ -253,7 +254,7 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data, error } = await db
         .from("overtime_requests")
-        .select("id, requested_date, requested_end_time, reason, status, created_at, employee_id, employees(name)")
+        .select("id, requested_date, requested_end_time, reason, status, created_at, employee_id, employees(name, user_id)")
         .eq("status", "pending")
         .order("requested_date", { ascending: true })
         .order("created_at", { ascending: true });
@@ -270,30 +271,55 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
   };
 
   const approveMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await db.rpc("approve_overtime", { p_request_id: id });
+    mutationFn: async (row: any) => {
+      const { error } = await db.rpc("approve_overtime", { p_request_id: row.id });
       if (error) throw error;
+      return row;
     },
-    onSuccess: () => {
+    onSuccess: (row: any) => {
       toast("연장근무 승인 처리 완료", "success");
       refresh();
+      const targetUserId = row?.employees?.user_id;
+      if (targetUserId) {
+        void notifyOvertimeDecision({
+          companyId,
+          requestId: row.id,
+          targetUserId,
+          decision: "approved",
+          requestedDate: row.requested_date,
+          requestedEndTime: String(row.requested_end_time || "").slice(0, 5),
+        }).catch(() => { /* silent */ });
+      }
     },
     onError: (err: any) => toast(friendlyError(err, "승인 처리 실패"), "error"),
   });
 
   const rejectMut = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const { error } = await db.rpc("reject_overtime", { p_request_id: id, p_reason: reason });
+    mutationFn: async ({ row, reason }: { row: any; reason: string }) => {
+      const { error } = await db.rpc("reject_overtime", { p_request_id: row.id, p_reason: reason });
       if (error) throw error;
+      return { row, reason };
     },
-    onSuccess: () => {
+    onSuccess: ({ row, reason }: { row: any; reason: string }) => {
       toast("연장근무 반려 처리 완료", "success");
       refresh();
+      const targetUserId = row?.employees?.user_id;
+      if (targetUserId) {
+        void notifyOvertimeDecision({
+          companyId,
+          requestId: row.id,
+          targetUserId,
+          decision: "rejected",
+          requestedDate: row.requested_date,
+          requestedEndTime: String(row.requested_end_time || "").slice(0, 5),
+          rejectedReason: reason,
+        }).catch(() => { /* silent */ });
+      }
     },
     onError: (err: any) => toast(friendlyError(err, "반려 처리 실패"), "error"),
   });
 
-  const handleReject = (id: string) => {
+  const handleReject = (row: any) => {
     const reason = window.prompt("반려 사유를 입력하세요 (3자 이상)");
     if (reason === null) return;
     const trimmed = reason.trim();
@@ -301,7 +327,7 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
       toast("반려 사유는 3자 이상 입력해 주세요", "error");
       return;
     }
-    rejectMut.mutate({ id, reason: trimmed });
+    rejectMut.mutate({ row, reason: trimmed });
   };
 
   // KST 표시
@@ -357,14 +383,14 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                     <button
-                      onClick={() => approveMut.mutate(row.id)}
+                      onClick={() => approveMut.mutate(row)}
                       disabled={approveMut.isPending}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
                     >
                       승인
                     </button>
                     <button
-                      onClick={() => handleReject(row.id)}
+                      onClick={() => handleReject(row)}
                       disabled={rejectMut.isPending}
                       className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
                     >
