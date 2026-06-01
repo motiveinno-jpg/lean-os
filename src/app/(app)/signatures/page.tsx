@@ -889,6 +889,7 @@ type OrgPartner = {
   representative?: string | null;
   contact_name?: string | null;
   contact_email?: string | null;
+  contact_phone?: string | null;
   business_number?: string | null;
   address?: string | null;
 };
@@ -982,7 +983,7 @@ function OrgBulkWizard({
       try {
         const { data } = await supabase
           .from("partners")
-          .select("id, name, type, representative, contact_name, contact_email, business_number, address")
+          .select("id, name, type, representative, contact_name, contact_email, contact_phone, business_number, address")
           .eq("company_id", companyId)
           .order("name", { ascending: true });
         if (alive) setPartners((data || []) as OrgPartner[]);
