@@ -18,9 +18,13 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
   const { data: cards } = useQuery({
     queryKey: ["dash-cards", companyId],
     queryFn: async () => {
-      const m = new Date().toISOString().slice(0, 7);
+      // 월 경계 — '-31' 무효날짜(30일 달·2월) 회피. < 다음달 1일.
+      const _now = new Date();
+      const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`;
+      const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
+      const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, "0")}-01`;
       const { data } = await db.from("card_transactions").select("card_name, amount")
-        .eq("company_id", companyId).gte("transaction_date", `${m}-01`).lte("transaction_date", `${m}-31`);
+        .eq("company_id", companyId).gte("transaction_date", monthStart).lt("transaction_date", nextStart);
       const byCard: Record<string, number> = {};
       (data || []).forEach((t: any) => { const k = t.card_name || "기타"; byCard[k] = (byCard[k] || 0) + Number(t.amount || 0); });
       const list = Object.entries(byCard).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
