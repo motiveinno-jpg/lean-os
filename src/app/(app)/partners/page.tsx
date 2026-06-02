@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
@@ -669,6 +670,11 @@ export default function PartnersPage() {
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
         </div>
         <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
+          <Link href="/partners/ledger"
+            className="px-3 py-2.5 bg-[var(--primary)]/10 border border-[var(--primary)]/30 hover:bg-[var(--primary)]/20 text-[var(--primary)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap"
+            title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">
+            📒 거래처 원장
+          </Link>
           <button onClick={downloadCSVTemplate}
             className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-xl text-xs font-semibold transition"
             title="CSV 템플릿 다운로드">
