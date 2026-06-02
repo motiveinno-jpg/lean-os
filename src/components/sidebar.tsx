@@ -15,70 +15,64 @@ import { useUser, type UserRole } from "@/components/user-context";
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
-// ── 사이드바 구조 — 6 그룹 (2026-05-20 시스템 그룹 폐지, 일상 작업→운영 도구→설정 흐름)
-//   홈 → 소통·결재 → 인사관리 → 회계관리 → 자금·결제 → 설정·도움말.
-//   라우트/role/icon 무변경. operatorOnly 항목은 filterNavForRole 가 자동 숨김.
+// ── 사이드바 구조 (2026-06-02 재편) — 홈 → 회계관리 → 그룹웨어 → 인사관리 → 자산관리 → 설정.
+//   회계관리를 홈 바로 아래로. 소통·결재 → 그룹웨어(+프로젝트). 자금·결제 → 자산관리(결제/고정비→정기결제).
+//   엑셀가져오기 제거. 공지사항 → 설정·도움말. (employee 는 EMPLOYEE_NAV_GROUPS 별도 유지)
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
-      { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin", "employee"] },
-      // PR5 + 2026-05-21: /projects 가 owner/admin/employee 통일 진입점.
-      //   /deals 는 partner 만 (편집·생성·외주 상세 + 외부 협력업체 view).
-      //   employee 는 /projects 에서 isEmployeeLimited 가드로 재무 가림 + 본인 담당만 노출.
-      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin", "employee"] },
-      { href: "/projects", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
-      { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
   {
-    label: "소통·결재",
+    label: "회계관리",
     items: [
+      { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin"] },
+      { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
+      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"] },
+      { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
+    ],
+  },
+  {
+    label: "그룹웨어",
+    items: [
+      { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
-      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin", "employee"] },
-      { href: "/announcements", label: "공지사항", icon: "megaphone" },
+      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
+      // /projects: owner/admin/employee 통일 진입점, partner 는 외주 상세 view.
+      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin"] },
+      { href: "/projects", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
     ],
   },
   {
     label: "인사관리",
     items: [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
-      { href: "/team", label: "팀 디렉토리", icon: "users", roles: ["employee"] },
-      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
-      { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3", roles: ["employee"] },
-      { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin", "employee"] },
+      { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/documents", label: "서류", icon: "folder" },
+      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
   {
-    label: "회계관리",
+    label: "자산관리",
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
-      { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
-      { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
-    ],
-  },
-  {
-    label: "자금·결제",
-    items: [
-      { href: "/payments", label: "결제 / 고정비", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/payments", label: "정기결제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
-      // /matching 은 사이드바에서 제거 — 분석(/reports) 허브에서만 진입.
-      //   라우트 자체는 유지 (owner 가 직접 URL 입력 시 접근 — 라우트 게이트 그대로).
       { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
       { href: "/subscriptions", label: "구독", icon: "credit-card", roles: ["owner", "admin"] },
-      { href: "/import-hub", label: "엑셀 가져오기", icon: "upload", roles: ["owner", "admin"] },
     ],
   },
   {
     label: "설정·도움말",
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
+      { href: "/announcements", label: "공지사항", icon: "megaphone" },
       { href: "/mypage", label: "내 계정", icon: "user" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
