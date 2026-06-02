@@ -86,7 +86,8 @@ export default function PartnerLedgerPage() {
 
   const engineMut = useMutation({
     mutationFn: async () => {
-      const { data, error } = await db.rpc("generate_settlement_suggestions", { p_days: 180 });
+      // 1095일(3년) — 미정산 거래 전체 커버. 180일이면 1년 넘은 미매칭 건(엑스플라이어 등) 누락.
+      const { data, error } = await db.rpc("generate_settlement_suggestions", { p_days: 1095 });
       if (error) throw new Error(error.message); return data as { resolved: number; suggested: number };
     },
     onSuccess: (r) => { invalidateAll(); toast(`거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건 생성`, "success"); },
