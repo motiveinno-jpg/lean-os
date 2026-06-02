@@ -22,6 +22,8 @@ type QueueRow = {
   transaction_date: string; txn_amount: number; counterparty: string | null; txn_type: string;
   issue_date: string; invoice_amount: number; counterparty_name: string | null; invoice_type: string;
 };
+type OpenTx = { id: string; amount: number; settled_amount: number; transaction_date: string; counterparty: string | null; type: string };
+type UnsettledInv = { id: string; type: string; issue_date: string; total_amount: number; settled_amount: number; counterparty_name: string | null; partner_id: string | null };
 
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 const MATCH_LABEL: Record<string, string> = {
@@ -34,7 +36,9 @@ export default function PartnerLedgerPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const db = supabase as any;
-  const [tab, setTab] = useState<"queue" | "ledger">("queue");
+  const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
+  const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
+  const [invSearch, setInvSearch] = useState("");
 
   const { data: queue = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
@@ -110,6 +114,56 @@ export default function PartnerLedgerPage() {
     onError: (e: any) => toast(e?.message || "처리 실패", "error"),
   });
 
+  // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
+  const { data: openTx = [] } = useQuery<OpenTx[]>({
+    queryKey: ["manual-open-tx", companyId, tab],
+    queryFn: async () => {
+      const { data } = await db.from("bank_transactions")
+        .select("id, amount, settled_amount, transaction_date, counterparty, type")
+        .eq("company_id", companyId).in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
+        .gt("amount", 0).order("transaction_date", { ascending: false }).limit(300);
+      return (data || []) as OpenTx[];
+    },
+    enabled: !!companyId && tab === "manual",
+  });
+
+  // 미정산 송장 (수동 매칭 후보)
+  const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
+    queryKey: ["manual-unsettled-inv", companyId, tab],
+    queryFn: async () => {
+      const { data } = await db.from("tax_invoices")
+        .select("id, type, issue_date, total_amount, settled_amount, counterparty_name, partner_id")
+        .eq("company_id", companyId).neq("settlement_status", "settled")
+        .order("issue_date", { ascending: false }).limit(2000);
+      return (data || []) as UnsettledInv[];
+    },
+    enabled: !!companyId && tab === "manual",
+  });
+
+  // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감)
+  const manualMut = useMutation({
+    mutationFn: async ({ tx, inv, amount }: { tx: OpenTx; inv: UnsettledInv; amount: number }) => {
+      const { error } = await db.from("invoice_settlements").insert({
+        company_id: companyId, bank_transaction_id: tx.id, tax_invoice_id: inv.id,
+        amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결",
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-unsettled-inv"] }); setMatchTx(null); setInvSearch(""); toast("연결 완료 — 미수금에 반영됩니다", "success"); },
+    onError: (e: any) => toast(e?.message || "연결 실패", "error"),
+  });
+
+  const txRemaining = (t: OpenTx) => Number(t.amount || 0) - Number(t.settled_amount || 0);
+  const invRemaining = (i: UnsettledInv) => Number(i.total_amount || 0) - Number(i.settled_amount || 0);
+  const matchInvType = matchTx?.type === "income" ? "sales" : "purchase";
+  const filteredInv = useMemo(() => {
+    const q = invSearch.trim().toLowerCase();
+    return unsettledInv
+      .filter((i) => i.type === matchInvType && invRemaining(i) > 0)
+      .filter((i) => !q || (i.counterparty_name || "").toLowerCase().includes(q))
+      .slice(0, 100);
+  }, [unsettledInv, invSearch, matchInvType]);
+
   const { receivables, payables, totalAr, totalAp } = useMemo(() => {
     const recv = rows.filter((r) => r.type === "sales").sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
     const pay = rows.filter((r) => r.type === "purchase").sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
@@ -145,7 +199,7 @@ export default function PartnerLedgerPage() {
       </div>
 
       <div className="flex gap-2 border-b border-[var(--border)]">
-        {([["queue", `확인 큐${queue.length ? ` (${queue.length})` : ""}`], ["ledger", "거래처 원장"]] as const).map(([k, label]) => (
+        {([["queue", `확인 큐${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["ledger", "거래처 원장"]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
             {label}</button>
@@ -193,6 +247,68 @@ export default function PartnerLedgerPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {tab === "manual" && (
+        <div className="space-y-2">
+          <p className="text-xs text-[var(--text-muted)]">규칙·AI 가 못 잡은 입금을 직접 송장에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.</p>
+          {openTx.length === 0 ? (
+            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">미정산 입출금이 없습니다.</div>
+          ) : (
+            openTx.map((t) => (
+              <div key={t.id} className="glass-card p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[var(--text)] truncate">{t.counterparty || "—"}
+                    <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-dim)]">{t.transaction_date} · 잔여 {won(txRemaining(t))}</div>
+                </div>
+                <button onClick={() => { setMatchTx(t); setInvSearch(""); }}
+                  className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
+                  송장 연결
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 수동 매칭 모달 */}
+      {matchTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setMatchTx(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">송장에 연결</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
+            </div>
+            <div className="px-5 py-3 border-b border-[var(--border)]">
+              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명으로 송장 검색"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
+            </div>
+            <div className="flex-1 overflow-auto p-2">
+              {filteredInv.length === 0 ? (
+                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 송장이 없습니다.</div>
+              ) : filteredInv.map((inv) => {
+                const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
+                return (
+                  <div key={inv.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
+                    <div className="min-w-0">
+                      <div className="text-sm text-[var(--text)] truncate">{inv.counterparty_name || "—"}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{inv.issue_date} · 잔액 {won(invRemaining(inv))}</div>
+                    </div>
+                    <button onClick={() => manualMut.mutate({ tx: matchTx, inv, amount: amt })} disabled={manualMut.isPending || amt <= 0}
+                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                      {won(amt)} 연결
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] text-right">
+              <button onClick={() => setMatchTx(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+            </div>
+          </div>
         </div>
       )}
 
