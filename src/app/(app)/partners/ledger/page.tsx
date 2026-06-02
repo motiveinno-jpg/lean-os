@@ -89,6 +89,18 @@ export default function PartnerLedgerPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
+  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+송장 매칭 (Edge). 한 번에 15건씩.
+  const aiMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 15 } });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as { processed: number; resolved: number; suggested: number };
+    },
+    onSuccess: (r) => { invalidateAll(); toast(`AI: ${r?.processed ?? 0}건 분석 · 거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건`, "success"); },
+    onError: (e: any) => toast(e?.message || "AI 매칭 실패", "error"),
+  });
+
   const decideMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected" }) => {
       const { error } = await db.from("invoice_settlements").update({ status }).eq("id", id);
@@ -125,6 +137,10 @@ export default function PartnerLedgerPage() {
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
             title="미정산 입금과 송장을 규칙으로 매칭해 확인 큐에 제안 생성">
             {engineMut.isPending ? "매칭 중..." : "⚙️ 매칭 엔진 실행"}</button>
+          <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
+            className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
+            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+송장 매칭 (15건씩)">
+            {aiMut.isPending ? "AI 분석 중..." : "✨ AI 매칭"}</button>
         </div>
       </div>
 
