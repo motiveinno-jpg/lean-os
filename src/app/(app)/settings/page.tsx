@@ -3476,19 +3476,26 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
           : { success: true, errors: [], status: 'success' as const, message: '은행/카드 미등록' };
       }
 
+      // 1.5단계: 카드 승인내역(실시간) — 반드시 별도 호출 (bank_card 와 묶으면 Edge 150s 초과 HTTP 546).
+      //   청구 마감 전 결제건을 즉시 반영. billing 과 동일 external_id 로 중복 없이 수렴.
+      const approvalRes = hasCodefConnection
+        ? await syncCodefData(companyId, 'card_approval').catch(() => null)
+        : null;
+
       // 2단계: 홈택스 동기화 (느림, 인증서 storage 필요) — 등록된 경우만
       const hometaxRes = hasHometaxConnection
         ? await syncCodefData(companyId, "hometax")
         : null;
 
-      const allErrors = [...(bankCardRes.errors || []), ...((hometaxRes as any)?.errors || [])];
-      const allNotes = [...((bankCardRes as any).notes || []), ...((hometaxRes as any)?.notes || [])];
-      const totalSuccess = (bankCardRes.success ?? false) && (hometaxRes ? hometaxRes.success : true);
+      const allErrors = [...(bankCardRes.errors || []), ...((approvalRes as any)?.errors || []), ...((hometaxRes as any)?.errors || [])];
+      const allNotes = [...((bankCardRes as any).notes || []), ...((approvalRes as any)?.notes || []), ...((hometaxRes as any)?.notes || [])];
+      const totalSuccess = (bankCardRes.success ?? false) && (approvalRes ? approvalRes.success : true) && (hometaxRes ? hometaxRes.success : true);
 
       if (totalSuccess && allErrors.length === 0) {
         // 진짜 에러 없음 — 성공. notes(외부 안내)가 있어도 빨간 알림 안 뜸.
         const parts = [];
         if (hasCodefConnection) parts.push(bankCardRes.message || "은행/카드 동기화 완료");
+        if (approvalRes && ((approvalRes as any).cardSynced ?? 0) > 0) parts.push(`카드 승인내역 ${(approvalRes as any).cardSynced}건`);
         if (hometaxRes) parts.push(hometaxRes.message || "홈택스 동기화 완료");
         setSyncResult({
           ok: true,

@@ -796,7 +796,7 @@ export type CodefSyncError = {
 
 export async function syncCodefData(
   companyId: string,
-  syncType: 'bank' | 'card' | 'all' | 'hometax' | 'bank_card' | 'bank-balance' = 'all',
+  syncType: 'bank' | 'card' | 'all' | 'hometax' | 'bank_card' | 'bank-balance' | 'card_approval' = 'all',
   startDate?: string,
   endDate?: string,
 ): Promise<{

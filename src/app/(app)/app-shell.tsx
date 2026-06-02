@@ -214,7 +214,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       return false;
     };
 
-    const runOne = async (syncType: "bank" | "card") => {
+    const runOne = async (syncType: "bank" | "card" | "card_approval") => {
       const tKey = `codef-autosync-${companyId}-${syncType}`;
       const last = Number(localStorage.getItem(tKey) || 0);
       if (Date.now() - last < 25 * 60 * 1000) return; // 25분 throttle (탭 다중·새로고침 우회 차단)
@@ -237,6 +237,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       if (stopped || !(await isConnected())) return;
       await runOne("bank");
       await runOne("card");
+      // 카드 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과). 청구 마감 전 결제 즉시 반영.
+      await runOne("card_approval");
     };
 
     runAll(); // 앱 켜면 1회

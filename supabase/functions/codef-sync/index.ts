@@ -1888,11 +1888,10 @@ serve(async (req) => {
 
     if (syncType === "card" || syncType === "all" || syncType === "bank_card") {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
-      // 승인내역(실시간) — 청구 마감 전 결제 즉시 반영. billing 과 동일 external_id 로 dedup.
-      results.cardApproval = await syncCardApprovals(supabase, token, companyId, cid, start, end);
     }
 
-    // 승인내역만 빠르게 (실시간 카드 거래 새로고침 전용)
+    // 승인내역(실시간) — 반드시 "별도 invocation" 으로만 실행 (billing 과 묶으면 카드 호출이 2배 →
+    //   은행+카드청구+카드승인 순차로 Edge 150s 초과 HTTP 546). billing 과 동일 external_id 로 dedup.
     if (syncType === "card_approval") {
       results.cardApproval = await syncCardApprovals(supabase, token, companyId, cid, start, end);
     }
