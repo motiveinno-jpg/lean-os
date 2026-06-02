@@ -11,7 +11,7 @@ const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => 
   loading: () => <div className="min-h-[400px] bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
 });
 import { friendlyError } from "@/lib/friendly-error";
-import { getCurrentUser, getDocuments, getDocTemplates, getDeals, getTaxInvoices, getDocument, getDocRevisions, getDocApprovals } from "@/lib/queries";
+import { getCurrentUser, getDocuments, getDocTemplates, getDeals, getTaxInvoices, getDocument, getDocRevisions, getDocApprovals, deleteDocument } from "@/lib/queries";
 import { createBlankDocument, createFromTemplate, DOC_TYPES, DOC_STATUS } from "@/lib/documents";
 import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/lib/documents";
 import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoice";
@@ -1333,6 +1333,16 @@ function DocumentsPageInner() {
     queryClient.invalidateQueries({ queryKey: ["signature-requests"] });
   };
 
+  // 문서 영구삭제 — 서명요청 있는 문서는 RPC 가 차단(예외 메시지 표시).
+  const deleteDocMut = useMutation({
+    mutationFn: (docId: string) => deleteDocument(docId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      toast("문서를 삭제했습니다.", "success");
+    },
+    onError: (err: any) => toast(err?.message || "문서 삭제에 실패했습니다.", "error"),
+  });
+
   // Signature request mutation
   const createSignMut = useMutation({
     mutationFn: async () => {
@@ -1697,6 +1707,22 @@ function DocumentsPageInner() {
                             aria-label="받는 사람 화면 테스트"
                           >
                             🔍
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (deleteDocMut.isPending) return;
+                              if (confirm(`"${doc.name}" 문서를 영구 삭제하시겠습니까?\n\n편집 이력·승인 등 부속 데이터도 함께 삭제되며 되돌릴 수 없습니다.\n(서명 요청이 있는 문서는 보호되어 삭제되지 않습니다)`)) {
+                                deleteDocMut.mutate(doc.id);
+                              }
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 hover:text-red-500 disabled:opacity-30"
+                            disabled={deleteDocMut.isPending}
+                            title="문서 삭제"
+                            aria-label="문서 삭제"
+                          >
+                            🗑️
                           </button>
                         </div>
                       </td>

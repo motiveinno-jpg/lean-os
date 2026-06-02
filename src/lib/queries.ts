@@ -965,6 +965,13 @@ export async function getDocuments(companyId: string) {
   return data || [];
 }
 
+// 문서 영구삭제 — delete_document RPC (SECURITY DEFINER, 회사격리+서명요청 보호+부속데이터 정리).
+// 서명 요청이 있는 문서는 RPC 가 예외 발생 → 호출부에서 메시지 표시.
+export async function deleteDocument(documentId: string): Promise<void> {
+  const { error } = await (supabase as any).rpc('delete_document', { p_doc_id: documentId });
+  if (error) throw new Error(error.message || '문서 삭제에 실패했습니다.');
+}
+
 export async function getDocument(documentId: string, companyId: string) {
   const { data, error } = await supabase
     .from('documents')
