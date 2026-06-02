@@ -263,7 +263,9 @@ export default function CardsPage() {
         return;
       }
       try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
-      const synced = result.cardSynced ?? 0;
+      // 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과 HTTP 546). 청구 마감 전 결제 즉시 반영.
+      const approvalRes = await syncCodefData(companyId, "card_approval").catch(() => null);
+      const synced = (result.cardSynced ?? 0) + ((approvalRes as any)?.cardSynced ?? 0);
       // 카드 페이지 모든 카드 관련 쿼리 invalidate
       queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] });
       queryClient.invalidateQueries({ queryKey: ["cards-page-month-tx"] });

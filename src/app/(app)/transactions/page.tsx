@@ -945,7 +945,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 if (result.success) {
                   // 수동 동기화 성공 → 이후 자동 동기화 활성화 플래그
                   try { localStorage.setItem(`codef-connected-${companyId}`, '1'); } catch { /* ignore */ }
-                  const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : (result.cardSynced ?? 0);
+                  // 카드 탭이면 승인내역(실시간)도 별도 호출 (billing 과 묶으면 Edge 150s 초과). 청구 마감 전 결제 즉시 반영.
+                  let approvalSynced = 0;
+                  if (syncType === 'card') {
+                    const ar = await syncCodefData(companyId!, 'card_approval').catch(() => null);
+                    approvalSynced = (ar as any)?.cardSynced ?? 0;
+                  }
+                  const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : ((result.cardSynced ?? 0) + approvalSynced);
                   const label = syncType === 'bank' ? '통장' : '카드';
                   const allNotes = [...(result.errors || []), ...(result.notes || [])];
                   // 환경/등록 이슈 — 사용자가 행동해야 풀리는 것 우선 표시

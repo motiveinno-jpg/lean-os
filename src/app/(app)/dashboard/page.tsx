@@ -357,6 +357,8 @@ export default function DashboardPage() {
     try {
       // 1) CODEF Edge Function 호출 — 은행+카드 거래내역 실제 수집
       const codefResult = await syncCodefData(companyId, 'all');
+      // 1.5) 카드 승인내역(실시간) — 'all' 번들에서 분리 (묶으면 Edge 150s 초과 HTTP 546). 별도 호출.
+      await syncCodefData(companyId, 'card_approval').catch(() => null);
 
       // 2) 자동 분류 엔진 실행 (수집된 데이터 분류)
       const autoResult = await runAllAutomation(companyId);
