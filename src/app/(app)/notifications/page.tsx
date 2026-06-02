@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
@@ -66,50 +66,58 @@ const TYPE_HREF: Record<string, (id: string | null) => string> = {
   //   여기 안 옴 — 안전망용.
 };
 
-export default function NotificationsPage() {
-  const [rows, setRows] = useState<NotificationRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  // quote_approval entity_id → { deal_id, stage } 매핑 — Link href 에서 사용
-  const [quoteMap, setQuoteMap] = useState<Record<string, { deal_id: string; stage: string }>>({});
+type NotifData = { rows: NotificationRow[]; quoteMap: Record<string, { deal_id: string; stage: string }> };
 
-  useEffect(() => {
-    (async () => {
+export default function NotificationsPage() {
+  const queryClient = useQueryClient();
+
+  // react-query 캐시 — 30초 내 재방문은 즉시 표시(staleTime 전역 30s). rows + quote_approval 라우팅 맵 동시 로드.
+  const { data, isLoading: loading } = useQuery<NotifData>({
+    queryKey: ['notifications'],
+    queryFn: async () => {
       const u = await getCurrentUser();
-      if (!u) { setLoading(false); return; }
-      const { data } = await (supabase as any)
+      if (!u) return { rows: [], quoteMap: {} };
+      const { data: nRows } = await (supabase as any)
         .from('notifications')
         .select('id, type, title, message, entity_type, entity_id, is_read, created_at')
         .eq('user_id', u.id)
         .order('created_at', { ascending: false })
         .limit(100);
-      const list = (data || []) as NotificationRow[];
-      setRows(list);
+      const list = (nRows || []) as NotificationRow[];
 
       // quote_approval entity_ids 추려서 deal_id+stage 한 번에 prefetch
       const quoteIds = Array.from(new Set(
         list.filter(n => n.entity_type === 'quote_approval' && n.entity_id).map(n => n.entity_id as string),
       ));
+      const map: Record<string, { deal_id: string; stage: string }> = {};
       if (quoteIds.length > 0) {
         const { data: qaRows } = await (supabase as any)
           .from('quote_approvals')
           .select('id, deal_id, stage')
           .in('id', quoteIds);
-        const map: Record<string, { deal_id: string; stage: string }> = {};
         for (const r of (qaRows || []) as Array<{ id: string; deal_id: string; stage: string }>) {
           map[r.id] = { deal_id: r.deal_id, stage: r.stage };
         }
-        setQuoteMap(map);
       }
+      return { rows: list, quoteMap: map };
+    },
+  });
 
-      setLoading(false);
-    })();
-  }, []);
+  const rows = data?.rows ?? [];
+  const quoteMap = data?.quoteMap ?? {};
+
+  // 캐시 내 rows 의 is_read 만 즉시 패치 (낙관적 갱신)
+  const patchCache = (fn: (r: NotificationRow) => NotificationRow) => {
+    queryClient.setQueryData<NotifData>(['notifications'], (old) =>
+      old ? { ...old, rows: old.rows.map(fn) } : old,
+    );
+  };
 
   const markAllRead = async () => {
     const u = await getCurrentUser();
     if (!u) return;
     await (supabase as any).from('notifications').update({ is_read: true }).eq('user_id', u.id).eq('is_read', false);
-    setRows(rs => rs.map(r => ({ ...r, is_read: true })));
+    patchCache(r => ({ ...r, is_read: true }));
     // 사이드바 뱃지 즉시 갱신
     window.dispatchEvent(new Event('sidebar-refresh-badges'));
   };
@@ -118,7 +126,7 @@ export default function NotificationsPage() {
     const u = await getCurrentUser();
     if (!u) return;
     await (supabase as any).from('notifications').update({ is_read: true }).eq('id', id);
-    setRows(rs => rs.map(r => (r.id === id ? { ...r, is_read: true } : r)));
+    patchCache(r => (r.id === id ? { ...r, is_read: true } : r));
     window.dispatchEvent(new Event('sidebar-refresh-badges'));
   };
 
