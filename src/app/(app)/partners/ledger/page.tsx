@@ -39,6 +39,10 @@ export default function PartnerLedgerPage() {
   const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
+  // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
+  const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toISOString().slice(0, 10); };
+  const [engStart, setEngStart] = useState(dStr(100));
+  const [engEnd, setEngEnd] = useState(dStr(0));
 
   const { data: queue = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
@@ -86,8 +90,8 @@ export default function PartnerLedgerPage() {
 
   const engineMut = useMutation({
     mutationFn: async () => {
-      // 1095일(3년) — 미정산 거래 전체 커버. 180일이면 1년 넘은 미매칭 건(엑스플라이어 등) 누락.
-      const { data, error } = await db.rpc("generate_settlement_suggestions", { p_days: 1095 });
+      // 기간 지정형 — 호출당 최대 6개월(서버 클램프). 커넥션 장기 보유로 인한 504 방지.
+      const { data, error } = await db.rpc("generate_settlement_suggestions", { p_start: engStart, p_end: engEnd });
       if (error) throw new Error(error.message); return data as { resolved: number; suggested: number };
     },
     onSuccess: (r) => { invalidateAll(); toast(`거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건 생성`, "success"); },
@@ -188,10 +192,17 @@ export default function PartnerLedgerPage() {
             className="px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
             title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
             {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-          <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending}
+          <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-2 py-1">
+            <input type="date" value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
+              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
+            <span className="text-[10px] text-[var(--text-dim)]">~</span>
+            <input type="date" value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
+              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
+          </span>
+          <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
-            title="미정산 입금과 세금계산서을 규칙으로 매칭해 확인 큐에 제안 생성">
-            {engineMut.isPending ? "매칭 중..." : "⚙️ 매칭 엔진 실행"}</button>
+            title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
+            {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
           <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
             title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+세금계산서 매칭 (15건씩)">
@@ -215,7 +226,7 @@ export default function PartnerLedgerPage() {
             <div className="p-12 text-center glass-card">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-sm text-[var(--text)]">확인 대기 중인 매칭이 없습니다</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">상단 “⚙️ 매칭 엔진 실행”으로 입금↔세금계산서 제안을 생성하세요.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1">상단에서 기간(최대 6개월)을 고르고 “⚙️ 이 기간 매칭”으로 제안을 생성하세요. 기간을 바꿔 여러 번 돌려도 누적됩니다.</div>
             </div>
           ) : (
             queue.map((m) => (
