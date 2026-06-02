@@ -42,7 +42,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     (async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) return;
         const db = supabase as any;
         const { data } = await db
@@ -95,7 +96,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
       // Debounced Supabase save
       setTimeout(async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { session } } = await supabase.auth.getSession();
+          const user = session?.user;
           if (!user) return;
           const db = supabase as any;
           const { data: userData } = await db.from("users").select("company_id").eq("id", user.id).single();

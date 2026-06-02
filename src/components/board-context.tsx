@@ -34,7 +34,9 @@ interface StoredConfig {
 // ── Supabase persistence helpers ──
 async function loadPrefsFromDB(): Promise<StoredConfig | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // getSession(로컬) — 랜딩마다 getUser 인증 서버 왕복 제거. RLS 가 서버에서 권한 강제.
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return null;
 
     const { data } = await (supabase as any)
@@ -68,7 +70,8 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
 
 async function savePrefsToDB(config: StoredConfig): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) return;
 
     // Get company_id

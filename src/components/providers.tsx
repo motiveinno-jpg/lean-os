@@ -9,7 +9,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 30_000, retry: 1 },
+          // refetchOnWindowFocus: 탭 복귀마다 전 쿼리 재조회 → 체감 렉. staleTime 내 재방문은 캐시 즉시 표시.
+          queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
         },
         mutationCache: new MutationCache({
           onError: (error, variables, _ctx, mutation) => {

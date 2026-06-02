@@ -16,7 +16,10 @@ export type CurrentUser = {
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession: 로컬 스토리지에서 세션 읽음(만료 시 자동 갱신) — getUser 의 인증 서버 왕복 제거.
+  //   데이터는 RLS 가 서버에서 강제하므로 클라이언트 신원은 세션 uid 로 충분.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
   // maybeSingle: users 테이블에 행이 없어도 에러 대신 null 반환
   const { data, error } = await supabase
