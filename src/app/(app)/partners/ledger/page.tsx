@@ -1,9 +1,9 @@
 "use client";
 
 // 거래처 원장 + 채권·채무 대사 (AR/AP).
-//   탭1 확인 큐: 규칙엔진/AI 가 제안한 입금↔송장 매칭을 확정/반려. 확정 시 트리거가 미수금 차감.
+//   탭1 확인 큐: 규칙엔진/AI 가 제안한 입금↔세금계산서 매칭을 확정/반려. 확정 시 트리거가 미수금 차감.
 //   탭2 거래처 원장: v_partner_ar_ap 거래처별 미수/미지급 현황.
-//   버튼: "홈택스 거래처 연결"(송장↔거래처), "매칭 엔진 실행"(입금↔송장 제안 생성, suggested).
+//   버튼: "홈택스 거래처 연결"(세금계산서↔거래처), "매칭 엔진 실행"(입금↔세금계산서 제안 생성, suggested).
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -80,7 +80,7 @@ export default function PartnerLedgerPage() {
       const { data, error } = await db.rpc("link_invoice_partners");
       if (error) throw new Error(error.message); return data as { created: number; linked: number };
     },
-    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ["partner-ledger"] }); qc.invalidateQueries({ queryKey: ["partner-ledger-names"] }); qc.invalidateQueries({ queryKey: ["partners"] }); toast(`거래처 ${r?.created ?? 0}곳 등록 · 송장 ${r?.linked ?? 0}건 연결`, "success"); },
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ["partner-ledger"] }); qc.invalidateQueries({ queryKey: ["partner-ledger-names"] }); qc.invalidateQueries({ queryKey: ["partners"] }); toast(`거래처 ${r?.created ?? 0}곳 등록 · 세금계산서 ${r?.linked ?? 0}건 연결`, "success"); },
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
 
@@ -94,7 +94,7 @@ export default function PartnerLedgerPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
-  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+송장 매칭 (Edge). 한 번에 15건씩.
+  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+세금계산서 매칭 (Edge). 한 번에 15건씩.
   const aiMut = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 15 } });
@@ -128,7 +128,7 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId && tab === "manual",
   });
 
-  // 미정산 송장 (수동 매칭 후보)
+  // 미정산 세금계산서 (수동 매칭 후보)
   const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
     queryKey: ["manual-unsettled-inv", companyId, tab],
     queryFn: async () => {
@@ -186,15 +186,15 @@ export default function PartnerLedgerPage() {
           <Link href="/partners" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">← 거래처</Link>
           <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
             className="px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
-            title="홈택스 송장 거래처를 사업자번호로 자동 등록·연결">
+            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
             {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
           <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
-            title="미정산 입금과 송장을 규칙으로 매칭해 확인 큐에 제안 생성">
+            title="미정산 입금과 세금계산서을 규칙으로 매칭해 확인 큐에 제안 생성">
             {engineMut.isPending ? "매칭 중..." : "⚙️ 매칭 엔진 실행"}</button>
           <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
-            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+송장 매칭 (15건씩)">
+            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+세금계산서 매칭 (15건씩)">
             {aiMut.isPending ? "AI 분석 중..." : "✨ AI 매칭"}</button>
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function PartnerLedgerPage() {
             <div className="p-12 text-center glass-card">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-sm text-[var(--text)]">확인 대기 중인 매칭이 없습니다</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">상단 “⚙️ 매칭 엔진 실행”으로 입금↔송장 제안을 생성하세요.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1">상단 “⚙️ 매칭 엔진 실행”으로 입금↔세금계산서 제안을 생성하세요.</div>
             </div>
           ) : (
             queue.map((m) => (
@@ -227,7 +227,7 @@ export default function PartnerLedgerPage() {
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
                   </div>
                   <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
-                    <div className="text-[10px] text-[var(--text-muted)] font-semibold">송장 ({m.issue_date})</div>
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold">세금계산서 ({m.issue_date})</div>
                     <div className="text-sm font-bold text-[var(--text)] mono-number">{won(m.invoice_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
                   </div>
@@ -253,7 +253,7 @@ export default function PartnerLedgerPage() {
 
       {tab === "manual" && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-muted)]">규칙·AI 가 못 잡은 입금을 직접 송장에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.</p>
+          <p className="text-xs text-[var(--text-muted)]">규칙·AI 가 못 잡은 입금을 직접 세금계산서에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.</p>
           {openTx.length === 0 ? (
             <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">미정산 입출금이 없습니다.</div>
           ) : (
@@ -267,7 +267,7 @@ export default function PartnerLedgerPage() {
                 </div>
                 <button onClick={() => { setMatchTx(t); setInvSearch(""); }}
                   className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
-                  송장 연결
+                  세금계산서 연결
                 </button>
               </div>
             ))
@@ -280,16 +280,16 @@ export default function PartnerLedgerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setMatchTx(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
-              <div className="text-sm font-bold text-[var(--text)]">송장에 연결</div>
+              <div className="text-sm font-bold text-[var(--text)]">세금계산서에 연결</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
             </div>
             <div className="px-5 py-3 border-b border-[var(--border)]">
-              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명으로 송장 검색"
+              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명으로 세금계산서 검색"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
             </div>
             <div className="flex-1 overflow-auto p-2">
               {filteredInv.length === 0 ? (
-                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 송장이 없습니다.</div>
+                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서이 없습니다.</div>
               ) : filteredInv.map((inv) => {
                 const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
                 return (
@@ -329,11 +329,11 @@ export default function PartnerLedgerPage() {
                     <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2><span className="text-xs text-[var(--text-dim)]">{data.length}곳</span>
                   </div>
                   {data.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-[var(--text-muted)]">연결된 거래처 송장이 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요.</div>
+                    <div className="p-10 text-center text-sm text-[var(--text-muted)]">연결된 거래처 세금계산서이 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요.</div>
                   ) : (
                     <div className="overflow-auto max-h-[460px]"><table className="w-full min-w-[640px] text-sm">
                       <thead className="sticky top-0 bg-[var(--bg-surface)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="text-left px-5 py-2.5 font-medium">거래처</th><th className="text-right px-5 py-2.5 font-medium">송장</th>
+                        <th className="text-left px-5 py-2.5 font-medium">거래처</th><th className="text-right px-5 py-2.5 font-medium">세금계산서</th>
                         <th className="text-right px-5 py-2.5 font-medium">청구액</th><th className="text-right px-5 py-2.5 font-medium">정산액</th><th className="text-right px-5 py-2.5 font-medium">잔액</th>
                       </tr></thead>
                       <tbody>{data.map((r) => (
