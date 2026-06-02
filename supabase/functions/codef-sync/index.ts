@@ -562,6 +562,131 @@ async function syncCardBilling(
   return { synced: totalSynced, errors, debug };
 }
 
+// 카드 승인내역(실시간) sync — 청구서 마감 전에도 결제 즉시 거래 반영.
+//   법인: /v1/kr/card/b/account/approval-list, 개인: /v1/kr/card/p/account/approval-list
+//   계정의 clientType(B/P)로 카드별 엔드포인트 라우팅.
+//   ⚠️ dedup: billing-list 와 "동일한" external_id 포맷(codef_card_{org}_{date}_{time}_{approvalNo}) 사용 →
+//      같은 승인건이 청구·승인 두 채널로 들어와도 onConflict external_id 로 1건 수렴.
+//      ignoreDuplicates:true → 이미 적재된 행(사용자 매핑/거래처 연결 포함)은 절대 덮어쓰지 않음.
+//   응답 필드(CODEF 카드 승인내역 명세): resUsedDate(yyyyMMdd), resUsedTime(hhmmss),
+//      resApprovalNo(승인번호), resUsedAmount(이용금액), resKRWAmt(해외건 원화), resMemberStoreName,
+//      resCardName(개인만), resCancelYN("0"정상/"1"취소/"2"부분취소/"3"거절), resInstallmentMonth.
+async function syncCardApprovals(
+  supabase: any, token: string, companyId: string, connectedId: string,
+  startDate: string, endDate: string
+) {
+  const errors: SyncError[] = [];
+  const debug: string[] = [];
+
+  const accounts = await getAccountList(token, connectedId, "card");
+  // 카드 계정만 추출 + clientType(B 법인/P 개인) 판별 (org 중복 제거).
+  const cardAccounts: Array<{ org: string; isPersonal: boolean }> = [];
+  const seenOrg = new Set<string>();
+  for (const acct of accounts) {
+    const org = acct.organization;
+    if (!org) continue;
+    if (!(acct.businessType === "CD" || CARD_CODES[org])) continue;
+    if (seenOrg.has(org)) continue;
+    seenOrg.add(org);
+    cardAccounts.push({ org, isPersonal: acct.clientType === "P" });
+  }
+  debug.push(`approval accounts: ${cardAccounts.map((c) => `${c.org}(${c.isPersonal ? "P" : "B"})`).join(",") || "없음"}`);
+  if (cardAccounts.length === 0) {
+    return { synced: 0, errors, debug };
+  }
+
+  // 승인내역은 YYYYMMDD 8자리 (청구내역의 YYYYMM 6자리와 다름).
+  const apprStart = startDate.slice(0, 8);
+  const apprEnd = endDate.slice(0, 8);
+
+  let totalSynced = 0;
+  let debuggedKeys = false;
+
+  for (const { org, isPersonal } of cardAccounts) {
+    const path = isPersonal
+      ? "/v1/kr/card/p/account/approval-list"
+      : "/v1/kr/card/b/account/approval-list";
+    const reqBody: Record<string, any> = {
+      connectedId, organization: org,
+      startDate: apprStart, endDate: apprEnd,
+      orderBy: "0", inquiryType: "1", memberStoreInfoType: "0",
+    };
+    if (!isPersonal) reqBody.applicationType = "0"; // 법인: 전체(취소 포함)
+
+    const result = await codefRequest(token, path, reqBody);
+    if (result.result?.code !== "CF-00000") {
+      const code = result.result?.code || "UNKNOWN";
+      errors.push({ accountNo: "", organization: org, code, message: result.result?.message || "승인내역 조회 실패", hint: codefErrorHint(code) });
+      continue;
+    }
+
+    // 응답 정규화 — 단건 객체 / 다건 배열 / nested 래퍼 모두 대응.
+    let raw: any = result.data;
+    if (raw && !Array.isArray(raw) && typeof raw === "object") {
+      for (const k of ["resApprovalList", "resCardApprovalList", "resList", "list"]) {
+        if (Array.isArray(raw[k])) { raw = raw[k]; break; }
+      }
+    }
+    const approvals = Array.isArray(raw) ? raw : (raw && raw.resApprovalNo) ? [raw] : [];
+    debug.push(`card ${org}(${isPersonal ? "P" : "B"}) approvals: ${approvals.length}건`);
+    if (approvals.length > 0 && !debuggedKeys) {
+      debug.push(`card ${org} firstApproval keys: [${Object.keys(approvals[0]).join(",")}]`);
+      debuggedKeys = true;
+    }
+
+    let skipNoApproval = 0;
+    let skipRejected = 0;
+    for (const a of approvals) {
+      const cancelYN = String(a.resCancelYN || "").trim();
+      if (cancelYN === "3") { skipRejected++; continue; } // 거절 — 실제 청구 안 됨
+
+      const approvalNo = String(a.resCardApprovalNo || a.resApprovalNo || "").trim();
+      const usedDate = String(a.resUsedDate || "").trim();
+      // 승인번호 없는 알림성 건(신한 카드사용알림서비스료 등) 또는 날짜 결손 skip — external_id 안정성.
+      if (!approvalNo || usedDate.length < 8) { skipNoApproval++; continue; }
+      const usedTime = String(a.resUsedTime || "").trim();
+      const formattedDate = `${usedDate.slice(0, 4)}-${usedDate.slice(4, 6)}-${usedDate.slice(6, 8)}`;
+
+      // 금액: 해외건은 resKRWAmt(원화 환산) 우선, 국내는 resUsedAmount(원화).
+      const usedAmt = Number(String(a.resUsedAmount || "0").replace(/,/g, "")) || 0;
+      const krwAmt = Number(String(a.resKRWAmt || "0").replace(/,/g, "")) || 0;
+      const amount = krwAmt > 0 ? krwAmt : usedAmt;
+
+      const installments = Number(String(a.resInstallmentMonth || "0").replace(/,/g, "")) || null;
+      const storeName = a.resMemberStoreName || "";
+      const cancelTag = cancelYN === "1" ? "[취소] " : cancelYN === "2" ? "[부분취소] " : "";
+
+      // billing-list 와 동일 포맷 → 같은 승인건 자동 dedup.
+      const externalId = `codef_card_${org}_${usedDate}_${usedTime}_${approvalNo}`;
+
+      const { error } = await supabase.from("card_transactions").upsert({
+        company_id: companyId,
+        external_id: externalId,
+        amount,
+        merchant_name: cancelTag ? `${cancelTag}${storeName}` : storeName,
+        transaction_date: formattedDate,
+        approval_number: approvalNo,
+        card_name: a.resCardName || CARD_CODES[org] || null,
+        installments,
+        source: "codef_card",
+        mapping_status: "unmapped",
+        raw_data: { channel: "codef_card_approval", organization: org, clientType: isPersonal ? "P" : "B", usedDate, usedTime, cancelYN, approval: a },
+      }, { onConflict: "external_id", ignoreDuplicates: true });
+
+      if (error) {
+        debug.push(`card ${org} approval insert error: ${error.message}`);
+      } else {
+        totalSynced++;
+      }
+    }
+    if (skipNoApproval > 0 || skipRejected > 0) {
+      debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}`);
+    }
+  }
+
+  return { synced: totalSynced, errors, debug };
+}
+
 // RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
 function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
   const base64Body = publicKeyRaw
@@ -1763,6 +1888,13 @@ serve(async (req) => {
 
     if (syncType === "card" || syncType === "all" || syncType === "bank_card") {
       results.card = await syncCardBilling(supabase, token, companyId, cid, start, end);
+      // 승인내역(실시간) — 청구 마감 전 결제 즉시 반영. billing 과 동일 external_id 로 dedup.
+      results.cardApproval = await syncCardApprovals(supabase, token, companyId, cid, start, end);
+    }
+
+    // 승인내역만 빠르게 (실시간 카드 거래 새로고침 전용)
+    if (syncType === "card_approval") {
+      results.cardApproval = await syncCardApprovals(supabase, token, companyId, cid, start, end);
     }
 
     if (syncType === "hometax" || syncType === "all") {
@@ -1772,6 +1904,7 @@ serve(async (req) => {
     const allEntries: SyncError[] = [
       ...(results.bank?.errors ?? []),
       ...(results.card?.errors ?? []),
+      ...(results.cardApproval?.errors ?? []),
       ...(results.hometax?.errors ?? []),
     ];
     // 환경/설정성 안내(외부 액션 필요, 코드로 못 고침)는 errors가 아닌 notes로 분리 — 사용자 빨간 알림 안 뜨게
@@ -1780,7 +1913,7 @@ serve(async (req) => {
     const errors = allEntries.filter(e => !noteCodes.has(e.code));
     const notes = allEntries.filter(e => noteCodes.has(e.code));
     const totalSynced =
-      (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.hometax?.synced ?? 0);
+      (results.bank?.synced ?? 0) + (results.card?.synced ?? 0) + (results.cardApproval?.synced ?? 0) + (results.hometax?.synced ?? 0);
     const logStatus =
       errors.length === 0 ? (notes.length > 0 ? "partial" : "success") : totalSynced > 0 ? "partial" : "error";
 

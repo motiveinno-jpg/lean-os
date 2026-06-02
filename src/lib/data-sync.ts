@@ -832,7 +832,8 @@ export async function syncCodefData(
 
     const result = await res.json();
     const bankSynced = result.results?.bank?.synced ?? 0;
-    const cardSynced = result.results?.card?.synced ?? 0;
+    // 카드 = 청구내역(billing) + 승인내역(approval, 실시간). 같은 승인건은 edge 에서 external_id dedup.
+    const cardSynced = (result.results?.card?.synced ?? 0) + (result.results?.cardApproval?.synced ?? 0);
     const errors: CodefSyncError[] = result.errors ?? [];
     const notes: CodefSyncError[] = result.notes ?? [];
     const status: 'success' | 'partial' | 'error' =
