@@ -1713,7 +1713,7 @@ function DocumentsPageInner() {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (deleteDocMut.isPending) return;
-                              if (confirm(`"${doc.name}" 문서를 영구 삭제하시겠습니까?\n\n편집 이력·승인 등 부속 데이터도 함께 삭제되며 되돌릴 수 없습니다.\n(서명 요청이 있는 문서는 보호되어 삭제되지 않습니다)`)) {
+                              if (confirm(`"${doc.name}" 문서를 영구 삭제하시겠습니까?\n\n편집 이력·승인 등 부속 데이터도 함께 삭제되며 되돌릴 수 없습니다.\n서명받은 계약서는 삭제되지 않고 보관됩니다 (전자계약 > 서명 목록에서 계속 확인 가능)`)) {
                                 deleteDocMut.mutate(doc.id);
                               }
                             }}
