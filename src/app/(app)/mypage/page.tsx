@@ -17,6 +17,26 @@ export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const { role } = useUser();
+  // 회원 탈퇴
+  const [withdrawText, setWithdrawText] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawErr, setWithdrawErr] = useState<string | null>(null);
+
+  const handleWithdraw = async () => {
+    if (withdrawText.trim() !== "탈퇴" || withdrawing) return;
+    setWithdrawing(true);
+    setWithdrawErr(null);
+    try {
+      const res = await fetch("/api/delete-account", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "탈퇴 처리 실패");
+      try { await supabase.auth.signOut(); } catch { /* ignore */ }
+      window.location.href = "/auth";
+    } catch (e: any) {
+      setWithdrawErr(e?.message || "탈퇴 처리 중 오류가 발생했습니다.");
+      setWithdrawing(false);
+    }
+  };
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -209,6 +229,31 @@ export default function MyPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 회원 탈퇴 */}
+      <div className="glass-card p-6 mb-4 border border-red-500/30">
+        <h2 className="text-sm font-bold mb-2 text-red-400">회원 탈퇴</h2>
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
+          탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>
+          {role === "owner" && <span className="block mt-1 text-amber-500">※ 대표 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}
+        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <input
+            value={withdrawText}
+            onChange={(e) => setWithdrawText(e.target.value)}
+            placeholder='탈퇴하려면 "탈퇴" 입력'
+            className="px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] sm:w-48"
+          />
+          <button
+            onClick={handleWithdraw}
+            disabled={withdrawText.trim() !== "탈퇴" || withdrawing}
+            className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            {withdrawing ? "처리 중..." : "회원 탈퇴"}
+          </button>
+        </div>
+        {withdrawErr && <p className="text-xs text-red-400 mt-2">{withdrawErr}</p>}
       </div>
     </div>
   );
