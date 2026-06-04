@@ -44,3 +44,13 @@ codef-sync-rollback.ts
 # Notion 연동 임시/로컬 스크립트 (토큰 하드코딩 가능 — 절대 커밋 금지)
 _notion-*.mjs
 notion-token.txt
+
+# temp/local junk (실수 커밋 방지)
+.tmp-pdf/
+.tmp_codef.txt
+.tmp_*.json
+*.pdf
+_QA_LOG_*.md
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
