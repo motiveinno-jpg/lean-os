@@ -15,9 +15,9 @@ import { useUser, type UserRole } from "@/components/user-context";
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
-// ── 사이드바 구조 (2026-06-02 재편) — 홈 → 회계관리 → 그룹웨어 → 인사관리 → 자산관리 → 설정.
-//   회계관리를 홈 바로 아래로. 소통·결재 → 그룹웨어(+프로젝트). 자금·결제 → 자산관리(결제/고정비→정기결제).
-//   엑셀가져오기 제거. 공지사항 → 설정·도움말. (employee 는 EMPLOYEE_NAV_GROUPS 별도 유지)
+// ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
+//   파이낸스(구 회계관리) 홈 바로 아래. 워크스페이스(구 그룹웨어): 게시판·채팅·승인·일정·프로젝트·전자계약.
+//   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (employee 는 EMPLOYEE_NAV_GROUPS 별도 유지)
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
@@ -27,7 +27,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "회계관리",
+    label: "파이낸스",
     items: [
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
@@ -37,7 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "그룹웨어",
+    label: "워크스페이스",
     items: [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       // /projects: owner/admin/employee 통일 진입점, partner 는 외주 상세 view.
       { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin"] },
       { href: "/projects", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
+      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
   {
@@ -54,7 +55,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/documents", label: "서류", icon: "folder" },
-      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
   {
