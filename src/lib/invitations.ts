@@ -221,3 +221,23 @@ export async function sendInviteEmail(params: {
     return { success: false, error: err.message || '이메일 발송 오류' };
   }
 }
+
+// 이미 가입된 회원을 초대 없이 바로 우리 회사 직원으로 추가 (service-role API 경유).
+export async function addExistingMemberAsEmployee(params: {
+  email: string;
+  name?: string;
+  role?: 'employee' | 'admin';
+  department?: string;
+  position?: string;
+  salary?: string | number;
+  hireDate?: string;
+}): Promise<{ ok: boolean; name?: string }> {
+  const res = await fetch('/api/add-existing-employee', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '직원 추가에 실패했습니다.');
+  return data;
+}

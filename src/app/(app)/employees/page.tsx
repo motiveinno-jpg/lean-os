@@ -39,7 +39,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { calculateRetirementPay, type PayrollItem } from "@/lib/payment-batch";
-import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail } from "@/lib/invitations";
+import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail, addExistingMemberAsEmployee } from "@/lib/invitations";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 import {
@@ -249,6 +249,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+  // 이미 가입한 회원을 초대 없이 바로 추가하는 모드
+  const [addExisting, setAddExisting] = useState(false);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "orgchart">("list");
 
@@ -350,6 +352,30 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         setInviteMsg({ ok: false, msg: msg || "초대 실패" });
       }
       setTimeout(() => setInviteMsg(null), 4000);
+    },
+  });
+
+  // 이미 가입한 회원 → 바로 직원 추가 (초대 없이). 회원 소속이 우리 회사로 전환됨.
+  const addExistingMut = useMutation({
+    mutationFn: async () => {
+      const trimmedEmail = form.email.trim().toLowerCase();
+      if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) throw new Error("올바른 이메일 주소를 입력해주세요.");
+      return await addExistingMemberAsEmployee({
+        email: trimmedEmail, name: form.name || undefined, role: form.role,
+        department: form.department, position: form.position, salary: form.salary, hireDate: form.hireDate,
+      });
+    },
+    onSuccess: (r: any) => {
+      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
+      setInviteMsg({ ok: true, msg: `${r?.name || "회원"}님을 직원으로 추가했습니다.` });
+      setShowForm(false);
+      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "" });
+      setTimeout(() => setInviteMsg(null), 4000);
+    },
+    onError: (err: any) => {
+      setInviteMsg({ ok: false, msg: err?.message || "직원 추가 실패" });
+      setTimeout(() => setInviteMsg(null), 5000);
     },
   });
 
@@ -486,7 +512,13 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       {/* 초대 폼 */}
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h4 className="text-sm font-bold mb-4">직원 초대</h4>
+          <div className="flex items-center gap-2 mb-4">
+            <h4 className="text-sm font-bold">{addExisting ? "기존 회원 직원 추가" : "직원 초대"}</h4>
+            <div className="ml-auto flex gap-1 p-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+              <button onClick={() => setAddExisting(false)} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${!addExisting ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)]"}`}>이메일 초대</button>
+              <button onClick={() => setAddExisting(true)} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${addExisting ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)]"}`}>이미 가입한 회원</button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="user@company.com" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -504,13 +536,23 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
-              <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
-                {inviteMut.isPending ? "전송중..." : "초대 전송"}
-              </button>
+              {addExisting ? (
+                <button onClick={() => form.email.trim() && addExistingMut.mutate()} disabled={!form.email.trim() || addExistingMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+                  {addExistingMut.isPending ? "추가중..." : "직원으로 추가"}
+                </button>
+              ) : (
+                <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+                  {inviteMut.isPending ? "전송중..." : "초대 전송"}
+                </button>
+              )}
               <button onClick={() => setShowForm(false)} className="px-3 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
             </div>
           </div>
-          <p className="text-[10px] text-[var(--text-dim)]">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
+          {addExisting ? (
+            <p className="text-[10px] text-amber-500">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 직원 권한이 됩니다.</b> (초대 이메일 없이 즉시 적용)</p>
+          ) : (
+            <p className="text-[10px] text-[var(--text-dim)]">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
+          )}
         </div>
       )}
 
