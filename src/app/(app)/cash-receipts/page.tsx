@@ -318,7 +318,7 @@ export default function CashReceiptsPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-[1200px] mx-auto">
+    <div className="space-y-4 mx-auto">
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>

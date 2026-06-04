@@ -563,7 +563,7 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="">
       <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold">게시판</h1>

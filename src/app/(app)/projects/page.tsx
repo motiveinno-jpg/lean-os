@@ -441,7 +441,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   });
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
+    <div className="p-4 sm:p-6 mx-auto">
       {/* Header */}
       <div className="page-sticky-header flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>
@@ -1456,7 +1456,7 @@ function PeriodPicker({ isEmployeeLimited = false, onCreate }: { isEmployeeLimit
   })();
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1200px] mx-auto">
+    <div className="p-4 sm:p-6 mx-auto">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 — 기간 선택</h1>

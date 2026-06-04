@@ -443,7 +443,7 @@ export default function VaultPage() {
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
-    <div className="max-w-[900px]">
+    <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between mb-6">

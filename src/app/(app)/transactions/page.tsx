@@ -870,7 +870,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   }
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">

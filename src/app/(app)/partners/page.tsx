@@ -661,7 +661,7 @@ export default function PartnersPage() {
   );
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
@@ -1015,7 +1015,7 @@ export default function PartnersPage() {
 
         return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
@@ -1493,7 +1493,7 @@ export default function PartnersPage() {
 
       {(importPreview || importError) && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[800px] max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <div>
@@ -1569,7 +1569,7 @@ export default function PartnersPage() {
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm:max-w-[640px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold">{editingId ? "거래처 수정" : "새 거래처 등록"}</h2>

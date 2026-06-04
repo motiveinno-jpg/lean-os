@@ -27,13 +27,13 @@ export default function ProjectDetailPage() {
   }, []);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
+    return <div className="mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
   if (role === "partner") {
     return <AccessDenied detail="프로젝트 상세는 내부 구성원 전용입니다." />;
   }
   if (!companyId) {
-    return <div className="max-w-5xl mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
+    return <div className="mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
 
   return (

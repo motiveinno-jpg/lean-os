@@ -458,7 +458,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-8" onKeyDown={handleKeyDown}>
-      <div className="w-full max-w-[640px]">
+      <div className="w-full">
         {/* Header */}
         <div className="page-sticky-header mb-6 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-bold mb-3">

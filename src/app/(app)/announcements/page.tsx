@@ -116,7 +116,7 @@ export default function AnnouncementsPage() {
   const normalRows = useMemo(() => rows.filter((r) => !r.pinned), [rows]);
 
   return (
-    <div className="max-w-3xl">
+    <div className="">
       <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold">공지사항</h1>

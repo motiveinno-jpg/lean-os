@@ -426,7 +426,7 @@ export default function DashboardPage() {
   // ── 유저 로딩 실패 안내 ──
   if (userLoadFailed) {
     return (
-      <div className="max-w-[1100px]">
+      <div className="">
         <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-dim)] p-6 text-center">
           <p className="text-sm font-semibold text-[var(--text)] mb-2">계정 정보를 불러올 수 없습니다</p>
           <p className="text-xs text-[var(--text-muted)] mb-4">회원가입 직후라면 잠시 후 새로고침해주세요.</p>
@@ -483,7 +483,7 @@ export default function DashboardPage() {
 
   return (
     <div
-      className="max-w-[1100px] pb-20 md:pb-0"
+      className="pb-20 md:pb-0"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -3151,7 +3151,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
   const isCheckedOut = !!todayAttendance?.check_out;
 
   return (
-    <div className="max-w-[900px]">
+    <div className="">
       {/* Welcome header */}
       <div className="mb-5 md:mb-6">
         <div className="flex items-center gap-3 mb-1">
@@ -3529,7 +3529,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
   const hasTodo = signCount > 0 || unreadCount > 0;
 
   return (
-    <div className="max-w-[900px]">
+    <div className="">
       {/* Welcome header */}
       <div className="mb-5 md:mb-6">
         <div className="flex items-center gap-3 mb-1">

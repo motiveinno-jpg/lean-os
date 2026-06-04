@@ -111,7 +111,7 @@ export default function OperatorUsersPage() {
   const dirty = u && (edit.name !== (u.name || "") || edit.email !== (u.email || "") || edit.role !== (u.role || ""));
 
   return (
-    <div data-theme="light" className="max-w-3xl bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
+    <div data-theme="light" className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold">유저 계정 관리</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">

@@ -317,7 +317,7 @@ export default function LoansPage() {
   }
 
   return (
-    <div className="max-w-[900px] loans-print-area">
+    <div className="loans-print-area">
       {/* Print CSS injection */}
       <style dangerouslySetInnerHTML={{ __html: PRINT_STYLES }} />
 

@@ -1243,7 +1243,7 @@ export default function TaxInvoicesPage() {
   }
 
   return (
-    <div className="max-w-[1200px]" data-print-area>
+    <div className="" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between mb-4">
@@ -2830,7 +2830,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="glass-card w-full max-w-[90vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3 flex-wrap">

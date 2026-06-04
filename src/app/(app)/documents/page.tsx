@@ -240,7 +240,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
   if (!doc) {
     return (
-      <div className="max-w-[900px] py-20 text-center text-sm text-[var(--text-muted)]">
+      <div className="py-20 text-center text-sm text-[var(--text-muted)]">
         문서를 불러오는 중...
       </div>
     );
@@ -261,7 +261,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const autoTypeInfo = autoType ? getDocTypeInfo(autoType) : null;
 
   return (
-    <div className="max-w-[900px]">
+    <div className="">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
@@ -1451,7 +1451,7 @@ function DocumentsPageInner() {
   if (!companyId || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>

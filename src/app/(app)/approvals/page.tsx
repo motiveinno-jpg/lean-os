@@ -168,7 +168,7 @@ export default function ApprovalsPage() {
   ];
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="">
       <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">결재 관리</h1>

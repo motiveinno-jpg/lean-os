@@ -76,7 +76,7 @@ export default function PaymentsPage() {
   if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
@@ -1109,7 +1109,7 @@ function RecurringDetailModal({
       onClick={onClose}
     >
       <div
-        className="glass-card w-full max-w-3xl my-8 shadow-xl"
+        className="glass-card w-full my-8 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

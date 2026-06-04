@@ -407,7 +407,7 @@ export default function ImportHubPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 mx-auto space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 헤더 */}
       <div className="page-sticky-header">

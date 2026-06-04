@@ -348,7 +348,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className={`flex-1 max-w-[1440px] transition-[margin] duration-200 pt-14 md:pt-14 ${
+        className={`flex-1 min-w-0 transition-[margin] duration-200 pt-14 md:pt-14 ${
           collapsed ? "md:ml-[68px]" : "md:ml-60"
         } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : role === "owner" ? "p-6 pb-20 md:pb-6" : "p-6"}`}
       >

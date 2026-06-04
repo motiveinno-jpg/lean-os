@@ -472,7 +472,7 @@ export default function MatchingPage() {
   }
 
   return (
-    <div className="max-w-[1000px]" id="matching-print-area">
+    <div className="" id="matching-print-area">
       <style dangerouslySetInnerHTML={{ __html: PRINT_STYLE }} />
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex items-center justify-between mb-8">

@@ -161,7 +161,7 @@ export default function SettingsPage() {
 
   if (pageLoading) {
     return (
-      <div className="max-w-[700px] flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-[var(--text-muted)]">설정 불러오는 중...</p>
@@ -171,7 +171,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-[700px] space-y-6">
+    <div className="space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header">
         <h1 className="text-2xl font-extrabold mb-1">설정</h1>

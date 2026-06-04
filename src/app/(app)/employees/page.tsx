@@ -155,7 +155,7 @@ export default function EmployeesPage() {
   // P2: 페이지-국소 인쇄 CSS 제거 → globals.css 공통 .print-area 유틸 사용.
   //     폭은 공통 토큰(--content-max-wide)으로 통일.
   return (
-    <div className="max-w-[var(--content-max-wide)] print-area" id="employees-print-area">
+    <div className="print-area" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>

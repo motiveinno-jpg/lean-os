@@ -559,7 +559,7 @@ function FailurePanel({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="glass-card w-full max-w-[720px] max-h-[80vh] overflow-auto rounded-2xl"
+        className="glass-card w-full max-h-[80vh] overflow-auto rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur flex items-center justify-between">
@@ -1193,7 +1193,7 @@ function OrgBulkWizard({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-4xl max-h-[92vh] overflow-y-auto p-6"
+        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 + 단계 인디케이터 */}

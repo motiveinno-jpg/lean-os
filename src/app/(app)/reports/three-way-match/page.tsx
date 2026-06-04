@@ -92,7 +92,7 @@ function Inner() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto p-5">
+    <div className="mx-auto p-5">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-5 sticky top-0 bg-[var(--bg)] py-3 z-10">
         <div>

@@ -151,7 +151,7 @@ export default function SubscriptionsPage() {
   if (ovMonthly > 0) byCategory.set("collab", (byCategory.get("collab") || 0) + ovMonthly);
 
   return (
-    <div className="max-w-[960px]">
+    <div className="">
       <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold">구독 관리</h1>
