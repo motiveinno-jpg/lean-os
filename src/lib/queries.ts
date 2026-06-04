@@ -15,7 +15,25 @@ export type CurrentUser = {
   companies: { id: string; name: string; industry: string | null; created_at: string | null } | null;
 };
 
+// ── getCurrentUser 캐시 — 한 페이지가 getCurrentUser 를 여러 번 호출(여러 useQuery queryFn 등)해도
+//   users+companies 조인을 매번 다시 안 돌게 메모이즈. 동시 호출은 in-flight promise 공유(dedupe).
+//   TTL 30초 — 사용자 신원(역할/회사)은 세션 중 거의 안 변함. 로그아웃/전환 시 clearCurrentUserCache().
+let _userCache: { at: number; promise: Promise<CurrentUser | null> } | null = null;
+const USER_CACHE_TTL = 30_000;
+
+export function clearCurrentUserCache() { _userCache = null; }
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const now = Date.now();
+  if (_userCache && now - _userCache.at < USER_CACHE_TTL) return _userCache.promise;
+  const p = _fetchCurrentUser();
+  _userCache = { at: now, promise: p };
+  // 실패하면 캐시 비워서 다음 호출이 재시도하게
+  p.catch(() => { if (_userCache?.promise === p) _userCache = null; });
+  return p;
+}
+
+async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   // getSession: 로컬 스토리지에서 세션 읽음(만료 시 자동 갱신) — getUser 의 인증 서버 왕복 제거.
   //   데이터는 RLS 가 서버에서 강제하므로 클라이언트 신원은 세션 uid 로 충분.
   const { data: { session } } = await supabase.auth.getSession();

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { getCurrentUser, type CurrentUser } from "@/lib/queries";
+import { getCurrentUser, clearCurrentUserCache, type CurrentUser } from "@/lib/queries";
 
 export type UserRole = "owner" | "admin" | "employee" | "partner";
 
@@ -29,6 +29,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = async () => {
     try {
+      clearCurrentUserCache(); // 명시적 새로고침은 항상 최신 조회
       const u = await getCurrentUser();
       setUser(u);
     } catch {

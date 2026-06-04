@@ -1,8 +1,50 @@
-  {
-    "permissions": {
-      "defaultMode": "auto",
-      "allow": [
-        "Bash(node scripts/apply-supabase-migration.mjs *)"
-      ]
-    }
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(curl *)",
+      "Bash(find *)",
+      "Bash(echo *)",
+      "Bash(wc *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(node *)",
+      "Bash(node scripts/apply-supabase-migration.mjs *)",
+      "PowerShell(git *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Test-Path *)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "TodoWrite(*)",
+      "WebFetch(*)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__list_extensions",
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "mcp__claude_ai_Supabase__generate_typescript_types",
+      "mcp__claude_ai_Supabase__search_docs"
+    ],
+    "defaultMode": "acceptEdits"
   }
+}

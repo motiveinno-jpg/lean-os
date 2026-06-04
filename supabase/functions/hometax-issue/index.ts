@@ -107,6 +107,8 @@ function buildIssuePayload(args: {
 
   const myCorpNum = (company.business_number || "").replace(/\D/g, "");
   return {
+    // 발행 주체 인증 보강: connectedId(홈택스 연결) 동봉 — 명세 외지만 CODEF 가 인증에 사용할 수 있음.
+    ...(connectedId ? { connectedId } : {}),
     corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
     issueType: "정발행",
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
@@ -222,11 +224,14 @@ serve(async (req) => {
         const joinCode = joinResp?.data?.code ?? joinResp?.result?.code;
         // 2) 인증서 등록 URL 발급
         const certResp = await codefRequest(token0, "/v1/kr/public/a/pop-bill/tax-cert-url", { corpNum });
-        const certURL = certResp?.data?.certURL || "";
+        const certURL = certResp?.data?.certURL || certResp?.data?.certUrl || certResp?.certURL || "";
         if (!certURL) {
+          const jc = joinResp?.result?.code, jm = (joinResp?.result?.message || "").replaceAll("+", " ");
+          const cc = certResp?.result?.code, cm = (certResp?.result?.message || "").replaceAll("+", " ");
+          const ce = certResp?.result?.extraMessage || "";
           return new Response(JSON.stringify({
-            error: "인증서 등록 URL 발급 실패",
-            joinResult: joinResp?.result, certResult: certResp?.result,
+            error: `인증서 URL 발급 실패 — 회원가입(${jc}: ${jm}) / 인증서URL(${cc}: ${cm}${ce ? " / " + ce : ""})`,
+            joinResult: joinResp?.result, certResult: certResp?.result, certData: certResp?.data,
           }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         return new Response(JSON.stringify({

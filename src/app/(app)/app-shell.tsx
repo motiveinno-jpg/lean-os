@@ -377,7 +377,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") router.replace("/auth");
+      if (event === "SIGNED_OUT") { import("@/lib/queries").then(m => m.clearCurrentUserCache()); router.replace("/auth"); }
     });
     return () => subscription.unsubscribe();
   }, [router]);
