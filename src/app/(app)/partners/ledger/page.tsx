@@ -232,14 +232,14 @@ export default function PartnerLedgerPage() {
             queue.map((m) => (
               <div key={m.id} className="glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-3 py-2">
-                    <div className="text-[10px] text-emerald-500 font-semibold">입금 ({m.transaction_date})</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number">{won(m.txn_amount)}</div>
+                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 min-w-0">
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold truncate">입금 · {m.transaction_date}</div>
+                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
                   </div>
-                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2">
-                    <div className="text-[10px] text-[var(--text-muted)] font-semibold">세금계산서 ({m.issue_date})</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number">{won(m.invoice_amount)}</div>
+                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 min-w-0">
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold truncate">세금계산서 · {m.issue_date}</div>
+                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
                   </div>
                 </div>
