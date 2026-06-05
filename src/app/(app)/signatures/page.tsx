@@ -33,15 +33,31 @@ import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import dynamic from "next/dynamic";
-import type { ExportItem } from "@/components/bulk-contract-exporter";
-// 일괄 PDF 익스포터 — html2canvas-pro/jspdf/jszip 무거운 의존성은 클릭 시에만 로드
-const BulkContractExporter = dynamic(
-  () => import("@/components/bulk-contract-exporter").then((m) => m.BulkContractExporter),
-  { ssr: false },
-);
 
 type Signer = { name: string; email: string; phone: string };
+
+// ── 일괄 PDF 저장 헬퍼 ──
+function sanitizeFileName(s: string): string {
+  return (s || "무명").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim() || "무명";
+}
+function uniquePdfName(used: Set<string>, company: string): string {
+  const base = `소상공인 개별계약서_${sanitizeFileName(company)}`;
+  let name = `${base}.pdf`;
+  let n = 2;
+  while (used.has(name)) name = `${base} (${n++}).pdf`;
+  used.add(name);
+  return name;
+}
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
@@ -68,8 +84,8 @@ export default function SignaturesDashboardPage() {
   //   role 이 employee/partner 면 컴포넌트 상단에서 이미 AccessDenied 로 차단되므로
   //   여기까지 도달했다는 건 owner/admin. RLS 가 2차 안전망.
   const [showFailurePanel, setShowFailurePanel] = useState(false);
-  // 일괄 PDF 저장 — 현재 필터+검색 결과 중 서명완료 건을 한 zip 으로
-  const [exportItems, setExportItems] = useState<ExportItem[] | null>(null);
+  // 일괄 PDF 저장 — 현재 필터+검색 결과 중 서명완료 건을 한 zip 으로 (서버 네이티브 렌더)
+  const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
   const isManager = true;
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
@@ -114,9 +130,10 @@ export default function SignaturesDashboardPage() {
     [filtered],
   );
 
-  // 서명완료 계약서 일괄 PDF 저장 — 파일명 `소상공인 개별계약서_(업체명)`
+  // 서명완료 계약서 일괄 PDF 저장 — 서버(headless Chrome)가 단건 인쇄와 동일 품질로 렌더,
+  // 업체별 1파일(`소상공인 개별계약서_(업체명).pdf`)을 zip 한 개로.
   const handleBulkExport = useCallback(async () => {
-    if (exportItems) return; // 이미 진행 중
+    if (exporting) return;
     const targets = signedFiltered;
     if (targets.length === 0) {
       toast("서명완료된 계약이 없습니다", "error");
@@ -129,13 +146,53 @@ export default function SignaturesDashboardPage() {
       const { data } = await (supabase as any).from("partners").select("id, name").in("id", partnerIds);
       (data || []).forEach((p: any) => p?.name && nameMap.set(p.id, p.name));
     }
-    const items: ExportItem[] = targets.map((t) => ({
-      id: t.id,
-      companyName: (t.partner_id && nameMap.get(t.partner_id)) || t.signer_name || "무명",
-    }));
-    setExportProgress({ done: 0, total: items.length });
-    setExportItems(items);
-  }, [exportItems, signedFiltered, toast]);
+    const nameById = new Map<string, string>(
+      targets.map((t) => [t.id, (t.partner_id && nameMap.get(t.partner_id)) || t.signer_name || "무명"]),
+    );
+
+    setExporting(true);
+    setExportProgress({ done: 0, total: targets.length });
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const used = new Set<string>();
+      const failed: string[] = [];
+      const ids = targets.map((t) => t.id);
+      const CHUNK = 8; // 서버 타임아웃 회피 — chunk 당 짧게
+      let done = 0;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const res = await fetch("/api/contract-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: chunk }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.error || `PDF 서버 오류 (${res.status})`);
+        }
+        const { results } = await res.json();
+        for (const r of results as { id: string; pdfBase64?: string }[]) {
+          const company = nameById.get(r.id) || "무명";
+          if (r.pdfBase64) zip.file(uniquePdfName(used, company), r.pdfBase64, { base64: true });
+          else failed.push(company);
+          done++;
+          setExportProgress({ done, total: targets.length });
+        }
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(blob, "소상공인_개별계약서_일괄.zip");
+      toast(
+        `PDF ${targets.length - failed.length}건 저장 완료${failed.length ? `, ${failed.length}건 실패` : ""}`,
+        failed.length ? "error" : "success",
+      );
+    } catch (e: any) {
+      toast(friendlyError(e, "PDF 생성에 실패했습니다"), "error");
+    } finally {
+      setExporting(false);
+      setExportProgress(null);
+    }
+  }, [exporting, signedFiltered, toast]);
 
   // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
   //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
@@ -313,11 +370,11 @@ export default function SignaturesDashboardPage() {
         {signedFiltered.length > 0 && (
           <button
             onClick={handleBulkExport}
-            disabled={!!exportItems}
+            disabled={exporting}
             className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
-            title="현재 목록의 서명완료 계약서를 PDF 로 한 번에 저장 (파일명: 소상공인 개별계약서_업체명)"
+            title="현재 목록의 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 한 번에 저장 (파일명: 소상공인 개별계약서_업체명)"
           >
-            {exportItems
+            {exporting
               ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
               : `📦 서명완료 PDF 일괄저장 (${signedFiltered.length})`}
           </button>
@@ -568,22 +625,6 @@ export default function SignaturesDashboardPage() {
           onRetried={() => {
             qc.invalidateQueries({ queryKey: ["signature-failure-summary"] });
             qc.invalidateQueries({ queryKey: ["signature-requests"] });
-          }}
-        />
-      )}
-
-      {/* 서명완료 일괄 PDF 익스포터 — 화면 밖에서 1건씩 렌더·캡처 */}
-      {exportItems && (
-        <BulkContractExporter
-          items={exportItems}
-          onProgress={(done, total) => setExportProgress({ done, total })}
-          onDone={(ok, failed) => {
-            setExportItems(null);
-            setExportProgress(null);
-            toast(
-              `PDF ${ok}건 저장 완료${failed.length ? `, ${failed.length}건 실패` : ""}`,
-              failed.length ? "error" : "success",
-            );
           }}
         />
       )}
