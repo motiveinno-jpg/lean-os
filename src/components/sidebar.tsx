@@ -273,7 +273,7 @@ export function Sidebar() {
       } catch {}
     }
     loadCounts();
-    const interval = setInterval(loadCounts, 30000);
+    const interval = setInterval(loadCounts, 60000); // 30s→60s: 배지 폴링 절반(인스턴스 요청부하 절감)
     window.addEventListener("sidebar-refresh-badges", loadCounts);
     return () => { clearInterval(interval); window.removeEventListener("sidebar-refresh-badges", loadCounts); };
   }, []);
