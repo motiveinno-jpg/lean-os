@@ -33,6 +33,13 @@ import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import dynamic from "next/dynamic";
+import type { ExportItem } from "@/components/bulk-contract-exporter";
+// 일괄 PDF 익스포터 — html2canvas-pro/jspdf/jszip 무거운 의존성은 클릭 시에만 로드
+const BulkContractExporter = dynamic(
+  () => import("@/components/bulk-contract-exporter").then((m) => m.BulkContractExporter),
+  { ssr: false },
+);
 
 type Signer = { name: string; email: string; phone: string };
 
@@ -61,6 +68,9 @@ export default function SignaturesDashboardPage() {
   //   role 이 employee/partner 면 컴포넌트 상단에서 이미 AccessDenied 로 차단되므로
   //   여기까지 도달했다는 건 owner/admin. RLS 가 2차 안전망.
   const [showFailurePanel, setShowFailurePanel] = useState(false);
+  // 일괄 PDF 저장 — 현재 필터+검색 결과 중 서명완료 건을 한 zip 으로
+  const [exportItems, setExportItems] = useState<ExportItem[] | null>(null);
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
   const isManager = true;
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
@@ -97,6 +107,35 @@ export default function SignaturesDashboardPage() {
       return true;
     });
   }, [requests, statusFilter, search]);
+
+  // 현재 필터+검색 결과 중 서명완료 건 (일괄 PDF 대상)
+  const signedFiltered = useMemo(
+    () => (filtered as any[]).filter((r) => r.status === "signed"),
+    [filtered],
+  );
+
+  // 서명완료 계약서 일괄 PDF 저장 — 파일명 `소상공인 개별계약서_(업체명)`
+  const handleBulkExport = useCallback(async () => {
+    if (exportItems) return; // 이미 진행 중
+    const targets = signedFiltered;
+    if (targets.length === 0) {
+      toast("서명완료된 계약이 없습니다", "error");
+      return;
+    }
+    // 업체명 = partners.name (리스트엔 partner_id 만 있어 별도 조회). 없으면 signer_name fallback.
+    const partnerIds = [...new Set(targets.map((t) => t.partner_id).filter(Boolean))];
+    const nameMap = new Map<string, string>();
+    if (partnerIds.length) {
+      const { data } = await (supabase as any).from("partners").select("id, name").in("id", partnerIds);
+      (data || []).forEach((p: any) => p?.name && nameMap.set(p.id, p.name));
+    }
+    const items: ExportItem[] = targets.map((t) => ({
+      id: t.id,
+      companyName: (t.partner_id && nameMap.get(t.partner_id)) || t.signer_name || "무명",
+    }));
+    setExportProgress({ done: 0, total: items.length });
+    setExportItems(items);
+  }, [exportItems, signedFiltered, toast]);
 
   // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
   //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
@@ -271,6 +310,18 @@ export default function SignaturesDashboardPage() {
             className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-transparent transition"
           />
         </div>
+        {signedFiltered.length > 0 && (
+          <button
+            onClick={handleBulkExport}
+            disabled={!!exportItems}
+            className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
+            title="현재 목록의 서명완료 계약서를 PDF 로 한 번에 저장 (파일명: 소상공인 개별계약서_업체명)"
+          >
+            {exportItems
+              ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
+              : `📦 서명완료 PDF 일괄저장 (${signedFiltered.length})`}
+          </button>
+        )}
         {selectedIds.size > 0 && (
           <>
             <span className="text-xs text-[var(--text-muted)]">{selectedIds.size}건 선택됨</span>
@@ -517,6 +568,22 @@ export default function SignaturesDashboardPage() {
           onRetried={() => {
             qc.invalidateQueries({ queryKey: ["signature-failure-summary"] });
             qc.invalidateQueries({ queryKey: ["signature-requests"] });
+          }}
+        />
+      )}
+
+      {/* 서명완료 일괄 PDF 익스포터 — 화면 밖에서 1건씩 렌더·캡처 */}
+      {exportItems && (
+        <BulkContractExporter
+          items={exportItems}
+          onProgress={(done, total) => setExportProgress({ done, total })}
+          onDone={(ok, failed) => {
+            setExportItems(null);
+            setExportProgress(null);
+            toast(
+              `PDF ${ok}건 저장 완료${failed.length ? `, ${failed.length}건 실패` : ""}`,
+              failed.length ? "error" : "success",
+            );
           }}
         />
       )}
