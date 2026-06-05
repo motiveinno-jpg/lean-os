@@ -326,7 +326,10 @@ export default function SignaturesDashboardPage() {
                           </span>
                         )}
                       </div>
-                      {r.document_id ? (
+                      {r.status === 'signed' ? (
+                        // 계약완료 → 제목 클릭 시 서명된 계약서 팝업 (수정 화면으로 안 감)
+                        <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="block w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="서명된 계약서 보기">{r.title}</button>
+                      ) : r.document_id ? (
                         <Link href={`/documents?id=${r.document_id}`} className="block text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate">{r.title}</Link>
                       ) : (
                         <span className="block text-sm font-semibold text-[var(--text)] truncate">{r.title}</span>
