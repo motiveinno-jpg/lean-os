@@ -129,12 +129,20 @@ export default function SignaturesDashboardPage() {
     () => (filtered as any[]).filter((r) => r.status === "signed"),
     [filtered],
   );
+  // 체크박스로 고른 서명완료 건 (선택이 있으면 이것만 PDF 대상)
+  const selectedSignedTargets = useMemo(
+    () => signedFiltered.filter((r) => selectedIds.has(r.id)),
+    [signedFiltered, selectedIds],
+  );
+  const allSignedSelected =
+    signedFiltered.length > 0 && selectedSignedTargets.length === signedFiltered.length;
 
   // 서명완료 계약서 일괄 PDF 저장 — 서버(headless Chrome)가 단건 인쇄와 동일 품질로 렌더,
   // 업체별 1파일(`소상공인 개별계약서_(업체명).pdf`)을 zip 한 개로.
   const handleBulkExport = useCallback(async () => {
     if (exporting) return;
-    const targets = signedFiltered;
+    // 선택분이 있으면 선택분만, 없으면 현재 목록 서명완료 전체
+    const targets = selectedSignedTargets.length > 0 ? selectedSignedTargets : signedFiltered;
     if (targets.length === 0) {
       toast("서명완료된 계약이 없습니다", "error");
       return;
@@ -192,7 +200,20 @@ export default function SignaturesDashboardPage() {
       setExporting(false);
       setExportProgress(null);
     }
-  }, [exporting, signedFiltered, toast]);
+  }, [exporting, selectedSignedTargets, signedFiltered, toast]);
+
+  // 서명완료 전체 선택 / 해제 (PDF 대상 빠른 지정)
+  const toggleSelectAllSigned = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSignedSelected) {
+        signedFiltered.forEach((r) => next.delete(r.id));
+      } else {
+        signedFiltered.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  }, [allSignedSelected, signedFiltered]);
 
   // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
   //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
@@ -368,16 +389,28 @@ export default function SignaturesDashboardPage() {
           />
         </div>
         {signedFiltered.length > 0 && (
-          <button
-            onClick={handleBulkExport}
-            disabled={exporting}
-            className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
-            title="현재 목록의 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 한 번에 저장 (파일명: 소상공인 개별계약서_업체명)"
-          >
-            {exporting
-              ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
-              : `📦 서명완료 PDF 일괄저장 (${signedFiltered.length})`}
-          </button>
+          <>
+            <button
+              onClick={toggleSelectAllSigned}
+              disabled={exporting}
+              className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-elevated)] disabled:opacity-50 whitespace-nowrap"
+              title="현재 목록의 서명완료 계약서를 모두 선택/해제"
+            >
+              {allSignedSelected ? "☑ 서명완료 전체해제" : "☐ 서명완료 전체선택"}
+            </button>
+            <button
+              onClick={handleBulkExport}
+              disabled={exporting}
+              className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
+              title="체크한 계약서만(없으면 목록 전체) 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)"
+            >
+              {exporting
+                ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
+                : selectedSignedTargets.length > 0
+                  ? `📦 선택한 ${selectedSignedTargets.length}건 PDF 저장`
+                  : `📦 서명완료 PDF 일괄저장 (${signedFiltered.length})`}
+            </button>
+          </>
         )}
         {selectedIds.size > 0 && (
           <>
