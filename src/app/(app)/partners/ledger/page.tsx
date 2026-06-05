@@ -243,11 +243,11 @@ export default function PartnerLedgerPage() {
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1">
-                  <div className="text-right">
+                <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1 lg:w-[200px] lg:shrink-0">
+                  <div className="text-right min-w-0 w-full">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{MATCH_LABEL[m.match_type] || m.match_type}</span>
                     <span className="text-[10px] text-[var(--text-dim)] ml-1">{m.confidence != null ? `${Math.round(m.confidence * 100)}%` : ""}</span>
-                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{won(m.amount)} 정산 · {m.reason || ""}</div>
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">{won(m.amount)} 정산 · {m.reason || ""}</div>
                   </div>
                   <div className="flex gap-1.5">
                     <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed" })} disabled={decideMut.isPending}
