@@ -31,7 +31,7 @@ import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
 } from "@/lib/expenses";
-import { uploadEmployeeFile } from "@/lib/file-storage";
+import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -1585,6 +1585,7 @@ interface OnboardingDocItem {
   autoGen?: boolean;
   completed?: boolean;
   fileUrl?: string;
+  storagePath?: string;
   fileName?: string;
   uploadedAt?: string;
 }
@@ -1604,16 +1605,31 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   const { toast } = useToast();
 
   // Read existing onboarding_docs JSONB from employee record
-  const saved: Record<string, { completed: boolean; fileUrl?: string; fileName?: string; uploadedAt?: string }> =
+  const saved: Record<string, { completed: boolean; fileUrl?: string; storagePath?: string; fileName?: string; uploadedAt?: string }> =
     (emp?.onboarding_docs && typeof emp.onboarding_docs === "object") ? emp.onboarding_docs : {};
 
   const items: OnboardingDocItem[] = ONBOARDING_DOC_DEFAULTS.map((d) => ({
     ...d,
     completed: saved[d.key]?.completed || false,
     fileUrl: saved[d.key]?.fileUrl,
+    storagePath: saved[d.key]?.storagePath,
     fileName: saved[d.key]?.fileName,
     uploadedAt: saved[d.key]?.uploadedAt,
   }));
+
+  // 입사서류 파일 열기 — employee-files private 대비 signed URL. 기존 저장 URL 에서 path 추출 폴백.
+  async function openDocFile(item: OnboardingDocItem) {
+    let path = item.storagePath;
+    if (!path && item.fileUrl) {
+      const m = item.fileUrl.match(/\/object\/(?:public|sign|authenticated)\/employee-files\/([^?]+)/);
+      if (m) path = decodeURIComponent(m[1]);
+    }
+    if (path) {
+      const signed = await getSignedUrl("employee-files", path);
+      if (signed) { window.open(signed, "_blank", "noopener"); return; }
+    }
+    if (item.fileUrl) window.open(item.fileUrl, "_blank", "noopener");
+  }
 
   const completedCount = items.filter((i) => i.completed).length;
   const requiredCount = items.filter((i) => !i.optional).length;
@@ -1638,6 +1654,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
       await saveDocState(key, {
         completed: true,
         fileUrl: result.file_url,
+        storagePath: result.storage_path,
         fileName: file.name,
         uploadedAt: new Date().toISOString(),
       });
@@ -1709,10 +1726,10 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 
             {/* File link or upload button */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {item.fileUrl && (
-                <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">
+              {(item.fileUrl || item.storagePath) && (
+                <button type="button" onClick={() => openDocFile(item)} className="text-[10px] text-[var(--primary)] hover:underline">
                   보기
-                </a>
+                </button>
               )}
               <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer transition ${uploading === item.key ? "opacity-50 pointer-events-none" : "bg-[var(--bg-surface)] hover:bg-[var(--primary)]/10 text-[var(--text-muted)] hover:text-[var(--primary)]"}`}>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
