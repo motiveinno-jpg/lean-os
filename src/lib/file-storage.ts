@@ -117,6 +117,38 @@ function getExtension(fileName: string): string {
   return fileName.split(".").pop() || "bin";
 }
 
+// ── Signed URL — 버킷 private 전환 대비. public 버킷에서도 동작하므로 지금 적용해도 안 깨짐.
+//   저장된 file_url(public) 대신 storage_path 로 매 조회 시 signed URL 발급.
+const SIGNED_TTL = 60 * 60; // 1시간
+
+export async function getSignedUrl(bucket: string, storagePath: string, ttl = SIGNED_TTL): Promise<string | null> {
+  if (!storagePath) return null;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, ttl);
+  if (error || !data) return null;
+  return data.signedUrl;
+}
+
+// 파일 레코드 배열에 signed file_url 부착 (버킷별 batch 서명). storage_path 있는 것만.
+async function attachSignedUrls<T extends { bucket?: string | null; storage_path?: string | null; file_url?: string | null }>(
+  rows: T[], defaultBucket = "document-files",
+): Promise<T[]> {
+  if (!rows?.length) return rows;
+  const byBucket = new Map<string, T[]>();
+  for (const r of rows) {
+    if (!r.storage_path) continue;
+    const b = r.bucket || defaultBucket;
+    (byBucket.get(b) || byBucket.set(b, []).get(b)!).push(r);
+  }
+  for (const [bucket, list] of byBucket) {
+    const paths = list.map((r) => r.storage_path as string);
+    const { data } = await supabase.storage.from(bucket).createSignedUrls(paths, SIGNED_TTL);
+    if (data) {
+      data.forEach((d: any, i: number) => { if (d?.signedUrl) list[i].file_url = d.signedUrl; });
+    }
+  }
+  return rows;
+}
+
 // ── 1. Upload single file ──
 
 export async function uploadFile(params: UploadParams): Promise<UploadResult> {
@@ -360,7 +392,7 @@ export async function getFilesForDocument(documentId: string) {
     .is("parent_file_id", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 6. Get files for a deal ──
@@ -373,7 +405,7 @@ export async function getFilesForDeal(dealId: string) {
     .is("parent_file_id", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 7. Get files for vault ──
@@ -387,7 +419,7 @@ export async function getFilesForVault(companyId: string) {
     .is("parent_file_id", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 8. Get files in a folder ──
@@ -400,7 +432,7 @@ export async function getFilesInFolder(folderId: string) {
     .is("parent_file_id", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 9. Get file versions ──
@@ -412,7 +444,7 @@ export async function getFileVersions(parentFileId: string) {
     .or(`id.eq.${parentFileId},parent_file_id.eq.${parentFileId}`)
     .order("version", { ascending: true });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 10. Search files ──
@@ -427,7 +459,7 @@ export async function searchFiles(companyId: string, query: string) {
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || []);
 }
 
 // ── 11. Create folder ──
@@ -570,7 +602,7 @@ export async function getEmployeeFiles(employeeId: string) {
     .eq("employee_id", employeeId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  return attachSignedUrls(data || [], "employee-files");
 }
 
 // ── 16. Delete employee file ──
