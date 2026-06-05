@@ -3320,7 +3320,8 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
       const path = `expense-receipts/${companyId}/ocr-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("document-files").upload(path, file);
       if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from("document-files").getPublicUrl(path);
+      // document-files private 전환 → OCR 엣지함수가 읽도록 signed URL 전달
+      const signedUrl = await getSignedUrl("document-files", path);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
       const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ocr-receipt`, {
@@ -3329,7 +3330,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ image_url: urlData.publicUrl }),
+        body: JSON.stringify({ image_url: signedUrl }),
       });
       const result = await res.json();
       if (result.success && result.confidence > 30) {
