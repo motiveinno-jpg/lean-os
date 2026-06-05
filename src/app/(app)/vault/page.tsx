@@ -20,7 +20,7 @@ import {
 } from "@/lib/queries";
 import { decryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
-import { uploadFile } from "@/lib/file-storage";
+import { uploadFile, openStoredFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
 import { CurrencyInput } from "@/components/currency-input";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -1081,7 +1081,7 @@ export default function VaultPage() {
                       <div className="font-semibold flex items-center gap-1.5">
                         {a.name}
                         {a.attachment_url && (
-                          <a href={a.attachment_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서">📎</a>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); openStoredFile(a.attachment_url); }} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서">📎</button>
                         )}
                       </div>
                       {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}

@@ -128,6 +128,24 @@ export async function getSignedUrl(bucket: string, storagePath: string, ttl = SI
   return data.signedUrl;
 }
 
+// DB 에 저장된 (구) public URL 에서 bucket/path 를 추출해 signed URL 로 변환.
+//   private 전환된 버킷의 표시 지점에서 onClick 으로 호출. 추출 실패 시 원본 반환.
+export async function resolveSignedUrl(stored?: string | null): Promise<string | null> {
+  if (!stored) return null;
+  const m = stored.match(/\/object\/(?:public|sign|authenticated)\/([^/]+)\/([^?]+)/);
+  if (m) {
+    const signed = await getSignedUrl(m[1], decodeURIComponent(m[2]));
+    if (signed) return signed;
+  }
+  return stored;
+}
+
+// 저장된 URL 을 signed 로 변환해 새 탭으로 연다 (표시 지점 onClick 용).
+export async function openStoredFile(stored?: string | null): Promise<void> {
+  const url = await resolveSignedUrl(stored);
+  if (url) window.open(url, "_blank", "noopener");
+}
+
 // 파일 레코드 배열에 signed file_url 부착 (버킷별 batch 서명). storage_path 있는 것만.
 async function attachSignedUrls<T extends { bucket?: string | null; storage_path?: string | null; file_url?: string | null }>(
   rows: T[], defaultBucket = "document-files",
