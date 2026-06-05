@@ -407,3 +407,23 @@ input, textarea, [contenteditable="true"] {
     backdrop-filter: none !important;
   }
 }
+
+/* 2026-06-05 페이지 헤더 타이틀 크기 전역 통일 — 각 페이지가 h1 에 text-xl/2xl,
+   font-bold/extrabold 를 제각각 박아 헤더 크기가 달랐던 문제. 개별 수정 대신 공통 규칙으로
+   덮음(.page-sticky-header h1 = specificity 우위로 Tailwind 단일 클래스보다 강함). */
+.page-sticky-header h1 {
+  font-size: 1.25rem;      /* 20px */
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+.page-sticky-header > div > p:first-of-type,
+.page-sticky-header > div > div > p:first-of-type {
+  font-size: 0.8125rem;    /* 13px */
+  line-height: 1.125rem;
+}
+@media (min-width: 640px) {
+  .page-sticky-header h1 {
+    font-size: 1.5rem;     /* 24px */
+    line-height: 2rem;
+  }
+}
