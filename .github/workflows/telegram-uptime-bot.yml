@@ -1,0 +1,72 @@
+name: Telegram Uptime Bot
+
+# OwnerView 가 다운되면(헬스체크 503/무응답) 텔레그램으로 알림.
+# - GitHub(우리 서버 바깥)에서 돌아서 Vercel/Supabase 가 죽어도 알림은 살아있음.
+# - 우리 인프라 비용 0. (비공개 repo GitHub Actions 무료 2000분/월 안에서 동작)
+#
+# ⏱ 검사 주기: 기본 30분(무료한도 안전: 약 1440분/월).
+#   더 빠르게: 아래 cron 의 '*/30' 을 '*/15'(≈2880분/월) 또는 '*/5'(≈8640분/월)로.
+#   단 비공개 repo 는 무료 2000분 초과분이 과금되니 주의(공개 repo 면 무제한 무료).
+#
+# 🔑 필요 시크릿 (repo Settings → Secrets and variables → Actions):
+#   - TELEGRAM_BOT_TOKEN : @BotFather 가 준 봇 토큰
+#   - TELEGRAM_CHAT_ID   : 알림 받을 내 텔레그램 chat id
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "테스트 알림 보내기 (텔레그램 연결 확인용)"
+        type: boolean
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check & Telegram alert
+        env:
+          URL: "https://www.owner-view.com/api/health/"
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST: ${{ inputs.test_alert }}
+        run: |
+          set -u
+          send() {
+            curl -s --max-time 20 \
+              "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+              --data-urlencode chat_id="${CHAT_ID}" \
+              --data-urlencode text="$1" \
+              -d disable_web_page_preview=true >/dev/null
+          }
+
+          # 수동 테스트 — 텔레그램 연결만 확인
+          if [ "${TEST}" = "true" ]; then
+            send "✅ OwnerView 감시봇 테스트 — 텔레그램 연결 정상입니다. 다운되면 여기로 알림이 옵니다."
+            echo "test alert sent"
+            exit 0
+          fi
+
+          # 일시적 네트워크 블립 오탐 방지 — 20초 간격 3회 재시도
+          code=000
+          for i in 1 2 3; do
+            code=$(curl -sL --max-time 25 -o /tmp/body.txt -w "%{http_code}" "$URL" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "attempt $i: UP ($code)"
+              break
+            fi
+            echo "attempt $i: DOWN ($code)"
+            [ "$i" -lt 3 ] && sleep 20
+          done
+
+          if [ "$code" != "200" ]; then
+            body=$(head -c 300 /tmp/body.txt 2>/dev/null || true)
+            ts=$(date -u +'%Y-%m-%d %H:%M UTC')
+            msg=$(printf '🔴 OwnerView 다운 감지\n상태코드: %s\n시각: %s\nURL: %s\n\n%s' "$code" "$ts" "$URL" "$body")
+            send "$msg"
+            echo "DOWN alert sent (code=$code)"
+            exit 1
+          fi
+          echo "OwnerView 정상 (HTTP 200)"
