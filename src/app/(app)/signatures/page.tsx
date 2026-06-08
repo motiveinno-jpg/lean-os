@@ -10,7 +10,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { friendlyError } from "@/lib/friendly-error";
-import Link from "next/link";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
@@ -442,14 +441,8 @@ export default function SignaturesDashboardPage() {
                           </span>
                         )}
                       </div>
-                      {r.status === 'signed' ? (
-                        // 계약완료 → 제목 클릭 시 서명된 계약서 팝업 (수정 화면으로 안 감)
-                        <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="block w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="서명된 계약서 보기">{r.title}</button>
-                      ) : r.document_id ? (
-                        <Link href={`/documents?id=${r.document_id}`} className="block text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate">{r.title}</Link>
-                      ) : (
-                        <span className="block text-sm font-semibold text-[var(--text)] truncate">{r.title}</span>
-                      )}
+                      {/* 제목 클릭 → 상태 무관 항상 계약서 팝업(읽기 전용). 발송/열람도 편집화면 대신 팝업. */}
+                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="block w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="계약서 보기">{r.title}</button>
                       {r.documents?.name && <div className="text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</div>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
