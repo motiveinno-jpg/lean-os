@@ -339,7 +339,7 @@ export function OrgBulkWizard({
 
   // ── 렌더 ──
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
