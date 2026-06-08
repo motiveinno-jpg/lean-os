@@ -24,6 +24,7 @@ import {
 } from "@/lib/hr";
 import { ContractTab } from "./_components/ContractTab";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
+import { MemberRoleManager } from "./_components/MemberRoleManager";
 import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
@@ -695,6 +696,11 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         )}
       </div>
       )}
+
+      {/* 구성원 권한 관리 (회사 설정 '멤버 관리'에서 이동) — 역할/인사파일/회사제외 */}
+      <div className="mt-6 pt-6 border-t border-[var(--border)]">
+        <MemberRoleManager companyId={companyId} />
+      </div>
 
       {/* Employee Detail Panel */}
       {detailEmpId && <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />}
