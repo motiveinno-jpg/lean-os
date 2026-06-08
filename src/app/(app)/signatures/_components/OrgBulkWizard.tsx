@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, type PartnerVarColumn } from "@/lib/signatures";
+import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -156,11 +156,13 @@ export function OrgBulkWizard({
 
   // Step 3: 변수 매핑
   const [titleTemplate, setTitleTemplate] = useState("");
+  // 사용자가 제목을 직접 편집했는지 — 편집 전이면 문서 변경 시 자동 갱신.
+  const [titleEdited, setTitleEdited] = useState(false);
   useEffect(() => {
-    if (selectedDoc && !titleTemplate) {
+    if (selectedDoc && !titleEdited) {
       setTitleTemplate(`{{단체명}} - ${selectedDoc.name || "계약서"}`);
     }
-  }, [selectedDoc, titleTemplate]);
+  }, [selectedDoc, titleEdited]);
 
   const tokens = useMemo(() => {
     const body = selectedDoc?.content_json;
@@ -197,12 +199,18 @@ export function OrgBulkWizard({
   const [sendNow, setSendNow] = useState(true);
   // 2026-05-22 발송 전 우리(갑) 직인 적용 — 거래처가 받는 계약서에 우리 도장 미리 찍힘.
   const [applyOurSeal, setApplyOurSeal] = useState(true);
-  const [hasCompanySeal, setHasCompanySeal] = useState<boolean | null>(null);
+  // 회사(갑) 정보 — 미리보기 갑 변수 치환 + 직인 합성에 사용
+  const [company, setCompany] = useState<{ name?: string | null; business_number?: string | null; representative?: string | null; address?: string | null; seal_url?: string | null } | null>(null);
+  const hasCompanySeal = company === null ? null : !!company.seal_url;
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data } = await (supabase as any).from("companies").select("seal_url").eq("id", companyId).maybeSingle();
-      if (alive) setHasCompanySeal(!!data?.seal_url);
+      const { data } = await (supabase as any)
+        .from("companies")
+        .select("name, business_number, representative, address, seal_url")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (alive) setCompany(data || {});
     })();
     return () => { alive = false; };
   }, [companyId]);
@@ -230,6 +238,20 @@ export function OrgBulkWizard({
     }
     return s;
   }, [titleTemplate, previewVars]);
+
+  // 실제 발송될 계약서 본문 미리보기 — 발송(runOne)과 동일한 buildOrgContractSnapshotHtml 사용.
+  const previewBodyHtml = useMemo(() => {
+    if (!previewPartner || !selectedDoc) return "";
+    return buildOrgContractSnapshotHtml({
+      docBody: (selectedDoc.content_json as { body?: string } | null)?.body || "",
+      company,
+      partner: previewPartner,
+      variableMap,
+      commonVariables,
+      overrides: perPartnerOverrides[previewPartner.id] || {},
+      ourSealUrl: applyOurSeal && hasCompanySeal === true ? (company?.seal_url || null) : null,
+    });
+  }, [previewPartner, selectedDoc, company, variableMap, commonVariables, perPartnerOverrides, applyOurSeal, hasCompanySeal]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -517,7 +539,7 @@ export function OrgBulkWizard({
               </label>
               <input
                 value={titleTemplate}
-                onChange={(e) => setTitleTemplate(e.target.value)}
+                onChange={(e) => { setTitleTemplate(e.target.value); setTitleEdited(true); }}
                 placeholder="{{단체명}} - 용역계약서"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]"
               />
@@ -690,6 +712,20 @@ export function OrgBulkWizard({
                   <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text)]">
                     {previewTitle || "(빈 제목)"}
                   </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--text-muted)] mb-1">
+                    실제 발송될 계약서 미리보기 ({previewPartner.name} 기준 · 변수 치환 완료)
+                  </div>
+                  {previewBodyHtml ? (
+                    <div className="border border-[var(--border)] rounded-lg bg-white max-h-[440px] overflow-auto p-5">
+                      <div dangerouslySetInnerHTML={{ __html: previewBodyHtml }} />
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-600 text-xs">
+                      이 문서엔 본문이 없어 계약서 미리보기를 표시할 수 없습니다. (제목·변수만 발송됩니다)
+                    </div>
+                  )}
                 </div>
                 {tokens.length > 0 && (
                   <div>

@@ -579,6 +579,86 @@ export function injectContractInlineStyles(html: string): string {
     .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
 }
 
+/**
+ * 단체 일괄 발송 본문 스냅샷 HTML 생성 — 발송(runOne)·미리보기(OrgBulkWizard step5) 공용.
+ * 양쪽이 동일 결과를 내도록 단일 소스로 둔다. content_json.body 의 {{토큰}} 을
+ * 회사(갑)+거래처(을)+매핑/공통/덮어쓰기 값으로 치환 → 계약서 인라인 스타일 주입(+옵션 직인).
+ * 본문이 없으면 '' 반환.
+ */
+export function buildOrgContractSnapshotHtml(opts: {
+  docBody: string | null | undefined;
+  company: { name?: string | null; business_number?: string | null; representative?: string | null; address?: string | null } | null;
+  partner: Record<string, any>;
+  variableMap?: Record<string, PartnerVarColumn | ''>;
+  commonVariables?: Record<string, string>;
+  overrides?: Record<string, string>;
+  ourSealUrl?: string | null;
+}): string {
+  const docBody = normalizeVariableTokens(opts.docBody || '');
+  if (typeof docBody !== 'string' || !docBody.trim()) return '';
+  const c = opts.company || {};
+  const pn = opts.partner || {};
+  const variableMap = opts.variableMap || {};
+  const commonVariables = opts.commonVariables || {};
+  const overrides = opts.overrides || {};
+  const replacements: Record<string, string> = {
+    '갑_회사명': String(c.name || ''),
+    '갑_사업자번호': String(c.business_number || ''),
+    '갑_대표자': String(c.representative || ''),
+    '갑_주소': String(c.address || ''),
+    'company_name': String(c.name || ''),
+    '을_회사명': String(pn.name || ''),
+    '을_단체명': String(pn.name || ''),
+    '을_사업자번호': String(pn.business_number || ''),
+    '을_대표자': String(pn.representative || ''),
+    '을_담당자': String(pn.contact_name || ''),
+    '을_이메일': String(pn.contact_email || ''),
+    '을_연락처': String(pn.contact_phone || ''),
+    '을_전화': String(pn.contact_phone || ''),
+    '을_주소': String(pn.address || ''),
+    'partner_name': String(pn.name || ''),
+    '갑': String(c.name || ''),
+    '을': String(pn.name || ''),
+    '회사명': String(pn.name || ''),
+    '단체명': String(pn.name || ''),
+    '사업자등록번호': String(pn.business_number || c.business_number || ''),
+    '사업자번호': String(pn.business_number || c.business_number || ''),
+    '대표자명': String(pn.representative || c.representative || ''),
+    '대표자': String(pn.representative || c.representative || ''),
+    '주소': String(pn.address || c.address || ''),
+    '담당자': String(pn.contact_name || ''),
+    '이메일': String(pn.contact_email || ''),
+    '연락처': String(pn.contact_phone || ''),
+    '전화': String(pn.contact_phone || ''),
+    '전화번호': String(pn.contact_phone || ''),
+    '날짜': new Date().toLocaleDateString('ko-KR'),
+    '오늘': new Date().toLocaleDateString('ko-KR'),
+    '계약일': new Date().toLocaleDateString('ko-KR'),
+  };
+  for (const [token, col] of Object.entries(variableMap)) {
+    if (col) replacements[token] = String((pn as any)[col] ?? '');
+  }
+  for (const [token, val] of Object.entries(commonVariables)) {
+    if (val) replacements[token] = val;
+  }
+  for (const [token, val] of Object.entries(overrides)) {
+    if (val) replacements[token] = val;
+  }
+  const filledText = docBody.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
+    const k = String(key).trim();
+    if (k in replacements) return replacements[k];
+    return full;
+  });
+  let html = /^\s*</.test(filledText)
+    ? filledText
+    : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+  html = injectContractInlineStyles(html);
+  if (opts.ourSealUrl) {
+    html = injectOurSeal(html, opts.ourSealUrl, c.name);
+  }
+  return html;
+}
+
 export async function createBulkSignatureRequestsToOrgs(params: {
   companyId: string;
   createdBy: string;
@@ -715,72 +795,16 @@ export async function createBulkSignatureRequestsToOrgs(params: {
       });
       // 본문 snapshot: documents.content_json.body 의 토큰을 partner + company 데이터로 치환
       //   /sign 외부 페이지 fillBody 와 동일 매핑 (server-side mirror)
-      let snapshotHtml: string | null = null;
-      // 토큰 정규화 — 서식 span 으로 분절된 {{변수}} 복구 후 치환.
-      const docBody = normalizeVariableTokens((docRow?.content_json as { body?: string } | null)?.body || '');
-      if (typeof docBody === 'string' && docBody.trim()) {
-        const c = companyRow || {};
-        const pn = p;
-        const replacements: Record<string, string> = {
-          '갑_회사명': String(c.name || ''),
-          '갑_사업자번호': String(c.business_number || ''),
-          '갑_대표자': String(c.representative || ''),
-          '갑_주소': String(c.address || ''),
-          'company_name': String(c.name || ''),
-          '을_회사명': String(pn.name || ''),
-          '을_단체명': String(pn.name || ''),
-          '을_사업자번호': String(pn.business_number || ''),
-          '을_대표자': String(pn.representative || ''),
-          '을_담당자': String(pn.contact_name || ''),
-          '을_이메일': String(pn.contact_email || ''),
-          '을_연락처': String(pn.contact_phone || ''),
-          '을_전화': String(pn.contact_phone || ''),
-          '을_주소': String(pn.address || ''),
-          'partner_name': String(pn.name || ''),
-          '갑': String(c.name || ''),
-          '을': String(pn.name || ''),
-          '회사명': String(pn.name || ''),
-          '단체명': String(pn.name || ''),
-          '사업자등록번호': String(pn.business_number || c.business_number || ''),
-          '사업자번호': String(pn.business_number || c.business_number || ''),
-          '대표자명': String(pn.representative || c.representative || ''),
-          '대표자': String(pn.representative || c.representative || ''),
-          '주소': String(pn.address || c.address || ''),
-          '담당자': String(pn.contact_name || ''),
-          '이메일': String(pn.contact_email || ''),
-          '연락처': String(pn.contact_phone || ''),
-          '전화': String(pn.contact_phone || ''),
-          '전화번호': String(pn.contact_phone || ''),
-          '날짜': new Date().toLocaleDateString('ko-KR'),
-          '오늘': new Date().toLocaleDateString('ko-KR'),
-          '계약일': new Date().toLocaleDateString('ko-KR'),
-        };
-        // 사용자가 변수 매핑 단계에서 지정한 값 우선 반영 (거래처 컬럼 / 공통값 / 개별 덮어쓰기).
-        for (const [token, col] of Object.entries(variableMap || {})) {
-          if (col) replacements[token] = String((pn as any)[col] ?? '');
-        }
-        for (const [token, val] of Object.entries(commonVariables)) {
-          if (val) replacements[token] = val;
-        }
-        for (const [token, val] of Object.entries(perPartnerOverrides[p.id] || {})) {
-          if (val) replacements[token] = val;
-        }
-        const filledText = docBody.replace(/\{\{?\s*([^}{\s]+?)\s*\}\}?/g, (full, key: string) => {
-          const k = String(key).trim();
-          if (k in replacements) return replacements[k];
-          return full;
-        });
-        // text → HTML (개행 보존). 양식이 이미 HTML 이면 그대로.
-        let html = /^\s*</.test(filledText)
-          ? filledText
-          : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-        // 표·이미지 인라인 스타일 주입 (RichEditor 표는 min-width 만 있어 테두리 없음 → append).
-        snapshotHtml = injectContractInlineStyles(html);
-        // 발송 전 우리(갑) 직인 합성 — 거래처가 받는 즉시 우리 도장이 찍힌 계약서를 봄.
-        if (ourSealUrl) {
-          snapshotHtml = injectOurSeal(snapshotHtml, ourSealUrl, companyRow?.name);
-        }
-      }
+      // 본문 렌더 = buildOrgContractSnapshotHtml 로 일원화 (미리보기 step5 와 동일 결과 보장).
+      const snapshotHtml: string | null = buildOrgContractSnapshotHtml({
+        docBody: (docRow?.content_json as { body?: string } | null)?.body || '',
+        company: companyRow || null,
+        partner: p,
+        variableMap,
+        commonVariables,
+        overrides: perPartnerOverrides[p.id] || {},
+        ourSealUrl,
+      }) || null;
 
       // partner_id/batch_id/batch_seq + 만료 + 본문 snapshot
       const { error: upErr } = await db
