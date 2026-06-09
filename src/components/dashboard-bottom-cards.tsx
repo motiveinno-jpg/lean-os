@@ -13,6 +13,31 @@ import { Card } from "@/components/ui/card";
 const db = supabase as any;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
+// 매출 월별 영역 라인차트 (시안 Sales Performance) — 인라인 SVG, 새 의존성 없음.
+function RevenueSparkline({ series }: { series: number[] }) {
+  const W = 280, H = 88, pad = 4;
+  const max = Math.max(...series, 1);
+  const n = series.length;
+  const x = (i: number) => pad + (i / (n - 1)) * (W - pad * 2);
+  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
+  const line = series.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(n - 1).toFixed(1)} ${H - pad} L${x(0).toFixed(1)} ${H - pad} Z`;
+  const lastUp = n >= 2 && series[n - 1] >= series[n - 2];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 88 }} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--success)" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="var(--success)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#rev-grad)" />
+      <path d={line} fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(n - 1)} cy={y(series[n - 1])} r="3" fill={lastUp ? "var(--success)" : "var(--danger)"} />
+    </svg>
+  );
+}
+
 export function DashboardBottomCards({ companyId }: { companyId: string }) {
   // 카드 — 이번 달 카드별 사용액 (realVariableData 와 동일 기준: 이번 달 card_transactions)
   const { data: cards } = useQuery({
@@ -45,16 +70,25 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     enabled: !!companyId, staleTime: 60_000,
   });
 
-  // 매출 — 2026 누적 (type='sales', 손익 정합)
-  const { data: revenue = 0 } = useQuery({
+  // 매출 — 2026 월별(type='sales', 손익 정합). 누적 total + 월별 시계열(시안 Sales Performance 라인차트).
+  const { data: rev } = useQuery({
     queryKey: ["dash-revenue", companyId],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("total_amount")
+      const { data } = await db.from("tax_invoices").select("total_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").gte("issue_date", "2026-01-01");
-      return (data || []).reduce((s: number, t: any) => s + Number(t.total_amount || 0), 0);
+      const monthly = new Array(12).fill(0);
+      (data || []).forEach((t: any) => {
+        const m = new Date(t.issue_date).getMonth();
+        if (m >= 0 && m < 12) monthly[m] += Number(t.total_amount || 0);
+      });
+      const upto = new Date().getMonth() + 1; // 올해 경과 월까지만
+      const series = monthly.slice(0, Math.max(upto, 1));
+      return { total: monthly.reduce((s: number, v: number) => s + v, 0), series };
     },
     enabled: !!companyId, staleTime: 60_000,
   });
+  const revenue = rev?.total ?? 0;
+  const revSeries = rev?.series ?? [];
 
   const ListRow = ({ name, amount }: { name: string; amount: number }) => (
     <div className="flex justify-between items-center bg-[var(--bg-surface)]/60 p-3 rounded-xl hover:bg-[var(--bg-surface)] transition-colors">
@@ -118,11 +152,16 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
           </div>
           <span className="text-[15px] text-[var(--success)] font-semibold tabular-nums">{fmtW(revenue)}</span>
         </div>
-        <div className="space-y-2.5 flex-1">
-          <div className="flex justify-between items-center bg-[var(--bg-surface)]/60 p-3 rounded-xl">
-            <span className="text-[13px] text-[var(--text-muted)]">2026년 누적 매출 (세금계산서 집계)</span>
-            <span className="text-[13px] text-[var(--text)] font-medium tabular-nums shrink-0">{fmtW(revenue)}</span>
-          </div>
+        <div className="flex-1 flex flex-col justify-center">
+          {revSeries.length > 1 && revenue > 0 ? (
+            <RevenueSparkline series={revSeries} />
+          ) : (
+            <div className="flex justify-between items-center bg-[var(--bg-surface)]/60 p-3 rounded-xl">
+              <span className="text-[13px] text-[var(--text-muted)]">2026년 누적 매출 (세금계산서 집계)</span>
+              <span className="text-[13px] text-[var(--text)] font-medium tabular-nums shrink-0">{fmtW(revenue)}</span>
+            </div>
+          )}
+          <p className="text-[12px] text-[var(--text-dim)] mt-3 text-center">2026년 누적 (세금계산서 집계)</p>
         </div>
         <MoreLink href="/reports/pnl" label="손익 상세 보기" />
       </Card>
