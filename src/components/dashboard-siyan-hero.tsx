@@ -1,10 +1,10 @@
 "use client";
 
-// 대시보드 메인 — 2026-06-09 Stitch 시안(modern_business_financial_dashboard) 픽셀 정렬.
-//   사진 팔레트를 그대로 하드코딩(라이트 고정): 네이비 히어로 #121E32→#27344A, 블루 #2F7DE1, 그린 #31AF71,
-//   레드 #E04D4B, 카드 흰색/보더 #E7EAEF, 텍스트 #121E32/#68788D. 인디고 토큰 미사용(사진과 동일색 우선).
+// 대시보드 메인 — 2026-06-09 Stitch 시안(modern_business_financial_dashboard) 정렬 + 다크/라이트 적응.
+//   표면(카드/배경/텍스트/보더)은 테마 토큰(var(--bg-card) 등)으로 → 다크모드 자동 적응.
+//   강조색(네이비 히어로 그라데이션 · 도넛 세그먼트 · 그린/블루/레드 칩·라인)만 사진색 고정 — 양 테마에서 동일하게 발색.
 //   템플릿 구조: 잔액 히어로 + 메트릭3 + Cost Composition 도넛. (사진에 없는 3박스/Alerts/승인은 제외)
-//   전부 표시 전용 — page 의 기존 props 만 표시. 계산/fetch 무변경. owner/admin 만(호출처 게이트). 인라인 SVG.
+//   전부 표시 전용 — page 기존 props 만 표시. 계산/fetch 무변경. owner/admin 만(호출처 게이트). 인라인 SVG.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -15,14 +15,9 @@ const wonM = (n: number) => `₩${(n / 1_000_000).toFixed(1)}M`;
 type Cat = { label: string; amount: number };
 type Breakdown = { fixed: Cat[]; variable: Cat[] };
 
-// 사진 추출 팔레트 (픽셀 샘플링 결과)
-const C = {
-  navyFrom: "#121E32", navyVia: "#1B2A44", navyTo: "#27344A",
-  blue: "#2F7DE1", green: "#31AF71", red: "#E04D4B", teal: "#5E8C92", amber: "#E0A33A",
-  card: "#FFFFFF", surface: "#F4F6F9", border: "#E7EAEF",
-  text: "#121E32", muted: "#68788D", dim: "#9AA1AC",
-};
-const SEG = [C.blue, C.green, C.amber, C.red, C.teal, "#9AA1AC"];
+// 사진 강조 팔레트(고정 발색) — 양 테마 공통
+const A = { blue: "#2F7DE1", green: "#1FAE6B", red: "#E0524F", amber: "#E0A33A", teal: "#4F9D9D" };
+const SEG = [A.blue, A.green, A.amber, A.red, A.teal, "#94A3B8"];
 
 export function DashboardSiyanHero({
   balance,
@@ -72,29 +67,29 @@ export function DashboardSiyanHero({
       label: "이번달 매출", value: won(monthRevenue),
       sub: perfPct != null ? `목표 ${wonM(monthTarget)}` : "매출 합계",
       chip: perfPct != null ? { text: `${perfPct}%`, up: perfPct >= 100 } : undefined,
-      segments: [{ pct: Math.min(perfPct ?? 0, 100), color: C.green }],
+      segments: [{ pct: Math.min(perfPct ?? 0, 100), color: A.green }],
     },
     {
       label: "월 운영비", value: won(expense),
       sub: `고정 ${wonM(fixedCost)} · 변동 ${wonM(variableCost)}`,
-      segments: [{ pct: fixedPct, color: C.red }, { pct: 100 - fixedPct, color: C.amber }],
+      segments: [{ pct: fixedPct, color: A.red }, { pct: 100 - fixedPct, color: A.amber }],
     },
     {
       label: "미수금", value: won(arTotal),
       sub: arOver30 > 0 ? `30일+ ${wonM(arOver30)}` : "정상 회수 중",
       chip: arOver30 > 0 ? { text: "지연", up: false } : { text: "정상", up: true },
-      segments: [{ pct: arOverPct, color: C.red }, { pct: 100 - arOverPct, color: C.blue }],
+      segments: [{ pct: arOverPct, color: A.red }, { pct: 100 - arOverPct, color: A.blue }],
     },
   ];
 
   return (
     <div className="space-y-5 mb-6">
-      {/* ── 잔액 히어로 (사진: 네이비 그라데이션 + 그린 증감 pill + View Details) ── */}
+      {/* ── 잔액 히어로 (네이비 그라데이션 — 양 테마 공통 다크 카드) ── */}
       <div
         className="relative overflow-hidden rounded-2xl p-6 sm:p-7 text-white shadow-lg"
-        style={{ background: `linear-gradient(135deg, ${C.navyFrom} 0%, ${C.navyVia} 55%, ${C.navyTo} 100%)` }}
+        style={{ background: "linear-gradient(135deg, #101E36 0%, #1A2A47 55%, #243450 100%)" }}
       >
-        <div className="absolute top-0 right-0 w-56 h-56 rounded-full -mr-24 -mt-24 blur-3xl" style={{ background: "rgba(47,125,225,0.20)" }} />
+        <div className="absolute top-0 right-0 w-56 h-56 rounded-full -mr-24 -mt-24 blur-3xl" style={{ background: "rgba(47,125,225,0.22)" }} />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[13px] font-medium text-white/55 mb-2">총 자금</p>
@@ -110,7 +105,7 @@ export function DashboardSiyanHero({
               </button>
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[13px] font-semibold"
-              style={{ background: netCashflow >= 0 ? "rgba(49,175,113,0.18)" : "rgba(224,77,75,0.18)", color: netCashflow >= 0 ? "#4FD89B" : "#FF8A88" }}>
+              style={{ background: netCashflow >= 0 ? "rgba(31,174,107,0.20)" : "rgba(224,82,79,0.20)", color: netCashflow >= 0 ? "#4FD89B" : "#FF8A88" }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d={netCashflow >= 0 ? "M5 11l7-7 7 7M12 4v16" : "M19 13l-7 7-7-7M12 20V4"} />
               </svg>
@@ -127,42 +122,42 @@ export function DashboardSiyanHero({
         </div>
       </div>
 
-      {/* ── 메트릭 3 (사진: 흰 카드 / 라벨 / 큰 숫자 / 그린 델타칩 / 미니바) ── */}
+      {/* ── 메트릭 3 (흰/다크 카드 적응 · 그린 델타칩 · 미니바) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {metrics.map((m) => (
-          <div key={m.label} className="rounded-2xl p-5" style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(18,30,50,0.04)" }}>
+          <div key={m.label} className="rounded-2xl p-5 bg-[var(--bg-card)] border border-[var(--border)]" style={{ boxShadow: "var(--shadow-sm)" }}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[12px] font-medium" style={{ color: C.muted }}>{m.label}</p>
+              <p className="text-[12px] font-medium text-[var(--text-muted)]">{m.label}</p>
               {m.chip && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11px] font-bold"
-                  style={{ background: m.chip.up ? "rgba(49,175,113,0.12)" : "rgba(224,77,75,0.12)", color: m.chip.up ? C.green : C.red }}>
+                  style={{ background: m.chip.up ? "rgba(31,174,107,0.14)" : "rgba(224,82,79,0.14)", color: m.chip.up ? A.green : A.red }}>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={m.chip.up ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} /></svg>
                   {m.chip.text}
                 </span>
               )}
             </div>
-            <p className="text-[26px] font-bold mono-number mb-3 tracking-tight" style={{ color: C.text }}>{m.value}</p>
-            <div className="flex h-1.5 rounded-full overflow-hidden" style={{ background: C.surface }}>
+            <p className="text-[26px] font-bold mono-number mb-3 tracking-tight text-[var(--text)]">{m.value}</p>
+            <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
               {m.segments.map((s, i) => (
                 <div key={i} style={{ width: `${Math.max(0, Math.min(s.pct, 100))}%`, backgroundColor: s.color }} className="h-full" />
               ))}
             </div>
-            <p className="text-[11px] mt-2 truncate" style={{ color: C.dim }}>{m.sub}</p>
+            <p className="text-[11px] mt-2 truncate text-[var(--text-dim)]">{m.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Cost Composition (사진: 도넛 + 범례 %) ── */}
+      {/* ── Cost Composition (도넛 + 범례 %) ── */}
       {cats.length > 0 && (
-        <div className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(18,30,50,0.04)" }}>
+        <div className="rounded-2xl p-6 bg-[var(--bg-card)] border border-[var(--border)]" style={{ boxShadow: "var(--shadow-sm)" }}>
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-[17px] font-bold" style={{ color: C.text }}>비용 구성</h3>
-            <Link href="/reports/pnl" className="text-[13px] font-semibold" style={{ color: C.blue }}>상세 보기</Link>
+            <h3 className="text-[17px] font-bold text-[var(--text)]">비용 구성</h3>
+            <Link href="/reports/pnl" className="text-[13px] font-semibold" style={{ color: A.blue }}>상세 보기</Link>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-9">
             <div className="relative shrink-0" style={{ width: 176, height: 176 }}>
               <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.surface} strokeWidth="3.4" />
+                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--bg-surface)" strokeWidth="3.4" />
                 {(() => {
                   let cum = 0;
                   return cats.map((c, i) => {
@@ -178,8 +173,8 @@ export function DashboardSiyanHero({
                 })()}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[10px] font-semibold" style={{ color: C.dim }}>총 비용</span>
-                <span className="text-[15px] font-bold mono-number" style={{ color: C.text }}>{wonM(catTotal)}</span>
+                <span className="text-[10px] font-semibold text-[var(--text-dim)]">총 비용</span>
+                <span className="text-[15px] font-bold mono-number text-[var(--text)]">{wonM(catTotal)}</span>
               </div>
             </div>
             <div className="flex-1 w-full space-y-3">
@@ -188,9 +183,9 @@ export function DashboardSiyanHero({
                 return (
                   <div key={c.label} className="flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SEG[i % SEG.length] }} />
-                    <span className="flex-1 text-[14px] font-medium truncate" style={{ color: C.text }}>{c.label}</span>
-                    <span className="text-[12px] mono-number shrink-0" style={{ color: C.dim }}>{won(c.amount)}</span>
-                    <span className="text-[14px] font-bold mono-number w-10 text-right shrink-0" style={{ color: C.text }}>{pct}%</span>
+                    <span className="flex-1 text-[14px] font-medium truncate text-[var(--text)]">{c.label}</span>
+                    <span className="text-[12px] mono-number shrink-0 text-[var(--text-dim)]">{won(c.amount)}</span>
+                    <span className="text-[14px] font-bold mono-number w-10 text-right shrink-0 text-[var(--text)]">{pct}%</span>
                   </div>
                 );
               })}
