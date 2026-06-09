@@ -31,7 +31,8 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
   return (
     <>
       {/* Desktop: SVG funnel */}
-      <div className="hidden md:block relative" style={{ height }}>
+      {/* transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 페인트 잔상 방지) */}
+      <div className="hidden md:block relative" style={{ height, transform: "translateZ(0)" }}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
           {stages.map((s, i) => {
             const segH = 100 / stages.length;

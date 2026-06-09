@@ -26,7 +26,7 @@ function RevenueSparkline({ series }: { series: number[] }) {
   const line = series.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
   const area = `${line} L${x(n - 1).toFixed(1)} ${H - pad} L${x(0).toFixed(1)} ${H - pad} Z`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 92 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 92, transform: "translateZ(0)" }} preserveAspectRatio="none">
       <defs>
         <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={A.green} stopOpacity="0.24" />

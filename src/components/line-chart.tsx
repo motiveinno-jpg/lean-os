@@ -55,7 +55,8 @@ export function LineChart({
   const zeroY = yToSvg(0);
 
   return (
-    <div className="relative" style={{ height }}>
+    // transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 시 고정 배경 위 페인트 잔상 방지)
+    <div className="relative" style={{ height, transform: "translateZ(0)" }}>
       <div className="absolute left-0 top-0 bottom-5 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number text-right pr-1">
         <span>{formatY(yMax)}</span>
         <span>{formatY((yMax + yMin) / 2)}</span>

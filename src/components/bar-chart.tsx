@@ -43,7 +43,8 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
     : null;
 
   return (
-    <div className="relative" style={{ height }}>
+    // transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 시 고정 배경 위 페인트 잔상 방지)
+    <div className="relative" style={{ height, transform: "translateZ(0)" }}>
       {/* Y-axis labels — min~max(음수 포함) 반영 */}
       <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number">
         <span>{fmtShort(axisMax)}</span>

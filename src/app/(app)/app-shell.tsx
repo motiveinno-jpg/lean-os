@@ -292,10 +292,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
     //   fixed/-z-10/pointer-events-none 레이어라 스크롤·클릭·레이아웃 무영향, 39개 전 페이지 공통.
     //   카드(bg-card 솔리드)가 이 배경 위에 떠 보이는 granter/시안 룩을 일괄 부여.
     <div className="relative flex min-h-screen">
-      {/* 시안 배경 레이어 — 콘텐츠 뒤(-z-10). 라이트/다크 토큰 자동 대응. */}
+      {/* 시안 배경 레이어 — 콘텐츠 뒤(-z-10). 라이트/다크 토큰 자동 대응.
+          2026-06-09 스크롤 시 차트 SVG(preserveAspectRatio=none·non-scaling-stroke)가 이 고정+blur 레이어 위에
+          번져 남는 페인트 잔상(GPU 컴포지팅) 발생 → translateZ(0)/backface-hidden 로 자체 레이어 승격해 매 프레임 클린 리페인트. */}
       <div
         aria-hidden
         className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-gradient-to-br from-[var(--page-from)] via-[var(--page-via)] to-[var(--page-to)]"
+        style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
       >
         {/* 점 패턴 */}
         <div
