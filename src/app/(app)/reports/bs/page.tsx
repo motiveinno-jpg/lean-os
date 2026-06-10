@@ -609,25 +609,19 @@ export default function BalanceSheetPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div id="bs-printable" style={{ padding: "24px 28px", maxWidth: 1400 }}>
+    <div id="bs-printable">
       <style>{PRINT_CSS}</style>
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      {/* Header — V3: 스크롤해도 제목 상단 고정 (sticky) */}
+      {/* Header — 표준 .page-sticky-header 유틸(z-30·blur·앱 상단바 안 가림). 2026-06-10 커스텀 sticky(z-10 짤림) 교체 */}
       <div
+        className="page-sticky-header"
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          background: "var(--bg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 24,
-          paddingTop: 8,
-          paddingBottom: 12,
-          borderBottom: "1px solid var(--border)",
           flexWrap: "wrap",
           gap: 12,
         }}
@@ -900,8 +894,8 @@ export default function BalanceSheetPage() {
         </div>
       </div>
 
-      {/* 하단 sticky 합계 — 자산 vs 부채+자본 */}
-      <div className="sticky bottom-0 z-20 mt-3 mb-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[0_-4px_12px_-4px_rgba(15,23,42,0.08)]">
+      {/* 합계 요약 — 자산 vs 부채+자본 (표 바로 아래 정적 요약, sticky 제거: 하단 콘텐츠 위로 떠다니고 헤더와 z충돌하던 문제 수정 2026-06-10) */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--primary)]/8 border border-[var(--primary)]/20">
           <div className="text-xs font-bold text-[var(--primary)]">자산 합계</div>
           <div className="text-base font-extrabold text-[var(--primary)] mono-number">₩{Math.round(data.totalAssets).toLocaleString("ko-KR")}</div>
