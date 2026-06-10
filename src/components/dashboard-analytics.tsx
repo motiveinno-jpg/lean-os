@@ -395,51 +395,74 @@ function PnlStat({ label, value, color }: { label: string; value: string; color:
   );
 }
 
-// ── 인원 인라인 상세: 직원별 급여 표 + 차트 (카드 제외) ──
+// ── 인원 인라인 상세: 스탯 3카드 + 차트 + 인원별 랭크 바 리스트 (현대적 리디자인 2026-06-10) ──
+const PEOPLE_AVATAR = [
+  "from-indigo-500 to-violet-500", "from-emerald-500 to-teal-500", "from-orange-500 to-amber-500",
+  "from-rose-500 to-pink-500", "from-sky-500 to-cyan-500", "from-fuchsia-500 to-purple-500",
+];
 function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] }) {
-  const total = rows.reduce((s, r) => s + r.payroll, 0);
+  const sorted = [...rows].sort((a, b) => b.payroll - a.payroll);
+  const total = sorted.reduce((s, r) => s + r.payroll, 0);
+  const max = sorted.length > 0 ? sorted[0].payroll : 0;
+  const avg = sorted.length > 0 ? Math.round(total / sorted.length) : 0;
   return (
-    <div className="space-y-4">
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
-        <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 급여 합계</div>
-        <div className="text-2xl sm:text-3xl font-extrabold mono-number text-[var(--text)]">{won(total)}</div>
-        <div className="text-xs text-[var(--text-muted)] mt-1">{rows.length}명 · 명세서 기준(없으면 기본급여 추정)</div>
+    <div className="space-y-5">
+      {/* 스탯 3카드 */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        {[
+          { label: "급여 합계", value: won(total), color: "#f97316", sub: `${sorted.length}명 기준` },
+          { label: "인원", value: `${sorted.length}명`, color: "var(--info)", sub: "명세서/기본급여" },
+          { label: "1인 평균", value: won(avg), color: "#10b981", sub: "합계 ÷ 인원" },
+        ].map((s) => (
+          <div key={s.label} className="glass-card p-4">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{s.label}</div>
+            <div className="text-lg sm:text-xl font-extrabold mono-number tracking-tight truncate" style={{ color: s.color }}>{s.value}</div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-1.5 truncate">{s.sub}</div>
+          </div>
+        ))}
       </div>
 
-      {rows.length > 0 && (
-        <ByPersonChart people={rows.map((r) => r.key)} payByPerson={Object.fromEntries(rows.map((r) => [r.key, r.payroll]))} />
+      {sorted.length > 0 && (
+        <ByPersonChart people={sorted.map((r) => r.key)} payByPerson={Object.fromEntries(sorted.map((r) => [r.key, r.payroll]))} />
       )}
 
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
-          <div className="text-sm font-bold text-[var(--info)]">인원별 급여</div>
+      {/* 인원별 랭크 바 리스트 */}
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold text-[var(--text)]">인원별 급여 명단</div>
           <Link href="/reports/by-person" className="text-[11px] font-semibold text-[var(--info)] hover:underline">전체 월추이 →</Link>
         </div>
-        {rows.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 급여 데이터가 없습니다.</div>
+        {sorted.length === 0 ? (
+          <div className="p-10 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 급여 데이터가 없습니다.</div>
         ) : (
-          <table className="w-full text-xs">
-            <thead className="bg-[var(--bg-surface)]">
-              <tr className="text-[var(--text-muted)]">
-                <th className="text-left px-4 py-2 font-semibold">인원</th>
-                <th className="text-right px-4 py-2 font-semibold">급여</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.key} className="border-t border-[var(--border)]/60">
-                  <td className="px-4 py-2 text-[var(--text)]">{r.key}</td>
-                  <td className="px-4 py-2 text-right mono-number font-semibold" style={{ color: "#f97316" }}>{won(r.payroll)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)]">
-                <td className="px-4 py-2 font-bold text-[var(--text)]">합계</td>
-                <td className="px-4 py-2 text-right mono-number font-bold" style={{ color: "#f97316" }}>{won(total)}</td>
-              </tr>
-            </tfoot>
-          </table>
+          <div className="divide-y divide-[var(--border)]/60">
+            {sorted.map((r, i) => {
+              const share = total > 0 ? (r.payroll / total) * 100 : 0;
+              const barPct = max > 0 ? (r.payroll / max) * 100 : 0;
+              return (
+                <div key={r.key} className="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[var(--bg-surface)]/40 transition">
+                  <span className="text-[11px] text-[var(--text-dim)] w-4 text-center shrink-0 mono-number">{i + 1}</span>
+                  <span className={`w-9 h-9 rounded-full bg-gradient-to-br ${PEOPLE_AVATAR[i % PEOPLE_AVATAR.length]} flex items-center justify-center text-white text-sm font-bold shrink-0 shadow`}>{(r.key || "?").slice(0, 1)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-sm font-semibold text-[var(--text)] truncate">{r.key}</span>
+                      <span className="text-sm font-bold mono-number shrink-0" style={{ color: "#f97316" }}>{won(r.payroll)}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "linear-gradient(90deg, #f97316, #fbbf24)" }} />
+                      </div>
+                      <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0 w-10 text-right">{share.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="px-4 sm:px-5 py-3 flex items-center justify-between bg-[var(--bg-surface)]/50">
+              <span className="text-sm font-bold text-[var(--text)]">합계 · {sorted.length}명</span>
+              <span className="text-sm font-extrabold mono-number" style={{ color: "#f97316" }}>{won(total)}</span>
+            </div>
+          </div>
         )}
       </div>
     </div>
