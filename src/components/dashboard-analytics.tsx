@@ -85,11 +85,11 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("monthly_financials")
-        .select("month, revenue, expense")
+        .select("month, revenue, total_expense")
         .eq("company_id", companyId);
-      return ((data || []) as Array<{ month: string; revenue: number; expense: number }>)
+      return ((data || []) as Array<{ month: string; revenue: number; total_expense: number }>)
         .filter((r) => String(r.month || "").startsWith(String(year)))
-        .map((r) => ({ month: String(r.month).slice(0, 7), revenue: Number(r.revenue || 0), expense: Number(r.expense || 0) }))
+        .map((r) => ({ month: String(r.month).slice(0, 7), revenue: Number(r.revenue || 0), expense: Number(r.total_expense || 0) }))
         .sort((a, b) => a.month.localeCompare(b.month));
     },
     enabled: !!companyId,
