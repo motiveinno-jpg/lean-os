@@ -241,9 +241,11 @@ function AppContent({ children }: { children: React.ReactNode }) {
       await runOne("card_approval");
     };
 
-    runAll(); // 앱 켜면 1회
-    const iv = setInterval(runAll, 30 * 60 * 1000); // 30분마다 (요청량 절감)
-    return () => { stopped = true; clearInterval(iv); };
+    // 2026-06-10 CODEF 과금 폭증 주범 — 앱을 켜두면 30분마다 자동 동기화(통장+카드)가 24/7 과금되던
+    //   setInterval 제거. 앱 진입/새로고침 시 1회만(25분 throttle). 정기 갱신은 서버 cron(은행 하루 2회)
+    //   + 수동 동기화 버튼이 담당. (사장님 확인 2026-06-10)
+    runAll(); // 앱 켜면 1회만
+    return () => { stopped = true; };
   }, [companyId]);
 
   // 글로벌 mutation 에러 토스트 (providers.tsx MutationCache에서 발생)
