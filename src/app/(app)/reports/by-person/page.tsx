@@ -170,12 +170,12 @@ export default function ByPersonPage() {
   }
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
+    <div>
       <Link href="/dashboard" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 대시보드
       </Link>
-      {/* V3: 스크롤해도 제목 상단 고정 (sticky) */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, paddingTop: 8, paddingBottom: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+      {/* 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 */}
+      <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
             인원별 급여
@@ -213,19 +213,17 @@ export default function ByPersonPage() {
 
       {!isLoading && !error && rows && rows.length > 0 && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 22 }}>
+          {/* 스탯 3카드 — 대시보드 글래스카드 (2026-06-10) */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 20 }}>
             {[
-              { label: `${year}년 급여 합계`, value: totals.pay, color: "#f97316", hint: "명세서 기준(없으면 기본급여 추정)" },
-              { label: "인원 수", value: rows.length, color: "var(--primary)", hint: "급여가 집계된 인원", count: true },
+              { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "#f97316", hint: "명세서/기본급여 추정" },
+              { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
+              { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "#10b981", hint: "합계 ÷ 인원" },
             ].map((c) => (
-              <div key={c.label} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)" }}>
-                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{c.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: c.color, marginTop: 6 }}>
-                  {"count" in c && c.count
-                    ? <>{c.value}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>명</span></>
-                    : <>{fmtKrw(c.value)}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>원</span></>}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.5 }}>{c.hint}</div>
+              <div key={c.label} className="glass-card" style={{ padding: 18 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>{c.label}</div>
+                <div className="mono-number" style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: c.color, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.big}</div>
+                <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.hint}</div>
               </div>
             ))}
           </div>
@@ -235,30 +233,40 @@ export default function ByPersonPage() {
             payByPerson={Object.fromEntries(rows.map((r) => [r.key, r.payroll]))}
           />
 
-          {/* 인원별 합계 표 */}
-          <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)", marginTop: 20 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
-              <thead>
-                <tr style={{ background: "var(--bg-surface)" }}>
-                  <th style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>인원</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-muted)", fontWeight: 600 }}>급여</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.key} style={{ borderTop: "1px solid var(--border)" }}>
-                    <td style={{ padding: "11px 16px", color: "var(--text)" }}>{r.key}</td>
-                    <td style={{ padding: "11px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.payroll)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--text)" }}>합계</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "#f97316" }}>{fmtKrw(totals.pay)}</td>
-                </tr>
-              </tfoot>
-            </table>
+          {/* 인원별 급여 — 아바타 랭크 바 리스트 (2026-06-10 리디자인) */}
+          <div className="glass-card overflow-hidden" style={{ marginTop: 20 }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 700, color: "var(--text)" }}>인원별 급여 명단</div>
+            {(() => {
+              const ranked = [...rows].sort((a, b) => b.payroll - a.payroll);
+              const maxPay = ranked.length ? ranked[0].payroll : 0;
+              const AVA = ["from-indigo-500 to-violet-500", "from-emerald-500 to-teal-500", "from-orange-500 to-amber-500", "from-rose-500 to-pink-500", "from-sky-500 to-cyan-500", "from-fuchsia-500 to-purple-500"];
+              return ranked.map((r, i) => {
+                const share = totals.pay > 0 ? (r.payroll / totals.pay) * 100 : 0;
+                const barPct = maxPay > 0 ? (r.payroll / maxPay) * 100 : 0;
+                return (
+                  <div key={r.key} className="flex items-center gap-3" style={{ padding: "12px 18px", borderTop: i === 0 ? "none" : "1px solid color-mix(in srgb, var(--border) 55%, transparent)" }}>
+                    <span className="mono-number" style={{ fontSize: 11, color: "var(--text-dim)", width: 16, textAlign: "center", flexShrink: 0 }}>{i + 1}</span>
+                    <span className={`bg-gradient-to-br ${AVA[i % AVA.length]} shrink-0`} style={{ width: 36, height: 36, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{(r.key || "?").slice(0, 1)}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.key}</span>
+                        <span className="mono-number shrink-0" style={{ fontSize: 14, fontWeight: 700, color: "#f97316" }}>₩{fmtKrw(r.payroll)}</span>
+                      </div>
+                      <div className="flex items-center" style={{ gap: 10 }}>
+                        <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--bg-surface)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: 999, width: `${Math.min(barPct, 100)}%`, background: "linear-gradient(90deg, #f97316, #fbbf24)" }} />
+                        </div>
+                        <span className="mono-number shrink-0" style={{ fontSize: 10, color: "var(--text-dim)", width: 40, textAlign: "right" }}>{share.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+            <div className="flex items-center justify-between" style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "color-mix(in srgb, var(--bg-surface) 50%, transparent)" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>합계 · {rows.length}명</span>
+              <span className="mono-number" style={{ fontSize: 14, fontWeight: 800, color: "#f97316" }}>₩{fmtKrw(totals.pay)}</span>
+            </div>
           </div>
 
           {/* 월추이 표 (인원 x 월, 카드+급여 합) */}

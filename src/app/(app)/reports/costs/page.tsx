@@ -72,12 +72,12 @@ export default function CostsPage() {
   }
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
+    <div>
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      {/* Header — V3: 스크롤해도 제목 상단 고정 (sticky) */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, paddingTop: 8, paddingBottom: 12, borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+      {/* 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 */}
+      <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
             고정비 · 변동비
@@ -118,19 +118,17 @@ export default function CostsPage() {
 
       {!isLoading && !error && rows && (
         <>
-          {/* Summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 22 }}>
+          {/* Summary cards — 대시보드 글래스카드 (2026-06-10) */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 20 }}>
             {[
-              { label: `${year}년 고정비 합계`, value: totals.fixed, color: "#f97316", hint: "임대료·급여·4대보험 등 매달 일정" },
-              { label: `${year}년 변동비 합계`, value: totals.variable, color: "#8b5cf6", hint: "카드·일회성 지출 등 매달 변동" },
+              { label: `${year}년 고정비`, value: totals.fixed, color: "#f97316", hint: "임대료·급여·4대보험 등" },
+              { label: `${year}년 변동비`, value: totals.variable, color: "#8b5cf6", hint: "카드·일회성 지출 등" },
               { label: `${year}년 총비용`, value: totals.total, color: "var(--primary)", hint: "고정비 + 변동비" },
             ].map((c) => (
-              <div key={c.label} style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)" }}>
-                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{c.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: c.color, marginTop: 6 }}>
-                  {fmtKrw(c.value)}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-dim)", marginLeft: 3 }}>원</span>
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.5 }}>{c.hint}</div>
+              <div key={c.label} className="glass-card" style={{ padding: 18 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>{c.label}</div>
+                <div className="mono-number" style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: c.color, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>₩{fmtKrw(c.value)}</div>
+                <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.hint}</div>
               </div>
             ))}
           </div>
@@ -187,7 +185,7 @@ export default function CostsPage() {
           {breakdown && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
               {/* 고정비 세부내역 */}
-              <div style={{ borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
+              <div className="glass-card" style={{ overflow: "hidden" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "#f97316" }}>
                   고정비 세부내역 ({year}년)
                 </div>
@@ -200,7 +198,7 @@ export default function CostsPage() {
                     <thead><tr style={{ background: "var(--bg-surface)" }}>
                       <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>항목</th>
                       <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>월 평균</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>연 합계</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>올해 누계</th>
                       <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>비중</th>
                     </tr></thead>
                     <tbody>
@@ -215,7 +213,7 @@ export default function CostsPage() {
                     </tbody>
                     <tfoot><tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
                       <td style={{ padding: "11px 16px", fontWeight: 700 }}>합계</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-muted)" }}>{fmtKrw(Math.round(breakdown.fixedTotal / 12))}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-muted)" }}>{fmtKrw(breakdown.fixed.reduce((s, r) => s + r.monthly, 0))}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "#f97316" }}>{fmtKrw(breakdown.fixedTotal)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>100%</td>
                     </tr></tfoot>
@@ -224,7 +222,7 @@ export default function CostsPage() {
               </div>
 
               {/* 변동비 세부내역 */}
-              <div style={{ borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
+              <div className="glass-card" style={{ overflow: "hidden" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "#8b5cf6" }}>
                   변동비 세부내역 ({year}년)
                 </div>
@@ -236,7 +234,7 @@ export default function CostsPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead><tr style={{ background: "var(--bg-surface)" }}>
                       <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>항목</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>연 합계</th>
+                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>올해 누계</th>
                       <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-muted)", fontWeight: 600 }}>비중</th>
                     </tr></thead>
                     <tbody>
