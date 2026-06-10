@@ -779,51 +779,21 @@ export default function BalanceSheetPage() {
         </label>
       </div>
 
-      {/* Summary Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
+      {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginBottom: 24 }}>
         {[
-          {
-            label: "총 자산",
-            value: data.totalAssets,
-            color: "var(--primary)",
-          },
-          {
-            label: "총 부채",
-            value: data.totalLiabilities,
-            color: data.totalLiabilities > 0 ? "var(--danger)" : "var(--text-muted)",
-          },
-          {
-            label: "순자산 (자본)",
-            value: data.totalEquity,
-            color: data.totalEquity >= 0 ? "#10b981" : "var(--danger)",
-          },
+          { label: "총 자산", value: data.totalAssets, color: "var(--primary)" },
+          { label: "총 부채", value: data.totalLiabilities, color: data.totalLiabilities > 0 ? "var(--danger)" : "var(--text-muted)" },
+          { label: "순자산 (자본)", value: data.totalEquity, color: data.totalEquity >= 0 ? "#10b981" : "var(--danger)" },
         ].map((card) => (
-          <div
-            key={card.label}
-            style={{
-              padding: "18px 20px",
-              borderRadius: 12,
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <div
-              style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, fontWeight: 500 }}
-            >
+          <div key={card.label} className="glass-card" style={{ padding: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
               {card.label}
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: card.color }}>
-              {card.value < 0 ? "-" : ""}
-              {Math.abs(card.value).toLocaleString("ko-KR")}
-              <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>원</span>
+            <div className="mono-number" style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: card.color, lineHeight: 1.1 }}>
+              {card.value < 0 ? "-" : ""}₩{Math.abs(card.value).toLocaleString("ko-KR")}
             </div>
+            <div style={{ height: 3, width: 36, borderRadius: 999, marginTop: 12, background: card.color, opacity: 0.85 }} />
           </div>
         ))}
       </div>
@@ -831,7 +801,7 @@ export default function BalanceSheetPage() {
       {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* ── 좌: 자산 ── */}
-        <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)", overflow: "auto" }}>
+        <div className="glass-card" style={{ overflow: "auto" }}>
           <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>자산 (Assets)</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
@@ -883,7 +853,7 @@ export default function BalanceSheetPage() {
         </div>
 
         {/* ── 우: 부채 + 자본 ── */}
-        <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-card)", overflow: "auto" }}>
+        <div className="glass-card" style={{ overflow: "auto" }}>
           <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>부채 + 자본 (Liabilities + Equity)</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
@@ -1174,32 +1144,16 @@ export default function BalanceSheetPage() {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
           재무 비율 분석
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {computeRatios(data).map((ratio) => (
-            <div
-              key={ratio.label}
-              style={{
-                padding: "20px",
-                borderRadius: 12,
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-              }}
-            >
+            <div key={ratio.label} className="glass-card" style={{ padding: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: HEALTH_COLORS[ratio.health],
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 12, color: "var(--text-dim)", fontWeight: 500 }}>
+                <div style={{ width: 9, height: 9, borderRadius: "50%", background: HEALTH_COLORS[ratio.health], flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", color: "var(--text-muted)" }}>
                   {ratio.label}
                 </span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: HEALTH_COLORS[ratio.health], marginBottom: 8 }}>
+              <div className="mono-number" style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: HEALTH_COLORS[ratio.health], marginBottom: 8 }}>
                 {ratio.value === 999 ? "N/A" : `${ratio.value}${ratio.unit}`}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5 }}>
