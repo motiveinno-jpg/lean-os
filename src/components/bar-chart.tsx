@@ -109,24 +109,30 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
             </div>
           ))}
 
-          {/* SVG Trend Line Overlay — overflow-hidden + clamp 로 화면 밖 삐침 차단 */}
+          {/* SVG Trend Line Overlay — paint-containment 래퍼로 박스 밖 페인트 원천 차단.
+              (preserveAspectRatio=none + non-scaling-stroke 가 일부 브라우저서 박스 밖으로 번지던 버그 2026-06-10) */}
           {trendPoints && (
-            <svg className="absolute inset-0 overflow-hidden pointer-events-none z-[2]" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polyline
-                points={trendPoints}
-                fill="none"
-                stroke={trendColor}
-                strokeWidth="0.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-              />
-              {trendLine!.map((v, i) => {
-                const x = barWidth * i + barWidth / 2;
-                const y = yOf(v);
-                return <circle key={i} cx={x} cy={y} r="1.2" fill={trendColor} vectorEffect="non-scaling-stroke" />;
-              })}
-            </svg>
+            <div
+              className="absolute inset-0 overflow-hidden pointer-events-none z-[2]"
+              style={{ contain: "paint", transform: "translateZ(0)" }}
+            >
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline
+                  points={trendPoints}
+                  fill="none"
+                  stroke={trendColor}
+                  strokeWidth="0.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {trendLine!.map((v, i) => {
+                  const x = barWidth * i + barWidth / 2;
+                  const y = yOf(v);
+                  return <circle key={i} cx={x} cy={y} r="1.2" fill={trendColor} vectorEffect="non-scaling-stroke" />;
+                })}
+              </svg>
+            </div>
           )}
         </div>
 

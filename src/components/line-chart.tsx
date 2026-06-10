@@ -76,6 +76,7 @@ export function LineChart({
             className="absolute inset-0 w-full h-full overflow-hidden"
             viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="none"
+            style={{ contain: "paint", transform: "translateZ(0)" }}
           >
             {/* Zero baseline */}
             {showZeroLine && yMin < 0 && yMax > 0 && (
