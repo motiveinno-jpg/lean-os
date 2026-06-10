@@ -207,25 +207,22 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     return opexByCategory[cat];
   };
 
+  // 2026-06-10 발생주의 통일 — 비용에서 제외할 자금이동/비-비용 카테고리(이체·대출·카드대금·세금·인출 등)
+  const NON_EXPENSE_CAT = ["이체", "송금", "대출", "상환", "카드대금", "카드이용대금", "세금", "부가세", "인출", "충당", "보증금", "예치", "예금"];
+  const isNonExpenseCat = (c: string) => NON_EXPENSE_CAT.some((k) => c.includes(k));
+
   for (const tx of transactions as any[]) {
     const month = toMonth(tx.transaction_date);
     if (!allMonths.includes(month)) continue;
     const amt = Math.abs(tx.amount);
 
-    // 2026-05-22 매출은 세금계산서(sales) 기준으로 통일 → bank 입금(income)은 매출로 잡지 않음.
-    //   비용(expense) 분류만 거래내역에서 수행.
+    // 매출=세금계산서(sales) 기준. 비용도 발생주의 통일 — 매출원가는 매입 세금계산서로 인식,
+    //   통장 출금은 '사용자가 명시 분류한 판관비'만 비용 인식. 미분류·자금이동(이체/대출/카드대금/세금/인출)은
+    //   비용에서 제외해 허수 과대계상 차단(99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
     if (tx.type === "expense" || tx.type === "출금") {
-      // 1) 매출원가 (외주/인프라) 먼저 분리
-      const cogs = isCogs(tx.counterparty, tx.description, tx.category);
-      if (cogs.is) {
-        if (cogs.sub === "외주비") outsourcing[month] += amt;
-        else infrastructure[month] += amt;
-        continue;
-      }
-      // 2) 판매관리비 — 사용자 입력 category 우선, 없으면 키워드 추론, 그래도 없으면 '기타'
       const userCat = (tx.category && String(tx.category).trim()) || "";
-      const catName = userCat || inferOpexCategory(tx.counterparty, tx.description);
-      ensureOpex(catName)[month] += amt;
+      if (!userCat || isNonExpenseCat(userCat)) continue;
+      ensureOpex(userCat)[month] += amt;
     }
   }
 
@@ -333,7 +330,8 @@ export default function PnlPage() {
 
     for (const m of allM) {
       totalRevenue[m] = (data.revenue[m] || 0) + (data.otherRevenue[m] || 0);
-      cogs[m] = (data.outsourcing[m] || 0) + (data.infrastructure[m] || 0);
+      // 발생주의: 매출원가 = 매입 세금계산서 공급가액(통장 출금 아님). 매출(세금계산서)과 기준 일치.
+      cogs[m] = (data.purchaseCost[m] || 0);
       grossProfit[m] = totalRevenue[m] - cogs[m];
       let opexSum = 0;
       for (const row of Object.values(data.opexByCategory)) {
@@ -375,8 +373,7 @@ export default function PnlPage() {
 
     addLine("매출 (세금계산서 기준)", data.revenue);
     lines.push("");
-    addLine("외주비", data.outsourcing);
-    addLine("인프라비용", data.infrastructure);
+    addLine("매입원가 (매입 세금계산서)", data.purchaseCost);
     addLine("매출총이익", computed.grossProfit);
     lines.push("");
     for (const [name, row] of Object.entries(data.opexByCategory)) {
@@ -902,10 +899,9 @@ export default function PnlPage() {
 
             {renderDivider(months, "div-1")}
 
-            {/* Cost of Revenue — 항목만, 합계 없음 */}
-            {renderSectionHeader("매출원가 (COGS)", months)}
-            {renderRow("외주비", data.outsourcing, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.outsourcing) : undefined })}
-            {renderRow("인프라비용", data.infrastructure, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.infrastructure) : undefined })}
+            {/* Cost of Revenue — 발생주의: 매입 세금계산서 기준 (2026-06-10) */}
+            {renderSectionHeader("매출원가 (COGS · 매입 세금계산서)", months)}
+            {renderRow("매입원가", data.purchaseCost, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.purchaseCost) : undefined })}
 
             {renderDivider(months, "div-2")}
 
