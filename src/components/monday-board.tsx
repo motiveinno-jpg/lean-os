@@ -40,6 +40,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const qc = useQueryClient();
   const initRef = useRef(false);
   const [configCol, setConfigCol] = useState<Col | null>(null);
+  const [openDealId, setOpenDealId] = useState<string | null>(null);
 
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
@@ -154,6 +155,37 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   // 그룹 미지정 deal 이 있으면 맨 끝에 "그룹 없음" 섹션
   if (dealsByGroup.has(null)) orderedGroups.push(null);
 
+  // 상세 페이지: 최신 deals 에서 파생(쿼리 refetch 후 stale 방지)
+  const openDeal = openDealId ? deals.find((d) => d.id === openDealId) || null : null;
+
+  // ── 프로젝트명 클릭 → 컬럼 상세 페이지로 전환 ──
+  if (openDeal) {
+    return (
+      <>
+        <DealDetailView
+          key={openDeal.id}
+          deal={openDeal}
+          columns={columns}
+          users={users}
+          onBack={() => setOpenDealId(null)}
+          onSetCell={setCell}
+          onSetName={setName}
+          onAddColumn={addColumn}
+          onConfigColumn={(c) => setConfigCol(c)}
+        />
+        {configCol && (
+          <ColumnConfigModal
+            key={configCol.id}
+            col={configCol}
+            onClose={() => setConfigCol(null)}
+            onSave={(patch) => saveColumn(configCol, patch)}
+            onDelete={() => deleteColumn(configCol)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-10">
       <div className="flex items-center justify-end gap-2">
@@ -199,7 +231,11 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                   {rows.map((d) => (
                     <tr key={d.id} className="border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/40">
                       <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
-                        <EditableText value={d.name} onSave={(v) => setName(d, v)} className="text-sm text-[var(--text)] font-medium" placeholder="업체명" />
+                        <button onClick={() => setOpenDealId(d.id)}
+                          className="group inline-flex items-center gap-1.5 text-sm text-[var(--text)] font-medium hover:text-[var(--primary)] text-left">
+                          <span className="hover:underline">{d.name || <span className="text-[var(--text-dim)]">업체명</span>}</span>
+                          <span className="text-[10px] opacity-0 group-hover:opacity-60 transition shrink-0">↗ 열기</span>
+                        </button>
                       </td>
                       {columns.map((c) => (
                         <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
@@ -231,6 +267,70 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           onDelete={() => deleteColumn(configCol)}
         />
       )}
+    </div>
+  );
+}
+
+// ── 프로젝트 상세 페이지 (먼데이 아이템 뷰) — 리스트에서 전환. 모든 컬럼을 한 화면에서 기록·수정 + 컬럼 설정/추가 ──
+function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, onAddColumn, onConfigColumn }: {
+  deal: Deal;
+  columns: Col[];
+  users: Person[];
+  onBack: () => void;
+  onSetCell: (deal: Deal, colId: string, value: any) => void;
+  onSetName: (deal: Deal, name: string) => void;
+  onAddColumn: (type: string) => void;
+  onConfigColumn: (col: Col) => void;
+}) {
+  const [name, setNameLocal] = useState(deal.name);
+  return (
+    <div className="space-y-4 pb-10 panel-slide-in">
+      {/* 뒤로가기 + 프로젝트명 */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] shrink-0">
+          ← 프로젝트 목록
+        </button>
+      </div>
+
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border)]">
+          <input
+            value={name}
+            onChange={(e) => setNameLocal(e.target.value)}
+            onBlur={() => onSetName(deal, name.trim() || deal.name)}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            placeholder="업체명"
+            className="w-full bg-transparent text-xl font-bold text-[var(--text)] focus:outline-none focus:border-b focus:border-[var(--primary)] pb-0.5"
+          />
+        </div>
+
+        {/* 컬럼별 필드 */}
+        <div className="px-5 py-3">
+          {columns.length === 0 && (
+            <p className="text-sm text-[var(--text-dim)] py-4">컬럼이 없습니다. 아래에서 추가하세요.</p>
+          )}
+          {columns.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-[var(--border)]/50">
+              <button onClick={() => onConfigColumn(c)}
+                className="w-32 shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] text-left"
+                title="컬럼 설정 (이름·옵션·색)">
+                {c.name}
+                <span className="text-[9px] opacity-40">⚙</span>
+              </button>
+              <div className="flex-1 min-w-0 max-w-[320px]">
+                <Cell col={c} value={deal.column_values?.[c.id]} users={users} onChange={(v) => onSetCell(deal, c.id, v)} panel />
+              </div>
+            </div>
+          ))}
+
+          {/* 컬럼 추가 */}
+          <div className="flex items-center gap-3 py-3">
+            <span className="w-32 shrink-0 text-[12px] text-[var(--text-dim)]">컬럼 추가</span>
+            <AddColumnButton onAdd={onAddColumn} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -310,8 +410,10 @@ function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string)
   );
 }
 
-// ── 셀 (타입별) ──
-function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Person[]; onChange: (v: any) => void }) {
+// ── 셀 (타입별). panel=true 면 상세 패널용(좌측정렬·테두리) ──
+function Cell({ col, value, users, onChange, panel = false }: { col: Col; value: any; users: Person[]; onChange: (v: any) => void; panel?: boolean }) {
+  const align = panel ? "text-left" : "text-center";
+  const box = panel ? "px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]" : "";
   if (col.type === "status") {
     const options: { id: string; label: string; color: string }[] = col.settings?.options || [];
     const cur = options.find((o) => o.id === value);
@@ -320,7 +422,7 @@ function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Pe
   if (col.type === "person") {
     return (
       <select value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-        className="w-full text-xs bg-transparent text-[var(--text)] text-center cursor-pointer focus:outline-none">
+        className={`w-full text-xs bg-transparent text-[var(--text)] ${align} cursor-pointer focus:outline-none ${box}`}>
         <option value="">—</option>
         {users.map((u) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
       </select>
@@ -328,14 +430,14 @@ function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Pe
   }
   if (col.type === "date") {
     return <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-      className="w-full text-xs bg-transparent text-[var(--text)] text-center focus:outline-none cursor-pointer" />;
+      className={`w-full text-xs bg-transparent text-[var(--text)] ${align} focus:outline-none cursor-pointer ${box}`} />;
   }
   if (col.type === "number") {
     return <input type="number" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-      className="w-full text-xs bg-transparent text-[var(--text)] text-right px-2 mono-number focus:outline-none" />;
+      className={`w-full text-xs bg-transparent text-[var(--text)] ${panel ? "text-left" : "text-right"} px-2 mono-number focus:outline-none ${box}`} />;
   }
   // text
-  return <EditableText value={value || ""} onSave={onChange} className="text-xs text-[var(--text)]" placeholder="—" center />;
+  return <div className={panel ? box : ""}><EditableText value={value || ""} onSave={onChange} className="text-xs text-[var(--text)]" placeholder="—" center={!panel} /></div>;
 }
 
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
