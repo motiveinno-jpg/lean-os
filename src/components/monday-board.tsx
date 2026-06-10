@@ -39,6 +39,7 @@ const DEFAULT_COLUMNS: { name: string; type: string; settings: any }[] = [
 export function MondayBoard({ companyId, users = [] }: { companyId: string; users?: Person[] }) {
   const qc = useQueryClient();
   const initRef = useRef(false);
+  const [configCol, setConfigCol] = useState<Col | null>(null);
 
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
@@ -125,14 +126,13 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     await db.from("board_columns").insert({ company_id: companyId, name, type, settings, position: columns.length });
     refetchAll();
   };
-  const renameColumn = async (col: Col, name: string) => {
-    if (!name.trim() || name === col.name) return;
-    await db.from("board_columns").update({ name: name.trim() }).eq("id", col.id);
+  const deleteColumn = async (col: Col) => {
+    await db.from("board_columns").delete().eq("id", col.id);
+    setConfigCol(null);
     refetchAll();
   };
-  const deleteColumn = async (col: Col) => {
-    if (!confirm(`컬럼 "${col.name}" 삭제? (각 항목의 이 값도 사라집니다)`)) return;
-    await db.from("board_columns").delete().eq("id", col.id);
+  const saveColumn = async (col: Col, patch: { name?: string; settings?: any }) => {
+    await db.from("board_columns").update(patch).eq("id", col.id);
     refetchAll();
   };
   const addGroup = async () => {
@@ -183,11 +183,11 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                   <tr className="bg-[var(--bg-surface)]">
                     <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[180px]">업체명</th>
                     {columns.map((c) => (
-                      <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap group/col min-w-[110px]">
-                        <span className="inline-flex items-center gap-1">
-                          <EditableText value={c.name} onSave={(v) => renameColumn(c, v)} className="text-[11px] font-semibold text-[var(--text-muted)]" />
-                          <button onClick={() => deleteColumn(c)} className="opacity-0 group-hover/col:opacity-60 hover:!opacity-100 text-[var(--text-dim)] text-[10px]" title="컬럼 삭제">✕</button>
-                        </span>
+                      <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[110px]">
+                        <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색)">
+                          {c.name}
+                          <span className="text-[9px] opacity-40">⚙</span>
+                        </button>
                       </th>
                     ))}
                     <th className="px-2 py-2 w-10">
@@ -202,7 +202,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                         <EditableText value={d.name} onSave={(v) => setName(d, v)} className="text-sm text-[var(--text)] font-medium" placeholder="업체명" />
                       </td>
                       {columns.map((c) => (
-                        <td key={c.id} className="px-1 py-1 text-center align-middle">
+                        <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
                           <Cell col={c} value={d.column_values?.[c.id]} users={users} onChange={(v) => setCell(d, c.id, v)} />
                         </td>
                       ))}
@@ -221,6 +221,91 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           </div>
         );
       })}
+
+      {configCol && (
+        <ColumnConfigModal
+          key={configCol.id}
+          col={configCol}
+          onClose={() => setConfigCol(null)}
+          onSave={(patch) => saveColumn(configCol, patch)}
+          onDelete={() => deleteColumn(configCol)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── 컬럼 설정 모달 (이름 + 상태옵션 라벨/색 + 삭제) ──
+const COLOR_PALETTE = ["#1FAE6B", "#2F7DE1", "#E0A33A", "#E0524F", "#8B5CF6", "#EC4899", "#5E8C92", "#0EA5E9", "#F97316", "#9AA1AC", "#16A34A", "#7C3AED"];
+const TYPE_LABEL: Record<string, string> = { text: "텍스트", status: "상태", date: "날짜", person: "담당자", number: "숫자" };
+
+function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClose: () => void; onSave: (patch: { name?: string; settings?: any }) => void; onDelete: () => void }) {
+  const [name, setName] = useState(col.name);
+  const [options, setOptions] = useState<{ id: string; label: string; color: string }[]>(col.settings?.options || []);
+  const isStatus = col.type === "status";
+
+  const addOption = () => setOptions((o) => [...o, { id: `o${Date.now()}`, label: "새 옵션", color: COLOR_PALETTE[o.length % COLOR_PALETTE.length] }]);
+  const setOpt = (i: number, patch: Partial<{ label: string; color: string }>) => setOptions((o) => o.map((x, idx) => idx === i ? { ...x, ...patch } : x));
+  const removeOpt = (i: number) => setOptions((o) => o.filter((_, idx) => idx !== i));
+  const save = () => { onSave({ name: name.trim() || col.name, ...(isStatus ? { settings: { ...(col.settings || {}), options } } : {}) }); onClose(); };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="glass-card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)" }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-[var(--text)]">컬럼 설정 <span className="text-[11px] font-normal text-[var(--text-dim)]">· {TYPE_LABEL[col.type] || col.type}</span></h3>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
+        </div>
+
+        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">컬럼 이름</label>
+        <input value={name} onChange={(e) => setName(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] mb-4 focus:outline-none focus:border-[var(--primary)]" />
+
+        {isStatus && (
+          <div className="mb-4">
+            <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">상태 옵션 (라벨·색)</div>
+            <div className="space-y-2">
+              {options.map((o, i) => (
+                <div key={o.id} className="flex items-center gap-2">
+                  <ColorSwatch color={o.color} onChange={(c) => setOpt(i, { color: c })} />
+                  <input value={o.label} onChange={(e) => setOpt(i, { label: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg text-sm font-semibold text-white focus:outline-none" style={{ background: o.color }} />
+                  <button onClick={() => removeOpt(i)} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-sm shrink-0">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addOption} className="mt-2 text-[12px] font-semibold text-[var(--primary)] hover:underline">+ 옵션 추가</button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
+          <button onClick={() => { if (confirm(`컬럼 "${col.name}" 삭제? 각 항목의 이 값도 사라집니다.`)) onDelete(); }}
+            className="text-[12px] font-semibold text-[var(--danger)] hover:underline">컬럼 삭제</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">취소</button>
+            <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--primary)] text-[var(--primary-foreground)]">저장</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg border border-black/10" style={{ background: color }} title="색 변경" />
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 left-0 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg grid grid-cols-6 gap-1.5 w-[180px]">
+            {COLOR_PALETTE.map((c) => (
+              <button key={c} onClick={() => { onChange(c); setOpen(false); }} className="w-6 h-6 rounded-md border border-black/10" style={{ background: c }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
