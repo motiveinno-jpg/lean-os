@@ -577,26 +577,19 @@ export default function PnlPage() {
   const prevSum = (row: MonthlyRow) => data.prevMonths.reduce((s, m) => s + (row[m] || 0), 0);
 
   return (
-    <div id="pnl-printable" style={{ padding: "24px 28px", maxWidth: 1400 }}>
+    <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      {/* Header — V3: 스크롤해도 제목 상단 고정 (sticky) */}
+      {/* Header — 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 커스텀 sticky(z-10 짤림) 교체 */}
       <div
-        className="no-print-sticky"
+        className="page-sticky-header no-print-sticky"
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          background: "var(--bg)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 24,
-          paddingTop: 8,
-          paddingBottom: 12,
-          borderBottom: "1px solid var(--border)",
           flexWrap: "wrap",
           gap: 12,
         }}
@@ -778,15 +771,8 @@ export default function PnlPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
+      {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
         {[
           {
             label: "총 매출",
@@ -816,25 +802,14 @@ export default function PnlPage() {
           const d = card.value - card.prev;
           const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
           return (
-            <div
-              key={card.label}
-              style={{
-                padding: "18px 20px",
-                borderRadius: 12,
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, fontWeight: 500 }}
-              >
+            <div key={card.label} className="glass-card" style={{ padding: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
                 {card.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: card.color }}>
-                {card.value < 0 ? "-" : ""}
-                {Math.abs(card.value).toLocaleString("ko-KR")}
-                <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>원</span>
+              <div className="mono-number" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", color: card.color, lineHeight: 1.1 }}>
+                {card.value < 0 ? "-" : ""}₩{Math.abs(card.value).toLocaleString("ko-KR")}
               </div>
+              <div style={{ height: 3, width: 36, borderRadius: 999, marginTop: 12, background: card.color, opacity: 0.85 }} />
               {isCompareMode && card.prev !== 0 && (
                 <div style={{
                   marginTop: 6,
@@ -850,15 +825,8 @@ export default function PnlPage() {
         })}
       </div>
 
-      {/* Table */}
-      <div
-        style={{
-          borderRadius: 12,
-          border: "1px solid var(--border)",
-          background: "var(--bg-card)",
-          overflow: "auto",
-        }}
-      >
+      {/* Table — 대시보드 글래스카드 (2026-06-10) */}
+      <div className="glass-card" style={{ overflow: "auto" }}>
         <table
           style={{
             width: "100%",
