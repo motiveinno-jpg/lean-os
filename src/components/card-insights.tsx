@@ -223,13 +223,13 @@ export function CardAutoTransferHistory({ companyId }: Props) {
       </div>
       {/* R15: 사용법 안내 (직원 "어떻게 사용하는것?") — 기능 변경 없이 설명만 */}
       <p className="text-[11px] text-[var(--text-dim)] mb-3 leading-relaxed bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-        💡 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 카드 거래 목록에서 해당 거래를
-        <strong className="text-[var(--text-muted)]"> &quot;고정지출&quot;</strong>로 표시하면 이번 달 분이 자동 집계됩니다.
+        💡 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 거래내역 페이지에서 해당 거래를
+        <strong className="text-[var(--text-muted)]"> &quot;고정비&quot;</strong>로 체크하면 이번 달 분이 자동 집계됩니다.
       </p>
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
           이번달 정기결제내역이 없습니다.
-          <div className="text-[10px] mt-1">카드 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
+          <div className="text-[10px] mt-1">거래내역 페이지에서 거래를 &quot;고정비&quot;로 체크하면 여기에 모입니다.</div>
         </div>
       ) : (
         <div className="space-y-2">

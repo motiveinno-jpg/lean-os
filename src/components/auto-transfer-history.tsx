@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
@@ -79,7 +80,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
           이번달 자동이체 연결 내역이 없습니다.
-          <div className="text-[10px] mt-1">통장 거래에서 &quot;고정지출&quot;로 표시하면 여기에 모입니다.</div>
+          <div className="text-[10px] mt-1">
+            <Link href="/transactions" className="text-[var(--primary)] hover:underline font-medium">거래내역</Link> 페이지에서 거래를 &quot;자동이체&quot;로 표시하면 여기에 모입니다.
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
