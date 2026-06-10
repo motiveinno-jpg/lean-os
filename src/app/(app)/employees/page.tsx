@@ -1152,6 +1152,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
   //   필요시 사용자가 접을 수 있게 토글은 유지.
   const [allowanceExpanded, setAllowanceExpanded] = useState(true);
+  // 오늘 출퇴근 현황 — 탭 클릭 시 해당 직원 명단 펼침
+  const [attnDetail, setAttnDetail] = useState<"present" | "late" | "leave" | "absent" | null>(null);
   // 퇴근 미입력 일괄 보정 모달 (관리자 전용)
   const [showMissingCheckOutModal, setShowMissingCheckOutModal] = useState(false);
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
@@ -1437,7 +1439,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));
       // 휴가자는 출근/지각 집계에서 제외(중복 방지)
       for (const id of leaveSet) { present.delete(id); late.delete(id); }
-      return { present: present.size, late: late.size, leave: leaveSet.size };
+      return {
+        present: present.size, late: late.size, leave: leaveSet.size,
+        presentIds: [...present], lateIds: [...late], leaveIds: [...leaveSet],
+      };
     },
     enabled: !!companyId && !isEmployeeRole,
     staleTime: 60_000,
@@ -1522,11 +1527,21 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           {/* 2026-05-22 지각 누적 Top5 → 오늘 출퇴근 현황 */}
           {(() => {
             const total = activeEmployees.length;
-            const present = todayStatus?.present ?? 0;
-            const late = todayStatus?.late ?? 0;
-            const leave = todayStatus?.leave ?? 0;
-            const absent = Math.max(0, total - present - late - leave);
-            const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+            const nameMap = new Map<string, string>(activeEmployees.map((e: any) => [e.id, e.name]));
+            const presentIds: string[] = todayStatus?.presentIds ?? [];
+            const lateIds: string[] = todayStatus?.lateIds ?? [];
+            const leaveIds: string[] = todayStatus?.leaveIds ?? [];
+            const accounted = new Set<string>([...presentIds, ...lateIds, ...leaveIds]);
+            const absentIds: string[] = activeEmployees.filter((e: any) => !accounted.has(e.id)).map((e: any) => e.id);
+            const rate = total > 0 ? Math.round(((presentIds.length + lateIds.length) / total) * 100) : 0;
+            const toNames = (ids: string[]) => ids.map((id) => nameMap.get(id) || "직원");
+            const CATS: { key: "present" | "late" | "leave" | "absent"; emoji: string; label: string; ids: string[]; tile: string; txt: string }[] = [
+              { key: "present", emoji: "🟢", label: "출근", ids: presentIds, tile: "bg-emerald-500/8 border-emerald-500/20", txt: "text-emerald-500" },
+              { key: "late", emoji: "🟡", label: "지각", ids: lateIds, tile: "bg-yellow-500/8 border-yellow-500/20", txt: "text-yellow-500" },
+              { key: "leave", emoji: "🔵", label: "휴가", ids: leaveIds, tile: "bg-sky-500/8 border-sky-500/20", txt: "text-sky-500" },
+              { key: "absent", emoji: "⚪", label: "미출근", ids: absentIds, tile: "bg-[var(--bg-surface)] border-[var(--border)]", txt: "text-[var(--text-muted)]" },
+            ];
+            const sel = CATS.find((c) => c.key === attnDetail);
             return (
               <div className="glass-card p-4">
                 <div className="flex items-center gap-2.5 mb-3">
@@ -1535,24 +1550,40 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   <span className="ml-auto text-[10px] text-[var(--text-dim)]">{kstToday} · 총원 {total}명</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div className="rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-3 py-2 flex items-center justify-between">
-                    <span className="text-[11px] text-emerald-500/90">🟢 출근</span>
-                    <span className="text-base font-extrabold text-emerald-500 tabular-nums">{present}</span>
-                  </div>
-                  <div className="rounded-lg bg-yellow-500/8 border border-yellow-500/20 px-3 py-2 flex items-center justify-between">
-                    <span className="text-[11px] text-yellow-500/90">🟡 지각</span>
-                    <span className="text-base font-extrabold text-yellow-500 tabular-nums">{late}</span>
-                  </div>
-                  <div className="rounded-lg bg-sky-500/8 border border-sky-500/20 px-3 py-2 flex items-center justify-between">
-                    <span className="text-[11px] text-sky-500/90">🔵 휴가</span>
-                    <span className="text-base font-extrabold text-sky-500 tabular-nums">{leave}</span>
-                  </div>
-                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 flex items-center justify-between">
-                    <span className="text-[11px] text-[var(--text-muted)]">⚪ 미출근</span>
-                    <span className="text-base font-extrabold text-[var(--text-muted)] tabular-nums">{absent}</span>
-                  </div>
+                  {CATS.map((c) => {
+                    const active = attnDetail === c.key;
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => setAttnDetail(active ? null : c.key)}
+                        className={`rounded-lg border px-3 py-2 flex items-center justify-between transition ${c.tile} ${active ? "ring-2 ring-[var(--primary)]/50" : "hover:brightness-105 active:scale-[0.98]"}`}
+                        aria-pressed={active}
+                      >
+                        <span className={`text-[11px] ${c.txt}`}>{c.emoji} {c.label}</span>
+                        <span className={`text-base font-extrabold tabular-nums ${c.txt}`}>{c.ids.length}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] text-right">출근율 {rate}%</div>
+                {sel && (
+                  <div className="mb-2 p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-semibold text-[var(--text-muted)]">{sel.emoji} {sel.label} · {sel.ids.length}명</span>
+                      <button type="button" onClick={() => setAttnDetail(null)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">닫기 ✕</button>
+                    </div>
+                    {sel.ids.length === 0 ? (
+                      <div className="text-[11px] text-[var(--text-dim)]">해당 직원 없음</div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {toNames(sel.ids).map((nm, i) => (
+                          <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)]">{nm}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="text-[10px] text-[var(--text-dim)] text-right">출근율 {rate}% · 탭을 눌러 명단 보기</div>
               </div>
             );
           })()}
