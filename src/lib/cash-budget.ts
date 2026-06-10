@@ -620,8 +620,13 @@ export async function getCostBreakdown(
     variableYear[k] = (variableYear[k] || 0) + Number(t.amount || 0);
   }
 
+  // 2026-06-10 기준 통일 — 고정비를 ×12(연환산)가 아니라 ×경과월(YTD 실제 발생액)로.
+  //   변동비(card)는 이미 해당 연도 실적 누계 → 둘 다 'YTD 실적'으로 맞춰 시간기준 불일치 제거
+  //   (과거: 고정 12개월 추정 vs 변동 ~5.5개월 실적 → 고정비가 부풀려 보이던 문제).
+  const _now = new Date();
+  const monthsElapsed = year < _now.getFullYear() ? 12 : year > _now.getFullYear() ? 0 : _now.getMonth() + 1;
   const fixed: CostCategoryRow[] = FIXED_COST_CATEGORIES
-    .map((f) => ({ category: f.value, label: f.label, monthly: fixedMonthly[f.value] || 0, amount: (fixedMonthly[f.value] || 0) * 12 }))
+    .map((f) => ({ category: f.value, label: f.label, monthly: fixedMonthly[f.value] || 0, amount: (fixedMonthly[f.value] || 0) * monthsElapsed }))
     .filter((r) => r.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 
