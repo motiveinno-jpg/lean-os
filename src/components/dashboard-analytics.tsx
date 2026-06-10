@@ -254,16 +254,24 @@ function CostColumn({ title, accent, total, share, items }: {
       {sorted.length === 0 ? (
         <div className="text-[11px] text-[var(--text-dim)] py-2">항목 없음</div>
       ) : (
-        <div className="space-y-1.5">
-          {shown.map((it) => (
-            <div key={it.label} className="flex items-center justify-between text-xs">
-              <span className="text-[var(--text-muted)] truncate pr-2">{it.label}</span>
-              <span className="mono-number text-[var(--text)] shrink-0">
-                {wonOut(it.amount)}
-                <span className="ml-1.5 text-[10px] text-[var(--text-dim)]">{pct(it.amount, total)}%</span>
-              </span>
-            </div>
-          ))}
+        <div className="space-y-2.5">
+          {shown.map((it) => {
+            const p = pct(it.amount, total);
+            return (
+              <div key={it.label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-[var(--text-muted)] truncate pr-2">{it.label}</span>
+                  <span className="mono-number text-[var(--text)] shrink-0 font-medium">
+                    {wonOut(it.amount)}
+                    <span className="ml-1.5 text-[10px] text-[var(--text-dim)]">{p}%</span>
+                  </span>
+                </div>
+                <div className="h-1 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(p, 100)}%`, background: accent }} />
+                </div>
+              </div>
+            );
+          })}
           {sorted.length > 4 && (
             <button onClick={() => setExpanded((v) => !v)} className="text-[11px] font-semibold text-[var(--info)] hover:underline pt-1">
               {expanded ? "접기" : `${sorted.length}개 카테고리 보기`}
