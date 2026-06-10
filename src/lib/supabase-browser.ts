@@ -2,9 +2,10 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/database';
 
 export function createSupabaseBrowserClient() {
+  // .trim() — env 값 끝 개행(\n)이 realtime WS URL 에 %0A 로 박혀 인증실패+재연결폭주 유발하던 버그 차단(2026-06-10)
   return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
   );
 }
 
