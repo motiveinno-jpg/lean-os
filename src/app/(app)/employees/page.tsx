@@ -1452,27 +1452,30 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* L 수당 — 관리자: 직원 수당 명세 임베드 (핸드오프 (a) — collapse 기본 접힘) */}
       {isAdmin && companyId && (
-        <div className="mb-4 glass-card overflow-hidden">
+        <div className="mb-6 glass-card overflow-hidden">
           <button
             type="button"
             onClick={() => setAllowanceExpanded((v) => !v)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-[var(--bg-surface)] transition text-left"
+            className="w-full p-4 flex items-center gap-2.5 hover:bg-[var(--bg-surface)] transition text-left"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg">💰</span>
-              <div>
-                <div className="text-sm font-semibold text-[var(--text)]">직원 수당 명세 (이번 달)</div>
-                <div className="text-xs text-[var(--text-muted)]">
-                  직원별 법정·커스텀 수당 · 월 일괄 재계산 · 엑셀 export
-                </div>
+            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white text-base shadow shrink-0">💰</span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[var(--text)]">
+                직원 수당 명세 <span className="font-normal text-[var(--text-muted)]">· 이번 달</span>
+              </div>
+              <div className="text-xs text-[var(--text-muted)] truncate">
+                직원별 법정·커스텀 수당 · 월 일괄 재계산 · 엑셀 export
               </div>
             </div>
-            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-              {allowanceExpanded ? "접기 ▲" : "펼치기 ▼"}
-            </span>
+            <svg
+              className={`ml-auto shrink-0 w-4 h-4 text-[var(--text-muted)] transition-transform duration-200 ${allowanceExpanded ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+            </svg>
           </button>
           {allowanceExpanded && (
-            <div className="px-5 pb-5 border-t border-[var(--border)]">
+            <div className="px-4 pb-4 border-t border-[var(--border)]">
               <AllowanceAdminTab companyId={companyId} userId={userId ?? null} />
             </div>
           )}
