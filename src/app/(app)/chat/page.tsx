@@ -1400,7 +1400,12 @@ function ChatPageInner() {
     return (
       <ChatRoomView
         channelId={selectedChannel}
-        onBack={() => router.push("/chat")}
+        onBack={() => {
+          // 채널은 push(/chat?channel=)로 열렸으므로 back() 으로 깨끗이 목록 복귀(히스토리 오염·재진입 방지).
+          //   딥링크(알림·북마크 — 직전 히스토리 없음)면 목록으로 fallback.
+          if (typeof window !== "undefined" && window.history.length > 1) router.back();
+          else router.push("/chat");
+        }}
       />
     );
   }

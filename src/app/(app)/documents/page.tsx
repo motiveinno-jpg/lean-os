@@ -1443,7 +1443,12 @@ function DocumentsPageInner() {
     return (
       <DocumentDetailView
         id={selectedId}
-        onBack={() => router.push("/documents")}
+        onBack={() => {
+          // 문서는 push(/documents?id=)로 열렸으므로 back() 으로 깨끗이 목록 복귀(히스토리 오염·재진입 방지).
+          //   딥링크(직전 히스토리 없음)면 목록으로 fallback.
+          if (typeof window !== "undefined" && window.history.length > 1) router.back();
+          else router.push("/documents");
+        }}
       />
     );
   }
