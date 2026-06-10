@@ -1257,7 +1257,7 @@ serve(async (req) => {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one"]);
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one"]);
       if (!allowedInternalActions.has(action)) {
         return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -1265,7 +1265,7 @@ serve(async (req) => {
 
     // cron-tick 은 companyId 없이 글로벌 처리. 그 외 action 은 companyId 필수.
     //   (bank-cron-tick 도 글로벌 — companyId 없이 회사 enumerate 후 fan-out)
-    if (!companyId && action !== "hometax-cron-tick" && action !== "bank-cron-tick") {
+    if (!companyId && action !== "hometax-cron-tick" && action !== "bank-cron-tick" && action !== "card-cron-tick") {
       return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (action === "hometax-cron-tick") {
@@ -1341,6 +1341,36 @@ serve(async (req) => {
       });
     }
 
+    // --- Action: card-cron-tick (글로벌, companyId 없이) — 카드 청구내역 자동 동기화 스케줄러 ---
+    //   2026-06-10 추가. bank-cron-tick 미러: codef_connected_id 보유 회사 enumerate → 회사별 card-cron-one 자가호출.
+    //   ⚠️ 카드 청구내역 전용(승인내역 미접촉 — 승인은 app-open/수동). dedup 으로 중복 안전.
+    if (action === "card-cron-tick") {
+      const { data: companies } = await supabase
+        .from("company_settings")
+        .select("company_id, codef_connected_id")
+        .not("codef_connected_id", "is", null)
+        .neq("codef_connected_id", "")
+        .limit(50);
+      const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
+      const triggers = (companies || []).map((c: any) =>
+        fetch(selfUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": authHeader as string, "X-Cron-Secret": CRON_SECRET },
+          body: JSON.stringify({ companyId: c.company_id, action: "card-cron-one" }),
+        }).catch(() => {})
+      );
+      // @ts-expect-error EdgeRuntime
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-expect-error EdgeRuntime
+        EdgeRuntime.waitUntil(Promise.all(triggers));
+      } else {
+        Promise.all(triggers).catch(() => {});
+      }
+      return new Response(JSON.stringify({ ok: true, triggered: companies?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Get CODEF credentials from company settings
@@ -1384,6 +1414,35 @@ serve(async (req) => {
         });
       } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
       return new Response(JSON.stringify({ ok: true, synced: bankRes?.synced ?? 0, errors: bankRes?.errors ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // --- Action: card-cron-one (회사별 카드 청구내역 자동 동기화 — card-cron-tick 가 호출) ---
+    //   2026-06-10 추가. bank-cron-one 미러. 카드 청구내역만(승인내역 제외). ~35일 윈도우(월경계 커버),
+    //   dedup(external_id)로 중복 안전. 잔액 재계산 불필요.
+    if (action === "card-cron-one") {
+      if (!cid) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 35); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      let cardRes: any = null;
+      try {
+        cardRes = await syncCardBilling(supabase, token, companyId, cid, startC, endC);
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      try {
+        await supabase.from("sync_logs").insert({
+          company_id: companyId,
+          sync_type: "codef_card_cron",
+          status: (cardRes?.errors?.length ?? 0) === 0 ? "success" : ((cardRes?.synced ?? 0) > 0 ? "partial" : "error"),
+          details: { card: cardRes, cron: true },
+          synced_by: null,
+        });
+      } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
+      return new Response(JSON.stringify({ ok: true, synced: cardRes?.synced ?? 0, errors: cardRes?.errors ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
