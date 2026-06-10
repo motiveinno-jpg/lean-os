@@ -80,9 +80,14 @@ function formatKrw(value: number): string {
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
-async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
+async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 6): Promise<BsData> {
+  // 2026-06-10 AR/AP 기간 하한 — 최근 arApMonths 개월 송장만 미수금/미지급금으로 집계.
+  //   매칭 워크플로우 미유지 시 1년치 송장이 통째로 미수/미지급으로 부풀려지던 문제 보정.
+  //   그 이전(fromDate 미만)은 이미 정산된 것으로 간주.
+  const cutoff = cutoffDate || new Date().toISOString().slice(0, 10);
+  const fromDate = (() => { const d = new Date(cutoff); d.setMonth(d.getMonth() - arApMonths); return d.toISOString().slice(0, 10); })();
   // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
-  const [bankRes, loanRes, cashRes, invoices, companyRes, settingsRes, vaultRes] = await Promise.all([
+  const [bankRes, loanRes, invoices, vaultRes] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -92,36 +97,19 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
       .select("lender, name, remaining_balance, status, maturity_date, start_date")
       .eq("company_id", companyId)
       .neq("status", "completed"),
-    supabase
-      .from("cash_snapshot")
-      .select("current_balance")
-      .eq("company_id", companyId)
-      .limit(1),
-    // 2026-05-22 매출채권·미지급금 모두 세금계산서 기준으로 통일 (사장님 요청).
-    //   매출(sales)·매입(purchase) 세금계산서를 한 번에 가져와 분리.
-    //   status NOT IN ('void','matched'):
-    //     - 'matched' = 3-way 매칭으로 통장 입출금과 연결됨 = 현금에 이미 반영됨
-    //       → 매출채권/미지급금에서 제외해 현금 및 예금과 상계(이중계상 방지).
-    //     - 'void' = 무효 세금계산서 제외.
+    // 매출(sales)·매입(purchase) 세금계산서. status NOT IN ('void','matched') = 미입금·미지급분.
+    //   'matched' = 통장 입출금 연결 → 현금에 반영(이중계상 방지), 'void' = 무효 제외.
+    //   + 기간 하한(fromDate) — 최근 N개월만 outstanding 으로 간주(스테일 송장 부풀림 차단).
     fetchAllPaginated<any>((from, to) => {
-      let q = supabase
+      const q = supabase
         .from("tax_invoices")
         .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
         .eq("company_id", companyId)
-        .not("status", "in", '("void","matched")');
-      if (cutoffDate) q = q.lte("issue_date", cutoffDate);
+        .not("status", "in", '("void","matched")')
+        .gte("issue_date", fromDate)
+        .lte("issue_date", cutoff);
       return q.range(from, to);
     }),
-    supabase
-      .from("companies")
-      .select("capital, registered_capital")
-      .eq("id", companyId)
-      .maybeSingle(),
-    (supabase as any)
-      .from("company_settings")
-      .select("capital")
-      .eq("company_id", companyId)
-      .maybeSingle(),
     supabase
       .from("vault_assets")
       .select("name, value, type, status, purchase_date, created_at, useful_life_months")
@@ -131,7 +119,6 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
 
   const bankAccounts = bankRes.data || [];
   const loans = loanRes.data || [];
-  const cashSnapshots = cashRes.data || [];
   // database.ts 수기 타입에 useful_life_months 미반영 — any 캐스트로 우회 (DB 컬럼은 PR1 에서 추가됨).
   const vaultAssets = (vaultRes.data || []) as any[];
 
@@ -140,9 +127,9 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const purchaseInvoices = (invoices as any[]).filter((inv) => inv.type === "purchase");
 
   /* --- Assets: Current --- */
-  const bankTotal = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-  const cashAmount = cashSnapshots.length > 0 ? (cashSnapshots[0].current_balance || 0) : 0;
-  const cashAndDeposits = bankTotal + cashAmount;
+  // 2026-06-10 현금·예금 = 통장 잔액 합(라이브 단일 소스). cash_snapshot 가산 제거 —
+  //   스테일(갱신 멈춤) + 통장 잔액과 이중계상 위험이라 통장만 사용.
+  const cashAndDeposits = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
 
   // 매출채권 = 미입금(미매칭) 매출 세금계산서. 매칭(matched)된 건은 통장 입금 확인 → 현금에 반영됨.
   const receivableDetails = salesInvoices.map((inv: any) => ({
@@ -224,16 +211,11 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     .sort((a, b) => b.totalAmount - a.totalAmount);
 
   /* --- Equity --- */
-  /* 자본금: companies → company_settings → DEFAULT_CAPITAL 순으로 조회 */
-  const companyData = companyRes.data as Record<string, unknown> | null;
-  const settingsData = settingsRes.data as Record<string, unknown> | null;
-  const dbCapital =
-    (companyData?.capital as number) ||
-    (companyData?.registered_capital as number) ||
-    (settingsData?.capital as number) ||
-    0;
-  const isCapitalDefault = dbCapital <= 0;
-  const capital = isCapitalDefault ? DEFAULT_CAPITAL : dbCapital;
+  // 2026-06-10 자본금: companies.capital/registered_capital·company_settings.capital 컬럼이
+  //   DB 에 존재하지 않아 조회 시 매 로드마다 400 발생 → 쿼리 제거.
+  //   실 자본금 소스가 생기기 전까지 기본값 + isCapitalDefault 안내 플래그 유지.
+  const isCapitalDefault = true;
+  const capital = DEFAULT_CAPITAL;
   const retainedEarnings = totalAssets - totalLiabilities - capital;
   const totalEquity = capital + retainedEarnings;
 
@@ -385,6 +367,8 @@ export default function BalanceSheetPage() {
   const [isCompareMode, setIsCompareMode] = useState(false);
   // 기준일 — 빈 값이면 오늘, 사용자가 지정하면 그 시점 BS 조회
   const [cutoffInput, setCutoffInput] = useState<string>('');
+  // 2026-06-10 매출채권/미지급금 집계 기간(개월) — 최근 N개월 송장만 outstanding 으로 간주
+  const [arApMonths, setArApMonths] = useState<number>(6);
   const [showPayableDrill, setShowPayableDrill] = useState(false);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
   // 통합 세부 모달: 자산/부채 항목 클릭 시 열림
@@ -409,8 +393,8 @@ export default function BalanceSheetPage() {
     const prevCutoff = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
 
     Promise.all([
-      fetchBsData(companyId, cutoffInput || undefined),
-      fetchBsData(companyId, prevCutoff),
+      fetchBsData(companyId, cutoffInput || undefined, arApMonths),
+      fetchBsData(companyId, prevCutoff, arApMonths),
       fetchBsTrend(companyId, 6),
     ])
       .then(([current, prev, trendData]) => {
@@ -420,7 +404,7 @@ export default function BalanceSheetPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId, cutoffInput]);
+  }, [companyId, cutoffInput, arApMonths]);
 
   /* ---------------------------------------------------------------- */
   /*  CSV Export                                                       */
@@ -681,6 +665,24 @@ export default function BalanceSheetPage() {
                 style={{ background: 'transparent', border: 'none', fontSize: 11, color: 'var(--primary)', cursor: 'pointer', padding: 0 }}
                 title="오늘로 초기화">↺ 오늘</button>
             )}
+          </div>
+          {/* 2026-06-10 매출채권/미지급금 집계 기간 — 대시보드 토글 스타일 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 13, color: 'var(--text-dim)' }}>채권·채무 기준:</label>
+            <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+              {[3, 6, 12].map((m) => (
+                <button key={m} type="button" onClick={() => setArApMonths(m)}
+                  style={{
+                    padding: '4px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, border: 'none', cursor: 'pointer',
+                    background: arApMonths === m ? 'var(--primary)' : 'transparent',
+                    color: arApMonths === m ? 'var(--primary-foreground)' : 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}>
+                  최근 {m}개월
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>이내 미매칭 세금계산서만 미수금·미지급금으로 집계</span>
           </div>
         </div>
         <button
