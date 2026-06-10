@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getDeals, getCompanyUsers } from "@/lib/queries";
+import { MondayBoard } from "@/components/monday-board";
 import { getPartners } from "@/lib/partners";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
@@ -645,22 +646,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
             <option value="B2C">B2C</option>
             <option value="B2G">B2G</option>
           </select>
-          <div className="ml-auto flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-full p-1">
-            <button
-              type="button"
-              onClick={() => setView("kanban")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition ${view === "kanban" ? "bg-gradient-to-r from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}
-            >
-              칸반
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition ${view === "list" ? "bg-gradient-to-r from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}
-            >
-              리스트
-            </button>
-          </div>
+          {/* 2026-06-10 칸반/리스트 토글 제거 — Monday 보드(테이블)로 완전 교체 */}
         </div>
       </div>
 
@@ -669,25 +655,9 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         <div className="text-center py-12 text-sm text-[var(--text-muted)]">불러오는 중...</div>
       )}
 
-      {!dealsLoading && filteredCards.length === 0 && (
-        <EmptyState onCreate={onCreate} />
-      )}
-
-      {!dealsLoading && filteredCards.length > 0 && view === "kanban" && (
-        <KanbanView
-          byStage={byStage}
-          onCardClick={(c) => openSlide(c.id)}
-          onStageMenu={openStageModal}
-          onDetail={(id) => openSlide(id)}
-        />
-      )}
-
-      {!dealsLoading && filteredCards.length > 0 && view === "list" && (
-        <ListView
-          cards={filteredCards}
-          onRowClick={(c) => openSlide(c.id)}
-          onInlineStageChange={(dealId, newStage) => updateStageMut.mutate({ dealId, newStage })}
-        />
+      {/* 2026-06-10 Monday 스타일 커스텀 보드로 완전 교체 (칸반/리스트 → 그룹·커스텀컬럼 테이블) */}
+      {!dealsLoading && companyId && (
+        <MondayBoard companyId={companyId} users={users} />
       )}
 
       {/* Stage 변경 모달 */}
