@@ -189,64 +189,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
     setHamburgerHint(false);
   };
 
-  // 앱 진입 시 전역 자동 동기화 — CODEF 한 번이라도 연결된 회사면
-  // 페이지 무관하게 오너뷰를 켜면 통장+카드 자동 동기화 (30분 주기, 최근 14일 증분).
   const companyId = user?.company_id ?? null;
-  useEffect(() => {
-    if (!companyId) return;
-    let stopped = false;
-
-    const connectedKey = `codef-connected-${companyId}`;
-    const isConnected = async (): Promise<boolean> => {
-      if (typeof window !== "undefined" && localStorage.getItem(connectedKey) === "1") return true;
-      try {
-        const { supabase } = await import("@/lib/supabase");
-        const sb = supabase as any;
-        const [{ count: bankCnt }, { count: cardCnt }] = await Promise.all([
-          sb.from("bank_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("source", "codef_bank"),
-          sb.from("card_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        ]);
-        if ((bankCnt ?? 0) > 0 || (cardCnt ?? 0) > 0) {
-          localStorage.setItem(connectedKey, "1");
-          return true;
-        }
-      } catch { /* ignore */ }
-      return false;
-    };
-
-    const runOne = async (syncType: "bank" | "card" | "card_approval") => {
-      const tKey = `codef-autosync-${companyId}-${syncType}`;
-      const last = Number(localStorage.getItem(tKey) || 0);
-      if (Date.now() - last < 25 * 60 * 1000) return; // 25분 throttle (탭 다중·새로고침 우회 차단)
-      localStorage.setItem(tKey, String(Date.now()));
-      try {
-        const { syncCodefData } = await import("@/lib/data-sync");
-        // 증분 동기화 — 자동 호출은 최근 14일만 조회(기본 3개월 전체 재조회 방지).
-        //   upsert(onConflict)라 신규 거래만 반영. 전체 이력은 수동 동기화 버튼이 담당.
-        const d = new Date(); d.setDate(d.getDate() - 14);
-        const start = d.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
-        const result = await syncCodefData(companyId, syncType, start);
-        if (result?.success && !stopped) {
-          localStorage.setItem(connectedKey, "1");
-          window.dispatchEvent(new Event("ownerview:codef-synced"));
-        }
-      } catch { /* 자동 동기화 실패는 조용히 무시 */ }
-    };
-
-    const runAll = async () => {
-      if (stopped || !(await isConnected())) return;
-      await runOne("bank");
-      await runOne("card");
-      // 카드 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과). 청구 마감 전 결제 즉시 반영.
-      await runOne("card_approval");
-    };
-
-    // 2026-06-10 CODEF 과금 폭증 주범 — 앱을 켜두면 30분마다 자동 동기화(통장+카드)가 24/7 과금되던
-    //   setInterval 제거. 앱 진입/새로고침 시 1회만(25분 throttle). 정기 갱신은 서버 cron(은행 하루 2회)
-    //   + 수동 동기화 버튼이 담당. (사장님 확인 2026-06-10)
-    runAll(); // 앱 켜면 1회만
-    return () => { stopped = true; };
-  }, [companyId]);
+  // 2026-06-10 CODEF 과금 통제 — app-shell 자동 동기화(앱 열때·30분 주기) 전면 제거.
+  //   탭·기기·새로고침마다 곱해지는 변동비라, 비용을 예측가능하게 cron+수동으로 일원화(사장님 결정).
+  //   · 정기 자동 갱신: 서버 cron — 은행 bank-sync-tick(하루 2회 0 1,13) + 카드 card-sync-tick(하루 2회 0 4,16)
+  //   · 최신 필요 시: 각 페이지(통장/카드/대시보드/설정) '동기화' 버튼 = 수동, 누를 때만 과금
+  //   → 앱을 켜두거나 새로고침해도 자동 CODEF 호출 0.
 
   // 글로벌 mutation 에러 토스트 (providers.tsx MutationCache에서 발생)
   useEffect(() => {
