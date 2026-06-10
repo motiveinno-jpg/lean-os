@@ -31,9 +31,10 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
   return (
     <>
       {/* Desktop: SVG funnel */}
-      {/* transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 페인트 잔상 방지) */}
-      <div className="hidden md:block relative" style={{ height, transform: "translateZ(0)" }}>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+      {/* contain:paint + overflow-hidden + translateZ(0) — preserveAspectRatio=none·non-scaling-stroke
+          SVG 페인트가 박스 밖으로 번지던 버그 차단(2026-06-10) */}
+      <div className="hidden md:block relative overflow-hidden" style={{ height, transform: "translateZ(0)", contain: "paint" }}>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ contain: "paint" }}>
           {stages.map((s, i) => {
             const segH = 100 / stages.length;
             const yTop = i * segH;
