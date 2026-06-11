@@ -2620,7 +2620,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       <div className="glass-card p-5 mb-6">
         <div className="text-xs text-[var(--text-muted)] leading-relaxed">
           <strong className="text-[var(--text)]">VAT 미리보기</strong>: 분기별 부가가치세 납부/환급 예상액입니다.
-          매출세액 - 매입세액 - 카드매입세액공제 = 최종 납부세액
+          매출세액(세금계산서 + 현금영수증 발행분) - 매입세액 - 카드매입세액공제 = 최종 납부세액
         </div>
       </div>
 
@@ -2664,7 +2664,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
               return (
                 <tr key={v.quarter} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                   <td className="px-5 py-3 text-sm font-bold">{v.quarter}</td>
-                  <td className="px-5 py-3 text-sm text-right text-green-500">₩{v.salesTax.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right text-green-500" title={v.cashReceiptSalesTax > 0 ? `세금계산서 ₩${(v.invoiceSalesTax ?? 0).toLocaleString()} + 현금영수증 ₩${v.cashReceiptSalesTax.toLocaleString()}` : undefined}>₩{v.salesTax.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm text-right text-orange-500">₩{v.purchaseTax.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm text-right text-[var(--primary)]">₩{v.cardDeduction.toLocaleString()}</td>
                   <td className={`px-5 py-3 text-sm text-right font-bold ${v.netVAT >= 0 ? "text-[var(--text)]" : "text-red-400"}`}>

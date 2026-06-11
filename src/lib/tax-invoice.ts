@@ -416,7 +416,9 @@ export async function getTaxInvoiceSummary(
 // ── VAT Preview (분기별 부가세 예측) ──
 export interface VATPreview {
   quarter: string;
-  salesTax: number;
+  salesTax: number;            // 매출세액 합계 = 세금계산서 + 현금영수증(발행)
+  invoiceSalesTax: number;     // 세금계산서 매출세액
+  cashReceiptSalesTax: number; // 현금영수증 매출세액 (2026-06-11 통합 — 기존엔 누락돼 납부세액 과소추정)
   purchaseTax: number;
   cardDeduction: number;
   netVAT: number;
@@ -434,6 +436,25 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
     .from('card_deduction_summary')
     .select('*')
     .eq('company_id', companyId);
+
+  // 현금영수증 매출 세액 — 세금계산서 미발행 매출의 부가세도 납부 대상 (cash-receipts 화면 동일 테이블)
+  //   발행(issued)만 집계, 취소/무효 제외. 매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
+  const { data: crData } = await db
+    .from('cash_receipts')
+    .select('tax_amount, issue_date')
+    .eq('company_id', companyId)
+    .eq('type', 'income')
+    .eq('status', 'issued')
+    .gte('issue_date', `${year}-01-01`)
+    .lt('issue_date', `${year + 1}-01-01`);
+
+  const crByQuarter = new Map<string, number>();
+  (crData || []).forEach((c: any) => {
+    const d = new Date(c.issue_date);
+    const q = Math.ceil((d.getMonth() + 1) / 3);
+    const key = `${year}-Q${q}`;
+    crByQuarter.set(key, (crByQuarter.get(key) ?? 0) + Number(c.tax_amount ?? 0));
+  });
 
   // Map card deductions to quarters
   const cardByQuarter = new Map<string, number>();
@@ -456,12 +477,16 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
 
   return quarters.map(q => {
     const data = quarterly.find(s => s.period === q);
-    const salesTax = data?.salesTax ?? 0;
+    const invoiceSalesTax = data?.salesTax ?? 0;
+    const cashReceiptSalesTax = crByQuarter.get(q) ?? 0;
+    const salesTax = invoiceSalesTax + cashReceiptSalesTax;
     const purchaseTax = data?.purchaseTax ?? 0;
     const cardDeduction = cardByQuarter.get(q) ?? 0;
     return {
       quarter: q,
       salesTax,
+      invoiceSalesTax,
+      cashReceiptSalesTax,
       purchaseTax,
       cardDeduction,
       netVAT: salesTax - purchaseTax - cardDeduction,
