@@ -25,7 +25,7 @@ type QueueRow = {
   transaction_date: string; txn_amount: number; counterparty: string | null; txn_type: string;
   issue_date: string; invoice_amount: number; counterparty_name: string | null; invoice_type: string;
 };
-type OpenTx = { id: string; amount: number; settled_amount: number; transaction_date: string; counterparty: string | null; type: string };
+type OpenTx = { id: string; amount: number; settled_amount: number; transaction_date: string; counterparty: string | null; type: string; suggestedCount?: number };
 type UnsettledInv = { id: string; type: string; issue_date: string; total_amount: number; settled_amount: number; counterparty_name: string | null; partner_id: string | null };
 
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
@@ -188,14 +188,18 @@ export default function PartnerLedgerPage() {
   const highConfIds = queue.filter((m) => (m.confidence ?? 0) >= 0.9).map((m) => m.id);
 
   // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
+  //   확인 큐 제안(suggested)만 걸린 거래도 open 이라 여기 포함됨 — 제안 건수를 함께 보여 이중 처리 방지.
   const { data: openTx = [] } = useQuery<OpenTx[]>({
     queryKey: ["manual-open-tx", companyId, tab],
     queryFn: async () => {
       const { data } = await db.from("bank_transactions")
-        .select("id, amount, settled_amount, transaction_date, counterparty, type")
+        .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status)")
         .eq("company_id", companyId).in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
         .gt("amount", 0).order("transaction_date", { ascending: false }).limit(300);
-      return (data || []) as OpenTx[];
+      return ((data || []) as any[]).map((t) => ({
+        ...t,
+        suggestedCount: ((t.invoice_settlements || []) as { status: string }[]).filter((s) => s.status === "suggested" || s.status === "needs_review").length,
+      })) as OpenTx[];
     },
     enabled: !!companyId && tab === "manual",
   });
@@ -213,9 +217,19 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId && tab === "manual",
   });
 
-  // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감)
+  // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감).
+  //   같은 (거래, 계산서) 쌍에 기존 행(엔진 제안/반려 이력)이 있으면 unique 충돌 대신 그 행을 확정으로 승격.
   const manualMut = useMutation({
     mutationFn: async ({ tx, inv, amount }: { tx: OpenTx; inv: UnsettledInv; amount: number }) => {
+      const { data: existing } = await db.from("invoice_settlements")
+        .select("id, status").eq("bank_transaction_id", tx.id).eq("tax_invoice_id", inv.id).maybeSingle();
+      if (existing) {
+        const { error } = await db.from("invoice_settlements")
+          .update({ amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결" })
+          .eq("id", existing.id);
+        if (error) throw new Error(error.message);
+        return;
+      }
       const { error } = await db.from("invoice_settlements").insert({
         company_id: companyId, bank_transaction_id: tx.id, tax_invoice_id: inv.id,
         amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결",
@@ -413,7 +427,18 @@ export default function PartnerLedgerPage() {
                         <td className={`${GRID_TD} text-center`}>
                           <span className={`font-semibold ${t.type === "income" ? "text-emerald-500" : "text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
                         </td>
-                        <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[220px]`}>{t.counterparty || "—"}</td>
+                        <td className={`${GRID_TD} text-[var(--text)] max-w-[220px]`}>
+                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <span className="truncate">{t.counterparty || "—"}</span>
+                            {(t.suggestedCount ?? 0) > 0 && (
+                              <button onClick={() => setTab("queue")}
+                                className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
+                                title="이 거래에 자동 매칭 제안이 확인 큐에 대기 중입니다 — 클릭하면 확인 큐로 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.">
+                                제안 {t.suggestedCount}건
+                              </button>
+                            )}
+                          </span>
+                        </td>
                         <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(t.amount)}</td>
                         <td className={`${GRID_TD} text-right mono-number text-[var(--text-muted)]`}>{fmt(t.settled_amount)}</td>
                         <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(txRemaining(t))}</td>
