@@ -42,6 +42,7 @@ export default function PartnerLedgerPage() {
   const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
   const [ledgerSearch, setLedgerSearch] = useState(""); // 거래처명 검색
+  const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null); // 거래처 상세 팝업
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
@@ -124,6 +125,28 @@ export default function PartnerLedgerPage() {
     onSuccess: (_d, v) => { invalidateAll(); toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info"); },
     onError: (e: any) => toast(e?.message || "처리 실패", "error"),
   });
+
+  // 일괄 확정/반려 — 고신뢰 일괄 또는 선택 건
+  const bulkDecideMut = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: "confirmed" | "rejected" }) => {
+      if (!ids.length) return 0;
+      const { error } = await db.from("invoice_settlements").update({ status }).in("id", ids);
+      if (error) throw new Error(error.message);
+      return ids.length;
+    },
+    onSuccess: (n, v) => { invalidateAll(); setSelected(new Set()); toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info"); },
+    onError: (e: any) => toast(e?.message || "일괄 처리 실패", "error"),
+  });
+
+  // 신뢰도 등급(매칭엔진 날짜기반 신뢰도 기준)
+  const confTier = (c: number | null) => {
+    const v = c ?? 0;
+    if (v >= 0.9) return { label: "높음", cls: "bg-emerald-500/10 text-emerald-500" };
+    if (v >= 0.7) return { label: "보통", cls: "bg-amber-500/10 text-amber-500" };
+    return { label: "낮음", cls: "bg-red-500/10 text-red-400" };
+  };
+  const toggleSel = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const highConfIds = queue.filter((m) => (m.confidence ?? 0) >= 0.9).map((m) => m.id);
 
   // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
   const { data: openTx = [] } = useQuery<OpenTx[]>({
@@ -238,8 +261,31 @@ export default function PartnerLedgerPage() {
               <div className="text-[11px] text-[var(--text-dim)] mt-1">상단에서 기간(최대 6개월)을 고르고 “⚙️ 이 기간 매칭”으로 제안을 생성하세요. 기간을 바꿔 여러 번 돌려도 누적됩니다.</div>
             </div>
           ) : (
-            queue.map((m) => (
-              <div key={m.id} className="glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+            <>
+              <div className="glass-card p-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button onClick={() => setSelected(new Set(queue.map((m) => m.id)))} className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold">전체 선택</button>
+                  {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="px-2.5 py-1 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)]">해제</button>}
+                  <span className="text-[var(--text-dim)]">{selected.size > 0 ? `${selected.size}건 선택됨` : `대기 ${queue.length}건 · 높음 ${highConfIds.length}건`}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selected.size > 0 ? (
+                    <>
+                      <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "confirmed" })} disabled={bulkDecideMut.isPending}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 text-white hover:opacity-90 disabled:opacity-50">선택 {selected.size}건 확정</button>
+                      <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "rejected" })} disabled={bulkDecideMut.isPending}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 disabled:opacity-50">선택 반려</button>
+                    </>
+                  ) : highConfIds.length > 0 ? (
+                    <button onClick={() => bulkDecideMut.mutate({ ids: highConfIds, status: "confirmed" })} disabled={bulkDecideMut.isPending}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 text-white hover:opacity-90 disabled:opacity-50"
+                      title="신뢰도 90% 이상(금액 정확·45일 이내) 매칭을 한 번에 확정합니다">고신뢰 {highConfIds.length}건 일괄 확정 (90%+)</button>
+                  ) : null}
+                </div>
+              </div>
+              {queue.map((m) => (
+                <div key={m.id} className={`glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3 ${selected.has(m.id) ? "ring-1 ring-[var(--primary)]" : ""}`}>
+                <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggleSel(m.id)} className="shrink-0 self-start lg:self-center mt-1 lg:mt-0 accent-[var(--primary)] w-4 h-4" />
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
                   <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.txn_type === "income" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
                     <div className={`text-[10px] font-semibold truncate ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"} · {m.transaction_date}</div>
@@ -255,7 +301,7 @@ export default function PartnerLedgerPage() {
                 <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1 lg:w-[200px] lg:shrink-0">
                   <div className="text-right min-w-0 w-full">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{MATCH_LABEL[m.match_type] || m.match_type}</span>
-                    <span className="text-[10px] text-[var(--text-dim)] ml-1">{m.confidence != null ? `${Math.round(m.confidence * 100)}%` : ""}</span>
+                    {m.confidence != null && (() => { const t = confTier(m.confidence); return <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded font-semibold ${t.cls}`}>{Math.round(m.confidence * 100)}% {t.label}</span>; })()}
                     <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">{won(m.amount)} 정산 · {m.reason || ""}</div>
                   </div>
                   <div className="flex gap-1.5">
@@ -266,7 +312,8 @@ export default function PartnerLedgerPage() {
                   </div>
                 </div>
               </div>
-            ))
+              ))}
+            </>
           )}
         </div>
       )}
