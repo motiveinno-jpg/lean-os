@@ -551,7 +551,7 @@ export async function getFounderData(companyId: string) {
   const quarter = `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`;
   const year = String(now.getFullYear());
 
-  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes, bankRes, recurRes, bankTxRes, taxRes] = await Promise.all([
+  const [mfRes, itemsRes, targetsRes, dealsRes, nodesRes, costRes, bankRes, recurRes, bankTxRes, taxRes, salesInvRes, arInvRes] = await Promise.all([
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month', { ascending: false }),
     supabase.from('financial_items').select('*').eq('company_id', companyId).eq('month', thisMonth),
     supabase.from('growth_targets').select('*').eq('company_id', companyId),
@@ -563,9 +563,30 @@ export async function getFounderData(companyId: string) {
     // 2026-05-22 hasData 안전망: 집계(monthly_financials)가 아직 안 돌았어도 원천 있으면 "데이터 없음" CTA 숨김
     supabase.from('bank_transactions').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
     supabase.from('tax_invoices').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
+    // 2026-06-11 매출 단일 소스화: 올해 매출 세금계산서(공급가액) — 손익계산서(/reports/pnl)와 동일 기준.
+    //   기존 monthly_financials.revenue 는 엑셀 임포트 전용이라 CODEF·계산서 실데이터와 어긋났음(히어로 매출 0/스테일).
+    supabase.from('tax_invoices').select('supply_amount, issue_date')
+      .eq('company_id', companyId).eq('type', 'sales').neq('status', 'void')
+      .gte('issue_date', `${year}-01-01`).lt('issue_date', `${Number(year) + 1}-01-01`),
+    // 2026-06-11 미수금 단일 소스화: 미정산 매출 계산서 전체 — 요약 위젯/경영 흐름과 동일 조건.
+    //   기존 financial_items(category=receivable, 엑셀 전용)와 어긋났음.
+    supabase.from('tax_invoices').select('counterparty_name, total_amount, issue_date')
+      .eq('company_id', companyId).eq('type', 'sales')
+      .in('status', ['issued', 'sent', 'pending', 'overdue']),
   ]);
   const bankTxCount = bankTxRes.count || 0;
   const taxInvoiceCount = taxRes.count || 0;
+
+  // ── 세금계산서 기반 라이브 매출 (월별 공급가액) ──
+  const invoiceMonthlyRevenue = new Map<string, number>();
+  ((salesInvRes.data || []) as any[]).forEach((inv: any) => {
+    const m = String(inv.issue_date || '').slice(0, 7);
+    if (!m) return;
+    invoiceMonthlyRevenue.set(m, (invoiceMonthlyRevenue.get(m) || 0) + Number(inv.supply_amount || 0));
+  });
+  // 올해 매출 계산서가 1건이라도 있으면 라이브 기준, 없으면 레거시(엑셀 monthly_financials) 유지
+  //   (매입 계산서만 있는 회사가 매출 0 으로 덮어쓰이는 것 방지)
+  const useInvoiceRevenue = invoiceMonthlyRevenue.size > 0;
 
   const allMonths = mfRes.data || [];
   const currentMonth = allMonths.find((m: any) => m.month === thisMonth) || allMonths[0] || null;
@@ -594,16 +615,41 @@ export async function getFounderData(companyId: string) {
   const quarterTarget = Number(targets.find((t: any) => t.period === quarter)?.target_revenue || 0);
   const yearTarget = Number(targets.find((t: any) => t.period === year)?.target_revenue || 0);
 
-  // Calculate quarter/year revenue from allMonths
-  const quarterMonths = allMonths.filter((m: any) => {
-    const [y, mo] = m.month.split('-').map(Number);
-    const q = Math.ceil(mo / 3);
-    return y === now.getFullYear() && q === Math.ceil((now.getMonth() + 1) / 3);
-  });
-  const quarterRevenue = quarterMonths.reduce((s: number, m: any) => s + Number(m.revenue || 0), 0);
+  // Calculate quarter/year revenue — 라이브(세금계산서 공급가액) 우선, 레거시(엑셀)는 fallback
+  const currentQ = Math.ceil((now.getMonth() + 1) / 3);
+  let quarterRevenue: number;
+  let yearRevenue: number;
+  if (useInvoiceRevenue) {
+    quarterRevenue = [...invoiceMonthlyRevenue.entries()]
+      .filter(([m]) => Math.ceil(Number(m.split('-')[1]) / 3) === currentQ)
+      .reduce((s, [, v]) => s + v, 0);
+    yearRevenue = [...invoiceMonthlyRevenue.values()].reduce((s, v) => s + v, 0);
+  } else {
+    const quarterMonths = allMonths.filter((m: any) => {
+      const [y, mo] = m.month.split('-').map(Number);
+      const q = Math.ceil(mo / 3);
+      return y === now.getFullYear() && q === currentQ;
+    });
+    quarterRevenue = quarterMonths.reduce((s: number, m: any) => s + Number(m.revenue || 0), 0);
+    const yearMonths = allMonths.filter((m: any) => m.month.startsWith(year));
+    yearRevenue = yearMonths.reduce((s: number, m: any) => s + Number(m.revenue || 0), 0);
+  }
 
-  const yearMonths = allMonths.filter((m: any) => m.month.startsWith(year));
-  const yearRevenue = yearMonths.reduce((s: number, m: any) => s + Number(m.revenue || 0), 0);
+  // ── 라이브 미수금 items (tax_invoices 미정산) — 계산서 사용 회사는 엑셀 receivable 대체 ──
+  //   due_date := issue_date → engines 의 30일 경과 판정이 요약 위젯(issue_date 30일 컷오프)과 동일해짐
+  const liveReceivables = ((arInvRes.data || []) as any[]).map((inv: any) => ({
+    category: 'receivable',
+    name: inv.counterparty_name || '세금계산서',
+    amount: Number(inv.total_amount || 0),
+    due_date: inv.issue_date,
+    status: 'pending',
+    risk_label: null,
+    project_name: null,
+    account_type: null,
+  }));
+
+  // 이번 달 매출 — 라이브(계산서 공급가액) 우선
+  const liveMonthRevenue = invoiceMonthlyRevenue.get(thisMonth) ?? 0;
 
   return {
     currentMonth: currentMonth ? {
@@ -614,8 +660,8 @@ export async function getFounderData(companyId: string) {
       fixed_cost: Number(currentMonth.fixed_cost || 0) || recurringTotal,
       variable_cost: Number(currentMonth.variable_cost || 0),
       net_cashflow: Number(currentMonth.net_cashflow || 0),
-      revenue: Number(currentMonth.revenue || 0),
-    } : (bankAccountsTotal > 0 || recurringTotal > 0) ? {
+      revenue: useInvoiceRevenue ? liveMonthRevenue : Number(currentMonth.revenue || 0),
+    } : (bankAccountsTotal > 0 || recurringTotal > 0 || useInvoiceRevenue) ? {
       month: thisMonth,
       bank_balance: bankAccountsTotal,
       total_income: 0,
@@ -623,9 +669,10 @@ export async function getFounderData(companyId: string) {
       fixed_cost: recurringTotal,
       variable_cost: 0,
       net_cashflow: 0,
-      revenue: 0,
+      revenue: useInvoiceRevenue ? liveMonthRevenue : 0,
     } : null,
-    items: items.map((i: any) => ({
+    // 계산서 사용 회사는 엑셀 receivable 을 라이브 미정산 계산서로 대체 (이중계상·스테일 방지)
+    items: (taxInvoiceCount > 0 ? [...items.filter((i: any) => i.category !== 'receivable'), ...liveReceivables] : items).map((i: any) => ({
       category: i.category,
       name: i.name,
       amount: Number(i.amount || 0),
@@ -654,12 +701,23 @@ export async function getFounderData(companyId: string) {
     targets: { monthTarget, quarterTarget, yearTarget },
     quarterRevenue,
     yearRevenue,
-    allMonths: allMonths.map((m: any) => ({
-      month: m.month,
-      revenue: Number(m.revenue || 0),
-      totalIncome: Number(m.total_income || 0),
-      totalExpense: Number(m.total_expense || 0),
-    })),
+    // 월별 추이 — 올해 매출은 라이브(계산서) 우선, 과거 연도는 레거시 스냅샷 유지.
+    //   계산서만 있고 mf 행이 없는 달도 추이에 포함 (union).
+    allMonths: (() => {
+      const mfByMonth = new Map<string, any>(allMonths.map((m: any) => [m.month, m]));
+      const keys = new Set<string>(mfByMonth.keys());
+      if (useInvoiceRevenue) invoiceMonthlyRevenue.forEach((_, k) => keys.add(k));
+      return [...keys].sort((a, b) => b.localeCompare(a)).map((month) => {
+        const m = mfByMonth.get(month);
+        const liveThisYear = useInvoiceRevenue && month.startsWith(year);
+        return {
+          month,
+          revenue: liveThisYear ? (invoiceMonthlyRevenue.get(month) ?? 0) : Number(m?.revenue || 0),
+          totalIncome: Number(m?.total_income || 0),
+          totalExpense: Number(m?.total_expense || 0),
+        };
+      });
+    })(),
     hasData: allMonths.length > 0 || items.length > 0 || bankTxCount > 0 || taxInvoiceCount > 0,
   };
 }

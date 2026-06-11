@@ -64,35 +64,48 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
 
-  // 매출 — monthly_financials.revenue 합 (해당 연도). 읽기 전용, 계산 무변경.
-  const { data: revenue = 0 } = useQuery({
+  // 매출 — 2026-06-11 라이브 전환: 세금계산서 공급가액(월별 맵).
+  //   기존 monthly_financials.revenue 는 엑셀 임포트 전용이라 실데이터(히어로·하단카드·손익계산서)와 어긋났음.
+  const { data: revByMonth } = useQuery<Map<string, number>>({
     queryKey: ["analytics-revenue", companyId, year],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("monthly_financials")
-        .select("revenue, month")
-        .eq("company_id", companyId);
-      return (data || [])
-        .filter((r: any) => String(r.month || "").startsWith(String(year)))
-        .reduce((s: number, r: any) => s + Number(r.revenue || 0), 0);
+        .from("tax_invoices")
+        .select("supply_amount, issue_date")
+        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => {
+        const k = String(r.issue_date || "").slice(0, 7);
+        if (k) m.set(k, (m.get(k) || 0) + Number(r.supply_amount || 0));
+      });
+      return m;
     },
     enabled: !!companyId,
   });
+  const revenue = useMemo(
+    () => [...(revByMonth?.values() ?? [])].reduce((s, v) => s + v, 0),
+    [revByMonth],
+  );
 
-  // 손익 탭 — 월별 매출·비용 (monthly_financials)
+  // 손익 탭 — 월별 매출(라이브 계산서)·비용(monthly_financials 집계). 월 union 으로 계산서만 있는 달도 표시.
   const { data: monthlyPnl = [] } = useQuery({
-    queryKey: ["analytics-monthly-pnl", companyId, year],
+    queryKey: ["analytics-monthly-pnl", companyId, year, revByMonth?.size ?? -1],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("monthly_financials")
-        .select("month, revenue, total_expense")
+        .select("month, total_expense")
         .eq("company_id", companyId);
-      return ((data || []) as Array<{ month: string; revenue: number; total_expense: number }>)
+      const expByMonth = new Map<string, number>();
+      ((data || []) as Array<{ month: string; total_expense: number }>)
         .filter((r) => String(r.month || "").startsWith(String(year)))
-        .map((r) => ({ month: String(r.month).slice(0, 7), revenue: Number(r.revenue || 0), expense: Number(r.total_expense || 0) }))
+        .forEach((r) => expByMonth.set(String(r.month).slice(0, 7), Number(r.total_expense || 0)));
+      const keys = new Set<string>([...expByMonth.keys(), ...(revByMonth?.keys() ?? [])]);
+      return [...keys]
+        .map((month) => ({ month, revenue: revByMonth?.get(month) || 0, expense: expByMonth.get(month) || 0 }))
         .sort((a, b) => a.month.localeCompare(b.month));
     },
-    enabled: !!companyId,
+    enabled: !!companyId && !!revByMonth,
   });
 
   // 인원 탭 — 직원별 급여 (loadSalaryByPerson, 카드 사용액 제외)
@@ -191,7 +204,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
 
             {/* 매출 */}
             <SummaryCard title="매출" total={won(revenue)} accent="var(--success)" href="/reports/pnl" allLabel="손익 상세 보기">
-              <div className="text-[11px] text-[var(--text-muted)] px-1 py-2">{year}년 누적 매출 (세금계산서·집계 기준)</div>
+              <div className="text-[11px] text-[var(--text-muted)] px-1 py-2">{year}년 누적 매출 (세금계산서 공급가액 기준)</div>
             </SummaryCard>
           </div>
         </>

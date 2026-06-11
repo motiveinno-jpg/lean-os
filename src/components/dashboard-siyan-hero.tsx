@@ -64,8 +64,9 @@ export function DashboardSiyanHero({
     segments: { pct: number; color: string }[];
   }[] = [
     {
+      // 2026-06-11 매출 단일 기준: 세금계산서 공급가액 (손익계산서·하단 매출 카드와 동일 소스)
       label: "이번달 매출", value: won(monthRevenue),
-      sub: perfPct != null ? `목표 ${wonM(monthTarget)}` : "매출 합계",
+      sub: perfPct != null ? `목표 ${wonM(monthTarget)} · 공급가액 기준` : "세금계산서 공급가액 기준",
       chip: perfPct != null ? { text: `${perfPct}%`, up: perfPct >= 100 } : undefined,
       segments: [{ pct: Math.min(perfPct ?? 0, 100), color: A.green }],
     },
