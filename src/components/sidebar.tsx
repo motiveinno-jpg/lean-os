@@ -43,9 +43,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
       { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      // /projects: owner/admin/employee 통일 진입점, partner 는 외주 상세 view.
-      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin"] },
-      { href: "/projects", label: "프로젝트", icon: "briefcase", roles: ["partner"] },
+      // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view (동일 라우트, 단일 메뉴로 통합).
+      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin", "partner"] },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
@@ -62,10 +61,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/payments", label: "정기결제", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/payments", label: "정기결제", icon: "clock", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
       { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
-      { href: "/subscriptions", label: "구독", icon: "credit-card", roles: ["owner", "admin"] },
+      { href: "/subscriptions", label: "구독", icon: "sparkles", roles: ["owner", "admin"] },
     ],
   },
   {
