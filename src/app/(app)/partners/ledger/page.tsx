@@ -39,7 +39,7 @@ export default function PartnerLedgerPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const db = supabase as any;
-  const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
+  const [tab, setTab] = useState<"queue" | "manual" | "ledger" | "confirmed">("queue");
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
   const [ledgerSearch, setLedgerSearch] = useState(""); // 거래처명 검색
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
@@ -56,6 +56,16 @@ export default function PartnerLedgerPage() {
     queryFn: async () => {
       const { data } = await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId)
         .order("confidence", { ascending: false });
+      return (data || []) as QueueRow[];
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: confirmed = [] } = useQuery<QueueRow[]>({
+    queryKey: ["settlement-confirmed", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("v_settlement_confirmed").select("*").eq("company_id", companyId)
+        .order("updated_at", { ascending: false }).limit(300);
       return (data || []) as QueueRow[];
     },
     enabled: !!companyId,
@@ -83,8 +93,19 @@ export default function PartnerLedgerPage() {
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["settlement-queue"] });
+    qc.invalidateQueries({ queryKey: ["settlement-confirmed"] });
     qc.invalidateQueries({ queryKey: ["partner-ledger"] });
   };
+
+  // 확정 취소/되돌리기 — status 를 'suggested' 로 원복 → trg_recalc_settlement 가 미수금 자동 원복(확인 큐로 복귀)
+  const unconfirmMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.from("invoice_settlements").update({ status: "suggested" }).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { invalidateAll(); toast("확정 취소 — 미수금이 원복되었고 확인 큐로 되돌렸습니다", "info"); },
+    onError: (e: any) => toast(e?.message || "확정 취소 실패", "error"),
+  });
 
   const linkMut = useMutation({
     mutationFn: async () => {
@@ -243,7 +264,7 @@ export default function PartnerLedgerPage() {
       </div>
 
       <div className="flex gap-2 border-b border-[var(--border)]">
-        {([["queue", `확인 큐${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["ledger", "거래처 원장"]] as const).map(([k, label]) => (
+        {([["queue", `확인 큐${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["ledger", "거래처 원장"], ["confirmed", `확정 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
             {label}</button>
@@ -445,6 +466,41 @@ export default function PartnerLedgerPage() {
                 );
               })}
             </>
+          )}
+        </div>
+      )}
+
+      {tab === "confirmed" && (
+        <div className="space-y-2">
+          <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금이 자동 원복되고 확인 큐로 돌아갑니다.</p>
+          {confirmed.length === 0 ? (
+            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">확정된 매칭이 없습니다.</div>
+          ) : (
+            confirmed.map((m) => (
+              <div key={m.id} className="glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.txn_type === "income" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                    <div className={`text-[10px] font-semibold truncate ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"} · {m.transaction_date}</div>
+                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
+                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
+                  </div>
+                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.invoice_type === "sales" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                    <div className={`text-[10px] font-semibold truncate ${m.invoice_type === "sales" ? "text-emerald-500" : "text-red-400"}`}>{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
+                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
+                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1 lg:w-[200px] lg:shrink-0">
+                  <div className="text-right min-w-0 w-full">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold">확정됨</span>
+                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">{won(m.amount)} 정산 · {m.match_source === "manual" ? "수동 연결" : MATCH_LABEL[m.match_type] || m.match_type}</div>
+                  </div>
+                  <button onClick={() => unconfirmMut.mutate(m.id)} disabled={unconfirmMut.isPending}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/40 disabled:opacity-50"
+                    title="확정을 취소하고 미수금을 원복합니다 (확인 큐로 되돌아감)">확정 취소</button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
