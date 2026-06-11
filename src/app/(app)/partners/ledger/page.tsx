@@ -41,6 +41,7 @@ export default function PartnerLedgerPage() {
   const db = supabase as any;
   const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
+  const [detail, setDetail] = useState<{ partnerId: string | null; type: string } | null>(null); // 거래처 상세 팝업
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
@@ -367,8 +368,11 @@ export default function PartnerLedgerPage() {
                         <th className="text-right px-5 py-2.5 font-medium">잔액</th>
                       </tr></thead>
                       <tbody>{data.map((r) => (
-                        <tr key={`${r.partner_id}-${r.type}`} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                          <td className="px-5 py-2.5 text-[var(--text)]">{nameOf(r.partner_id)}</td>
+                        <tr key={`${r.partner_id}-${r.type}`} onClick={() => setDetail({ partnerId: r.partner_id, type: r.type })}
+                          className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer" title="클릭하여 세금계산서 상세 보기">
+                          <td className="px-5 py-2.5 text-[var(--text)]">
+                            <span className="inline-flex items-center gap-1.5">{nameOf(r.partner_id)}<span className="text-[10px] text-[var(--text-dim)]">상세 ›</span></span>
+                          </td>
                           <td className="px-5 py-2.5 text-right mono-number">
                             {Number(r.prior_outstanding) > 0
                               ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[11px] font-semibold" title={`${ledgerYear}년 이전 미정산 (전기이월)`}>전기이월 {won(r.prior_outstanding)}</span>
@@ -388,7 +392,155 @@ export default function PartnerLedgerPage() {
         </div>
       )}
 
+      {/* 거래처 상세 팝업 */}
+      {detail && companyId && (
+        <PartnerDetailModal
+          companyId={companyId}
+          partnerId={detail.partnerId}
+          type={detail.type}
+          year={ledgerYear}
+          partnerName={nameOf(detail.partnerId)}
+          onClose={() => setDetail(null)}
+        />
+      )}
+
       <p className="text-[11px] text-[var(--text-dim)]">※ 확정한 매칭만 미수금에서 차감됩니다. 규칙으로 안 잡힌 입금은 곧 추가될 AI 매칭/수동 연결로 처리합니다.</p>
+    </div>
+  );
+}
+
+// ── 거래처 상세 팝업: 그 거래처의 개별 세금계산서 + 정산내역 ──
+const SETTLE_STATUS: Record<string, [string, string]> = {
+  settled: ["정산완료", "text-emerald-500 bg-emerald-500/10"],
+  partial: ["부분정산", "text-amber-500 bg-amber-500/10"],
+  open: ["미정산", "text-[var(--text-dim)] bg-[var(--bg-surface)]"],
+};
+
+function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, onClose }: {
+  companyId: string; partnerId: string | null; type: string; year: number; partnerName: string; onClose: () => void;
+}) {
+  const db = supabase as any;
+  const yStart = `${year}-01-01`;
+  const isSales = type === "sales";
+  const accent = isSales ? "text-emerald-500" : "text-red-400";
+
+  const { data: invoices = [], isLoading } = useQuery<any[]>({
+    queryKey: ["partner-detail-inv", companyId, partnerId, type, year],
+    queryFn: async () => {
+      let qb = db.from("tax_invoices")
+        .select("id, issue_date, item_name, label, total_amount, supply_amount, tax_amount, settled_amount, settlement_status, nts_confirm_no")
+        .eq("company_id", companyId).eq("type", type).lte("issue_date", `${year}-12-31`)
+        .order("issue_date", { ascending: false }).limit(500);
+      qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
+      const { data } = await qb;
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  const invIds = invoices.map((i) => i.id);
+  const { data: settleMap = {} } = useQuery<Record<string, any[]>>({
+    queryKey: ["partner-detail-settle", companyId, partnerId, type, year, invIds.length],
+    queryFn: async () => {
+      if (invIds.length === 0) return {};
+      const { data: setts } = await db.from("invoice_settlements")
+        .select("tax_invoice_id, amount, status, match_type, bank_transaction_id").in("tax_invoice_id", invIds);
+      const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
+      const btMap: Record<string, string> = {};
+      if (btIds.length) {
+        const { data: bts } = await db.from("bank_transactions").select("id, transaction_date").in("id", btIds);
+        for (const b of (bts || []) as any[]) btMap[b.id] = b.transaction_date;
+      }
+      const m: Record<string, any[]> = {};
+      for (const s of (setts || []) as any[]) (m[s.tax_invoice_id] ||= []).push({ ...s, date: btMap[s.bank_transaction_id] });
+      return m;
+    },
+    enabled: !!companyId && invIds.length > 0,
+  });
+
+  const remaining = (i: any) => Math.max(Number(i.total_amount || 0) - Number(i.settled_amount || 0), 0);
+  const sum = (arr: any[], f: (i: any) => any) => arr.reduce((s, i) => s + Number(f(i) || 0), 0);
+  const prior = invoices.filter((i) => i.issue_date < yStart);
+  const period = invoices.filter((i) => i.issue_date >= yStart);
+  const priorOut = sum(prior, remaining);
+  const periodBilled = sum(period, (i) => i.total_amount);
+  const periodSettled = sum(period, (i) => i.settled_amount);
+  const periodOut = sum(period, remaining);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold text-[var(--text)] truncate">{partnerName}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${isSales ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{isSales ? "매출세금계산서" : "매입세금계산서"}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{year}년 기준 · 세금계산서 {invoices.length}건</div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
+        </div>
+
+        {/* 요약 */}
+        <div className="px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], ["잔액", priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
+            <div key={label} className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+              <div className="text-[10px] text-[var(--text-dim)]">{label}</div>
+              <div className={`text-sm font-bold mono-number ${cls}`}>{won(val)}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 세금계산서 목록 */}
+        <div className="flex-1 overflow-auto px-5 py-2">
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+          ) : invoices.length === 0 ? (
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">이 거래처의 {isSales ? "매출" : "매입"}세금계산서가 없습니다.</div>
+          ) : (
+            invoices.map((inv) => {
+              const ss = SETTLE_STATUS[inv.settlement_status as string] || SETTLE_STATUS.open;
+              const isPrior = inv.issue_date < yStart;
+              const setts = settleMap[inv.id] || [];
+              return (
+                <div key={inv.id} className="border-b border-[var(--border)]/50 py-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm text-[var(--text)]">{inv.issue_date}</span>
+                        {isPrior && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold">전기이월</span>}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${ss[1]}`}>{ss[0]}</span>
+                      </div>
+                      <div className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                        {inv.item_name || inv.label || "품목 미상"}{inv.nts_confirm_no ? ` · 승인 ${inv.nts_confirm_no}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-[var(--text)] mono-number">{won(inv.total_amount)}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">공급 {won(inv.supply_amount)} · 세액 {won(inv.tax_amount)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-[var(--text-dim)]">
+                    정산 {won(inv.settled_amount)} · 잔액 <b className={remaining(inv) > 0 ? accent : "text-[var(--text-dim)]"}>{won(remaining(inv))}</b>
+                  </div>
+                  {setts.map((s, i) => (
+                    <div key={i} className="ml-3 mt-1 flex items-center gap-2 text-[10px] text-[var(--text-dim)]">
+                      <span>↳ {s.date || "날짜미상"} 통장</span>
+                      <span className="mono-number text-[var(--text-muted)]">{won(s.amount)}</span>
+                      <span className="px-1 rounded bg-[var(--bg-surface)]">{MATCH_LABEL[s.match_type] || s.match_type}</span>
+                      <span>{s.status === "confirmed" ? "확정" : s.status === "suggested" ? "제안(미확정)" : s.status === "rejected" ? "반려" : s.status}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-[var(--border)] text-right">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+        </div>
+      </div>
     </div>
   );
 }
