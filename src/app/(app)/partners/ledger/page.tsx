@@ -41,7 +41,8 @@ export default function PartnerLedgerPage() {
   const db = supabase as any;
   const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
-  const [detail, setDetail] = useState<{ partnerId: string | null; type: string } | null>(null); // 거래처 상세 팝업
+  const [ledgerSearch, setLedgerSearch] = useState(""); // 거래처명 검색
+  const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null); // 거래처 상세 팝업
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
@@ -308,7 +309,7 @@ export default function PartnerLedgerPage() {
             </div>
             <div className="flex-1 overflow-auto p-2">
               {filteredInv.length === 0 ? (
-                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서이 없습니다.</div>
+                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서가 없습니다.</div>
               ) : filteredInv.map((inv) => {
                 const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
                 return (
@@ -334,14 +335,18 @@ export default function PartnerLedgerPage() {
 
       {tab === "ledger" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-[var(--text-muted)]">조회 연도 · 전기이월 = 선택 연도 이전 미정산 잔액</div>
-            <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))}
-              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] cursor-pointer">
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                <option key={y} value={y}>{y}년</option>
-              ))}
-            </select>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-[var(--text-muted)]">전기이월 = 선택 연도 이전 미정산 잔액 · 거래처를 클릭하면 세금계산서 상세가 열립니다</div>
+            <div className="flex items-center gap-2">
+              <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
+                className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] w-40" />
+              <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))}
+                className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] cursor-pointer">
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={y}>{y}년</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-card px-5 py-4"><div className="text-xs text-[var(--text-muted)]">총 미수금 (받을 돈)</div><div className="text-2xl font-bold text-emerald-500 mono-number mt-1">{won(totalAr)}</div></div>
@@ -351,13 +356,16 @@ export default function PartnerLedgerPage() {
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : (
             <>
-              {([["미수금 (매출 채권)", receivables, "text-emerald-500"], ["미지급금 (매입 채무)", payables, "text-red-400"]] as const).map(([title, data, accent]) => (
+              {([["미수금 (매출 채권)", receivables, "text-emerald-500"], ["미지급금 (매입 채무)", payables, "text-red-400"]] as const).map(([title, data, accent]) => {
+                const sq = ledgerSearch.trim().toLowerCase();
+                const shown = sq ? data.filter((r) => nameOf(r.partner_id).toLowerCase().includes(sq)) : data;
+                return (
                 <div key={title} className="glass-card overflow-hidden">
                   <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2><span className="text-xs text-[var(--text-dim)]">{data.length}곳</span>
+                    <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2><span className="text-xs text-[var(--text-dim)]">{shown.length}곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span>
                   </div>
-                  {data.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-[var(--text-muted)]">연결된 거래처 세금계산서이 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요.</div>
+                  {shown.length === 0 ? (
+                    <div className="p-10 text-center text-sm text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : "연결된 거래처 세금계산서가 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요."}</div>
                   ) : (
                     <div className="overflow-auto max-h-[460px]"><table className="w-full min-w-[680px] text-sm">
                       <thead className="sticky top-0 bg-[var(--bg-surface)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -367,15 +375,16 @@ export default function PartnerLedgerPage() {
                         <th className="text-right px-5 py-2.5 font-medium">당기 정산</th>
                         <th className="text-right px-5 py-2.5 font-medium">잔액</th>
                       </tr></thead>
-                      <tbody>{data.map((r) => (
-                        <tr key={`${r.partner_id}-${r.type}`} onClick={() => setDetail({ partnerId: r.partner_id, type: r.type })}
+                      <tbody>{shown.map((r) => (
+                        <tr key={`${r.partner_id}-${r.type}`} onClick={() => setDetail({ partnerId: r.partner_id, type: r.type, focus: "all" })}
                           className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer" title="클릭하여 세금계산서 상세 보기">
                           <td className="px-5 py-2.5 text-[var(--text)]">
                             <span className="inline-flex items-center gap-1.5">{nameOf(r.partner_id)}<span className="text-[10px] text-[var(--text-dim)]">상세 ›</span></span>
                           </td>
                           <td className="px-5 py-2.5 text-right mono-number">
                             {Number(r.prior_outstanding) > 0
-                              ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[11px] font-semibold" title={`${ledgerYear}년 이전 미정산 (전기이월)`}>전기이월 {won(r.prior_outstanding)}</span>
+                              ? <button onClick={(e) => { e.stopPropagation(); setDetail({ partnerId: r.partner_id, type: r.type, focus: "prior" }); }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[11px] font-semibold hover:bg-amber-500/20 transition" title={`${ledgerYear}년 이전 미정산 (전기이월) — 클릭하여 상세`}>전기이월 {won(r.prior_outstanding)}</button>
                               : <span className="text-[var(--text-dim)]">—</span>}
                           </td>
                           <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.period_billed)}</td>
@@ -386,7 +395,8 @@ export default function PartnerLedgerPage() {
                     </table></div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
@@ -400,6 +410,7 @@ export default function PartnerLedgerPage() {
           type={detail.type}
           year={ledgerYear}
           partnerName={nameOf(detail.partnerId)}
+          focus={detail.focus}
           onClose={() => setDetail(null)}
         />
       )}
@@ -416,13 +427,14 @@ const SETTLE_STATUS: Record<string, [string, string]> = {
   open: ["미정산", "text-[var(--text-dim)] bg-[var(--bg-surface)]"],
 };
 
-function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, onClose }: {
-  companyId: string; partnerId: string | null; type: string; year: number; partnerName: string; onClose: () => void;
+function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, focus, onClose }: {
+  companyId: string; partnerId: string | null; type: string; year: number; partnerName: string; focus: "all" | "prior"; onClose: () => void;
 }) {
   const db = supabase as any;
   const yStart = `${year}-01-01`;
   const isSales = type === "sales";
   const accent = isSales ? "text-emerald-500" : "text-red-400";
+  const [view, setView] = useState<"all" | "period" | "prior">(focus === "prior" ? "prior" : "all");
 
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["partner-detail-inv", companyId, partnerId, type, year],
@@ -462,10 +474,12 @@ function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, onC
   const sum = (arr: any[], f: (i: any) => any) => arr.reduce((s, i) => s + Number(f(i) || 0), 0);
   const prior = invoices.filter((i) => i.issue_date < yStart);
   const period = invoices.filter((i) => i.issue_date >= yStart);
+  const shownInv = view === "all" ? invoices : view === "prior" ? prior : period;
   const priorOut = sum(prior, remaining);
   const periodBilled = sum(period, (i) => i.total_amount);
   const periodSettled = sum(period, (i) => i.settled_amount);
   const periodOut = sum(period, remaining);
+  const agingDays = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -492,14 +506,24 @@ function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, onC
           ))}
         </div>
 
+        {/* 필터 탭 */}
+        <div className="px-5 pt-2 flex gap-1.5">
+          {([["all", `전체 ${invoices.length}`], ["period", `당기 ${period.length}`], ["prior", `전기이월 ${prior.length}`]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setView(k)}
+              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition ${view === k ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{l}</button>
+          ))}
+        </div>
+
         {/* 세금계산서 목록 */}
         <div className="flex-1 overflow-auto px-5 py-2">
           {isLoading ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : invoices.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">이 거래처의 {isSales ? "매출" : "매입"}세금계산서가 없습니다.</div>
+          ) : shownInv.length === 0 ? (
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{view === "prior" ? "전기이월(전년도 이전) 건이 없습니다." : "당기(올해) 발행 건이 없습니다."}</div>
           ) : (
-            invoices.map((inv) => {
+            shownInv.map((inv) => {
               const ss = SETTLE_STATUS[inv.settlement_status as string] || SETTLE_STATUS.open;
               const isPrior = inv.issue_date < yStart;
               const setts = settleMap[inv.id] || [];
@@ -523,6 +547,7 @@ function PartnerDetailModal({ companyId, partnerId, type, year, partnerName, onC
                   </div>
                   <div className="mt-1 text-[11px] text-[var(--text-dim)]">
                     정산 {won(inv.settled_amount)} · 잔액 <b className={remaining(inv) > 0 ? accent : "text-[var(--text-dim)]"}>{won(remaining(inv))}</b>
+                    {remaining(inv) > 0 && (() => { const d = agingDays(inv.issue_date); return <span className={`ml-2 ${d > 90 ? "text-red-400 font-semibold" : "text-[var(--text-dim)]"}`}>· {d}일 경과{d > 90 ? " (장기 미정산)" : ""}</span>; })()}
                   </div>
                   {setts.map((s, i) => (
                     <div key={i} className="ml-3 mt-1 flex items-center gap-2 text-[10px] text-[var(--text-dim)]">
