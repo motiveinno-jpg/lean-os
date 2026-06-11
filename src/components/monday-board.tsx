@@ -322,11 +322,16 @@ function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, on
             </div>
           ))}
 
-          {/* 컬럼 추가 */}
+          {/* 옆으로 계속 추가 (첫 줄 끝 → 넘치면 줄바꿈) */}
           <div className="w-[180px] shrink-0">
-            <span className="block mb-1.5 text-[12px] text-[var(--text-dim)]">컬럼 추가</span>
+            <span className="block mb-1.5 text-[12px] text-[var(--text-dim)]">옆으로 추가</span>
             <AddColumnButton onAdd={onAddColumn} />
           </div>
+        </div>
+
+        {/* 밑으로 추가 (전체폭 바) */}
+        <div className="px-5 pb-5">
+          <AddColumnButton onAdd={onAddColumn} wide up />
         </div>
       </div>
     </div>
@@ -465,7 +470,7 @@ function StatusCell({ options, current, onPick }: { options: { id: string; label
   );
 }
 
-function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
+function AddColumnButton({ onAdd, wide = false, up = false }: { onAdd: (type: string) => void; wide?: boolean; up?: boolean }) {
   const [open, setOpen] = useState(false);
   const TYPES: { t: string; label: string }[] = [
     { t: "status", label: "🟢 상태" }, { t: "text", label: "🔤 텍스트" }, { t: "person", label: "👤 담당자" },
@@ -473,11 +478,18 @@ function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
   ];
   return (
     <div className="relative">
-      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--bg-surface)] text-base" title="컬럼 추가">+</button>
+      {wide ? (
+        <button onClick={() => setOpen((v) => !v)}
+          className="w-full px-3 py-2.5 rounded-lg border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 text-left transition">
+          + 컬럼 추가
+        </button>
+      ) : (
+        <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--bg-surface)] text-base" title="컬럼 추가">+</button>
+      )}
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 right-0 min-w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+          <div className={`absolute z-20 min-w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1 ${up ? "bottom-full mb-1" : "mt-1"} ${wide ? "left-0" : "right-0"}`}>
             <div className="text-[10px] text-[var(--text-dim)] px-2 py-1 font-semibold">컬럼 타입</div>
             {TYPES.map((x) => (
               <button key={x.t} onClick={() => { onAdd(x.t); setOpen(false); }} className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">{x.label}</button>
