@@ -126,7 +126,7 @@ export function MorningBrief({
   let line2: ReactNode = "";
   const delta30 = forecast30 - balance;
   if (Math.abs(delta30) < balance * 0.02) {
-    line2 = "이번 한 달은 들어오는 돈과 나가는 돈이 비슷해서 잔고는 크게 변하지 않을 전망입니다.";
+    line2 = "이번 달은 수입과 지출이 비슷한 수준으로, 잔고 변동은 크지 않을 전망입니다.";
   } else if (delta30 > 0) {
     line2 = (
       <>

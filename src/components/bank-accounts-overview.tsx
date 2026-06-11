@@ -54,7 +54,7 @@ function won(n: number): string {
 function changeStr(n: number): string {
   if (Math.round(n) === 0) return "변화 없음";
   const up = n > 0;
-  return `${up ? "+" : "-"}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")} ${up ? "늘었어요" : "줄었어요"}`;
+  return `${up ? "+" : "-"}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")} ${up ? "증가" : "감소"}`;
 }
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
