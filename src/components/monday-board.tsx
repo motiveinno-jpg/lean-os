@@ -293,7 +293,7 @@ function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, on
         </button>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card">
         <div className="px-5 py-4 border-b border-[var(--border)]">
           <input
             value={name}
@@ -305,28 +305,26 @@ function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, on
           />
         </div>
 
-        {/* 컬럼별 필드 */}
-        <div className="px-5 py-3">
+        {/* 컬럼별 필드 — 가로 나열(넘치면 줄바꿈) */}
+        <div className="flex flex-wrap gap-x-5 gap-y-4 px-5 py-5">
           {columns.length === 0 && (
-            <p className="text-sm text-[var(--text-dim)] py-4">컬럼이 없습니다. 아래에서 추가하세요.</p>
+            <p className="text-sm text-[var(--text-dim)] py-2">컬럼이 없습니다. 오른쪽에서 추가하세요.</p>
           )}
           {columns.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 py-2.5 border-b border-[var(--border)]/50">
+            <div key={c.id} className="w-[180px] shrink-0">
               <button onClick={() => onConfigColumn(c)}
-                className="w-32 shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] text-left"
+                className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] text-left max-w-full"
                 title="컬럼 설정 (이름·옵션·색)">
-                {c.name}
-                <span className="text-[9px] opacity-40">⚙</span>
+                <span className="truncate">{c.name}</span>
+                <span className="text-[9px] opacity-40 shrink-0">⚙</span>
               </button>
-              <div className="flex-1 min-w-0 max-w-[320px]">
-                <Cell col={c} value={deal.column_values?.[c.id]} users={users} onChange={(v) => onSetCell(deal, c.id, v)} panel />
-              </div>
+              <Cell col={c} value={deal.column_values?.[c.id]} users={users} onChange={(v) => onSetCell(deal, c.id, v)} panel />
             </div>
           ))}
 
           {/* 컬럼 추가 */}
-          <div className="flex items-center gap-3 py-3">
-            <span className="w-32 shrink-0 text-[12px] text-[var(--text-dim)]">컬럼 추가</span>
+          <div className="w-[180px] shrink-0">
+            <span className="block mb-1.5 text-[12px] text-[var(--text-dim)]">컬럼 추가</span>
             <AddColumnButton onAdd={onAddColumn} />
           </div>
         </div>
