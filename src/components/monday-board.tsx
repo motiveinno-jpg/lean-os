@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-type Col = { id: string; name: string; type: string; settings: any; position: number };
+type Col = { id: string; name: string; type: string; settings: any; position: number; in_list?: boolean };
 type Grp = { id: string; name: string; color: string; position: number };
 type Deal = { id: string; name: string; board_group_id: string | null; column_values: Record<string, any>; contract_total?: number | null };
 type SubItem = { id: string; deal_id: string; name: string; column_values: Record<string, any>; position: number };
@@ -75,7 +75,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     (async () => {
       let changed = false;
       if (columns.length === 0) {
-        await db.from("board_columns").insert(DEFAULT_COLUMNS.map((c, i) => ({ company_id: companyId, name: c.name, type: c.type, settings: c.settings, position: i })));
+        await db.from("board_columns").insert(DEFAULT_COLUMNS.map((c, i) => ({ company_id: companyId, name: c.name, type: c.type, settings: c.settings, position: i, in_list: true })));
         changed = true;
       }
       if (groups.length === 0) {
@@ -120,12 +120,12 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   };
 
   // ── 추가/삭제 ──
-  const addColumn = async (type: string) => {
+  const addColumn = async (type: string, inList = false) => {
     const name = { text: "텍스트", status: "상태", date: "날짜", person: "담당자", number: "숫자" }[type] || "컬럼";
     const settings = (type === "status")
       ? { options: [{ id: "opt1", label: "옵션1", color: STATUS_PALETTE[0] }, { id: "opt2", label: "옵션2", color: STATUS_PALETTE[2] }] }
       : {};
-    await db.from("board_columns").insert({ company_id: companyId, name, type, settings, position: columns.length });
+    await db.from("board_columns").insert({ company_id: companyId, name, type, settings, position: columns.length, in_list: inList });
     refetchAll();
   };
   const deleteColumn = async (col: Col) => {
@@ -158,6 +158,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
 
   // 상세 페이지: 최신 deals 에서 파생(쿼리 refetch 후 stale 방지)
   const openDeal = openDealId ? deals.find((d) => d.id === openDealId) || null : null;
+  // 메인 리스트는 in_list 컬럼만(기본 5). 상세에서 추가한 컬럼(in_list=false)은 상세에만.
+  const listColumns = columns.filter((c) => c.in_list);
 
   // ── 프로젝트명 클릭 → 컬럼 상세 페이지로 전환 ──
   if (openDeal) {
@@ -215,7 +217,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                 <thead>
                   <tr className="bg-[var(--bg-surface)]">
                     <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[180px]">업체명</th>
-                    {columns.map((c) => (
+                    {listColumns.map((c) => (
                       <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[110px]">
                         <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색)">
                           {c.name}
@@ -224,7 +226,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                       </th>
                     ))}
                     <th className="px-2 py-2 w-10">
-                      <AddColumnButton onAdd={addColumn} />
+                      <AddColumnButton onAdd={(t) => addColumn(t, true)} />
                     </th>
                   </tr>
                 </thead>
@@ -238,7 +240,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                           <span className="text-[10px] opacity-0 group-hover:opacity-60 transition shrink-0">↗ 열기</span>
                         </button>
                       </td>
-                      {columns.map((c) => (
+                      {listColumns.map((c) => (
                         <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
                           <Cell col={c} value={d.column_values?.[c.id]} users={users} onChange={(v) => setCell(d, c.id, v)} />
                         </td>
@@ -250,7 +252,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                     <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
                       <button onClick={() => addItem(gid)} className="text-[12px] text-[var(--text-dim)] hover:text-[var(--primary)]">+ 항목 추가</button>
                     </td>
-                    <td colSpan={columns.length + 1} />
+                    <td colSpan={listColumns.length + 1} />
                   </tr>
                 </tbody>
               </table>
