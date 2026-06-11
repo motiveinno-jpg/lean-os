@@ -973,7 +973,7 @@ function SummaryKpisWidget({
       value: `₩${fmtW(receivable)}`,
       sub: receivable > 0 ? '회수 예정' : undefined,
       color: receivable > 0 ? 'var(--primary)' : 'var(--text)',
-      href: '/transactions',
+      href: '/partners/ledger',
     },
     {
       label: '월 고정비',

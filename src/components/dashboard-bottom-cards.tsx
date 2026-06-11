@@ -143,7 +143,7 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
           {(!assets || assets.list.length === 0) && <div className="text-[13px] text-center py-4 text-[var(--text-dim)]">등록된 계좌 없음</div>}
         </div>
         <TotalRow label="총 자산" amount={assets?.total ?? 0} color={A.green} />
-        <MoreLink href="/transactions" label={`${assets?.count ?? 0}개 전체보기`} />
+        <MoreLink href="/bank" label={`${assets?.count ?? 0}개 전체보기`} />
       </div>
 
       {/* 매출 (Sales Performance) */}
