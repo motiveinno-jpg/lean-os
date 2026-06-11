@@ -42,6 +42,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const initRef = useRef(false);
   const [configCol, setConfigCol] = useState<Col | null>(null);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
+  const [dragCol, setDragCol] = useState<string | null>(null);
 
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
@@ -137,6 +138,18 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     await db.from("board_columns").update(patch).eq("id", col.id);
     refetchAll();
   };
+  // 컬럼 드래그 정렬: 전체 columns 배열(position 순)에서 dragged 를 target 앞으로 이동 후 position 재기록
+  const moveColumn = async (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const arr = [...columns];
+    const from = arr.findIndex((c) => c.id === draggedId);
+    const to = arr.findIndex((c) => c.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    await Promise.all(arr.map((c, i) => (c.position === i ? null : db.from("board_columns").update({ position: i }).eq("id", c.id))));
+    refetchAll();
+  };
   const addGroup = async () => {
     await db.from("board_groups").insert({ company_id: companyId, name: "새 그룹", color: STATUS_PALETTE[Math.min(groups.length, 5)], position: groups.length });
     refetchAll();
@@ -175,6 +188,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           onSetName={setName}
           onAddColumn={addColumn}
           onConfigColumn={(c) => setConfigCol(c)}
+          onMoveColumn={moveColumn}
         />
         {configCol && (
           <ColumnConfigModal
@@ -218,8 +232,13 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                   <tr className="bg-[var(--bg-surface)]">
                     <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[180px]">업체명</th>
                     {listColumns.map((c) => (
-                      <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[110px]">
-                        <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색)">
+                      <th key={c.id} draggable
+                        onDragStart={() => setDragCol(c.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => { if (dragCol) moveColumn(dragCol, c.id); setDragCol(null); }}
+                        onDragEnd={() => setDragCol(null)}
+                        className={`px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[110px] cursor-grab active:cursor-grabbing ${dragCol === c.id ? "opacity-40" : ""}`}>
+                        <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
                           {c.name}
                           <span className="text-[9px] opacity-40">⚙</span>
                         </button>
@@ -233,12 +252,12 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                 <tbody>
                   {rows.map((d) => (
                     <tr key={d.id} className="border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/40">
-                      <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
-                        <button onClick={() => setOpenDealId(d.id)}
-                          className="group inline-flex items-center gap-1.5 text-sm text-[var(--text)] font-medium hover:text-[var(--primary)] text-left">
-                          <span className="hover:underline">{d.name || <span className="text-[var(--text-dim)]">업체명</span>}</span>
+                      <td onClick={() => setOpenDealId(d.id)}
+                        className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)] cursor-pointer group">
+                        <div className="inline-flex items-center gap-1.5 text-sm text-[var(--text)] font-medium group-hover:text-[var(--primary)]">
+                          <span className="group-hover:underline">{d.name || <span className="text-[var(--text-dim)]">업체명</span>}</span>
                           <span className="text-[10px] opacity-0 group-hover:opacity-60 transition shrink-0">↗ 열기</span>
-                        </button>
+                        </div>
                       </td>
                       {listColumns.map((c) => (
                         <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
@@ -276,7 +295,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
 
 // ── 프로젝트 상세 = 먼데이 서브아이템 표 (리스트에서 전환).
 //   헤더 첫 줄 = 컬럼(옆으로 추가/⚙설정), 아래 = 항목 행(밑으로 추가, 같은 컬럼 공유). ──
-function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, onAddColumn, onConfigColumn }: {
+function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, onAddColumn, onConfigColumn, onMoveColumn }: {
   companyId: string;
   deal: Deal;
   columns: Col[];
@@ -285,9 +304,11 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
   onSetName: (deal: Deal, name: string) => void;
   onAddColumn: (type: string) => void;
   onConfigColumn: (col: Col) => void;
+  onMoveColumn: (draggedId: string, targetId: string) => void;
 }) {
   const qc = useQueryClient();
   const [name, setNameLocal] = useState(deal.name);
+  const [dragCol, setDragCol] = useState<string | null>(null);
 
   const { data: items = [] } = useQuery<SubItem[]>({
     queryKey: ["project-subitems", deal.id],
@@ -346,8 +367,13 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
               <tr className="bg-[var(--bg-surface)]">
                 <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[200px]">항목</th>
                 {columns.map((c) => (
-                  <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[120px]">
-                    <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색)">
+                  <th key={c.id} draggable
+                    onDragStart={() => setDragCol(c.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => { if (dragCol) onMoveColumn(dragCol, c.id); setDragCol(null); }}
+                    onDragEnd={() => setDragCol(null)}
+                    className={`px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[120px] cursor-grab active:cursor-grabbing ${dragCol === c.id ? "opacity-40" : ""}`}>
+                    <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
                       {c.name}
                       <span className="text-[9px] opacity-40">⚙</span>
                     </button>
