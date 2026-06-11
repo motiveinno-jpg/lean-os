@@ -898,32 +898,36 @@ export interface AutomationResult {
   taxOnPayment: { created: number };
   taxCancelOnRefund: { cancelled: number };
   loanMatch: { candidates: number };
+  errors: string[]; // 실패한 단계 라벨+사유 (부분 실패 표시용)
   timestamp: string;
 }
 
 export async function runAllAutomation(companyId: string): Promise<AutomationResult> {
-  // 개별 자동화 실패가 전체를 죽이지 않도록 각 호출에 폴백(0 결과) 적용 — 일부만 실패해도 나머지는 실행/집계
-  const safe = <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch(() => fallback);
+  // 개별 자동화 실패가 전체를 죽이지 않도록 각 호출에 폴백(0 결과) 적용 — 일부만 실패해도 나머지는 실행/집계.
+  // 실패한 단계는 errors 에 라벨+사유로 수집 → 화면 표시.
+  const errors: string[] = [];
+  const safe = <T>(label: string, p: Promise<T>, fallback: T): Promise<T> =>
+    p.catch((e: any) => { errors.push(`${label}: ${e?.message || '알 수 없는 오류'}`); return fallback; });
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
     recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
     // 기존 10개
-    safe(applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
-    safe(applyCardTransactionRules(companyId), { processed: 0, matched: 0 }),
-    safe(autoExecuteThreeWayMatch(companyId), { total: 0, autoMatched: 0 }),
-    safe(autoMatchTransactions(companyId), { matched: 0 }),
-    safe(detectDormantDeals(companyId), { detected: 0 }),
-    safe(autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
-    safe(autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
+    safe('거래 자동분류', applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
+    safe('카드 거래 매핑', applyCardTransactionRules(companyId), { processed: 0, matched: 0 }),
+    safe('3-Way 매칭', autoExecuteThreeWayMatch(companyId), { total: 0, autoMatched: 0 }),
+    safe('거래 자동매칭', autoMatchTransactions(companyId), { matched: 0 }),
+    safe('휴면 프로젝트 감지', detectDormantDeals(companyId), { detected: 0 }),
+    safe('소액 자동승인', autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
+    safe('계약→일정 연결', autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
     // 신규 5개: 파이프라인 자동화
-    safe(autoCreateExpenseFromRecurring(companyId), { created: 0 }),
-    safe(autoQueueApprovedExpenses(companyId), { queued: 0 }),
-    safe(autoCreateExpenseFromContract(companyId), { created: 0 }),
-    safe(autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
-    safe(autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
+    safe('반복→지출결의', autoCreateExpenseFromRecurring(companyId), { created: 0 }),
+    safe('승인→결제큐', autoQueueApprovedExpenses(companyId), { queued: 0 }),
+    safe('계약→지출결의', autoCreateExpenseFromContract(companyId), { created: 0 }),
+    safe('결제→세금계산서', autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
+    safe('환불→세금계산서 취소', autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
     // 대출 상환 자동 매칭
-    safe(autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })), { candidates: 0 }),
+    safe('대출 상환 매칭', autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })), { candidates: 0 }),
   ]);
 
   return {
@@ -940,6 +944,7 @@ export async function runAllAutomation(companyId: string): Promise<AutomationRes
     taxOnPayment: taxPayResult,
     taxCancelOnRefund: taxCancelResult,
     loanMatch: loanMatchResult,
+    errors,
     timestamp: new Date().toISOString(),
   };
 }

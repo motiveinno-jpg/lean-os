@@ -1605,7 +1605,9 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
         res.recurringExpense.created + res.approvedQueue.queued + res.contractExpense.created +
         res.taxOnPayment.created + res.expenseApproval.approved + res.bankClassification.matched +
         res.threeWayMatch.autoMatched + res.dormantDeals.detected;
-      toast(total > 0 ? `자동화 실행 완료 — 총 ${total}건 처리` : "자동화 실행 완료 — 처리할 항목이 없습니다", total > 0 ? "success" : "info");
+      const failed = res.errors?.length ?? 0;
+      if (failed > 0) toast(`자동화 완료 — ${total}건 처리, ${failed}개 단계 실패 (아래 확인)`, "error");
+      else toast(total > 0 ? `자동화 실행 완료 — 총 ${total}건 처리` : "자동화 실행 완료 — 처리할 항목이 없습니다", total > 0 ? "success" : "info");
     } catch (e: any) {
       toast("자동화 실행 실패: " + (e?.message || "오류"), "error");
     }
@@ -1724,6 +1726,16 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
               </div>
             )}
           </div>
+          {result.errors && result.errors.length > 0 && (
+            <div className="mt-2 bg-red-500/5 border border-red-500/20 rounded-lg p-2">
+              <div className="text-[11px] font-bold text-red-500 mb-1">실패한 단계 {result.errors.length}개</div>
+              <ul className="space-y-0.5">
+                {result.errors.map((e, i) => (
+                  <li key={i} className="text-[10px] text-[var(--text-dim)] break-all">• {e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
