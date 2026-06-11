@@ -15,6 +15,7 @@ const db = supabase as any;
 type Col = { id: string; name: string; type: string; settings: any; position: number };
 type Grp = { id: string; name: string; color: string; position: number };
 type Deal = { id: string; name: string; board_group_id: string | null; column_values: Record<string, any>; contract_total?: number | null };
+type SubItem = { id: string; deal_id: string; name: string; column_values: Record<string, any>; position: number };
 type Person = { id: string; name: string | null; email: string };
 
 const STATUS_PALETTE = ["#1FAE6B", "#2F7DE1", "#E0A33A", "#E0524F", "#8B5CF6", "#5E8C92", "#9AA1AC"];
@@ -164,11 +165,11 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
       <>
         <DealDetailView
           key={openDeal.id}
+          companyId={companyId}
           deal={openDeal}
           columns={columns}
           users={users}
           onBack={() => setOpenDealId(null)}
-          onSetCell={setCell}
           onSetName={setName}
           onAddColumn={addColumn}
           onConfigColumn={(c) => setConfigCol(c)}
@@ -271,21 +272,51 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   );
 }
 
-// ── 프로젝트 상세 페이지 (먼데이 아이템 뷰) — 리스트에서 전환. 모든 컬럼을 한 화면에서 기록·수정 + 컬럼 설정/추가 ──
-function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, onAddColumn, onConfigColumn }: {
+// ── 프로젝트 상세 = 먼데이 서브아이템 표 (리스트에서 전환).
+//   헤더 첫 줄 = 컬럼(옆으로 추가/⚙설정), 아래 = 항목 행(밑으로 추가, 같은 컬럼 공유). ──
+function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, onAddColumn, onConfigColumn }: {
+  companyId: string;
   deal: Deal;
   columns: Col[];
   users: Person[];
   onBack: () => void;
-  onSetCell: (deal: Deal, colId: string, value: any) => void;
   onSetName: (deal: Deal, name: string) => void;
   onAddColumn: (type: string) => void;
   onConfigColumn: (col: Col) => void;
 }) {
+  const qc = useQueryClient();
   const [name, setNameLocal] = useState(deal.name);
+
+  const { data: items = [] } = useQuery<SubItem[]>({
+    queryKey: ["project-subitems", deal.id],
+    queryFn: async () => {
+      const { data } = await db.from("project_subitems").select("*").eq("deal_id", deal.id).order("position");
+      return (data || []).map((r: any) => ({ ...r, column_values: r.column_values || {} })) as SubItem[];
+    },
+  });
+  const refetch = () => qc.invalidateQueries({ queryKey: ["project-subitems", deal.id] });
+
+  const addItem = async () => {
+    await db.from("project_subitems").insert({ company_id: companyId, deal_id: deal.id, name: "새 항목", column_values: {}, position: items.length });
+    refetch();
+  };
+  const setItemCell = async (it: SubItem, colId: string, value: any) => {
+    await db.from("project_subitems").update({ column_values: { ...(it.column_values || {}), [colId]: value } }).eq("id", it.id);
+    refetch();
+  };
+  const setItemName = async (it: SubItem, nm: string) => {
+    if (nm === it.name) return;
+    await db.from("project_subitems").update({ name: nm }).eq("id", it.id);
+    refetch();
+  };
+  const delItem = async (it: SubItem) => {
+    await db.from("project_subitems").delete().eq("id", it.id);
+    refetch();
+  };
+
   return (
     <div className="space-y-4 pb-10 panel-slide-in">
-      {/* 뒤로가기 + 프로젝트명 */}
+      {/* 뒤로가기 */}
       <div className="flex items-center gap-3">
         <button onClick={onBack}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] shrink-0">
@@ -293,7 +324,8 @@ function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, on
         </button>
       </div>
 
-      <div className="glass-card">
+      <div className="glass-card overflow-hidden">
+        {/* 프로젝트명 */}
         <div className="px-5 py-4 border-b border-[var(--border)]">
           <input
             value={name}
@@ -305,33 +337,50 @@ function DealDetailView({ deal, columns, users, onBack, onSetCell, onSetName, on
           />
         </div>
 
-        {/* 컬럼별 필드 — 가로 나열(넘치면 줄바꿈) */}
-        <div className="flex flex-wrap gap-x-5 gap-y-4 px-5 py-5">
-          {columns.length === 0 && (
-            <p className="text-sm text-[var(--text-dim)] py-2">컬럼이 없습니다. 오른쪽에서 추가하세요.</p>
-          )}
-          {columns.map((c) => (
-            <div key={c.id} className="w-[180px] shrink-0">
-              <button onClick={() => onConfigColumn(c)}
-                className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] text-left max-w-full"
-                title="컬럼 설정 (이름·옵션·색)">
-                <span className="truncate">{c.name}</span>
-                <span className="text-[9px] opacity-40 shrink-0">⚙</span>
-              </button>
-              <Cell col={c} value={deal.column_values?.[c.id]} users={users} onChange={(v) => onSetCell(deal, c.id, v)} panel />
-            </div>
-          ))}
-
-          {/* 옆으로 계속 추가 (첫 줄 끝 → 넘치면 줄바꿈) */}
-          <div className="w-[180px] shrink-0">
-            <span className="block mb-1.5 text-[12px] text-[var(--text-dim)]">옆으로 추가</span>
-            <AddColumnButton onAdd={onAddColumn} />
-          </div>
-        </div>
-
-        {/* 밑으로 추가 (전체폭 바) */}
-        <div className="px-5 pb-5">
-          <AddColumnButton onAdd={onAddColumn} wide up />
+        {/* 표: 헤더=컬럼(옆으로 추가), 행=항목(밑으로 추가) */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse" style={{ minWidth: 640 }}>
+            <thead>
+              <tr className="bg-[var(--bg-surface)]">
+                <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[200px]">항목</th>
+                {columns.map((c) => (
+                  <th key={c.id} className="px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[120px]">
+                    <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색)">
+                      {c.name}
+                      <span className="text-[9px] opacity-40">⚙</span>
+                    </button>
+                  </th>
+                ))}
+                {/* 옆으로 컬럼 추가 */}
+                <th className="px-2 py-2 w-10"><AddColumnButton onAdd={onAddColumn} /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id} className="border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/40 group">
+                  <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
+                    <div className="flex items-center gap-2">
+                      <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-sm text-[var(--text)] font-medium" placeholder="항목명" />
+                      <button onClick={() => delItem(it)} className="opacity-0 group-hover:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition" title="항목 삭제">✕</button>
+                    </div>
+                  </td>
+                  {columns.map((c) => (
+                    <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
+                      <Cell col={c} value={it.column_values?.[c.id]} users={users} onChange={(v) => setItemCell(it, c.id, v)} />
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+              ))}
+              {/* 밑으로 항목 추가 */}
+              <tr className="border-t border-[var(--border)]/60">
+                <td className="px-3 py-2 sticky left-0 bg-[var(--bg-card)]">
+                  <button onClick={addItem} className="text-[12px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)]">+ 항목 추가</button>
+                </td>
+                <td colSpan={columns.length + 1} />
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -413,10 +462,8 @@ function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string)
   );
 }
 
-// ── 셀 (타입별). panel=true 면 상세 패널용(좌측정렬·테두리) ──
-function Cell({ col, value, users, onChange, panel = false }: { col: Col; value: any; users: Person[]; onChange: (v: any) => void; panel?: boolean }) {
-  const align = panel ? "text-left" : "text-center";
-  const box = panel ? "px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]" : "";
+// ── 셀 (타입별) ──
+function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Person[]; onChange: (v: any) => void }) {
   if (col.type === "status") {
     const options: { id: string; label: string; color: string }[] = col.settings?.options || [];
     const cur = options.find((o) => o.id === value);
@@ -425,7 +472,7 @@ function Cell({ col, value, users, onChange, panel = false }: { col: Col; value:
   if (col.type === "person") {
     return (
       <select value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-        className={`w-full text-xs bg-transparent text-[var(--text)] ${align} cursor-pointer focus:outline-none ${box}`}>
+        className="w-full text-xs bg-transparent text-[var(--text)] text-center cursor-pointer focus:outline-none">
         <option value="">—</option>
         {users.map((u) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
       </select>
@@ -433,14 +480,14 @@ function Cell({ col, value, users, onChange, panel = false }: { col: Col; value:
   }
   if (col.type === "date") {
     return <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-      className={`w-full text-xs bg-transparent text-[var(--text)] ${align} focus:outline-none cursor-pointer ${box}`} />;
+      className="w-full text-xs bg-transparent text-[var(--text)] text-center focus:outline-none cursor-pointer" />;
   }
   if (col.type === "number") {
     return <input type="number" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-      className={`w-full text-xs bg-transparent text-[var(--text)] ${panel ? "text-left" : "text-right"} px-2 mono-number focus:outline-none ${box}`} />;
+      className="w-full text-xs bg-transparent text-[var(--text)] text-right px-2 mono-number focus:outline-none" />;
   }
   // text
-  return <div className={panel ? box : ""}><EditableText value={value || ""} onSave={onChange} className="text-xs text-[var(--text)]" placeholder="—" center={!panel} /></div>;
+  return <EditableText value={value || ""} onSave={onChange} className="text-xs text-[var(--text)]" placeholder="—" center />;
 }
 
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
@@ -470,7 +517,7 @@ function StatusCell({ options, current, onPick }: { options: { id: string; label
   );
 }
 
-function AddColumnButton({ onAdd, wide = false, up = false }: { onAdd: (type: string) => void; wide?: boolean; up?: boolean }) {
+function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
   const [open, setOpen] = useState(false);
   const TYPES: { t: string; label: string }[] = [
     { t: "status", label: "🟢 상태" }, { t: "text", label: "🔤 텍스트" }, { t: "person", label: "👤 담당자" },
@@ -478,18 +525,11 @@ function AddColumnButton({ onAdd, wide = false, up = false }: { onAdd: (type: st
   ];
   return (
     <div className="relative">
-      {wide ? (
-        <button onClick={() => setOpen((v) => !v)}
-          className="w-full px-3 py-2.5 rounded-lg border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 text-left transition">
-          + 컬럼 추가
-        </button>
-      ) : (
-        <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--bg-surface)] text-base" title="컬럼 추가">+</button>
-      )}
+      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--bg-surface)] text-base" title="컬럼 추가">+</button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className={`absolute z-20 min-w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1 ${up ? "bottom-full mb-1" : "mt-1"} ${wide ? "left-0" : "right-0"}`}>
+          <div className="absolute z-20 mt-1 right-0 min-w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
             <div className="text-[10px] text-[var(--text-dim)] px-2 py-1 font-semibold">컬럼 타입</div>
             {TYPES.map((x) => (
               <button key={x.t} onClick={() => { onAdd(x.t); setOpen(false); }} className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">{x.label}</button>
