@@ -8292,6 +8292,10 @@ export type Database = {
           reason: string
         }[]
       }
+      close_invoice_balance: {
+        Args: { p_invoice_id: string; p_reason: string; p_amount?: number }
+        Returns: string
+      }
       current_app_employee_id: { Args: never; Returns: string }
       current_app_user_email: { Args: never; Returns: string }
       current_app_user_id: { Args: never; Returns: string }
