@@ -61,6 +61,7 @@ export default function PartnerLedgerPage() {
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null); // 거래처 상세 팝업
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
+  const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
   const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toISOString().slice(0, 10); };
   const [engStart, setEngStart] = useState(dStr(100));
@@ -189,13 +190,16 @@ export default function PartnerLedgerPage() {
 
   // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
   //   확인 큐 제안(suggested)만 걸린 거래도 open 이라 여기 포함됨 — 제안 건수를 함께 보여 이중 처리 방지.
+  //   2026-06-11: 최신순 limit 300 이라 기간 중간(예: 5/26 이전)이 잘려 보이던 버그 →
+  //   상단 매칭 기간(engStart~engEnd)을 그대로 적용 + limit 2000.
   const { data: openTx = [] } = useQuery<OpenTx[]>({
-    queryKey: ["manual-open-tx", companyId, tab],
+    queryKey: ["manual-open-tx", companyId, tab, engStart, engEnd],
     queryFn: async () => {
       const { data } = await db.from("bank_transactions")
         .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status)")
         .eq("company_id", companyId).in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
-        .gt("amount", 0).order("transaction_date", { ascending: false }).limit(300);
+        .gte("transaction_date", engStart).lte("transaction_date", engEnd)
+        .gt("amount", 0).order("transaction_date", { ascending: false }).limit(2000);
       return ((data || []) as any[]).map((t) => ({
         ...t,
         suggestedCount: ((t.invoice_settlements || []) as { status: string }[]).filter((s) => s.status === "suggested" || s.status === "needs_review").length,
@@ -402,9 +406,16 @@ export default function PartnerLedgerPage() {
 
       {tab === "manual" && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-muted)]">규칙·AI 가 못 잡은 입금을 직접 세금계산서에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-[var(--text-muted)]">
+              규칙·AI 가 못 잡은 입금을 직접 세금계산서에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.
+              <span className="ml-2 text-[var(--text-dim)]">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter((t) => !manualSearch.trim() || (t.counterparty || "").toLowerCase().includes(manualSearch.trim().toLowerCase())).length}건</span>
+            </p>
+            <input value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} placeholder="거래처(입금자) 검색"
+              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-44" />
+          </div>
           {openTx.length === 0 ? (
-            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">미정산 입출금이 없습니다.</div>
+            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
           ) : (
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[600px]">
@@ -421,7 +432,7 @@ export default function PartnerLedgerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {openTx.map((t) => (
+                    {openTx.filter((t) => !manualSearch.trim() || (t.counterparty || "").toLowerCase().includes(manualSearch.trim().toLowerCase())).map((t) => (
                       <tr key={t.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                         <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{t.transaction_date}</td>
                         <td className={`${GRID_TD} text-center`}>
