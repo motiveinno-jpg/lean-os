@@ -232,13 +232,13 @@ export default function PartnerLedgerPage() {
             queue.map((m) => (
               <div key={m.id} className="glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
-                  <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-3 h-[68px] min-w-0 flex flex-col justify-center">
-                    <div className="text-[10px] text-emerald-500 font-semibold truncate">입금 · {m.transaction_date}</div>
+                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.txn_type === "income" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                    <div className={`text-[10px] font-semibold truncate ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"} · {m.transaction_date}</div>
                     <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
                   </div>
                   <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 h-[68px] min-w-0 flex flex-col justify-center">
-                    <div className="text-[10px] text-[var(--text-muted)] font-semibold truncate">세금계산서 · {m.issue_date}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] font-semibold truncate">{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
                     <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
                   </div>
