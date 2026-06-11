@@ -1,9 +1,16 @@
 "use client";
 
-// 2026-06-10 프로젝트 Monday.com 스타일 보드 (Phase 2 UI).
-//   행 = deals(재무 연동 보존), 컬럼 = board_columns(커스텀), 셀 = deals.column_values[colId].
-//   그룹 = board_groups. 첫 진입 시 기본 컬럼/그룹 자동 생성(lazy init). 표시·편집 전용, 재무 무변경.
-//   타입: text|status|date|person|number. (priority 는 status 동일 렌더)
+// 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
+//   데이터 로직은 Phase 1·2 그대로(행=deals, 컬럼=board_columns, 셀=deals.column_values, 그룹=board_groups).
+//   이번 라운드는 비주얼·UX를 먼데이 시그니처로 재현:
+//   · 먼데이 정확 팔레트(#00C875 done / #FDAB3D working / #E2445C stuck / #0073EA primary)
+//   · 그룹 컬러 좌측 스트립 + 그룹명 그룹색 + 접기 caret
+//   · 상태 셀 = 셀 전체 채움(라운드 없음, 흰 글씨), 클릭 풀폭 드롭다운
+//   · 행 체크박스 + 하단 플로팅 선택바(그룹 이동)
+//   · 그룹 푸터: 상태 분포 바 + 숫자 합계
+//   · 툴바: 파란 "새 항목" + 검색 + 담당자 필터, 맨 아래 "+ 새 그룹 추가"
+//   · 담당자 셀 = 이니셜 아바타, 날짜 셀 = M월 D일 표시
+//   표시·편집 전용, 재무 무변경.
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,24 +25,53 @@ type Deal = { id: string; name: string; board_group_id: string | null; column_va
 type SubItem = { id: string; deal_id: string; name: string; column_values: Record<string, any>; position: number };
 type Person = { id: string; name: string | null; email: string };
 
-const STATUS_PALETTE = ["#1FAE6B", "#2F7DE1", "#E0A33A", "#E0524F", "#8B5CF6", "#5E8C92", "#9AA1AC"];
+// ── 먼데이 정확 팔레트 ──
+const MONDAY = {
+  green: "#00C875", orange: "#FDAB3D", red: "#E2445C", blue: "#579BFC",
+  purple: "#A25DDC", primary: "#0073EA", lime: "#9CD326", pink: "#FF158A",
+  darkPurple: "#784BD1", darkOrange: "#FF642E", lightBlue: "#66CCFF", gray: "#C4C4C4",
+  brown: "#7F5347", indigo: "#5559DF",
+};
+const STATUS_PALETTE = [MONDAY.green, MONDAY.orange, MONDAY.red, MONDAY.blue, MONDAY.purple, MONDAY.lime, MONDAY.gray];
+const COLOR_PALETTE = [
+  MONDAY.green, MONDAY.orange, MONDAY.red, MONDAY.blue, MONDAY.purple, MONDAY.primary,
+  MONDAY.lime, MONDAY.pink, MONDAY.darkPurple, MONDAY.darkOrange, MONDAY.lightBlue, MONDAY.gray,
+];
 
 const DEFAULT_COLUMNS: { name: string; type: string; settings: any }[] = [
   { name: "담당자", type: "person", settings: {} },
   { name: "진행상태", type: "status", settings: { options: [
-    { id: "todo", label: "준비", color: "#9AA1AC" },
-    { id: "doing", label: "진행중", color: "#2F7DE1" },
-    { id: "done", label: "완료", color: "#1FAE6B" },
-    { id: "hold", label: "보류", color: "#E0A33A" },
+    { id: "todo", label: "준비", color: MONDAY.gray },
+    { id: "doing", label: "진행중", color: MONDAY.orange },
+    { id: "done", label: "완료", color: MONDAY.green },
+    { id: "hold", label: "보류", color: MONDAY.red },
   ] } },
   { name: "우선순위", type: "status", settings: { options: [
-    { id: "high", label: "높음", color: "#E0524F" },
-    { id: "mid", label: "보통", color: "#E0A33A" },
-    { id: "low", label: "낮음", color: "#9AA1AC" },
+    { id: "high", label: "높음", color: MONDAY.darkPurple },
+    { id: "mid", label: "보통", color: MONDAY.indigo },
+    { id: "low", label: "낮음", color: MONDAY.blue },
   ] } },
   { name: "계약일", type: "date", settings: {} },
   { name: "계약금액", type: "number", settings: {} },
 ];
+
+// 아바타 색 — userId 해시 → 먼데이 팔레트
+function avatarColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return COLOR_PALETTE[Math.abs(h) % COLOR_PALETTE.length];
+}
+function initials(name: string): string {
+  const t = name.trim();
+  if (!t) return "?";
+  // 한글 이름은 마지막 2글자(이름), 영문은 첫 글자 2개
+  if (/[가-힣]/.test(t)) return t.length >= 2 ? t.slice(-2) : t;
+  const parts = t.split(/[\s@.]+/).filter(Boolean);
+  return (parts[0]?.[0] || "").toUpperCase() + (parts[1]?.[0] || "").toUpperCase();
+}
+
+const STRIP_W = 6; // 그룹 컬러 스트립 폭(px)
+const ROW_H = 36; // 먼데이 행 높이
 
 export function MondayBoard({ companyId, users = [] }: { companyId: string; users?: Person[] }) {
   const qc = useQueryClient();
@@ -43,6 +79,10 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const [configCol, setConfigCol] = useState<Col | null>(null);
   const [openDealId, setOpenDealId] = useState<string | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [personFilter, setPersonFilter] = useState<string>("");
 
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
@@ -80,7 +120,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         changed = true;
       }
       if (groups.length === 0) {
-        const { data: g } = await db.from("board_groups").insert({ company_id: companyId, name: "프로젝트", color: "#4F46E5", position: 0 }).select("id").maybeSingle();
+        const { data: g } = await db.from("board_groups").insert({ company_id: companyId, name: "프로젝트", color: MONDAY.primary, position: 0 }).select("id").maybeSingle();
         if (g?.id) await db.from("deals").update({ board_group_id: g.id }).eq("company_id", companyId).is("board_group_id", null);
         changed = true;
       }
@@ -98,15 +138,32 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     qc.invalidateQueries({ queryKey: ["board-groups", companyId] });
   };
 
+  // 메인 리스트는 in_list 컬럼만(기본 5). 상세에서 추가한 컬럼(in_list=false)은 상세에만.
+  const listColumns = columns.filter((c) => c.in_list);
+  const personColIds = useMemo(() => listColumns.filter((c) => c.type === "person").map((c) => c.id), [listColumns]);
+
+  // 검색·담당자 필터 (클라이언트, 표시만)
+  const filteredDeals = useMemo(() => {
+    let arr = deals;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      arr = arr.filter((d) => (d.name || "").toLowerCase().includes(q));
+    }
+    if (personFilter) {
+      arr = arr.filter((d) => personColIds.some((cid) => d.column_values?.[cid] === personFilter));
+    }
+    return arr;
+  }, [deals, search, personFilter, personColIds]);
+
   const dealsByGroup = useMemo(() => {
     const m = new Map<string | null, Deal[]>();
-    for (const d of deals) {
+    for (const d of filteredDeals) {
       const k = d.board_group_id ?? null;
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(d);
     }
     return m;
-  }, [deals]);
+  }, [filteredDeals]);
 
   // ── 셀 값 저장 ──
   const setCell = async (deal: Deal, colId: string, value: any) => {
@@ -124,7 +181,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const addColumn = async (type: string, inList = false) => {
     const name = { text: "텍스트", status: "상태", date: "날짜", person: "담당자", number: "숫자" }[type] || "컬럼";
     const settings = (type === "status")
-      ? { options: [{ id: "opt1", label: "옵션1", color: STATUS_PALETTE[0] }, { id: "opt2", label: "옵션2", color: STATUS_PALETTE[2] }] }
+      ? { options: [{ id: "opt1", label: "옵션1", color: STATUS_PALETTE[0] }, { id: "opt2", label: "옵션2", color: STATUS_PALETTE[1] }] }
       : {};
     await db.from("board_columns").insert({ company_id: companyId, name, type, settings, position: columns.length, in_list: inList });
     refetchAll();
@@ -151,12 +208,22 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     refetchAll();
   };
   const addGroup = async () => {
-    await db.from("board_groups").insert({ company_id: companyId, name: "새 그룹", color: STATUS_PALETTE[Math.min(groups.length, 5)], position: groups.length });
+    await db.from("board_groups").insert({ company_id: companyId, name: "새 그룹", color: COLOR_PALETTE[groups.length % COLOR_PALETTE.length], position: groups.length });
     refetchAll();
   };
   const renameGroup = async (g: Grp, name: string) => {
     if (!name.trim() || name === g.name) return;
     await db.from("board_groups").update({ name: name.trim() }).eq("id", g.id);
+    refetchAll();
+  };
+  const recolorGroup = async (g: Grp, color: string) => {
+    await db.from("board_groups").update({ color }).eq("id", g.id);
+    refetchAll();
+  };
+  const deleteGroup = async (g: Grp) => {
+    // 항목은 지우지 않고 그룹만 해제 (deals 는 재무 연동 — 삭제 금지)
+    await db.from("deals").update({ board_group_id: null }).eq("board_group_id", g.id);
+    await db.from("board_groups").delete().eq("id", g.id);
     refetchAll();
   };
   const addItem = async (groupId: string | null) => {
@@ -165,14 +232,31 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     refetchAll();
   };
 
+  // ── 선택 (먼데이 플로팅 선택바) ──
+  const toggleSelect = (id: string) => {
+    setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+  const toggleSelectGroup = (rows: Deal[], on: boolean) => {
+    setSelected((s) => { const n = new Set(s); rows.forEach((d) => (on ? n.add(d.id) : n.delete(d.id))); return n; });
+  };
+  const moveSelectedToGroup = async (groupId: string) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    await db.from("deals").update({ board_group_id: groupId }).in("id", ids);
+    setSelected(new Set());
+    refetchAll();
+  };
+
+  const toggleCollapse = (gid: string) => {
+    setCollapsed((s) => { const n = new Set(s); if (n.has(gid)) n.delete(gid); else n.add(gid); return n; });
+  };
+
   const orderedGroups: (Grp | null)[] = [...groups];
   // 그룹 미지정 deal 이 있으면 맨 끝에 "그룹 없음" 섹션
   if (dealsByGroup.has(null)) orderedGroups.push(null);
 
   // 상세 페이지: 최신 deals 에서 파생(쿼리 refetch 후 stale 방지)
   const openDeal = openDealId ? deals.find((d) => d.id === openDealId) || null : null;
-  // 메인 리스트는 in_list 컬럼만(기본 5). 상세에서 추가한 컬럼(in_list=false)은 상세에만.
-  const listColumns = columns.filter((c) => c.in_list);
 
   // ── 프로젝트명 클릭 → 컬럼 상세 페이지로 전환 ──
   if (openDeal) {
@@ -203,82 +287,223 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     );
   }
 
+  const firstGroupId = groups[0]?.id ?? null;
+
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex items-center justify-end gap-2">
-        <button onClick={addGroup} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]">+ 그룹</button>
+    <div className="pb-16">
+      {/* ── 먼데이 툴바: 파란 새 항목 + 검색 + 담당자 필터 ── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button
+          onClick={() => addItem(firstGroupId)}
+          className="px-4 h-8 rounded text-[13px] font-semibold text-white transition hover:brightness-110"
+          style={{ background: MONDAY.primary }}
+        >
+          새 항목
+        </button>
+        <div className="flex items-center gap-1.5 h-8 px-2.5 rounded border border-transparent hover:border-[var(--border)] focus-within:border-[var(--primary)] transition">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-dim)] shrink-0"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" /></svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="검색"
+            className="bg-transparent text-[13px] text-[var(--text)] placeholder-[var(--text-dim)] focus:outline-none w-28 focus:w-44 transition-all"
+          />
+        </div>
+        <PersonFilterButton users={users} value={personFilter} onChange={setPersonFilter} />
       </div>
 
-      {orderedGroups.map((g) => {
-        const gid = g?.id ?? null;
-        const rows = dealsByGroup.get(gid) || [];
-        const color = g?.color || "#9AA1AC";
-        return (
-          <div key={gid ?? "none"} className="glass-card overflow-hidden">
-            {/* 그룹 헤더 */}
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)]" style={{ borderLeft: `4px solid ${color}` }}>
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-              {g ? (
-                <EditableText value={g.name} onSave={(v) => renameGroup(g, v)} className="text-sm font-bold text-[var(--text)]" />
-              ) : (
-                <span className="text-sm font-bold text-[var(--text-muted)]">그룹 없음</span>
-              )}
-              <span className="text-[11px] text-[var(--text-dim)]">· {rows.length}건</span>
-            </div>
-            {/* 표 */}
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse" style={{ minWidth: 640 }}>
-                <thead>
-                  <tr className="bg-[var(--bg-surface)]">
-                    <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[180px]">업체명</th>
-                    {listColumns.map((c) => (
-                      <th key={c.id} draggable
-                        onDragStart={() => setDragCol(c.id)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => { if (dragCol) moveColumn(dragCol, c.id); setDragCol(null); }}
-                        onDragEnd={() => setDragCol(null)}
-                        className={`px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[110px] cursor-grab active:cursor-grabbing ${dragCol === c.id ? "opacity-40" : ""}`}>
-                        <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
-                          {c.name}
-                          <span className="text-[9px] opacity-40">⚙</span>
-                        </button>
-                      </th>
-                    ))}
-                    <th className="px-2 py-2 w-10">
-                      <AddColumnButton onAdd={(t) => addColumn(t, true)} />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((d) => (
-                    <tr key={d.id} className="border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/40">
-                      <td onClick={() => setOpenDealId(d.id)}
-                        className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)] cursor-pointer group">
-                        <div className="inline-flex items-center gap-1.5 text-sm text-[var(--text)] font-medium group-hover:text-[var(--primary)]">
-                          <span className="group-hover:underline">{d.name || <span className="text-[var(--text-dim)]">업체명</span>}</span>
-                          <span className="text-[10px] opacity-0 group-hover:opacity-60 transition shrink-0">↗ 열기</span>
-                        </div>
-                      </td>
-                      {listColumns.map((c) => (
-                        <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
-                          <Cell col={c} value={d.column_values?.[c.id]} users={users} onChange={(v) => setCell(d, c.id, v)} />
-                        </td>
+      <div className="space-y-7">
+        {orderedGroups.map((g) => {
+          const gid = g?.id ?? null;
+          const rows = dealsByGroup.get(gid) || [];
+          const color = g?.color || MONDAY.gray;
+          const isCollapsed = gid ? collapsed.has(gid) : false;
+          const allChecked = rows.length > 0 && rows.every((d) => selected.has(d.id));
+
+          return (
+            <div key={gid ?? "none"}>
+              {/* ── 그룹 헤더: caret + 그룹색 그룹명 + 카운트 + ⋯ ── */}
+              <div className="flex items-center gap-1.5 mb-1.5 group/ghead">
+                <button
+                  onClick={() => gid && toggleCollapse(gid)}
+                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-[var(--bg-surface)] transition shrink-0"
+                  style={{ color }}
+                  aria-label="그룹 접기/펼치기"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}>
+                    <path d="M7 10l5 5 5-5z" />
+                  </svg>
+                </button>
+                {g ? (
+                  <EditableText value={g.name} onSave={(v) => renameGroup(g, v)} className="text-[16px] font-bold" style={{ color }} />
+                ) : (
+                  <span className="text-[16px] font-bold text-[var(--text-muted)]">그룹 없음</span>
+                )}
+                <span className="text-[12px] text-[var(--text-dim)] ml-1">{rows.length}개 항목</span>
+                {g && (
+                  <GroupMenu
+                    color={g.color}
+                    onRecolor={(c) => recolorGroup(g, c)}
+                    onDelete={() => { if (confirm(`"${g.name}" 그룹을 삭제할까요? 항목은 삭제되지 않고 그룹만 해제됩니다.`)) deleteGroup(g); }}
+                  />
+                )}
+              </div>
+
+              {/* ── 표 ── */}
+              {!isCollapsed && (
+                <div className="overflow-x-auto rounded-md" style={{ boxShadow: "var(--shadow-sm)" }}>
+                  <table className="border-collapse bg-[var(--bg-card)]" style={{ minWidth: 760, width: "100%" }}>
+                    <thead>
+                      <tr>
+                        {/* 그룹색 스트립 (헤더는 둥근 모서리 시작) */}
+                        <th style={{ width: STRIP_W, minWidth: STRIP_W, background: color, borderTopLeftRadius: 6 }} />
+                        <th className="w-9 border border-[var(--border)] bg-[var(--bg-card)]">
+                          <input
+                            type="checkbox"
+                            checked={allChecked}
+                            onChange={(e) => toggleSelectGroup(rows, e.target.checked)}
+                            className="w-[15px] h-[15px] rounded cursor-pointer align-middle"
+                            style={{ accentColor: MONDAY.primary }}
+                          />
+                        </th>
+                        <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[260px]" style={{ height: ROW_H }}>
+                          항목
+                        </th>
+                        {listColumns.map((c) => (
+                          <th
+                            key={c.id}
+                            draggable
+                            onDragStart={() => setDragCol(c.id)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => { if (dragCol) moveColumn(dragCol, c.id); setDragCol(null); }}
+                            onDragEnd={() => setDragCol(null)}
+                            className={`border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] whitespace-nowrap min-w-[130px] text-center cursor-grab active:cursor-grabbing group/th ${dragCol === c.id ? "opacity-40" : ""}`}
+                            style={{ height: ROW_H }}
+                          >
+                            <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
+                              {c.name}
+                              <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition">⚙</span>
+                            </button>
+                          </th>
+                        ))}
+                        <th className="border border-[var(--border)] bg-[var(--bg-card)] w-10">
+                          <AddColumnButton onAdd={(t) => addColumn(t, true)} />
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((d) => (
+                        <tr key={d.id} className="group/row hover:bg-[var(--bg-surface)]/50">
+                          <td style={{ width: STRIP_W, background: color }} />
+                          <td className="border border-[var(--border)] text-center" style={{ height: ROW_H }}>
+                            <input
+                              type="checkbox"
+                              checked={selected.has(d.id)}
+                              onChange={() => toggleSelect(d.id)}
+                              className="w-[15px] h-[15px] rounded cursor-pointer align-middle"
+                              style={{ accentColor: MONDAY.primary }}
+                            />
+                          </td>
+                          <td className="border border-[var(--border)] px-3" style={{ height: ROW_H }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <EditableText value={d.name} onSave={(v) => setName(d, v.trim() || d.name)} className="text-[14px] text-[var(--text)]" placeholder="업체명" />
+                              <button
+                                onClick={() => setOpenDealId(d.id)}
+                                className="opacity-0 group-hover/row:opacity-100 transition inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0"
+                                style={{ color: MONDAY.primary, borderColor: MONDAY.primary, background: "transparent" }}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M9 18l6-6-6-6" /></svg>
+                                열기
+                              </button>
+                            </div>
+                          </td>
+                          {listColumns.map((c) => (
+                            <td key={c.id} className="border border-[var(--border)] p-0 text-center align-middle" style={{ height: ROW_H }}>
+                              <Cell col={c} value={d.column_values?.[c.id]} users={users} onChange={(v) => setCell(d, c.id, v)} />
+                            </td>
+                          ))}
+                          <td className="border border-[var(--border)]" />
+                        </tr>
                       ))}
-                      <td />
-                    </tr>
-                  ))}
-                  <tr className="border-t border-[var(--border)]/60">
-                    <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
-                      <button onClick={() => addItem(gid)} className="text-[12px] text-[var(--text-dim)] hover:text-[var(--primary)]">+ 항목 추가</button>
-                    </td>
-                    <td colSpan={listColumns.length + 1} />
-                  </tr>
-                </tbody>
-              </table>
+
+                      {/* + 항목 추가 행 — 스트립은 연하게 이어짐 */}
+                      <tr>
+                        <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${color} 45%, transparent)`, borderBottomLeftRadius: rows.length === 0 ? 6 : 0 }} />
+                        <td className="border border-[var(--border)]" style={{ height: ROW_H - 4 }} />
+                        <td colSpan={listColumns.length + 2} className="border border-[var(--border)] px-3">
+                          <button onClick={() => addItem(gid)} className="text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition inline-flex items-center gap-1.5 w-full text-left">
+                            <span className="text-base leading-none">+</span> 항목 추가
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* 그룹 푸터: 상태 분포 바 + 숫자 합계 (먼데이 시그니처) */}
+                      {rows.length > 0 && (
+                        <tr>
+                          <td style={{ width: STRIP_W }} />
+                          <td className="border-0" />
+                          <td className="border-0" />
+                          {listColumns.map((c) => {
+                            if (c.type === "status") {
+                              const options: { id: string; label: string; color: string }[] = c.settings?.options || [];
+                              const counts = new Map<string, number>();
+                              rows.forEach((d) => { const v = d.column_values?.[c.id]; if (v) counts.set(v, (counts.get(v) || 0) + 1); });
+                              const total = rows.length;
+                              const empty = total - [...counts.values()].reduce((s, n) => s + n, 0);
+                              return (
+                                <td key={c.id} className="px-1 py-1.5 align-middle">
+                                  <div className="flex h-6 rounded overflow-hidden" title={[...options.filter((o) => counts.get(o.id)).map((o) => `${o.label} ${counts.get(o.id)}/${total}`), ...(empty > 0 ? [`미지정 ${empty}/${total}`] : [])].join(" · ")}>
+                                    {options.map((o) => {
+                                      const n = counts.get(o.id) || 0;
+                                      return n > 0 ? <div key={o.id} style={{ width: `${(n / total) * 100}%`, background: o.color }} /> : null;
+                                    })}
+                                    {empty > 0 && <div style={{ width: `${(empty / total) * 100}%`, background: "var(--bg-surface)" }} />}
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (c.type === "number") {
+                              const sum = rows.reduce((s, d) => s + (Number(d.column_values?.[c.id]) || 0), 0);
+                              return (
+                                <td key={c.id} className="px-2 py-1.5 text-right align-middle">
+                                  <div className="text-[13px] font-semibold mono-number text-[var(--text)]">{sum ? sum.toLocaleString("ko-KR") : "—"}</div>
+                                  <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wide">합계</div>
+                                </td>
+                              );
+                            }
+                            return <td key={c.id} />;
+                          })}
+                          <td />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
+          );
+        })}
+      </div>
+
+      {/* ── 맨 아래: + 새 그룹 추가 (먼데이 위치) ── */}
+      <button
+        onClick={addGroup}
+        className="mt-6 inline-flex items-center gap-1.5 px-3 h-8 rounded border border-[var(--border)] text-[13px] font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
+      >
+        <span className="text-base leading-none">+</span> 새 그룹 추가
+      </button>
+
+      {/* ── 플로팅 선택바 (먼데이 하단 블루바) ── */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center rounded-lg overflow-hidden shadow-xl border border-[var(--border)] bg-[var(--bg-card)]">
+          <div className="flex items-center justify-center w-12 self-stretch text-white text-lg font-bold" style={{ background: MONDAY.primary }}>
+            {selected.size}
           </div>
-        );
-      })}
+          <div className="px-4 py-2.5 text-[13px] font-semibold text-[var(--text)]">개 항목 선택됨</div>
+          <MoveToGroupButton groups={groups} onMove={moveSelectedToGroup} />
+          <button onClick={() => setSelected(new Set())} className="px-3 self-stretch text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition" aria-label="선택 해제">✕</button>
+        </div>
+      )}
 
       {configCol && (
         <ColumnConfigModal
@@ -288,6 +513,97 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           onSave={(patch) => saveColumn(configCol, patch)}
           onDelete={() => deleteColumn(configCol)}
         />
+      )}
+    </div>
+  );
+}
+
+// ── 담당자 필터 (툴바) ──
+function PersonFilterButton({ users, value, onChange }: { users: Person[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const cur = users.find((u) => u.id === value);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 h-8 px-2.5 rounded text-[13px] transition border ${value ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:border-[var(--border)]"}`}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+        {cur ? (cur.name || cur.email) : "담당자"}
+        {value && <span onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }} className="ml-0.5 hover:opacity-70">✕</span>}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 left-0 min-w-[180px] max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+            {users.map((u) => (
+              <button key={u.id} onClick={() => { onChange(u.id); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(u.id) }}>
+                  {initials(u.name || u.email)}
+                </span>
+                <span className="truncate">{u.name || u.email}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── 그룹 ⋯ 메뉴 (색 변경 / 그룹 삭제) ──
+function GroupMenu({ color, onRecolor, onDelete }: { color: string; onRecolor: (c: string) => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-dim)] hover:bg-[var(--bg-surface)] opacity-0 group-hover/ghead:opacity-100 transition"
+        aria-label="그룹 메뉴"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 left-0 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-2.5 w-[190px]">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">그룹 색상</div>
+            <div className="grid grid-cols-6 gap-1.5 mb-2.5">
+              {COLOR_PALETTE.map((c) => (
+                <button key={c} onClick={() => { onRecolor(c); setOpen(false); }}
+                  className={`w-6 h-6 rounded-md border-2 ${c === color ? "border-[var(--text)]" : "border-transparent"}`} style={{ background: c }} />
+              ))}
+            </div>
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--danger)] hover:bg-[var(--bg-surface)]">그룹 삭제</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── 선택바: 그룹 이동 ──
+function MoveToGroupButton({ groups, onMove }: { groups: Grp[]; onMove: (gid: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative self-stretch">
+      <button onClick={() => setOpen((v) => !v)} className="h-full px-3 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]">
+        그룹 이동
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 bottom-full mb-1 left-0 min-w-[160px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+            {groups.map((g) => (
+              <button key={g.id} onClick={() => { onMove(g.id); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: g.color }} />
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -309,6 +625,7 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
   const qc = useQueryClient();
   const [name, setNameLocal] = useState(deal.name);
   const [dragCol, setDragCol] = useState<string | null>(null);
+  const SUB_COLOR = MONDAY.blue; // 먼데이 서브아이템 시그니처 블루 스트립
 
   const { data: items = [] } = useQuery<SubItem[]>({
     queryKey: ["project-subitems", deal.id],
@@ -342,81 +659,84 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
       {/* 뒤로가기 */}
       <div className="flex items-center gap-3">
         <button onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] shrink-0">
+          className="inline-flex items-center gap-1.5 px-3 h-8 rounded text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] border border-[var(--border)] transition shrink-0">
           ← 프로젝트 목록
         </button>
       </div>
 
-      <div className="glass-card overflow-hidden">
-        {/* 프로젝트명 */}
-        <div className="px-5 py-4 border-b border-[var(--border)]">
-          <input
-            value={name}
-            onChange={(e) => setNameLocal(e.target.value)}
-            onBlur={() => onSetName(deal, name.trim() || deal.name)}
-            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-            placeholder="업체명"
-            className="w-full bg-transparent text-xl font-bold text-[var(--text)] focus:outline-none focus:border-b focus:border-[var(--primary)] pb-0.5"
-          />
-        </div>
+      {/* 프로젝트명 (먼데이 아이템 페이지 타이틀) */}
+      <input
+        value={name}
+        onChange={(e) => setNameLocal(e.target.value)}
+        onBlur={() => onSetName(deal, name.trim() || deal.name)}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        placeholder="업체명"
+        className="w-full bg-transparent text-2xl font-bold text-[var(--text)] focus:outline-none focus:border-b-2 pb-1"
+        style={{ borderColor: MONDAY.primary }}
+      />
 
-        {/* 표: 헤더=컬럼(옆으로 추가), 행=항목(밑으로 추가) */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: 640 }}>
-            <thead>
-              <tr className="bg-[var(--bg-surface)]">
-                <th className="text-left px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] sticky left-0 bg-[var(--bg-surface)] min-w-[200px]">항목</th>
-                {columns.map((c) => (
-                  <th key={c.id} draggable
-                    onDragStart={() => setDragCol(c.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => { if (dragCol) onMoveColumn(dragCol, c.id); setDragCol(null); }}
-                    onDragEnd={() => setDragCol(null)}
-                    className={`px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap min-w-[120px] cursor-grab active:cursor-grabbing ${dragCol === c.id ? "opacity-40" : ""}`}>
-                    <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
-                      {c.name}
-                      <span className="text-[9px] opacity-40">⚙</span>
-                    </button>
-                  </th>
-                ))}
-                {/* 옆으로 컬럼 추가 */}
-                <th className="px-2 py-2 w-10"><AddColumnButton onAdd={onAddColumn} /></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((it) => (
-                <tr key={it.id} className="border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/40 group">
-                  <td className="px-3 py-1.5 sticky left-0 bg-[var(--bg-card)]">
-                    <div className="flex items-center gap-2">
-                      <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-sm text-[var(--text)] font-medium" placeholder="항목명" />
-                      <button onClick={() => delItem(it)} className="opacity-0 group-hover:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition" title="항목 삭제">✕</button>
-                    </div>
-                  </td>
-                  {columns.map((c) => (
-                    <td key={c.id} className={`align-middle ${c.type === "status" ? "p-0.5" : "px-1 py-1 text-center"}`}>
-                      <Cell col={c} value={it.column_values?.[c.id]} users={users} onChange={(v) => setItemCell(it, c.id, v)} />
-                    </td>
-                  ))}
-                  <td />
-                </tr>
+      {/* 표: 헤더=컬럼(옆으로 추가), 행=항목(밑으로 추가) */}
+      <div className="overflow-x-auto rounded-md" style={{ boxShadow: "var(--shadow-sm)" }}>
+        <table className="border-collapse bg-[var(--bg-card)]" style={{ minWidth: 720, width: "100%" }}>
+          <thead>
+            <tr>
+              <th style={{ width: STRIP_W, minWidth: STRIP_W, background: SUB_COLOR, borderTopLeftRadius: 6 }} />
+              <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[220px]" style={{ height: ROW_H }}>
+                항목
+              </th>
+              {columns.map((c) => (
+                <th key={c.id} draggable
+                  onDragStart={() => setDragCol(c.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => { if (dragCol) onMoveColumn(dragCol, c.id); setDragCol(null); }}
+                  onDragEnd={() => setDragCol(null)}
+                  className={`border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] whitespace-nowrap min-w-[130px] text-center cursor-grab active:cursor-grabbing group/th ${dragCol === c.id ? "opacity-40" : ""}`}
+                  style={{ height: ROW_H }}>
+                  <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
+                    {c.name}
+                    <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition">⚙</span>
+                  </button>
+                </th>
               ))}
-              {/* 밑으로 항목 추가 */}
-              <tr className="border-t border-[var(--border)]/60">
-                <td className="px-3 py-2 sticky left-0 bg-[var(--bg-card)]">
-                  <button onClick={addItem} className="text-[12px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)]">+ 항목 추가</button>
+              {/* 옆으로 컬럼 추가 */}
+              <th className="border border-[var(--border)] bg-[var(--bg-card)] w-10"><AddColumnButton onAdd={onAddColumn} /></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it) => (
+              <tr key={it.id} className="group/row hover:bg-[var(--bg-surface)]/50">
+                <td style={{ width: STRIP_W, background: SUB_COLOR }} />
+                <td className="border border-[var(--border)] px-3" style={{ height: ROW_H }}>
+                  <div className="flex items-center gap-2">
+                    <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-[14px] text-[var(--text)]" placeholder="항목명" />
+                    <button onClick={() => delItem(it)} className="opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition ml-auto" title="항목 삭제">✕</button>
+                  </div>
                 </td>
-                <td colSpan={columns.length + 1} />
+                {columns.map((c) => (
+                  <td key={c.id} className="border border-[var(--border)] p-0 text-center align-middle" style={{ height: ROW_H }}>
+                    <Cell col={c} value={it.column_values?.[c.id]} users={users} onChange={(v) => setItemCell(it, c.id, v)} />
+                  </td>
+                ))}
+                <td className="border border-[var(--border)]" />
               </tr>
-            </tbody>
-          </table>
-        </div>
+            ))}
+            {/* 밑으로 항목 추가 */}
+            <tr>
+              <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${SUB_COLOR} 45%, transparent)`, borderBottomLeftRadius: 6 }} />
+              <td colSpan={columns.length + 2} className="border border-[var(--border)] px-3" style={{ height: ROW_H - 4 }}>
+                <button onClick={addItem} className="text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition inline-flex items-center gap-1.5">
+                  <span className="text-base leading-none">+</span> 항목 추가
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
 // ── 컬럼 설정 모달 (이름 + 상태옵션 라벨/색 + 삭제) ──
-const COLOR_PALETTE = ["#1FAE6B", "#2F7DE1", "#E0A33A", "#E0524F", "#8B5CF6", "#EC4899", "#5E8C92", "#0EA5E9", "#F97316", "#9AA1AC", "#16A34A", "#7C3AED"];
 const TYPE_LABEL: Record<string, string> = { text: "텍스트", status: "상태", date: "날짜", person: "담당자", number: "숫자" };
 
 function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClose: () => void; onSave: (patch: { name?: string; settings?: any }) => void; onDelete: () => void }) {
@@ -449,7 +769,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
                 <div key={o.id} className="flex items-center gap-2">
                   <ColorSwatch color={o.color} onChange={(c) => setOpt(i, { color: c })} />
                   <input value={o.label} onChange={(e) => setOpt(i, { label: e.target.value })}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg text-sm font-semibold text-white focus:outline-none" style={{ background: o.color }} />
+                    className="flex-1 px-2.5 py-1.5 rounded text-sm font-semibold text-white focus:outline-none" style={{ background: o.color }} />
                   <button onClick={() => removeOpt(i)} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-sm shrink-0">✕</button>
                 </div>
               ))}
@@ -463,7 +783,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
             className="text-[12px] font-semibold text-[var(--danger)] hover:underline">컬럼 삭제</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">취소</button>
-            <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--primary)] text-[var(--primary-foreground)]">저장</button>
+            <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: MONDAY.primary }}>저장</button>
           </div>
         </div>
       </div>
@@ -498,50 +818,150 @@ function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Pe
     return <StatusCell options={options} current={cur} onPick={(id) => onChange(id)} />;
   }
   if (col.type === "person") {
-    return (
-      <select value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-        className="w-full text-xs bg-transparent text-[var(--text)] text-center cursor-pointer focus:outline-none">
-        <option value="">—</option>
-        {users.map((u) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
-      </select>
-    );
+    return <PersonCell users={users} value={value} onChange={onChange} />;
   }
   if (col.type === "date") {
-    return <input type="date" value={value || ""} onChange={(e) => onChange(e.target.value || null)}
-      className="w-full text-xs bg-transparent text-[var(--text)] text-center focus:outline-none cursor-pointer" />;
+    return <DateCell value={value} onChange={onChange} />;
   }
   if (col.type === "number") {
-    return <input type="number" value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-      className="w-full text-xs bg-transparent text-[var(--text)] text-right px-2 mono-number focus:outline-none" />;
+    return <NumberCell value={value} onChange={onChange} />;
   }
   // text
-  return <EditableText value={value || ""} onSave={onChange} className="text-xs text-[var(--text)]" placeholder="—" center />;
+  return (
+    <div className="px-2">
+      <EditableText value={value || ""} onSave={onChange} className="text-[13px] text-[var(--text)]" placeholder="" center />
+    </div>
+  );
 }
 
+// ── 상태 셀: 먼데이 시그니처 — 셀 전체 채움(라운드 0) + 풀폭 드롭다운 ──
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      <button onClick={() => setOpen((v) => !v)}
-        className="w-full min-w-[90px] px-2 py-1.5 rounded text-[11px] font-semibold text-white transition"
-        style={{ background: current?.color || "var(--bg-surface)", color: current ? "#fff" : "var(--text-dim)" }}>
-        {current?.label || "—"}
+    <div className="relative w-full h-full">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full h-full flex items-center justify-center text-[13px] font-medium text-white transition hover:brightness-95"
+        style={{ background: current?.color || "var(--bg-surface)", color: current ? "#fff" : "var(--text-dim)", minHeight: ROW_H - 2 }}
+      >
+        {current?.label || ""}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 left-1/2 -translate-x-1/2 min-w-[120px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+          <div className="absolute z-20 top-full mt-1 left-1/2 -translate-x-1/2 w-[170px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-2 space-y-1.5">
             {options.map((o) => (
               <button key={o.id} onClick={() => { onPick(o.id); setOpen(false); }}
-                className="w-full px-2 py-1.5 rounded text-[11px] font-semibold text-white text-left mb-0.5" style={{ background: o.color }}>
+                className="w-full h-8 rounded text-[13px] font-medium text-white transition hover:brightness-110" style={{ background: o.color }}>
                 {o.label}
               </button>
             ))}
-            <button onClick={() => { onPick(""); setOpen(false); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)]">지우기</button>
+            <button onClick={() => { onPick(""); setOpen(false); }}
+              className="w-full h-8 rounded text-[12px] text-[var(--text-dim)] border border-dashed border-[var(--border)] hover:bg-[var(--bg-surface)]">
+              지우기
+            </button>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+// ── 담당자 셀: 이니셜 아바타 (먼데이 person 셀) ──
+function PersonCell({ users, value, onChange }: { users: Person[]; value: any; onChange: (v: any) => void }) {
+  const [open, setOpen] = useState(false);
+  const cur = users.find((u) => u.id === value);
+  return (
+    <div className="relative w-full h-full">
+      <button onClick={() => setOpen((v) => !v)} className="w-full h-full flex items-center justify-center group/person" style={{ minHeight: ROW_H - 2 }}>
+        {cur ? (
+          <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: avatarColor(cur.id) }} title={cur.name || cur.email}>
+            {initials(cur.name || cur.email)}
+          </span>
+        ) : (
+          <span className="w-[26px] h-[26px] rounded-full border border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-dim)] opacity-0 group-hover/person:opacity-100 transition">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 top-full mt-1 left-1/2 -translate-x-1/2 min-w-[190px] max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+            {users.map((u) => (
+              <button key={u.id} onClick={() => { onChange(u.id); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(u.id) }}>
+                  {initials(u.name || u.email)}
+                </span>
+                <span className="truncate">{u.name || u.email}</span>
+              </button>
+            ))}
+            {value && (
+              <button onClick={() => { onChange(null); setOpen(false); }} className="w-full px-2 py-1.5 rounded text-[12px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── 날짜 셀: "M월 D일" 표시, 클릭 시 네이티브 피커 ──
+function DateCell({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <input
+        type="date" autoFocus value={value || ""}
+        onChange={(e) => { onChange(e.target.value || null); }}
+        onBlur={() => setEditing(false)}
+        className="w-full text-[12px] bg-transparent text-[var(--text)] text-center focus:outline-none"
+        style={{ minHeight: ROW_H - 2 }}
+      />
+    );
+  }
+  let label = "";
+  if (value) {
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+      const now = new Date();
+      label = d.getFullYear() === now.getFullYear() ? `${d.getMonth() + 1}월 ${d.getDate()}일` : `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
+    }
+  }
+  return (
+    <button onClick={() => setEditing(true)} className="w-full h-full flex items-center justify-center text-[13px] text-[var(--text)] hover:bg-[var(--bg-surface)]/60 transition group/date" style={{ minHeight: ROW_H - 2 }}>
+      {label || (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-[var(--text-dim)] opacity-0 group-hover/date:opacity-100 transition">
+          <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// ── 숫자 셀: 표시는 천단위 콤마, 클릭 시 입력 ──
+function NumberCell({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState<string>(value ?? "");
+  useEffect(() => { setV(value ?? ""); }, [value]);
+  if (editing) {
+    return (
+      <input
+        type="number" autoFocus value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => { setEditing(false); onChange(v === "" ? null : Number(v)); }}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value ?? ""); } }}
+        className="w-full text-[13px] bg-transparent text-[var(--text)] text-center mono-number focus:outline-none"
+        style={{ minHeight: ROW_H - 2 }}
+      />
+    );
+  }
+  const num = value === null || value === undefined || value === "" ? null : Number(value);
+  return (
+    <button onClick={() => setEditing(true)} className="w-full h-full flex items-center justify-center text-[13px] mono-number text-[var(--text)] hover:bg-[var(--bg-surface)]/60 transition" style={{ minHeight: ROW_H - 2 }}>
+      {num !== null && !isNaN(num) ? num.toLocaleString("ko-KR") : ""}
+    </button>
   );
 }
 
@@ -553,7 +973,7 @@ function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
   ];
   return (
     <div className="relative">
-      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--bg-surface)] text-base" title="컬럼 추가">+</button>
+      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] text-lg leading-none" title="컬럼 추가">+</button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -569,7 +989,7 @@ function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
   );
 }
 
-function EditableText({ value, onSave, className = "", placeholder = "", center = false }: { value: string; onSave: (v: string) => void; className?: string; placeholder?: string; center?: boolean }) {
+function EditableText({ value, onSave, className = "", placeholder = "", center = false, style }: { value: string; onSave: (v: string) => void; className?: string; placeholder?: string; center?: boolean; style?: React.CSSProperties }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(value);
   useEffect(() => { setV(value); }, [value]);
@@ -578,11 +998,12 @@ function EditableText({ value, onSave, className = "", placeholder = "", center 
       <input autoFocus value={v} onChange={(e) => setV(e.target.value)}
         onBlur={() => { setEditing(false); onSave(v); }}
         onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onSave(v); } if (e.key === "Escape") { setEditing(false); setV(value); } }}
-        className={`bg-[var(--bg-surface)] border border-[var(--primary)]/40 rounded px-1.5 py-0.5 w-full focus:outline-none ${center ? "text-center" : ""} ${className}`} />
+        className={`bg-[var(--bg-card)] border rounded px-1.5 py-0.5 w-full focus:outline-none ${center ? "text-center" : ""} ${className}`}
+        style={{ borderColor: MONDAY.primary, ...style }} />
     );
   }
   return (
-    <span onClick={() => setEditing(true)} className={`cursor-text inline-block ${center ? "w-full text-center" : ""} ${className} ${!value ? "text-[var(--text-dim)]" : ""}`}>
+    <span onClick={() => setEditing(true)} className={`cursor-text inline-block truncate max-w-full ${center ? "w-full text-center" : ""} ${className} ${!value ? "text-[var(--text-dim)]" : ""}`} style={style}>
       {value || placeholder}
     </span>
   );
