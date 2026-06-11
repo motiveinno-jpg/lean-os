@@ -71,16 +71,19 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     enabled: !!companyId, staleTime: 60_000,
   });
 
-  // 매출 — 2026 월별(type='sales'). 누적 total + 월별 시계열.
+  // 매출 — 올해 월별(type='sales'). 누적 total + 월별 시계열.
+  //   2026-06-11: 연도 하드코딩 제거(매년 자동) + 공급가액 기준(손익계산서·히어로와 동일, 부가세 제외) + void 제외.
+  const year = new Date().getFullYear();
   const { data: rev } = useQuery({
-    queryKey: ["dash-revenue", companyId],
+    queryKey: ["dash-revenue", companyId, year],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("total_amount, issue_date")
-        .eq("company_id", companyId).eq("type", "sales").gte("issue_date", "2026-01-01");
+      const { data } = await db.from("tax_invoices").select("supply_amount, issue_date")
+        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
       const monthly = new Array(12).fill(0);
       (data || []).forEach((t: any) => {
         const m = new Date(t.issue_date).getMonth();
-        if (m >= 0 && m < 12) monthly[m] += Number(t.total_amount || 0);
+        if (m >= 0 && m < 12) monthly[m] += Number(t.supply_amount || 0);
       });
       const upto = new Date().getMonth() + 1;
       const series = monthly.slice(0, Math.max(upto, 1));
@@ -155,12 +158,12 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
             <RevenueSparkline series={revSeries} />
           ) : (
             <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
-              <span className="text-[13px] text-[var(--text-muted)]">2026년 누적 매출</span>
+              <span className="text-[13px] text-[var(--text-muted)]">{year}년 누적 매출</span>
               <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(revenue)}</span>
             </div>
           )}
         </div>
-        <TotalRow label="2026 누적 (세금계산서)" amount={revenue} />
+        <TotalRow label={`${year} 누적 (공급가액)`} amount={revenue} />
         <MoreLink href="/reports/pnl" label="손익 상세 보기" />
       </div>
     </div>

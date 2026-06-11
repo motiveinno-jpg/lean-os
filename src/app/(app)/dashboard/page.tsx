@@ -943,6 +943,7 @@ function SummaryKpisWidget({
         .from('tax_invoices')
         .select('total_amount, status')
         .eq('company_id', companyId)
+        .eq('type', 'sales') // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
         .in('status', ['issued', 'sent', 'pending', 'overdue']);
       if (!data) return 0;
       return (data as any[]).reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
@@ -1216,7 +1217,8 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
   const { data: invoices = [] } = useQuery({
     queryKey: ["overdue-invoices", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, due_date, status').eq('company_id', companyId).in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
+      // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단) — 요약 위젯과 동일 조건
+      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, due_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
       return data || [];
     },
     enabled: !!companyId,
