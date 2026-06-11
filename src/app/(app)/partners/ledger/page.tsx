@@ -29,6 +29,10 @@ type OpenTx = { id: string; amount: number; settled_amount: number; transaction_
 type UnsettledInv = { id: string; type: string; issue_date: string; total_amount: number; settled_amount: number; counterparty_name: string | null; partner_id: string | null };
 
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
+const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString(); // 위하고식 그리드: ₩ 없이 콤마만
+// 위하고식 그리드 공통 셀 클래스
+const GRID_TH = "px-3 py-2 font-semibold whitespace-nowrap border-l border-[var(--border)]/60 first:border-l-0";
+const GRID_TD = "px-3 py-1.5 border-l border-[var(--border)]/60 first:border-l-0";
 const MATCH_LABEL: Record<string, string> = {
   one_to_one: "1:1 정확", aggregate: "합산입금", partial: "부분입금", withholding: "원천징수", manual: "수동", adjustment: "차액 마감",
 };
@@ -318,36 +322,65 @@ export default function PartnerLedgerPage() {
                   ) : null}
                 </div>
               </div>
-              {queue.map((m) => (
-                <div key={m.id} className={`glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3 ${selected.has(m.id) ? "ring-1 ring-[var(--primary)]" : ""}`}>
-                <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggleSel(m.id)} className="shrink-0 self-start lg:self-center mt-1 lg:mt-0 accent-[var(--primary)] w-4 h-4" />
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
-                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.txn_type === "income" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                    <div className={`text-[10px] font-semibold truncate ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"} · {m.transaction_date}</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
-                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
-                  </div>
-                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.invoice_type === "sales" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                    <div className={`text-[10px] font-semibold truncate ${m.invoice_type === "sales" ? "text-emerald-500" : "text-red-400"}`}>{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
-                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1 lg:w-[200px] lg:shrink-0">
-                  <div className="text-right min-w-0 w-full">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{MATCH_LABEL[m.match_type] || m.match_type}</span>
-                    {m.confidence != null && (() => { const t = confTier(m.confidence); return <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded font-semibold ${t.cls}`}>{Math.round(m.confidence * 100)}% {t.label}</span>; })()}
-                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">{won(m.amount)} 정산 · {m.reason || ""}</div>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed" })} disabled={decideMut.isPending}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 text-white hover:opacity-90 disabled:opacity-50">확정</button>
-                    <button onClick={() => decideMut.mutate({ id: m.id, status: "rejected" })} disabled={decideMut.isPending}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400">반려</button>
-                  </div>
+              {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액 | 유형 | 신뢰도 | 처리 */}
+              <div className="glass-card overflow-hidden">
+                <div className="overflow-auto max-h-[600px]">
+                  <table className="w-full min-w-[1020px] text-xs border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                        <th className="px-2 py-2 w-8 text-center">
+                          <input type="checkbox" checked={selected.size === queue.length && queue.length > 0}
+                            onChange={(e) => setSelected(e.target.checked ? new Set(queue.map((m) => m.id)) : new Set())}
+                            className="accent-[var(--primary)] w-3.5 h-3.5 align-middle cursor-pointer" />
+                        </th>
+                        <th className={`${GRID_TH} text-left w-[88px]`}>거래일자</th>
+                        <th className={`${GRID_TH} text-center w-[52px]`}>구분</th>
+                        <th className={`${GRID_TH} text-left`}>입금자/거래처</th>
+                        <th className={`${GRID_TH} text-right w-[110px]`}>거래금액</th>
+                        <th className={`${GRID_TH} text-left w-[88px]`}>발행일자</th>
+                        <th className={`${GRID_TH} text-left`}>계산서 거래처</th>
+                        <th className={`${GRID_TH} text-right w-[110px]`}>계산서 금액</th>
+                        <th className={`${GRID_TH} text-right w-[110px]`}>정산액</th>
+                        <th className={`${GRID_TH} text-center w-[76px]`}>유형</th>
+                        <th className={`${GRID_TH} text-center w-[86px]`}>신뢰도</th>
+                        <th className={`${GRID_TH} text-center w-[110px]`}>처리</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queue.map((m) => (
+                        <tr key={m.id} title={m.reason || ""}
+                          className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 ${selected.has(m.id) ? "bg-[var(--primary)]/5" : ""}`}>
+                          <td className="px-2 py-1.5 text-center">
+                            <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggleSel(m.id)} className="accent-[var(--primary)] w-3.5 h-3.5 align-middle cursor-pointer" />
+                          </td>
+                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.transaction_date}</td>
+                          <td className={`${GRID_TD} text-center`}>
+                            <span className={`font-semibold ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
+                          </td>
+                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty || "—"}</td>
+                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.txn_amount)}</td>
+                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
+                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty_name || "—"}</td>
+                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
+                          <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(m.amount)}</td>
+                          <td className={`${GRID_TD} text-center`}>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">{MATCH_LABEL[m.match_type] || m.match_type}</span>
+                          </td>
+                          <td className={`${GRID_TD} text-center`}>
+                            {m.confidence != null ? (() => { const t = confTier(m.confidence); return <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold whitespace-nowrap ${t.cls}`}>{Math.round(m.confidence * 100)}% {t.label}</span>; })() : "—"}
+                          </td>
+                          <td className={`${GRID_TD} text-center whitespace-nowrap`}>
+                            <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed" })} disabled={decideMut.isPending}
+                              className="px-2 py-1 text-[11px] font-semibold rounded bg-emerald-500 text-white hover:opacity-90 disabled:opacity-50">확정</button>
+                            <button onClick={() => decideMut.mutate({ id: m.id, status: "rejected" })} disabled={decideMut.isPending}
+                              className="ml-1 px-2 py-1 text-[11px] font-semibold rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400">반려</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-              ))}
             </>
           )}
         </div>
@@ -359,20 +392,43 @@ export default function PartnerLedgerPage() {
           {openTx.length === 0 ? (
             <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">미정산 입출금이 없습니다.</div>
           ) : (
-            openTx.map((t) => (
-              <div key={t.id} className="glass-card p-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[var(--text)] truncate">{t.counterparty || "—"}
-                    <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-dim)]">{t.transaction_date} · 잔여 {won(txRemaining(t))}</div>
-                </div>
-                <button onClick={() => { setMatchTx(t); setInvSearch(""); }}
-                  className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
-                  세금계산서 연결
-                </button>
+            <div className="glass-card overflow-hidden">
+              <div className="overflow-auto max-h-[600px]">
+                <table className="w-full min-w-[680px] text-xs border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                      <th className={`${GRID_TH} text-left w-[92px]`}>거래일자</th>
+                      <th className={`${GRID_TH} text-center w-[52px]`}>구분</th>
+                      <th className={`${GRID_TH} text-left`}>거래처(입금자)</th>
+                      <th className={`${GRID_TH} text-right w-[120px]`}>거래금액</th>
+                      <th className={`${GRID_TH} text-right w-[120px]`}>기정산</th>
+                      <th className={`${GRID_TH} text-right w-[120px]`}>잔여</th>
+                      <th className={`${GRID_TH} text-center w-[130px]`}>처리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openTx.map((t) => (
+                      <tr key={t.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                        <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{t.transaction_date}</td>
+                        <td className={`${GRID_TD} text-center`}>
+                          <span className={`font-semibold ${t.type === "income" ? "text-emerald-500" : "text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
+                        </td>
+                        <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[220px]`}>{t.counterparty || "—"}</td>
+                        <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(t.amount)}</td>
+                        <td className={`${GRID_TD} text-right mono-number text-[var(--text-muted)]`}>{fmt(t.settled_amount)}</td>
+                        <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(txRemaining(t))}</td>
+                        <td className={`${GRID_TD} text-center`}>
+                          <button onClick={() => { setMatchTx(t); setInvSearch(""); }}
+                            className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
+                            세금계산서 연결
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))
+            </div>
           )}
         </div>
       )}
@@ -507,40 +563,61 @@ export default function PartnerLedgerPage() {
           {confirmed.length === 0 ? (
             <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">확정된 매칭이 없습니다.</div>
           ) : (
-            confirmed.map((m) => (
-              <div key={m.id} className="glass-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
-                  {m.match_type === "adjustment" ? (
-                    // 차액 마감 행 — 통장거래 없음. 사유 표시.
-                    <div className="rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border bg-amber-500/5 border-amber-500/20">
-                      <div className="text-[10px] font-semibold truncate text-amber-500">차액 마감 (통장거래 없음)</div>
-                      <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.amount)}</div>
-                      <div className="text-xs text-[var(--text-muted)] truncate">{ADJ_REASON_LABEL[(m as any).adjustment_reason] || m.reason || "잔액 정리"}</div>
-                    </div>
-                  ) : (
-                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.txn_type === "income" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                    <div className={`text-[10px] font-semibold truncate ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"} · {m.transaction_date}</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
-                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
-                  </div>
-                  )}
-                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.invoice_type === "sales" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
-                    <div className={`text-[10px] font-semibold truncate ${m.invoice_type === "sales" ? "text-emerald-500" : "text-red-400"}`}>{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
-                    <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
-                    <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 lg:flex-col lg:items-end lg:gap-1 lg:w-[200px] lg:shrink-0">
-                  <div className="text-right min-w-0 w-full">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold">확정됨</span>
-                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">{won(m.amount)} 정산 · {m.match_source === "manual" ? "수동 연결" : MATCH_LABEL[m.match_type] || m.match_type}</div>
-                  </div>
-                  <button onClick={() => unconfirmMut.mutate(m)} disabled={unconfirmMut.isPending}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/40 disabled:opacity-50"
-                    title={m.match_type === "adjustment" ? "차액 마감을 취소하고 잔액을 원복합니다" : "확정을 취소하고 미수금을 원복합니다 (확인 큐로 되돌아감)"}>{m.match_type === "adjustment" ? "마감 취소" : "확정 취소"}</button>
-                </div>
+            <div className="glass-card overflow-hidden">
+              <div className="overflow-auto max-h-[600px]">
+                <table className="w-full min-w-[1020px] text-xs border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                      <th className={`${GRID_TH} text-left w-[88px]`}>거래일자</th>
+                      <th className={`${GRID_TH} text-center w-[64px]`}>구분</th>
+                      <th className={`${GRID_TH} text-left`}>입금자/사유</th>
+                      <th className={`${GRID_TH} text-right w-[110px]`}>거래금액</th>
+                      <th className={`${GRID_TH} text-left w-[88px]`}>발행일자</th>
+                      <th className={`${GRID_TH} text-left`}>계산서 거래처</th>
+                      <th className={`${GRID_TH} text-right w-[110px]`}>계산서 금액</th>
+                      <th className={`${GRID_TH} text-right w-[110px]`}>정산액</th>
+                      <th className={`${GRID_TH} text-center w-[80px]`}>유형</th>
+                      <th className={`${GRID_TH} text-center w-[96px]`}>처리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {confirmed.map((m) => {
+                      const isAdj = m.match_type === "adjustment";
+                      return (
+                        <tr key={m.id} className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 ${isAdj ? "bg-amber-500/5" : ""}`}>
+                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{isAdj ? "—" : m.transaction_date}</td>
+                          <td className={`${GRID_TD} text-center`}>
+                            {isAdj ? (
+                              <span className="font-semibold text-amber-500">차액마감</span>
+                            ) : (
+                              <span className={`font-semibold ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
+                            )}
+                          </td>
+                          <td className={`${GRID_TD} truncate max-w-[160px] ${isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
+                            {isAdj ? (ADJ_REASON_LABEL[(m as any).adjustment_reason] || m.reason || "잔액 정리") : (m.counterparty || "—")}
+                          </td>
+                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{isAdj ? "—" : fmt(m.txn_amount)}</td>
+                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
+                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty_name || "—"}</td>
+                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
+                          <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(m.amount)}</td>
+                          <td className={`${GRID_TD} text-center`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold whitespace-nowrap ${isAdj ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}>
+                              {m.match_source === "manual" && !isAdj ? "수동 연결" : MATCH_LABEL[m.match_type] || m.match_type}
+                            </span>
+                          </td>
+                          <td className={`${GRID_TD} text-center`}>
+                            <button onClick={() => unconfirmMut.mutate(m)} disabled={unconfirmMut.isPending}
+                              className="px-2 py-1 text-[11px] font-semibold rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/40 disabled:opacity-50"
+                              title={isAdj ? "차액 마감을 취소하고 잔액을 원복합니다" : "확정을 취소하고 미수금을 원복합니다 (확인 큐로 되돌아감)"}>{isAdj ? "마감 취소" : "확정 취소"}</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            ))
+            </div>
           )}
         </div>
       )}
