@@ -5,7 +5,7 @@
 //   탭2 거래처 원장: v_partner_ar_ap 거래처별 미수/미지급 현황.
 //   버튼: "홈택스 거래처 연결"(세금계산서↔거래처), "매칭 엔진 실행"(입금↔세금계산서 제안 생성, suggested).
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +51,8 @@ export default function PartnerLedgerPage() {
   const [tab, setTab] = useState<"queue" | "manual" | "ledger" | "confirmed">("queue");
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
   const [ledgerSearch, setLedgerSearch] = useState(""); // 거래처명 검색
+  const [ledgerType, setLedgerType] = useState<"sales" | "purchase">("sales"); // 위하고식: 매출처/매입처 원장 전환
+  const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null); // 거래처 상세 팝업
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
@@ -414,70 +416,87 @@ export default function PartnerLedgerPage() {
       )}
 
       {tab === "ledger" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="text-xs text-[var(--text-muted)]">전기이월 = 선택 연도 이전 미정산 잔액 · 거래처를 클릭하면 세금계산서 상세가 열립니다</div>
-            <div className="flex items-center gap-2">
-              <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
-                className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] w-40" />
-              <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))}
-                className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] cursor-pointer">
+        <div className="space-y-4">
+          {/* ── 조회 조건 바 (위하고 스타일) ── */}
+          <div className="glass-card px-4 py-3 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 border border-[var(--border)]">
+              {([["sales", "매출처 (외상매출금)"], ["purchase", "매입처 (외상매입금)"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => { setLedgerType(k); setSelLedger(null); }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${ledgerType === k ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{l}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              <span className="font-semibold">회계기간</span>
+              <select value={ledgerYear} onChange={(e) => { setLedgerYear(Number(e.target.value)); }}
+                className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
                 {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                  <option key={y} value={y}>{y}년</option>
+                  <option key={y} value={y}>{y}-01-01 ~ {y}-12-31</option>
                 ))}
               </select>
             </div>
+            <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
+              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36" />
+            <div className="ml-auto flex items-center gap-4 text-xs">
+              <span className="text-[var(--text-muted)]">총 미수금 <b className="text-emerald-500 mono-number">{won(totalAr)}</b></span>
+              <span className="text-[var(--text-muted)]">총 미지급금 <b className="text-red-400 mono-number">{won(totalAp)}</b></span>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card px-5 py-4"><div className="text-xs text-[var(--text-muted)]">총 미수금 (받을 돈)</div><div className="text-2xl font-bold text-emerald-500 mono-number mt-1">{won(totalAr)}</div></div>
-            <div className="glass-card px-5 py-4"><div className="text-xs text-[var(--text-muted)]">총 미지급금 (줄 돈)</div><div className="text-2xl font-bold text-red-400 mono-number mt-1">{won(totalAp)}</div></div>
-          </div>
+
           {lLoading ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : (
-            <>
-              {([["미수금 (매출 채권)", receivables, "text-emerald-500"], ["미지급금 (매입 채무)", payables, "text-red-400"]] as const).map(([title, data, accent]) => {
-                const sq = ledgerSearch.trim().toLowerCase();
-                const shown = sq ? data.filter((r) => nameOf(r.partner_id).toLowerCase().includes(sq)) : data;
-                return (
-                <div key={title} className="glass-card overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2><span className="text-xs text-[var(--text-dim)]">{shown.length}곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span>
+            (() => {
+              const data = ledgerType === "sales" ? receivables : payables;
+              const sq = ledgerSearch.trim().toLowerCase();
+              const shown = sq ? data.filter((r) => nameOf(r.partner_id).toLowerCase().includes(sq)) : data;
+              const selKey = selLedger ?? (shown[0] ? (shown[0].partner_id ?? "none") : null);
+              const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-3 items-start">
+                  {/* ── 좌: 거래처 목록 ── */}
+                  <div className="glass-card overflow-hidden">
+                    <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text)]">거래처</span>
+                      <span className="text-[10px] text-[var(--text-dim)]">{shown.length}곳</span>
+                    </div>
+                    <div className="overflow-y-auto max-h-[560px]">
+                      {shown.length === 0 ? (
+                        <div className="p-8 text-center text-xs text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : "연결된 거래처가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행하세요."}</div>
+                      ) : shown.map((r, idx) => {
+                        const key = r.partner_id ?? "none";
+                        const active = key === selKey;
+                        return (
+                          <button key={`${key}-${r.type}`} onClick={() => setSelLedger(key)}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border)]/40 text-left transition ${active ? "bg-[var(--primary)]/8 border-l-2 border-l-[var(--primary)]" : "hover:bg-[var(--bg-surface)] border-l-2 border-l-transparent"}`}>
+                            <span className="min-w-0">
+                              <span className="block text-[10px] text-[var(--text-dim)] mono-number">{String(idx + 1).padStart(3, "0")}</span>
+                              <span className={`block text-xs truncate ${active ? "font-bold text-[var(--primary)]" : "text-[var(--text)]"}`}>{nameOf(r.partner_id)}</span>
+                            </span>
+                            <span className={`shrink-0 text-xs mono-number ${ledgerOut(r) > 0 ? (ledgerType === "sales" ? "text-emerald-500" : "text-red-400") : "text-[var(--text-dim)]"}`}>{Math.round(ledgerOut(r)).toLocaleString()}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  {shown.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : "연결된 거래처 세금계산서가 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요."}</div>
+
+                  {/* ── 우: 일자별 원장 (차변/대변/잔액) ── */}
+                  {selRow ? (
+                    <PartnerLedgerSheet
+                      key={`${selKey}-${selRow.type}-${ledgerYear}`}
+                      companyId={companyId!}
+                      partnerId={selRow.partner_id}
+                      type={selRow.type}
+                      year={ledgerYear}
+                      partnerName={nameOf(selRow.partner_id)}
+                      openingFromRpc={Number(selRow.prior_outstanding || 0)}
+                      onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
+                    />
                   ) : (
-                    <div className="overflow-auto max-h-[460px]"><table className="w-full min-w-[680px] text-sm">
-                      <thead className="sticky top-0 bg-[var(--bg-surface)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="text-left px-5 py-2.5 font-medium">거래처</th>
-                        <th className="text-right px-5 py-2.5 font-medium">전기이월</th>
-                        <th className="text-right px-5 py-2.5 font-medium">당기 청구</th>
-                        <th className="text-right px-5 py-2.5 font-medium">당기 정산</th>
-                        <th className="text-right px-5 py-2.5 font-medium">잔액</th>
-                      </tr></thead>
-                      <tbody>{shown.map((r) => (
-                        <tr key={`${r.partner_id}-${r.type}`} onClick={() => setDetail({ partnerId: r.partner_id, type: r.type, focus: "all" })}
-                          className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer" title="클릭하여 세금계산서 상세 보기">
-                          <td className="px-5 py-2.5 text-[var(--text)]">
-                            <span className="inline-flex items-center gap-1.5">{nameOf(r.partner_id)}<span className="text-[10px] text-[var(--text-dim)]">상세 ›</span></span>
-                          </td>
-                          <td className="px-5 py-2.5 text-right mono-number">
-                            {Number(r.prior_outstanding) > 0
-                              ? <button onClick={(e) => { e.stopPropagation(); setDetail({ partnerId: r.partner_id, type: r.type, focus: "prior" }); }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[11px] font-semibold hover:bg-amber-500/20 transition" title={`${ledgerYear}년 이전 미정산 (전기이월) — 클릭하여 상세`}>전기이월 {won(r.prior_outstanding)}</button>
-                              : <span className="text-[var(--text-dim)]">—</span>}
-                          </td>
-                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.period_billed)}</td>
-                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.period_settled)}</td>
-                          <td className={`px-5 py-2.5 text-right font-semibold mono-number ${ledgerOut(r) > 0 ? accent : "text-[var(--text-dim)]"}`}>{won(ledgerOut(r))}</td>
-                        </tr>
-                      ))}</tbody>
-                    </table></div>
+                    <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">좌측에서 거래처를 선택하세요.</div>
                   )}
                 </div>
-                );
-              })}
-            </>
+              );
+            })()
           )}
         </div>
       )}
@@ -540,6 +559,220 @@ export default function PartnerLedgerPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">※ 확정한 매칭만 미수금에서 차감됩니다. 규칙으로 안 잡힌 입금은 곧 추가될 AI 매칭/수동 연결로 처리합니다.</p>
+    </div>
+  );
+}
+
+// ── 위하고식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
+//   매출처(외상매출금): 차변=발생(세금계산서), 대변=회수(입금·차액마감). 잔액 = 이월 + 차변 - 대변.
+//   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
+type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean };
+
+function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail }: {
+  companyId: string; partnerId: string | null; type: string; year: number; partnerName: string;
+  openingFromRpc: number; onOpenDetail: () => void;
+}) {
+  const db = supabase as any;
+  const yStart = `${year}-01-01`;
+  const isSales = type === "sales";
+
+  // 발생: 해당 거래처 세금계산서 (연말까지 — 전기이월 산출 위해 과거 포함)
+  const { data: invoices = [], isLoading } = useQuery<any[]>({
+    queryKey: ["ledger-sheet-inv", companyId, partnerId, type, year],
+    queryFn: async () => {
+      let qb = db.from("tax_invoices")
+        .select("id, issue_date, item_name, label, total_amount")
+        .eq("company_id", companyId).eq("type", type).neq("status", "void")
+        .lte("issue_date", `${year}-12-31`)
+        .order("issue_date", { ascending: true }).limit(2000);
+      qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
+      const { data } = await qb;
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
+  const invIds = invoices.map((i) => i.id);
+  const { data: settles = [] } = useQuery<any[]>({
+    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, year, invIds.length],
+    queryFn: async () => {
+      if (invIds.length === 0) return [];
+      const { data: setts } = await db.from("invoice_settlements")
+        .select("tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
+        .eq("status", "confirmed").in("tax_invoice_id", invIds);
+      const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
+      const btMap: Record<string, { date: string; cp: string | null }> = {};
+      if (btIds.length) {
+        const { data: bts } = await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds);
+        for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
+      }
+      return ((setts || []) as any[]).map((s) => ({
+        ...s,
+        date: s.bank_transaction_id ? (btMap[s.bank_transaction_id]?.date || String(s.created_at).slice(0, 10)) : String(s.created_at).slice(0, 10),
+        cp: s.bank_transaction_id ? btMap[s.bank_transaction_id]?.cp : null,
+      }));
+    },
+    enabled: !!companyId && invIds.length > 0,
+  });
+
+  const { opening, months, totals } = useMemo(() => {
+    // 발생/회수 항목을 SheetEntry 로 변환 (매출처: 발생=차변·회수=대변 / 매입처: 발생=대변·지급=차변)
+    const occur = (inv: any): SheetEntry => ({
+      date: inv.issue_date,
+      desc: `세금계산서 · ${inv.item_name || inv.label || "품목 미상"}`,
+      debit: isSales ? Number(inv.total_amount || 0) : 0,
+      credit: isSales ? 0 : Number(inv.total_amount || 0),
+    });
+    const settle = (s: any): SheetEntry => ({
+      date: s.date,
+      desc: s.match_type === "adjustment"
+        ? `차액 마감 (${ADJ_REASON_LABEL[s.adjustment_reason] || "잔액 정리"})`
+        : `${isSales ? "입금" : "지급"}${s.cp ? ` · ${s.cp}` : ""}`,
+      debit: isSales ? 0 : Number(s.amount || 0),
+      credit: isSales ? Number(s.amount || 0) : 0,
+      isAdj: s.match_type === "adjustment",
+    });
+
+    const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle)];
+    // 전기이월 = 기간 전 발생 - 기간 전 회수 (RPC prior_outstanding 과 동일 정의 — settled_amount 기준 차이는 미세하므로 자체 계산 사용)
+    const before = all.filter((e) => e.date < yStart);
+    const within = all.filter((e) => e.date >= yStart).sort((a, b) => a.date.localeCompare(b.date) || (b.debit + b.credit) - (a.debit + a.credit));
+    const dir = (e: SheetEntry) => (isSales ? e.debit - e.credit : e.credit - e.debit); // 잔액 증가 방향
+    const opening = before.reduce((s, e) => s + dir(e), 0);
+
+    // 월별 그룹 + 월계
+    const byMonth = new Map<string, SheetEntry[]>();
+    for (const e of within) {
+      const m = e.date.slice(0, 7);
+      if (!byMonth.has(m)) byMonth.set(m, []);
+      byMonth.get(m)!.push(e);
+    }
+    const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const totals = {
+      debit: within.reduce((s, e) => s + e.debit, 0),
+      credit: within.reduce((s, e) => s + e.credit, 0),
+      ending: opening + within.reduce((s, e) => s + dir(e), 0),
+    };
+    return { opening, months, totals };
+  }, [invoices, settles, isSales, yStart]);
+
+  void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
+
+  const num = (n: number) => (n ? Math.round(n).toLocaleString() : "");
+  const cellR = "px-3 py-1.5 text-right mono-number border-l border-[var(--border)]/60";
+
+  // CSV(엑셀) 다운로드 — 위하고 내보내기 대응
+  const downloadCsv = () => {
+    const rows: string[][] = [["일자", "적요", "차변", "대변", "잔액"]];
+    let bal = opening;
+    rows.push([`${year}-01-01`, "[전기이월]", "", "", String(Math.round(opening))]);
+    for (const [m, entries] of months) {
+      let md = 0, mc = 0;
+      for (const e of entries) {
+        bal += isSales ? e.debit - e.credit : e.credit - e.debit;
+        md += e.debit; mc += e.credit;
+        rows.push([e.date, e.desc, e.debit ? String(Math.round(e.debit)) : "", e.credit ? String(Math.round(e.credit)) : "", String(Math.round(bal))]);
+      }
+      rows.push([`${m}`, "[월계]", String(Math.round(md)), String(Math.round(mc)), ""]);
+    }
+    rows.push(["", "[합계]", String(Math.round(totals.debit)), String(Math.round(totals.credit)), String(Math.round(totals.ending))]);
+    const csv = "﻿" + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `거래처원장_${partnerName}_${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  let running = opening;
+
+  return (
+    <div className="glass-card overflow-hidden">
+      {/* 시트 헤더 */}
+      <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-bold text-[var(--text)] truncate">{partnerName}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${isSales ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{isSales ? "외상매출금" : "외상매입금"}</span>
+          <span className="text-[11px] text-[var(--text-dim)] shrink-0">{year}-01-01 ~ {year}-12-31</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={downloadCsv} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">엑셀</button>
+          <button onClick={onOpenDetail} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50">상세 · 차액 마감</button>
+        </div>
+      </div>
+
+      {/* 원장 그리드 */}
+      <div className="overflow-auto max-h-[560px]">
+        <table className="w-full min-w-[640px] text-xs border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+              <th className="px-3 py-2 text-left font-semibold w-[92px]">일자</th>
+              <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60">적요</th>
+              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
+              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
+              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[130px]">잔액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={5} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+            ) : (
+              <>
+                {/* 전기이월 */}
+                <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-semibold">
+                  <td className="px-3 py-1.5 text-[var(--text-dim)]">{year}-01-01</td>
+                  <td className="px-3 py-1.5 text-[var(--text-muted)] border-l border-[var(--border)]/60">[전기이월]</td>
+                  <td className={cellR} /><td className={cellR} />
+                  <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
+                </tr>
+                {months.length === 0 && (
+                  <tr><td colSpan={5} className="p-8 text-center text-[var(--text-muted)]">당기({year}년) 거래가 없습니다.</td></tr>
+                )}
+                {months.map(([m, entries]) => {
+                  const md = entries.reduce((s, e) => s + e.debit, 0);
+                  const mc = entries.reduce((s, e) => s + e.credit, 0);
+                  return (
+                    <Fragment key={m}>
+                      {entries.map((e, i) => {
+                        running += isSales ? e.debit - e.credit : e.credit - e.debit;
+                        return (
+                          <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                            <td className="px-3 py-1.5 text-[var(--text-muted)] mono-number">{e.date}</td>
+                            <td className={`px-3 py-1.5 border-l border-[var(--border)]/60 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>{e.desc}</td>
+                            <td className={`${cellR} ${e.debit ? "text-[var(--text)]" : ""}`}>{num(e.debit)}</td>
+                            <td className={`${cellR} ${e.credit ? "text-[var(--text)]" : ""}`}>{num(e.credit)}</td>
+                            <td className={`${cellR} font-semibold ${running > 0 ? (isSales ? "text-emerald-600" : "text-red-400") : "text-[var(--text-dim)]"}`}>{Math.round(running).toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                      {/* 월계 */}
+                      <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 text-[var(--text-muted)] font-semibold">
+                        <td className="px-3 py-1.5">{Number(m.slice(5, 7))}월</td>
+                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[월계]</td>
+                        <td className={cellR}>{num(md)}</td>
+                        <td className={cellR}>{num(mc)}</td>
+                        <td className={cellR} />
+                      </tr>
+                    </Fragment>
+                  );
+                })}
+                {/* 합계 */}
+                <tr className="bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold text-[var(--text)]">
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2 border-l border-[var(--border)]/60">[합계]</td>
+                  <td className={cellR}>{num(totals.debit)}</td>
+                  <td className={cellR}>{num(totals.credit)}</td>
+                  <td className={`${cellR} ${totals.ending > 0 ? (isSales ? "text-emerald-600" : "text-red-400") : ""}`}>{Math.round(totals.ending).toLocaleString()}</td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
+        차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 확인 큐에서 처리하세요
+      </div>
     </div>
   );
 }
