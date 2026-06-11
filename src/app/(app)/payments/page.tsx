@@ -1580,6 +1580,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
   const [result, setResult] = useState<AutomationResult | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<DetectedRecurring[]>([]);
+  const [includeRisky, setIncludeRisky] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -1598,7 +1599,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
   async function handleRunAutomation() {
     setRunning(true);
     try {
-      const res = await runAllAutomation(companyId);
+      const res = await runAllAutomation(companyId, { includeRisky });
       setResult(res);
       invalidate();
       const total =
@@ -1661,15 +1662,28 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-2">
-        <button onClick={handleDetect} disabled={detecting}
-          className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
-          {detecting ? '분석 중...' : '이체내역 분석'}
-        </button>
-        <button onClick={handleRunAutomation} disabled={running}
-          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
-          {running ? '실행 중...' : '전체 자동화 실행'}
-        </button>
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <button onClick={handleDetect} disabled={detecting}
+            className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
+            {detecting ? '분석 중...' : '이체내역 분석'}
+          </button>
+          <button onClick={handleRunAutomation} disabled={running}
+            className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+            {running ? '실행 중...' : '자동화 실행'}
+          </button>
+        </div>
+        {/* 무엇을 하는지 투명하게 안내 + 위험 작업 옵트인 */}
+        <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
+          기본 실행: 거래 자동분류·매칭, 결제큐 정리, 지출결의 드래프트 생성 (데이터 정리만, 돈/세무 변경 없음).
+        </p>
+        <label className="flex items-start gap-1.5 text-[10px] text-[var(--text-muted)] cursor-pointer select-none">
+          <input type="checkbox" checked={includeRisky} onChange={(e) => setIncludeRisky(e.target.checked)} className="mt-0.5 accent-[var(--danger)]" />
+          <span>
+            <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> — 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
+            실제 승인·세무 레코드를 자동 생성합니다. 내용을 이해한 경우에만 체크하세요.
+          </span>
+        </label>
       </div>
 
       {/* Automation result */}

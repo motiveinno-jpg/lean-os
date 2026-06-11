@@ -902,31 +902,40 @@ export interface AutomationResult {
   timestamp: string;
 }
 
-export async function runAllAutomation(companyId: string): Promise<AutomationResult> {
+// 위험 작업(돈·세무에 직접 레코드 생성/승인) — 기본 미실행, 사장님이 명시 동의 시에만.
+//   소액 자동승인(지출 승인) / 결제→세금계산서 자동발행 / 환불→세금계산서 취소
+export async function runAllAutomation(
+  companyId: string,
+  opts: { includeRisky?: boolean } = {},
+): Promise<AutomationResult> {
+  const includeRisky = opts.includeRisky ?? false;
   // 개별 자동화 실패가 전체를 죽이지 않도록 각 호출에 폴백(0 결과) 적용 — 일부만 실패해도 나머지는 실행/집계.
   // 실패한 단계는 errors 에 라벨+사유로 수집 → 화면 표시.
   const errors: string[] = [];
   const safe = <T>(label: string, p: Promise<T>, fallback: T): Promise<T> =>
     p.catch((e: any) => { errors.push(`${label}: ${e?.message || '알 수 없는 오류'}`); return fallback; });
+  // 위험 작업: includeRisky=false 면 실행하지 않고 0 결과 반환(스킵)
+  const risky = <T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> =>
+    includeRisky ? safe(label, run(), fallback) : Promise.resolve(fallback);
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
     recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
-    // 기존 10개
+    // 안전 정리(데이터 분류·매칭·드래프트) — 기본 실행
     safe('거래 자동분류', applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
     safe('카드 거래 매핑', applyCardTransactionRules(companyId), { processed: 0, matched: 0 }),
     safe('3-Way 매칭', autoExecuteThreeWayMatch(companyId), { total: 0, autoMatched: 0 }),
     safe('거래 자동매칭', autoMatchTransactions(companyId), { matched: 0 }),
     safe('휴면 프로젝트 감지', detectDormantDeals(companyId), { detected: 0 }),
-    safe('소액 자동승인', autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
+    // 위험: 지출 자동승인 (기본 OFF)
+    risky('소액 자동승인', () => autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
     safe('계약→일정 연결', autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
-    // 신규 5개: 파이프라인 자동화
-    safe('반복→지출결의', autoCreateExpenseFromRecurring(companyId), { created: 0 }),
+    safe('반복→지출결의(드래프트)', autoCreateExpenseFromRecurring(companyId), { created: 0 }),
     safe('승인→결제큐', autoQueueApprovedExpenses(companyId), { queued: 0 }),
-    safe('계약→지출결의', autoCreateExpenseFromContract(companyId), { created: 0 }),
-    safe('결제→세금계산서', autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
-    safe('환불→세금계산서 취소', autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
-    // 대출 상환 자동 매칭
+    safe('계약→지출결의(드래프트)', autoCreateExpenseFromContract(companyId), { created: 0 }),
+    // 위험: 세금계산서 자동발행/취소 (기본 OFF)
+    risky('결제→세금계산서 발행', () => autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
+    risky('환불→세금계산서 취소', () => autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
     safe('대출 상환 매칭', autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })), { candidates: 0 }),
   ]);
 
