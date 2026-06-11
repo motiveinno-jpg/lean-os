@@ -68,10 +68,14 @@ interface UserLite { id: string; name: string | null; email: string }
 
 interface AssignmentLite { deal_id: string; user_id: string; role: string | null; is_active: boolean | null }
 
+// 경영 통합(2026-06-11): 딜별 세금계산서 발행 · 수금 상태 — 업무↔매출↔자금 연결 표시용
+interface DealFin { invoiced: number; invoiceCount: number; received: number }
+
 interface ProjectCard extends DealRow {
   partnerName: string;
   managerName: string;
   badge: ProjectBadge;
+  fin?: DealFin;
 }
 
 // 기간 필터 — null 이면 전체 표시, 아니면 [from, to] 범위와 겹치는 deal 만
@@ -273,6 +277,44 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
     enabled: !!companyId && deals.length > 0,
   });
 
+  // 경영 통합(2026-06-11): 딜별 발행 세금계산서 + 수금(deal_revenue_schedule received) 집계.
+  //   employee 제한 모드는 재무 컬럼 미노출 정책이라 fetch 자체를 끔.
+  const { data: finByDeal } = useQuery<Map<string, DealFin>>({
+    queryKey: ["projects-fin", companyId, deals.length],
+    queryFn: async () => {
+      const dealIds = (deals as DealRow[]).map((d) => d.id);
+      const m = new Map<string, DealFin>();
+      if (dealIds.length === 0) return m;
+      const [{ data: invs }, { data: scheds }] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("tax_invoices")
+          .select("deal_id, total_amount")
+          .eq("type", "sales").neq("status", "void").in("deal_id", dealIds),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("deal_revenue_schedule")
+          .select("deal_id, amount, status")
+          .in("deal_id", dealIds),
+      ]);
+      const get = (id: string) => {
+        if (!m.has(id)) m.set(id, { invoiced: 0, invoiceCount: 0, received: 0 });
+        return m.get(id)!;
+      };
+      for (const r of (invs || []) as { deal_id: string | null; total_amount: number | null }[]) {
+        if (!r.deal_id) continue;
+        const f = get(r.deal_id);
+        f.invoiced += Number(r.total_amount || 0);
+        f.invoiceCount += 1;
+      }
+      for (const r of (scheds || []) as { deal_id: string | null; amount: number | null; status: string | null }[]) {
+        if (!r.deal_id || r.status !== "received") continue;
+        get(r.deal_id).received += Number(r.amount || 0);
+      }
+      return m;
+    },
+    enabled: !!companyId && deals.length > 0 && !isEmployeeLimited,
+    staleTime: 60_000,
+  });
+
   // ── 매핑 인덱스 ──
   const partnerMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -315,9 +357,10 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
           partnerName: d.partner_id ? (partnerMap.get(d.partner_id) || "—") : "—",
           managerName: managerId ? (userMap.get(managerId) || "—") : "—",
           badge,
+          fin: finByDeal?.get(d.id),
         };
       });
-  }, [deals, partnerMap, userMap, managerByDeal, dateFilter]);
+  }, [deals, partnerMap, userMap, managerByDeal, dateFilter, finByDeal]);
 
   // ── 검색/필터 state ──
   const [search, setSearch] = useState("");
@@ -1016,6 +1059,23 @@ function KanbanView({
 }
 
 // ── Card ──
+// 경영 통합(2026-06-11): 딜 수금 상태 1줄 라벨 — 카드·리스트 공용.
+//   기준: 발행 세금계산서 합계(부가세 포함) 대비 수금(deal_revenue_schedule received).
+//   계산서 0건은 완료/정산 단계에서만 경고 (견적·진행 단계 노이즈 방지).
+function settlementInfo(card: ProjectCard): { text: string; color: string } | null {
+  const fin = card.fin;
+  if (!fin) return null;
+  const isLate = card.stage === "completed" || card.stage === "settlement";
+  if (fin.invoiceCount === 0) {
+    return isLate ? { text: "계산서 미발행", color: "#ef4444" } : null;
+  }
+  const target = fin.invoiced > 0 ? fin.invoiced : Number(card.contract_total ?? 0);
+  const pct = target > 0 ? Math.min(100, Math.round((fin.received / target) * 100)) : 0;
+  if (pct >= 100) return { text: `발행 ${fin.invoiceCount}건 · 수금 완료`, color: "#10b981" };
+  if (fin.received > 0) return { text: `발행 ${fin.invoiceCount}건 · 수금 ${pct}%`, color: "#f59e0b" };
+  return { text: `발행 ${fin.invoiceCount}건 · 수금 대기`, color: isLate ? "#ef4444" : "var(--text-muted)" };
+}
+
 function ProjectCardView({
   card,
   onClick,
@@ -1101,6 +1161,16 @@ function ProjectCardView({
           <span className="text-[var(--text-dim)]">💰</span>
           <span>₩{(card.contract_total ?? 0).toLocaleString()}</span>
         </div>
+        {(() => {
+          // 경영 통합: 계산서 발행·수금 상태 (업무↔매출↔자금 연결)
+          const s = settlementInfo(card);
+          return s ? (
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-[var(--text-dim)]">🧾</span>
+              <span className="truncate font-semibold" style={{ color: s.color }}>{s.text}</span>
+            </div>
+          ) : null;
+        })()}
         <div className="flex items-center gap-1.5">
           <span className="text-[var(--text-dim)]">⏰</span>
           <span>{formatDueLabel(card.end_date)}</span>
@@ -1191,6 +1261,8 @@ function ListView({
               <th className="text-left px-3 py-2 font-semibold cursor-pointer select-none" onClick={() => toggleSort("end_date")}>
                 기한 {sortKey === "end_date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
               </th>
+              {/* 경영 통합: 계산서 발행·수금 상태 */}
+              <th className="text-left px-3 py-2 font-semibold">수금</th>
               <th className="text-left px-3 py-2 font-semibold">담당자</th>
               <th className="text-left px-3 py-2 font-semibold">상태</th>
             </tr>
@@ -1217,6 +1289,16 @@ function ListView({
                 </td>
                 <td className="px-3 py-2 text-right text-[var(--text)]">₩{(c.contract_total ?? 0).toLocaleString()}</td>
                 <td className="px-3 py-2 text-[var(--text-muted)]">{formatDueLabel(c.end_date)}</td>
+                <td className="px-3 py-2">
+                  {(() => {
+                    const s = settlementInfo(c);
+                    return s ? (
+                      <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: s.color }}>{s.text}</span>
+                    ) : (
+                      <span className="text-[10px] text-[var(--text-dim)]">—</span>
+                    );
+                  })()}
+                </td>
                 <td className="px-3 py-2 text-[var(--text-muted)]">{c.managerName}</td>
                 <td className="px-3 py-2">
                   {c.badge.key !== "none" ? (
