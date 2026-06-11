@@ -368,8 +368,8 @@ export default function DashboardPage() {
       // 1.5) 카드 승인내역(실시간) — 'all' 번들에서 분리 (묶으면 Edge 150s 초과 HTTP 546). 별도 호출.
       await syncCodefData(companyId, 'card_approval').catch(() => null);
 
-      // 2) 자동 분류 엔진 실행 (수집된 데이터 분류)
-      const autoResult = await runAllAutomation(companyId);
+      // 2) 자동 분류 엔진 실행 — 동기화 직후 백그라운드: 정리(organize)만. 드래프트 생성·위험 작업 제외.
+      const autoResult = await runAllAutomation(companyId, { includeDrafts: false, includeRisky: false });
 
       // 3) 쿼리 캐시 갱신
       queryClient.invalidateQueries({ queryKey: ["founder-data"] });

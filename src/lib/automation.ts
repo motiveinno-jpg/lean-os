@@ -902,38 +902,44 @@ export interface AutomationResult {
   timestamp: string;
 }
 
-// 위험 작업(돈·세무에 직접 레코드 생성/승인) — 기본 미실행, 사장님이 명시 동의 시에만.
-//   소액 자동승인(지출 승인) / 결제→세금계산서 자동발행 / 환불→세금계산서 취소
+// 3-티어 자동화:
+//   organize(항상)  : 분류·매칭·감지 — 돈/세무 레코드 생성 없음. 동기화 직후 자동 실행에 안전.
+//   draft(기본 ON)  : 지출결의 드래프트/결제큐 — 레코드 생성하나 승인 필요. 수동 버튼 기본.
+//   risky(기본 OFF) : 소액 자동승인·세금계산서 자동발행/취소 — 명시 동의 시에만.
 export async function runAllAutomation(
   companyId: string,
-  opts: { includeRisky?: boolean } = {},
+  opts: { includeDrafts?: boolean; includeRisky?: boolean } = {},
 ): Promise<AutomationResult> {
+  const includeDrafts = opts.includeDrafts ?? true;
   const includeRisky = opts.includeRisky ?? false;
   // 개별 자동화 실패가 전체를 죽이지 않도록 각 호출에 폴백(0 결과) 적용 — 일부만 실패해도 나머지는 실행/집계.
   // 실패한 단계는 errors 에 라벨+사유로 수집 → 화면 표시.
   const errors: string[] = [];
   const safe = <T>(label: string, p: Promise<T>, fallback: T): Promise<T> =>
     p.catch((e: any) => { errors.push(`${label}: ${e?.message || '알 수 없는 오류'}`); return fallback; });
-  // 위험 작업: includeRisky=false 면 실행하지 않고 0 결과 반환(스킵)
-  const risky = <T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> =>
-    includeRisky ? safe(label, run(), fallback) : Promise.resolve(fallback);
+  // 티어 게이트: off 면 실행하지 않고 0 결과 반환(스킵)
+  const gate = (on: boolean) => <T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> =>
+    on ? safe(label, run(), fallback) : Promise.resolve(fallback);
+  const draft = gate(includeDrafts);
+  const risky = gate(includeRisky);
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
     recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
-    // 안전 정리(데이터 분류·매칭·드래프트) — 기본 실행
+    // organize(항상): 데이터 정리만
     safe('거래 자동분류', applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
     safe('카드 거래 매핑', applyCardTransactionRules(companyId), { processed: 0, matched: 0 }),
     safe('3-Way 매칭', autoExecuteThreeWayMatch(companyId), { total: 0, autoMatched: 0 }),
     safe('거래 자동매칭', autoMatchTransactions(companyId), { matched: 0 }),
     safe('휴면 프로젝트 감지', detectDormantDeals(companyId), { detected: 0 }),
-    // 위험: 지출 자동승인 (기본 OFF)
+    // risky: 지출 자동승인 (기본 OFF)
     risky('소액 자동승인', () => autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
     safe('계약→일정 연결', autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
-    safe('반복→지출결의(드래프트)', autoCreateExpenseFromRecurring(companyId), { created: 0 }),
-    safe('승인→결제큐', autoQueueApprovedExpenses(companyId), { queued: 0 }),
-    safe('계약→지출결의(드래프트)', autoCreateExpenseFromContract(companyId), { created: 0 }),
-    // 위험: 세금계산서 자동발행/취소 (기본 OFF)
+    // draft(기본 ON): 레코드 생성하나 승인 필요
+    draft('반복→지출결의(드래프트)', () => autoCreateExpenseFromRecurring(companyId), { created: 0 }),
+    draft('승인→결제큐', () => autoQueueApprovedExpenses(companyId), { queued: 0 }),
+    draft('계약→지출결의(드래프트)', () => autoCreateExpenseFromContract(companyId), { created: 0 }),
+    // risky: 세금계산서 자동발행/취소 (기본 OFF)
     risky('결제→세금계산서 발행', () => autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
     risky('환불→세금계산서 취소', () => autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
     safe('대출 상환 매칭', autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })), { candidates: 0 }),

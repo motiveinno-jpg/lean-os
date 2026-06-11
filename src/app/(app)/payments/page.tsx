@@ -1578,8 +1578,6 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AutomationResult | null>(null);
-  const [detecting, setDetecting] = useState(false);
-  const [detected, setDetected] = useState<DetectedRecurring[]>([]);
   const [includeRisky, setIncludeRisky] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1594,6 +1592,14 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
     queryKey: ["recurring-payments", companyId],
     queryFn: () => getRecurringPayments(companyId),
     enabled: !!companyId,
+  });
+
+  // 이체내역 분석: 탭 진입 시 자동 실행(읽기 전용·무비용) → 고정비 후보 패널 자동 노출.
+  const { data: detected = [], refetch: refetchDetect, isFetching: detecting } = useQuery<DetectedRecurring[]>({
+    queryKey: ["detected-recurring", companyId],
+    queryFn: () => detectRecurringFromBankTx(companyId),
+    enabled: !!companyId,
+    staleTime: 10 * 60 * 1000,
   });
 
   async function handleRunAutomation() {
@@ -1616,18 +1622,15 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
   }
 
   async function handleDetect() {
-    setDetecting(true);
     try {
-      const res = await detectRecurringFromBankTx(companyId);
-      setDetected(res);
-      queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
+      const { data } = await refetchDetect();
+      const res = data || [];
       const fresh = res.filter((d) => !d.alreadyRegistered).length;
       if (res.length === 0) toast("최근 3개월 이체내역에서 반복 결제 패턴을 찾지 못했습니다", "info");
       else toast(`반복 이체 ${res.length}건 감지 (신규 ${fresh}건 · 기등록 ${res.length - fresh}건)`, "success");
     } catch (e: any) {
       toast("이체내역 분석 실패: " + (e?.message || "오류"), "error");
     }
-    setDetecting(false);
   }
 
   const activeRecurring = recurring.filter((r: any) => r.is_active).length;
@@ -1766,7 +1769,9 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
                   const newItems = detected.filter(d => !d.alreadyRegistered);
                   await registerDetectedRecurring(companyId, newItems);
                   invalidate();
-                  setDetected([]);
+                  refetchDetect();
+                  queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
+                  toast(`${newItems.length}건을 고정비(반복결제)로 등록했습니다`, "success");
                 }}
                 className="px-3 py-1 bg-blue-500 text-white rounded-lg text-[10px] font-semibold hover:bg-blue-600 transition"
               >
