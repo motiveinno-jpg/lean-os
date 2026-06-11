@@ -12,9 +12,12 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 
-type ArApRow = {
+type LedgerRow = {
   partner_id: string | null; type: string; invoice_count: number;
-  total_billed: number; total_settled: number; outstanding: number;
+  prior_outstanding: number;   // 전기이월(선택연도 이전 미정산)
+  period_billed: number;       // 당기 청구
+  period_settled: number;      // 당기 정산
+  period_outstanding: number;  // 당기 잔액
 };
 type QueueRow = {
   id: string; bank_transaction_id: string; tax_invoice_id: string; amount: number;
@@ -37,6 +40,7 @@ export default function PartnerLedgerPage() {
   const { toast } = useToast();
   const db = supabase as any;
   const [tab, setTab] = useState<"queue" | "manual" | "ledger">("queue");
+  const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 원장 조회 연도(1년 단위)
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
@@ -54,11 +58,11 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId,
   });
 
-  const { data: rows = [], isLoading: lLoading } = useQuery<ArApRow[]>({
-    queryKey: ["partner-ledger", companyId],
+  const { data: rows = [], isLoading: lLoading } = useQuery<LedgerRow[]>({
+    queryKey: ["partner-ledger", companyId, ledgerYear],
     queryFn: async () => {
-      const { data } = await db.from("v_partner_ar_ap").select("*").eq("company_id", companyId);
-      return (data || []) as ArApRow[];
+      const { data } = await db.rpc("get_partner_ledger_by_year", { p_year: ledgerYear });
+      return (data || []) as LedgerRow[];
     },
     enabled: !!companyId,
   });
@@ -169,12 +173,15 @@ export default function PartnerLedgerPage() {
       .slice(0, 100);
   }, [unsettledInv, invSearch, matchInvType]);
 
+  // 잔액 = 전기이월 + 당기 잔액
+  const ledgerOut = (r: LedgerRow) => Number(r.prior_outstanding || 0) + Number(r.period_outstanding || 0);
   const { receivables, payables, totalAr, totalAp } = useMemo(() => {
-    const recv = rows.filter((r) => r.type === "sales").sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
-    const pay = rows.filter((r) => r.type === "purchase").sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
+    const has = (r: LedgerRow) => ledgerOut(r) > 0 || Number(r.period_billed || 0) > 0;
+    const recv = rows.filter((r) => r.type === "sales" && has(r)).sort((a, b) => ledgerOut(b) - ledgerOut(a));
+    const pay = rows.filter((r) => r.type === "purchase" && has(r)).sort((a, b) => ledgerOut(b) - ledgerOut(a));
     return { receivables: recv, payables: pay,
-      totalAr: recv.reduce((s, r) => s + Number(r.outstanding || 0), 0),
-      totalAp: pay.reduce((s, r) => s + Number(r.outstanding || 0), 0) };
+      totalAr: recv.reduce((s, r) => s + ledgerOut(r), 0),
+      totalAp: pay.reduce((s, r) => s + ledgerOut(r), 0) };
   }, [rows]);
 
   const nameOf = (pid: string | null) => (pid && partnerMap[pid]) || "미지정 거래처";
@@ -237,8 +244,8 @@ export default function PartnerLedgerPage() {
                     <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.txn_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty || "—"}</div>
                   </div>
-                  <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-3 h-[68px] min-w-0 flex flex-col justify-center">
-                    <div className="text-[10px] text-[var(--text-muted)] font-semibold truncate">{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
+                  <div className={`rounded-lg px-3 h-[68px] min-w-0 flex flex-col justify-center border ${m.invoice_type === "sales" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                    <div className={`text-[10px] font-semibold truncate ${m.invoice_type === "sales" ? "text-emerald-500" : "text-red-400"}`}>{m.invoice_type === "sales" ? "매출세금계산서" : "매입세금계산서"} · {m.issue_date}</div>
                     <div className="text-sm font-bold text-[var(--text)] mono-number truncate">{won(m.invoice_amount)}</div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{m.counterparty_name || "—"}</div>
                   </div>
@@ -326,6 +333,15 @@ export default function PartnerLedgerPage() {
 
       {tab === "ledger" && (
         <div className="space-y-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-[var(--text-muted)]">조회 연도 · 전기이월 = 선택 연도 이전 미정산 잔액</div>
+            <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))}
+              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] cursor-pointer">
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <option key={y} value={y}>{y}년</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-card px-5 py-4"><div className="text-xs text-[var(--text-muted)]">총 미수금 (받을 돈)</div><div className="text-2xl font-bold text-emerald-500 mono-number mt-1">{won(totalAr)}</div></div>
             <div className="glass-card px-5 py-4"><div className="text-xs text-[var(--text-muted)]">총 미지급금 (줄 돈)</div><div className="text-2xl font-bold text-red-400 mono-number mt-1">{won(totalAp)}</div></div>
@@ -342,18 +358,25 @@ export default function PartnerLedgerPage() {
                   {data.length === 0 ? (
                     <div className="p-10 text-center text-sm text-[var(--text-muted)]">연결된 거래처 세금계산서이 없습니다. “홈택스 거래처 연결”을 먼저 실행하세요.</div>
                   ) : (
-                    <div className="overflow-auto max-h-[460px]"><table className="w-full min-w-[640px] text-sm">
+                    <div className="overflow-auto max-h-[460px]"><table className="w-full min-w-[680px] text-sm">
                       <thead className="sticky top-0 bg-[var(--bg-surface)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="text-left px-5 py-2.5 font-medium">거래처</th><th className="text-right px-5 py-2.5 font-medium">세금계산서</th>
-                        <th className="text-right px-5 py-2.5 font-medium">청구액</th><th className="text-right px-5 py-2.5 font-medium">정산액</th><th className="text-right px-5 py-2.5 font-medium">잔액</th>
+                        <th className="text-left px-5 py-2.5 font-medium">거래처</th>
+                        <th className="text-right px-5 py-2.5 font-medium">전기이월</th>
+                        <th className="text-right px-5 py-2.5 font-medium">당기 청구</th>
+                        <th className="text-right px-5 py-2.5 font-medium">당기 정산</th>
+                        <th className="text-right px-5 py-2.5 font-medium">잔액</th>
                       </tr></thead>
                       <tbody>{data.map((r) => (
                         <tr key={`${r.partner_id}-${r.type}`} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                           <td className="px-5 py-2.5 text-[var(--text)]">{nameOf(r.partner_id)}</td>
-                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)]">{r.invoice_count}</td>
-                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.total_billed)}</td>
-                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.total_settled)}</td>
-                          <td className={`px-5 py-2.5 text-right font-semibold mono-number ${Number(r.outstanding) > 0 ? accent : "text-[var(--text-dim)]"}`}>{won(r.outstanding)}</td>
+                          <td className="px-5 py-2.5 text-right mono-number">
+                            {Number(r.prior_outstanding) > 0
+                              ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[11px] font-semibold" title={`${ledgerYear}년 이전 미정산 (전기이월)`}>전기이월 {won(r.prior_outstanding)}</span>
+                              : <span className="text-[var(--text-dim)]">—</span>}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.period_billed)}</td>
+                          <td className="px-5 py-2.5 text-right text-[var(--text-muted)] mono-number">{won(r.period_settled)}</td>
+                          <td className={`px-5 py-2.5 text-right font-semibold mono-number ${ledgerOut(r) > 0 ? accent : "text-[var(--text-dim)]"}`}>{won(ledgerOut(r))}</td>
                         </tr>
                       ))}</tbody>
                     </table></div>
