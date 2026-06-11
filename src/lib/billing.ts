@@ -73,6 +73,52 @@ export async function getPlans(): Promise<PlanInfo[]> {
   }));
 }
 
+// ── 1.5 출시 게이트: 구독 상태 요약 (app-shell 배너/페이월용, 2026-06-11) ──
+//   getCurrentSubscription 은 trialing 을 제외하므로 게이트 판단엔 부적합 — 전용 경량 조회.
+export interface SubscriptionGateInfo {
+  state: 'active' | 'trialing' | 'trial_expired' | 'past_due' | 'canceled' | 'none';
+  daysLeft: number | null; // trialing: 체험 종료까지 / canceled(기간잔존): 종료까지
+  planName: string | null;
+  blocked: boolean; // 하드 페이월 대상 (trial 만료 · 해지 후 기간 종료)
+}
+
+export async function getSubscriptionGate(companyId: string): Promise<SubscriptionGateInfo> {
+  const { data, error } = await db
+    .from('subscriptions')
+    .select('status, trial_ends_at, current_period_end, subscription_plans(name)')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // 조회 실패 / 구독 행 없음(레거시 회사) → 잠그지 않음 (오차단이 최악의 실패 모드)
+  if (error || !data) return { state: 'none', daysLeft: null, planName: null, blocked: false };
+
+  const planName = data.subscription_plans?.name ?? null;
+  const status = String(data.status || '');
+  const now = Date.now();
+
+  if (status === 'trialing') {
+    const ends = data.trial_ends_at ? new Date(data.trial_ends_at).getTime() : null;
+    if (ends && ends < now) return { state: 'trial_expired', daysLeft: 0, planName, blocked: true };
+    const daysLeft = ends ? Math.max(0, Math.ceil((ends - now) / 86400000)) : null;
+    return { state: 'trialing', daysLeft, planName, blocked: false };
+  }
+  if (status === 'past_due') {
+    // 결제 실패 — dunning 은 Stripe 가 진행. 앱은 경고 배너만 (즉시 차단 X)
+    return { state: 'past_due', daysLeft: null, planName, blocked: false };
+  }
+  if (status === 'canceled') {
+    const end = data.current_period_end ? new Date(data.current_period_end).getTime() : null;
+    if (end && end > now) {
+      // 해지했지만 결제 기간 잔존 → 기간 끝까지 사용 허용
+      return { state: 'active', daysLeft: Math.ceil((end - now) / 86400000), planName, blocked: false };
+    }
+    return { state: 'canceled', daysLeft: null, planName, blocked: true };
+  }
+  // active / paused / cancelling 등
+  return { state: 'active', daysLeft: null, planName, blocked: false };
+}
+
 // ── 2. 현재 구독 정보 조회 ──
 export async function getCurrentSubscription(
   companyId: string

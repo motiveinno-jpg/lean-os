@@ -12,6 +12,7 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
+import { SubscriptionGate } from "@/components/subscription-gate";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -305,7 +306,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
           collapsed ? "md:ml-[68px]" : "md:ml-60"
         } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : role === "owner" ? "p-6 pb-20 md:pb-6" : "p-6"}`}
       >
-        <RouteGuard>{children}</RouteGuard>
+        {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
+        <RouteGuard>
+          <SubscriptionGate>{children}</SubscriptionGate>
+        </RouteGuard>
       </main>
       <MobileBottomNav />
       <GlobalSearch />

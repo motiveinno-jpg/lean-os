@@ -1594,6 +1594,7 @@ export default function LandingPage() {
               <div className="flex gap-4">
                 <Link href="/terms" className="hover:text-white transition">이용약관</Link>
                 <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
+                <Link href="/refund" className="hover:text-white transition">환불규정</Link>
                 <a href="mailto:creative@mo-tive.com" className="hover:text-white transition">creative@mo-tive.com</a>
               </div>
             </div>
