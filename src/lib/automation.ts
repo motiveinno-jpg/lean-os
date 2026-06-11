@@ -902,26 +902,28 @@ export interface AutomationResult {
 }
 
 export async function runAllAutomation(companyId: string): Promise<AutomationResult> {
+  // 개별 자동화 실패가 전체를 죽이지 않도록 각 호출에 폴백(0 결과) 적용 — 일부만 실패해도 나머지는 실행/집계
+  const safe = <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch(() => fallback);
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
     recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
     // 기존 10개
-    applyBankClassificationRules(companyId),
-    applyCardTransactionRules(companyId),
-    autoExecuteThreeWayMatch(companyId),
-    autoMatchTransactions(companyId),
-    detectDormantDeals(companyId),
-    autoApproveSmallExpenses(companyId, 100000),
-    autoLinkApprovedContractsToSchedule(companyId),
+    safe(applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
+    safe(applyCardTransactionRules(companyId), { processed: 0, matched: 0 }),
+    safe(autoExecuteThreeWayMatch(companyId), { total: 0, autoMatched: 0 }),
+    safe(autoMatchTransactions(companyId), { matched: 0 }),
+    safe(detectDormantDeals(companyId), { detected: 0 }),
+    safe(autoApproveSmallExpenses(companyId, 100000), { approved: 0 }),
+    safe(autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
     // 신규 5개: 파이프라인 자동화
-    autoCreateExpenseFromRecurring(companyId),
-    autoQueueApprovedExpenses(companyId),
-    autoCreateExpenseFromContract(companyId),
-    autoCreateTaxInvoiceOnPayment(companyId),
-    autoCancelTaxInvoiceOnRefund(companyId),
+    safe(autoCreateExpenseFromRecurring(companyId), { created: 0 }),
+    safe(autoQueueApprovedExpenses(companyId), { queued: 0 }),
+    safe(autoCreateExpenseFromContract(companyId), { created: 0 }),
+    safe(autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
+    safe(autoCancelTaxInvoiceOnRefund(companyId), { cancelled: 0 }),
     // 대출 상환 자동 매칭
-    autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })),
+    safe(autoMatchLoanPayments(companyId).then(candidates => ({ candidates: candidates.length })), { candidates: 0 }),
   ]);
 
   return {

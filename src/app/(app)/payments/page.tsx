@@ -1581,6 +1581,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<DetectedRecurring[]>([]);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: stats } = useQuery({
     queryKey: ["payment-stats", companyId],
@@ -1600,8 +1601,13 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       const res = await runAllAutomation(companyId);
       setResult(res);
       invalidate();
-    } catch {
-      // silent
+      const total =
+        res.recurringExpense.created + res.approvedQueue.queued + res.contractExpense.created +
+        res.taxOnPayment.created + res.expenseApproval.approved + res.bankClassification.matched +
+        res.threeWayMatch.autoMatched + res.dormantDeals.detected;
+      toast(total > 0 ? `자동화 실행 완료 — 총 ${total}건 처리` : "자동화 실행 완료 — 처리할 항목이 없습니다", total > 0 ? "success" : "info");
+    } catch (e: any) {
+      toast("자동화 실행 실패: " + (e?.message || "오류"), "error");
     }
     setRunning(false);
   }
@@ -1612,8 +1618,11 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       const res = await detectRecurringFromBankTx(companyId);
       setDetected(res);
       queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
-    } catch {
-      // silent
+      const fresh = res.filter((d) => !d.alreadyRegistered).length;
+      if (res.length === 0) toast("최근 3개월 이체내역에서 반복 결제 패턴을 찾지 못했습니다", "info");
+      else toast(`반복 이체 ${res.length}건 감지 (신규 ${fresh}건 · 기등록 ${res.length - fresh}건)`, "success");
+    } catch (e: any) {
+      toast("이체내역 분석 실패: " + (e?.message || "오류"), "error");
     }
     setDetecting(false);
   }

@@ -88,7 +88,7 @@ export async function detectRecurringFromBankTx(companyId: string): Promise<Dete
     .from('bank_transactions')
     .select('counterparty, amount, transaction_date, description, type')
     .eq('company_id', companyId)
-    .eq('type', 'withdrawal')
+    .eq('type', 'expense') // 출금 = type 'expense' (DB 실제값: expense/income)
     .gte('transaction_date', threeMonthsAgo.toISOString().split('T')[0])
     .order('transaction_date', { ascending: true });
 
