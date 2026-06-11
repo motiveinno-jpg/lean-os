@@ -29,6 +29,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "파이낸스",
     items: [
+      // 2026-06-11 경영 통합: 영업→매출→수금→비용→손익→세무→결산 단일 흐름 진입점.
+      { href: "/reports/flow", label: "경영 흐름", icon: "trending-up", roles: ["owner", "admin"] },
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },

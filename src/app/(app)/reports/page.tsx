@@ -23,6 +23,22 @@ type HubCard = {
 };
 
 const CARDS: HubCard[] = [
+  // 2026-06-11 경영 통합: 영업→매출→수금→비용→손익→세무→결산 한 흐름.
+  {
+    href: "/reports/flow",
+    title: "경영 흐름",
+    desc: "영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.",
+    accent: "#6366f1",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="5" cy="12" r="2.2" />
+        <circle cx="12" cy="12" r="2.2" />
+        <circle cx="19" cy="12" r="2.2" />
+        <line x1="7.2" y1="12" x2="9.8" y2="12" />
+        <line x1="14.2" y1="12" x2="16.8" y2="12" />
+      </svg>
+    ),
+  },
   {
     href: "/reports/bs",
     title: "재무상태표",
