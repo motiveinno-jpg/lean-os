@@ -320,7 +320,7 @@ export default function BusinessFlowPage() {
       {/* ═══ 6단계 흐름 ═══ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
         {/* ① 영업 */}
-        <StepCard no={1} title="영업 — 일이 들어온다" accent="var(--primary)"
+        <StepCard no={1} title="영업" accent="var(--primary)"
           links={[{ href: "/projects", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
           <Row label="진행중 프로젝트" value={`${pipeline?.count ?? 0}건`} />
           <Row label="계약 총액 (파이프라인)" value={`₩${fmtKrw(pipeline?.total ?? 0)}`} bold />
@@ -330,7 +330,7 @@ export default function BusinessFlowPage() {
         </StepCard>
 
         {/* ② 매출 */}
-        <StepCard no={2} title={`매출 — ${monthLabel} 세금계산서 발행`} accent="#6366f1"
+        <StepCard no={2} title="매출" accent="#6366f1"
           links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
           <Row label="매출 발행" value={`${monthInv?.salesCount ?? 0}건 · ₩${fmtKrw(monthInv?.salesTotal ?? 0)}`} bold />
           <Row label="공급가액" value={`₩${fmtKrw(monthInv?.salesSupply ?? 0)}`} />
@@ -338,7 +338,7 @@ export default function BusinessFlowPage() {
         </StepCard>
 
         {/* ③ 수금 */}
-        <StepCard no={3} title={`수금 — ${monthLabel} 돈이 들어왔다`} accent="#10b981"
+        <StepCard no={3} title="수금" accent="#10b981"
           links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
           <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="#10b981" />
           {issuedThisMonth > 0 && (
@@ -355,7 +355,7 @@ export default function BusinessFlowPage() {
         </StepCard>
 
         {/* ④ 비용 */}
-        <StepCard no={4} title={`비용 — ${monthLabel} 돈이 나갔다`} accent="#f97316"
+        <StepCard no={4} title="비용" accent="#f97316"
           links={[{ href: "/reports/costs", label: "고정비·변동비" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
           <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="#f97316" />
           <Row label="고정비" value={`₩${fmtKrw(monthBudget?.fixedCosts ?? 0)}`} />
@@ -363,7 +363,7 @@ export default function BusinessFlowPage() {
         </StepCard>
 
         {/* ⑤ 손익 + 세무 */}
-        <StepCard no={5} title={`손익·세금 — ${monthLabel} 남은 돈`} accent="#ec4899"
+        <StepCard no={5} title="손익 · 세금" accent="#ec4899"
           links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/bs", label: "재무상태표" }]}>
           <Row label="수입 합계 (자금 기준)" value={`₩${fmtKrw(monthBudget?.incomeTotal ?? 0)}`} />
           <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "#10b981" : "#ef4444"} />
@@ -374,7 +374,7 @@ export default function BusinessFlowPage() {
         </StepCard>
 
         {/* ⑥ 결산 */}
-        <StepCard no={6} title={`결산 — ${monthLabel} 장부를 닫는다`} accent="#06b6d4"
+        <StepCard no={6} title="결산" accent="#06b6d4"
           links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
           {closing ? (
             <>
