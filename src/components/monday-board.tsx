@@ -90,11 +90,11 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   // 푸터 분포 바 클릭 → 텍스트 내역 팝오버
   const [distPop, setDistPop] = useState<{ anchor: DOMRect; title: string; rows: { label: string; color: string; n: number }[]; total: number; empty: number } | null>(null);
 
-  // 말풍선 배지용 — deal 별 업데이트 개수
+  // 말풍선 배지용 — deal 별 업데이트 개수 (프로젝트 레벨만 — 서브아이템 글은 각 행 배지로)
   const { data: updateCounts } = useQuery<Map<string, number>>({
     queryKey: ["board-update-counts", companyId],
     queryFn: async () => {
-      const { data } = await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).limit(5000);
+      const { data } = await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).is("subitem_id", null).limit(5000);
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => m.set(r.deal_id, (m.get(r.deal_id) || 0) + 1));
       return m;
@@ -618,7 +618,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
 
 // ── 먼데이 말풍선: 아이템 업데이트(히스토리) 우측 드로어 ──
 //   board_item_updates 테이블(회사격리 RLS). 작성·목록·본인 글 삭제.
-function ItemUpdatesPanel({ companyId, deal, onClose }: { companyId: string; deal: Deal; onClose: () => void }) {
+//   subitem 전달 시 = 해당 서브아이템 전용 피드 (subitem_id), 없으면 프로젝트 레벨(subitem_id null).
+function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: string; deal: Deal; subitem?: { id: string; name: string } | null; onClose: () => void }) {
   const qc = useQueryClient();
   const [body, setBody] = useState("");
   const [me, setMe] = useState<{ id: string; name: string | null; email: string } | null>(null);
@@ -626,21 +627,22 @@ function ItemUpdatesPanel({ companyId, deal, onClose }: { companyId: string; dea
   useEffect(() => { getCurrentUser().then((u) => { if (u) setMe({ id: u.id, name: u.name, email: u.email }); }); }, []);
 
   const { data: updates = [] } = useQuery<any[]>({
-    queryKey: ["board-item-updates", deal.id],
+    queryKey: ["board-item-updates", deal.id, subitem?.id ?? "deal"],
     queryFn: async () => {
-      const { data } = await db.from("board_item_updates").select("*")
-        .eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(200);
+      let qb = db.from("board_item_updates").select("*").eq("deal_id", deal.id);
+      qb = subitem ? qb.eq("subitem_id", subitem.id) : qb.is("subitem_id", null);
+      const { data } = await qb.order("created_at", { ascending: false }).limit(200);
       return (data || []) as any[];
     },
   });
-  const refetch = () => qc.invalidateQueries({ queryKey: ["board-item-updates", deal.id] });
+  const refetch = () => qc.invalidateQueries({ queryKey: ["board-item-updates", deal.id, subitem?.id ?? "deal"] });
 
   const submit = async () => {
     const text = body.trim();
     if (!text || busy) return;
     setBusy(true);
     await db.from("board_item_updates").insert({
-      company_id: companyId, deal_id: deal.id,
+      company_id: companyId, deal_id: deal.id, subitem_id: subitem?.id ?? null,
       author_user_id: me?.id ?? null, author_name: me?.name || me?.email || null, body: text,
     });
     setBusy(false);
@@ -671,8 +673,10 @@ function ItemUpdatesPanel({ companyId, deal, onClose }: { companyId: string; dea
         {/* 헤더 */}
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-base font-bold text-[var(--text)] truncate">{deal.name}</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">업데이트 · 메모와 진행 히스토리를 기록합니다</div>
+            <div className="text-base font-bold text-[var(--text)] truncate">{subitem ? subitem.name : deal.name}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
+              {subitem ? `${deal.name} · 항목 업데이트` : "업데이트 · 메모와 진행 히스토리를 기록합니다"}
+            </div>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none shrink-0">✕</button>
         </div>
@@ -845,6 +849,20 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   });
   const refetch = () => qc.invalidateQueries({ queryKey: ["project-subitems", deal.id] });
 
+  // 항목(서브아이템)별 말풍선 — 업데이트 패널 대상 + 개수 배지
+  const [updSub, setUpdSub] = useState<SubItem | null>(null);
+  const { data: subCounts } = useQuery<Map<string, number>>({
+    queryKey: ["subitem-update-counts", deal.id],
+    queryFn: async () => {
+      const { data } = await db.from("board_item_updates").select("subitem_id")
+        .eq("deal_id", deal.id).not("subitem_id", "is", null).limit(2000);
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => { if (r.subitem_id) m.set(r.subitem_id, (m.get(r.subitem_id) || 0) + 1); });
+      return m;
+    },
+    staleTime: 30_000,
+  });
+
   const addItem = async () => {
     await db.from("project_subitems").insert({ company_id: companyId, deal_id: deal.id, name: "새 항목", column_values: {}, position: items.length });
     refetch();
@@ -938,7 +956,26 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                 <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
                   <div className="flex items-center gap-2">
                     <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-[14px] text-[var(--text)]" placeholder="항목명" />
-                    <button onClick={() => delItem(it)} className="opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition ml-auto" title="항목 삭제">✕</button>
+                    <span className="ml-auto flex items-center gap-1 shrink-0">
+                      {/* 항목별 말풍선 — 글 있으면 카운트 상시, 없으면 행 호버 시 + 말풍선 */}
+                      {(() => {
+                        const n = subCounts?.get(it.id) ?? 0;
+                        return (
+                          <button
+                            onClick={() => setUpdSub(it)}
+                            className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded transition ${n > 0 ? "text-[var(--text-muted)] hover:text-[var(--text)]" : "opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                            title="업데이트 (메모·히스토리)"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+                              {n === 0 && <path d="M12 8v6M9 11h6" />}
+                            </svg>
+                            {n > 0 && <span className="text-[10px] font-bold" style={{ color: MONDAY.primary }}>{n}</span>}
+                          </button>
+                        );
+                      })()}
+                      <button onClick={() => delItem(it)} className="opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition" title="항목 삭제">✕</button>
+                    </span>
                   </div>
                 </td>
                 {columns.map((c) => (
@@ -962,6 +999,16 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
           </tbody>
         </table>
       </div>
+
+      {/* 항목(서브아이템) 말풍선 업데이트 패널 */}
+      {updSub && (
+        <ItemUpdatesPanel
+          companyId={companyId}
+          deal={deal}
+          subitem={{ id: updSub.id, name: updSub.name }}
+          onClose={() => { setUpdSub(null); qc.invalidateQueries({ queryKey: ["subitem-update-counts", deal.id] }); }}
+        />
+      )}
     </div>
   );
 }
