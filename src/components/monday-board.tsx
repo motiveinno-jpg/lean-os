@@ -13,6 +13,7 @@
 //   표시·편집 전용, 재무 무변경.
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -355,9 +356,9 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                   <table className="border-collapse bg-[var(--bg-card)]" style={{ minWidth: 760, width: "100%" }}>
                     <thead>
                       <tr>
-                        {/* 그룹색 스트립 (헤더는 둥근 모서리 시작) */}
-                        <th style={{ width: STRIP_W, minWidth: STRIP_W, background: color, borderTopLeftRadius: 6 }} />
-                        <th className="w-9 border border-[var(--border)] bg-[var(--bg-card)]">
+                        {/* 그룹색 스트립 (헤더는 둥근 모서리 시작) — 좌측 3칸은 가로 스크롤 시 고정(sticky) */}
+                        <th style={{ width: STRIP_W, minWidth: STRIP_W, background: color, borderTopLeftRadius: 6, position: "sticky", left: 0, zIndex: 6 }} />
+                        <th className="w-9 border border-[var(--border)] bg-[var(--bg-card)]" style={{ position: "sticky", left: STRIP_W, zIndex: 6 }}>
                           <input
                             type="checkbox"
                             checked={allChecked}
@@ -366,7 +367,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                             style={{ accentColor: MONDAY.primary }}
                           />
                         </th>
-                        <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[260px]" style={{ height: ROW_H }}>
+                        <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[260px]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 6 }}>
                           항목
                         </th>
                         {listColumns.map((c) => (
@@ -394,8 +395,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                     <tbody>
                       {rows.map((d) => (
                         <tr key={d.id} className="group/row hover:bg-[var(--bg-surface)]/50">
-                          <td style={{ width: STRIP_W, background: color }} />
-                          <td className="border border-[var(--border)] text-center" style={{ height: ROW_H }}>
+                          <td style={{ width: STRIP_W, background: color, position: "sticky", left: 0, zIndex: 5 }} />
+                          <td className="border border-[var(--border)] text-center bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
                             <input
                               type="checkbox"
                               checked={selected.has(d.id)}
@@ -404,7 +405,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               style={{ accentColor: MONDAY.primary }}
                             />
                           </td>
-                          <td className="border border-[var(--border)] px-3" style={{ height: ROW_H }}>
+                          <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
                             <div className="flex items-center justify-between gap-2">
                               <EditableText value={d.name} onSave={(v) => setName(d, v.trim() || d.name)} className="text-[14px] text-[var(--text)]" placeholder="업체명" />
                               <button
@@ -426,23 +427,24 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                         </tr>
                       ))}
 
-                      {/* + 항목 추가 행 — 스트립은 연하게 이어짐 */}
+                      {/* + 항목 추가 행 — 스트립은 연하게 이어짐. 좌측 3칸 sticky 로 가로 스크롤에도 고정 */}
                       <tr>
-                        <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${color} 45%, transparent)`, borderBottomLeftRadius: rows.length === 0 ? 6 : 0 }} />
-                        <td className="border border-[var(--border)]" style={{ height: ROW_H - 4 }} />
-                        <td colSpan={listColumns.length + 2} className="border border-[var(--border)] px-3">
+                        <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${color} 45%, var(--bg-card))`, borderBottomLeftRadius: rows.length === 0 ? 6 : 0, position: "sticky", left: 0, zIndex: 5 }} />
+                        <td className="border border-[var(--border)] bg-[var(--bg-card)]" style={{ height: ROW_H - 4, position: "sticky", left: STRIP_W, zIndex: 5 }} />
+                        <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)]" style={{ position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
                           <button onClick={() => addItem(gid)} className="text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition inline-flex items-center gap-1.5 w-full text-left">
                             <span className="text-base leading-none">+</span> 항목 추가
                           </button>
                         </td>
+                        <td colSpan={listColumns.length + 1} className="border border-[var(--border)]" />
                       </tr>
 
                       {/* 그룹 푸터: 상태 분포 바 + 숫자 합계 (먼데이 시그니처) */}
                       {rows.length > 0 && (
                         <tr>
-                          <td style={{ width: STRIP_W }} />
-                          <td className="border-0" />
-                          <td className="border-0" />
+                          <td style={{ width: STRIP_W, position: "sticky", left: 0, zIndex: 5, background: "var(--bg-card)" }} />
+                          <td className="border-0 bg-[var(--bg-card)]" style={{ position: "sticky", left: STRIP_W, zIndex: 5 }} />
+                          <td className="border-0 bg-[var(--bg-card)]" style={{ position: "sticky", left: STRIP_W + 36, zIndex: 5 }} />
                           {listColumns.map((c) => {
                             if (c.type === "status") {
                               const options: { id: string; label: string; color: string }[] = c.settings?.options || [];
@@ -680,8 +682,9 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
         <table className="border-collapse bg-[var(--bg-card)]" style={{ minWidth: 720, width: "100%" }}>
           <thead>
             <tr>
-              <th style={{ width: STRIP_W, minWidth: STRIP_W, background: SUB_COLOR, borderTopLeftRadius: 6 }} />
-              <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[220px]" style={{ height: ROW_H }}>
+              {/* 좌측 스트립 + 항목 칸은 가로 스크롤 시 고정(sticky) */}
+              <th style={{ width: STRIP_W, minWidth: STRIP_W, background: SUB_COLOR, borderTopLeftRadius: 6, position: "sticky", left: 0, zIndex: 6 }} />
+              <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[220px]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 6 }}>
                 항목
               </th>
               {columns.map((c) => (
@@ -705,8 +708,8 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
           <tbody>
             {items.map((it) => (
               <tr key={it.id} className="group/row hover:bg-[var(--bg-surface)]/50">
-                <td style={{ width: STRIP_W, background: SUB_COLOR }} />
-                <td className="border border-[var(--border)] px-3" style={{ height: ROW_H }}>
+                <td style={{ width: STRIP_W, background: SUB_COLOR, position: "sticky", left: 0, zIndex: 5 }} />
+                <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
                   <div className="flex items-center gap-2">
                     <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-[14px] text-[var(--text)]" placeholder="항목명" />
                     <button onClick={() => delItem(it)} className="opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 transition ml-auto" title="항목 삭제">✕</button>
@@ -720,14 +723,15 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
                 <td className="border border-[var(--border)]" />
               </tr>
             ))}
-            {/* 밑으로 항목 추가 */}
+            {/* 밑으로 항목 추가 — 항목 칸 sticky 로 가로 스크롤에도 고정 */}
             <tr>
-              <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${SUB_COLOR} 45%, transparent)`, borderBottomLeftRadius: 6 }} />
-              <td colSpan={columns.length + 2} className="border border-[var(--border)] px-3" style={{ height: ROW_H - 4 }}>
-                <button onClick={addItem} className="text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition inline-flex items-center gap-1.5">
+              <td style={{ width: STRIP_W, background: `color-mix(in srgb, ${SUB_COLOR} 45%, var(--bg-card))`, borderBottomLeftRadius: 6, position: "sticky", left: 0, zIndex: 5 }} />
+              <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)]" style={{ height: ROW_H - 4, position: "sticky", left: STRIP_W, zIndex: 5 }}>
+                <button onClick={addItem} className="text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] transition inline-flex items-center gap-1.5 w-full text-left">
                   <span className="text-base leading-none">+</span> 항목 추가
                 </button>
               </td>
+              <td colSpan={columns.length + 1} className="border border-[var(--border)]" />
             </tr>
           </tbody>
         </table>
@@ -826,54 +830,105 @@ function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Pe
   if (col.type === "number") {
     return <NumberCell value={value} onChange={onChange} />;
   }
-  // text
+  // text — 셀 전체가 클릭 타깃 (빈 값일 때 클릭 영역 0 으로 입력 불가하던 버그 수정)
+  return <TextCell value={value} onChange={onChange} />;
+}
+
+// ── 텍스트 셀: 셀 전체 클릭 → 인라인 입력 ──
+function TextCell({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState<string>(value || "");
+  useEffect(() => { setV(value || ""); }, [value]);
+  if (editing) {
+    return (
+      <input
+        autoFocus value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => { setEditing(false); onChange(v); }}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value || ""); } }}
+        className="w-full text-[13px] bg-transparent text-[var(--text)] text-center focus:outline-none"
+        style={{ minHeight: ROW_H - 2 }}
+      />
+    );
+  }
   return (
-    <div className="px-2">
-      <EditableText value={value || ""} onSave={onChange} className="text-[13px] text-[var(--text)]" placeholder="" center />
-    </div>
+    <button onClick={() => setEditing(true)}
+      className="w-full h-full flex items-center justify-center text-[13px] text-[var(--text)] hover:bg-[var(--bg-surface)]/60 transition truncate px-2"
+      style={{ minHeight: ROW_H - 2 }}>
+      {value || ""}
+    </button>
   );
 }
 
-// ── 상태 셀: 먼데이 시그니처 — 셀 전체 채움(라운드 0) + 풀폭 드롭다운 ──
+// ── 드롭다운 포털: 표의 overflow 컨테이너에 잘리지 않게 body 에 fixed 로 띄운다.
+//   아래 공간이 부족하면 위로 펼침. 스크롤하면 자동 닫힘(앵커 어긋남 방지).
+function DropMenu({ anchor, width, onClose, children, pad = "p-2" }: {
+  anchor: DOMRect; width: number; onClose: () => void; children: React.ReactNode; pad?: string;
+}) {
+  useEffect(() => {
+    const close = () => onClose();
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [onClose]);
+  if (typeof document === "undefined") return null;
+  const spaceBelow = window.innerHeight - anchor.bottom;
+  const openUp = spaceBelow < 240 && anchor.top > spaceBelow;
+  const left = Math.max(8, Math.min(anchor.left + anchor.width / 2 - width / 2, window.innerWidth - width - 8));
+  const style: React.CSSProperties = {
+    position: "fixed", left, width, zIndex: 70, maxHeight: 280, overflowY: "auto",
+    ...(openUp ? { bottom: window.innerHeight - anchor.top + 4 } : { top: anchor.bottom + 4 }),
+  };
+  return createPortal(
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 69 }} onClick={onClose} />
+      <div style={style} className={`rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl ${pad}`}>
+        {children}
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+// ── 상태 셀: 먼데이 시그니처 — 셀 전체 채움(라운드 0) + 포털 드롭다운(잘림 없음) ──
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   return (
     <div className="relative w-full h-full">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
         className="w-full h-full flex items-center justify-center text-[13px] font-medium text-white transition hover:brightness-95"
         style={{ background: current?.color || "var(--bg-surface)", color: current ? "#fff" : "var(--text-dim)", minHeight: ROW_H - 2 }}
       >
         {current?.label || ""}
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 top-full mt-1 left-1/2 -translate-x-1/2 w-[170px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-2 space-y-1.5">
+      {anchor && (
+        <DropMenu anchor={anchor} width={170} onClose={() => setAnchor(null)}>
+          <div className="space-y-1.5">
             {options.map((o) => (
-              <button key={o.id} onClick={() => { onPick(o.id); setOpen(false); }}
+              <button key={o.id} onClick={() => { onPick(o.id); setAnchor(null); }}
                 className="w-full h-8 rounded text-[13px] font-medium text-white transition hover:brightness-110" style={{ background: o.color }}>
                 {o.label}
               </button>
             ))}
-            <button onClick={() => { onPick(""); setOpen(false); }}
+            <button onClick={() => { onPick(""); setAnchor(null); }}
               className="w-full h-8 rounded text-[12px] text-[var(--text-dim)] border border-dashed border-[var(--border)] hover:bg-[var(--bg-surface)]">
               지우기
             </button>
           </div>
-        </>
+        </DropMenu>
       )}
     </div>
   );
 }
 
-// ── 담당자 셀: 이니셜 아바타 (먼데이 person 셀) ──
+// ── 담당자 셀: 이니셜 아바타 (먼데이 person 셀) — 포털 드롭다운 ──
 function PersonCell({ users, value, onChange }: { users: Person[]; value: any; onChange: (v: any) => void }) {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const cur = users.find((u) => u.id === value);
   return (
     <div className="relative w-full h-full">
-      <button onClick={() => setOpen((v) => !v)} className="w-full h-full flex items-center justify-center group/person" style={{ minHeight: ROW_H - 2 }}>
+      <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())} className="w-full h-full flex items-center justify-center group/person" style={{ minHeight: ROW_H - 2 }}>
         {cur ? (
           <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: avatarColor(cur.id) }} title={cur.name || cur.email}>
             {initials(cur.name || cur.email)}
@@ -884,24 +939,21 @@ function PersonCell({ users, value, onChange }: { users: Person[]; value: any; o
           </span>
         )}
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 top-full mt-1 left-1/2 -translate-x-1/2 min-w-[190px] max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
-            {users.map((u) => (
-              <button key={u.id} onClick={() => { onChange(u.id); setOpen(false); }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(u.id) }}>
-                  {initials(u.name || u.email)}
-                </span>
-                <span className="truncate">{u.name || u.email}</span>
-              </button>
-            ))}
-            {value && (
-              <button onClick={() => { onChange(null); setOpen(false); }} className="w-full px-2 py-1.5 rounded text-[12px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>
-            )}
-          </div>
-        </>
+      {anchor && (
+        <DropMenu anchor={anchor} width={190} onClose={() => setAnchor(null)} pad="p-1">
+          {users.map((u) => (
+            <button key={u.id} onClick={() => { onChange(u.id); setAnchor(null); }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+              <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(u.id) }}>
+                {initials(u.name || u.email)}
+              </span>
+              <span className="truncate">{u.name || u.email}</span>
+            </button>
+          ))}
+          {value && (
+            <button onClick={() => { onChange(null); setAnchor(null); }} className="w-full px-2 py-1.5 rounded text-[12px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>
+          )}
+        </DropMenu>
       )}
     </div>
   );
@@ -966,24 +1018,21 @@ function NumberCell({ value, onChange }: { value: any; onChange: (v: any) => voi
 }
 
 function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const TYPES: { t: string; label: string }[] = [
     { t: "status", label: "🟢 상태" }, { t: "text", label: "🔤 텍스트" }, { t: "person", label: "👤 담당자" },
     { t: "date", label: "📅 날짜" }, { t: "number", label: "🔢 숫자" },
   ];
   return (
     <div className="relative">
-      <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] text-lg leading-none" title="컬럼 추가">+</button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 right-0 min-w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
-            <div className="text-[10px] text-[var(--text-dim)] px-2 py-1 font-semibold">컬럼 타입</div>
-            {TYPES.map((x) => (
-              <button key={x.t} onClick={() => { onAdd(x.t); setOpen(false); }} className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">{x.label}</button>
-            ))}
-          </div>
-        </>
+      <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())} className="w-7 h-7 rounded text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] text-lg leading-none" title="컬럼 추가">+</button>
+      {anchor && (
+        <DropMenu anchor={anchor} width={140} onClose={() => setAnchor(null)} pad="p-1">
+          <div className="text-[10px] text-[var(--text-dim)] px-2 py-1 font-semibold">컬럼 타입</div>
+          {TYPES.map((x) => (
+            <button key={x.t} onClick={() => { onAdd(x.t); setAnchor(null); }} className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">{x.label}</button>
+          ))}
+        </DropMenu>
       )}
     </div>
   );
