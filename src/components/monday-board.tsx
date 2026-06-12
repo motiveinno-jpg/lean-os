@@ -54,8 +54,13 @@ const DEFAULT_COLUMNS: { name: string; type: string; settings: any }[] = [
     { id: "low", label: "낮음", color: MONDAY.blue },
   ] } },
   { name: "계약일", type: "date", settings: {} },
-  { name: "계약금액", type: "number", settings: {} },
+  // 계약금액은 커스텀 셀이 아니라 실데이터(deals.contract_total) 바인딩 — 통계 4카드와 동일 소스
+  { name: "계약금액", type: "number", settings: { bind: "contract_total" } },
 ];
+
+// 계약금액 컬럼 판정 — 신규 회사는 settings.bind, 기존 회사는 이름+타입으로 소급 인식
+//   (보드 계약금액이 비어 보이는데 상단 총 계약금액엔 합산되던 불일치 해소, 2026-06-12)
+const isContractCol = (c: Col) => c.settings?.bind === "contract_total" || (c.type === "number" && String(c.name || "").replace(/\s/g, "") === "계약금액");
 
 // 아바타 색 — userId 해시 → 먼데이 팔레트
 function avatarColor(id: string): string {
@@ -188,6 +193,13 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const setCell = async (deal: Deal, colId: string, value: any) => {
     const next = { ...(deal.column_values || {}), [colId]: value };
     await db.from("deals").update({ column_values: next }).eq("id", deal.id);
+    refetchAll();
+  };
+  // 계약금액(바인딩 컬럼) — deals.contract_total 직접 갱신 → 상단 통계·재무 연동과 즉시 일치
+  const setContractTotal = async (deal: Deal, value: any) => {
+    const num = value === null || value === "" ? null : Number(value);
+    await db.from("deals").update({ contract_total: num }).eq("id", deal.id);
+    qc.invalidateQueries({ queryKey: ["projects-deals"] }); // 통계 4카드 동기화
     refetchAll();
   };
   const setName = async (deal: Deal, name: string) => {
@@ -465,11 +477,17 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               </span>
                             </div>
                           </td>
-                          {listColumns.map((c) => (
-                            <td key={c.id} className="border border-[var(--border)] p-0 text-center align-middle" style={{ height: ROW_H }}>
-                              <Cell col={c} value={d.column_values?.[c.id]} users={users} onChange={(v) => setCell(d, c.id, v)} />
-                            </td>
-                          ))}
+                          {listColumns.map((c) => {
+                            const bound = isContractCol(c);
+                            return (
+                              <td key={c.id} className="border border-[var(--border)] p-0 text-center align-middle" style={{ height: ROW_H }}>
+                                <Cell col={c}
+                                  value={bound ? d.contract_total : d.column_values?.[c.id]}
+                                  users={users}
+                                  onChange={(v) => (bound ? setContractTotal(d, v) : setCell(d, c.id, v))} />
+                              </td>
+                            );
+                          })}
                           <td className="border border-[var(--border)]" />
                         </tr>
                       ))}
@@ -524,7 +542,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               );
                             }
                             if (c.type === "number") {
-                              const sum = rows.reduce((s, d) => s + (Number(d.column_values?.[c.id]) || 0), 0);
+                              const bound = isContractCol(c);
+                              const sum = rows.reduce((s, d) => s + (Number(bound ? d.contract_total : d.column_values?.[c.id]) || 0), 0);
                               return (
                                 <td key={c.id} className="px-2 py-1.5 text-right align-middle">
                                   <div className="text-[13px] font-semibold mono-number text-[var(--text)]">{sum ? sum.toLocaleString("ko-KR") : "—"}</div>
