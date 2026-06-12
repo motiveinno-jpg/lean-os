@@ -238,7 +238,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-bold text-[var(--text)] truncate">{partnerName}</span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct} ({pal.money})</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct}</span>
           <span className="text-[11px] text-[var(--text-dim)] shrink-0">{year}-01-01 ~ {year}-12-31</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -256,7 +256,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
               <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60">적요</th>
               <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
               <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
-              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[130px]">잔액 ({pal.money})</th>
+              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[130px]">잔액</th>
             </tr>
           </thead>
           <tbody>
@@ -391,7 +391,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-base font-bold text-[var(--text)] truncate">{partnerName}</span>
-              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${pal.tintBg} ${pal.tintText}`}>{pal.label} · {pal.money}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${pal.tintBg} ${pal.tintText}`}>{pal.label}</span>
             </div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{year}년 기준 · 세금계산서 {invoices.length}건</div>
           </div>
@@ -400,7 +400,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
 
         {/* 요약 */}
         <div className="px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], [`잔액 (${pal.money})`, priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
+          {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], ["잔액", priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
             <div key={label} className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
               <div className="text-[10px] text-[var(--text-dim)]">{label}</div>
               <div className={`text-sm font-bold mono-number ${cls}`}>{won(val)}</div>

@@ -112,7 +112,7 @@ export default function PartnerLedgerPage() {
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-[var(--text)]">거래처 원장</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">매출처·매입처 잔액 한눈에 — 받을 돈과 줄 돈을 거래처별로 관리합니다</p>
+          <p className="text-xs text-[var(--text-dim)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link href="/partners" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">← 거래처</Link>
@@ -139,7 +139,7 @@ export default function PartnerLedgerPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${active ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
                 style={active ? { background: p.main } : undefined}>
                 <span className="text-base leading-none">{p.arrow}</span>
-                {p.label} · {p.money}
+                {p.label}
               </button>
             );
           })}
@@ -166,7 +166,7 @@ export default function PartnerLedgerPage() {
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-stretch">
         <div className="glass-card px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2" style={{ borderTop: `3px solid ${pal.main}` }}>
           <div>
-            <div className="text-xs text-[var(--text-muted)]">{ledgerType === "sales" ? "총 받을 돈 (미수금)" : "총 줄 돈 (미지급금)"}</div>
+            <div className="text-xs text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
             <div className="text-2xl font-bold mono-number mt-0.5" style={{ color: pal.main }}>{won(total)}</div>
           </div>
           <div>
@@ -181,7 +181,7 @@ export default function PartnerLedgerPage() {
         <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
           className="glass-card px-4 py-3 text-left hover:bg-[var(--bg-surface)] transition min-w-[170px]"
           title="클릭하여 전환">
-          <div className="text-[11px] text-[var(--text-dim)] flex items-center gap-1">{other.arrow} {other.label} · {other.money}</div>
+          <div className="text-[11px] text-[var(--text-dim)] flex items-center gap-1">{other.arrow} {other.label}</div>
           <div className={`text-base font-bold mono-number mt-0.5 ${other.tintText}`}>{won(otherTotal)}</div>
         </button>
       </div>
