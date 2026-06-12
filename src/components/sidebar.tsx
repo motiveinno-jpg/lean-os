@@ -34,7 +34,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin"] },
       { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
+      // 2026-06-12 메뉴 분리: 원장(조회 — 매출처·매입처 잔액) / 거래 대사(작업 — 입금·계산서 매칭)
       { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"] },
+      { href: "/partners/reconciliation", label: "거래 대사", icon: "clipboard-check", roles: ["owner", "admin"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
