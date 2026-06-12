@@ -28,7 +28,8 @@ function elapsedSince(ts?: string | null): string {
 export function MyAttendanceCard({ companyId, userId }: { companyId: string; userId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const today = new Date().toISOString().slice(0, 10);
+  // QA 2026-06-12: UTC 날짜였음 → KST 00:00~08:59 에 "어제"로 기록되던 버그. KST 보정.
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   const [attendanceStatus, setAttendanceStatus] = useState("present");
   const [busy, setBusy] = useState(false);
 

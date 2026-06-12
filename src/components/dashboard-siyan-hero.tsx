@@ -137,7 +137,8 @@ export function DashboardSiyanHero({
                 </span>
               )}
             </div>
-            <p className="text-[26px] font-bold mono-number mb-3 tracking-tight text-[var(--text)]">{m.value}</p>
+            {/* QA 2026-06-12: 9자리+ 금액이 좁은 화면에서 넘치던 것 → 반응형 폰트 + truncate */}
+            <p className="text-[22px] sm:text-[26px] font-bold mono-number mb-3 tracking-tight text-[var(--text)] truncate" title={m.value}>{m.value}</p>
             <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
               {m.segments.map((s, i) => (
                 <div key={i} style={{ width: `${Math.max(0, Math.min(s.pct, 100))}%`, backgroundColor: s.color }} className="h-full" />

@@ -98,11 +98,13 @@ export default function BankPage() {
   };
 
   // 기간 — 이번 달 KST · 전월 동일(증감 계산용).
+  //   QA 2026-06-12: +9h 후 로컬 getFullYear/getMonth 를 읽으면 KST 브라우저에선 이중 가산
+  //   (월말 저녁에 다음 달로 넘어감) → UTC 게터로 교정.
   const ranges = useMemo(() => {
-    const now = new Date();
-    const kst = new Date(now.getTime() + 9 * 3600 * 1000);
-    const cur = { from: new Date(kst.getFullYear(), kst.getMonth(), 1), to: new Date(kst.getFullYear(), kst.getMonth() + 1, 0) };
-    const prev = { from: new Date(kst.getFullYear(), kst.getMonth() - 1, 1), to: new Date(kst.getFullYear(), kst.getMonth(), 0) };
+    const kst = new Date(Date.now() + 9 * 3600 * 1000);
+    const y = kst.getUTCFullYear(), m = kst.getUTCMonth();
+    const cur = { from: new Date(y, m, 1), to: new Date(y, m + 1, 0) };
+    const prev = { from: new Date(y, m - 1, 1), to: new Date(y, m, 0) };
     return { curFrom: ymd(cur.from), curTo: ymd(cur.to), prevFrom: ymd(prev.from), prevTo: ymd(prev.to) };
   }, []);
 

@@ -130,11 +130,12 @@ export default function CardsPage() {
   const [editingName, setEditingName] = useState("");
 
   // 이번 달 KST 범위
+  //   QA 2026-06-12: +9h 후 로컬 게터는 KST 브라우저에서 이중 가산(월말 저녁에 다음 달) → UTC 게터로 교정.
   const monthRange = useMemo(() => {
-    const now = new Date();
-    const kst = new Date(now.getTime() + 9 * 3600 * 1000);
-    const from = new Date(kst.getFullYear(), kst.getMonth(), 1);
-    const to = new Date(kst.getFullYear(), kst.getMonth() + 1, 0);
+    const kst = new Date(Date.now() + 9 * 3600 * 1000);
+    const y = kst.getUTCFullYear(), m = kst.getUTCMonth();
+    const from = new Date(y, m, 1);
+    const to = new Date(y, m + 1, 0);
     const f = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return { from: f(from), to: f(to) };
   }, []);

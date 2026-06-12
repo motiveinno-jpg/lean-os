@@ -604,14 +604,20 @@ export default function SignaturesDashboardPage() {
               )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <a
-                href={`/sign?token=${(filtered.find((x) => x.id === viewSignedRow.id) as { sign_token?: string } | undefined)?.sign_token || ""}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-1.5 text-xs bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg"
-              >
-                🔗 외부 보기
-              </a>
+              {/* QA 2026-06-12: sign_token 없는 행(HR 패키지 등)은 빈 토큰 링크가 되던 버그 → 토큰 있을 때만 노출 */}
+              {(() => {
+                const token = (filtered.find((x) => x.id === viewSignedRow.id) as { sign_token?: string } | undefined)?.sign_token;
+                return token ? (
+                  <a
+                    href={`/sign?token=${token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-1.5 text-xs bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg"
+                  >
+                    🔗 외부 보기
+                  </a>
+                ) : null;
+              })()}
               <button onClick={() => setViewSignedRow(null)} className="px-4 py-1.5 text-xs bg-[var(--primary)] text-white rounded-lg font-semibold">닫기</button>
             </div>
           </div>

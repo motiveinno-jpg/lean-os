@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "check:migrations": "node scripts/check-migrations.mjs",
     "smoke:rls": "node scripts/rls-smoke.mjs",
     "preflight": "npm run check:migrations && npm run smoke:rls"

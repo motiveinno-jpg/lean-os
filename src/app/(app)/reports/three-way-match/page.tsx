@@ -5,7 +5,7 @@
 //   추천 규칙: 거래처명 / 대표자명 / 금액±10% — 하나라도 충족 시 노출.
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -40,10 +40,10 @@ function Inner() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'sales' | 'purchase'>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<ThreeWayInvoice | null>(null);
 
-  // 회사 id
-  useState(() => {
+  // 회사 id — QA 2026-06-12: useState 초기화자에서 side effect(렌더 중 fetch, strict mode 2회) → useEffect 로 교정
+  useEffect(() => {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
-  });
+  }, []);
 
   // 미매칭 세금계산서 목록
   const { data: invoices = [], isLoading: invLoading } = useQuery({
