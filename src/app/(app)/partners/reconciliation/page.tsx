@@ -39,14 +39,19 @@ export default function ReconciliationPage() {
   const [engStart, setEngStart] = useState(dStr(100));
   const [engEnd, setEngEnd] = useState(dStr(0));
 
+  // 확인 큐 — 미처리(suggested/needs_review)만. 뷰가 이미 필터하지만(2026-06-12 prod 정의 검증)
+  //   방어적으로 클라이언트에서도 포함 목록 필터(핸드오프 §6: 부정 조건 금지, 뷰 오염 시에도 화면 안전).
+  //   refetchInterval 30s: 전역 refetchOnWindowFocus OFF 라 타 세션 확정 건이 남는 것 방지.
+  const QUEUE_STATUSES = ["suggested", "needs_review"];
   const { data: queue = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
     queryFn: async () => {
       const { data } = await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId)
         .order("confidence", { ascending: false });
-      return (data || []) as QueueRow[];
+      return ((data || []) as QueueRow[]).filter((m) => QUEUE_STATUSES.includes(m.status));
     },
     enabled: !!companyId,
+    refetchInterval: 30_000,
   });
 
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
@@ -109,16 +114,28 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "AI 매칭 실패", "error"),
   });
 
+  // 확정/반려 — 낙관적 제거(핸드오프 §4-B): 클릭 즉시 큐에서 사라지고, 실패 시 롤백.
+  //   탭 카운트("확인 N건")는 queue.length 파생이라 자동 동기화. 데이터는 status 변경뿐(삭제 아님).
   const decideMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected" }) => {
       const { error } = await db.from("invoice_settlements").update({ status }).eq("id", id);
       if (error) throw new Error(error.message);
     },
-    onSuccess: (_d, v) => { invalidateAll(); toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info"); },
-    onError: (e: any) => toast(e?.message || "처리 실패", "error"),
+    onMutate: async ({ id }) => {
+      await qc.cancelQueries({ queryKey: ["settlement-queue", companyId] });
+      const prev = qc.getQueryData<QueueRow[]>(["settlement-queue", companyId]);
+      qc.setQueryData<QueueRow[]>(["settlement-queue", companyId], (old) => (old || []).filter((m) => m.id !== id));
+      return { prev };
+    },
+    onError: (e: any, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
+      toast(e?.message || "처리 실패", "error");
+    },
+    onSuccess: (_d, v) => { toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info"); },
+    onSettled: () => invalidateAll(),
   });
 
-  // 일괄 확정/반려 — 고신뢰 일괄 또는 선택 건
+  // 일괄 확정/반려 — 고신뢰 일괄 또는 선택 건 (동일하게 낙관적 제거)
   const bulkDecideMut = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: "confirmed" | "rejected" }) => {
       if (!ids.length) return 0;
@@ -126,8 +143,19 @@ export default function ReconciliationPage() {
       if (error) throw new Error(error.message);
       return ids.length;
     },
-    onSuccess: (n, v) => { invalidateAll(); setSelected(new Set()); toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info"); },
-    onError: (e: any) => toast(e?.message || "일괄 처리 실패", "error"),
+    onMutate: async ({ ids }) => {
+      await qc.cancelQueries({ queryKey: ["settlement-queue", companyId] });
+      const prev = qc.getQueryData<QueueRow[]>(["settlement-queue", companyId]);
+      const idSet = new Set(ids);
+      qc.setQueryData<QueueRow[]>(["settlement-queue", companyId], (old) => (old || []).filter((m) => !idSet.has(m.id)));
+      return { prev };
+    },
+    onError: (e: any, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
+      toast(e?.message || "일괄 처리 실패", "error");
+    },
+    onSuccess: (n, v) => { setSelected(new Set()); toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info"); },
+    onSettled: () => invalidateAll(),
   });
 
   // 신뢰도 등급(매칭엔진 날짜기반 신뢰도 기준)
