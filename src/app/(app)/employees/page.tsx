@@ -46,6 +46,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
+import { PayrollHero, ContractsHero, ExpensesHero, CertificatesHero } from "@/components/flex-hr-heroes";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -231,13 +232,34 @@ export default function EmployeesPage() {
 
       {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
       {/* V1: '급여이력' 세그먼트 제거 — 급여 탭은 명세만 (이력 진입 0) */}
-      {effectiveTab === "salary" && <PayrollPreviewTab companyId={companyId} />}
+      {/* 플렉스 스타일(2026-06-12): 세부탭마다 모듈 히어로(실데이터 지표 칩) + flex-skin (탭 본체 무수정) */}
+      {effectiveTab === "salary" && (
+        <>
+          {!isEmployee && <PayrollHero employees={employees} />}
+          <div className="flex-skin"><PayrollPreviewTab companyId={companyId} /></div>
+        </>
+      )}
 
-      {effectiveTab === "contracts" && <ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} />}
-      {effectiveTab === "expenses" && <ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} />}
+      {effectiveTab === "contracts" && (
+        <>
+          <ContractsHero contracts={contracts} />
+          <div className="flex-skin"><ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} /></div>
+        </>
+      )}
+      {effectiveTab === "expenses" && (
+        <>
+          <ExpensesHero expenses={expenses} />
+          <div className="flex-skin"><ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} /></div>
+        </>
+      )}
       {/* 근태 관리는 /attendance, 휴가는 /leave 단일 진입(P1-4) — 여기선 수렴만 */}
       {effectiveTab === "leave" && <LeaveTabRedirect />}
-      {effectiveTab === "certificates" && <CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {effectiveTab === "certificates" && (
+        <>
+          <CertificatesHero companyId={companyId} />
+          <div className="flex-skin"><CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} /></div>
+        </>
+      )}
     </div>
   );
 }

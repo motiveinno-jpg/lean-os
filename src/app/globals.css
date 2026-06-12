@@ -248,6 +248,18 @@ body {
 .animate-glow-red { }
 .animate-glow-orange { }
 
+/* ── 플렉스 스킨 (2026-06-12) — 레거시 HR 탭(급여/계약서/경비/휴가/증명서) 표면 리스킨.
+   로직·구조 무관: 표 헤더 바이올렛 틴트 + 표 라운드만. 탭 본체 컴포넌트는 무수정. */
+.flex-skin table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.flex-skin thead th {
+  background: color-mix(in srgb, #6C5CE7 7%, var(--bg-surface));
+}
+
 /* Number Display */
 .mono-number {
   font-variant-numeric: tabular-nums;

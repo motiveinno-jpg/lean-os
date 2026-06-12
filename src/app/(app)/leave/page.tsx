@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { LeaveTab } from "@/app/(app)/employees/page";
+import { LeaveHero } from "@/components/flex-hr-heroes";
 
 // 휴가 신청 — employees/page.tsx 의 LeaveTab 재사용. 사이드바 '휴가 신청' 단일 진입점.
 //   직원이 "인력관리>휴가 탭"(사이드바에 없는 명칭)으로 헤매던 동선 미로를 해소한다.
@@ -51,6 +52,9 @@ function LeavePageInner() {
             : "휴가 신청 승인 · 연차 부여 · 잔여 관리"}
         </p>
       </div>
+      {/* 플렉스 스타일(2026-06-12): 모듈 히어로 + flex-skin (LeaveTab 무수정) */}
+      <LeaveHero companyId={companyId} />
+      <div className="flex-skin">
       <LeaveTab
         employees={employees}
         companyId={companyId}
@@ -59,6 +63,7 @@ function LeavePageInner() {
         isEmployee={isEmployee}
         autoNew={autoNew}
       />
+      </div>
     </div>
   );
 }
