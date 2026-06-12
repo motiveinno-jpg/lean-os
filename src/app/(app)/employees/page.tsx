@@ -46,7 +46,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { PayrollHero, ContractsHero, ExpensesHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { PayrollHero, ContractsHero, ExpensesHero, LeaveHero, CertificatesHero } from "@/components/flex-hr-heroes";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -252,8 +252,23 @@ export default function EmployeesPage() {
           <div className="flex-skin"><ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} /></div>
         </>
       )}
-      {/* 근태 관리는 /attendance, 휴가는 /leave 단일 진입(P1-4) — 여기선 수렴만 */}
-      {effectiveTab === "leave" && <LeaveTabRedirect />}
+      {/* 휴가 — 2026-06-12: 페이지 이탈(/leave 리다이렉트) 대신 다른 탭처럼 인라인 렌더.
+          LeaveTab 은 공유 컴포넌트(단일 소스) — /leave 페이지는 직원 사이드바 진입점으로 유지. */}
+      {effectiveTab === "leave" && (
+        <>
+          <LeaveHero companyId={companyId} />
+          <div className="flex-skin">
+            <LeaveTab
+              employees={employees}
+              companyId={companyId}
+              userId={userId}
+              queryClient={queryClient}
+              isEmployee={isEmployee}
+              autoNew={false}
+            />
+          </div>
+        </>
+      )}
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />
@@ -262,15 +277,6 @@ export default function EmployeesPage() {
       )}
     </div>
   );
-}
-
-// P1-4: 휴가 진입 단일화 — /leave·employees탭·employee fallback 셋이 같은
-//   LeaveTab 을 쓰던 이중화를, employees 페이지에서 /leave 로 수렴시켜 제거.
-//   (LeaveTab 자체는 /leave 페이지가 역할별로 렌더 — 관리자도 동일 관리뷰)
-function LeaveTabRedirect() {
-  const router = useRouter();
-  useEffect(() => { router.replace("/leave"); }, [router]);
-  return <div className="p-10 text-center text-sm text-[var(--text-muted)]">휴가 페이지로 이동 중…</div>;
 }
 
 // ── Employee Tab (초대 기반 통합) ──
