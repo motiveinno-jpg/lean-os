@@ -16,6 +16,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { getCurrentUser } from "@/lib/queries";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -84,6 +85,23 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [personFilter, setPersonFilter] = useState<string>("");
+  // 먼데이 말풍선: 아이템 업데이트(히스토리) 패널 대상
+  const [updatesDeal, setUpdatesDeal] = useState<Deal | null>(null);
+  // 푸터 분포 바 클릭 → 텍스트 내역 팝오버
+  const [distPop, setDistPop] = useState<{ anchor: DOMRect; title: string; rows: { label: string; color: string; n: number }[]; total: number; empty: number } | null>(null);
+
+  // 말풍선 배지용 — deal 별 업데이트 개수
+  const { data: updateCounts } = useQuery<Map<string, number>>({
+    queryKey: ["board-update-counts", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).limit(5000);
+      const m = new Map<string, number>();
+      (data || []).forEach((r: any) => m.set(r.deal_id, (m.get(r.deal_id) || 0) + 1));
+      return m;
+    },
+    enabled: !!companyId,
+    staleTime: 30_000,
+  });
 
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
@@ -406,16 +424,35 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                             />
                           </td>
                           <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-1.5">
                               <EditableText value={d.name} onSave={(v) => setName(d, v.trim() || d.name)} className="text-[14px] text-[var(--text)]" placeholder="업체명" />
-                              <button
-                                onClick={() => setOpenDealId(d.id)}
-                                className="opacity-0 group-hover/row:opacity-100 transition inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0"
-                                style={{ color: MONDAY.primary, borderColor: MONDAY.primary, background: "transparent" }}
-                              >
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M9 18l6-6-6-6" /></svg>
-                                열기
-                              </button>
+                              <span className="flex items-center gap-1 shrink-0">
+                                {/* 먼데이 말풍선 — 업데이트(히스토리). 글 있으면 카운트와 함께 상시 노출, 없으면 호버 시 + 말풍선 */}
+                                {(() => {
+                                  const n = updateCounts?.get(d.id) ?? 0;
+                                  return (
+                                    <button
+                                      onClick={() => setUpdatesDeal(d)}
+                                      className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded transition ${n > 0 ? "text-[var(--text-muted)] hover:text-[var(--text)]" : "opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
+                                      title="업데이트 (메모·히스토리)"
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+                                        {n === 0 && <path d="M12 8v6M9 11h6" />}
+                                      </svg>
+                                      {n > 0 && <span className="text-[10px] font-bold" style={{ color: MONDAY.primary }}>{n}</span>}
+                                    </button>
+                                  );
+                                })()}
+                                <button
+                                  onClick={() => setOpenDealId(d.id)}
+                                  className="opacity-0 group-hover/row:opacity-100 transition inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0"
+                                  style={{ color: MONDAY.primary, borderColor: MONDAY.primary, background: "transparent" }}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M9 18l6-6-6-6" /></svg>
+                                  열기
+                                </button>
+                              </span>
                             </div>
                           </td>
                           {listColumns.map((c) => (
@@ -454,13 +491,25 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               const empty = total - [...counts.values()].reduce((s, n) => s + n, 0);
                               return (
                                 <td key={c.id} className="px-1 py-1.5 align-middle">
-                                  <div className="flex h-6 rounded overflow-hidden" title={[...options.filter((o) => counts.get(o.id)).map((o) => `${o.label} ${counts.get(o.id)}/${total}`), ...(empty > 0 ? [`미지정 ${empty}/${total}`] : [])].join(" · ")}>
-                                    {options.map((o) => {
-                                      const n = counts.get(o.id) || 0;
-                                      return n > 0 ? <div key={o.id} style={{ width: `${(n / total) * 100}%`, background: o.color }} /> : null;
+                                  {/* 분포 바 — 호버 시 살짝 떠오르고, 클릭하면 텍스트 내역 팝오버 */}
+                                  <button
+                                    onClick={(e) => setDistPop({
+                                      anchor: e.currentTarget.getBoundingClientRect(),
+                                      title: `${g?.name ?? "그룹 없음"} · ${c.name}`,
+                                      rows: options.filter((o) => (counts.get(o.id) || 0) > 0).map((o) => ({ label: o.label, color: o.color, n: counts.get(o.id) || 0 })),
+                                      total, empty,
                                     })}
-                                    {empty > 0 && <div style={{ width: `${(empty / total) * 100}%`, background: "var(--bg-surface)" }} />}
-                                  </div>
+                                    className="block w-full transition hover:-translate-y-px hover:shadow-md rounded cursor-pointer"
+                                    title="클릭하면 상태별 내역을 봅니다"
+                                  >
+                                    <span className="flex h-6 rounded overflow-hidden">
+                                      {options.map((o) => {
+                                        const n = counts.get(o.id) || 0;
+                                        return n > 0 ? <span key={o.id} className="transition hover:brightness-110" style={{ width: `${(n / total) * 100}%`, background: o.color }} /> : null;
+                                      })}
+                                      {empty > 0 && <span style={{ width: `${(empty / total) * 100}%`, background: "var(--bg-surface)" }} />}
+                                    </span>
+                                  </button>
                                 </td>
                               );
                             }
@@ -516,6 +565,152 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           onDelete={() => deleteColumn(configCol)}
         />
       )}
+
+      {/* 푸터 분포 바 클릭 → 상태별 텍스트 내역 */}
+      {distPop && (
+        <DropMenu anchor={distPop.anchor} width={220} onClose={() => setDistPop(null)} pad="p-2.5">
+          <div className="text-[11px] font-bold text-[var(--text)] mb-1.5 truncate">{distPop.title}</div>
+          <div className="space-y-1">
+            {distPop.rows.map((r) => (
+              <div key={r.label} className="flex items-center gap-2 text-[12px]">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: r.color }} />
+                <span className="flex-1 truncate text-[var(--text)]">{r.label}</span>
+                <span className="font-semibold mono-number text-[var(--text)]">{r.n}/{distPop.total}</span>
+                <span className="text-[var(--text-dim)] w-9 text-right mono-number">{Math.round((r.n / distPop.total) * 100)}%</span>
+              </div>
+            ))}
+            {distPop.empty > 0 && (
+              <div className="flex items-center gap-2 text-[12px]">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-[var(--bg-surface)] border border-[var(--border)]" />
+                <span className="flex-1 text-[var(--text-dim)]">미지정</span>
+                <span className="font-semibold mono-number text-[var(--text-muted)]">{distPop.empty}/{distPop.total}</span>
+                <span className="text-[var(--text-dim)] w-9 text-right mono-number">{Math.round((distPop.empty / distPop.total) * 100)}%</span>
+              </div>
+            )}
+            {distPop.rows.length === 0 && distPop.empty === 0 && (
+              <div className="text-[11px] text-[var(--text-dim)]">항목 없음</div>
+            )}
+          </div>
+        </DropMenu>
+      )}
+
+      {/* 먼데이 말풍선 — 아이템 업데이트 패널 */}
+      {updatesDeal && (
+        <ItemUpdatesPanel
+          companyId={companyId}
+          deal={updatesDeal}
+          onClose={() => { setUpdatesDeal(null); qc.invalidateQueries({ queryKey: ["board-update-counts", companyId] }); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── 먼데이 말풍선: 아이템 업데이트(히스토리) 우측 드로어 ──
+//   board_item_updates 테이블(회사격리 RLS). 작성·목록·본인 글 삭제.
+function ItemUpdatesPanel({ companyId, deal, onClose }: { companyId: string; deal: Deal; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [body, setBody] = useState("");
+  const [me, setMe] = useState<{ id: string; name: string | null; email: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getCurrentUser().then((u) => { if (u) setMe({ id: u.id, name: u.name, email: u.email }); }); }, []);
+
+  const { data: updates = [] } = useQuery<any[]>({
+    queryKey: ["board-item-updates", deal.id],
+    queryFn: async () => {
+      const { data } = await db.from("board_item_updates").select("*")
+        .eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(200);
+      return (data || []) as any[];
+    },
+  });
+  const refetch = () => qc.invalidateQueries({ queryKey: ["board-item-updates", deal.id] });
+
+  const submit = async () => {
+    const text = body.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    await db.from("board_item_updates").insert({
+      company_id: companyId, deal_id: deal.id,
+      author_user_id: me?.id ?? null, author_name: me?.name || me?.email || null, body: text,
+    });
+    setBusy(false);
+    setBody("");
+    refetch();
+  };
+  const remove = async (id: string) => {
+    await db.from("board_item_updates").delete().eq("id", id);
+    refetch();
+  };
+
+  const rel = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "방금";
+    if (min < 60) return `${min}분 전`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `${h}시간 전`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}일 전`;
+    return new Date(iso).toLocaleDateString("ko-KR");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="relative w-full max-w-md h-full bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-base font-bold text-[var(--text)] truncate">{deal.name}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">업데이트 · 메모와 진행 히스토리를 기록합니다</div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none shrink-0">✕</button>
+        </div>
+        {/* 작성 박스 (먼데이처럼 상단) */}
+        <div className="px-5 py-3 border-b border-[var(--border)]">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+            placeholder="업데이트 작성... (Ctrl+Enter 등록)"
+            rows={3}
+            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] resize-none focus:outline-none"
+            style={{ borderColor: body.trim() ? MONDAY.primary : undefined }}
+          />
+          <div className="flex justify-end mt-2">
+            <button onClick={submit} disabled={!body.trim() || busy}
+              className="px-4 h-8 rounded text-[13px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+              style={{ background: MONDAY.primary }}>
+              {busy ? "등록 중..." : "등록"}
+            </button>
+          </div>
+        </div>
+        {/* 피드 */}
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+          {updates.length === 0 ? (
+            <div className="py-12 text-center text-[13px] text-[var(--text-dim)]">
+              <div className="text-3xl mb-2">💬</div>
+              아직 업데이트가 없습니다.<br />첫 메모를 남겨보세요.
+            </div>
+          ) : updates.map((u) => (
+            <div key={u.id} className="rounded-xl border border-[var(--border)] p-3 group/upd">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: avatarColor(u.author_user_id || u.author_name || "?") }}>
+                  {initials(u.author_name || "?")}
+                </span>
+                <span className="text-[13px] font-semibold text-[var(--text)] truncate">{u.author_name || "알 수 없음"}</span>
+                <span className="text-[11px] text-[var(--text-dim)] shrink-0">{rel(u.created_at)}</span>
+                {me && u.author_user_id === me.id && (
+                  <button onClick={() => remove(u.id)}
+                    className="ml-auto opacity-0 group-hover/upd:opacity-100 text-[var(--text-dim)] hover:text-[var(--danger)] text-xs transition shrink-0" title="삭제">✕</button>
+                )}
+              </div>
+              <div className="text-[13px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">{u.body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
