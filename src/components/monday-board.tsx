@@ -287,6 +287,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           deal={openDeal}
           columns={columns}
           users={users}
+          updatesCount={updateCounts?.get(openDeal.id) ?? 0}
+          onOpenUpdates={() => setUpdatesDeal(openDeal)}
           onBack={() => setOpenDealId(null)}
           onSetName={setName}
           onAddColumn={addColumn}
@@ -300,6 +302,14 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
             onClose={() => setConfigCol(null)}
             onSave={(patch) => saveColumn(configCol, patch)}
             onDelete={() => deleteColumn(configCol)}
+          />
+        )}
+        {/* 상세 화면에서도 말풍선 업데이트 패널 사용 가능 */}
+        {updatesDeal && (
+          <ItemUpdatesPanel
+            companyId={companyId}
+            deal={updatesDeal}
+            onClose={() => { setUpdatesDeal(null); qc.invalidateQueries({ queryKey: ["board-update-counts", companyId] }); }}
           />
         )}
       </>
@@ -808,11 +818,13 @@ function MoveToGroupButton({ groups, onMove }: { groups: Grp[]; onMove: (gid: st
 
 // ── 프로젝트 상세 = 먼데이 서브아이템 표 (리스트에서 전환).
 //   헤더 첫 줄 = 컬럼(옆으로 추가/⚙설정), 아래 = 항목 행(밑으로 추가, 같은 컬럼 공유). ──
-function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, onAddColumn, onConfigColumn, onMoveColumn }: {
+function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onOpenUpdates, onBack, onSetName, onAddColumn, onConfigColumn, onMoveColumn }: {
   companyId: string;
   deal: Deal;
   columns: Col[];
   users: Person[];
+  updatesCount?: number;
+  onOpenUpdates?: () => void;
   onBack: () => void;
   onSetName: (deal: Deal, name: string) => void;
   onAddColumn: (type: string) => void;
@@ -861,16 +873,35 @@ function DealDetailView({ companyId, deal, columns, users, onBack, onSetName, on
         </button>
       </div>
 
-      {/* 프로젝트명 (먼데이 아이템 페이지 타이틀) */}
-      <input
-        value={name}
-        onChange={(e) => setNameLocal(e.target.value)}
-        onBlur={() => onSetName(deal, name.trim() || deal.name)}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-        placeholder="업체명"
-        className="w-full bg-transparent text-2xl font-bold text-[var(--text)] focus:outline-none focus:border-b-2 pb-1"
-        style={{ borderColor: MONDAY.primary }}
-      />
+      {/* 프로젝트명 (먼데이 아이템 페이지 타이틀) + 말풍선 업데이트 */}
+      <div className="flex items-center gap-3">
+        <input
+          value={name}
+          onChange={(e) => setNameLocal(e.target.value)}
+          onBlur={() => onSetName(deal, name.trim() || deal.name)}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          placeholder="업체명"
+          className="flex-1 min-w-0 bg-transparent text-2xl font-bold text-[var(--text)] focus:outline-none focus:border-b-2 pb-1"
+          style={{ borderColor: MONDAY.primary }}
+        />
+        {onOpenUpdates && (
+          <button
+            onClick={onOpenUpdates}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
+            title="업데이트 (메모·히스토리)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+            </svg>
+            업데이트
+            {updatesCount > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: MONDAY.primary }}>
+                {updatesCount}
+              </span>
+            )}
+          </button>
+        )}
+      </div>
 
       {/* 표: 헤더=컬럼(옆으로 추가), 행=항목(밑으로 추가) */}
       <div className="overflow-x-auto rounded-md" style={{ boxShadow: "var(--shadow-sm)" }}>
