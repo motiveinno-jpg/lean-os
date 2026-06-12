@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { SiyanPageHeader, SiyanStatCard, SiyanAlertBox } from "@/components/siyan";
 import { AttendanceTab } from "@/app/(app)/employees/page";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
+import { FlexWorkBoard } from "@/components/flex-work-board";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
 //   래퍼 시안 리스킨 (공용 컴포넌트 사용, 표시 전용). AttendanceTab 본체(6342줄) 무변경.
@@ -25,6 +27,9 @@ export default function AttendancePage() {
   const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
   const isEmployee = role === "employee";
   const isManager = role !== "employee";
+  // 플렉스 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
+  //   관리자 기본 = 워크보드(조망), 직원 기본 = 기록 상세(본인 출퇴근/수정 동선 유지).
+  const [attView, setAttView] = useState<"work" | "records">(isEmployee ? "records" : "work");
 
   const { data: employees = [] } = useQuery({
     queryKey: ["attendance-employees", companyId, isEmployee ? "emp" : "mgr"],
@@ -124,14 +129,29 @@ export default function AttendancePage() {
         <OvertimeRequestCard companyId={companyId} userId={userId} />
       )}
 
-      <AttendanceTab
-        employees={employees}
-        companyId={companyId}
-        userId={userId}
-        userEmail={userEmail}
-        queryClient={queryClient}
-        role={role}
-      />
+      {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
+      <div className="mb-4 inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
+        {([["work", "📊 워크보드 (주간)"], ["records", "📋 기록 상세"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setAttView(k)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${attView === k ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+            style={attView === k ? { background: "#6C5CE7" } : undefined}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {attView === "work" ? (
+        <FlexWorkBoard companyId={companyId} employees={employees} role={role} userId={userId} />
+      ) : (
+        <AttendanceTab
+          employees={employees}
+          companyId={companyId}
+          userId={userId}
+          userEmail={userEmail}
+          queryClient={queryClient}
+          role={role}
+        />
+      )}
     </div>
   );
 }

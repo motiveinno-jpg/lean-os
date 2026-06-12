@@ -45,6 +45,7 @@ import {
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
+import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -111,6 +112,9 @@ export default function EmployeesPage() {
   });
 
   // V1: 급여이력(SalaryTab/salary-history) 제거 — '급여' 탭은 명세만.
+
+  // 플렉스 스타일: 인력관리 탭 = [디렉토리](카드·프로필 패널) 기본 / [관리·수정](기존 EmployeeTab) 토글
+  const [empView, setEmpView] = useState<"dir" | "manage">("dir");
 
   // ── Contracts ──
   const { data: contracts = [] } = useQuery({
@@ -205,7 +209,25 @@ export default function EmployeesPage() {
       </div>
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
-      {effectiveTab === "employees" && <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />}
+      {/* 플렉스 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
+      {effectiveTab === "employees" && (
+        <>
+          <div className="mb-4 inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
+            {([["dir", "👥 디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setEmpView(k)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition ${empView === k ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+                style={empView === k ? { background: "#6C5CE7" } : undefined}>
+                {l}
+              </button>
+            ))}
+          </div>
+          {empView === "dir" ? (
+            <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee} />
+          ) : (
+            <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />
+          )}
+        </>
+      )}
 
       {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
       {/* V1: '급여이력' 세그먼트 제거 — 급여 탭은 명세만 (이력 진입 0) */}
