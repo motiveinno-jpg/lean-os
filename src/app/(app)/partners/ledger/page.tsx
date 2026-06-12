@@ -5,7 +5,7 @@
 //   탭2 거래처 원장: v_partner_ar_ap 거래처별 미수/미지급 현황.
 //   버튼: "홈택스 거래처 연결"(세금계산서↔거래처), "매칭 엔진 실행"(입금↔세금계산서 제안 생성, suggested).
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +32,62 @@ const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString(); // 위하고식 그리드: ₩ 없이 콤마만
 // 위하고식 그리드 공통 셀 클래스
 const GRID_TH = "px-3 py-2 font-semibold whitespace-nowrap border-l border-[var(--border)]/60 first:border-l-0";
-const GRID_TD = "px-3 py-1.5 border-l border-[var(--border)]/60 first:border-l-0";
+const GRID_TD = "px-3 py-1.5 border-l border-[var(--border)]/60 first:border-l-0 whitespace-nowrap overflow-hidden text-ellipsis";
+
+// ── 엑셀식 컬럼 리사이즈 (확인 큐) ──
+//   경계선 드래그 = 너비 조절 · 경계선 더블클릭 = 내용 자동 맞춤 · localStorage 에 기억.
+function useColWidths(storageKey: string, defaults: Record<string, number>) {
+  const [w, setW] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return defaults;
+    try { return { ...defaults, ...JSON.parse(localStorage.getItem(storageKey) || "{}") }; } catch { return defaults; }
+  });
+  const set = (k: string, px: number) => setW((prev) => {
+    const next = { ...prev, [k]: Math.round(px) };
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* noop */ }
+    return next;
+  });
+  return [w, set] as const;
+}
+
+function ResizableTh({ k, colIndex, widths, onResize, tableRef, className, children }: {
+  k: string; colIndex: number; widths: Record<string, number>;
+  onResize: (k: string, px: number) => void;
+  tableRef: React.RefObject<HTMLTableElement | null>;
+  className?: string; children: React.ReactNode;
+}) {
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = widths[k] || 100;
+    const move = (ev: MouseEvent) => onResize(k, Math.max(44, startW + (ev.clientX - startX)));
+    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+  // 더블클릭 = 자동 맞춤: 이 컬럼 모든 셀의 내용 폭(scrollWidth) 최대값으로
+  const autofit = () => {
+    const table = tableRef.current;
+    if (!table) return;
+    let max = 44;
+    table.querySelectorAll("tr").forEach((tr) => {
+      const cell = tr.children[colIndex] as HTMLElement | undefined;
+      if (cell) max = Math.max(max, cell.scrollWidth);
+    });
+    onResize(k, Math.min(640, max + 14));
+  };
+  return (
+    <th className={className} style={{ width: widths[k], position: "relative" }}>
+      {children}
+      <span
+        onMouseDown={startDrag}
+        onDoubleClick={autofit}
+        className="absolute top-0 -right-[3px] h-full w-[7px] cursor-col-resize select-none z-[1] hover:bg-[var(--primary)]/35 active:bg-[var(--primary)]/55 rounded"
+        title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤"
+      />
+    </th>
+  );
+}
 const MATCH_LABEL: Record<string, string> = {
   one_to_one: "1:1 정확", aggregate: "합산입금", partial: "부분입금", withholding: "원천징수", manual: "수동", adjustment: "차액 마감",
 };
@@ -62,6 +117,11 @@ export default function PartnerLedgerPage() {
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
+  // 확인 큐 — 엑셀식 컬럼 너비 (드래그/더블클릭 자동맞춤, localStorage 기억)
+  const queueTableRef = useRef<HTMLTableElement | null>(null);
+  const [queueW, setQueueW] = useColWidths("ledger-queue-colw", {
+    sel: 36, tdate: 92, ttype: 56, cp: 170, tamt: 110, idate: 92, icp: 170, iamt: 110, amt: 110, mtype: 80, conf: 92, act: 120,
+  });
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
   const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toISOString().slice(0, 10); };
   const [engStart, setEngStart] = useState(dStr(100));
@@ -343,25 +403,25 @@ export default function PartnerLedgerPage() {
               {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액 | 유형 | 신뢰도 | 처리 */}
               <div className="glass-card overflow-hidden">
                 <div className="overflow-auto max-h-[600px]">
-                  <table className="w-full min-w-[1020px] text-xs border-collapse">
+                  <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse" style={{ tableLayout: "fixed" }}>
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                        <th className="px-2 py-2 w-8 text-center">
+                        <th className="px-2 py-2 text-center" style={{ width: queueW.sel }}>
                           <input type="checkbox" checked={selected.size === queue.length && queue.length > 0}
                             onChange={(e) => setSelected(e.target.checked ? new Set(queue.map((m) => m.id)) : new Set())}
                             className="accent-[var(--primary)] w-3.5 h-3.5 align-middle cursor-pointer" />
                         </th>
-                        <th className={`${GRID_TH} text-left w-[88px]`}>거래일자</th>
-                        <th className={`${GRID_TH} text-center w-[52px]`}>구분</th>
-                        <th className={`${GRID_TH} text-left`}>입금자/거래처</th>
-                        <th className={`${GRID_TH} text-right w-[110px]`}>거래금액</th>
-                        <th className={`${GRID_TH} text-left w-[88px]`}>발행일자</th>
-                        <th className={`${GRID_TH} text-left`}>계산서 거래처</th>
-                        <th className={`${GRID_TH} text-right w-[110px]`}>계산서 금액</th>
-                        <th className={`${GRID_TH} text-right w-[110px]`}>정산액</th>
-                        <th className={`${GRID_TH} text-center w-[76px]`}>유형</th>
-                        <th className={`${GRID_TH} text-center w-[86px]`}>신뢰도</th>
-                        <th className={`${GRID_TH} text-center w-[110px]`}>처리</th>
+                        <ResizableTh k="tdate" colIndex={1} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-left`}>거래일자</ResizableTh>
+                        <ResizableTh k="ttype" colIndex={2} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-center`}>구분</ResizableTh>
+                        <ResizableTh k="cp" colIndex={3} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-left`}>입금자/거래처</ResizableTh>
+                        <ResizableTh k="tamt" colIndex={4} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-right`}>거래금액</ResizableTh>
+                        <ResizableTh k="idate" colIndex={5} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-left`}>발행일자</ResizableTh>
+                        <ResizableTh k="icp" colIndex={6} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-left`}>계산서 거래처</ResizableTh>
+                        <ResizableTh k="iamt" colIndex={7} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-right`}>계산서 금액</ResizableTh>
+                        <ResizableTh k="amt" colIndex={8} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-right`}>정산액</ResizableTh>
+                        <ResizableTh k="mtype" colIndex={9} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-center`}>유형</ResizableTh>
+                        <ResizableTh k="conf" colIndex={10} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-center`}>신뢰도</ResizableTh>
+                        <ResizableTh k="act" colIndex={11} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} text-center`}>처리</ResizableTh>
                       </tr>
                     </thead>
                     <tbody>
@@ -375,10 +435,10 @@ export default function PartnerLedgerPage() {
                           <td className={`${GRID_TD} text-center`}>
                             <span className={`font-semibold ${m.txn_type === "income" ? "text-emerald-500" : "text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
                           </td>
-                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty || "—"}</td>
+                          <td className={`${GRID_TD} text-[var(--text)]`} title={m.counterparty || ""}>{m.counterparty || "—"}</td>
                           <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.txn_amount)}</td>
                           <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
-                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty_name || "—"}</td>
+                          <td className={`${GRID_TD} text-[var(--text)]`} title={m.counterparty_name || ""}>{m.counterparty_name || "—"}</td>
                           <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
                           <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(m.amount)}</td>
                           <td className={`${GRID_TD} text-center`}>
