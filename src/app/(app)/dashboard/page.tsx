@@ -39,6 +39,7 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { AiBriefing } from "@/components/ai-briefing";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
+import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { DashboardAnalytics } from "@/components/dashboard-analytics";
 
 // ── Formatters ──
@@ -555,14 +556,9 @@ export default function DashboardPage() {
         <DashboardAnalytics companyId={companyId} />
       )}
 
-      {/* ═══ 경영 뷰 (기존 owner 위젯) — owner 의 manage 탭에서만 노출. admin 은 진입 불가. ═══ */}
+      {/* ═══ 경영 뷰 — CEO 커맨드 센터 (2026-06-12 전면 재설계). owner 전용. ═══ */}
       {role === "owner" && dashView === 'manage' && (<>
-      {/* ═══ [Hero] 헤더 + 액션바 + KPI 4-Pack — Above the Fold ═══ */}
-      {/* (시안 재무 히어로 + 하단 3카드는 위 토글 상단으로 이동 — 기본 노출) */}
       <div className="mb-4">
-        {/* 2026-05-21 대표 대시보드 — owner/admin 만 노출. RPC 자체도 is_company_admin() 이중 게이트. */}
-        {(role === "owner" || role === "admin") && <OwnerDashboardSection />}
-
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
           <MorningBrief
@@ -620,199 +616,20 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* KPI 4-Pack 코어 바 */}
-        <div className="rounded-2xl p-1 survival-bar bg-[var(--bg-card)]"
-          style={{ border: `1px solid ${pc.border}` }}>
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]">
-            <div className="px-4 py-3">
-              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">통장 잔고</div>
-              {!hasData && (dealCount ?? 0) === 0 ? (
-                <div className="text-sm font-semibold text-[var(--text-dim)]">데이터를 설정해주세요</div>
-              ) : (
-                <div className="text-base font-black mono-number" style={{ color: balance <= 0 ? 'var(--danger)' : 'var(--text)' }}>
-                  ₩{fmtW(balance)}
-                </div>
-              )}
-            </div>
-            <div className="px-4 py-3">
-              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">현금 예측</div>
-              {!hasData && (dealCount ?? 0) === 0 ? (
-                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-black mono-number" style={{ color: f30 < 0 ? 'var(--danger)' : f30 < balance * 0.3 ? 'var(--warning)' : 'var(--text)' }}>
-                      D+30 ₩{fmtW(f30)}
-                    </span>
-                  </div>
-                  <div className="text-[10px] font-semibold mono-number mt-0.5" style={{ color: f90 < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
-                    D+90 ₩{fmtW(f90)}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="px-4 py-3">
-              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">펄스 점수</div>
-              {!hasData && (dealCount ?? 0) === 0 ? (
-                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
-              ) : (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-black mono-number" style={{ color: pc.color }}>{score}</span>
-                  <span className="text-[10px] font-semibold text-[var(--text-dim)]">/ 100</span>
-                </div>
-              )}
-            </div>
-            <div className="px-4 py-3">
-              <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">위험 · 대기</div>
-              {!hasData && (dealCount ?? 0) === 0 ? (
-                <div className="text-sm font-semibold text-[var(--text-dim)]">-</div>
-              ) : (
-                <div className="flex items-baseline gap-3">
-                  <span className={`text-sm font-black mono-number ${riskTotal > 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
-                    위험 {riskTotal}
-                  </span>
-                  <span className={`text-sm font-black mono-number ${pendingTotal > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>
-                    대기 {pendingTotal}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* ═══ AI 브리핑 (접을 수 있음) ═══ */}
-      <AiBriefing
-        cashPulse={cashPulse}
-        dashboard={dashboard}
-        hasData={hasData}
-        companyName={companyName}
-        dealCount={dealCount}
-      />
-
-      {/* ═══ 프리셋 뷰 탭 + 편집 버튼 ═══ */}
-      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto scrollbar-hide">
-        {PRESET_VIEWS.map((view) => (
-          <button
-            key={view.id}
-            onClick={() => setActiveView(view.id)}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
-              activeViewId === view.id
-                ? 'bg-[var(--primary)] text-white shadow-sm'
-                : editing
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-dim)] opacity-50 cursor-not-allowed'
-                  : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]'
-            }`}
-            disabled={editing}
-          >
-            {view.name}
-          </button>
-        ))}
-        {activeViewId === 'custom' && (
-          <span className="px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-amber-500/10 text-amber-600">
-            커스텀
-          </span>
-        )}
-        <div className="ml-auto flex-shrink-0">
-          <button
-            onClick={toggleEditing}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition ${
-              editing
-                ? 'bg-[var(--primary)] text-white'
-                : 'bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]'
-            }`}
-          >
-            {editing ? '완료' : '편집'}
-          </button>
-        </div>
-      </div>
-
-      {/* ═══ 위젯 show/hide 패널 (편집 모드) ═══ */}
-      {editing && (
-        <div className="mb-4 p-3 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03]">
-          {/* 역할 프리셋 선택 */}
-          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
-            역할별 추천 구성
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-            {ROLE_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => setRolePreset(preset.id)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition ${
-                  rolePreset === preset.id
-                    ? 'bg-[var(--primary)]/15 border-2 border-[var(--primary)]/40 shadow-sm'
-                    : 'bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg-elevated)]'
-                }`}
-              >
-                <span className="text-lg flex-shrink-0">{preset.icon}</span>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-[var(--text)] truncate">{preset.label}</div>
-                  <div className="text-[9px] text-[var(--text-muted)] truncate">{preset.description}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="border-t border-[var(--border)] pt-3">
-            <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
-              위젯 표시 설정
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {WIDGET_REGISTRY.map((def) => {
-                const visible = isWidgetVisible(def.id);
-                return (
-                  <button
-                    key={def.id}
-                    onClick={() => toggleWidget(def.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
-                      visible
-                        ? 'bg-[var(--primary)]/10 border border-[var(--primary)]/30'
-                        : 'bg-[var(--bg-surface)] border border-[var(--border)] opacity-60'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-                      visible ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'
-                    }`}>
-                      {visible && (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold text-[var(--text)] truncate">{def.name}</div>
-                      <div className="text-[9px] text-[var(--text-muted)] truncate">{def.description}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {/* ═══ ① CEO 커맨드 센터 — 액션(결재 즉시승인·매칭·미수금·위험) + 펄스/목표/리스크 ═══ */}
+      {companyId && (
+        <OwnerCommandCenter
+          companyId={companyId}
+          userId={userId}
+          sixPack={dashboard.sixPack}
+          growth={dashboard.growth}
+          risks={dashboard.risks}
+          riskCounts={dashboard.riskCounts}
+          cashPulse={cashPulse}
+        />
       )}
-
-      {/* ═══ 요약 위젯: 승인대기 · 통장잔고 · 미수금 · 월고정비 ═══ */}
-      {isWidgetVisible('summary_kpis') && companyId && (
-        <div id="widget-summary_kpis">
-          <SummaryKpisWidget
-            companyId={companyId}
-            approvalsPending={approvalsPending}
-            cashBalance={cashPulse?.currentBalance ?? null}
-            monthlyFixed={realBurnData ?? null}
-            monthlyVariable={realVariableData ?? null}
-          />
-        </div>
-      )}
-
-      {/* 2026-05-22 대표 대시보드 — 출/퇴근·전자결재 2열 위젯 제거(사장님 요청) */}
-
-      {/* R8: '빠른 이동' 위젯을 출퇴근·전자결재 바로 아래로 이동 (직원 요청) */}
-      {isWidgetVisible('quick_nav') && (
-        <div id="widget-quick_nav" className="mb-4"><QuickNavWidget /></div>
-      )}
-
-      {/* 2026-05-22 대표 대시보드 — 승인·오늘액션·현금펄스·위험 2열 영역 제거(사장님 요청) */}
 
       {/* ═══ 데이터 없음 — 시작 CTA ═══ */}
       {!hasData && (
@@ -842,31 +659,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 위기모드 전용 위젯 (미수금/번레이트) ═══ */}
-      {isWidgetVisible('my_todos') && userId && (
-        <div id="widget-my_todos"><MyTodosWidget userId={userId} /></div>
-      )}
-      {isWidgetVisible('overdue_receivables') && companyId && (
-        <div id="widget-overdue_receivables"><OverdueReceivablesWidget companyId={companyId} /></div>
-      )}
-      {isWidgetVisible('burn_rate_trend') && companyId && (
-        <div id="widget-burn_rate_trend"><BurnRateTrendWidget companyId={companyId} /></div>
-      )}
+      {/* ═══ ② 프로젝트 경영 종합 — 분기 KPI·단계분포·TOP 거래처/담당자·추이 (사장님 요청 뷰 유지) ═══ */}
+      <OwnerDashboardSection />
 
-      {/* ═══ [하단] 성장 + 재무 + 마감 + 자동화 ═══ */}
-      {isWidgetVisible('growth_tracking') && (
-        <div id="widget-growth_tracking" className="mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">성장 영역</h2>
-          </div>
-          <GrowthSection growth={dashboard.growth} />
-        </div>
-      )}
-
-      {isWidgetVisible('financial_overview') && <div id="widget-financial_overview"><FinancialOverview companyId={companyId} /></div>}
-
-      {isWidgetVisible('automation_status') && <AutomationWidget companyId={companyId} />}
+      {/* ═══ ③ 월결산 + 내 할일 — 월결산 위젯 재마운트 (마운트가 끊겨 있었음) ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start mt-4">
+        <ClosingChecklistWidget companyId={companyId} userId={userId} />
+        {userId && <MyTodosWidget userId={userId} />}
+      </div>
 
       </>)}
     </div>
