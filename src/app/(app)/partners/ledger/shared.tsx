@@ -115,7 +115,7 @@ export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className
 // ── 위하고식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
 //   매출처(외상매출금): 차변=발생(세금계산서), 대변=회수(입금·차액마감). 잔액 = 이월 + 차변 - 대변.
 //   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
-type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean };
+type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string };
 
 export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail }: {
   companyId: string; partnerId: string | null; type: string; year: number; partnerName: string;
@@ -124,6 +124,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const yStart = `${year}-01-01`;
   const isSales = type === "sales";
   const pal = palette(type);
+  const [adjView, setAdjView] = useState<string | null>(null); // 클릭한 차액마감 정산 ID → 전표 모달
 
   // 발생: 해당 거래처 세금계산서 (연말까지 — 전기이월 산출 위해 과거 포함)
   const { data: invoices = [], isLoading } = useQuery<any[]>({
@@ -148,7 +149,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryFn: async () => {
       if (invIds.length === 0) return [];
       const { data: setts } = await db.from("invoice_settlements")
-        .select("tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
+        .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
         .eq("status", "confirmed").in("tax_invoice_id", invIds);
       const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
       const btMap: Record<string, { date: string; cp: string | null }> = {};
@@ -180,6 +181,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       debit: isSales ? 0 : Number(s.amount || 0),
       credit: isSales ? Number(s.amount || 0) : 0,
       isAdj: s.match_type === "adjustment",
+      sid: s.id,
     });
 
     const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle)];
@@ -283,7 +285,13 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                         return (
                           <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                             <td className="px-3 py-1.5 text-[var(--text-muted)] mono-number">{e.date}</td>
-                            <td className={`px-3 py-1.5 border-l border-[var(--border)]/60 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>{e.desc}</td>
+                            <td className={`px-3 py-1.5 border-l border-[var(--border)]/60 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
+                              {e.isAdj && e.sid ? (
+                                <button onClick={() => setAdjView(e.sid!)}
+                                  className="underline decoration-dotted underline-offset-2 hover:text-amber-400 text-left"
+                                  title="클릭하면 차액 마감 전표(분개)를 확인하고 삭제할 수 있습니다">{e.desc}</button>
+                              ) : e.desc}
+                            </td>
                             <td className={`${cellR} ${e.debit ? "text-[var(--text)]" : ""}`}>{num(e.debit)}</td>
                             <td className={`${cellR} ${e.credit ? "text-[var(--text)]" : ""}`}>{num(e.credit)}</td>
                             <td className={`${cellR} font-semibold ${running > 0 ? pal.tintText : running < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(running).toLocaleString()}</td>
@@ -315,6 +323,149 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
         차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 거래 매칭에서 처리하세요
       </div>
+      {adjView && <AdjVoucherModal settlementId={adjView} type={type} partnerName={partnerName} onClose={() => setAdjView(null)} />}
+    </div>
+  );
+}
+
+// ── 차액 마감 전표 팝업: 원장/상세의 "차액 마감(단수차)" 클릭 → 분개(전표) 확인 + 삭제(잔액 원복) ──
+//   실제 전표(journal_entries, 거래 매칭 > AI 전표에서 생성)가 있으면 그 분개를, 없으면 예상 분개를 표시.
+//   삭제 = 정산 status→rejected (트리거가 잔액 자동 원복) + 연결 전표도 voucher_reject 로 함께 반려.
+const ADJ_ACCT: Record<string, string> = { withholding_tax: "선납세금(136)", fee: "지급수수료(831)", rounding: "잡손실(980)", discount: "잡손실(980)", other: "잡손실(980)" };
+
+export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
+  settlementId: string; type: string; partnerName: string; onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const isSales = type === "sales";
+  const [deleting, setDeleting] = useState(false);
+
+  const { data: s, isLoading } = useQuery<any>({
+    queryKey: ["adj-settlement", settlementId],
+    queryFn: async () => {
+      const { data } = await db.from("invoice_settlements")
+        .select("id, amount, adjustment_reason, reason, status, created_at, tax_invoices(issue_date, item_name, label, total_amount, counterparty_name)")
+        .eq("id", settlementId).maybeSingle();
+      return data;
+    },
+  });
+  // 연결된 실제 전표 (AI 전표에서 초안 생성/승인된 경우)
+  const { data: voucher } = useQuery<any>({
+    queryKey: ["adj-voucher", settlementId],
+    queryFn: async () => {
+      const { data } = await db.from("journal_entries")
+        .select("id, voucher_no, entry_date, status, source, journal_lines(debit, credit, chart_of_accounts(code, name))")
+        .eq("linked_settlement_id", settlementId).neq("status", "rejected").limit(1);
+      return (data || [])[0] || null;
+    },
+  });
+
+  const reasonLabel = s ? (ADJ_REASON_LABEL[s.adjustment_reason] || "잔액 정리") : "";
+  const amount = Number(s?.amount || 0);
+  // 예상 분개 (전표 미생성 시): 매출처 = (차)사유계정/(대)외상매출금, 매입처 = (차)외상매입금/(대)잡이익
+  const estLines = s ? (isSales
+    ? [{ side: "차", acct: ADJ_ACCT[s.adjustment_reason] || "잡손실(980)" }, { side: "대", acct: "외상매출금(108)" }]
+    : [{ side: "차", acct: "외상매입금(251)" }, { side: "대", acct: "잡이익(901)" }]) : [];
+
+  const handleDelete = async () => {
+    if (!s || deleting) return;
+    if (!confirm(`이 차액 마감(${reasonLabel} ${won(amount)})을 삭제할까요?\n계산서 잔액이 원복되고, 연결된 전표도 함께 반려됩니다.`)) return;
+    setDeleting(true);
+    try {
+      // 1) 연결 전표 먼저 반려 (마감월이면 서버가 차단 → 정산도 건드리지 않음)
+      if (voucher) {
+        const { error } = await db.rpc("voucher_reject", { p_entry_id: voucher.id });
+        if (error) throw new Error(String(error.message).includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간의 전표라 삭제할 수 없습니다" : error.message);
+      }
+      // 2) 정산 반려 → trg_recalc_settlement 가 settled_amount 원복
+      const { error: e2 } = await db.from("invoice_settlements").update({ status: "rejected" }).eq("id", s.id);
+      if (e2) throw new Error(e2.message);
+      ["ledger-sheet-settle", "ledger-sheet-inv", "partner-ledger", "partner-detail-inv", "partner-detail-settle", "settlement-confirmed", "voucher-drafts", "vouchers-of-day"]
+        .forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+      toast("차액 마감 삭제 — 계산서 잔액이 원복되었습니다", "info");
+      onClose();
+    } catch (e: any) {
+      toast(e?.message || "삭제 실패", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-bold text-[var(--text)]">차액 마감 전표</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{partnerName} · <span className="text-amber-500 font-semibold">{reasonLabel}</span></div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
+        </div>
+
+        {isLoading || !s ? (
+          <div className="p-8 text-center text-sm text-[var(--text-muted)]">{isLoading ? "불러오는 중..." : "정산 내역을 찾을 수 없습니다."}</div>
+        ) : (
+          <div className="px-5 py-4 space-y-3">
+            {/* 마감 정보 */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+                <div className="text-[10px] text-[var(--text-dim)]">마감 금액</div>
+                <div className="font-bold mono-number text-amber-500">{won(amount)}</div>
+              </div>
+              <div className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+                <div className="text-[10px] text-[var(--text-dim)]">처리일</div>
+                <div className="font-bold mono-number text-[var(--text)]">{String(s.created_at).slice(0, 10)}</div>
+              </div>
+            </div>
+            {s.tax_invoices && (
+              <div className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-lg px-3 py-2">
+                연결 계산서: {s.tax_invoices.issue_date} · {s.tax_invoices.item_name || s.tax_invoices.label || "품목 미상"} · {won(s.tax_invoices.total_amount)}
+              </div>
+            )}
+            {s.reason && <div className="text-[11px] text-[var(--text-dim)]">메모: {s.reason}</div>}
+
+            {/* 분개 — 실제 전표 or 예상 */}
+            <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+              <div className="px-3 py-2 bg-[var(--bg-surface)] flex items-center gap-2 text-[11px] font-semibold">
+                {voucher ? (
+                  <>
+                    <span className="text-[var(--text)]">전표 {voucher.voucher_no ? `#${voucher.voucher_no}` : ""} · {voucher.entry_date}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${voucher.status === "confirmed" ? "bg-emerald-500/10 text-emerald-500" : "bg-purple-500/10 text-purple-500"}`}>
+                      {voucher.status === "confirmed" ? "승인됨" : "초안 (미승인)"}</span>
+                  </>
+                ) : (
+                  <span className="text-[var(--text-muted)]">예상 분개 <span className="font-normal text-[var(--text-dim)]">— 전표 미생성 (거래 매칭 &gt; AI 전표에서 생성 가능)</span></span>
+                )}
+              </div>
+              <div className="px-3 py-2 space-y-1">
+                {voucher ? (voucher.journal_lines || []).map((l: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-[11px]">
+                    <span className={`w-7 text-right font-semibold ${Number(l.debit) > 0 ? "text-blue-500" : "text-orange-500"}`}>{Number(l.debit) > 0 ? "(차)" : "(대)"}</span>
+                    <span className="text-[var(--text)]">{l.chart_of_accounts?.name || "?"} <span className="text-[var(--text-dim)] mono-number">({l.chart_of_accounts?.code || "—"})</span></span>
+                    <span className="ml-auto mono-number text-[var(--text-muted)]">{Number(Number(l.debit) > 0 ? l.debit : l.credit).toLocaleString()}</span>
+                  </div>
+                )) : estLines.map((l, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[11px]">
+                    <span className={`w-7 text-right font-semibold ${l.side === "차" ? "text-blue-500" : "text-orange-500"}`}>({l.side})</span>
+                    <span className="text-[var(--text)]">{l.acct}</span>
+                    <span className="ml-auto mono-number text-[var(--text-muted)]">{Math.round(amount).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[10px] text-[var(--text-dim)]">삭제하면 계산서 잔액이 원복됩니다 (이력은 보존)</span>
+              <button onClick={handleDelete} disabled={deleting || s.status !== "confirmed"}
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                title={s.status !== "confirmed" ? "이미 취소된 마감입니다" : "차액 마감을 삭제하고 잔액을 원복합니다"}>
+                {deleting ? "삭제 중..." : s.status !== "confirmed" ? "이미 취소됨" : "차액 마감 삭제"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -337,6 +488,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
   const accent = pal.tintText;
   const [view, setView] = useState<"all" | "period" | "prior">(focus === "prior" ? "prior" : "all");
   const [closeTarget, setCloseTarget] = useState<any | null>(null);
+  const [adjView, setAdjView] = useState<string | null>(null); // 차액마감 행 클릭 → 전표 모달
 
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["partner-detail-inv", companyId, partnerId, type, year],
@@ -460,12 +612,14 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
                   </div>
                   {setts.map((s, i) => (
                     s.match_type === "adjustment" ? (
-                      <div key={i} className="ml-3 mt-1 flex items-center gap-2 text-[10px] text-[var(--text-dim)]">
-                        <span>↳ 차액 마감</span>
+                      <button key={i} onClick={() => setAdjView(s.id)}
+                        className="ml-3 mt-1 flex items-center gap-2 text-[10px] text-[var(--text-dim)] hover:text-amber-400 group"
+                        title="클릭하면 차액 마감 전표(분개)를 확인하고 삭제할 수 있습니다">
+                        <span className="underline decoration-dotted underline-offset-2 group-hover:text-amber-400">↳ 차액 마감</span>
                         <span className="mono-number text-[var(--text-muted)]">{won(s.amount)}</span>
                         <span className="px-1 rounded bg-amber-500/10 text-amber-500">{ADJ_REASON_LABEL[s.adjustment_reason] || "잔액 정리"}</span>
                         <span>{s.status === "confirmed" ? "확정" : s.status === "rejected" ? "취소됨" : s.status}</span>
-                      </div>
+                      </button>
                     ) : (
                       <div key={i} className="ml-3 mt-1 flex items-center gap-2 text-[10px] text-[var(--text-dim)]">
                         <span>↳ {s.date || "날짜미상"} 통장</span>
@@ -504,6 +658,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
           onError={(msg) => toast(msg, "error")}
         />
       )}
+      {adjView && <AdjVoucherModal settlementId={adjView} type={type} partnerName={partnerName} onClose={() => setAdjView(null)} />}
     </div>
   );
 }
