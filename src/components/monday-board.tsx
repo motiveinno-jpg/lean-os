@@ -886,8 +886,26 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
     await db.from("project_subitems").insert({ company_id: companyId, deal_id: deal.id, name: "새 항목", column_values: {}, position: items.length });
     refetch();
   };
+
+  // 계약금액 롤업 (2026-06-12): 항목들의 계약금액 합 → 프로젝트(deals.contract_total) 자동 반영.
+  //   전부 비어있으면 덮어쓰지 않음(수동 입력값 보호). 보드·통계 4카드 즉시 동기화.
+  const rollupContract = async (nextItems: { column_values: Record<string, any> }[], colId: string) => {
+    const vals = nextItems.map((x) => Number(x.column_values?.[colId])).filter((n) => !isNaN(n) && n !== 0);
+    const hasAny = nextItems.some((x) => x.column_values?.[colId] !== null && x.column_values?.[colId] !== undefined && x.column_values?.[colId] !== "");
+    if (!hasAny) return; // 항목 금액이 하나도 없으면 프로젝트 수동값 유지
+    const sum = vals.reduce((s, n) => s + n, 0);
+    await db.from("deals").update({ contract_total: sum }).eq("id", deal.id);
+    qc.invalidateQueries({ queryKey: ["board-deals"] });
+    qc.invalidateQueries({ queryKey: ["projects-deals"] });
+  };
+
   const setItemCell = async (it: SubItem, colId: string, value: any) => {
     await db.from("project_subitems").update({ column_values: { ...(it.column_values || {}), [colId]: value } }).eq("id", it.id);
+    const col = columns.find((c) => c.id === colId);
+    if (col && isContractCol(col)) {
+      const nextItems = items.map((x) => x.id === it.id ? { ...x, column_values: { ...(x.column_values || {}), [colId]: value } } : x);
+      await rollupContract(nextItems, colId);
+    }
     refetch();
   };
   const setItemName = async (it: SubItem, nm: string) => {
@@ -897,6 +915,8 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   };
   const delItem = async (it: SubItem) => {
     await db.from("project_subitems").delete().eq("id", it.id);
+    const contractCol = columns.find((c) => isContractCol(c));
+    if (contractCol) await rollupContract(items.filter((x) => x.id !== it.id), contractCol.id);
     refetch();
   };
 
@@ -1015,6 +1035,25 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
               </td>
               <td colSpan={columns.length + 1} className="border border-[var(--border)]" />
             </tr>
+            {/* 합계 행 — 숫자 컬럼 합산. 계약금액 컬럼 합은 프로젝트 계약금액으로 자동 반영(롤업) */}
+            {items.length > 0 && columns.some((c) => c.type === "number") && (
+              <tr>
+                <td style={{ width: STRIP_W, position: "sticky", left: 0, zIndex: 5, background: "var(--bg-card)" }} />
+                <td className="px-3 py-2 text-[11px] font-bold text-[var(--text-muted)] bg-[var(--bg-card)]" style={{ position: "sticky", left: STRIP_W, zIndex: 5 }}>합계</td>
+                {columns.map((c) => {
+                  if (c.type !== "number") return <td key={c.id} />;
+                  const sum = items.reduce((s, it) => s + (Number(it.column_values?.[c.id]) || 0), 0);
+                  const bound = isContractCol(c);
+                  return (
+                    <td key={c.id} className="px-2 py-2 text-center align-middle">
+                      <div className="text-[12px] font-bold mono-number text-[var(--text)]">{sum ? sum.toLocaleString("ko-KR") : "—"}</div>
+                      {bound && sum > 0 && <div className="text-[9px] font-semibold" style={{ color: MONDAY.primary }}>→ 프로젝트 계약금액 반영</div>}
+                    </td>
+                  );
+                })}
+                <td />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
