@@ -114,10 +114,34 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "AI 매칭 실패", "error"),
   });
 
+  // 별칭 학습(대사 핸드오프 TASK A): 사람이 매칭을 확정하면 입금자명→거래처를 partner_aliases 에
+  //   학습 — 다음 규칙 엔진 실행부터 같은 입금자명이 즉시 해소된다. 실패는 비치명(무시),
+  //   중복(unique lower(alias))은 행 단위 insert 로 조용히 스킵.
+  const learnAliases = async (pairs: { counterparty: string | null; tax_invoice_id: string }[]) => {
+    try {
+      const items = pairs.filter((p) => p.counterparty && p.counterparty.trim().length >= 2);
+      if (!items.length || !companyId) return;
+      const invIds = [...new Set(items.map((p) => p.tax_invoice_id))];
+      const { data: invs } = await db.from("tax_invoices").select("id, partner_id").in("id", invIds);
+      const pidByInv = new Map<string, string | null>(((invs || []) as any[]).map((i) => [i.id, i.partner_id]));
+      const seen = new Set<string>();
+      for (const p of items) {
+        const partnerId = pidByInv.get(p.tax_invoice_id);
+        const alias = p.counterparty!.trim();
+        const key = alias.toLowerCase();
+        if (!partnerId || seen.has(key)) continue;
+        seen.add(key);
+        await db.from("partner_aliases")
+          .insert({ company_id: companyId, partner_id: partnerId, alias, source: "manual", confidence: 1 })
+          .then(() => {}, () => {}); // 중복 unique 충돌은 학습 완료 상태 — 무시
+      }
+    } catch { /* 학습 실패 비치명 */ }
+  };
+
   // 확정/반려 — 낙관적 제거(핸드오프 §4-B): 클릭 즉시 큐에서 사라지고, 실패 시 롤백.
   //   탭 카운트("확인 N건")는 queue.length 파생이라 자동 동기화. 데이터는 status 변경뿐(삭제 아님).
   const decideMut = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected" }) => {
+    mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected"; counterparty?: string | null; tax_invoice_id?: string }) => {
       const { error } = await db.from("invoice_settlements").update({ status }).eq("id", id);
       if (error) throw new Error(error.message);
     },
@@ -131,7 +155,10 @@ export default function ReconciliationPage() {
       if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
       toast(e?.message || "처리 실패", "error");
     },
-    onSuccess: (_d, v) => { toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info"); },
+    onSuccess: (_d, v) => {
+      if (v.status === "confirmed" && v.tax_invoice_id) learnAliases([{ counterparty: v.counterparty ?? null, tax_invoice_id: v.tax_invoice_id }]);
+      toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info");
+    },
     onSettled: () => invalidateAll(),
   });
 
@@ -147,14 +174,21 @@ export default function ReconciliationPage() {
       await qc.cancelQueries({ queryKey: ["settlement-queue", companyId] });
       const prev = qc.getQueryData<QueueRow[]>(["settlement-queue", companyId]);
       const idSet = new Set(ids);
+      const affected = (prev || []).filter((m) => idSet.has(m.id)); // 별칭 학습용 스냅샷
       qc.setQueryData<QueueRow[]>(["settlement-queue", companyId], (old) => (old || []).filter((m) => !idSet.has(m.id)));
-      return { prev };
+      return { prev, affected };
     },
     onError: (e: any, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
       toast(e?.message || "일괄 처리 실패", "error");
     },
-    onSuccess: (n, v) => { setSelected(new Set()); toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info"); },
+    onSuccess: (n, v, ctx) => {
+      if (v.status === "confirmed" && ctx?.affected?.length) {
+        learnAliases(ctx.affected.map((m) => ({ counterparty: m.counterparty, tax_invoice_id: m.tax_invoice_id })));
+      }
+      setSelected(new Set());
+      toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info");
+    },
     onSettled: () => invalidateAll(),
   });
 
@@ -219,7 +253,10 @@ export default function ReconciliationPage() {
       });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-unsettled-inv"] }); setMatchTx(null); setInvSearch(""); toast("연결 완료 — 미수금에 반영됩니다", "success"); },
+    onSuccess: (_d, v) => {
+      learnAliases([{ counterparty: v.tx.counterparty, tax_invoice_id: v.inv.id }]); // 수동 연결도 별칭 학습
+      invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-unsettled-inv"] }); setMatchTx(null); setInvSearch(""); toast("연결 완료 — 미수금에 반영됩니다", "success");
+    },
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
 
@@ -354,7 +391,7 @@ export default function ReconciliationPage() {
                             {m.confidence != null ? (() => { const t = confTier(m.confidence); return <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold whitespace-nowrap ${t.cls}`}>{Math.round(m.confidence * 100)}% {t.label}</span>; })() : "—"}
                           </td>
                           <td className={`${GRID_TD} text-center whitespace-nowrap`}>
-                            <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed" })} disabled={decideMut.isPending}
+                            <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed", counterparty: m.counterparty, tax_invoice_id: m.tax_invoice_id })} disabled={decideMut.isPending}
                               className="px-2 py-1 text-[11px] font-semibold rounded bg-emerald-500 text-white hover:opacity-90 disabled:opacity-50">확정</button>
                             <button onClick={() => decideMut.mutate({ id: m.id, status: "rejected" })} disabled={decideMut.isPending}
                               className="ml-1 px-2 py-1 text-[11px] font-semibold rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400">반려</button>
