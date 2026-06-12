@@ -123,7 +123,7 @@ export default function PartnerLedgerPage() {
           <Link href="/partners/reconciliation"
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90"
             title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
-            ⚙️ 매칭허브 →
+            ⚙️ 거래 매칭 →
           </Link>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function PartnerLedgerPage() {
             <div className="text-2xl font-bold mono-number mt-0.5 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
           </div>
           <div className="text-[11px] text-[var(--text-dim)] leading-relaxed ml-auto hidden md:block">
-            잔액 = 전기이월 + 당기 잔액<br />확정된 매칭(매칭허브)만 정산으로 반영
+            잔액 = 전기이월 + 당기 잔액<br />확정된 매칭(거래 매칭)만 정산으로 반영
           </div>
         </div>
         {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
@@ -250,7 +250,7 @@ export default function PartnerLedgerPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 미확정 입금 매칭은 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">매칭허브</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-red-500">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
+        ※ 미확정 입금 매칭은 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-red-500">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
       </p>
     </div>
   );
