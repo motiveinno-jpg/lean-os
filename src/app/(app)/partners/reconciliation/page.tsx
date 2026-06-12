@@ -210,7 +210,7 @@ export default function ReconciliationPage() {
     <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">거래 대사</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">매칭허브</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">입금·계산서 자동 매칭 — 확정한 매칭만 거래처 원장 잔액에 반영됩니다</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

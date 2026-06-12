@@ -36,7 +36,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
       // 2026-06-12 메뉴 분리: 원장(조회 — 매출처·매입처 잔액) / 거래 대사(작업 — 입금·계산서 매칭)
       { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"] },
-      { href: "/partners/reconciliation", label: "거래 대사", icon: "clipboard-check", roles: ["owner", "admin"] },
+      { href: "/partners/reconciliation", label: "매칭허브", icon: "clipboard-check", roles: ["owner", "admin"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
@@ -116,6 +116,14 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+// 활성 판정 — 기본은 prefix 매치지만, 더 구체적인 형제 메뉴(예: /partners/ledger)가 매치되면
+//   상위(/partners)는 비활성. (2026-06-12: 원장/매칭허브 진입 시 거래처 관리가 같이 켜지던 버그 수정)
+function isActivePath(href: string, pathname: string, allHrefs: string[]): boolean {
+  if (pathname === href) return true;
+  if (!pathname.startsWith(href + "/")) return false;
+  return !allHrefs.some((h) => h !== href && h.startsWith(href + "/") && (pathname === h || pathname.startsWith(h + "/")));
+}
 
 function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boolean): NavGroup[] {
   void companyName;
@@ -224,6 +232,7 @@ export function Sidebar() {
 
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items);
+  const allHrefs = allNavItems.map((i) => i.href);
   const pinnedItems = pinnedPages
     .map(href => allNavItems.find(item => item.href === href))
     .filter(Boolean) as NavItem[];
@@ -379,7 +388,7 @@ export function Sidebar() {
             {collapsed && <div className="my-1 border-t border-amber-500/30" />}
             <div className="space-y-0.5">
               {pinnedItems.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = isActivePath(item.href, pathname, allHrefs);
                 return (
                   <Tooltip key={`pin-${item.href}`} label={item.label} show={collapsed}>
                     <Link
@@ -412,7 +421,7 @@ export function Sidebar() {
             {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = isActivePath(item.href, pathname, allHrefs);
                 const bk = (item as any).badgeKey;
                 const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
                 const pinned = isPinned(item.href);
@@ -630,7 +639,7 @@ export function Sidebar() {
                 </div>
                 <div className="space-y-0.5">
                   {pinnedItems.map((item) => {
-                    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const active = isActivePath(item.href, pathname, allHrefs);
                     return (
                       <Link key={`mpin-${item.href}`} href={item.href}
                         className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
@@ -654,7 +663,7 @@ export function Sidebar() {
                 </div>
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
-                    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const active = isActivePath(item.href, pathname, allHrefs);
                     const bk = (item as any).badgeKey;
                     const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
                     const pinned = isPinned(item.href);

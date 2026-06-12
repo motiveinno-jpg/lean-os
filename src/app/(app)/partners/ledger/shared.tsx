@@ -313,7 +313,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         </table>
       </div>
       <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-        차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 거래 대사에서 처리하세요
+        차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 매칭허브에서 처리하세요
       </div>
     </div>
   );
