@@ -1687,10 +1687,14 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
-      {/* Registration Form */}
+      {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
-        <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold">세금계산서 등록</h3>
+            <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -1927,6 +1931,7 @@ export default function TaxInvoicesPage() {
               취소
             </button>
           </div>
+        </div>
         </div>
       )}
 
