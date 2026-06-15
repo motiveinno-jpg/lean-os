@@ -416,15 +416,27 @@ export async function createDMChannel(params: {
   if (error) throw error;
 
   // 참여자 양쪽 테이블 동기 등록 — chat_members(RLS 게이트) + chat_participants(read tracking, getChannels DM 필터).
-  // chat_participants 는 UNIQUE 제약이 없어 onConflict 불가 → 존재체크 후 insert.
+  // ⚠️ chat_members 는 upsert(onConflict)+ignoreDuplicates 가 RLS WITH CHECK 와 충돌해 조용히 실패 →
+  //   DM 채널에 멤버가 0건으로 남아 메시지 전송/조회가 막히던 버그(2026-06-15). createChannel/
+  //   createTeamChannel 과 동일하게 존재체크 후 plain insert 로 통일하고 에러를 표면화한다.
   const seen = new Set<string>();
   for (const uid of params.participantIds) {
     if (!uid || seen.has(uid)) continue;
     seen.add(uid);
-    await db.from('chat_members').upsert(
-      { channel_id: data.id, user_id: uid },
-      { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
-    );
+    const { data: mExisting } = await db
+      .from('chat_members')
+      .select('id')
+      .eq('channel_id', data.id)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (!mExisting) {
+      const { error: mErr } = await db.from('chat_members').insert({
+        channel_id: data.id,
+        user_id: uid,
+        role: 'member',
+      });
+      if (mErr) throw mErr;
+    }
     const { data: existing } = await db
       .from('chat_participants')
       .select('id')
