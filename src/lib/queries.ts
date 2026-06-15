@@ -1111,7 +1111,29 @@ export async function getChannels(companyId: string, userId?: string) {
     .select('channel_id')
     .eq('user_id', userId);
   const myChannelIds = new Set((myMemberships || []).map((p: any) => p.channel_id));
-  return data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
+  const visible = data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
+
+  // DM 채널은 저장명이 "DM-<timestamp>" 이므로 상대 참가자 이름을 dm_name 으로 부착해 표시용으로 쓴다.
+  const dmIds = visible.filter((ch: any) => ch.is_dm).map((ch: any) => ch.id);
+  if (dmIds.length > 0) {
+    const { data: parts } = await db
+      .from('chat_participants')
+      .select('channel_id, user_id, users(name, email)')
+      .in('channel_id', dmIds);
+    const byChannel = new Map<string, any[]>();
+    for (const p of (parts || []) as any[]) {
+      const arr = byChannel.get(p.channel_id) || [];
+      arr.push(p);
+      byChannel.set(p.channel_id, arr);
+    }
+    for (const ch of visible as any[]) {
+      if (!ch.is_dm) continue;
+      const others = (byChannel.get(ch.id) || []).filter((p: any) => p.user_id !== userId);
+      const o = others[0] || (byChannel.get(ch.id) || [])[0];
+      ch.dm_name = o?.users?.name || o?.users?.email || null;
+    }
+  }
+  return visible;
 }
 
 export async function getChannel(channelId: string, companyId: string) {

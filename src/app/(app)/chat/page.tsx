@@ -701,6 +701,13 @@ function ChatRoomView({ channelId, onBack, embedded }: { channelId: string; onBa
 
   const pinnedMessages = messages.filter((m: any) => m.pinned);
 
+  // DM 채널은 저장명이 "DM-<timestamp>" → 상대 참가자 이름으로 표시
+  const isDMChannel = !!(channel as any)?.is_dm;
+  const dmPeer = isDMChannel ? participants.find((p: any) => p.user_id !== userId) : null;
+  const headerName = isDMChannel
+    ? ((dmPeer as any)?.users?.name || (dmPeer as any)?.users?.email || "1:1 대화")
+    : (channel?.name || "...");
+
   return (
     <div className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"} style={embedded ? undefined : { height: "calc(100dvh - 60px)" }}>
       <div className="flex items-center justify-between mb-3 shrink-0">
@@ -709,9 +716,9 @@ function ChatRoomView({ channelId, onBack, embedded }: { channelId: string; onBa
             &larr; 채널 목록
           </button>
           <div>
-            <h1 className="text-lg font-extrabold">{channel?.name || "..."}</h1>
+            <h1 className="text-lg font-extrabold">{headerName}</h1>
             <div className="text-xs text-[var(--text-dim)]">
-              {(channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : channel?.type || ""}
+              {isDMChannel ? "1:1 대화" : ((channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : channel?.type || "")}
               {" · "}
               {participants.length}명 참가
             </div>
@@ -1401,7 +1408,7 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
         active ? "bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
       }`}>
       <span className={`text-sm shrink-0 ${active ? "text-white/70" : "text-[var(--text-dim)]"}`}>{prefix}</span>
-      <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{ch.name}</span>
+      <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{isDM ? (ch.dm_name || "1:1 대화") : ch.name}</span>
       {unread > 0 && (
         <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 shrink-0 ${active ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>
           {unread > 99 ? "99+" : unread}
