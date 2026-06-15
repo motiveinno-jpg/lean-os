@@ -75,6 +75,9 @@ export default function BoardPage() {
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [openId, setOpenId] = useState<string | null>(null);
+  // 플렉스/슬랙식 2단 — 좌측 필터/검색
+  const [filter, setFilter] = useState<"all" | "pinned" | "event" | "poll" | "file" | "mine">("all");
+  const [search, setSearch] = useState("");
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   // v4 B1: 멘션 자동완성 상태 — postId 또는 reply key 별로 분리
   // key = root: postId, reply key: `reply:${parentCommentId}`
@@ -562,9 +565,21 @@ export default function BoardPage() {
     return { expired: false, label: `마감 ${Math.max(1, mins)}분 전` };
   }
 
+  // 플렉스식 필터 + 검색
+  const q = search.trim().toLowerCase();
+  const filteredPosts = posts.filter((p) => {
+    if (filter === "pinned" && !p.pinned) return false;
+    if (filter === "event" && !p.event_date) return false;
+    if (filter === "poll" && !p.poll_question) return false;
+    if (filter === "file" && !(p.attachments?.length)) return false;
+    if (filter === "mine" && p.author_id !== user?.id) return false;
+    if (q && !(`${p.title} ${p.content}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
+      <div className="page-sticky-header flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold">게시판</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -587,9 +602,44 @@ export default function BoardPage() {
         )}
       </div>
 
+      {/* 플렉스식 필터 + 검색 바 */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <div className="flex flex-wrap gap-1">
+          {(
+            [
+              ["all", `전체 ${posts.length}`],
+              ["pinned", "📌 고정"],
+              ["event", "📅 일정"],
+              ["poll", "🗳️ 투표"],
+              ["file", "📎 첨부"],
+              ["mine", "내 글"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setFilter(k)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                filter === k
+                  ? "bg-[var(--primary)] text-white"
+                  : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="제목·내용 검색"
+          className="ml-auto w-full sm:w-56 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+        />
+      </div>
+
       {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6 space-y-3">
-          <h3 className="text-sm font-bold">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={resetForm}>
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-base font-bold">
             {editing ? "글 수정" : "새 글 작성"}
           </h3>
           <input
@@ -751,22 +801,25 @@ export default function BoardPage() {
             </button>
           </div>
         </div>
+        </div>
       )}
 
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">
           불러오는 중...
         </div>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-3">📝</div>
           <div className="text-sm text-[var(--text-muted)]">
-            등록된 글이 없습니다. 첫 글을 작성해보세요.
+            {posts.length === 0
+              ? "등록된 글이 없습니다. 첫 글을 작성해보세요."
+              : "조건에 맞는 글이 없습니다."}
           </div>
         </div>
       ) : (
         <div className="space-y-2">
-          {posts.map((p) => {
+          {filteredPosts.map((p) => {
             const open = openId === p.id;
             const isMine = mine(p.author_id);
             const opts = p.poll_options || [];
@@ -784,6 +837,9 @@ export default function BoardPage() {
                   onClick={() => setOpenId(open ? null : p.id)}
                   className="w-full text-left px-5 py-4 flex items-start gap-3"
                 >
+                  <div className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-sm font-bold shrink-0">
+                    {(p.author_name || p.author_email || "?")[0].toUpperCase()}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       {p.pinned && (
