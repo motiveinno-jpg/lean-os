@@ -288,6 +288,33 @@ export async function sendMessageWithMentions(params: {
       mentioned_user_id: uid,
     }));
     await supabase.from('chat_mentions').insert(mentions);
+
+    // 멘션 알림 — notifications 테이블에도 INSERT (벨/알림 페이지는 notifications 를 읽음).
+    //   기존엔 chat_mentions 만 넣어 알림이 전혀 안 가던 버그(2026-06-15). best-effort.
+    try {
+      const recipients = params.mentionedUserIds.filter((uid) => uid && uid !== params.senderId);
+      if (recipients.length > 0) {
+        const db = supabase as any;
+        const { data: ch } = await db.from('chat_channels').select('company_id, name, is_dm').eq('id', params.channelId).maybeSingle();
+        const { data: sender } = await db.from('users').select('name, email').eq('id', params.senderId).maybeSingle();
+        if (ch?.company_id) {
+          const senderName = sender?.name || sender?.email || '누군가';
+          const where = ch.is_dm ? 'DM' : `#${ch.name}`;
+          const preview = params.content.length > 80 ? `${params.content.slice(0, 80)}…` : params.content;
+          const rows = recipients.map((uid) => ({
+            company_id: ch.company_id,
+            user_id: uid,
+            type: 'chat',
+            title: '채팅 멘션',
+            message: `${senderName} 님이 ${where} 에서 회원님을 멘션했습니다: ${preview}`,
+            entity_type: 'chat_channel',
+            entity_id: params.channelId,
+            is_read: false,
+          }));
+          await db.from('notifications').insert(rows);
+        }
+      }
+    } catch { /* 알림 실패는 메시지 전송에 영향 없음 */ }
   }
 
   // Update sender's last_read_at

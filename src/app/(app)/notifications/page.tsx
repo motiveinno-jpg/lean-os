@@ -24,6 +24,8 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   invoice: () => `/tax-invoices`,
   payment: () => `/payments`,
   chat: () => `/chat`,
+  chat_channel: (id) => `/chat?channel=${id}`,   // 채팅 멘션 → 해당 채널 바로 열기
+  board_post: (id) => `/board?id=${id}`,          // 게시판 멘션 → 해당 글 열기
   document: (id) => `/documents?id=${id}`,           // 견적서/계약서 상세
   document_share: (id) => `/documents?id=${id}`,     // 공유 피드백 → 문서 상세
   signature_request: () => `/signatures`,

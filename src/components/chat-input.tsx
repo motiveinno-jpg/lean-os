@@ -39,13 +39,22 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
-    onSend(trimmed, mentionedIds.length > 0 ? mentionedIds : undefined, replyTo?.messageId);
+    // 드롭다운으로 고른 id + 본문에 직접 타이핑한 @이름 도 매칭해 멘션 알림 누락 방지.
+    const ids = new Set(mentionedIds);
+    if (users) {
+      for (const u of users) {
+        const name = u.name || u.email;
+        if (name && trimmed.includes(`@${name}`)) ids.add(u.id);
+      }
+    }
+    const idArr = Array.from(ids);
+    onSend(trimmed, idArr.length > 0 ? idArr : undefined, replyTo?.messageId);
     setText("");
     setMentionedIds([]);
     setMentionQuery(null);
     onCancelReply?.();
     inputRef.current?.focus();
-  }, [text, disabled, onSend, mentionedIds, replyTo, onCancelReply]);
+  }, [text, disabled, onSend, mentionedIds, replyTo, onCancelReply, users]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {

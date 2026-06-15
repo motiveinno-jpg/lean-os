@@ -342,7 +342,12 @@ export default function BoardPage() {
         ? (replyDraft[parentCommentId] || "").trim()
         : (commentDraft[postId] || "").trim();
       if (!text) throw new Error("댓글 내용을 입력하세요.");
-      const mentioned = (draftMentions[draftKey] || []).filter(
+      // 드롭다운 선택 id + 본문에 직접 타이핑한 @이름 도 매칭 (멘션 알림 누락 방지)
+      const textIds = companyUsers
+        .filter((u) => { const n = u.name || u.email; return n && text.includes(`@${n}`); })
+        .map((u) => u.id);
+      const allMentioned = Array.from(new Set([...(draftMentions[draftKey] || []), ...textIds]));
+      const mentioned = allMentioned.filter(
         (uid) => uid && uid !== user?.id, // 본인 멘션은 알림 대상 아님
       );
       const { data: inserted, error } = await db
@@ -354,7 +359,7 @@ export default function BoardPage() {
           author_name: user?.name || user?.email || null,
           content: text,
           parent_comment_id: parentCommentId,
-          mentioned_user_ids: draftMentions[draftKey] || [],
+          mentioned_user_ids: allMentioned,
         })
         .select("id")
         .single();
