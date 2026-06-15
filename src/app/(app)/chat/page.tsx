@@ -383,7 +383,8 @@ function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c
 }
 
 // ── Chat Room View (previously chat/[channelId]/client.tsx) ──
-function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => void }) {
+//   embedded=true: 슬랙식 2단 레이아웃의 우측 대화 패널로 렌더 (전체화면 대신 부모 높이 채움).
+function ChatRoomView({ channelId, onBack, embedded }: { channelId: string; onBack: () => void; embedded?: boolean }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -701,10 +702,10 @@ function ChatRoomView({ channelId, onBack }: { channelId: string; onBack: () => 
   const pinnedMessages = messages.filter((m: any) => m.pinned);
 
   return (
-    <div className="max-w-[900px] flex flex-col" style={{ height: "calc(100dvh - 60px)" }}>
+    <div className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"} style={embedded ? undefined : { height: "calc(100dvh - 60px)" }}>
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
+          <button onClick={onBack} className={`text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition ${embedded ? "lg:hidden" : ""}`}>
             &larr; 채널 목록
           </button>
           <div>
@@ -1369,9 +1370,8 @@ function GuestChatView({ token }: { token: string }) {
   );
 }
 
-// ── Chat List ──
+// ── Chat (Slack-style 2단: 좌 채널 사이드바 + 우 대화) ──
 function ChatPageInner() {
-  const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedChannel = searchParams.get("channel");
@@ -1379,10 +1379,6 @@ function ChatPageInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", deal_id: "", type: "deal" });
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -1390,115 +1386,81 @@ function ChatPageInner() {
     });
   }, []);
 
-  // If a guest token is in URL, show guest view
-  if (guestToken) {
-    return <GuestChatView token={guestToken} />;
-  }
+  if (guestToken) return <GuestChatView token={guestToken} />;
 
-  // If a channel is selected, show the chat room
-  if (selectedChannel) {
-    return (
-      <ChatRoomView
-        channelId={selectedChannel}
-        onBack={() => {
-          // 채널은 push(/chat?channel=)로 열렸으므로 back() 으로 깨끗이 목록 복귀(히스토리 오염·재진입 방지).
-          //   딥링크(알림·북마크 — 직전 히스토리 없음)면 목록으로 fallback.
-          if (typeof window !== "undefined" && window.history.length > 1) router.back();
-          else router.push("/chat");
-        }}
-      />
-    );
-  }
-
-  // Otherwise show the channel list (using the component below)
-  return <ChatListView
-    companyId={companyId}
-    userId={userId}
-    showForm={showForm}
-    setShowForm={setShowForm}
-    form={form}
-    setForm={setForm}
-    typeFilter={typeFilter}
-    setTypeFilter={setTypeFilter}
-    queryClient={queryClient}
-    router={router}
-  />;
+  return <ChatWorkspace companyId={companyId} userId={userId} selectedChannel={selectedChannel} router={router} />;
 }
 
-function ChannelItem({ ch, unreadMap, router }: { ch: any; unreadMap: any; router: any }) {
-  const unread = unreadMap?.get(ch.id) || 0;
+// 슬랙식 채널 행 — #채널 / @DM, 안읽음 굵게+배지, 활성 하이라이트
+function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean; unread: number; onClick: () => void }) {
   const isDM = ch.is_dm;
-  const isDeal = !!ch.deal_id;
+  const prefix = isDM ? "@" : "#";
   return (
-    <button onClick={() => router.push(`/chat?channel=${ch.id}`)}
-      className="w-full text-left block glass-card p-4 hover:border-[var(--primary)]/30 transition group">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
-            isDM ? 'bg-green-500/10 text-green-400' :
-            isDeal ? 'bg-blue-500/10 text-blue-400' :
-            ch.type === 'subdeal' ? 'bg-purple-500/10 text-purple-400' :
-            'bg-gray-500/10 text-gray-400'
-          }`}>
-            {isDM ? 'DM' : isDeal ? 'D' : ch.type === 'subdeal' ? 'S' : 'T'}
-          </div>
-          <div>
-            <div className="text-sm font-semibold group-hover:text-[var(--primary)] transition">
-              {ch.name}
-            </div>
-            <div className="text-xs text-[var(--text-dim)] mt-0.5">
-              {ch.deals?.name ? `프로젝트: ${ch.deals.name}` : isDM ? 'DM' : '팀 채널'}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {unread > 0 && (
-            <span className="min-w-[20px] h-5 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5">
-              {unread > 99 ? '99+' : unread}
-            </span>
-          )}
-          <div className="text-xs text-[var(--text-dim)]">
-            {ch.created_at ? new Date(ch.created_at).toLocaleDateString('ko') : '--'}
-          </div>
-        </div>
-      </div>
+    <button onClick={onClick}
+      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition ${
+        active ? "bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
+      }`}>
+      <span className={`text-sm shrink-0 ${active ? "text-white/70" : "text-[var(--text-dim)]"}`}>{prefix}</span>
+      <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{ch.name}</span>
+      {unread > 0 && (
+        <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 shrink-0 ${active ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
     </button>
   );
 }
 
-function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm, typeFilter, setTypeFilter, queryClient, router }: any) {
+// 사이드바 섹션 (접기/펼치기 + 추가 버튼)
+function SidebarSection({ title, count, onAdd, children }: { title: string; count: number; onAdd: () => void; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="mb-2">
+      <div className="flex items-center gap-1 px-2 mb-0.5 group">
+        <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1 flex-1 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)] hover:text-[var(--text-muted)] transition py-1">
+          <svg className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18" /></svg>
+          <span>{title}</span>
+          <span className="text-[var(--text-dim)]/70">{count}</span>
+        </button>
+        <button onClick={onAdd} title="추가"
+          className="w-6 h-6 rounded-md text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--primary)] flex items-center justify-center text-base leading-none transition">+</button>
+      </div>
+      {open && <div className="space-y-0.5">{children}</div>}
+    </div>
+  );
+}
+
+function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const { toast } = useToast();
-  const [showTeamForm, setShowTeamForm] = useState(false);
-  const [showDMForm, setShowDMForm] = useState(false);
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  // 생성 모달: null | "deal" | "team" | "dm"
+  const [creating, setCreating] = useState<null | "deal" | "team" | "dm">(null);
+  const [form, setForm] = useState({ name: "", deal_id: "", type: "deal" });
   const [teamName, setTeamName] = useState("");
   const [dmUserId, setDmUserId] = useState("");
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setShowForm(false); setShowTeamForm(false); setShowDMForm(false); }
-    };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCreating(null); };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [setShowForm]);
+  }, []);
 
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
     queryFn: () => getChannels(companyId!, userId || undefined),
     enabled: !!companyId,
   });
-
   const { data: deals = [] } = useQuery({
     queryKey: ["deals", companyId],
     queryFn: () => getDeals(companyId!),
     enabled: !!companyId,
   });
-
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users", companyId],
     queryFn: () => getCompanyUsers(companyId!),
     enabled: !!companyId,
   });
-
   const { data: unreadMap } = useQuery({
     queryKey: ["chat-unread", companyId, userId],
     queryFn: () => getUnreadCounts(companyId!, userId!),
@@ -1508,228 +1470,171 @@ function ChatListView({ companyId, userId, showForm, setShowForm, form, setForm,
 
   const totalUnread = unreadMap ? Array.from(unreadMap.values()).reduce((s: number, v: number) => s + v, 0) : 0;
 
-  // Categorize channels into 3 sections
-  const dealChannels = channels.filter((ch: any) => !!ch.deal_id);
-  const teamChannels = channels.filter((ch: any) => !ch.deal_id && !ch.is_dm);
-  const dmChannels = channels.filter((ch: any) => ch.is_dm);
+  const q = search.trim().toLowerCase();
+  const match = (ch: any) => !q || (ch.name || "").toLowerCase().includes(q);
+  const dealChannels = channels.filter((ch: any) => !!ch.deal_id && match(ch));
+  const teamChannels = channels.filter((ch: any) => !ch.deal_id && !ch.is_dm && match(ch));
+  const dmChannels = channels.filter((ch: any) => ch.is_dm && match(ch));
+
+  const open = (id: string) => router.push(`/chat?channel=${id}`);
 
   const createMut = useMutation({
     mutationFn: () => {
       if (!userId || !companyId) throw new Error("Not authenticated");
-      return createChannel({
-        companyId,
-        dealId: form.deal_id || undefined,
-        type: form.type,
-        name: form.name.trim(),
-        creatorUserId: userId,
-      });
+      return createChannel({ companyId, dealId: form.deal_id || undefined, type: form.type, name: form.name.trim(), creatorUserId: userId });
     },
-    onSuccess: () => {
+    onSuccess: (ch: any) => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
-      setShowForm(false);
-      setForm({ name: "", deal_id: "", type: "deal" });
+      setCreating(null); setForm({ name: "", deal_id: "", type: "deal" });
+      if (ch?.id) open(ch.id);
     },
     onError: (err: any) => toast(friendlyError(err, "채널 생성 실패"), "error"),
   });
-
   const createTeamMut = useMutation({
     mutationFn: () => {
       if (!userId || !companyId) throw new Error("Not authenticated");
-      return createTeamChannel({
-        companyId,
-        name: teamName.trim(),
-        creatorUserId: userId,
-      });
+      return createTeamChannel({ companyId, name: teamName.trim(), creatorUserId: userId });
     },
-    onSuccess: () => {
+    onSuccess: (ch: any) => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
-      setShowTeamForm(false);
-      setTeamName("");
+      setCreating(null); setTeamName("");
+      if (ch?.id) open(ch.id);
     },
     onError: (err: any) => toast(friendlyError(err, "팀 채널 생성 실패"), "error"),
   });
-
   const createDMMut = useMutation({
     mutationFn: () => {
       if (!userId || !companyId) throw new Error("Not authenticated");
-      return createDMChannel({
-        companyId,
-        participantIds: [userId, dmUserId],
-      });
+      return createDMChannel({ companyId, participantIds: [userId, dmUserId] });
     },
-    onSuccess: () => {
+    onSuccess: (ch: any) => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
-      setShowDMForm(false);
-      setDmUserId("");
+      setCreating(null); setDmUserId("");
+      if (ch?.id) open(ch.id);
     },
     onError: (err: any) => toast(friendlyError(err, "DM 채널 생성 실패"), "error"),
   });
 
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
+  const sections: { key: "deal" | "team" | "dm"; title: string; list: any[]; empty: string }[] = [
+    { key: "team", title: "팀 채널", list: teamChannels, empty: "팀 채널 없음" },
+    { key: "deal", title: "프로젝트", list: dealChannels, empty: "프로젝트 채널 없음" },
+    { key: "dm", title: "다이렉트 메시지", list: dmChannels, empty: "DM 없음" },
+  ];
+
   return (
-    <div className="max-w-[800px]">
-      <div className="page-sticky-header flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-extrabold">
-            프로젝트룸 채팅
-            {totalUnread > 0 && (
-              <span className="ml-2 text-sm px-2 py-0.5 bg-red-500 text-white rounded-full font-bold">
-                {totalUnread}
-              </span>
-            )}
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">프로젝트별 소통 + 팀 채널 + DM</p>
-        </div>
-      </div>
-
-      {/* Section 1: Deal Channels */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-[var(--text-muted)]">프로젝트 채널 ({dealChannels.length})</h2>
-          <button onClick={() => { setShowForm(!showForm); setShowTeamForm(false); setShowDMForm(false); }}
-            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
-            +
-          </button>
-        </div>
-
-        {showForm && (
-          <div className="glass-card p-6 mb-4">
-            <h3 className="text-sm font-bold mb-4">새 프로젝트 채널</h3>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">채널명 *</label>
-                <input value={form.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, name: e.target.value })}
-                  placeholder="수출바우처 A기업 채팅" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
-                <select value={form.deal_id} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, deal_id: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-                  <option value="">선택 안함</option>
-                  {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
-                <select value={form.type} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, type: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-                  <option value="deal">프로젝트 채널</option>
-                  <option value="subdeal">외주 채널</option>
-                  <option value="general">일반 채널</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => form.name.trim() && createMut.mutate()} disabled={!form.name.trim() || createMut.isPending}
-                className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">생성</button>
-              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
-            </div>
+    <div className="flex rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]" style={{ height: "calc(100dvh - 104px)" }}>
+      {/* ── 좌측 채널 사이드바 ── */}
+      <aside className={`${selectedChannel ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40`}>
+        <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-extrabold text-[var(--text)]">메시지</h1>
+            {totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded-full font-bold">{totalUnread}</span>}
           </div>
-        )}
+          <button onClick={() => { setCreating("team"); }} title="새로 만들기"
+            className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>
+        </div>
+        <div className="px-3 py-2 shrink-0">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널·멤버 검색"
+            className="w-full px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-3">
+          {sections.map((sec) => (
+            <SidebarSection key={sec.key} title={sec.title} count={sec.list.length} onAdd={() => setCreating(sec.key)}>
+              {sec.list.length === 0 ? (
+                <div className="px-2.5 py-1 text-[11px] text-[var(--text-dim)]">{sec.empty}</div>
+              ) : (
+                sec.list.map((ch: any) => (
+                  <ChannelRow key={ch.id} ch={ch} active={selectedChannel === ch.id} unread={unreadMap?.get(ch.id) || 0} onClick={() => open(ch.id)} />
+                ))
+              )}
+            </SidebarSection>
+          ))}
+        </div>
+      </aside>
 
-        {dealChannels.length === 0 ? (
-          <div className="glass-card p-8 text-center">
-            <div className="text-4xl mb-3">💬</div>
-            <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어 소통을 시작하세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트를 생성하면 자동으로 채널이 만들어집니다</div>
+      {/* ── 우측 대화 패널 ── */}
+      <section className={`${selectedChannel ? "flex" : "hidden lg:flex"} flex-1 min-w-0 flex-col`}>
+        {selectedChannel ? (
+          <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
+            <ChatRoomView channelId={selectedChannel} embedded onBack={() => router.push("/chat")} />
           </div>
         ) : (
-          <div className="space-y-2">
-            {dealChannels.map((ch: any) => (
-              <ChannelItem key={ch.id} ch={ch} unreadMap={unreadMap} router={router} />
-            ))}
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div>
+              <div className="text-5xl mb-3">💬</div>
+              <div className="text-sm font-semibold text-[var(--text)]">채널을 선택하세요</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">왼쪽에서 대화를 선택하거나 새 채널을 만드세요</div>
+            </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Section 2: Team Channels */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-[var(--text-muted)]">팀 채널 ({teamChannels.length})</h2>
-          <button onClick={() => { setShowTeamForm(!showTeamForm); setShowForm(false); setShowDMForm(false); }}
-            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
-            +
-          </button>
+      {/* ── 생성 모달 (프로젝트/팀/DM 통합) ── */}
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(null)}>
+          <div className="glass-card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+              <h3 className="text-base font-bold text-[var(--text)]">새로 만들기</h3>
+              <button onClick={() => setCreating(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg">×</button>
+            </div>
+            <div className="flex gap-1 mx-6 mt-4 bg-[var(--bg-surface)] rounded-xl p-1">
+              {([["team", "팀 채널"], ["deal", "프로젝트"], ["dm", "DM"]] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setCreating(k)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${creating === k ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{label}</button>
+              ))}
+            </div>
+            <div className="px-6 py-4">
+              {creating === "team" && (
+                <>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">채널명</label>
+                  <input value={teamName} onChange={(e) => setTeamName(e.target.value)} autoFocus placeholder="마케팅팀, 개발팀..."
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]" />
+                  <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
+                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">만들기</button>
+                </>
+              )}
+              {creating === "deal" && (
+                <>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">채널명</label>
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="수출바우처 A기업 채팅"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-3 focus:outline-none focus:border-[var(--primary)]" />
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">연결 프로젝트</label>
+                  <select value={form.deal_id} onChange={(e) => setForm({ ...form, deal_id: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-3 focus:outline-none focus:border-[var(--primary)]">
+                    <option value="">선택 안함</option>
+                    {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">유형</label>
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]">
+                    <option value="deal">프로젝트 채널</option>
+                    <option value="subdeal">외주 채널</option>
+                    <option value="general">일반 채널</option>
+                  </select>
+                  <button onClick={() => form.name.trim() && createMut.mutate()} disabled={!form.name.trim() || createMut.isPending}
+                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">만들기</button>
+                </>
+              )}
+              {creating === "dm" && (
+                <>
+                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">대상 멤버</label>
+                  <select value={dmUserId} onChange={(e) => setDmUserId(e.target.value)} autoFocus
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]">
+                    <option value="">멤버 선택</option>
+                    {companyUsers.filter((u: any) => u.id !== userId).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => dmUserId && createDMMut.mutate()} disabled={!dmUserId || createDMMut.isPending}
+                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">대화 시작</button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-
-        {showTeamForm && (
-          <div className="glass-card p-6 mb-4">
-            <h3 className="text-sm font-bold mb-4">새 팀 채널</h3>
-            <div className="mb-4">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">채널명 *</label>
-              <input value={teamName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTeamName(e.target.value)}
-                placeholder="마케팅팀, 개발팀..." className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] max-w-xs" />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
-                className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">생성</button>
-              <button onClick={() => setShowTeamForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
-            </div>
-          </div>
-        )}
-
-        {teamChannels.length === 0 ? (
-          <div className="glass-card p-8 text-center">
-            <div className="text-4xl mb-3">👥</div>
-            <div className="text-sm font-medium text-[var(--text)]">팀 채널을 만들어보세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">부서별, 프로젝트별 소통 공간을 만들 수 있습니다</div>
-            <button onClick={() => { setShowTeamForm(true); setShowForm(false); setShowDMForm(false); }} className="mt-3 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 채널 만들기</button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {teamChannels.map((ch: any) => (
-              <ChannelItem key={ch.id} ch={ch} unreadMap={unreadMap} router={router} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Section 3: DM */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-[var(--text-muted)]">DM ({dmChannels.length})</h2>
-          <button onClick={() => { setShowDMForm(!showDMForm); setShowForm(false); setShowTeamForm(false); }}
-            className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-md bg-[var(--bg-surface)] hover:bg-[var(--primary)] text-[var(--text-muted)] hover:text-white flex items-center justify-center text-xs font-bold transition">
-            +
-          </button>
-        </div>
-
-        {showDMForm && (
-          <div className="glass-card p-6 mb-4">
-            <h3 className="text-sm font-bold mb-4">새 DM</h3>
-            <div className="mb-4">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">대상 멤버 *</label>
-              <select value={dmUserId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDmUserId(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] max-w-xs">
-                <option value="">멤버 선택</option>
-                {companyUsers.filter((u: any) => u.id !== userId).map((u: any) => (
-                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => dmUserId && createDMMut.mutate()} disabled={!dmUserId || createDMMut.isPending}
-                className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">시작</button>
-              <button onClick={() => setShowDMForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
-            </div>
-          </div>
-        )}
-
-        {dmChannels.length === 0 ? (
-          <div className="glass-card p-8 text-center">
-            <div className="text-4xl mb-3">✉️</div>
-            <div className="text-sm font-medium text-[var(--text)]">팀원에게 DM을 보내보세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">1:1 대화로 빠르게 소통할 수 있습니다</div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {dmChannels.map((ch: any) => (
-              <ChannelItem key={ch.id} ch={ch} unreadMap={unreadMap} router={router} />
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
