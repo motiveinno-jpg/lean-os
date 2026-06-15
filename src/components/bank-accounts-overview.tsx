@@ -108,32 +108,39 @@ function BankStat({ tone, icon, label, value, sub, valueTone }: {
   );
 }
 
-// 시안 — 그라데이션 계좌 카드 (은행색 + 잔액 숨김 토글). 클릭 → 거래 필터.
+// 계좌 카드 (은행색 + 잔액 숨김 토글). 클릭 → 거래 필터.
+//   디자인: /cards BigCard 와 통일 — 진한 그라데이션(브랜드색→어둡게)으로 프리미엄 카드 느낌 + 흰 글씨 대비 확보,
+//   블러 장식 원, 신용카드형 타이포(eyebrow 라벨·잔액 히어로·하단 끝4자리/증감).
 function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
   acc: { accountNo: string; alias?: string; bankName?: string; balance?: number };
   change: number; selected: boolean; onSelect: () => void; onEdit: () => void;
 }) {
   const [visible, setVisible] = useState(false);
   const st = bankStyle(acc.bankName);
-  const fg = st.fg || "#ffffff";
-  const grad = `linear-gradient(135deg, ${st.color} 0%, color-mix(in srgb, ${st.color} 55%, #ffffff) 100%)`;
+  // 밝은 브랜드색(노랑·카카오 등)은 흰 글씨 대비를 위해 더 어둡게, 어두운 색은 살짝만.
+  const isLight = !!st.fg; // st.fg 가 지정된 = 밝은 배경 브랜드
+  const grad = `linear-gradient(135deg, ${st.color} 0%, color-mix(in srgb, ${st.color} ${isLight ? 45 : 68}%, #000000) 100%)`;
   const name = acc.alias || (acc.bankName ? `${acc.bankName} ${acc.accountNo.slice(-4)}` : acc.accountNo);
   const bal = acc.balance || 0;
   const isFx = FX_RE.test(acc.alias || "") || FX_RE.test(acc.bankName || "");
+  const up = Math.round(change) > 0;
   return (
     <div
       onClick={onSelect}
       role="button"
       tabIndex={0}
-      className={`relative overflow-hidden rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${selected ? "ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
-      style={{ background: grad, color: fg }}
+      className={`group relative overflow-hidden rounded-2xl p-5 sm:p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer text-white ${selected ? "ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
+      style={{ background: grad }}
     >
-      <div className="absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 bg-white/10" />
-      <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full -ml-8 -mb-8 bg-white/10" />
+      {/* 블러 장식 (/cards 와 동일 톤) */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full blur-3xl" />
+        <div className="absolute -bottom-12 -left-10 w-40 h-40 bg-white rounded-full blur-3xl" />
+      </div>
       <div className="relative z-10">
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-7">
           <div className="min-w-0">
-            <p className="text-xs font-medium opacity-80 mb-1 truncate">{acc.bankName || "계좌"}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60 mb-1 truncate">{acc.bankName || "ACCOUNT"}</p>
             <div className="flex items-center gap-1.5">
               <h3 className="text-base font-semibold truncate" title={acc.accountNo}>{name}</h3>
               {isFx && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-bold bg-white/25">외화</span>}
@@ -141,12 +148,12 @@ function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
           </div>
           <BankIcon name={acc.bankName} size={36} />
         </div>
-        <div className="mb-6">
-          <p className="text-xs opacity-80 mb-1.5">잔액</p>
+        <div className="mb-5">
+          <p className="text-[10px] uppercase tracking-wider text-white/60 mb-1.5">잔액</p>
           <div className="flex items-center gap-2">
-            <p className="text-2xl font-bold mono-number">{visible ? won(bal) : "••••••"}</p>
+            <p className="text-2xl font-bold mono-number leading-none">{visible ? won(bal) : "••••••"}</p>
             <button type="button" onClick={(e) => { e.stopPropagation(); setVisible((v) => !v); }}
-              className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition" aria-label="잔액 표시/숨김">
+              className="p-1.5 rounded-lg bg-white/15 hover:bg-white/30 transition" aria-label="잔액 표시/숨김">
               {visible ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
               ) : (
@@ -155,13 +162,15 @@ function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
             </button>
           </div>
           {Math.round(change) !== 0 && (
-            <p className="text-[11px] font-semibold mt-1.5 opacity-90 mono-number">{changeStr(change)}</p>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold mt-2 px-1.5 py-0.5 rounded-md bg-white/15 mono-number">
+              <span aria-hidden>{up ? "▲" : "▼"}</span>{changeStr(change)}
+            </span>
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs opacity-80 mono-number">···{acc.accountNo.slice(-4)}</span>
+        <div className="flex items-center justify-between border-t border-white/15 pt-3">
+          <span className="text-xs text-white/70 mono-number tracking-wider">•••• {acc.accountNo.slice(-4)}</span>
           <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition" aria-label="별칭 편집" title="별칭 편집">
+            className="p-1.5 rounded-lg bg-white/15 hover:bg-white/30 transition opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="별칭 편집" title="별칭 편집">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
           </button>
         </div>
