@@ -2134,7 +2134,6 @@ interface ChecklistStatus {
   partner: boolean;
   deal: boolean;
   employee: boolean;
-  transaction: boolean;
 }
 
 function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
@@ -2151,13 +2150,12 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     queryKey: ["getting-started", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const [company, bank, partner, deal, employee, transaction] = await Promise.all([
+      const [company, bank, partner, deal, employee] = await Promise.all([
         db.from("companies").select("id, business_number").eq("id", companyId).maybeSingle(),
         db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId),
       ]);
       return {
         company: !!company.data?.business_number,
@@ -2165,7 +2163,6 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
         partner: (partner.count ?? 0) > 0,
         deal: (deal.count ?? initialDealCount) > 0,
         employee: (employee.count ?? 0) > 0,
-        transaction: (transaction.count ?? 0) > 0,
       };
     },
     enabled: !!companyId && !dismissed,
@@ -2178,7 +2175,6 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "최소 1개 이상의 매출처/매입처를 추가하세요", icon: "🤝" },
     { key: "deal" as const, href: "/projects", label: "첫 프로젝트 생성", desc: "수주 한 건을 등록하면 매출/원가 추적이 시작됩니다", icon: "📋" },
     { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하면 결재/급여를 사용할 수 있습니다", icon: "👥" },
-    { key: "transaction" as const, href: "/import-hub", label: "거래내역 가져오기", desc: "엑셀 또는 자동 동기화로 첫 거래를 입력하세요", icon: "💸" },
   ];
 
   const completedCount = status ? items.filter((i) => status[i.key]).length : 0;
