@@ -886,7 +886,7 @@ function ChatRoomView({ channelId, onBack, embedded }: { channelId: string; onBa
           {sendError && (
             <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{sendError}</div>
           )}
-          <div className="rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
+          <div className="rounded-b-2xl border border-t-0 border-[var(--border)]">
             <ChatInput
               onSend={(content, mentionedUserIds, replyToId) =>
                 sendMut.mutate({ content, mentionedUserIds, replyToId: replyToId || replyTo?.messageId })

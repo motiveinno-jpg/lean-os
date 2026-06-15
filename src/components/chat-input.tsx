@@ -84,7 +84,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   }
 
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--bg-card)]">
+    <div className="border-t border-[var(--border)] bg-[var(--bg-card)] rounded-b-2xl">
       {/* Reply preview */}
       {replyTo && (
         <div className="px-4 pt-2 flex items-center gap-2">
