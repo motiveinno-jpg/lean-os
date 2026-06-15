@@ -26,7 +26,7 @@ import { supabase } from "@/lib/supabase";
 import { subscribeToBankAccounts } from "@/lib/realtime";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
-import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
+import { syncCodefData, autoSyncDue } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import { getTodos, toggleTodoDone, PRIORITY_LABEL, type ScheduleTodo } from "@/lib/schedule";
@@ -127,17 +127,21 @@ export default function DashboardPage() {
     loadUser();
   }, []);
 
-  // 통장 잔고 자동 새로고침 (대시보드 마운트 시, 5분 throttle, silent)
-  // CODEF 동기화 버튼 없이도 자동으로 잔고만 빠르게 갱신.
+  // 새로고침 시 자동 전체 동기화 (통장+카드 거래내역, 2시간 throttle, silent).
+  //   CODEF 과금 통제: 새로고침·탭마다 곱해지지 않도록 2시간에 1회로 제한.
+  //   수동 '동기화' 버튼(대시보드/통장/카드)은 이 게이트와 무관하게 항상 동작.
   useEffect(() => {
     if (!companyId) return;
     let cancelled = false;
     (async () => {
-      const r = await refreshBankBalances(companyId);
+      if (!autoSyncDue(companyId)) return; // 2시간 미경과 → 스킵
+      await syncCodefData(companyId, 'all').catch(() => null);
+      await syncCodefData(companyId, 'card_approval').catch(() => null);
+      await runAllAutomation(companyId, { includeDrafts: false, includeRisky: false }).catch(() => null);
       if (cancelled) return;
-      if (r.ran && !r.error) {
-        queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
-      }
+      queryClient.invalidateQueries({ queryKey: ["founder-data"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
     })();
     return () => { cancelled = true; };
   }, [companyId, queryClient]);

@@ -923,6 +923,22 @@ export async function refreshBankBalances(
   return { ran: true, error: result.error || '잔고 새로고침 실패' };
 }
 
+// 대시보드 새로고침 시 자동 전체 동기화용 throttle 게이트.
+//   due(2시간 경과)면 true 반환 + 타임스탬프 선기록(StrictMode 이중 마운트·동시 탭 중복 호출 방지).
+//   ⚠️ 수동 '동기화' 버튼(통장/카드/대시보드)과는 별도 키 — 버튼은 이 게이트와 무관하게 항상 동작.
+export function autoSyncDue(companyId: string, throttleMs = 2 * 60 * 60 * 1000): boolean {
+  if (typeof window === 'undefined') return false;
+  const key = `ow_auto_tx_sync_${companyId}`;
+  try {
+    const last = Number(window.localStorage.getItem(key) || 0);
+    if (last && Date.now() - last < throttleMs) return false;
+    window.localStorage.setItem(key, String(Date.now())); // 선기록
+    return true;
+  } catch {
+    return true; // localStorage 차단 환경: 1회 진행
+  }
+}
+
 export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {
   const { data } = await (supabase as any)
     .from('sync_logs')
