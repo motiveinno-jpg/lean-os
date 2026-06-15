@@ -129,21 +129,24 @@ export default function DashboardPage() {
 
   // 새로고침 시 자동 전체 동기화 (통장+카드 거래내역, 2시간 throttle, silent).
   //   CODEF 과금 통제: 새로고침·탭마다 곱해지지 않도록 2시간에 1회로 제한.
+  //   ⚠️ 한번 시작하면 다른 탭으로 이동(대시보드 언마운트)해도 끝까지 진행한다 — cancelled 게이트를
+  //      두지 않음(JS Promise 는 언마운트로 중단되지 않음). 완료 시 queryClient(앱 전역)로 통장/카드/
+  //      거래/재무 관련 쿼리를 prefix 무효화해 어느 탭에 있든 최신 데이터로 갱신.
   //   수동 '동기화' 버튼(대시보드/통장/카드)은 이 게이트와 무관하게 항상 동작.
   useEffect(() => {
     if (!companyId) return;
-    let cancelled = false;
+    if (!autoSyncDue(companyId)) return; // 2시간 미경과 → 스킵
     (async () => {
-      if (!autoSyncDue(companyId)) return; // 2시간 미경과 → 스킵
       await syncCodefData(companyId, 'all').catch(() => null);
       await syncCodefData(companyId, 'card_approval').catch(() => null);
       await runAllAutomation(companyId, { includeDrafts: false, includeRisky: false }).catch(() => null);
-      if (cancelled) return;
-      queryClient.invalidateQueries({ queryKey: ["founder-data"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
+      queryClient.invalidateQueries({
+        predicate: (qq) =>
+          /^(founder-data|financial-dashboard|cash-pulse|bank|card|corporate-cards|tx-|codef|classification)/.test(
+            String((qq.queryKey?.[0] as string) ?? ""),
+          ),
+      });
     })();
-    return () => { cancelled = true; };
   }, [companyId, queryClient]);
 
   // Supabase Realtime — bank_accounts 잔액(balance) 변경 즉시 cash-pulse 카드 갱신
