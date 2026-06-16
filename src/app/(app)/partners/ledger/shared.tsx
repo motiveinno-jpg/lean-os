@@ -393,7 +393,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 //   진입 대상 = source='manual' status='confirmed' 전표뿐(목록에서 그것만 노출).
 //   저장 = update_manual_voucher(p_entry_id, p_description, p_lines) — DB 가 source<>'manual'·불균형·
 //   마감을 거부(프론트+DB 이중검증) + 변경 전 값 journal_entry_audits 보존. 마감월이면 읽기전용.
-type ELine = { key: number; account: { id: string; code: string; name: string } | null; partner: { id: string; name: string } | null; memo: string; debit: string; credit: string };
+type ELine = { key: number; account: { id: string; code: string; name: string } | null; partner: { id: string; name: string } | null; asset?: { kind: "bank" | "card"; id: string; name: string } | null; memo: string; debit: string; credit: string };
 const AR_AP_ACCT_CODES = new Set(["108", "251"]);
 const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
@@ -493,6 +493,17 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     queryFn: async () => { const { data } = await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
+  // 자산관리에 등록한 통장/카드 — 거래처 피커에서 함께 선택 가능
+  const { data: bankAccts = [] } = useQuery<any[]>({
+    queryKey: ["voucher-bank-accounts", companyId],
+    queryFn: async () => { const { data } = await db.from("bank_accounts").select("id, alias, bank_name").eq("company_id", companyId).order("alias"); return (data || []) as any[]; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const { data: cards = [] } = useQuery<any[]>({
+    queryKey: ["voucher-cards", companyId],
+    queryFn: async () => { const { data } = await db.from("corporate_cards").select("id, card_name").eq("company_id", companyId).order("card_name"); return (data || []) as any[]; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
 
   // 전표 로드 (수정 모드만 — 헤더 + 전 라인) + 마감 여부
   useEffect(() => {
@@ -500,7 +511,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     let cancelled = false;
     (async () => {
       const { data: e } = await db.from("journal_entries")
-        .select("id, entry_date, description, voucher_no, source, status, journal_lines(account_id, debit, credit, description, partner_id, chart_of_accounts(id, code, name), partners(id, name))")
+        .select("id, entry_date, description, voucher_no, source, status, journal_lines(account_id, debit, credit, description, partner_id, bank_account_id, card_id, chart_of_accounts(id, code, name), partners(id, name), bank_accounts(id, alias, bank_name), corporate_cards(id, card_name))")
         .eq("id", entryId).maybeSingle();
       if (cancelled || !e) { if (!cancelled) setLoaded(true); return; }
       setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null);
@@ -508,6 +519,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
         key: keyRef.current++,
         account: l.chart_of_accounts ? { id: l.chart_of_accounts.id, code: l.chart_of_accounts.code, name: l.chart_of_accounts.name } : null,
         partner: l.partners ? { id: l.partners.id, name: l.partners.name } : null,
+        asset: l.bank_accounts
+          ? { kind: "bank" as const, id: l.bank_accounts.id, name: l.bank_accounts.alias || l.bank_accounts.bank_name }
+          : l.corporate_cards
+          ? { kind: "card" as const, id: l.corporate_cards.id, name: l.corporate_cards.card_name }
+          : null,
         memo: l.description || "",
         debit: Number(l.debit) > 0 ? Number(l.debit).toLocaleString() : "",
         credit: Number(l.credit) > 0 ? Number(l.credit).toLocaleString() : "",
@@ -560,7 +576,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     if (!canSave) return;
     setBusy(true);
     try {
-      const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "" }));
+      const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "", bank_account_id: l.asset?.kind === "bank" ? l.asset.id : "", card_id: l.asset?.kind === "card" ? l.asset.id : "" }));
       const { error } = isNew
         ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: headerDesc(), p_lines: payload })
         : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_entry_date: entryDate, p_description: headerDesc(), p_lines: payload });
@@ -603,6 +619,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
 
   const acctMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12); };
   const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12); };
+  const assetItems = [
+    ...bankAccts.map((b: any) => ({ kind: "bank" as const, id: b.id, name: b.alias || b.bank_name })),
+    ...cards.map((c: any) => ({ kind: "card" as const, id: c.id, name: c.card_name })),
+  ].filter((a) => a.name);
+  const assetMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? assetItems.filter((a) => a.name.toLowerCase().includes(t)) : assetItems).slice(0, 12); };
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
 
   if (!mounted) return null;
@@ -637,7 +658,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                 <thead>
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                     <th className="px-2 py-2 text-left font-semibold min-w-[150px]">계정과목</th>
-                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처</th>
+                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처·통장/카드</th>
                     <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
                     <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">차변</th>
                     <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">대변</th>
@@ -668,21 +689,32 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                         </td>
                         <td className="p-0 relative border-l border-[var(--border)]/30">
                           <div className="flex items-center">
-                            <input value={picker?.kind === "pt" && picker.key === l.key ? picker.q : (l.partner?.name || "")}
+                            <input value={picker?.kind === "pt" && picker.key === l.key ? picker.q : (l.asset?.name || l.partner?.name || "")}
                               disabled={locked}
                               onChange={(e) => setPicker({ kind: "pt", key: l.key, q: e.target.value })}
                               onFocus={() => setPicker({ kind: "pt", key: l.key, q: "" })}
                               onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "pt" ? null : p)), 150)}
                               placeholder="—" className={IN} />
-                            {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
+                            {l.asset && <span className="pr-1 text-[8px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">{l.asset.kind === "bank" ? "통장" : "카드"}</span>}
+                            {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
-                            <div className="absolute z-30 left-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                            <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                              {ptMatches(picker.q).length > 0 && <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
                               {ptMatches(picker.q).map((p) => (
-                                <button key={p.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p }); setPicker(null); }}
+                                <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
                                   className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">{p.name}</button>
                               ))}
-                              {l.partner && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
+                              {assetMatches(picker.q).length > 0 && <div className="px-2 pt-1.5 pb-0.5 mt-1 text-[10px] font-semibold text-[var(--text-dim)] border-t border-[var(--border)]/40">내 통장·카드</div>}
+                              {assetMatches(picker.q).map((a) => (
+                                <button key={`${a.kind}-${a.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }}
+                                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                                  <span className="truncate">{a.name}</span>
+                                  <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.kind === "bank" ? "통장" : "카드"}</span>
+                                </button>
+                              ))}
+                              {ptMatches(picker.q).length === 0 && assetMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                              {(l.partner || l.asset) && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null, asset: null }); setPicker(null); }} className="w-full px-2 py-1 mt-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)] border-t border-[var(--border)]/40">지우기</button>}
                             </div>
                           )}
                         </td>
