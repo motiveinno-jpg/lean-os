@@ -36,6 +36,14 @@ export default function PartnerLedgerPage() {
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 회계기간(연도)
   const [yearInput, setYearInput] = useState(String(new Date().getFullYear())); // 연도 직접 입력 버퍼(드롭다운과 동기화)
   useEffect(() => { setYearInput(String(ledgerYear)); }, [ledgerYear]);
+  // 회계기간 직접 선택 — 연도 대신 임의 기간(부터~까지)으로 원장 조회
+  const [periodMode, setPeriodMode] = useState<"year" | "custom">("year");
+  const [customFrom, setCustomFrom] = useState(`${new Date().getFullYear()}-01-01`);
+  const [customTo, setCustomTo] = useState(`${new Date().getFullYear()}-12-31`);
+  const periodStart = periodMode === "custom" ? customFrom : `${ledgerYear}-01-01`;
+  const periodEnd = periodMode === "custom" ? customTo : `${ledgerYear}-12-31`;
+  const rpcYear = periodMode === "custom" ? (Number(customFrom.slice(0, 4)) || ledgerYear) : ledgerYear; // 좌측 목록 RPC는 연도 기준 → 시작일의 연도 사용
+  const periodLabel = periodMode === "custom" ? `${customFrom} ~ ${customTo}` : `${ledgerYear}년`;
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [sortBy, setSortBy] = useState<"outstanding" | "name">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
@@ -48,9 +56,9 @@ export default function PartnerLedgerPage() {
   };
 
   const { data: rows = [], isLoading: lLoading } = useQuery<LedgerRow[]>({
-    queryKey: ["partner-ledger", companyId, ledgerYear],
+    queryKey: ["partner-ledger", companyId, rpcYear],
     queryFn: async () => {
-      const { data } = await db.rpc("get_partner_ledger_by_year", { p_year: ledgerYear });
+      const { data } = await db.rpc("get_partner_ledger_by_year", { p_year: rpcYear });
       return (data || []) as LedgerRow[];
     },
     enabled: !!companyId,
@@ -70,12 +78,12 @@ export default function PartnerLedgerPage() {
   // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
   //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
   const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean }>>({
-    queryKey: ["ledger-voucher-partners", companyId, ledgerYear],
+    queryKey: ["ledger-voucher-partners", companyId, periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await db.from("journal_entries")
         .select("journal_lines(partner_id, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", `${ledgerYear}-01-01`).lte("entry_date", `${ledgerYear}-12-31`);
+        .gte("entry_date", periodStart).lte("entry_date", periodEnd);
       const m: Record<string, { sales?: boolean; purchase?: boolean }> = {};
       for (const e of (data || []) as any[]) {
         for (const l of (e.journal_lines || [])) {
@@ -179,25 +187,47 @@ export default function PartnerLedgerPage() {
         </div>
         <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <span className="font-semibold">회계기간</span>
-          <select value={ledgerYear} onChange={(e) => { setLedgerYear(Number(e.target.value)); }}
+          <select value={periodMode === "custom" ? "custom" : String(ledgerYear)}
+            onChange={(e) => {
+              if (e.target.value === "custom") setPeriodMode("custom");
+              else { setPeriodMode("year"); setLedgerYear(Number(e.target.value)); }
+            }}
             className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
             {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), ledgerYear])]
               .sort((a, b) => b - a)
               .map((y) => (
-                <option key={y} value={y}>{y}-01-01 ~ {y}-12-31</option>
+                <option key={y} value={String(y)}>{y}-01-01 ~ {y}-12-31</option>
               ))}
+            <option value="custom">기간 직접 선택</option>
           </select>
-          {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
-          <input
-            type="number" inputMode="numeric" min={2000} max={2100}
-            value={yearInput}
-            onChange={(e) => setYearInput(e.target.value)}
-            onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
-            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-            title="연도 직접 입력 (Enter)"
-            className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
-          />
-          <span className="text-[var(--text-dim)]">년</span>
+          {periodMode === "year" ? (
+            <>
+              {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
+              <input
+                type="number" inputMode="numeric" min={2000} max={2100}
+                value={yearInput}
+                onChange={(e) => setYearInput(e.target.value)}
+                onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                title="연도 직접 입력 (Enter)"
+                className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
+              />
+              <span className="text-[var(--text-dim)]">년</span>
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              {/* 기간 직접 선택 — 부터~까지 임의 지정 */}
+              <input type="date" value={customFrom} max={customTo}
+                onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
+                title="시작일"
+                className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+              <span className="text-[var(--text-dim)]">~</span>
+              <input type="date" value={customTo} min={customFrom}
+                onChange={(e) => e.target.value && setCustomTo(e.target.value)}
+                title="종료일"
+                className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+            </span>
+          )}
         </div>
         <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
           className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36" />
@@ -244,7 +274,7 @@ export default function PartnerLedgerPage() {
             </div>
             <div className="overflow-y-auto max-h-[560px]">
               {shown.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : `${ledgerYear}년 ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
+                <div className="p-8 text-center text-xs text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
               ) : shown.map((r, idx) => {
                 const key = r.partner_id ?? "none";
                 const active = key === selKey;
@@ -267,11 +297,13 @@ export default function PartnerLedgerPage() {
           {/* ── 우: 일자별 원장 (차변/대변/잔액) ── */}
           {selRow ? (
             <PartnerLedgerSheet
-              key={`${selKey}-${selRow.type}-${ledgerYear}`}
+              key={`${selKey}-${selRow.type}-${periodStart}-${periodEnd}`}
               companyId={companyId!}
               partnerId={selRow.partner_id}
               type={selRow.type}
-              year={ledgerYear}
+              year={rpcYear}
+              periodStart={periodStart}
+              periodEnd={periodEnd}
               partnerName={nameOf(selRow.partner_id)}
               openingFromRpc={Number(selRow.prior_outstanding || 0)}
               onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
@@ -288,7 +320,7 @@ export default function PartnerLedgerPage() {
           companyId={companyId}
           partnerId={detail.partnerId}
           type={detail.type}
-          year={ledgerYear}
+          year={rpcYear}
           partnerName={nameOf(detail.partnerId)}
           focus={detail.focus}
           onClose={() => setDetail(null)}

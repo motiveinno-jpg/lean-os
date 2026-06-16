@@ -118,11 +118,12 @@ export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className
 //   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
 type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string; isVoucher?: boolean; vid?: string };
 
-export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail }: {
+export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail, periodStart, periodEnd }: {
   companyId: string; partnerId: string | null; type: string; year: number; partnerName: string;
-  openingFromRpc: number; onOpenDetail: () => void;
+  openingFromRpc: number; onOpenDetail: () => void; periodStart?: string; periodEnd?: string;
 }) {
-  const yStart = `${year}-01-01`;
+  const yStart = periodStart || `${year}-01-01`;
+  const yEnd = periodEnd || `${year}-12-31`;
   const isSales = type === "sales";
   const pal = palette(type);
   const qc = useQueryClient();
@@ -132,12 +133,12 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 
   // 발생: 해당 거래처 세금계산서 (연말까지 — 전기이월 산출 위해 과거 포함)
   const { data: invoices = [], isLoading } = useQuery<any[]>({
-    queryKey: ["ledger-sheet-inv", companyId, partnerId, type, year],
+    queryKey: ["ledger-sheet-inv", companyId, partnerId, type, yStart, yEnd],
     queryFn: async () => {
       let qb = db.from("tax_invoices")
         .select("id, issue_date, item_name, label, total_amount")
         .eq("company_id", companyId).eq("type", type).neq("status", "void")
-        .lte("issue_date", `${year}-12-31`)
+        .lte("issue_date", yEnd)
         .order("issue_date", { ascending: true }).limit(2000);
       qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
       const { data } = await qb;
@@ -149,7 +150,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
   const invIds = invoices.map((i) => i.id);
   const { data: settles = [] } = useQuery<any[]>({
-    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, year, invIds.join(",")],
+    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, yStart, yEnd, invIds.join(",")],
     queryFn: async () => {
       if (invIds.length === 0) return [];
       const { data: setts } = await db.from("invoice_settlements")
@@ -171,14 +172,14 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   });
 
   // 수동 전표 (직접 입력) — 이 거래처를 라인에 포함한 source='manual'·confirmed 전표.
-  //   잔액(위 시트)에는 영향 없음(§1-3: 잔액은 정산 기반). 수정 가능 후보 = 이것뿐.
+  //   원장 그리드에 날짜순 통합되어 잔액에 반영됨(AR/AP 라인 기준). 클릭 시 수정/삭제.
   const { data: manualVouchers = [] } = useQuery<any[]>({
-    queryKey: ["ledger-manual-vouchers", companyId, partnerId, year],
+    queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
     queryFn: async () => {
       const { data } = await db.from("journal_entries")
         .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", yStart).lte("entry_date", `${year}-12-31`)
+        .gte("entry_date", yStart).lte("entry_date", yEnd)
         .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true });
       return ((data || []) as any[]).filter((e) =>
         (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
@@ -243,7 +244,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const downloadCsv = () => {
     const rows: string[][] = [["일자", "적요", "차변", "대변", "잔액"]];
     let bal = opening;
-    rows.push([`${year}-01-01`, "[전기이월]", "", "", String(Math.round(opening))]);
+    rows.push([yStart, "[전기이월]", "", "", String(Math.round(opening))]);
     for (const [m, entries] of months) {
       let md = 0, mc = 0;
       for (const e of entries) {
@@ -257,7 +258,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     const csv = "﻿" + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `거래처원장_${partnerName}_${year}.csv`;
+    a.download = `거래처원장_${partnerName}_${yStart}_${yEnd}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -271,7 +272,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-bold text-[var(--text)] truncate">{partnerName}</span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct}</span>
-          <span className="text-[11px] text-[var(--text-dim)] shrink-0">{year}-01-01 ~ {year}-12-31</span>
+          <span className="text-[11px] text-[var(--text-dim)] shrink-0">{yStart} ~ {yEnd}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => setNewOpen(true)} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--primary)] text-white hover:opacity-90">+ 전표 입력</button>
@@ -298,13 +299,13 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
             ) : (
               <>
                 <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-semibold">
-                  <td className="px-3 py-1.5 text-[var(--text-dim)]">{year}-01-01</td>
+                  <td className="px-3 py-1.5 text-[var(--text-dim)]">{yStart}</td>
                   <td className="px-3 py-1.5 text-[var(--text-muted)] border-l border-[var(--border)]/60">[전기이월]</td>
                   <td className={cellR} /><td className={cellR} />
                   <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
                 </tr>
                 {months.length === 0 && (
-                  <tr><td colSpan={5} className="p-8 text-center text-[var(--text-muted)]">당기({year}년) 거래가 없습니다.</td></tr>
+                  <tr><td colSpan={5} className="p-8 text-center text-[var(--text-muted)]">선택 기간에 거래가 없습니다.</td></tr>
                 )}
                 {months.map(([m, entries]) => {
                   const md = entries.reduce((s, e) => s + e.debit, 0);
