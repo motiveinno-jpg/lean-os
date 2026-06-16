@@ -406,8 +406,12 @@ function DateSegInput({ value, onChange, onMouseDown }: {
   const parse = (v: string): [string, string, string] =>
     (/^\d{4}-\d{2}-\d{2}$/.test(v) ? (v.split("-") as [string, string, string]) : ["", "", ""]);
   const [seg, setSeg] = useState<[string, string, string]>(() => parse(value));
-  // 외부 value(완전한 날짜)만 동기화 — 타이핑 중 부분 입력을 덮어쓰지 않게
-  useEffect(() => { setSeg(parse(value)); }, [value]);
+  const lastEmit = useRef<string>(value);
+  // 외부에서 value 가 바뀐 경우에만 세그먼트 재동기화. 우리가 emit 한 값은 무시 —
+  //   한 자리만 쳐도 commit 이 "01" 로 0패딩한 값을 되돌려 넣어 둘째 자리 입력을 막던 버그 해결.
+  useEffect(() => {
+    if (value !== lastEmit.current) { setSeg(parse(value)); lastEmit.current = value; }
+  }, [value]);
   const yRef = useRef<HTMLInputElement>(null);
   const mRef = useRef<HTMLInputElement>(null);
   const dRef = useRef<HTMLInputElement>(null);
@@ -416,7 +420,9 @@ function DateSegInput({ value, onChange, onMouseDown }: {
     if (s[0].length === 4 && s[1] && s[2]) {
       const mi = Math.min(12, Math.max(1, Number(s[1])));
       const di = Math.min(31, Math.max(1, Number(s[2])));
-      onChange(`${s[0]}-${String(mi).padStart(2, "0")}-${String(di).padStart(2, "0")}`);
+      const out = `${s[0]}-${String(mi).padStart(2, "0")}-${String(di).padStart(2, "0")}`;
+      lastEmit.current = out;
+      onChange(out);
     }
   };
   const set = (i: 0 | 1 | 2, raw: string, max: number, next: RefObject<HTMLInputElement | null> | null, smartMax?: number) => {
