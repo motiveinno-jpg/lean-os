@@ -3386,8 +3386,8 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
             </div>
           </div>
           <button
-            onClick={() => form.employeeId && form.startDate && createLeave.mutate()}
-            disabled={!form.employeeId || !form.startDate || createLeave.isPending}
+            onClick={() => form.employeeId && form.startDate && !(form.endDate && form.endDate < form.startDate) && createLeave.mutate()}
+            disabled={!form.employeeId || !form.startDate || (!!form.endDate && form.endDate < form.startDate) || createLeave.isPending}
             className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
           >
             {createLeave.isPending ? "처리 중..." : `신청 (${(() => {

@@ -598,8 +598,8 @@ export default function DashboardPage() {
         {/* Toast 영역 (파싱/동기화 결과) */}
         {parseResult && (
           <div className={`mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line ${
-            parseResult.success ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+            parseResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
+              : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
           }`}>
             {parseResult.message}
             <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
@@ -608,7 +608,7 @@ export default function DashboardPage() {
         {syncResult && (
           <div className={`mb-3 p-2.5 rounded-lg text-xs flex items-center justify-between ${
             syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+              : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
           }`}>
             <span>{syncResult.message}</span>
             <span className="flex items-center gap-2">

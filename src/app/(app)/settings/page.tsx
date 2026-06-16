@@ -2639,8 +2639,8 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                     {inv.name || inv.email}
                     {roleBadge(inv.role || "employee")}
                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                      inv.status === "pending" ? "bg-amber-100 text-amber-700" :
-                      inv.status === "accepted" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      inv.status === "pending" ? "bg-amber-500/10 text-amber-400" :
+                      inv.status === "accepted" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
                     }`}>
                       {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
                     </span>
@@ -2696,8 +2696,8 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                     {inv.name || inv.email}
                     {roleBadge("partner")}
                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                      inv.status === "pending" ? "bg-amber-100 text-amber-700" :
-                      inv.status === "accepted" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                      inv.status === "pending" ? "bg-amber-500/10 text-amber-400" :
+                      inv.status === "accepted" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
                     }`}>
                       {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
                     </span>

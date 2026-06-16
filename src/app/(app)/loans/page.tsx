@@ -355,7 +355,7 @@ export default function LoansPage() {
             }`}
           >
             <div className="text-[11px] text-[var(--text-dim)] mb-1">{c.label}</div>
-            <div className={`text-lg font-bold ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
+            <div className={`text-xl font-bold mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
               {c.value}
             </div>
             {c.sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}

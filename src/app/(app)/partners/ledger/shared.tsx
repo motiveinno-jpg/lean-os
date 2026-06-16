@@ -148,7 +148,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
   const invIds = invoices.map((i) => i.id);
   const { data: settles = [] } = useQuery<any[]>({
-    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, year, invIds.length],
+    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, year, invIds.join(",")],
     queryFn: async () => {
       if (invIds.length === 0) return [];
       const { data: setts } = await db.from("invoice_settlements")

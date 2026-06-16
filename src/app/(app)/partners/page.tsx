@@ -27,7 +27,7 @@ const TYPE_BADGE: Record<string, { bg: string; text: string; label: string }> = 
   client: { bg: "bg-blue-500/15", text: "text-blue-400", label: "고객사" },
   partner: { bg: "bg-green-500/15", text: "text-green-400", label: "파트너" },
   government: { bg: "bg-red-500/15", text: "text-red-400", label: "정부/공공기관" },
-  other: { bg: "bg-gray-500/15", text: "text-gray-400", label: "기타" },
+  other: { bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-dim)]", label: "기타" },
 };
 
 const EMPTY_FORM = {
