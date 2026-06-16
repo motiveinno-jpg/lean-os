@@ -5,7 +5,7 @@
 //   타입·포맷·그리드 유틸·원장 시트·거래처 상세(차액 마감 포함).
 //   색 규칙(핸드오프 §4-2): 매출처=파랑(#2563EB) / 매입처=주황(#EA580C). 빨강은 연체·마이너스 전용.
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -124,7 +124,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const yStart = `${year}-01-01`;
   const isSales = type === "sales";
   const pal = palette(type);
+  const qc = useQueryClient();
   const [adjView, setAdjView] = useState<string | null>(null); // 클릭한 차액마감 정산 ID → 전표 모달
+  const [editEntryId, setEditEntryId] = useState<string | null>(null); // 클릭한 수동 전표 ID → 수정 모달
 
   // 발생: 해당 거래처 세금계산서 (연말까지 — 전기이월 산출 위해 과거 포함)
   const { data: invoices = [], isLoading } = useQuery<any[]>({
@@ -164,6 +166,23 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       }));
     },
     enabled: !!companyId && invIds.length > 0,
+  });
+
+  // 수동 전표 (직접 입력) — 이 거래처를 라인에 포함한 source='manual'·confirmed 전표.
+  //   잔액(위 시트)에는 영향 없음(§1-3: 잔액은 정산 기반). 수정 가능 후보 = 이것뿐.
+  const { data: manualVouchers = [] } = useQuery<any[]>({
+    queryKey: ["ledger-manual-vouchers", companyId, partnerId, year],
+    queryFn: async () => {
+      const { data } = await db.from("journal_entries")
+        .select("id, entry_date, description, voucher_no, voucher_type, source, status, journal_lines(debit, credit, partner_id)")
+        .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
+        .gte("entry_date", yStart).lte("entry_date", `${year}-12-31`)
+        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true });
+      return ((data || []) as any[]).filter((e) =>
+        (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
+      );
+    },
+    enabled: !!companyId && !!partnerId,
   });
 
   const { opening, months, totals } = useMemo(() => {
@@ -323,7 +342,272 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
         차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 거래 매칭에서 처리하세요
       </div>
+
+      {/* ── 수동 전표 (직접 입력) — source='manual' 만 수정 가능(파란 글씨). 잔액(위)에는 영향 없음 ── */}
+      {!!partnerId && manualVouchers.length > 0 && (
+        <div className="border-t border-[var(--border)]">
+          <div className="px-4 py-2 bg-[var(--bg-surface)]/50 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-[var(--text-muted)]">수동 전표 (직접 입력) · {manualVouchers.length}건</span>
+            <span className="text-[10px] text-[var(--text-dim)]">파란 글씨 클릭 = 수정 · 위 잔액에는 영향 없음</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]/40">
+            {manualVouchers.map((v) => {
+              const total = (v.journal_lines || []).reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+              return (
+                <div key={v.id} className="px-4 py-2 flex items-center gap-2 text-xs">
+                  <span className="text-[var(--text-dim)] mono-number w-[78px] shrink-0">{v.entry_date}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0 mono-number">#{v.voucher_no ?? "—"}</span>
+                  <button onClick={() => setEditEntryId(v.id)}
+                    className="flex-1 min-w-0 text-left text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 truncate"
+                    title="클릭하면 전표 전체를 수정할 수 있습니다"
+                    aria-label={`전표 수정 — ${v.description || "적요 없음"}`}>
+                    {v.description || "적요 없음"}
+                  </button>
+                  <span className="mono-number text-[var(--text)] shrink-0">{won(total)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {editEntryId && (
+        <VoucherEditModal
+          entryId={editEntryId}
+          companyId={companyId}
+          onClose={() => setEditEntryId(null)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["ledger-manual-vouchers"] });
+            qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
+          }}
+        />
+      )}
       {adjView && <AdjVoucherModal settlementId={adjView} type={type} partnerName={partnerName} onClose={() => setAdjView(null)} />}
+    </div>
+  );
+}
+
+// ── 수동 전표 수정 팝업: 거래처 원장 '수동 전표' 행(파란 글씨) 클릭 → 전표 전체 편집 ──
+//   진입 대상 = source='manual' status='confirmed' 전표뿐(목록에서 그것만 노출).
+//   저장 = update_manual_voucher(p_entry_id, p_description, p_lines) — DB 가 source<>'manual'·불균형·
+//   마감을 거부(프론트+DB 이중검증) + 변경 전 값 journal_entry_audits 보존. 마감월이면 읽기전용.
+type ELine = { key: number; account: { id: string; code: string; name: string } | null; partner: { id: string; name: string } | null; memo: string; debit: string; credit: string };
+const AR_AP_ACCT_CODES = new Set(["108", "251"]);
+
+export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
+  entryId: string; companyId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const keyRef = useRef(1);
+  const [desc, setDesc] = useState("");
+  const [lines, setLines] = useState<ELine[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [entryDate, setEntryDate] = useState("");
+  const [voucherNo, setVoucherNo] = useState<number | null>(null);
+  const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string } | null>(null);
+
+  const numOnly = (s: string | number) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
+  const comma = (s: string) => { const n = numOnly(s); return n ? n.toLocaleString("ko-KR") : ""; };
+
+  const { data: accounts = [] } = useQuery<any[]>({
+    queryKey: ["voucher-accounts", companyId],
+    queryFn: async () => { const { data } = await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code"); return (data || []) as any[]; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const { data: partners = [] } = useQuery<any[]>({
+    queryKey: ["voucher-partners", companyId],
+    queryFn: async () => { const { data } = await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"); return (data || []) as any[]; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+
+  // 전표 로드 (헤더 + 전 라인) + 마감 여부
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: e } = await db.from("journal_entries")
+        .select("id, entry_date, description, voucher_no, source, status, journal_lines(account_id, debit, credit, description, partner_id, chart_of_accounts(id, code, name), partners(id, name))")
+        .eq("id", entryId).maybeSingle();
+      if (cancelled || !e) { if (!cancelled) setLoaded(true); return; }
+      setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null); setDesc(e.description || "");
+      const ls: ELine[] = (e.journal_lines || []).map((l: any) => ({
+        key: keyRef.current++,
+        account: l.chart_of_accounts ? { id: l.chart_of_accounts.id, code: l.chart_of_accounts.code, name: l.chart_of_accounts.name } : null,
+        partner: l.partners ? { id: l.partners.id, name: l.partners.name } : null,
+        memo: l.description || "",
+        debit: Number(l.debit) > 0 ? Number(l.debit).toLocaleString() : "",
+        credit: Number(l.credit) > 0 ? Number(l.credit).toLocaleString() : "",
+      }));
+      setLines(ls.length ? ls : [{ key: keyRef.current++, account: null, partner: null, memo: "", debit: "", credit: "" }]);
+      const month = String(e.entry_date).slice(0, 7);
+      const { data: cc } = await db.from("closing_checklists").select("status").eq("company_id", companyId).eq("month", month).maybeSingle();
+      if (cancelled) return;
+      setLocked(cc?.status === "locked");
+      setLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [entryId, companyId]);
+
+  const setLine = (key: number, patch: Partial<ELine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const addLine = () => setLines((ls) => [...ls, { key: keyRef.current++, account: null, partner: null, memo: "", debit: "", credit: "" }]);
+  const removeLine = (key: number) => setLines((ls) => (ls.length <= 2 ? ls : ls.filter((l) => l.key !== key)));
+
+  const filled = lines.filter((l) => numOnly(l.debit) > 0 || numOnly(l.credit) > 0);
+  const totalD = filled.reduce((s, l) => s + numOnly(l.debit), 0);
+  const totalC = filled.reduce((s, l) => s + numOnly(l.credit), 0);
+  const diff = totalD - totalC;
+  const missingAcct = filled.some((l) => !l.account);
+  const canSave = !busy && !locked && filled.length >= 2 && totalD > 0 && diff === 0 && !missingAcct;
+
+  const save = async () => {
+    if (!canSave) return;
+    setBusy(true);
+    try {
+      const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "" }));
+      const { error } = await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_description: desc, p_lines: payload });
+      if (error) throw new Error(error.message);
+      toast("전표 수정됨", "success");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      const m = String(e?.message || "");
+      toast(
+        m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다 — 수정 불가"
+          : m.includes("NOT_MANUAL") ? "수동 전표만 수정할 수 있습니다 (수집/자동 전표 불가)"
+          : m.includes("UNBALANCED") ? "차변·대변 합계가 일치하지 않습니다"
+          : m.includes("FORBIDDEN") ? "수정 권한이 없습니다"
+          : m.includes("does not exist") ? "전표 수정 DB가 아직 적용되지 않았습니다"
+          : m || "수정 실패",
+        "error",
+      );
+    } finally { setBusy(false); }
+  };
+
+  const acctMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12); };
+  const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12); };
+  const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+          <div>
+            <div className="text-base font-bold text-[var(--text)]">전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{entryDate} · 수동 전표(직접 입력)</div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
+        </div>
+
+        {!loaded ? (
+          <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+        ) : (
+          <>
+            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold">🔒 마감(잠금)된 회계기간의 전표입니다 — 읽기 전용</div>}
+            <div className="px-5 pt-3">
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} disabled={locked} placeholder="전표 적요"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] disabled:opacity-60" />
+            </div>
+            <div className="px-5 py-3 overflow-auto flex-1">
+              <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
+                <thead>
+                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                    <th className="px-2 py-2 text-left font-semibold min-w-[150px]">계정과목</th>
+                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처</th>
+                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
+                    <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">차변</th>
+                    <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">대변</th>
+                    <th className="w-7" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((l) => {
+                    const arApWarn = l.account && AR_AP_ACCT_CODES.has(l.account.code) && !l.partner;
+                    return (
+                      <tr key={l.key} className="border-b border-[var(--border)]/40">
+                        <td className="p-0 relative">
+                          <input value={picker?.kind === "acct" && picker.key === l.key ? picker.q : (l.account ? `${l.account.name} (${l.account.code})` : "")}
+                            disabled={locked}
+                            onChange={(e) => setPicker({ kind: "acct", key: l.key, q: e.target.value })}
+                            onFocus={() => setPicker({ kind: "acct", key: l.key, q: "" })}
+                            onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "acct" ? null : p)), 150)}
+                            placeholder="계정 검색" className={IN} />
+                          {picker?.kind === "acct" && picker.key === l.key && (
+                            <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                              {acctMatches(picker.q).map((a) => (
+                                <button key={a.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { account: a }); setPicker(null); }}
+                                  className="w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] hover:bg-[var(--bg-surface)]"><span>{a.name}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
+                              ))}
+                              {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-0 relative border-l border-[var(--border)]/30">
+                          <div className="flex items-center">
+                            <input value={picker?.kind === "pt" && picker.key === l.key ? picker.q : (l.partner?.name || "")}
+                              disabled={locked}
+                              onChange={(e) => setPicker({ kind: "pt", key: l.key, q: e.target.value })}
+                              onFocus={() => setPicker({ kind: "pt", key: l.key, q: "" })}
+                              onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "pt" ? null : p)), 150)}
+                              placeholder="—" className={IN} />
+                            {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
+                          </div>
+                          {picker?.kind === "pt" && picker.key === l.key && (
+                            <div className="absolute z-30 left-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                              {ptMatches(picker.q).map((p) => (
+                                <button key={p.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p }); setPicker(null); }}
+                                  className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">{p.name}</button>
+                              ))}
+                              {l.partner && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-0 border-l border-[var(--border)]/30">
+                          <input value={l.memo} disabled={locked} onChange={(e) => setLine(l.key, { memo: e.target.value })} placeholder="적요" className={IN} />
+                        </td>
+                        <td className="p-0 border-l border-[var(--border)]/30">
+                          <input inputMode="numeric" value={l.debit} disabled={locked}
+                            onChange={(e) => setLine(l.key, { debit: comma(e.target.value), credit: numOnly(e.target.value) > 0 ? "" : l.credit })}
+                            placeholder="0" className={`${IN} text-right mono-number`} />
+                        </td>
+                        <td className="p-0 border-l border-[var(--border)]/30">
+                          <input inputMode="numeric" value={l.credit} disabled={locked}
+                            onChange={(e) => setLine(l.key, { credit: comma(e.target.value), debit: numOnly(e.target.value) > 0 ? "" : l.debit })}
+                            placeholder="0" className={`${IN} text-right mono-number`} />
+                        </td>
+                        <td className="text-center">
+                          {!locked && <button onClick={() => removeLine(l.key)} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-xs" title="행 삭제">✕</button>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-bold">
+                    <td colSpan={3} className="px-2 py-2 text-right text-[var(--text-muted)]">합계</td>
+                    <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{totalD.toLocaleString()}</td>
+                    <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{totalC.toLocaleString()}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+              {!locked && <button onClick={addLine} className="mt-2 text-[12px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold">+ 행 추가</button>}
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-3">
+              <span className="text-[11px] font-bold">
+                {totalD === 0 ? <span className="text-[var(--text-dim)] font-semibold">금액을 입력하세요</span>
+                  : diff === 0 ? <span className="text-emerald-500">✅ 차대일치</span>
+                  : <span className="text-red-500">⚠️ 차액 {won(Math.abs(diff))} — 저장 불가</span>}
+                {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
+              </span>
+              <div className="flex items-center gap-2">
+                <button onClick={onClose} className="px-3 py-2 text-xs text-[var(--text-muted)]">취소</button>
+                <button onClick={save} disabled={!canSave} className="px-5 py-2 text-xs font-bold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{busy ? "저장 중..." : "수정 저장"}</button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
