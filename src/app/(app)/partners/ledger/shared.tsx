@@ -6,6 +6,7 @@
 //   색 규칙(핸드오프 §4-2): 매출처=파랑(#2563EB) / 매입처=주황(#EA580C). 빨강은 연체·마이너스 전용.
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -407,6 +408,10 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
   const [entryDate, setEntryDate] = useState("");
   const [voucherNo, setVoucherNo] = useState<number | null>(null);
   const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string } | null>(null);
+  // glass-card(backdrop-filter)가 fixed 컨테이닝 블록이 되어 팝업이 카드 안에 갇히는 문제 →
+  //   document.body 로 포털해 화면 전체에 렌더.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const numOnly = (s: string | number) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
   const comma = (s: string) => { const n = numOnly(s); return n ? n.toLocaleString("ko-KR") : ""; };
@@ -488,7 +493,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
   const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12); };
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
 
-  return (
+  if (!mounted) return null;
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-5xl my-6 flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
@@ -608,7 +614,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -624,6 +631,8 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
   const { toast } = useToast();
   const isSales = type === "sales";
   const [deleting, setDeleting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []); // glass-card 안 fixed 갇힘 회피 → document.body 포털
 
   const { data: s, isLoading } = useQuery<any>({
     queryKey: ["adj-settlement", settlementId],
@@ -676,7 +685,8 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
     }
   };
 
-  return (
+  if (!mounted) return null;
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
@@ -750,7 +760,8 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
