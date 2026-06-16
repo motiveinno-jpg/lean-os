@@ -489,8 +489,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-2 sm:p-6" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-5xl h-[92vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-5xl my-6 flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div>
             <div className="text-base font-bold text-[var(--text)]">전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</div>
@@ -508,7 +508,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
               <input value={desc} onChange={(e) => setDesc(e.target.value)} disabled={locked} placeholder="전표 적요"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] disabled:opacity-60" />
             </div>
-            <div className="px-5 py-3 overflow-auto flex-1">
+            <div className="px-5 py-3">
               <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
                 <thead>
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
