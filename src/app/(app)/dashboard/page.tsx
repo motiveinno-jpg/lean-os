@@ -1039,16 +1039,16 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base">💰</span>
         <h3 className="text-sm font-bold text-[var(--text)]">미수금 현황</h3>
-        {overdue.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-bold">{overdue.length}건 연체</span>}
+        {overdue.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-[var(--danger)] font-bold">{overdue.length}건 연체</span>}
       </div>
       <div className="flex gap-4 mb-3">
         <div className="flex-1 p-3 rounded-xl bg-[var(--bg-surface)]">
           <div className="text-[11px] text-[var(--text-muted)]">미수금 합계</div>
-          <div className="text-sm font-bold text-[var(--text)]">{(totalPending/10000).toFixed(0)}만원</div>
+          <div className="text-sm font-bold mono-number text-[var(--text)]">{(totalPending/10000).toFixed(0)}만원</div>
         </div>
         <div className="flex-1 p-3 rounded-xl bg-red-500/5">
-          <div className="text-[11px] text-red-400">연체 금액</div>
-          <div className="text-sm font-bold text-red-500">{(totalOverdue/10000).toFixed(0)}만원</div>
+          <div className="text-[11px] text-[var(--danger)]">연체 금액</div>
+          <div className="text-sm font-bold mono-number text-[var(--danger)]">{(totalOverdue/10000).toFixed(0)}만원</div>
         </div>
       </div>
       {overdue.length > 0 && (
@@ -1059,8 +1059,8 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
               <div key={i} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <span className="text-[var(--text)]">{inv.counterparty_name}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[var(--text-muted)]">{(Number(inv.total_amount)/10000).toFixed(0)}만원</span>
-                  <span className="text-red-400 font-bold">D+{days}</span>
+                  <span className="text-[var(--text-muted)] mono-number">{(Number(inv.total_amount)/10000).toFixed(0)}만원</span>
+                  <span className="text-[var(--danger)] font-bold mono-number">D+{days}</span>
                 </div>
               </div>
             );
@@ -1068,7 +1068,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
         </div>
       )}
       {invoices.length === 0 && (
-        <p className="text-xs text-center py-3 text-green-400/90 font-medium">미수금 없음 ✅</p>
+        <p className="text-xs text-center py-3 text-[var(--success)] font-medium">미수금 없음 ✅</p>
       )}
     </div>
   );

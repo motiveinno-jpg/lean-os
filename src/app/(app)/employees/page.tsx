@@ -173,16 +173,16 @@ export default function EmployeesPage() {
           </div>
           <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">연 인건비</div>
-            <div className="text-lg font-bold text-red-400 mt-1">₩{(totalSalary * 12).toLocaleString()}</div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
+            <div className="text-lg font-bold mono-number text-[var(--danger)] mt-1">₩{(totalSalary * 12).toLocaleString()}</div>
+            <div className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
           </div>
           <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">퇴직충당금</div>
-            <div className="text-lg font-bold text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
+            <div className="text-lg font-bold mono-number text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
           </div>
           <div className="glass-card p-4">
             <div className="text-xs text-[var(--text-dim)]">미결 경비</div>
-            <div className="text-lg font-bold text-yellow-400 mt-1">
+            <div className="text-lg font-bold text-[var(--warning)] mt-1">
               {expenses.filter((e: any) => e.status === "pending").length}건
             </div>
           </div>
@@ -1785,7 +1785,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             {Array.from({ length: calendarData.daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dateStr = `${selectedMonth}-${String(day).padStart(2, "0")}`;
-              const isToday = dateStr === today.toISOString().slice(0, 10);
+              const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
               const dayOfWeek = (calendarData.firstDayOfWeek + i) % 7;
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
@@ -3539,7 +3539,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
             {Array.from({ length: calDaysInMonth }).map((_, i) => {
               const day = i + 1;
               const dateStr = `${calMonth}-${String(day).padStart(2, "0")}`;
-              const isToday = dateStr === today.toISOString().slice(0, 10);
+              const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
               const dow = (calFirstDow + i) % 7;
               const isWeekend = dow === 0 || dow === 6;
               const onLeave = leaveCalendar[dateStr] || [];
