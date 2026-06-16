@@ -53,7 +53,7 @@ export function AccessDenied({
     <div className="min-h-[60vh] flex items-center justify-center p-6">
       <div className="max-w-md w-full glass-card p-6 sm:p-8 text-center">
         <div className="text-4xl mb-3">🔒</div>
-        <h1 className="text-lg font-bold text-[var(--text)] mb-2">{title}</h1>
+        <h1 className="text-2xl font-extrabold text-[var(--text)] mb-2">{title}</h1>
         <p className="text-sm text-[var(--text-muted)] mb-1">
           현재 <strong>{roleLabel}</strong> 권한으로는 이 화면을 열 수 없습니다.
         </p>

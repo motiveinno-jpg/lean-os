@@ -666,7 +666,7 @@ export default function PartnersPage() {
       {/* Header */}
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-extrabold">거래처 관리</h1>
+          <h1 className="text-2xl font-extrabold">거래처 관리</h1>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
         </div>
         <div className="flex gap-2 flex-shrink-0 overflow-x-auto">

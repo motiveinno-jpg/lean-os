@@ -592,15 +592,7 @@ export default function PnlPage() {
         }}
       >
         <div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--text)",
-              margin: 0,
-              lineHeight: 1.3,
-            }}
-          >
+          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
             손익계산서 (P&L)
           </h1>
           <p

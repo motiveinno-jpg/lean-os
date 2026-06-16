@@ -1677,7 +1677,7 @@ export default function TaxInvoicesPage() {
             </div>
           </div>
           <button
-            onClick={() => queryClient.invalidateQueries()}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] })}
             className="ml-auto self-center px-7 py-2.5 rounded-md text-sm font-bold text-white transition hover:brightness-110"
             style={{ background: "#027B8C" }}
             title="현재 조건으로 다시 조회합니다"

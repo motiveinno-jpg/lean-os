@@ -79,7 +79,7 @@ export default function CostsPage() {
       {/* 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 */}
       <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
+          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
             고정비 · 변동비
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>

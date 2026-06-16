@@ -64,7 +64,7 @@ export default function MyContractsPage() {
   }, [packages, filter]);
 
   const counts = useMemo(() => {
-    const pending = packages.filter((p) => ["sent", "partially_signed"].includes(p.status)).length;
+    const pending = packages.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status)).length;
     const completed = packages.filter((p) => p.status === "completed").length;
     return { pending, completed, all: packages.length };
   }, [packages]);

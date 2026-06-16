@@ -445,7 +445,7 @@ export function Sidebar() {
                           <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
                           {collapsed && badge > 0 && (
                             <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">
-                              {badge > 99 ? "!" : badge}
+                              {badge > 99 ? "99" : badge}
                             </span>
                           )}
                         </span>

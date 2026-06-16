@@ -94,7 +94,7 @@ function Inner() {
   return (
     <div className="mx-auto p-5">
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-5 sticky top-0 bg-[var(--bg)] py-3 z-10">
+      <div className="flex items-center justify-between mb-5 page-sticky-header">
         <div>
           <Link href="/reports" className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]">← 분석 허브</Link>
           <h1 className="text-2xl font-extrabold mt-1">🔗 3-Way 매칭</h1>

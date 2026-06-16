@@ -135,7 +135,7 @@ export default function NotificationsPage() {
   const unread = rows.filter(r => !r.is_read).length;
 
   return (
-    <div className="p-6">
+    <div className="">
       <div className="page-sticky-header flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">알림</h1>

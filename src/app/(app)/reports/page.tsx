@@ -137,7 +137,7 @@ export default function ReportsHubPage() {
     <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0, lineHeight: 1.3 }}>
+        <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
           회계 분석
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>

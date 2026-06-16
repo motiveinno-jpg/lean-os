@@ -627,15 +627,7 @@ export default function BalanceSheetPage() {
         }}
       >
         <div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--text)",
-              margin: 0,
-              lineHeight: 1.3,
-            }}
-          >
+          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
             재무상태표 (Balance Sheet)
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
