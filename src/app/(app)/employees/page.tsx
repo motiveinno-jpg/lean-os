@@ -3390,7 +3390,15 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
             disabled={!form.employeeId || !form.startDate || createLeave.isPending}
             className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
           >
-            {createLeave.isPending ? "처리 중..." : `신청 (${LEAVE_UNITS.find(u => u.value === form.leaveUnit)?.days || 1}일)`}
+            {createLeave.isPending ? "처리 중..." : `신청 (${(() => {
+              const unit = form.leaveUnit;
+              if (unit === "half_day") return 0.5;
+              if (unit === "two_hours") return 0.25;
+              if (!form.startDate) return 1;
+              const start = new Date(form.startDate);
+              const end = new Date(form.endDate || form.startDate);
+              return Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            })()}일)`}
           </button>
         </div>
       )}

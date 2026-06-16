@@ -104,7 +104,7 @@ export function GlobalSearch() {
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
             placeholder="검색... (프로젝트, 문서, 거래처, 세금계산서...)"
-            className="flex-1 bg-transparent text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none text-sm" />
+            className="flex-1 bg-transparent text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none text-sm" />
           <kbd className="hidden sm:inline-block text-[10px] text-[var(--text-dim)] border border-[var(--border)] rounded px-1.5 py-0.5">ESC</kbd>
         </div>
         {/* Results */}
@@ -128,7 +128,7 @@ export function GlobalSearch() {
                   return (
                     <button key={item.id} onClick={() => navigate(type)}
                       className="w-full text-left hover:bg-[var(--bg-surface)] rounded-lg px-3 py-2 cursor-pointer flex items-center justify-between gap-2 transition-colors">
-                      <span className="text-sm text-[var(--text-main)] truncate">{primary}</span>
+                      <span className="text-sm text-[var(--text)] truncate">{primary}</span>
                       {secondary && <span className="text-xs text-[var(--text-muted)] shrink-0">{secondary}</span>}
                     </button>
                   );

@@ -680,13 +680,13 @@ export default function PartnersPage() {
             title="CSV 템플릿 다운로드">
             템플릿
           </button>
-          <label className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer whitespace-nowrap">
+          <label className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer whitespace-nowrap">
             CSV 임포트
             <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
           </label>
           <button onClick={handleExport}
-            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-main)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">
+            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">
             Excel 내보내기
           </button>
           <button onClick={runDormancyDetect} disabled={detecting}
@@ -776,7 +776,7 @@ export default function PartnersPage() {
         </select>
         {(classFilter || regionFilter || sizeFilter) && (
           <button onClick={() => { setClassFilter(""); setRegionFilter(""); setSizeFilter(""); }}
-            className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] transition underline">필터 초기화</button>
+            className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition underline">필터 초기화</button>
         )}
       </div>
 
@@ -796,7 +796,7 @@ export default function PartnersPage() {
           ))}
           {tagFilter && (
             <button onClick={() => setTagFilter("")}
-              className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] transition underline">
+              className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition underline">
               전체 보기
             </button>
           )}
@@ -1102,7 +1102,7 @@ export default function PartnersPage() {
                   className="px-3 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
                   편집
                 </button>
-                <button onClick={() => setDetailPartner(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
+                <button onClick={() => setDetailPartner(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
               </div>
             </div>
 
@@ -1120,7 +1120,7 @@ export default function PartnersPage() {
                   className={`px-5 py-3 text-sm font-medium transition border-b-2 ${
                     detailTab === tab.key
                       ? "border-[var(--primary)] text-[var(--primary)]"
-                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
                   }`}>
                   {tab.label}
                 </button>
@@ -1331,7 +1331,7 @@ export default function PartnersPage() {
               {detailTab === "comms" && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-[var(--text-main)]">커뮤니케이션 로그</h3>
+                    <h3 className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 로그</h3>
                     <button
                       onClick={() => setShowCommForm(!showCommForm)}
                       className="px-3 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-semibold transition">
@@ -1435,7 +1435,7 @@ export default function PartnersPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-lg font-bold">임포트 결과</h2>
-              <button onClick={() => setImportResult(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl">✕</button>
+              <button onClick={() => setImportResult(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl">✕</button>
             </div>
             <div className="px-6 py-4 space-y-3">
               <div className="grid grid-cols-3 gap-2">
@@ -1501,7 +1501,7 @@ export default function PartnersPage() {
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건 가져옵니다 · 중복(사업자번호/이름+이메일)은 자동 스킵` : "오류"}</p>
               </div>
               <button onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}
-                className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
+                className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
             </div>
             {importError && (
               <div className="mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">{importError}</div>
@@ -1552,7 +1552,7 @@ export default function PartnersPage() {
                 )}
                 <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
                   <button onClick={() => setImportPreview(null)} disabled={importing}
-                    className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-main)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
+                    className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
                     취소
                   </button>
                   <button onClick={confirmImport} disabled={importing}
@@ -1573,7 +1573,7 @@ export default function PartnersPage() {
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold">{editingId ? "거래처 수정" : "새 거래처 등록"}</h2>
-              <button onClick={closeModal} className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xl transition">✕</button>
+              <button onClick={closeModal} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -1665,7 +1665,7 @@ export default function PartnersPage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={closeModal}
-                  className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-main)] rounded-xl text-sm font-semibold transition hover:bg-[var(--border)]">
+                  className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold transition hover:bg-[var(--border)]">
                   취소
                 </button>
                 <button onClick={() => form.name && saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}

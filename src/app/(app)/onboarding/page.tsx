@@ -383,15 +383,17 @@ export default function OnboardingPage() {
     setError("");
     try {
       const amount = parseInt(deal.expectedAmount.replace(/[^0-9]/g, ""), 10) || 0;
+      // deals 실제 스키마: contract_total/counterparty/end_date/classification (amount/partner_name/
+      //   expected_close_date/type/stage:'lead' 는 존재하지 않음 — 구 스키마 오류로 insert 실패하던 것 수정).
+      //   stage 는 미설정 → DB default('estimate'). NewProjectModal 과 동일 컬럼 사용.
       const { error: e } = await db.from("deals").insert({
         company_id: companyId,
         name: deal.name.trim(),
-        type: deal.type,
-        amount,
-        partner_name: deal.clientName || null,
-        expected_close_date: deal.expectedCloseDate || null,
+        classification: "B2B",
+        contract_total: amount,
+        counterparty: deal.clientName || null,
+        end_date: deal.expectedCloseDate || null,
         status: "active",
-        stage: "lead",
       });
 
       if (e) throw e;

@@ -119,7 +119,7 @@ export default function MatchingPage() {
         .order("issue_date", { ascending: false });
       return data || [];
     },
-    enabled: !!companyId && mainTab === "receivables",
+    enabled: !!companyId,
   });
 
   const { data: pendingRevenues = [] } = useQuery({
@@ -133,7 +133,7 @@ export default function MatchingPage() {
         .order("due_date", { ascending: true });
       return data || [];
     },
-    enabled: !!companyId && mainTab === "receivables",
+    enabled: !!companyId,
   });
 
   // Merge invoices + revenue schedules into receivable items

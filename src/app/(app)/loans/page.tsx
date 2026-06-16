@@ -172,9 +172,6 @@ const LOAN_TYPES: Record<string, string> = {
 
 export default function LoansPage() {
   const { role } = useUser();
-  if (role !== "owner") {
-    return <AccessDenied detail="대출 관리는 대표 계정 전용입니다." />;
-  }
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -307,6 +304,11 @@ export default function LoansPage() {
     { label: "총 상환", value: `${summary?.totalPayments || 0}회차`, sub: "납부 완료" },
     { label: "총 이자 비용 (예상)", value: fmtW(annualInterestEstimate), sub: "연간 추정", highlight: true },
   ];
+
+  // 권한 게이트는 모든 훅 호출 이후에 — early return 이 훅보다 위면 Rules of Hooks 위반(크래시)
+  if (role !== "owner") {
+    return <AccessDenied detail="대출 관리는 대표 계정 전용입니다." />;
+  }
 
   if (summaryLoading) {
     return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;

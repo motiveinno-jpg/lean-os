@@ -348,6 +348,8 @@ export default function VaultPage() {
 
   // 미사용 분석
   const UNUSED_DAYS = 30;
+  const now = Date.now();
+  const DAY = 1000 * 60 * 60 * 24;
   const unusedAccounts = (vault?.accounts || []).filter((a: any) => {
     if (a.status !== "active") return false;
     const lastOpen = usage[a.id]?.lastOpenedAt;
@@ -360,8 +362,6 @@ export default function VaultPage() {
   // ── Renewal alert analysis ──
   const accounts: any[] = vault?.accounts || [];
   const docs: any[] = vault?.docs || [];
-  const now = Date.now();
-  const DAY = 1000 * 60 * 60 * 24;
 
   type AlertLevel = "critical" | "warning" | "info";
   interface RenewalAlert {
