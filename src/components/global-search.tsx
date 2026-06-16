@@ -94,6 +94,7 @@ export function GlobalSearch() {
       onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
       <div className="absolute inset-0 bg-black/60" />
       <div className="relative bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden"
+        role="dialog" aria-modal="true" aria-label="전역 검색"
         onClick={(e) => e.stopPropagation()}>
         {/* Search input */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">

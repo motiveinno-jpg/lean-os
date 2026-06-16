@@ -374,7 +374,7 @@ export default function BillingPage() {
             <button
               onClick={() => setCycle("monthly")}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${
-                cycle === "monthly" ? "bg-blue-600 text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                cycle === "monthly" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
               }`}
             >
               월간
@@ -382,7 +382,7 @@ export default function BillingPage() {
             <button
               onClick={() => setCycle("annual")}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${
-                cycle === "annual" ? "bg-blue-600 text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                cycle === "annual" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
               }`}
             >
               연간 <span className="text-xs opacity-80">(20% 할인)</span>
@@ -402,7 +402,7 @@ export default function BillingPage() {
                   key={plan.id}
                   className={`relative rounded-2xl border-2 p-6 transition ${
                     isCurrent
-                      ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
+                      ? "border-[var(--primary)] bg-[var(--primary)]/5"
                       : meta.recommended
                       ? "border-purple-300 bg-[var(--bg-card)]"
                       : "border-[var(--border)] bg-[var(--bg-card)]"
@@ -414,7 +414,7 @@ export default function BillingPage() {
                     </div>
                   )}
                   {isCurrent && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-600 text-white">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold bg-[var(--primary)] text-white">
                       현재 플랜
                     </div>
                   )}
@@ -463,7 +463,7 @@ export default function BillingPage() {
                   ) : (
                     <button
                       onClick={() => setShowUpgradeModal(slug)}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition"
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition"
                     >
                       {slug === "free" ? "다운그레이드" : "업그레이드"}
                     </button>
@@ -645,14 +645,14 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                       setReferralCopied(true);
                       setTimeout(() => setReferralCopied(false), 2000);
                     }}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition"
                   >
                     {referralCopied ? "복사됨!" : "링크 복사"}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">{referral.referred_count || 0}</div>
+                    <div className="text-2xl font-extrabold text-[var(--primary)]">{referral.referred_count || 0}</div>
                     <div className="text-xs text-[var(--text-muted)]">추천 가입</div>
                   </div>
                   <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
@@ -665,7 +665,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               <button
                 onClick={() => createReferral.mutate()}
                 disabled={createReferral.isPending}
-                className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
               >
                 {createReferral.isPending ? "생성 중..." : "추천 코드 생성하기"}
               </button>
@@ -681,7 +681,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 <div className="text-3xl mb-2">🙏</div>
                 <p className="font-semibold text-[var(--text)]">피드백 감사합니다!</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">검토 후 반영하겠습니다.</p>
-                <button onClick={() => setFbSent(false)} className="mt-3 text-sm text-blue-600 hover:underline">
+                <button onClick={() => setFbSent(false)} className="mt-3 text-sm text-[var(--primary)] hover:underline">
                   추가 피드백
                 </button>
               </div>
@@ -699,7 +699,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                       onClick={() => setFbCategory(c.key)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                         fbCategory === c.key
-                          ? "bg-blue-600 text-white"
+                          ? "bg-[var(--primary)] text-white"
                           : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
                       }`}
                     >
@@ -724,7 +724,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 <button
                   onClick={() => submitFeedback.mutate()}
                   disabled={!fbTitle.trim() || submitFeedback.isPending}
-                  className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
                 >
                   {submitFeedback.isPending ? "전송 중..." : "피드백 보내기"}
                 </button>
@@ -766,7 +766,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               </button>
               <button
                 disabled={isPaymentLoading}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
                 onClick={async () => {
                   if (showUpgradeModal === "free") {
                     setShowUpgradeModal(null);
