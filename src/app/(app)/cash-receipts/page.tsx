@@ -322,7 +322,7 @@ export default function CashReceiptsPage() {
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-lg font-bold">현금영수증</h1>
+          <h1 className="text-2xl font-extrabold">현금영수증</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
             매출/매입 현금영수증 관리 · 부가세 공제 자동 반영
           </p>

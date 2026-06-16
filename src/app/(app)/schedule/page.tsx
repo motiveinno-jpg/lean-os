@@ -43,7 +43,7 @@ export default function SchedulePage() {
     <div className="space-y-4 mx-auto">
       <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-lg font-bold">일정</h1>
+          <h1 className="text-2xl font-extrabold">일정</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">캘린더 + 투두 — 회사 공유 일정과 개인 할 일 관리</p>
         </div>
       </div>

@@ -138,7 +138,7 @@ export default function NotificationsPage() {
     <div className="p-6">
       <div className="page-sticky-header flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">알림</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">알림</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">{rows.length}건 · 안읽음 {unread}건</p>
         </div>
         {unread > 0 && (

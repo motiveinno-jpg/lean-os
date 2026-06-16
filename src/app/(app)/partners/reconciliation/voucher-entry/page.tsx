@@ -430,7 +430,7 @@ export default function VoucherEntryPage() {
     <div className="space-y-4">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">전표입력</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">전표입력</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
         </div>
         <div className="flex items-center gap-2">

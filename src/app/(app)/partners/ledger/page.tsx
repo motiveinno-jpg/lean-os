@@ -111,7 +111,7 @@ export default function PartnerLedgerPage() {
     <div className="space-y-4">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">거래처 원장</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">거래처 원장</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

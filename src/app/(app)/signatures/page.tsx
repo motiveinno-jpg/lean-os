@@ -279,7 +279,7 @@ export default function SignaturesDashboardPage() {
     <div className="space-y-5 p-5">
       <header className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">전자서명 대시보드</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">전자서명 대시보드</h1>
           <p className="text-sm text-[var(--text-muted)]">서명 요청 발송, 추적, 리마인더를 한곳에서 관리하세요.</p>
         </div>
         <div className="flex items-center gap-2">

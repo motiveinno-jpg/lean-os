@@ -97,7 +97,7 @@ function Inner() {
       <div className="flex items-center justify-between mb-5 sticky top-0 bg-[var(--bg)] py-3 z-10">
         <div>
           <Link href="/reports" className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]">← 분석 허브</Link>
-          <h1 className="text-xl font-bold mt-1">🔗 3-Way 매칭</h1>
+          <h1 className="text-2xl font-extrabold mt-1">🔗 3-Way 매칭</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%)</p>
         </div>
         <div className="flex gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border)]">
