@@ -65,6 +65,29 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId,
   });
 
+  // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
+  //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
+  const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean }>>({
+    queryKey: ["ledger-voucher-partners", companyId, ledgerYear],
+    queryFn: async () => {
+      const { data } = await db.from("journal_entries")
+        .select("journal_lines(partner_id, chart_of_accounts(code))")
+        .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
+        .gte("entry_date", `${ledgerYear}-01-01`).lte("entry_date", `${ledgerYear}-12-31`);
+      const m: Record<string, { sales?: boolean; purchase?: boolean }> = {};
+      for (const e of (data || []) as any[]) {
+        for (const l of (e.journal_lines || [])) {
+          if (!l.partner_id) continue;
+          const code = l.chart_of_accounts?.code;
+          if (code === "108") (m[l.partner_id] ||= {}).sales = true;
+          if (code === "251") (m[l.partner_id] ||= {}).purchase = true;
+        }
+      }
+      return m;
+    },
+    enabled: !!companyId,
+  });
+
   // 홈택스 거래처 연결 — 세금계산서↔거래처 사업자번호 자동 연결 (원장의 전제 데이터)
   const linkMut = useMutation({
     mutationFn: async () => {
@@ -83,10 +106,18 @@ export default function PartnerLedgerPage() {
     const has = (r: LedgerRow) => ledgerOut(r) > 0 || Number(r.period_billed || 0) > 0;
     const recv = rows.filter((r) => r.type === "sales" && has(r));
     const pay = rows.filter((r) => r.type === "purchase" && has(r));
+    // 세금계산서 없이 수동 전표만 있는 거래처도 해당 탭에 추가 노출(잔액 0) — 양쪽 탭에서 전표 수정 가능
+    const synth = (pid: string, t: ArApType): LedgerRow => ({ partner_id: pid, type: t, invoice_count: 0, prior_outstanding: 0, period_billed: 0, period_settled: 0, period_outstanding: 0 });
+    const recvIds = new Set(recv.map((r) => r.partner_id));
+    const payIds = new Set(pay.map((r) => r.partner_id));
+    for (const [pid, t] of Object.entries(voucherPartnerTypes)) {
+      if (t.sales && !recvIds.has(pid)) recv.push(synth(pid, "sales"));
+      if (t.purchase && !payIds.has(pid)) pay.push(synth(pid, "purchase"));
+    }
     return { receivables: recv, payables: pay,
       totalAr: recv.reduce((s, r) => s + ledgerOut(r), 0),
       totalAp: pay.reduce((s, r) => s + ledgerOut(r), 0) };
-  }, [rows]);
+  }, [rows, voucherPartnerTypes]);
 
   const pal = palette(ledgerType);
   const data = ledgerType === "sales" ? receivables : payables;
