@@ -60,17 +60,18 @@ export function FileUploadZone({ onFileSelect, disabled, maxSize = 10 }: FileUpl
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         disabled={disabled}
+        aria-label="파일 첨부"
         className={`p-2 rounded-lg transition text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-30 ${
           isDragging ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : ''
         }`}
         title="파일 첨부 (10MB 이하)"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
         </svg>
       </button>
       {error && (
-        <div className="text-[10px] text-red-400 mt-1">{error}</div>
+        <div className="text-[10px] text-[var(--danger)] mt-1">{error}</div>
       )}
     </>
   );

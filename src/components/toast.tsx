@@ -41,10 +41,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className={`px-4 py-3 rounded-lg shadow-lg text-sm text-white animate-in slide-in-from-right fade-in duration-300 ${
               t.type === "success"
-                ? "bg-green-600"
+                ? "bg-[var(--success)]"
                 : t.type === "error"
-                ? "bg-red-600"
-                : "bg-zinc-800"
+                ? "bg-[var(--danger)]"
+                : "bg-[var(--info)]"
             }`}
             onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
           >
