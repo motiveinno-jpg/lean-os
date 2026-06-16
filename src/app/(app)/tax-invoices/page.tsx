@@ -1556,10 +1556,10 @@ export default function TaxInvoicesPage() {
         <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${unmatched > 0 ? "from-red-500 to-rose-500" : "from-emerald-600 to-green-500"}`}>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">미매칭 건수</div>
+              <div className="text-xs text-white/80 mb-1 uppercase tracking-wider font-medium">딜 미연결 건수</div>
               <div className="text-2xl font-black mono-number">{unmatched}건</div>
               <div className="text-xs text-white/75 mt-1">
-                {unmatched > 0 ? `전체 ${invoices.length}건 중 매칭 필요` : "모든 세금계산서 매칭 완료"}
+                {unmatched > 0 ? `전체 ${invoices.length}건 중 딜 자동연결 안 됨` : "모든 계산서 딜 연결 완료"}
               </div>
             </div>
             <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none">🔗</span>

@@ -152,14 +152,17 @@ export default function BankPage() {
   const { data: recentTx = [] } = useQuery({
     queryKey: ["bank-page-recent-tx", companyId, selectedAccountNo],
     queryFn: async () => {
-      let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status")
+      // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
+      const q = db.from("bank_transactions")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, raw_data")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
-        .limit(50);
-      if (selectedAccountNo) q = q.eq("raw_data->>accountNo", selectedAccountNo);
+        .limit(selectedAccountNo ? 2000 : 50);
       const { data } = await q;
-      return (data || []) as any[];
+      const rows = (data || []) as any[];
+      return selectedAccountNo
+        ? rows.filter((r) => r.raw_data?.accountNo === selectedAccountNo).slice(0, 50)
+        : rows;
     },
     enabled: !!companyId && tab === "transactions",
   });
@@ -177,13 +180,14 @@ export default function BankPage() {
 
   const welcomeName = user?.email?.split("@")[0] || "사용자";
 
-  const Stat = ({ tone, icon, label, value, delta, sub }: {
+  const Stat = ({ tone, icon, label, value, delta, sub, invertDeltaColor }: {
     tone: string;
     icon: React.ReactNode;
     label: string;
     value: string;
     delta?: number | null;
     sub?: string;
+    invertDeltaColor?: boolean;
   }) => (
     <div className="glass-card p-6 group hover:shadow-xl transition-all">
       <div className="flex items-start justify-between mb-4">
@@ -191,7 +195,7 @@ export default function BankPage() {
           {icon}
         </div>
         {delta != null ? (
-          <span className={`text-sm font-semibold inline-flex items-center gap-1 ${delta >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+          <span className={`text-sm font-semibold inline-flex items-center gap-1 ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "text-emerald-500" : "text-red-500"}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={delta >= 0 ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} /></svg>
             {Math.abs(delta).toFixed(1)}%
           </span>
@@ -261,6 +265,7 @@ export default function BankPage() {
           label="이번 달 지출"
           value={`-${fmtW(expense)}`}
           delta={expenseDelta}
+          invertDeltaColor
         />
         <Stat
           tone="from-purple-500 to-purple-600"

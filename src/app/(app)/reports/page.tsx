@@ -80,8 +80,8 @@ const CARDS: HubCard[] = [
   },
   {
     href: "/reports/by-person",
-    title: "인원별 지출",
-    desc: "직원(법인카드 소유자)별로 카드 사용액과 급여를 합산해 인당 비용을 봅니다.",
+    title: "인원별 급여",
+    desc: "직원별 급여(명세서 기준, 없으면 기본급여 추정)를 봅니다.",
     accent: "#8b5cf6",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
