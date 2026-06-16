@@ -191,6 +191,14 @@ export default function ReconciliationPage() {
 
   // 확정/반려 — 낙관적 제거(핸드오프 §4-B): 클릭 즉시 큐에서 사라지고, 실패 시 롤백.
   //   탭 카운트("확인 N건")는 queue.length 파생이라 자동 동기화. 데이터는 status 변경뿐(삭제 아님).
+  // DB 가드(중복 매칭 차단) 에러코드 → 안내 문구
+  const settlementErrMsg = (raw: any): string => {
+    const m = String(raw?.message || raw || "");
+    if (m.includes("BANK_TX_OVERMATCH")) return "이미 다른 세금계산서에 확정된 통장거래입니다 — 한 입출금은 중복 매칭할 수 없습니다";
+    if (m.includes("INVOICE_OVERSETTLE")) return "이미 정산이 완료된 세금계산서입니다 — 중복 확정할 수 없습니다";
+    return m || "처리 실패";
+  };
+
   const decideMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected"; counterparty?: string | null; tax_invoice_id?: string }) => {
       const { error } = await db.from("invoice_settlements").update({ status }).eq("id", id);
@@ -204,7 +212,7 @@ export default function ReconciliationPage() {
     },
     onError: (e: any, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
-      toast(e?.message || "처리 실패", "error");
+      toast(settlementErrMsg(e), "error");
     },
     onSuccess: (_d, v) => {
       if (v.status === "confirmed" && v.tax_invoice_id) learnAliases([{ counterparty: v.counterparty ?? null, tax_invoice_id: v.tax_invoice_id }]);
@@ -231,7 +239,7 @@ export default function ReconciliationPage() {
     },
     onError: (e: any, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["settlement-queue", companyId], ctx.prev); // 롤백
-      toast(e?.message || "일괄 처리 실패", "error");
+      toast(settlementErrMsg(e), "error");
     },
     onSuccess: (n, v, ctx) => {
       if (v.status === "confirmed" && ctx?.affected?.length) {
