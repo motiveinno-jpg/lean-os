@@ -24,7 +24,7 @@ export default function ReconciliationPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const db = supabase as any;
-  const [tab, setTab] = useState<"queue" | "manual" | "confirmed" | "vouchers">("queue");
+  const [tab, setTab] = useState<"queue" | "manual" | "confirmed">("queue");
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
@@ -70,56 +70,9 @@ export default function ReconciliationPage() {
     qc.invalidateQueries({ queryKey: ["partner-ledger"] });
   };
 
-  // ── AI 전표 (Human-in-the-loop) — 확정된 매칭을 분개 초안(ai_suggested)으로 변환,
-  //   사람이 승인(voucher_confirm)해야만 장부(confirmed) 반영. 자동 기장 절대 없음. ──
-  const { data: drafts = [] } = useQuery<any[]>({
-    queryKey: ["voucher-drafts", companyId],
-    queryFn: async () => {
-      const { data } = await db.from("journal_entries")
-        .select("id, entry_date, description, source, confidence, reason, journal_lines(debit, credit, chart_of_accounts(code, name), partners(name))")
-        .eq("company_id", companyId).eq("status", "ai_suggested")
-        .order("entry_date", { ascending: false }).limit(200);
-      return (data || []) as any[];
-    },
-    enabled: !!companyId,
-  });
-  const [justApproved, setJustApproved] = useState<{ id: string; label: string }[]>([]); // 이번 세션 승인분 — 되돌리기용
-  const invalidateVouchers = () => {
-    qc.invalidateQueries({ queryKey: ["voucher-drafts"] });
-    qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
-  };
-  const draftGenMut = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await db.rpc("generate_voucher_drafts", { p_limit: 50 });
-      if (error) throw new Error(error.message);
-      return data as { created: number };
-    },
-    onSuccess: (r) => { invalidateVouchers(); toast(`전표 초안 ${r?.created ?? 0}건 생성 — 승인 전에는 장부에 반영되지 않습니다`, r?.created ? "success" : "info"); },
-    onError: (e: any) => toast(String(e?.message || "").includes("CHART_NOT_SEEDED") ? "계정과목 마스터가 없습니다" : e?.message || "초안 생성 실패", "error"),
-  });
-  const vDecideMut = useMutation({
-    mutationFn: async ({ id, approve }: { id: string; approve: boolean; label: string }) => {
-      const { error } = await db.rpc(approve ? "voucher_confirm" : "voucher_reject", { p_entry_id: id });
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: (_d, v) => {
-      invalidateVouchers();
-      if (v.approve) setJustApproved((p) => [{ id: v.id, label: v.label }, ...p].slice(0, 10));
-      toast(v.approve ? "전표 승인 — 장부에 기록되었습니다" : "전표 반려", v.approve ? "success" : "info");
-    },
-    onError: (e: any) => {
-      const m = String(e?.message || "");
-      toast(m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다" : m.includes("UNBALANCED") ? "차대 불일치 전표 — 승인 불가" : m.includes("DUPLICATE_SETTLEMENT") ? "같은 매칭의 전표가 이미 승인되어 있습니다" : m || "처리 실패", "error");
-    },
-  });
-  const vUndoMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await db.rpc("voucher_unconfirm", { p_entry_id: id });
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: (_d, id) => { invalidateVouchers(); setJustApproved((p) => p.filter((x) => x.id !== id)); toast("승인 취소 — 초안으로 되돌렸습니다", "info"); },
-    onError: (e: any) => toast(String(e?.message || "").includes("PERIOD_LOCKED") ? "마감된 회계기간 — 되돌리기 불가" : e?.message || "되돌리기 실패", "error"),
-  });
+  // AI 전표 탭은 '거래 정리'(확인 큐)에 통합됨 — 정산 확정 시 DB 트리거(post_settlement_voucher)가
+  //   분개 전표를 자동 기장하고, 확정 취소 시 void_settlement_voucher 가 자동 무효화한다.
+  //   (마이그 20260616190000). 별도 전표 검토 탭/수기 승인 흐름 제거.
 
   // 확정 취소/되돌리기 — status 를 'suggested' 로 원복 → trg_recalc_settlement 가 미수금 자동 원복(확인 큐로 복귀)
   //   차액 마감(adjustment) 행은 통장거래가 없어 확인 큐로 못 돌아가므로 'rejected' 로 종결 (잔액만 원복).
@@ -130,7 +83,7 @@ export default function ReconciliationPage() {
       if (error) throw new Error(error.message);
       return next;
     },
-    onSuccess: (next) => { invalidateAll(); toast(next === "rejected" ? "차액 마감 취소 — 잔액이 원복되었습니다" : "확정 취소 — 미수금이 원복되었고 확인 큐로 되돌렸습니다", "info"); },
+    onSuccess: (next) => { invalidateAll(); toast(next === "rejected" ? "차액 마감 취소 — 잔액·전표가 원복되었습니다" : "확정 취소 — 미수금·전표가 원복되었고 거래 정리로 되돌렸습니다", "info"); },
     onError: (e: any) => toast(e?.message || "확정 취소 실패", "error"),
   });
 
@@ -362,7 +315,7 @@ export default function ReconciliationPage() {
       </div>
 
       <div className="flex gap-2 border-b border-[var(--border)]">
-        {([["queue", `확인 큐${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `확정 내역${confirmed.length ? ` (${confirmed.length})` : ""}`], ["vouchers", `AI 전표${drafts.length ? ` (${drafts.length})` : ""}`]] as const).map(([k, label]) => (
+        {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
             {label}</button>
@@ -402,7 +355,8 @@ export default function ReconciliationPage() {
                   ) : null}
                 </div>
               </div>
-              {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액 | 유형 | 신뢰도 | 처리 */}
+              <p className="text-[11px] text-[var(--text-dim)] px-1">확정하면 정산(미수금·미지급 차감)과 <b className="text-[var(--text-muted)]">분개 전표가 함께 장부에 자동 기록</b>됩니다 · 정리 내역에서 되돌리면 정산·전표 둘 다 원복</p>
+              {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
               <div className="glass-card overflow-hidden">
                 <div className="overflow-auto max-h-[600px]">
                   <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse" style={{ tableLayout: "fixed" }}>
@@ -442,7 +396,13 @@ export default function ReconciliationPage() {
                           <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
                           <td className={`${GRID_TD} text-[var(--text)]`} title={m.counterparty_name || ""}>{m.counterparty_name || "—"}</td>
                           <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
-                          <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(m.amount)}</td>
+                          <td className={`${GRID_TD} text-right`}>
+                            <div className="mono-number font-semibold text-[var(--text)]">{fmt(m.amount)}</div>
+                            <div className="text-[9px] text-[var(--text-dim)] font-normal truncate leading-tight"
+                              title={`확정 시 자동 기장: ${m.txn_type === "income" ? "(차)보통예금 (대)외상매출금" : "(차)외상매입금 (대)보통예금"}`}>
+                              {m.txn_type === "income" ? "차)보통예금·대)외상매출금" : "차)외상매입금·대)보통예금"}
+                            </div>
+                          </td>
                           <td className={`${GRID_TD} text-center`}>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">{MATCH_LABEL[m.match_type] || m.match_type}</span>
                           </td>
@@ -506,7 +466,7 @@ export default function ReconciliationPage() {
                             {(t.suggestedCount ?? 0) > 0 && (
                               <button onClick={() => setTab("queue")}
                                 className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
-                                title="이 거래에 자동 매칭 제안이 확인 큐에 대기 중입니다 — 클릭하면 확인 큐로 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.">
+                                title="이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다 — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.">
                                 제안 {t.suggestedCount}건
                               </button>
                             )}
@@ -571,7 +531,7 @@ export default function ReconciliationPage() {
 
       {tab === "confirmed" && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금이 자동 원복되고 확인 큐로 돌아갑니다.</p>
+          <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금과 <b>분개 전표가 함께 원복</b>되고 거래 정리로 돌아갑니다.</p>
           {confirmed.length === 0 ? (
             <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">확정된 매칭이 없습니다.</div>
           ) : (
@@ -621,7 +581,7 @@ export default function ReconciliationPage() {
                           <td className={`${GRID_TD} text-center`}>
                             <button onClick={() => unconfirmMut.mutate(m)} disabled={unconfirmMut.isPending}
                               className="px-2 py-1 text-[11px] font-semibold rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/40 disabled:opacity-50"
-                              title={isAdj ? "차액 마감을 취소하고 잔액을 원복합니다" : "확정을 취소하고 미수금을 원복합니다 (확인 큐로 되돌아감)"}>{isAdj ? "마감 취소" : "확정 취소"}</button>
+                              title={isAdj ? "차액 마감을 취소하고 잔액·전표를 원복합니다" : "확정을 취소하고 미수금·분개 전표를 원복합니다 (거래 정리로 되돌아감)"}>{isAdj ? "마감 취소" : "확정 취소"}</button>
                           </td>
                         </tr>
                       );
@@ -634,93 +594,7 @@ export default function ReconciliationPage() {
         </div>
       )}
 
-      {tab === "vouchers" && (
-        <div className="space-y-3">
-          {/* 상시 경고 배너 — HITL: 자동 기장 없음 */}
-          <div className="px-4 py-3 rounded-xl bg-purple-500/8 border border-purple-500/25 flex flex-col sm:flex-row sm:items-center gap-2">
-            <p className="text-xs text-purple-500 font-semibold flex-1">
-              🤖 AI/규칙 전표 추천은 <b>승인 전까지 장부에 반영되지 않습니다</b> — 확정된 매칭을 분개 초안으로 변환해 보여드리며, 사람이 [승인]한 건만 기록됩니다.
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              <Link href="/partners/reconciliation/voucher-entry" className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">직접 전표입력 →</Link>
-              <button onClick={() => !draftGenMut.isPending && draftGenMut.mutate()} disabled={draftGenMut.isPending}
-                className="px-4 py-1.5 text-[11px] font-bold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
-                title="아직 전표가 없는 확정 매칭을 분개 초안으로 변환합니다 (최대 50건)">
-                {draftGenMut.isPending ? "생성 중..." : "🤖 추천 생성"}</button>
-            </div>
-          </div>
-
-          {/* 방금 승인 — 되돌리기 */}
-          {justApproved.length > 0 && (
-            <div className="px-4 py-2 rounded-xl bg-emerald-500/8 border border-emerald-500/25 flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-semibold text-emerald-600">방금 승인:</span>
-              {justApproved.map((a) => (
-                <span key={a.id} className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-2 py-0.5">
-                  {a.label}
-                  <button onClick={() => !vUndoMut.isPending && vUndoMut.mutate(a.id)} className="text-amber-500 hover:underline font-semibold" title="승인을 취소하고 초안으로 되돌립니다">되돌리기</button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {drafts.length === 0 ? (
-            <div className="p-12 text-center glass-card">
-              <div className="text-3xl mb-2">🤖</div>
-              <p className="text-sm text-[var(--text-muted)]">검토할 전표 초안이 없습니다.</p>
-              <p className="text-xs text-[var(--text-dim)] mt-1">[🤖 추천 생성]을 누르면 전표가 없는 확정 매칭을 분개 초안으로 만들어 드립니다.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {drafts.map((d) => {
-                const lines = (d.journal_lines || []) as any[];
-                const total = lines.reduce((s, l) => s + Number(l.debit || 0), 0);
-                const lowConf = Number(d.confidence ?? 1) < 0.9;
-                return (
-                  <div key={d.id} className={`glass-card p-4 ${lowConf ? "border-amber-500/40" : ""}`}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-bold">{d.source === "ai" ? "AI" : "규칙"}</span>
-                      <span className="text-xs text-[var(--text-muted)] mono-number">{d.entry_date}</span>
-                      <span className="text-sm font-bold text-[var(--text)] truncate">{d.description || "적요 없음"}</span>
-                      <span className="ml-auto text-sm font-bold mono-number text-[var(--text)]">{won(total)}</span>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {lines.map((l, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[11px]">
-                          <span className={`w-7 text-right font-semibold ${Number(l.debit) > 0 ? "text-blue-500" : "text-orange-500"}`}>{Number(l.debit) > 0 ? "(차)" : "(대)"}</span>
-                          <span className="text-[var(--text)]">{l.chart_of_accounts?.name || "?"} <span className="text-[var(--text-dim)] mono-number">({l.chart_of_accounts?.code || "—"})</span></span>
-                          {l.partners?.name && <span className="text-[var(--text-dim)]">· {l.partners.name}</span>}
-                          <span className="ml-auto mono-number text-[var(--text-muted)]">{Number(Number(l.debit) > 0 ? l.debit : l.credit).toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${lowConf ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}>
-                        신뢰도 {Math.round(Number(d.confidence ?? 1) * 100)}%{lowConf ? " ⚠️ 검토 필요" : ""}
-                      </span>
-                      {d.reason && (
-                        <details className="text-[10px] text-[var(--text-dim)] min-w-0">
-                          <summary className="cursor-pointer hover:text-[var(--text-muted)]">근거 보기</summary>
-                          <p className="mt-1 break-all">{d.reason}</p>
-                        </details>
-                      )}
-                      <div className="ml-auto flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => !vDecideMut.isPending && vDecideMut.mutate({ id: d.id, approve: false, label: d.description || d.entry_date })}
-                          disabled={vDecideMut.isPending}
-                          className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/40 disabled:opacity-50">반려</button>
-                        <button onClick={() => !vDecideMut.isPending && vDecideMut.mutate({ id: d.id, approve: true, label: `${d.description || d.entry_date} ${won(total)}` })}
-                          disabled={vDecideMut.isPending}
-                          className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">승인</button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="text-[11px] text-[var(--text-dim)]">※ 확정한 매칭만 미수금에서 차감됩니다. 거래처별 잔액은 <Link href="/partners/ledger" className="text-[var(--primary)] hover:underline">거래처 원장</Link>에서 확인하세요.</p>
+      <p className="text-[11px] text-[var(--text-dim)]">※ 확정하면 미수금/미지급 차감과 분개 전표 기장이 함께 처리됩니다. 거래처별 잔액은 <Link href="/partners/ledger" className="text-[var(--primary)] hover:underline">거래처 원장</Link>에서 확인하세요.</p>
     </div>
   );
 }
