@@ -682,7 +682,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                             : leaveBalanceMap[e.id] <= 3 ? "bg-yellow-500/10 text-yellow-400"
                             : "bg-green-500/10 text-green-400"
                         }`}>
-                          {leaveBalanceMap[e.id]}일
+                          {leaveBalanceMap[e.id]}일{leaveBalanceMap[e.id] <= 0 ? " (소진)" : leaveBalanceMap[e.id] <= 3 ? " (임박)" : ""}
                         </span>
                       ) : (
                         <span className="text-[10px] text-[var(--text-dim)]">미설정</span>

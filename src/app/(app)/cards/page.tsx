@@ -536,7 +536,7 @@ export default function CardsPage() {
                 tone="from-indigo-600 to-purple-600"
                 label="사용 가능 한도"
                 value={fmtW(Math.max(0, totalLimit - totalUsage))}
-                sub={`총 한도 ${fmtW(totalLimit)}`}
+                sub={`당월 사용 차감 · 총 한도 ${fmtW(totalLimit)}`}
                 icon="💼"
               />
             ) : (
