@@ -116,7 +116,7 @@ export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className
 // ── 위하고식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
 //   매출처(외상매출금): 차변=발생(세금계산서), 대변=회수(입금·차액마감). 잔액 = 이월 + 차변 - 대변.
 //   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
-type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string };
+type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string; isVoucher?: boolean; vid?: string };
 
 export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail }: {
   companyId: string; partnerId: string | null; type: string; year: number; partnerName: string;
@@ -176,7 +176,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-manual-vouchers", companyId, partnerId, year],
     queryFn: async () => {
       const { data } = await db.from("journal_entries")
-        .select("id, entry_date, description, voucher_no, voucher_type, source, status, journal_lines(debit, credit, partner_id)")
+        .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", yStart).lte("entry_date", `${year}-12-31`)
         .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true });
@@ -204,8 +204,17 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       isAdj: s.match_type === "adjustment",
       sid: s.id,
     });
+    // 수동 전표(직접 입력)를 해당 거래처의 AR/AP 라인(매출처=외상매출금108, 매입처=외상매입금251) 기준으로
+    //   그리드에 날짜순 통합 — 차변/대변·잔액에 반영, 적요 = 라인 적요, 클릭 = 수정/삭제 모달.
+    const arApCode = isSales ? "108" : "251";
+    const voucherEntry = (v: any): SheetEntry | null => {
+      const line = (v.journal_lines || []).find((l: any) => l.partner_id === partnerId && l.chart_of_accounts?.code === arApCode);
+      if (!line) return null;
+      return { date: String(v.entry_date), desc: line.description || v.description || "전표", debit: Number(line.debit || 0), credit: Number(line.credit || 0), isVoucher: true, vid: v.id };
+    };
+    const voucherRows = manualVouchers.map(voucherEntry).filter((e): e is SheetEntry => !!e);
 
-    const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle)];
+    const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle), ...voucherRows];
     const before = all.filter((e) => e.date < yStart);
     const within = all.filter((e) => e.date >= yStart).sort((a, b) => a.date.localeCompare(b.date) || (b.debit + b.credit) - (a.debit + a.credit));
     const dir = (e: SheetEntry) => (isSales ? e.debit - e.credit : e.credit - e.debit);
@@ -224,7 +233,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       ending: opening + within.reduce((s, e) => s + dir(e), 0),
     };
     return { opening, months, totals };
-  }, [invoices, settles, isSales, yStart]);
+  }, [invoices, settles, manualVouchers, isSales, yStart, partnerId]);
 
   void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
 
@@ -312,6 +321,10 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                                 <button onClick={() => setAdjView(e.sid!)}
                                   className="underline decoration-dotted underline-offset-2 hover:text-amber-400 text-left"
                                   title="클릭하면 차액 마감 전표(분개)를 확인하고 삭제할 수 있습니다">{e.desc}</button>
+                              ) : e.isVoucher && e.vid ? (
+                                <button onClick={() => setEditEntryId(e.vid!)}
+                                  className="text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 text-left"
+                                  title="수동 전표 — 클릭하면 수정/삭제(일자 변경 포함)">{e.desc}</button>
                               ) : e.desc}
                             </td>
                             <td className={`${cellR} ${e.debit ? "text-[var(--text)]" : ""}`}>{num(e.debit)}</td>
@@ -343,36 +356,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         </table>
       </div>
       <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-        차변/대변은 확정된 매칭만 반영됩니다 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · 미확정 제안은 거래 매칭에서 처리하세요
+        발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · <span className="text-[var(--primary)]">파란 글씨</span> = 수동 전표(클릭 시 수정·삭제, 일자 변경 포함) · 상단 “+ 전표 입력”으로 신규 작성
       </div>
-
-      {/* ── 수동 전표 (직접 입력) — source='manual' 만 수정 가능(파란 글씨). 잔액(위)에는 영향 없음 ── */}
-      {!!partnerId && manualVouchers.length > 0 && (
-        <div className="border-t border-[var(--border)]">
-          <div className="px-4 py-2 bg-[var(--bg-surface)]/50 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[var(--text-muted)]">수동 전표 (직접 입력) · {manualVouchers.length}건</span>
-            <span className="text-[10px] text-[var(--text-dim)]">파란 글씨 클릭 = 수정 · 위 잔액에는 영향 없음</span>
-          </div>
-          <div className="divide-y divide-[var(--border)]/40">
-            {manualVouchers.map((v) => {
-              const total = (v.journal_lines || []).reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
-              return (
-                <div key={v.id} className="px-4 py-2 flex items-center gap-2 text-xs">
-                  <span className="text-[var(--text-dim)] mono-number w-[78px] shrink-0">{v.entry_date}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0 mono-number">#{v.voucher_no ?? "—"}</span>
-                  <button onClick={() => setEditEntryId(v.id)}
-                    className="flex-1 min-w-0 text-left text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 truncate"
-                    title="클릭하면 전표 전체를 수정할 수 있습니다"
-                    aria-label={`전표 수정 — ${v.description || "적요 없음"}`}>
-                    {v.description || "적요 없음"}
-                  </button>
-                  <span className="mono-number text-[var(--text)] shrink-0">{won(total)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {editEntryId && (
         <VoucherEditModal
@@ -381,6 +366,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           onClose={() => setEditEntryId(null)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["ledger-manual-vouchers"] });
+            qc.invalidateQueries({ queryKey: ["ledger-voucher-partners"] });
             qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
           }}
         />
@@ -419,7 +405,6 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const isNew = !entryId;
   const { toast } = useToast();
   const keyRef = useRef(1);
-  const [desc, setDesc] = useState("");
   const [lines, setLines] = useState<ELine[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -470,7 +455,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
         .select("id, entry_date, description, voucher_no, source, status, journal_lines(account_id, debit, credit, description, partner_id, chart_of_accounts(id, code, name), partners(id, name))")
         .eq("id", entryId).maybeSingle();
       if (cancelled || !e) { if (!cancelled) setLoaded(true); return; }
-      setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null); setDesc(e.description || "");
+      setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null);
       const ls: ELine[] = (e.journal_lines || []).map((l: any) => ({
         key: keyRef.current++,
         account: l.chart_of_accounts ? { id: l.chart_of_accounts.id, code: l.chart_of_accounts.code, name: l.chart_of_accounts.name } : null,
@@ -480,10 +465,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
         credit: Number(l.credit) > 0 ? Number(l.credit).toLocaleString() : "",
       }));
       setLines(ls.length ? ls : [{ key: keyRef.current++, account: null, partner: null, memo: "", debit: "", credit: "" }]);
-      const month = String(e.entry_date).slice(0, 7);
-      const { data: cc } = await db.from("closing_checklists").select("status").eq("company_id", companyId).eq("month", month).maybeSingle();
       if (cancelled) return;
-      setLocked(cc?.status === "locked");
       setLoaded(true);
     })();
     return () => { cancelled = true; };
@@ -501,16 +483,16 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     setLoaded(true);
   }, [isNew, loaded, accounts, newFor]);
 
-  // 신규: 선택 일자의 마감 여부
+  // 선택 일자의 마감 여부 (신규·수정 공통 — 일자 변경 시 재검사)
   useEffect(() => {
-    if (!isNew || !entryDate) return;
+    if (!entryDate) return;
     let cancelled = false;
     (async () => {
       const { data: cc } = await db.from("closing_checklists").select("status").eq("company_id", companyId).eq("month", entryDate.slice(0, 7)).maybeSingle();
       if (!cancelled) setLocked(cc?.status === "locked");
     })();
     return () => { cancelled = true; };
-  }, [isNew, entryDate, companyId]);
+  }, [entryDate, companyId]);
 
   const setLine = (key: number, patch: Partial<ELine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, { key: keyRef.current++, account: null, partner: null, memo: "", debit: "", credit: "" }]);
@@ -523,14 +505,17 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const missingAcct = filled.some((l) => !l.account);
   const canSave = !busy && !locked && filled.length >= 2 && totalD > 0 && diff === 0 && !missingAcct;
 
+  // 거래처원장 적요 = AR/AP 라인 적요(없으면 첫 라인). 상단 전표적요란 폐지 → 라인 적요로 일원화.
+  const headerDesc = () => (filled.find((l) => l.account && AR_AP_ACCT_CODES.has(l.account.code))?.memo) || filled[0]?.memo || "";
+
   const save = async () => {
     if (!canSave) return;
     setBusy(true);
     try {
       const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "" }));
       const { error } = isNew
-        ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: desc, p_lines: payload })
-        : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_description: desc, p_lines: payload });
+        ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: headerDesc(), p_lines: payload })
+        : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_entry_date: entryDate, p_description: headerDesc(), p_lines: payload });
       if (error) throw new Error(error.message);
       toast(isNew ? "전표 입력됨" : "전표 수정됨", "success");
       onSaved();
@@ -551,6 +536,23 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     } finally { setBusy(false); }
   };
 
+  // 전표 삭제 — voucher_reject(status=rejected, 이력 보존). 수정 모드에서만.
+  const del = async () => {
+    if (busy || isNew || !entryId) return;
+    if (!confirm("이 전표를 삭제할까요?\n거래처 원장에서 사라지고, 변경 이력은 보존됩니다.")) return;
+    setBusy(true);
+    try {
+      const { error } = await db.rpc("voucher_reject", { p_entry_id: entryId });
+      if (error) throw new Error(error.message);
+      toast("전표 삭제됨", "info");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      const m = String(e?.message || "");
+      toast(m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간 — 삭제 불가" : m || "삭제 실패", "error");
+    } finally { setBusy(false); }
+  };
+
   const acctMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12); };
   const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12); };
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
@@ -566,16 +568,12 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
         <div onMouseDown={startDrag} className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
           <div>
             <div className="text-base font-bold text-[var(--text)]">{isNew ? "신규 전표 입력" : <>전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</>}</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
-              {isNew ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <input type="date" value={entryDate} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => e.target.value && setEntryDate(e.target.value)}
-                    className="bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] text-[var(--text)] cursor-text" />
-                  <span>· {newFor?.partnerName || "거래처"}</span>
-                </span>
-              ) : (
-                <>{entryDate} · 수동 전표(직접 입력) · <span className="opacity-70">제목 잡고 이동</span></>
-              )}
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>일자</span>
+              <input type="date" value={entryDate} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => e.target.value && setEntryDate(e.target.value)}
+                className="bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] text-[var(--text)] cursor-text" />
+              {newFor?.partnerName && <span>· {newFor.partnerName}</span>}
+              <span className="opacity-60">· 제목 잡고 이동</span>
             </div>
           </div>
           <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0 cursor-pointer">✕</button>
@@ -585,12 +583,9 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : (
           <>
-            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold">🔒 마감(잠금)된 회계기간의 전표입니다 — 읽기 전용</div>}
-            <div className="px-5 pt-3">
-              <input value={desc} onChange={(e) => setDesc(e.target.value)} disabled={locked} placeholder="전표 적요"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] disabled:opacity-60" />
-            </div>
-            <div className="px-5 py-3">
+            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold">🔒 마감(잠금)된 회계기간 — 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
+            <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요 — 거래처 원장에 그대로 표시됩니다.</div>
+            <div className="px-5 py-3 pt-2">
               <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
                 <thead>
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
@@ -683,6 +678,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                 {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
               </span>
               <div className="flex items-center gap-2">
+                {!isNew && !locked && <button onClick={del} disabled={busy} className="px-3 py-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg disabled:opacity-50">삭제</button>}
                 <button onClick={onClose} className="px-3 py-2 text-xs text-[var(--text-muted)]">취소</button>
                 <button onClick={save} disabled={!canSave} className="px-5 py-2 text-xs font-bold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{busy ? "저장 중..." : isNew ? "전표 저장" : "수정 저장"}</button>
               </div>
