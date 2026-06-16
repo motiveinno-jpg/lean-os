@@ -413,6 +413,21 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // 헤더 잡고 드래그 이동 (정중앙 기준 오프셋)
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      const d = dragRef.current; if (!d) return;
+      setDrag({ x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) });
+    };
+    const up = () => { dragRef.current = null; };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+  }, []);
+  const startDrag = (e: React.MouseEvent) => { dragRef.current = { sx: e.clientX, sy: e.clientY, ox: drag.x, oy: drag.y }; };
+
   const numOnly = (s: string | number) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
   const comma = (s: string) => { const n = numOnly(s); return n ? n.toLocaleString("ko-KR") : ""; };
 
@@ -495,14 +510,18 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved }: {
 
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-5xl my-6 flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+    <div className="fixed inset-0 z-[70] bg-black/40" onClick={onClose}>
+      <div
+        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-5xl flex flex-col shadow-2xl fixed left-1/2 top-1/2"
+        style={{ transform: `translate(calc(-50% + ${drag.x}px), calc(-50% + ${drag.y}px))` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div onMouseDown={startDrag} className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
           <div>
             <div className="text-base font-bold text-[var(--text)]">전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{entryDate} · 수동 전표(직접 입력)</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{entryDate} · 수동 전표(직접 입력) · <span className="opacity-70">제목 잡고 이동</span></div>
           </div>
-          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
+          <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0 cursor-pointer">✕</button>
         </div>
 
         {!loaded ? (
