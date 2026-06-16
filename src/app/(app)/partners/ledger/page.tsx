@@ -5,7 +5,7 @@
 //   UX(§4): 세그먼트 탭(매출처=파랑 #2563EB / 매입처=주황 #EA580C, 빨강은 연체·마이너스 전용) +
 //   요약 카드 + 좌 거래처 목록 / 우 위하고식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +34,8 @@ export default function PartnerLedgerPage() {
 
   const [ledgerType, setLedgerTypeRaw] = useState<ArApType>(initialType);
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 회계기간(연도)
+  const [yearInput, setYearInput] = useState(String(new Date().getFullYear())); // 연도 직접 입력 버퍼(드롭다운과 동기화)
+  useEffect(() => { setYearInput(String(ledgerYear)); }, [ledgerYear]);
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [sortBy, setSortBy] = useState<"outstanding" | "name">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
@@ -179,10 +181,23 @@ export default function PartnerLedgerPage() {
           <span className="font-semibold">회계기간</span>
           <select value={ledgerYear} onChange={(e) => { setLedgerYear(Number(e.target.value)); }}
             className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-              <option key={y} value={y}>{y}-01-01 ~ {y}-12-31</option>
-            ))}
+            {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), ledgerYear])]
+              .sort((a, b) => b - a)
+              .map((y) => (
+                <option key={y} value={y}>{y}-01-01 ~ {y}-12-31</option>
+              ))}
           </select>
+          {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
+          <input
+            type="number" inputMode="numeric" min={2000} max={2100}
+            value={yearInput}
+            onChange={(e) => setYearInput(e.target.value)}
+            onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            title="연도 직접 입력 (Enter)"
+            className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
+          />
+          <span className="text-[var(--text-dim)]">년</span>
         </div>
         <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
           className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36" />
