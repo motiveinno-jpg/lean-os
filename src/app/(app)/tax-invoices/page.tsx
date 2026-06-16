@@ -1248,7 +1248,7 @@ export default function TaxInvoicesPage() {
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">세금계산서</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">세금계산서</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             매출/매입 세금계산서 관리 및 3-Way 매칭
           </p>
