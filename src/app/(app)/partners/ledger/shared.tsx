@@ -433,12 +433,15 @@ function DateSegInput({ value, onChange, onMouseDown }: {
     <span onMouseDown={onMouseDown}
       className="inline-flex items-center gap-0.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5">
       <input ref={yRef} value={seg[0]} inputMode="numeric" placeholder="YYYY" aria-label="년"
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => set(0, e.target.value, 4, mRef)} className={`${inp} w-[34px]`} />
       <span className="text-[var(--text-dim)]">-</span>
       <input ref={mRef} value={seg[1]} inputMode="numeric" placeholder="MM" aria-label="월"
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => set(1, e.target.value, 2, dRef, 1)} onKeyDown={back(1, yRef)} className={`${inp} w-[20px]`} />
       <span className="text-[var(--text-dim)]">-</span>
       <input ref={dRef} value={seg[2]} inputMode="numeric" placeholder="DD" aria-label="일"
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => set(2, e.target.value, 2, null, 3)} onKeyDown={back(2, mRef)} className={`${inp} w-[20px]`} />
     </span>
   );
