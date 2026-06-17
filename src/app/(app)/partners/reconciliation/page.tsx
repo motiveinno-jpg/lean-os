@@ -277,9 +277,19 @@ export default function ReconciliationPage() {
   const matchInvType = matchTx?.type === "income" ? "sales" : "purchase";
   const filteredInv = useMemo(() => {
     const q = invSearch.trim().toLowerCase();
+    const qDigits = q.replace(/[^0-9]/g, "");
     return unsettledInv
       .filter((i) => i.type === matchInvType && invRemaining(i) > 0)
-      .filter((i) => !q || (i.counterparty_name || "").toLowerCase().includes(q))
+      .filter((i) => {
+        if (!q) return true;
+        if ((i.counterparty_name || "").toLowerCase().includes(q)) return true; // 거래처명
+        if (qDigits) { // 금액(잔액·총액, 콤마/원 무시)
+          const amt = String(Math.round(invRemaining(i)));
+          const tot = String(Math.round(Number(i.total_amount || 0)));
+          if (amt.includes(qDigits) || tot.includes(qDigits)) return true;
+        }
+        return false;
+      })
       .slice(0, 100);
   }, [unsettledInv, invSearch, matchInvType]);
 
@@ -500,7 +510,7 @@ export default function ReconciliationPage() {
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
             </div>
             <div className="px-5 py-3 border-b border-[var(--border)]">
-              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명으로 세금계산서 검색"
+              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명 또는 금액으로 검색"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
             </div>
             <div className="flex-1 overflow-auto p-2">
