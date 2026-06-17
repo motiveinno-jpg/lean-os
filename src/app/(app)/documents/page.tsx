@@ -1187,6 +1187,16 @@ function DocumentsPageInner() {
   const [selectedSignature, setSelectedSignature] = useState<any>(null);
   const [signStatusFilter, setSignStatusFilter] = useState<string>("all");
   const [docForm, setDocForm] = useState({ name: "", type: "contract", deal_id: "", template_id: "" });
+  // 프로젝트 견적서 탭 등에서 ?create=quote&deal=<id> 로 진입 시 작성 폼 자동 오픈+프리필
+  useEffect(() => {
+    const create = searchParams.get("create");
+    if (!create) return;
+    const deal = searchParams.get("deal") || "";
+    setTab("docs");
+    setShowDocForm(true);
+    setDocForm((f) => ({ ...f, type: create === "quote" ? "quote" : create, deal_id: deal || f.deal_id }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [invForm, setInvForm] = useState({ type: "sales" as "sales" | "purchase", counterparty_name: "", supply_amount: "", issue_date: "", deal_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");

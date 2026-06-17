@@ -245,8 +245,13 @@ export default function ProjectHubDetailPage() {
       {/* 견적서 */}
       {tab === "quote" && (
         <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다.</p>
+            <Link href={`/documents?create=quote&deal=${dealId}`}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</Link>
+          </div>
           {documents.length === 0 ? (
-            <Empty text="이 프로젝트에 연결된 문서(견적서)가 없습니다." />
+            <Empty text="이 프로젝트에 연결된 문서(견적서)가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
             <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
               {documents.map((doc) => {
