@@ -669,6 +669,8 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   variableMap: Record<string, PartnerVarColumn>;
   commonVariables?: Record<string, string>;
   perPartnerOverrides?: Record<string /*partnerId*/, Record<string /*varName*/, string>>;
+  // 2026-06-17 발송 이메일 수정: 거래처별 수신 이메일 override (기본=contact_email). 빈 값이면 contact_email 사용.
+  emailOverrides?: Record<string /*partnerId*/, string>;
   sendEmails?: boolean;
   // 2026-05-22 발송 전 우리(갑) 직인을 본문에 미리 합성 (회사 seal_url 사용).
   applyOurSeal?: boolean;
@@ -697,6 +699,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     variableMap,
     commonVariables = {},
     perPartnerOverrides = {},
+    emailOverrides = {},
     sendEmails = true,
     applyOurSeal = false,
     onProgress,
@@ -755,7 +758,8 @@ export async function createBulkSignatureRequestsToOrgs(params: {
       skipped.push({ partnerId: pid, reason: '거래처를 찾을 수 없거나 회사에 속하지 않습니다.' });
       continue;
     }
-    if (!p.contact_email || !String(p.contact_email).trim()) {
+    const effEmail = (emailOverrides[pid] || '').trim() || (p.contact_email ? String(p.contact_email).trim() : '');
+    if (!effEmail) {
       skipped.push({ partnerId: pid, reason: '담당자 이메일이 등록되어 있지 않습니다.' });
       continue;
     }
@@ -790,7 +794,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
         documentId,
         title: renderedTitle || titleTemplate,
         signerName: p.contact_name || p.representative || p.name,
-        signerEmail: String(p.contact_email).trim(),
+        signerEmail: (emailOverrides[p.id] || '').trim() || String(p.contact_email).trim(),
         createdBy,
       });
       // 본문 snapshot: documents.content_json.body 의 토큰을 partner + company 데이터로 치환

@@ -197,6 +197,8 @@ export function OrgBulkWizard({
   // Step 4: 발송자 / 만료
   const [expiresInDays, setExpiresInDays] = useState(14);
   const [sendNow, setSendNow] = useState(true);
+  // 2026-06-17 발송 이메일 수정 — 거래처별 수신 이메일 override (미설정 시 contact_email 그대로)
+  const [emailOverrides, setEmailOverrides] = useState<Record<string, string>>({});
   // 2026-05-22 발송 전 우리(갑) 직인 적용 — 거래처가 받는 계약서에 우리 도장 미리 찍힘.
   const [applyOurSeal, setApplyOurSeal] = useState(true);
   // 회사(갑) 정보 — 미리보기 갑 변수 치환 + 직인 합성에 사용
@@ -307,6 +309,7 @@ export function OrgBulkWizard({
         variableMap: finalMap,
         commonVariables,
         perPartnerOverrides,
+        emailOverrides,
         sendEmails: sendNow,
         applyOurSeal: applyOurSeal && hasCompanySeal === true,
         onProgress: (info) => setProgress(info),
@@ -665,6 +668,35 @@ export function OrgBulkWizard({
               생성 즉시 이메일 발송
             </label>
 
+            {/* 수신 이메일 (거래처별 수정 가능) — 기본=담당자(변수 매핑) 이메일, 다른 곳 발송 시 수정 */}
+            <div className="pt-3 border-t border-[var(--border)]">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">수신 이메일 ({selectedPartners.length}곳)</label>
+              <p className="text-[11px] text-[var(--text-dim)] mb-2">기본값은 거래처에 등록된 담당자 이메일입니다. 다른 곳으로 보내려면 직접 수정하세요. (비우면 기본 이메일로 발송)</p>
+              <div className="max-h-56 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]/50">
+                {selectedPartners.map((p) => {
+                  const val = emailOverrides[p.id] ?? (p.contact_email || "");
+                  const changed = emailOverrides[p.id] != null && emailOverrides[p.id].trim() !== String(p.contact_email || "").trim();
+                  return (
+                    <div key={p.id} className="flex items-center gap-2 px-3 py-1.5">
+                      <span className="text-xs text-[var(--text-muted)] w-32 shrink-0 truncate" title={p.name}>{p.name}</span>
+                      <input
+                        type="email"
+                        value={val}
+                        onChange={(e) => setEmailOverrides((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        placeholder={p.contact_email || "이메일 입력"}
+                        className={`flex-1 px-2 py-1 rounded bg-[var(--bg-surface)] border text-xs text-[var(--text)] ${changed ? "border-[var(--primary)]" : "border-[var(--border)]"}`}
+                      />
+                      {changed && (
+                        <button type="button"
+                          onClick={() => setEmailOverrides((prev) => { const n = { ...prev }; delete n[p.id]; return n; })}
+                          className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] shrink-0" title="기본(담당자) 이메일로 되돌리기">기본값</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 우리(갑) 직인 적용 */}
             <div className="pt-3 border-t border-[var(--border)]">
               <label className={`flex items-center gap-2 text-sm ${hasCompanySeal === false ? "text-[var(--text-dim)]" : "text-[var(--text)]"}`}>
@@ -705,7 +737,7 @@ export function OrgBulkWizard({
                 <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] space-y-2">
                   <div className="text-[10px] text-[var(--text-muted)]">미리보기 대상</div>
                   <div className="text-sm text-[var(--text)] font-semibold">{previewPartner.name}</div>
-                  <div className="text-[10px] text-[var(--text-muted)]">→ {previewPartner.contact_email}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">→ {(emailOverrides[previewPartner.id]?.trim() || previewPartner.contact_email)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-[var(--text-muted)] mb-1">제목 (치환 결과)</div>
