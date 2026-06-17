@@ -125,6 +125,9 @@ export default function CardsPage() {
   //   등록 카드: corporate_cards.id 로 필터 / CODEF 미식별 묶음: card_name 으로 필터
   const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [selectedCardName, setSelectedCardName] = useState<string>("");
+  // 선택 카드 거래내역 기간 필터
+  const [cardTxFrom, setCardTxFrom] = useState<string>("");
+  const [cardTxTo, setCardTxTo] = useState<string>("");
   // 카드명 인라인 편집(corporate_cards.card_name UPDATE)
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -170,15 +173,17 @@ export default function CardsPage() {
 
   // 카드 탭 — 선택된 카드의 거래내역(#card-tx-detail). 선택돼 있을 때만 fetch.
   const { data: cardTx = [] } = useQuery({
-    queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName],
+    queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
-        .limit(200);
+        .limit(500);
       if (selectedCardId) q = q.eq("card_id", selectedCardId);
       else if (selectedCardName) q = q.eq("card_name", selectedCardName);
+      if (cardTxFrom) q = q.gte("transaction_date", cardTxFrom);
+      if (cardTxTo) q = q.lte("transaction_date", cardTxTo);
       const { data } = await q;
       return (data || []) as any[];
     },
@@ -433,22 +438,30 @@ export default function CardsPage() {
                 전체 카드 거래는 별도 거래내역 탭에서 제공하므로 미선택 시 영역 없음. */}
             {(selectedCardId || selectedCardName) && (
               <section id="card-tx-detail" className="scroll-mt-6">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <h3 className="text-lg font-bold text-[var(--text)]">
-                    {selectedCardLabel} 거래내역
+                    {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedCardId(""); setSelectedCardName(""); }}
-                    className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
-                  >
-                    ✕ 닫기
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <input type="date" value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
+                      className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+                    <span className="text-[var(--text-dim)] text-xs">~</span>
+                    <input type="date" value={cardTxTo} min={cardTxFrom || undefined} onChange={(e) => setCardTxTo(e.target.value)} title="종료일"
+                      className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+                    {(cardTxFrom || cardTxTo) && <button onClick={() => { setCardTxFrom(""); setCardTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+                    >
+                      ✕ 닫기
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
                   {cardTx.length === 0 ? (
-                    <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">이 카드의 거래내역이 없습니다</div>
-                  ) : cardTx.slice(0, 50).map((tx: any) => (
+                    <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}</div>
+                  ) : cardTx.map((tx: any) => (
                     <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
