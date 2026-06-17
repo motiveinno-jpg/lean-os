@@ -7,9 +7,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 
@@ -51,6 +52,29 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const dealId = String(params?.id || "");
   const [tab, setTab] = useState<TabKey>("overview");
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
+  const renameMut = useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await db.from("deals").update({ name: name.trim() }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      setEditingName(false);
+      toast("프로젝트명이 수정되었습니다", "success");
+    },
+    onError: (e: any) => toast(e?.message || "수정 실패", "error"),
+  });
+  const commitRename = () => {
+    const v = nameInput.trim();
+    if (!v || v === (deal?.name || "")) { setEditingName(false); return; }
+    renameMut.mutate(v);
+  };
 
   const { data: deal, isLoading } = useQuery({
     queryKey: ["projecthub-deal", dealId],
@@ -196,7 +220,22 @@ export default function ProjectHubDetailPage() {
             <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-1 truncate">{deal.name || "(이름 없음)"}</h1>
+          {editingName ? (
+            <input
+              value={nameInput} autoFocus
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+              className="text-2xl font-extrabold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none mt-1 w-full max-w-md"
+            />
+          ) : (
+            <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
+              className="text-2xl font-extrabold text-[var(--text)] mt-1 truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5"
+              title="클릭하여 프로젝트명 수정">
+              {deal.name || "(이름 없음)"}
+              <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </h1>
+          )}
           <p className="text-xs text-[var(--text-dim)] mt-1">{partner?.name || "거래처 미지정"}{manager?.name ? ` · 담당 ${manager.name}` : ""}</p>
         </div>
         <Link href={`/projects/${dealId}`} className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] shrink-0">

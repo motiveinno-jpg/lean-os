@@ -4,12 +4,13 @@
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
@@ -23,6 +24,8 @@ export default function ProjectHubPage() {
   const companyId = user?.company_id ?? null;
   const role = user?.role;
   const router = useRouter();
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["projecthub-deals", companyId],
@@ -109,10 +112,25 @@ export default function ProjectHubPage() {
           <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
         </div>
-        <Link href="/projects" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">
-          워크플로우 보드 →
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/projects" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">
+            프로젝트 운영 보드 →
+          </Link>
+          <button onClick={() => setShowCreate(true)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">
+            + 프로젝트 생성
+          </button>
+        </div>
       </div>
+
+      {showCreate && companyId && (
+        <CreateProjectModal
+          companyId={companyId}
+          partners={partners as any[]}
+          users={users as any[]}
+          onClose={() => setShowCreate(false)}
+          onCreated={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}`); }}
+        />
+      )}
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -202,7 +220,108 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      <p className="text-[11px] text-[var(--text-dim)]">※ 워크플로우(보드)와 같은 프로젝트(deal) 데이터입니다 — 한쪽에서 생성·삭제하면 양쪽에 반영됩니다. 원가율·손익은 손익 탭에서 산출됩니다.</p>
+      <p className="text-[11px] text-[var(--text-dim)]">※ 프로젝트 운영(보드)과 같은 프로젝트(deal) 데이터입니다 — 한쪽에서 생성·삭제하면 양쪽에 반영됩니다. 원가율·손익은 손익 탭에서 산출됩니다.</p>
+    </div>
+  );
+}
+
+// 프로젝트 생성 모달 — deals 직접 insert (워크플로우 보드와 동일 데이터)
+function CreateProjectModal({ companyId, partners, users, onClose, onCreated }: {
+  companyId: string; partners: any[]; users: any[]; onClose: () => void; onCreated: (id?: string) => void;
+}) {
+  const { toast } = useToast();
+  const db = supabase as any;
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "", partner_id: "", manager_id: "", start_date: "", end_date: "",
+    classification: "B2B", contract_total: "", vatType: "exclude" as "exclude" | "include",
+  });
+  const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
+
+  const submit = async () => {
+    if (!form.name.trim()) { toast("프로젝트명을 입력하세요", "error"); return; }
+    const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
+    setSaving(true);
+    try {
+      const contractAmount = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
+      const { data, error } = await db.from("deals").insert({
+        company_id: companyId, name: form.name.trim(), classification: form.classification,
+        contract_total: contractAmount || 0, status: "active", stage: "estimate",
+        start_date: form.start_date || null, end_date: form.end_date || null,
+        partner_id: form.partner_id || null, internal_manager_id: form.manager_id || null,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      toast("프로젝트가 생성되었습니다", "success");
+      onCreated(data?.id);
+    } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setSaving(false); }
+  };
+
+  const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
+  const LB = "block text-xs text-[var(--text-muted)] mb-1";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold text-[var(--text)]">+ 프로젝트 생성</div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className={LB}>프로젝트명 *</label>
+            <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LB}>거래처</label>
+              <select value={form.partner_id} onChange={(e) => set({ partner_id: e.target.value })} className={IN}>
+                <option value="">미지정</option>
+                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LB}>담당자</label>
+              <select value={form.manager_id} onChange={(e) => set({ manager_id: e.target.value })} className={IN}>
+                <option value="">미지정</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LB}>분류</label>
+              <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
+                <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="B2G">B2G</option>
+              </select>
+            </div>
+            <div>
+              <label className={LB}>계약금액</label>
+              <div className="flex gap-1">
+                <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
+                <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+                  <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LB}>시작일</label>
+              <input type="date" value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
+            </div>
+            <div>
+              <label className={LB}>종료일</label>
+              <input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
+            </div>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+          <button onClick={submit} disabled={saving || !form.name.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            {saving ? "생성 중..." : "생성"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
