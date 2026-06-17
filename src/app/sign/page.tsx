@@ -484,15 +484,21 @@ function SignContent() {
           const company = ctx?.company || null;
           const partner = ctx?.partner || null;
 
-          // 본문 변수 치환 — content_json.body 안의 토큰을 회사(갑)·거래처(을) 데이터로 채움.
-          //   2026-05-28 sign/page.tsx 와 /documents 미리보기가 공유하는 헬퍼로 추출 — 단일 매핑 소스.
+          // 본문 — 발송 시점에 저장한 snapshot(template_snapshot_html) 우선 사용.
+          //   2026-06-17 snapshot 에는 발송자가 입력한 공통변수(날짜 등)·직인이 그대로 박혀 있음.
+          //   라이브 재렌더(fillBody)는 공통변수가 없어 날짜 토큰이 오늘로 바뀌던 버그 → snapshot 으로 일원화.
+          //   snapshot 없는 레거시 요청만 fillBody 폴백(회사·거래처 데이터로 치환).
           const fillBody = (body: unknown): unknown => {
             if (typeof body !== "string") return body;
             const replacements = buildPartnerReplacements(company, partner);
             return applyTokenReplacements(body, replacements);
           };
+          const snapshotHtml = (sigReq as any).template_snapshot_html;
+          const effectiveBody = (typeof snapshotHtml === "string" && snapshotHtml.trim())
+            ? snapshotHtml
+            : fillBody(sigReq.documents?.content_json?.body);
           const filledContentJson = sigReq.documents?.content_json
-            ? { ...sigReq.documents.content_json, body: fillBody(sigReq.documents.content_json.body) }
+            ? { ...sigReq.documents.content_json, body: effectiveBody }
             : sigReq.documents?.content_json;
           const filledDocuments = sigReq.documents
             ? { ...sigReq.documents, content_json: filledContentJson }
