@@ -52,6 +52,21 @@ export default function ProjectHubPage() {
     enabled: !!companyId && dealIds.length > 0,
   });
 
+  // 손익 — v_deal_pnl (직접원가·직접원가율). 전표 deal_id 태그 전엔 0.
+  const { data: pnl = [] } = useQuery({
+    queryKey: ["projecthub-pnl", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const pnlByDeal = useMemo(() => {
+    const m: Record<string, any> = {};
+    for (const p of pnl as any[]) m[p.deal_id] = p;
+    return m;
+  }, [pnl]);
+
   const partnerName = useMemo(() => {
     const m: Record<string, string> = {};
     for (const p of partners as any[]) m[p.id] = p.name;
@@ -80,8 +95,10 @@ export default function ProjectHubPage() {
     const total = rows.length;
     const inProgress = rows.filter((d) => d.stage === "in_progress").length;
     const totalContract = rows.reduce((s, d) => s + Number(d.contract_total || 0), 0);
-    return { total, inProgress, totalContract };
-  }, [rows]);
+    const ratios = rows.map((d) => pnlByDeal[d.id]?.direct_cost_ratio).filter((r) => r != null && Number(r) > 0).map(Number);
+    const avgRatio = ratios.length ? ratios.reduce((s, r) => s + r, 0) / ratios.length : null;
+    return { total, inProgress, totalContract, avgRatio };
+  }, [rows, pnlByDeal]);
 
   if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
 
@@ -112,36 +129,42 @@ export default function ProjectHubPage() {
           <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]">{won(summary.totalContract)}</div>
         </div>
         <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">평균 원가율</div>
-          <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text-dim)]" title="손익 단계에서 산출됩니다">—</div>
+          <div className="text-xs text-[var(--text-muted)]">평균 직접원가율</div>
+          <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
+            {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
+          </div>
         </div>
       </div>
 
       {/* 목록 그리드 */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[640px]">
-          <table className="w-full min-w-[820px] text-xs border-collapse">
+          <table className="w-full min-w-[1000px] text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-3 py-2 text-left font-semibold">프로젝트명</th>
                 <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60">거래처</th>
-                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[110px]">담당자</th>
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[80px]">단계</th>
-                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[130px]">계약금액</th>
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[110px]">진행률</th>
-                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[160px]">기간</th>
+                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]">담당자</th>
+                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]">단계</th>
+                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">계약금액</th>
+                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]">직접원가</th>
+                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]">원가율</th>
+                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]">진행률</th>
+                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]">기간</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+                <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
+                <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];
                 const prog = progressByDeal[d.id];
                 const pct = prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : null;
+                const p = pnlByDeal[d.id];
+                const ratio = p?.direct_cost_ratio != null ? Number(p.direct_cost_ratio) : null;
                 return (
                   <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
                     className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer">
@@ -152,6 +175,12 @@ export default function ProjectHubPage() {
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                     </td>
                     <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/30">{won(d.contract_total)}</td>
+                    <td className="px-3 py-2 text-right mono-number border-l border-[var(--border)]/30 text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : <span className="text-[var(--text-dim)]">—</span>}</td>
+                    <td className="px-3 py-2 text-center mono-number border-l border-[var(--border)]/30">
+                      {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
+                        <span className={ratio >= 1 ? "text-red-500 font-semibold" : ratio >= 0.8 ? "text-amber-500" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 border-l border-[var(--border)]/30">
                       {pct == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                         <div className="flex items-center gap-1.5">

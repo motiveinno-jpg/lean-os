@@ -114,6 +114,24 @@ export default function ProjectHubDetailPage() {
     enabled: tab === "progress" && !!dealId,
   });
 
+  // 손익 — v_deal_pnl (직접원가·직접원가율) + financial_items(deal_id) 보조
+  const { data: pnl } = useQuery({
+    queryKey: ["projecthub-deal-pnl", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("v_deal_pnl").select("*").eq("deal_id", dealId).maybeSingle();
+      return data as any;
+    },
+    enabled: !!dealId && (tab === "overview" || tab === "pnl"),
+  });
+  const { data: finItems = [] } = useQuery({
+    queryKey: ["projecthub-finitems", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("financial_items").select("*").eq("deal_id", dealId).order("month", { ascending: false });
+      return (data || []) as any[];
+    },
+    enabled: tab === "pnl" && !!dealId,
+  });
+
   if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
   if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
@@ -121,6 +139,10 @@ export default function ProjectHubDetailPage() {
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
   const contract = Number(deal.contract_total || 0);
+  const directCost = pnl ? Number(pnl.direct_cost || 0) : null;
+  const margin = pnl ? Number(pnl.margin || 0) : null;
+  const ratio = pnl?.direct_cost_ratio != null ? Number(pnl.direct_cost_ratio) : null;
+  const ratioPct = ratio == null ? "—" : `${Math.round(ratio * 100)}%`;
 
   return (
     <div className="space-y-4">
@@ -153,11 +175,11 @@ export default function ProjectHubDetailPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <Metric label="계약금액(매출)" value={won(contract)} />
-            <Metric label="직접원가" value="—" hint="손익 단계" />
-            <Metric label="배분 판관비" value="—" hint="손익 단계" />
-            <Metric label="총원가" value="—" hint="손익 단계" />
-            <Metric label="마진" value="—" hint="손익 단계" />
-            <Metric label="원가율" value="—" hint="손익 단계" />
+            <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} hint="태그된 전표 비용 + 보정" />
+            <Metric label="배분 판관비" value="—" hint="매출비례 배분 — 다음 단계" />
+            <Metric label="총원가" value="—" hint="직접원가 + 배분 판관비 — 다음 단계" />
+            <Metric label="마진(직접)" value={margin == null ? "—" : won(margin)} />
+            <Metric label="직접원가율" value={ratioPct} />
           </div>
           <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <Info label="거래처" value={partner?.name || "—"} />
@@ -305,14 +327,32 @@ export default function ProjectHubDetailPage() {
 
       {/* 손익 */}
       {tab === "pnl" && (
-        <div className="glass-card p-10 text-center">
-          <div className="text-sm text-[var(--text)]">손익(원가율) 분석은 준비 중입니다</div>
-          <p className="text-xs text-[var(--text-dim)] mt-2 max-w-md mx-auto">
-            전표에 프로젝트를 태그(journal_entries.deal_id)해 직접원가를 자동 집계하고, 회사 판관비를 매출 비례로 배분해 원가율·마진을 산출할 예정입니다.
-          </p>
-          <div className="mt-4 inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
-            <span>매출(계약금액)</span><span className="font-bold mono-number text-[var(--text)]">{won(contract)}</span>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Metric label="매출(계약금액)" value={won(contract)} />
+            <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} />
+            <Metric label="마진(직접)" value={margin == null ? "—" : won(margin)} />
+            <Metric label="직접원가율" value={ratioPct} />
           </div>
+          <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
+            <p>· <b className="text-[var(--text)]">직접원가</b> = 이 프로젝트로 태그된 전표(비용계정)의 차변 합계 + 수동 보정.</p>
+            <p>· 거래 매칭/전표 입력에서 프로젝트를 선택하면 자동 집계됩니다(신규 입력분부터 · 기존 전표 백필 안 함).</p>
+            <p>· <b className="text-[var(--text)]">판관비 매출비례 배분</b> 및 총원가율은 다음 단계에서 추가됩니다(직접원가율과 병행 표기).</p>
+          </div>
+          {finItems.length > 0 && (
+            <div className="glass-card p-4">
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">참고 — 비용 상세 (financial_items, 추정 보조)</div>
+              <div className="divide-y divide-[var(--border)]/40">
+                {finItems.map((f) => (
+                  <div key={f.id} className="flex items-center gap-2 py-1.5 text-xs">
+                    <span className="text-[var(--text-dim)] mono-number w-16 shrink-0">{String(f.month || "").slice(0, 7)}</span>
+                    <span className="text-[var(--text)] flex-1 truncate">{f.account_type || f.category || "비용"}</span>
+                    <span className="mono-number text-[var(--text-muted)] shrink-0">{won(f.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
