@@ -468,6 +468,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const [locked, setLocked] = useState(false);
   const [entryDate, setEntryDate] = useState(isNew ? todayKst() : "");
   const [voucherNo, setVoucherNo] = useState<number | null>(null);
+  const [dealId, setDealId] = useState<string | null>(null); // 프로젝트 태그 → journal_entries.deal_id (직접원가 집계)
   const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string } | null>(null);
   // glass-card(backdrop-filter)가 fixed 컨테이닝 블록이 되어 팝업이 카드 안에 갇히는 문제 →
   //   document.body 로 포털해 화면 전체에 렌더.
@@ -513,6 +514,12 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     queryFn: async () => { const { data } = await db.from("corporate_cards").select("id, card_name").eq("company_id", companyId).order("card_name"); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
+  // 프로젝트(deal) — 전표를 프로젝트 직접원가로 귀속(선택)
+  const { data: deals = [] } = useQuery<any[]>({
+    queryKey: ["voucher-deals", companyId],
+    queryFn: async () => { const { data } = await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).order("name"); return (data || []) as any[]; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
 
   // 전표 로드 (수정 모드만 — 헤더 + 전 라인) + 마감 여부
   useEffect(() => {
@@ -520,10 +527,10 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     let cancelled = false;
     (async () => {
       const { data: e } = await db.from("journal_entries")
-        .select("id, entry_date, description, voucher_no, source, status, journal_lines(account_id, debit, credit, description, partner_id, bank_account_id, card_id, chart_of_accounts(id, code, name), partners(id, name), bank_accounts(id, alias, bank_name), corporate_cards(id, card_name))")
+        .select("id, entry_date, description, voucher_no, source, status, deal_id, journal_lines(account_id, debit, credit, description, partner_id, bank_account_id, card_id, chart_of_accounts(id, code, name), partners(id, name), bank_accounts(id, alias, bank_name), corporate_cards(id, card_name))")
         .eq("id", entryId).maybeSingle();
       if (cancelled || !e) { if (!cancelled) setLoaded(true); return; }
-      setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null);
+      setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null); setDealId(e.deal_id ?? null);
       const ls: ELine[] = (e.journal_lines || []).map((l: any) => ({
         key: keyRef.current++,
         account: l.chart_of_accounts ? { id: l.chart_of_accounts.id, code: l.chart_of_accounts.code, name: l.chart_of_accounts.name } : null,
@@ -586,10 +593,16 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     setBusy(true);
     try {
       const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "", bank_account_id: l.asset?.kind === "bank" ? l.asset.id : "", card_id: l.asset?.kind === "card" ? l.asset.id : "" }));
-      const { error } = isNew
+      const res = isNew
         ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: headerDesc(), p_lines: payload })
         : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_entry_date: entryDate, p_description: headerDesc(), p_lines: payload });
-      if (error) throw new Error(error.message);
+      if (res.error) throw new Error(res.error.message);
+      // 프로젝트 태그 (직접원가 귀속) — 신규는 반환 id, 수정은 entryId
+      const savedId = isNew ? (res.data as string) : entryId;
+      if (savedId) {
+        const { error: tagErr } = await db.rpc("set_voucher_deal", { p_entry_id: savedId, p_deal_id: dealId || null });
+        if (tagErr) throw new Error(tagErr.message);
+      }
       toast(isNew ? "전표 입력됨" : "전표 수정됨", "success");
       onSaved();
       onClose();
@@ -602,6 +615,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           : m.includes("NEED_TWO_LINES") ? "차변·대변을 2줄 이상 입력하세요"
           : m.includes("INVALID_ACCOUNT") ? "계정과목이 올바르지 않습니다"
           : m.includes("FORBIDDEN") ? "권한이 없습니다"
+          : m.includes("INVALID_DEAL") ? "프로젝트가 올바르지 않습니다"
           : m.includes("does not exist") ? "전표 DB가 아직 적용되지 않았습니다"
           : m || (isNew ? "전표 입력 실패" : "수정 실패"),
         "error",
@@ -649,6 +663,13 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span>일자</span>
               <DateSegInput value={entryDate} onMouseDown={(e) => e.stopPropagation()} onChange={setEntryDate} />
+              <span className="ml-0.5">· 프로젝트</span>
+              <select value={dealId ?? ""} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => setDealId(e.target.value || null)} disabled={locked}
+                title="이 전표를 프로젝트 직접원가로 귀속(비용계정 라인만 집계)"
+                className="bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] text-[var(--text)] max-w-[150px] disabled:opacity-60">
+                <option value="">미지정</option>
+                {deals.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
               {newFor?.partnerName && <span>· {newFor.partnerName}</span>}
               <span className="opacity-60">· 제목 잡고 이동</span>
             </div>
