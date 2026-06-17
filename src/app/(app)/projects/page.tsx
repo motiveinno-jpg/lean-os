@@ -489,7 +489,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
       <div className="page-sticky-header flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
+            <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 운영</h1>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] font-semibold">신규</span>
             {dateFilter ? (
               <>
@@ -536,7 +536,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
 
       {/* 시안 통계 4 (프로젝트) — 그라데이션 카드. trend 는 실데이터 없어 미표시(가짜 금지). */}
       {summary.count > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {([
             { grad: "from-blue-600 to-cyan-500", icon: "building", label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
             { grad: "from-indigo-600 to-purple-500", icon: "clock", label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
@@ -1432,7 +1432,7 @@ function PeriodPicker({ isEmployeeLimited = false, onCreate }: { isEmployeeLimit
     <div className="p-4 sm:p-6 mx-auto">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 — 기간 선택</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트 운영 — 기간 선택</h1>
           <p className="text-xs text-[var(--text-muted)] mt-1">기간을 선택하면 그 기간에 활성이었던 프로젝트만 칸반에 표시됩니다.</p>
         </div>
         <button
