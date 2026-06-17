@@ -77,20 +77,22 @@ export default function PartnerLedgerPage() {
 
   // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
   //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
-  const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean }>>({
+  //   + 수동 전표의 AR/AP 라인이 잔액에 미치는 영향(단수차 등)도 합산 — 좌측 목록 잔액이 우측 시트와 일치.
+  const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }>>({
     queryKey: ["ledger-voucher-partners", companyId, periodStart, periodEnd],
     queryFn: async () => {
       const { data } = await db.from("journal_entries")
-        .select("journal_lines(partner_id, chart_of_accounts(code))")
+        .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", periodStart).lte("entry_date", periodEnd);
-      const m: Record<string, { sales?: boolean; purchase?: boolean }> = {};
+      const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
         for (const l of (e.journal_lines || [])) {
           if (!l.partner_id) continue;
           const code = l.chart_of_accounts?.code;
-          if (code === "108") (m[l.partner_id] ||= {}).sales = true;
-          if (code === "251") (m[l.partner_id] ||= {}).purchase = true;
+          const d = Number(l.debit || 0), c = Number(l.credit || 0);
+          if (code === "108") { (m[l.partner_id] ||= {}).sales = true; m[l.partner_id].salesAdj = (m[l.partner_id].salesAdj || 0) + (d - c); }   // 매출(AR): 차변 증가
+          if (code === "251") { (m[l.partner_id] ||= {}).purchase = true; m[l.partner_id].purchaseAdj = (m[l.partner_id].purchaseAdj || 0) + (c - d); } // 매입(AP): 대변 증가
         }
       }
       return m;
@@ -110,8 +112,13 @@ export default function PartnerLedgerPage() {
 
   const nameOf = (pid: string | null) => (pid && partnerMap[pid]) || "미지정 거래처";
 
-  // 잔액 = 전기이월 + 당기 잔액
-  const ledgerOut = (r: LedgerRow) => Number(r.prior_outstanding || 0) + Number(r.period_outstanding || 0);
+  // 잔액 = 전기이월 + 당기 잔액 + 수동 전표 AR/AP 보정(단수차 등 — 우측 시트와 일치)
+  const voucherAdj = (r: LedgerRow) => {
+    const v = r.partner_id ? voucherPartnerTypes[r.partner_id] : undefined;
+    if (!v) return 0;
+    return r.type === "sales" ? (v.salesAdj || 0) : (v.purchaseAdj || 0);
+  };
+  const ledgerOut = (r: LedgerRow) => Number(r.prior_outstanding || 0) + Number(r.period_outstanding || 0) + voucherAdj(r);
   const { receivables, payables, totalAr, totalAp } = useMemo(() => {
     const has = (r: LedgerRow) => ledgerOut(r) > 0 || Number(r.period_billed || 0) > 0;
     const recv = rows.filter((r) => r.type === "sales" && has(r));
