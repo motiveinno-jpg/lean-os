@@ -128,6 +128,11 @@ export default function CardsPage() {
   // 선택 카드 거래내역 기간 필터
   const [cardTxFrom, setCardTxFrom] = useState<string>("");
   const [cardTxTo, setCardTxTo] = useState<string>("");
+  // 전표처리 (카드 → 수동 전표)
+  const [postCard, setPostCard] = useState<any | null>(null);
+  const [postAccountId, setPostAccountId] = useState<string>("");
+  const [postRemember, setPostRemember] = useState(true);
+  const [posting, setPosting] = useState(false);
   // 카드명 인라인 편집(corporate_cards.card_name UPDATE)
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -176,7 +181,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(500);
@@ -189,6 +194,51 @@ export default function CardsPage() {
     },
     enabled: !!companyId && (!!selectedCardId || !!selectedCardName),
   });
+
+  // 전표처리용 — 계정과목 + 회사별 카드 category→계정 매핑
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["cards-page-accounts", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const { data: cardMappings = [] } = useQuery({
+    queryKey: ["cards-page-mappings", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("card_account_mappings").select("category, account_id").eq("company_id", companyId);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const mappingByCategory = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of cardMappings as any[]) m[r.category] = r.account_id;
+    return m;
+  }, [cardMappings]);
+
+  const openPost = (tx: any) => {
+    setPostCard(tx);
+    setPostAccountId(mappingByCategory[tx.category] || "");
+    setPostRemember(true);
+  };
+  const doPostVoucher = async () => {
+    if (!postCard || !postAccountId || posting) return;
+    setPosting(true);
+    try {
+      const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: postCard.id, p_account_id: postAccountId, p_remember: postRemember });
+      if (error) throw new Error(error.message);
+      toast("전표가 생성되었습니다", "success");
+      setPostCard(null); setPostAccountId("");
+      queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-mappings"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+    } catch (e: any) {
+      const m = String(e?.message || "");
+      toast(m.includes("ALREADY_POSTED") ? "이미 전표처리된 거래입니다" : m.includes("NO_CASH_ACCOUNT") ? "보통예금(101) 계정과목이 없습니다" : m.includes("INVALID_ACCOUNT") ? "계정과목을 선택하세요" : m || "전표처리 실패", "error");
+    } finally { setPosting(false); }
+  };
 
   // 거래내역 탭 — 최근 100건. 탭 진입 시에만 fetch.
   const { data: recentTx = [] } = useQuery({
@@ -472,11 +522,16 @@ export default function CardsPage() {
                           <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 shrink-0">
+                      <div className="flex items-center gap-3 shrink-0">
                         <p className="text-sm sm:text-base font-bold text-[var(--text)] mono-number">
                           -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
                         </p>
                         <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
+                        {tx.journal_entry_id ? (
+                          <span className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-semibold shrink-0">전표처리됨</span>
+                        ) : (
+                          <button onClick={() => openPost(tx)} className="text-[11px] px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 shrink-0 font-semibold">전표처리</button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -589,6 +644,43 @@ export default function CardsPage() {
           </div>
           <CardBillingSummary companyId={companyId} />
           <CardMonthlyUsage companyId={companyId} />
+        </div>
+      )}
+
+      {/* 전표처리 모달 — 카드 1건을 수동으로 전표 생성 (회사별 매핑 기본계정 제안) */}
+      {postCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPostCard(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">전표처리</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{postCard.merchant_name || "(가맹점 미상)"} · {postCard.transaction_date} · ₩{Math.abs(Number(postCard.amount || 0)).toLocaleString("ko-KR")}</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">비용 계정과목 *{postCard.category ? ` (분류: ${postCard.category})` : ""}</label>
+                <select value={postAccountId} onChange={(e) => setPostAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  <option value="">계정 선택</option>
+                  {(accounts as any[]).filter((a) => a.account_type === "expense").map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
+                {mappingByCategory[postCard.category] && <p className="text-[10px] text-[var(--text-dim)] mt-1">이 분류의 기본 계정이 적용되었습니다.</p>}
+              </div>
+              <label className="flex items-center gap-2 text-xs text-[var(--text)]">
+                <input type="checkbox" checked={postRemember} onChange={(e) => setPostRemember(e.target.checked)} />
+                이 분류({postCard.category || "미분류"})의 기본 계정으로 기억 (다음부터 자동 제안)
+              </label>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setPostCard(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={doPostVoucher} disabled={posting || !postAccountId}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                {posting ? "처리 중..." : "전표 생성"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

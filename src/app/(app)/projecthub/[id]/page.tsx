@@ -140,7 +140,7 @@ export default function ProjectHubDetailPage() {
   const { data: costCards = [] } = useQuery({
     queryKey: ["projecthub-cost-card", dealId],
     queryFn: async () => {
-      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").eq("deal_id", dealId).order("transaction_date", { ascending: false });
+      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").eq("deal_id", dealId).is("journal_entry_id", null).order("transaction_date", { ascending: false });
       return (data || []) as any[];
     },
     enabled: costEnabled,
