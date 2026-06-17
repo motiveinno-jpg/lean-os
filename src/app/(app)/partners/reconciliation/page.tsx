@@ -28,6 +28,7 @@ export default function ReconciliationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
+  const [matchDocType, setMatchDocType] = useState<"invoice" | "cash" | "card">("invoice"); // 수동매칭 연결 대상 종류
   const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
   // 확인 큐 — 엑셀식 컬럼 너비 (드래그/더블클릭 자동맞춤, localStorage 기억)
   const queueTableRef = useRef<HTMLTableElement | null>(null);
@@ -246,6 +247,52 @@ export default function ReconciliationPage() {
     enabled: !!companyId && tab === "manual",
   });
 
+  // 현금영수증(미연결) — 통장거래에 마킹 연결 후보
+  const { data: cashReceipts = [] } = useQuery<any[]>({
+    queryKey: ["manual-cash", companyId, tab],
+    queryFn: async () => {
+      const { data } = await db.from("cash_receipts")
+        .select("id, type, issue_date, amount, counterparty_name, approval_number")
+        .eq("company_id", companyId).is("bank_transaction_id", null)
+        .order("issue_date", { ascending: false }).limit(2000);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && tab === "manual",
+  });
+  // 카드사용 내역 — 통장거래(카드대금)에 마킹 연결 후보
+  const { data: cardTxns = [] } = useQuery<any[]>({
+    queryKey: ["manual-card", companyId, tab],
+    queryFn: async () => {
+      const { data } = await db.from("card_transactions")
+        .select("id, transaction_date, amount, merchant_name, card_name, approval_number")
+        .eq("company_id", companyId)
+        .order("transaction_date", { ascending: false }).limit(1000);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && tab === "manual",
+  });
+
+  // 현금영수증 연결 — cash_receipts.bank_transaction_id 세팅 + 통장거래 settled 마킹
+  const cashLinkMut = useMutation({
+    mutationFn: async ({ tx, receipt }: { tx: OpenTx; receipt: any }) => {
+      const { error: e1 } = await db.from("cash_receipts").update({ bank_transaction_id: tx.id }).eq("id", receipt.id);
+      if (e1) throw new Error(e1.message);
+      const { error: e2 } = await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      if (e2) throw new Error(e2.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-cash"] }); setMatchTx(null); setInvSearch(""); toast("현금영수증 연결 완료", "success"); },
+    onError: (e: any) => toast(e?.message || "연결 실패", "error"),
+  });
+  // 카드사용 연결 — bank_transactions.card_transaction_id 세팅 + settled 마킹
+  const cardLinkMut = useMutation({
+    mutationFn: async ({ tx, card }: { tx: OpenTx; card: any }) => {
+      const { error } = await db.from("bank_transactions").update({ card_transaction_id: card.id, settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-card"] }); setMatchTx(null); setInvSearch(""); toast("카드사용 연결 완료", "success"); },
+    onError: (e: any) => toast(e?.message || "연결 실패", "error"),
+  });
+
   // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감).
   //   같은 (거래, 계산서) 쌍에 기존 행(엔진 제안/반려 이력)이 있으면 unique 충돌 대신 그 행을 확정으로 승격.
   const manualMut = useMutation({
@@ -292,6 +339,25 @@ export default function ReconciliationPage() {
       })
       .slice(0, 100);
   }, [unsettledInv, invSearch, matchInvType]);
+
+  // 거래처명 + 금액 공통 검색 (현금영수증·카드 목록용)
+  const matchSearch = (name: string | null | undefined, amount: number) => {
+    const q = invSearch.trim().toLowerCase();
+    if (!q) return true;
+    if ((name || "").toLowerCase().includes(q)) return true;
+    const qd = q.replace(/[^0-9]/g, "");
+    return !!qd && String(Math.round(amount || 0)).includes(qd);
+  };
+  const filteredCash = useMemo(
+    () => cashReceipts.filter((c) => matchSearch(c.counterparty_name, Number(c.amount))).slice(0, 100),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cashReceipts, invSearch],
+  );
+  const filteredCard = useMemo(
+    () => cardTxns.filter((c) => matchSearch(c.merchant_name, Number(c.amount))).slice(0, 100),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cardTxns, invSearch],
+  );
 
   return (
     <div className="space-y-6">
@@ -440,7 +506,7 @@ export default function ReconciliationPage() {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-[var(--text-muted)]">
-              규칙·AI 가 못 잡은 입금을 직접 세금계산서에 연결합니다. 연결 즉시 확정되어 미수금에 반영됩니다.
+              규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
               <span className="ml-2 text-[var(--text-dim)]">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter((t) => !manualSearch.trim() || (t.counterparty || "").toLowerCase().includes(manualSearch.trim().toLowerCase())).length}건</span>
             </p>
             <input value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} placeholder="거래처(입금자) 검색"
@@ -486,9 +552,9 @@ export default function ReconciliationPage() {
                         <td className={`${GRID_TD} text-right mono-number text-[var(--text-muted)]`}>{fmt(t.settled_amount)}</td>
                         <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(txRemaining(t))}</td>
                         <td className={`${GRID_TD} text-center`}>
-                          <button onClick={() => { setMatchTx(t); setInvSearch(""); }}
+                          <button onClick={() => { setMatchTx(t); setInvSearch(""); setMatchDocType("invoice"); }}
                             className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
-                            세금계산서 연결
+                            연결
                           </button>
                         </td>
                       </tr>
@@ -506,31 +572,69 @@ export default function ReconciliationPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setMatchTx(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
-              <div className="text-sm font-bold text-[var(--text)]">세금계산서에 연결</div>
+              <div className="text-sm font-bold text-[var(--text)]">거래 연결</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
+            </div>
+            <div className="px-5 pt-3 flex gap-1.5">
+              {([["invoice", "세금계산서"], ["cash", "현금영수증"], ["card", "카드사용"]] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setMatchDocType(k)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${matchDocType === k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+                  {label}
+                </button>
+              ))}
             </div>
             <div className="px-5 py-3 border-b border-[var(--border)]">
               <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명 또는 금액으로 검색"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
             </div>
             <div className="flex-1 overflow-auto p-2">
-              {filteredInv.length === 0 ? (
-                <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서가 없습니다.</div>
-              ) : filteredInv.map((inv) => {
-                const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
-                return (
-                  <div key={inv.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
-                    <div className="min-w-0">
-                      <div className="text-sm text-[var(--text)] truncate">{inv.counterparty_name || "—"}</div>
-                      <div className="text-[11px] text-[var(--text-dim)]">{inv.issue_date} · 잔액 {won(invRemaining(inv))}</div>
+              {matchDocType === "invoice" && (
+                filteredInv.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서가 없습니다.</div>
+                ) : filteredInv.map((inv) => {
+                  const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
+                  return (
+                    <div key={inv.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
+                      <div className="min-w-0">
+                        <div className="text-sm text-[var(--text)] truncate">{inv.counterparty_name || "—"}</div>
+                        <div className="text-[11px] text-[var(--text-dim)]">{inv.issue_date} · 잔액 {won(invRemaining(inv))}</div>
+                      </div>
+                      <button onClick={() => manualMut.mutate({ tx: matchTx, inv, amount: amt })} disabled={manualMut.isPending || amt <= 0}
+                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                        {won(amt)} 연결
+                      </button>
                     </div>
-                    <button onClick={() => manualMut.mutate({ tx: matchTx, inv, amount: amt })} disabled={manualMut.isPending || amt <= 0}
-                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
-                      {won(amt)} 연결
-                    </button>
+                  );
+                })
+              )}
+              {matchDocType === "cash" && (
+                filteredCash.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 미연결 현금영수증이 없습니다.</div>
+                ) : filteredCash.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
+                    <div className="min-w-0">
+                      <div className="text-sm text-[var(--text)] truncate">{c.counterparty_name || "현금영수증"}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{c.issue_date} · {won(Number(c.amount))}{c.approval_number ? ` · ${c.approval_number}` : ""}</div>
+                    </div>
+                    <button onClick={() => cashLinkMut.mutate({ tx: matchTx, receipt: c })} disabled={cashLinkMut.isPending}
+                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">연결</button>
                   </div>
-                );
-              })}
+                ))
+              )}
+              {matchDocType === "card" && (
+                filteredCard.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 카드사용 내역이 없습니다.</div>
+                ) : filteredCard.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
+                    <div className="min-w-0">
+                      <div className="text-sm text-[var(--text)] truncate">{c.merchant_name || "카드사용"}</div>
+                      <div className="text-[11px] text-[var(--text-dim)]">{c.transaction_date} · {won(Number(c.amount))}{c.card_name ? ` · ${c.card_name}` : ""}</div>
+                    </div>
+                    <button onClick={() => cardLinkMut.mutate({ tx: matchTx, card: c })} disabled={cardLinkMut.isPending}
+                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">연결</button>
+                  </div>
+                ))
+              )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] text-right">
               <button onClick={() => setMatchTx(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
