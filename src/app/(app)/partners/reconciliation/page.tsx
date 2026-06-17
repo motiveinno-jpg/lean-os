@@ -29,6 +29,7 @@ export default function ReconciliationPage() {
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   const [matchDocType, setMatchDocType] = useState<"invoice" | "cash" | "card">("invoice"); // 수동매칭 연결 대상 종류
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set()); // 카드 다대일 선택
   const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
   // 확인 큐 — 엑셀식 컬럼 너비 (드래그/더블클릭 자동맞춤, localStorage 기억)
   const queueTableRef = useRef<HTMLTableElement | null>(null);
@@ -284,12 +285,16 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
   // 카드사용 연결 — bank_transactions.card_transaction_id 세팅 + settled 마킹
-  const cardLinkMut = useMutation({
-    mutationFn: async ({ tx, card }: { tx: OpenTx; card: any }) => {
-      const { error } = await db.from("bank_transactions").update({ card_transaction_id: card.id, settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
-      if (error) throw new Error(error.message);
+  // 카드 다대일 — 선택한 카드내역들을 이 통장거래(카드대금)에 연결
+  const cardMultiLinkMut = useMutation({
+    mutationFn: async ({ tx, cardIds }: { tx: OpenTx; cardIds: string[] }) => {
+      if (cardIds.length === 0) return;
+      const { error: e1 } = await db.from("card_transactions").update({ bank_transaction_id: tx.id }).in("id", cardIds);
+      if (e1) throw new Error(e1.message);
+      const { error: e2 } = await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      if (e2) throw new Error(e2.message);
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-card"] }); setMatchTx(null); setInvSearch(""); toast("카드사용 연결 완료", "success"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-card"] }); setMatchTx(null); setInvSearch(""); setSelectedCardIds(new Set()); toast("카드사용 연결 완료", "success"); },
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
 
@@ -358,6 +363,8 @@ export default function ReconciliationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cardTxns, invSearch],
   );
+  const cardSelectedSum = (cardTxns as any[]).filter((c) => selectedCardIds.has(c.id)).reduce((s, c) => s + Number(c.amount || 0), 0);
+  const toggleCard = (id: string) => setSelectedCardIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   return (
     <div className="space-y-6">
@@ -552,7 +559,7 @@ export default function ReconciliationPage() {
                         <td className={`${GRID_TD} text-right mono-number text-[var(--text-muted)]`}>{fmt(t.settled_amount)}</td>
                         <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(txRemaining(t))}</td>
                         <td className={`${GRID_TD} text-center`}>
-                          <button onClick={() => { setMatchTx(t); setInvSearch(""); setMatchDocType("invoice"); }}
+                          <button onClick={() => { setMatchTx(t); setInvSearch(""); setMatchDocType("invoice"); setSelectedCardIds(new Set()); }}
                             className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]">
                             연결
                           </button>
@@ -622,22 +629,41 @@ export default function ReconciliationPage() {
                 ))
               )}
               {matchDocType === "card" && (
-                filteredCard.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 카드사용 내역이 없습니다.</div>
-                ) : filteredCard.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
-                    <div className="min-w-0">
-                      <div className="text-sm text-[var(--text)] truncate">{c.merchant_name || "카드사용"}</div>
-                      <div className="text-[11px] text-[var(--text-dim)]">{c.transaction_date} · {won(Number(c.amount))}{c.card_name ? ` · ${c.card_name}` : ""}</div>
-                    </div>
-                    <button onClick={() => cardLinkMut.mutate({ tx: matchTx, card: c })} disabled={cardLinkMut.isPending}
-                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">연결</button>
-                  </div>
-                ))
+                <>
+                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">카드대금(이 출금)에 해당하는 카드내역을 여러 건 선택해 한 번에 연결합니다.</p>
+                  {filteredCard.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 카드사용 내역이 없습니다.</div>
+                  ) : filteredCard.map((c) => {
+                    const checked = selectedCardIds.has(c.id);
+                    return (
+                      <label key={c.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer">
+                        <input type="checkbox" checked={checked} onChange={() => toggleCard(c.id)} className="accent-[var(--primary)] w-4 h-4 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-[var(--text)] truncate">{c.merchant_name || "카드사용"}</div>
+                          <div className="text-[11px] text-[var(--text-dim)]">{c.transaction_date} · {won(Number(c.amount))}{c.card_name ? ` · ${c.card_name}` : ""}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] text-right">
-              <button onClick={() => setMatchTx(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
+              <span className="text-[11px] text-[var(--text-muted)]">
+                {matchDocType === "card" && selectedCardIds.size > 0
+                  ? `선택 ${selectedCardIds.size}건 · 합계 ${won(cardSelectedSum)} / 출금 ${won(txRemaining(matchTx))}`
+                  : ""}
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                {matchDocType === "card" && (
+                  <button onClick={() => cardMultiLinkMut.mutate({ tx: matchTx, cardIds: [...selectedCardIds] })}
+                    disabled={cardMultiLinkMut.isPending || selectedCardIds.size === 0}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                    선택 {selectedCardIds.size}건 연결
+                  </button>
+                )}
+                <button onClick={() => setMatchTx(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+              </div>
             </div>
           </div>
         </div>
