@@ -48,8 +48,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
       { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
+      // 워크플로우(보드 뷰) + 프로젝트(라이프사이클·손익 뷰) — 같은 deals 데이터의 두 렌즈 (2026-06-17).
       // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view (동일 라우트, 단일 메뉴로 통합).
-      { href: "/projects", label: "프로젝트", icon: "kanban", roles: ["owner", "admin", "partner"] },
+      { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin", "partner"] },
+      { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
