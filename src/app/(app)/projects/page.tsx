@@ -536,7 +536,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
 
       {/* 시안 통계 4 (프로젝트) — 그라데이션 카드. trend 는 실데이터 없어 미표시(가짜 금지). */}
       {summary.count > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {([
             { label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
             { label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
