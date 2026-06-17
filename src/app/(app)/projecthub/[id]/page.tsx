@@ -17,6 +17,24 @@ const db = supabase as any;
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 
+// 프로젝트 기간(start~end)의 'YYYY-MM' 목록 — 판관비 풀 산정용. end 없으면 오늘까지, start 없으면 빈 배열(전체 사용).
+function monthRange(start: string | null | undefined, end: string | null | undefined): string[] {
+  if (!start) return [];
+  const s = new Date(start);
+  if (isNaN(s.getTime())) return [];
+  const e = end ? new Date(end) : new Date();
+  const last = isNaN(e.getTime()) ? new Date() : e;
+  const out: string[] = [];
+  const cur = new Date(s.getFullYear(), s.getMonth(), 1);
+  let guard = 0;
+  while (cur <= last && guard < 120) {
+    out.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
+    cur.setMonth(cur.getMonth() + 1);
+    guard++;
+  }
+  return out;
+}
+
 type TabKey = "overview" | "quote" | "contract" | "progress" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
@@ -131,6 +149,23 @@ export default function ProjectHubDetailPage() {
     },
     enabled: tab === "pnl" && !!dealId,
   });
+  // 판관비 매출비례 배분(추정) — monthly_financials.fixed_cost 풀 × 매출 비중
+  const { data: monthlyFin = [] } = useQuery({
+    queryKey: ["projecthub-monthlyfin", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("monthly_financials").select("month, fixed_cost").eq("company_id", companyId);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && (tab === "overview" || tab === "pnl"),
+  });
+  const { data: allDeals = [] } = useQuery({
+    queryKey: ["projecthub-allcontract", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("deals").select("contract_total").eq("company_id", companyId).is("archived_at", null);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && (tab === "overview" || tab === "pnl"),
+  });
 
   if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
   if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
@@ -143,6 +178,15 @@ export default function ProjectHubDetailPage() {
   const margin = pnl ? Number(pnl.margin || 0) : null;
   const ratio = pnl?.direct_cost_ratio != null ? Number(pnl.direct_cost_ratio) : null;
   const ratioPct = ratio == null ? "—" : `${Math.round(ratio * 100)}%`;
+  // 판관비 매출비례 배분(추정): 기간 풀 × (이 프로젝트 매출 / 전체 활성 프로젝트 매출)
+  const totalContractAll = (allDeals as any[]).reduce((s, d) => s + Number(d.contract_total || 0), 0);
+  const panbanMonths = monthRange(deal.start_date, deal.end_date);
+  const panbanPool = (panbanMonths.length ? (monthlyFin as any[]).filter((f) => panbanMonths.includes(String(f.month).slice(0, 7))) : (monthlyFin as any[]))
+    .reduce((s, f) => s + Number(f.fixed_cost || 0), 0);
+  const allocPanban = totalContractAll > 0 && contract > 0 ? panbanPool * (contract / totalContractAll) : null;
+  const totalCost = allocPanban != null && directCost != null ? directCost + allocPanban : null;
+  const totalRatio = totalCost != null && contract > 0 ? totalCost / contract : null;
+  const totalRatioPct = totalRatio == null ? "—" : `${Math.round(totalRatio * 100)}%`;
 
   return (
     <div className="space-y-4">
@@ -176,10 +220,10 @@ export default function ProjectHubDetailPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <Metric label="계약금액(매출)" value={won(contract)} />
             <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} hint="태그된 전표 비용 + 보정" />
-            <Metric label="배분 판관비" value="—" hint="매출비례 배분 — 다음 단계" />
-            <Metric label="총원가" value="—" hint="직접원가 + 배분 판관비 — 다음 단계" />
-            <Metric label="마진(직접)" value={margin == null ? "—" : won(margin)} />
+            <Metric label="배분 판관비(추정)" value={allocPanban == null ? "—" : won(allocPanban)} hint="매출비례 배분 추정치" />
+            <Metric label="총원가(추정)" value={totalCost == null ? "—" : won(totalCost)} hint="직접원가 + 배분 판관비" />
             <Metric label="직접원가율" value={ratioPct} />
+            <Metric label="총원가율(추정)" value={totalRatioPct} hint="판관비 포함 추정" />
           </div>
           <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <Info label="거래처" value={partner?.name || "—"} />
@@ -328,16 +372,17 @@ export default function ProjectHubDetailPage() {
       {/* 손익 */}
       {tab === "pnl" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <Metric label="매출(계약금액)" value={won(contract)} />
             <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} />
-            <Metric label="마진(직접)" value={margin == null ? "—" : won(margin)} />
+            <Metric label="배분 판관비(추정)" value={allocPanban == null ? "—" : won(allocPanban)} />
+            <Metric label="총원가(추정)" value={totalCost == null ? "—" : won(totalCost)} />
             <Metric label="직접원가율" value={ratioPct} />
+            <Metric label="총원가율(추정)" value={totalRatioPct} />
           </div>
           <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
-            <p>· <b className="text-[var(--text)]">직접원가</b> = 이 프로젝트로 태그된 전표(비용계정)의 차변 합계 + 수동 보정.</p>
-            <p>· 거래 매칭/전표 입력에서 프로젝트를 선택하면 자동 집계됩니다(신규 입력분부터 · 기존 전표 백필 안 함).</p>
-            <p>· <b className="text-[var(--text)]">판관비 매출비례 배분</b> 및 총원가율은 다음 단계에서 추가됩니다(직접원가율과 병행 표기).</p>
+            <p>· <b className="text-[var(--text)]">직접원가</b> = 이 프로젝트로 태그된 전표(비용계정)의 차변 합계 + 수동 보정. 전표 입력 시 프로젝트를 선택하면 자동 집계됩니다(신규 입력분부터 · 기존 전표 백필 안 함).</p>
+            <p>· <b className="text-[var(--text)]">배분 판관비</b> = 회사 고정비(monthly_financials) 중 프로젝트 기간({panbanMonths.length ? `${panbanMonths[0]}~${panbanMonths[panbanMonths.length - 1]}` : "전체"})분을 <b className="text-[var(--text)]">매출 비례로 배분한 추정치</b>입니다. 정밀 원가는 직접원가율을 우선 참고하세요.</p>
           </div>
           {finItems.length > 0 && (
             <div className="glass-card p-4">
