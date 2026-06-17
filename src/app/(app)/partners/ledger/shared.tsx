@@ -188,6 +188,26 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     enabled: !!companyId && !!partnerId,
   });
 
+  // 정산 자동 전표(차액 잡손익 포함) — 정산 줄을 클릭하면 이 전표를 수정(잡손실→이자·수수료 등 계정 변경).
+  const settleIds = settles.map((s) => s.id);
+  const { data: settlementVouchers = [] } = useQuery<any[]>({
+    queryKey: ["ledger-settle-vouchers", companyId, settleIds.join(",")],
+    queryFn: async () => {
+      if (settleIds.length === 0) return [];
+      const { data } = await db.from("journal_entries")
+        .select("id, linked_settlement_id")
+        .eq("company_id", companyId).eq("source", "rule").eq("status", "confirmed")
+        .in("linked_settlement_id", settleIds);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && settleIds.length > 0,
+  });
+  const settleVoucherMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const v of settlementVouchers as any[]) if (v.linked_settlement_id) m[v.linked_settlement_id] = v.id;
+    return m;
+  }, [settlementVouchers]);
+
   const { opening, months, totals } = useMemo(() => {
     const occur = (inv: any): SheetEntry => ({
       date: inv.issue_date,
@@ -195,16 +215,21 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       debit: isSales ? Number(inv.total_amount || 0) : 0,
       credit: isSales ? 0 : Number(inv.total_amount || 0),
     });
-    const settle = (s: any): SheetEntry => ({
-      date: s.date,
-      desc: s.match_type === "adjustment"
-        ? `차액 마감 (${ADJ_REASON_LABEL[s.adjustment_reason] || "잔액 정리"})`
-        : `${isSales ? "입금" : "지급"}${s.cp ? ` · ${s.cp}` : ""}`,
-      debit: isSales ? 0 : Number(s.amount || 0),
-      credit: isSales ? Number(s.amount || 0) : 0,
-      isAdj: s.match_type === "adjustment",
-      sid: s.id,
-    });
+    const settle = (s: any): SheetEntry => {
+      const vid = settleVoucherMap[s.id]; // 연결된 자동 전표(있으면 정산 줄 클릭 시 그 전표 수정)
+      return {
+        date: s.date,
+        desc: s.match_type === "adjustment"
+          ? `차액 마감 (${ADJ_REASON_LABEL[s.adjustment_reason] || "잔액 정리"})`
+          : `${isSales ? "입금" : "지급"}${s.cp ? ` · ${s.cp}` : ""}`,
+        debit: isSales ? 0 : Number(s.amount || 0),
+        credit: isSales ? Number(s.amount || 0) : 0,
+        isAdj: s.match_type === "adjustment",
+        sid: s.id,
+        isVoucher: !!vid,
+        vid: vid || undefined,
+      };
+    };
     // 수동 전표(직접 입력)를 해당 거래처의 AR/AP 라인(매출처=외상매출금108, 매입처=외상매입금251) 기준으로
     //   그리드에 날짜순 통합 — 차변/대변·잔액에 반영, 적요 = 라인 적요, 클릭 = 수정/삭제 모달.
     const arApCode = isSales ? "108" : "251";
@@ -234,7 +259,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       ending: opening + within.reduce((s, e) => s + dir(e), 0),
     };
     return { opening, months, totals };
-  }, [invoices, settles, manualVouchers, isSales, yStart, partnerId]);
+  }, [invoices, settles, manualVouchers, settleVoucherMap, isSales, yStart, partnerId]);
 
   void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
 
