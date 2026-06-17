@@ -12,7 +12,7 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
 
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
@@ -48,10 +48,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
       { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      // 워크플로우(보드 뷰) + 프로젝트(라이프사이클·손익 뷰) — 같은 deals 데이터의 두 렌즈 (2026-06-17).
-      // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view (동일 라우트, 단일 메뉴로 통합).
-      { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin", "partner"] },
-      { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
+      // 프로젝트(라이프사이클·손익 뷰) 부모 + 프로젝트 운영(보드 뷰) 하위 토글 — 같은 deals 두 렌즈 (2026-06-17).
+      // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view. 부모가 role 로 숨겨지면 자식이 top-level 로 승격.
+      { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"], children: [
+        { href: "/projects", label: "프로젝트 운영", icon: "kanban", roles: ["owner", "admin", "partner"] },
+      ] },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
@@ -139,9 +140,11 @@ function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boo
   return NAV_GROUPS
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => {
-        if (item.operatorOnly && !isOperator) return false;
-        return !item.roles || item.roles.includes(role);
+      items: group.items.flatMap((item) => {
+        const ok = (i: NavItem) => (!i.operatorOnly || isOperator) && (!i.roles || i.roles.includes(role));
+        const kids = (item.children || []).filter(ok);
+        if (ok(item)) return [{ ...item, children: kids.length ? kids : undefined }];
+        return kids; // 부모가 role 로 숨겨지면 보이는 자식을 top-level 로 승격
       }),
     }))
     .filter((group) => group.items.length > 0);
@@ -230,15 +233,85 @@ export function Sidebar() {
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
+  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
+  const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
   const filteredNav = filterNavForRole(role, user?.companies?.name || undefined, isOperator);
 
   // Build flat lookup for pinned pages
-  const allNavItems = filteredNav.flatMap(g => g.items);
+  const allNavItems = filteredNav.flatMap(g => g.items.flatMap(i => i.children ? [i, ...i.children] : [i]));
   const allHrefs = allNavItems.map((i) => i.href);
   const pinnedItems = pinnedPages
     .map(href => allNavItems.find(item => item.href === href))
     .filter(Boolean) as NavItem[];
+
+  // 데스크톱 단일 아이템 렌더 (하위 토글 지원 — 부모는 chevron, 일반은 핀)
+  const renderDesktopItem = (item: NavItem, isChild: boolean, hasChildren = false, open = false) => {
+    const active = isActivePath(item.href, pathname, allHrefs);
+    const bk = (item as any).badgeKey;
+    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
+    const pinned = isPinned(item.href);
+    return (
+      <Tooltip key={item.href} label={item.label} show={collapsed}>
+        <div className="group relative">
+          <Link href={item.href}
+            className={`flex items-center rounded-lg text-[13px] transition-all ${
+              collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
+            } ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+            <span className="relative">
+              <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+              {collapsed && badge > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">{badge > 99 ? "99" : badge}</span>
+              )}
+            </span>
+            {!collapsed && (
+              <>
+                <span className="flex-1">{item.label}</span>
+                {badge > 0 && (
+                  <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">{badge > 99 ? "99+" : badge}</span>
+                )}
+              </>
+            )}
+          </Link>
+          {!collapsed && hasChildren ? (
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(item.href); }}
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-dim)] hover:text-[var(--text)]" title={open ? "접기" : "펼치기"}>
+              <svg className={`w-3.5 h-3.5 transition-transform ${open ? "" : "-rotate-90"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          ) : !collapsed ? (
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.href); }}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded transition-all ${pinned ? "text-amber-500 opacity-100" : "text-[var(--text-dim)] opacity-0 group-hover:opacity-60 hover:!opacity-100"}`}
+              title={pinned ? "즐겨찾기 해제" : "즐겨찾기 추가"}>
+              <svg className="w-3 h-3" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" /></svg>
+            </button>
+          ) : null}
+        </div>
+      </Tooltip>
+    );
+  };
+
+  // 모바일 단일 아이템 렌더 (하위는 indent, 토글 없이 항상 펼침)
+  const renderMobileItem = (item: NavItem, isChild: boolean) => {
+    const active = isActivePath(item.href, pathname, allHrefs);
+    const bk = (item as any).badgeKey;
+    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
+    const pinned = isPinned(item.href);
+    return (
+      <div key={item.href} className="relative flex items-center">
+        <Link href={item.href}
+          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+          <span className="flex-1">{item.label}</span>
+          {badge > 0 && (
+            <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">{badge > 99 ? "99+" : badge}</span>
+          )}
+        </Link>
+        <button onClick={() => togglePin(item.href)} className={`p-2 rounded transition-all ${pinned ? "text-amber-500" : "text-[var(--text-dim)] opacity-40"}`}>
+          <svg className="w-3.5 h-3.5" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+    );
+  };
 
   useEffect(() => {
     async function loadCounts() {
@@ -424,63 +497,18 @@ export function Sidebar() {
             {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = isActivePath(item.href, pathname, allHrefs);
-                const bk = (item as any).badgeKey;
-                const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
-                const pinned = isPinned(item.href);
-                return (
-                  <Tooltip key={item.href} label={item.label} show={collapsed}>
-                    <div className="group relative">
-                      <Link
-                        href={item.href}
-                        className={`flex items-center rounded-lg text-[13px] transition-all ${
-                          collapsed
-                            ? "justify-center px-0 py-2.5"
-                            : "gap-2.5 px-2.5 py-2"
-                        } ${
-                          active
-                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                            : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                        }`}
-                      >
-                        <span className="relative">
-                          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
-                          {collapsed && badge > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">
-                              {badge > 99 ? "99" : badge}
-                            </span>
-                          )}
-                        </span>
-                        {!collapsed && (
-                          <>
-                            <span className="flex-1">{item.label}</span>
-                            {badge > 0 && (
-                              <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-                                {badge > 99 ? "99+" : badge}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </Link>
-                      {/* Pin button — visible on hover (desktop expanded only) */}
-                      {!collapsed && (
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.href); }}
-                          className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded transition-all ${
-                            pinned
-                              ? "text-amber-500 opacity-100"
-                              : "text-[var(--text-dim)] opacity-0 group-hover:opacity-60 hover:!opacity-100"
-                          }`}
-                          title={pinned ? "즐겨찾기 해제" : "즐겨찾기 추가"}
-                        >
-                          <svg className="w-3 h-3" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                      )}
+                const kids = item.children;
+                if (kids && kids.length) {
+                  if (collapsed) return <div key={item.href} className="space-y-0.5">{[item, ...kids].map((c) => renderDesktopItem(c, false))}</div>;
+                  const open = !collapsedParents.has(item.href);
+                  return (
+                    <div key={item.href}>
+                      {renderDesktopItem(item, false, true, open)}
+                      {open && <div className="mt-0.5 space-y-0.5">{kids.map((c) => renderDesktopItem(c, true))}</div>}
                     </div>
-                  </Tooltip>
-                );
+                  );
+                }
+                return renderDesktopItem(item, false);
               })}
             </div>
           </div>
@@ -673,40 +701,11 @@ export function Sidebar() {
                 </div>
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
-                    const active = isActivePath(item.href, pathname, allHrefs);
-                    const bk = (item as any).badgeKey;
-                    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
-                    const pinned = isPinned(item.href);
-                    return (
-                      <div key={item.href} className="relative flex items-center">
-                        <Link
-                          href={item.href}
-                          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
-                            active
-                              ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
-                              : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                          }`}
-                        >
-                          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
-                          <span className="flex-1">{item.label}</span>
-                          {badge > 0 && (
-                            <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-                              {badge > 99 ? "99+" : badge}
-                            </span>
-                          )}
-                        </Link>
-                        <button
-                          onClick={() => togglePin(item.href)}
-                          className={`p-2 rounded transition-all ${
-                            pinned ? "text-amber-500" : "text-[var(--text-dim)] opacity-40"
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                      </div>
-                    );
+                    const kids = item.children;
+                    if (kids && kids.length) {
+                      return <div key={item.href} className="space-y-0.5">{renderMobileItem(item, false)}{kids.map((c) => renderMobileItem(c, true))}</div>;
+                    }
+                    return renderMobileItem(item, false);
                   })}
                 </div>
               </div>
