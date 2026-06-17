@@ -538,17 +538,14 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
       {summary.count > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {([
-            { grad: "from-blue-600 to-cyan-500", icon: "building", label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
-            { grad: "from-indigo-600 to-purple-500", icon: "clock", label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
-            { grad: "from-emerald-600 to-green-500", icon: "check", label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
-            ...(!isEmployeeLimited ? [{ grad: "from-orange-500 to-red-500", icon: "wallet", label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
-          ] as { grad: string; icon: string; label: string; value: string }[]).map((s) => (
-            <div key={s.label} className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${s.grad}`}>
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-[11px] font-semibold text-white/80 uppercase tracking-wide pt-1">{s.label}</p>
-                <span className="p-2 bg-white/20 rounded-lg shrink-0"><TileIcon name={s.icon} className="w-4 h-4 text-white" /></span>
-              </div>
-              <p className="text-2xl font-bold mono-number truncate">{s.value}</p>
+            { label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
+            { label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
+            { label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
+            ...(!isEmployeeLimited ? [{ label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
+          ] as { label: string; value: string }[]).map((s) => (
+            <div key={s.label} className="glass-card px-4 py-3">
+              <div className="text-xs text-[var(--text-muted)]">{s.label}</div>
+              <div className="text-2xl font-bold mono-number mt-0.5 text-[var(--text)] truncate">{s.value}</div>
             </div>
           ))}
         </div>
