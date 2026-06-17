@@ -18,30 +18,11 @@ const db = supabase as any;
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 
-// 프로젝트 기간(start~end)의 'YYYY-MM' 목록 — 판관비 풀 산정용. end 없으면 오늘까지, start 없으면 빈 배열(전체 사용).
-function monthRange(start: string | null | undefined, end: string | null | undefined): string[] {
-  if (!start) return [];
-  const s = new Date(start);
-  if (isNaN(s.getTime())) return [];
-  const e = end ? new Date(end) : new Date();
-  const last = isNaN(e.getTime()) ? new Date() : e;
-  const out: string[] = [];
-  const cur = new Date(s.getFullYear(), s.getMonth(), 1);
-  let guard = 0;
-  while (cur <= last && guard < 120) {
-    out.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`);
-    cur.setMonth(cur.getMonth() + 1);
-    guard++;
-  }
-  return out;
-}
-
-type TabKey = "overview" | "quote" | "contract" | "progress" | "pnl";
+type TabKey = "overview" | "quote" | "contract" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
   { key: "quote", label: "견적서" },
   { key: "contract", label: "계약" },
-  { key: "progress", label: "진행현황" },
   { key: "pnl", label: "손익" },
 ];
 
@@ -138,57 +119,39 @@ export default function ProjectHubDetailPage() {
     enabled: tab === "contract" && docIds.length > 0,
   });
 
-  // 진행현황 — deal_milestones + deal_nodes
-  const { data: milestones = [] } = useQuery({
-    queryKey: ["projecthub-ms", dealId],
+  // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
+  const costEnabled = (tab === "overview" || tab === "pnl") && !!dealId;
+  const { data: costInvoices = [] } = useQuery({
+    queryKey: ["projecthub-cost-inv", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deal_milestones").select("*").eq("deal_id", dealId).order("due_date", { ascending: true });
+      const { data } = await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").eq("deal_id", dealId).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: tab === "progress" && !!dealId,
+    enabled: costEnabled,
   });
-  const { data: nodes = [] } = useQuery({
-    queryKey: ["projecthub-nodes", dealId],
+  const { data: costCash = [] } = useQuery({
+    queryKey: ["projecthub-cost-cash", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deal_nodes").select("*").eq("deal_id", dealId).order("created_at", { ascending: true });
+      const { data } = await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").eq("deal_id", dealId).order("issue_date", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: tab === "progress" && !!dealId,
+    enabled: costEnabled,
   });
-
-  // 손익 — v_deal_pnl (직접원가·직접원가율) + financial_items(deal_id) 보조
-  const { data: pnl } = useQuery({
-    queryKey: ["projecthub-deal-pnl", dealId],
+  const { data: costCards = [] } = useQuery({
+    queryKey: ["projecthub-cost-card", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_pnl").select("*").eq("deal_id", dealId).maybeSingle();
-      return data as any;
-    },
-    enabled: !!dealId && (tab === "overview" || tab === "pnl"),
-  });
-  const { data: finItems = [] } = useQuery({
-    queryKey: ["projecthub-finitems", dealId],
-    queryFn: async () => {
-      const { data } = await db.from("financial_items").select("*").eq("deal_id", dealId).order("month", { ascending: false });
+      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").eq("deal_id", dealId).order("transaction_date", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: tab === "pnl" && !!dealId,
+    enabled: costEnabled,
   });
-  // 판관비 매출비례 배분(추정) — monthly_financials.fixed_cost 풀 × 매출 비중
-  const { data: monthlyFin = [] } = useQuery({
-    queryKey: ["projecthub-monthlyfin", companyId],
+  const { data: costVouchers = [] } = useQuery({
+    queryKey: ["projecthub-cost-voucher", dealId],
     queryFn: async () => {
-      const { data } = await db.from("monthly_financials").select("month, fixed_cost").eq("company_id", companyId);
+      const { data } = await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").eq("deal_id", dealId).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: !!companyId && (tab === "overview" || tab === "pnl"),
-  });
-  const { data: allDeals = [] } = useQuery({
-    queryKey: ["projecthub-allcontract", companyId],
-    queryFn: async () => {
-      const { data } = await db.from("deals").select("contract_total").eq("company_id", companyId).is("archived_at", null);
-      return (data || []) as any[];
-    },
-    enabled: !!companyId && (tab === "overview" || tab === "pnl"),
+    enabled: costEnabled,
   });
 
   if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
@@ -198,19 +161,23 @@ export default function ProjectHubDetailPage() {
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
   const contract = Number(deal.contract_total || 0);
-  const directCost = pnl ? Number(pnl.direct_cost || 0) : null;
-  const margin = pnl ? Number(pnl.margin || 0) : null;
-  const ratio = pnl?.direct_cost_ratio != null ? Number(pnl.direct_cost_ratio) : null;
-  const ratioPct = ratio == null ? "—" : `${Math.round(ratio * 100)}%`;
-  // 판관비 매출비례 배분(추정): 기간 풀 × (이 프로젝트 매출 / 전체 활성 프로젝트 매출)
-  const totalContractAll = (allDeals as any[]).reduce((s, d) => s + Number(d.contract_total || 0), 0);
-  const panbanMonths = monthRange(deal.start_date, deal.end_date);
-  const panbanPool = (panbanMonths.length ? (monthlyFin as any[]).filter((f) => panbanMonths.includes(String(f.month).slice(0, 7))) : (monthlyFin as any[]))
-    .reduce((s, f) => s + Number(f.fixed_cost || 0), 0);
-  const allocPanban = totalContractAll > 0 && contract > 0 ? panbanPool * (contract / totalContractAll) : null;
-  const totalCost = allocPanban != null && directCost != null ? directCost + allocPanban : null;
-  const totalRatio = totalCost != null && contract > 0 ? totalCost / contract : null;
-  const totalRatioPct = totalRatio == null ? "—" : `${Math.round(totalRatio * 100)}%`;
+  // 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
+  const sumBy = (arr: any[], f: (x: any) => number) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+  const costInvoiceSum = sumBy(costInvoices as any[], (i) => i.supply_amount || i.total_amount);
+  const costCashSum = sumBy(costCash as any[], (c) => c.supply_amount || c.amount);
+  const costCardSum = sumBy(costCards as any[], (c) => c.amount);
+  const costVoucherSum = sumBy(costVouchers as any[], (v) =>
+    (v.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0));
+  const totalCost = costInvoiceSum + costCashSum + costCardSum + costVoucherSum;
+  const margin = contract - totalCost;
+  const marginRate = contract > 0 ? margin / contract : null;
+  const marginRatePct = marginRate == null ? "—" : `${Math.round(marginRate * 100)}%`;
+  const COST_SOURCES = [
+    { key: "invoice", label: "세금계산서(매입)", total: costInvoiceSum, count: costInvoices.length, items: costInvoices as any[] },
+    { key: "cash", label: "현금영수증", total: costCashSum, count: costCash.length, items: costCash as any[] },
+    { key: "card", label: "카드사용", total: costCardSum, count: costCards.length, items: costCards as any[] },
+    { key: "voucher", label: "수동 전표", total: costVoucherSum, count: costVouchers.length, items: costVouchers as any[] },
+  ];
 
   return (
     <div className="space-y-4">
@@ -256,13 +223,11 @@ export default function ProjectHubDetailPage() {
       {/* 개요 */}
       {tab === "overview" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Metric label="계약금액(매출)" value={won(contract)} />
-            <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} hint="태그된 전표 비용 + 보정" />
-            <Metric label="배분 판관비(추정)" value={allocPanban == null ? "—" : won(allocPanban)} hint="매출비례 배분 추정치" />
-            <Metric label="총원가(추정)" value={totalCost == null ? "—" : won(totalCost)} hint="직접원가 + 배분 판관비" />
-            <Metric label="직접원가율" value={ratioPct} />
-            <Metric label="총원가율(추정)" value={totalRatioPct} hint="판관비 포함 추정" />
+            <Metric label="총 비용" value={won(totalCost)} hint="프로젝트 태그 비용 합계" />
+            <Metric label="마진금액" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
+            <Metric label="마진률" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
           </div>
           <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <Info label="거래처" value={partner?.name || "—"} />
@@ -352,102 +317,73 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {/* 진행현황 */}
-      {tab === "progress" && (
-        <div className="space-y-4">
-          <div className="glass-card p-4">
-            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">마일스톤</div>
-            {milestones.length === 0 ? (
-              <div className="text-xs text-[var(--text-dim)]">등록된 마일스톤이 없습니다.</div>
-            ) : (
-              <div className="space-y-2">
-                {milestones.map((m) => {
-                  const done = m.status === "completed" || !!m.completed_at;
-                  return (
-                    <div key={m.id} className="flex items-center gap-2.5">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${done ? "bg-green-500" : "bg-[var(--border)]"}`} />
-                      <span className={`text-sm flex-1 ${done ? "text-[var(--text-dim)] line-through" : "text-[var(--text)]"}`}>{m.name || "마일스톤"}</span>
-                      <span className="text-[11px] text-[var(--text-muted)] mono-number">{fmtDate(m.due_date)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="glass-card p-4">
-            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">작업 항목 (매출·원가)</div>
-            {nodes.length === 0 ? (
-              <div className="text-xs text-[var(--text-dim)]">등록된 작업 항목이 없습니다.</div>
-            ) : (
-              <div className="overflow-auto">
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="text-[var(--text-muted)] border-b border-[var(--border)]">
-                      <th className="px-2 py-1.5 text-left font-semibold">항목</th>
-                      <th className="px-2 py-1.5 text-center font-semibold w-[70px]">상태</th>
-                      <th className="px-2 py-1.5 text-right font-semibold w-[110px]">매출</th>
-                      <th className="px-2 py-1.5 text-right font-semibold w-[110px]">예정원가</th>
-                      <th className="px-2 py-1.5 text-right font-semibold w-[110px]">실제원가</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {nodes.map((n) => (
-                      <tr key={n.id} className="border-b border-[var(--border)]/30">
-                        <td className="px-2 py-1.5 text-[var(--text)]">{n.name || n.title || "항목"}</td>
-                        <td className="px-2 py-1.5 text-center text-[var(--text-muted)]">{n.status || "—"}</td>
-                        <td className="px-2 py-1.5 text-right mono-number text-[var(--text)]">{n.revenue_amount != null ? won(n.revenue_amount) : "—"}</td>
-                        <td className="px-2 py-1.5 text-right mono-number text-[var(--text-muted)]">{n.expected_cost != null ? won(n.expected_cost) : "—"}</td>
-                        <td className="px-2 py-1.5 text-right mono-number text-[var(--text-muted)]">{n.actual_cost != null ? won(n.actual_cost) : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 손익 */}
+      {/* 손익 — 계약금액(매출) - 비용 = 마진금액 / 마진률 */}
       {tab === "pnl" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Metric label="매출(계약금액)" value={won(contract)} />
-            <Metric label="직접원가" value={directCost == null ? "—" : won(directCost)} />
-            <Metric label="배분 판관비(추정)" value={allocPanban == null ? "—" : won(allocPanban)} />
-            <Metric label="총원가(추정)" value={totalCost == null ? "—" : won(totalCost)} />
-            <Metric label="직접원가율" value={ratioPct} />
-            <Metric label="총원가율(추정)" value={totalRatioPct} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Metric label="계약금액(매출)" value={won(contract)} />
+            <Metric label="총 비용" value={won(totalCost)} />
+            <Metric label="마진금액" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
+            <Metric label="마진률" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
+          </div>
+          <div className="glass-card overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--text-muted)]">비용 구성 (프로젝트에 태그된 비용처리 내역)</span>
+              <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
+            </div>
+            <div className="divide-y divide-[var(--border)]/40">
+              {COST_SOURCES.map((s) => (
+                <details key={s.key} className="group">
+                  <summary className="px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none">
+                    <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
+                    <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
+                    <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
+                    <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
+                  </summary>
+                  <div className="px-4 pb-3 pl-9 space-y-0.5">
+                    {s.count === 0 ? (
+                      <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
+                    ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
           <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
-            <p>· <b className="text-[var(--text)]">직접원가</b> = 이 프로젝트로 태그된 전표(비용계정)의 차변 합계 + 수동 보정. 전표 입력 시 프로젝트를 선택하면 자동 집계됩니다(신규 입력분부터 · 기존 전표 백필 안 함).</p>
-            <p>· <b className="text-[var(--text)]">배분 판관비</b> = 회사 고정비(monthly_financials) 중 프로젝트 기간({panbanMonths.length ? `${panbanMonths[0]}~${panbanMonths[panbanMonths.length - 1]}` : "전체"})분을 <b className="text-[var(--text)]">매출 비례로 배분한 추정치</b>입니다. 정밀 원가는 직접원가율을 우선 참고하세요.</p>
+            <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
+            <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
           </div>
-          {finItems.length > 0 && (
-            <div className="glass-card p-4">
-              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">참고 — 비용 상세 (financial_items, 추정 보조)</div>
-              <div className="divide-y divide-[var(--border)]/40">
-                {finItems.map((f) => (
-                  <div key={f.id} className="flex items-center gap-2 py-1.5 text-xs">
-                    <span className="text-[var(--text-dim)] mono-number w-16 shrink-0">{String(f.month || "").slice(0, 7)}</span>
-                    <span className="text-[var(--text)] flex-1 truncate">{f.account_type || f.category || "비용"}</span>
-                    <span className="mono-number text-[var(--text-muted)] shrink-0">{won(f.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Metric({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: "primary" | "danger" }) {
+  const color = value === "—" ? "text-[var(--text-dim)]"
+    : accent === "danger" ? "text-[var(--danger)]"
+    : accent === "primary" ? "text-[var(--primary)]"
+    : "text-[var(--text)]";
   return (
     <div className="glass-card px-3 py-2.5">
       <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
-      <div className={`text-base font-bold mono-number mt-0.5 ${value === "—" ? "text-[var(--text-dim)]" : "text-[var(--text)]"}`} title={hint}>{value}</div>
+      <div className={`text-base font-bold mono-number mt-0.5 ${color}`} title={hint}>{value}</div>
+    </div>
+  );
+}
+function CostItemRow({ kind, it }: { kind: string; it: any }) {
+  if (kind === "invoice") return <CostRow date={it.issue_date} name={it.counterparty_name} amt={Number(it.supply_amount || it.total_amount || 0)} />;
+  if (kind === "cash") return <CostRow date={it.issue_date} name={it.counterparty_name || "현금영수증"} amt={Number(it.supply_amount || it.amount || 0)} />;
+  if (kind === "card") return <CostRow date={it.transaction_date} name={it.merchant_name || it.card_name || "카드사용"} amt={Number(it.amount || 0)} />;
+  const exp = (it.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+  return <CostRow date={it.entry_date} name={it.description || "전표"} amt={exp} />;
+}
+function CostRow({ date, name, amt }: { date: string | null; name: string | null; amt: number }) {
+  return (
+    <div className="flex items-center gap-2 text-xs py-0.5">
+      <span className="text-[var(--text-dim)] mono-number w-[78px] shrink-0">{date ? String(date).slice(0, 10) : "—"}</span>
+      <span className="text-[var(--text)] flex-1 truncate">{name || "—"}</span>
+      <span className="mono-number text-[var(--text-muted)] shrink-0">{Math.round(Number(amt || 0)).toLocaleString("ko-KR")}원</span>
     </div>
   );
 }
