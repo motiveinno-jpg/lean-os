@@ -43,6 +43,7 @@ const PUBLIC_ROUTES = [
   '/guide',
   '/platform',
   '/demo',
+  '/maintenance',
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -87,9 +88,26 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // 인증 확인 — DB/인증 미응답 시 hang → 504 방지를 위해 타임아웃.
+  //   타임아웃/오류면 서버 점검 상태로 간주: 보호 라우트는 /maintenance 로 rewrite(504 대신 점검 화면).
+  let user: { id: string } | null = null;
+  let authDown = false;
+  try {
+    const res = (await Promise.race([
+      supabase.auth.getUser(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('AUTH_TIMEOUT')), 5000)),
+    ])) as { data?: { user: { id: string } | null }; error?: unknown };
+    user = res?.data?.user ?? null;
+  } catch {
+    authDown = true; // getUser hang/timeout — DB/인증 미응답
+  }
+
+  // 서버(DB/인증) 미응답 + 보호 라우트 → 504 대신 점검 화면
+  if (authDown && !isPublicRoute(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/maintenance';
+    return NextResponse.rewrite(url);
+  }
 
   // 인증된 유저가 /auth 접근 → /dashboard로 리다이렉트
   if (user && (pathname === '/auth' || pathname === '/auth/')) {
