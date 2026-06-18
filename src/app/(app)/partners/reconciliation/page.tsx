@@ -6,7 +6,7 @@
 //   탭3 확정 내역: 확정 취소(원복) / 차액마감 취소.
 //   조회(거래처별 잔액)는 /partners/ledger (거래처 원장).
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -109,11 +109,15 @@ export default function ReconciliationPage() {
   });
 
   // AI 매칭 — 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(30건씩, 더 없을 때까지).
-  const [aiProgress, setAiProgress] = useState<{ processed: number; suggested: number } | null>(null);
+  const [aiProgress, setAiProgress] = useState<{ total: number; processed: number; suggested: number } | null>(null);
   const aiMut = useMutation({
     mutationFn: async () => {
+      // 진행률 분모 — 아직 AI 시도 안 한 미정산 건수
+      const { count: total } = await db.from("bank_transactions").select("id", { count: "exact", head: true })
+        .eq("company_id", companyId).eq("settlement_status", "open").in("type", ["income", "expense"])
+        .is("ai_attempted_at", null).gt("amount", 0);
       let totalProcessed = 0, totalResolved = 0, totalSuggested = 0;
-      setAiProgress({ processed: 0, suggested: 0 });
+      setAiProgress({ total: total ?? 0, processed: 0, suggested: 0 });
       for (let round = 0; round < 100; round++) { // 안전 상한 100*30=3000건
         const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 30 } });
         if (error) throw new Error(error.message);
@@ -122,7 +126,7 @@ export default function ReconciliationPage() {
         totalProcessed += r.processed || 0;
         totalResolved += r.resolved || 0;
         totalSuggested += r.suggested || 0;
-        setAiProgress({ processed: totalProcessed, suggested: totalSuggested });
+        setAiProgress({ total: total ?? totalProcessed, processed: totalProcessed, suggested: totalSuggested });
         qc.invalidateQueries({ queryKey: ["settlement-queue"] }); // 라운드마다 큐 실시간 반영
         if ((r.processed || 0) === 0) break; // 더 처리할 입금 없음 → 종료
       }
@@ -131,6 +135,15 @@ export default function ReconciliationPage() {
     onSuccess: (r) => { invalidateAll(); setAiProgress(null); toast(`AI 매칭 완료 — ${r.processed}건 분석 · 제안 ${r.suggested}건 생성`, "success"); },
     onError: (e: any) => { setAiProgress(null); toast(e?.message || "AI 매칭 실패", "error"); },
   });
+  // 대기 중 재미용 회전 메시지
+  const AI_MSGS = ["통장 입금을 살펴보는 중...", "거래처를 찾아내는 중 🔎", "금액을 맞춰보는 중 🧮", "세금계산서와 연결하는 중 🔗", "패턴을 학습하는 중 🧠", "조금만 더요! 💪"];
+  const [aiMsgIdx, setAiMsgIdx] = useState(0);
+  useEffect(() => {
+    if (!aiMut.isPending) { setAiMsgIdx(0); return; }
+    const t = setInterval(() => setAiMsgIdx((i) => (i + 1) % AI_MSGS.length), 2500);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiMut.isPending]);
 
   // 별칭 학습(대사 핸드오프 TASK A): 사람이 매칭을 확정하면 입금자명→거래처를 partner_aliases 에
   //   학습 — 다음 규칙 엔진 실행부터 같은 입금자명이 즉시 해소된다. 실패는 비치명(무시),
@@ -408,6 +421,43 @@ export default function ReconciliationPage() {
             {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : "✨ AI 전체 매칭"}</button>
         </div>
       </div>
+
+      {/* AI 전체 매칭 진행 오버레이 — 실시간 진행률 + 애니메이션 */}
+      {aiMut.isPending && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
+            <div className="relative mx-auto mb-3 w-16 h-16 flex items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping" />
+              <span className="relative text-5xl animate-bounce">🤖</span>
+            </div>
+            <div className="text-base font-bold">AI가 거래를 매칭하고 있어요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1 mb-4 h-4 transition-all">{AI_MSGS[aiMsgIdx]}</div>
+            {(() => {
+              const total = aiProgress?.total ?? 0;
+              const processed = aiProgress?.processed ?? 0;
+              const suggested = aiProgress?.suggested ?? 0;
+              const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+              return (
+                <>
+                  <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-2">
+                    <div className="h-full rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 transition-all duration-700 ease-out relative" style={{ width: `${Math.max(pct, 3)}%` }}>
+                      <span className="absolute inset-0 bg-white/25 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs mb-3">
+                    <span className="text-[var(--text-muted)] mono-number">{processed}{total ? ` / ${total}` : ""}건 분석</span>
+                    <span className="font-bold text-purple-500 mono-number">{pct}%</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-500 text-sm font-bold">
+                    <span className="animate-pulse">✨</span> 매칭 제안 <span className="mono-number">{suggested}</span>건
+                  </div>
+                </>
+              );
+            })()}
+            <div className="text-[10px] text-[var(--text-dim)] mt-5 leading-relaxed">이 창을 닫지 마세요 · 완료까지 잠시 기다려 주세요<br />이미 찾은 제안은 거래 정리에 바로 쌓입니다</div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-[var(--border)]">
         {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
