@@ -294,6 +294,20 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       const v = docVarValues[String(k).trim()];
       return v && v.length ? v : "____";
     });
+  // 마크다운(##) + 변수 → 보기와 동일한 채워진 HTML (편집기에서 양식 그대로 수정)
+  const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const toRichHtml = (text: string) => {
+    const filled = fillVars(text || "");
+    if (filled.trim().startsWith("<")) return filled; // 이미 HTML
+    return filled.split("\n").map((ln) => {
+      const t = ln.trim();
+      if (!t) return "";
+      if (t.startsWith("## ")) return `<h3>${escHtml(t.slice(3))}</h3>`;
+      if (t.startsWith("# ")) return `<h2>${escHtml(t.slice(2))}</h2>`;
+      if (t.startsWith("[") && t.includes("품목 테이블")) return ""; // 품목은 아래 품목표로 편집
+      return `<p>${escHtml(t)}</p>`;
+    }).filter(Boolean).join("");
+  };
 
   // Auto-classification badge
   const autoType = (doc as any).auto_classified_type;
@@ -1096,7 +1110,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               <div className="flex items-center gap-2">
                 {canEdit && (
                   <button
-                    onClick={() => setIsEditing((v) => !v)}
+                    onClick={() => {
+                      // 편집 진입 시: 원본 마크다운(##·{{변수}})이면 보기와 동일한 채워진 HTML 로 1회 변환
+                      if (!isEditing && editContent && !editContent.trim().startsWith("<")) {
+                        setEditContent(toRichHtml(editContent));
+                      }
+                      setIsEditing((v) => !v);
+                    }}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${isEditing ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--primary)]"}`}
                   >
                     {isEditing ? "✓ 보기" : "✏️ 수정하기"}
