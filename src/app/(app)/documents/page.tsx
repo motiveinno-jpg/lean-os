@@ -291,8 +291,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   };
   const fillVars = (text: string) =>
     (text || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_m, k) => {
-      const v = docVarValues[String(k).trim()];
-      return v && v.length ? v : "____";
+      const key = String(k).trim();
+      const v = docVarValues[key];
+      return v && v.length ? v : `[${key}]`; // 값 없는 변수는 [항목명] 자리표시(어디 채울지 보이게)
     });
   // 마크다운(##) + 변수 → 보기와 동일한 채워진 HTML (편집기에서 양식 그대로 수정)
   const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
