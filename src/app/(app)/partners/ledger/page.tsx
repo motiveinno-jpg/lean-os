@@ -45,7 +45,7 @@ export default function PartnerLedgerPage() {
   const rpcYear = periodMode === "custom" ? (Number(customFrom.slice(0, 4)) || ledgerYear) : ledgerYear; // 좌측 목록 RPC는 연도 기준 → 시작일의 연도 사용
   const periodLabel = periodMode === "custom" ? `${customFrom} ~ ${customTo}` : `${ledgerYear}년`;
   const [ledgerSearch, setLedgerSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"outstanding" | "name">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
+  const [sortBy, setSortBy] = useState<"outstanding" | "name" | "code">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null);
 
@@ -148,12 +148,18 @@ export default function PartnerLedgerPage() {
   const sq = ledgerSearch.trim().toLowerCase();
   const shown = useMemo(() => {
     const filtered = sq ? data.filter((r) => nameOf(r.partner_id).toLowerCase().includes(sq)) : [...data];
-    filtered.sort((a, b) => sortBy === "name"
-      ? nameOf(a.partner_id).localeCompare(nameOf(b.partner_id), "ko")
-      : ledgerOut(b) - ledgerOut(a));
+    filtered.sort((a, b) => {
+      if (sortBy === "name") return nameOf(a.partner_id).localeCompare(nameOf(b.partner_id), "ko");
+      if (sortBy === "code") {
+        const ca = (a.partner_id && partnerCodeMap[a.partner_id]) || Number.MAX_SAFE_INTEGER;
+        const cb = (b.partner_id && partnerCodeMap[b.partner_id]) || Number.MAX_SAFE_INTEGER;
+        return ca - cb;
+      }
+      return ledgerOut(b) - ledgerOut(a);
+    });
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, sq, sortBy, partnerMap]);
+  }, [data, sq, sortBy, partnerMap, partnerCodeMap]);
 
   const selKey = selLedger ?? (shown[0] ? (shown[0].partner_id ?? "none") : null);
   const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
@@ -241,9 +247,10 @@ export default function PartnerLedgerPage() {
         </div>
         <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
           className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36" />
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name")}
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
           className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
           <option value="outstanding">잔액 큰 순</option>
+          <option value="code">코드순</option>
           <option value="name">거래처명 순</option>
         </select>
       </div>
