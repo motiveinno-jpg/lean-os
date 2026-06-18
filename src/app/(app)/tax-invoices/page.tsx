@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
@@ -796,30 +796,59 @@ export default function TaxInvoicesPage() {
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [partnerSearch, setPartnerSearch] = useState("");
-  const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
   const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null);
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIssuing, setBatchIssuing] = useState(false);
-  const [form, setForm] = useState({
-    type: "sales" as "sales" | "purchase",
+
+  // ── 멀티 등록(다행) 폼 — 한 줄(row)이 세금계산서 1건. [+ 항목 추가]로 행 누적, [등록]에서 일괄 전송 ──
+  type FormRow = {
+    key: string;
+    type: "sales" | "purchase";
+    counterpartyName: string;
+    counterpartyBizno: string;
+    counterpartyBusinessType: string;
+    counterpartyBusinessItem: string;
+    partnerId: string;
+    supplyAmount: string;
+    issueDate: string;
+    preferredDate: string;
+    expenseCategory: string;
+    dealId: string;
+    purpose: "영수" | "청구";
+    itemName: string;
+    itemSpec: string;
+    itemQty: string;
+    itemUnitPrice: string;
+  };
+  const rowKeyRef = useRef(0);
+  const blankRow = (): FormRow => ({
+    key: `r${rowKeyRef.current++}`,
+    type: "sales",
     counterpartyName: "",
     counterpartyBizno: "",
     counterpartyBusinessType: "",
     counterpartyBusinessItem: "",
-    partnerId: "" as string,
+    partnerId: "",
     supplyAmount: "",
     issueDate: "",
     preferredDate: "",
     expenseCategory: "",
-    dealId: "" as string,
-    purpose: "청구" as "영수" | "청구",
+    dealId: "",
+    purpose: "청구",
     itemName: "",
     itemSpec: "",
     itemQty: "1",
     itemUnitPrice: "",
   });
+  const [rows, setRows] = useState<FormRow[]>(() => [blankRow()]);
+  const [dropdownRowKey, setDropdownRowKey] = useState<string | null>(null);
+  const patchRow = (key: string, patch: Partial<FormRow>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const removeRow = (key: string) =>
+    setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : [blankRow()]));
+  const isRowValid = (r: FormRow) =>
+    !!r.counterpartyName.trim() && !!r.supplyAmount && !!r.issueDate && Number(r.supplyAmount) > 0;
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -884,10 +913,11 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId,
   });
 
-  const filteredPartners = partners.filter((p: any) =>
-    !partnerSearch || p.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
-    (p.business_number || "").includes(partnerSearch)
-  );
+  const filterPartners = (search: string) =>
+    partners.filter((p: any) =>
+      !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.business_number || "").includes(search)
+    );
 
   // 3-way 매칭 fetch + matchFilter UI 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   //   matching 탭은 안내 메시지로 유지 (?tab=matching 옛 딥링크 호환).
@@ -1074,45 +1104,34 @@ export default function TaxInvoicesPage() {
   };
 
   const createMut = useMutation({
-    mutationFn: () =>
-      createTaxInvoice({
-        companyId: companyId!,
-        type: form.type,
-        counterpartyName: form.counterpartyName,
-        counterpartyBizno: form.counterpartyBizno || undefined,
-        counterpartyBusinessType: form.counterpartyBusinessType || undefined,
-        counterpartyBusinessItem: form.counterpartyBusinessItem || undefined,
-        supplyAmount: Number(form.supplyAmount),
-        issueDate: form.issueDate,
-        preferredDate: form.preferredDate || undefined,
-        expenseCategory: form.expenseCategory || undefined,
-        dealId: form.dealId || undefined,
-        partnerId: form.partnerId || undefined,
-        label: [form.purpose, form.itemName].filter(Boolean).join(' | ') || undefined,
-      }),
-    onSuccess: () => {
-      toast(`세금계산서가 등록되었습니다 — ${form.counterpartyName} ₩${(Number(form.supplyAmount) * 1.1).toLocaleString("ko-KR")}. 홈택스 전자발행은 목록에서 해당 건을 눌러 별도로 진행하세요.`, "success");
+    // 유효한 모든 행을 일괄 등록
+    mutationFn: async () => {
+      const valid = rows.filter(isRowValid);
+      for (const r of valid) {
+        await createTaxInvoice({
+          companyId: companyId!,
+          type: r.type,
+          counterpartyName: r.counterpartyName,
+          counterpartyBizno: r.counterpartyBizno || undefined,
+          counterpartyBusinessType: r.counterpartyBusinessType || undefined,
+          counterpartyBusinessItem: r.counterpartyBusinessItem || undefined,
+          supplyAmount: Number(r.supplyAmount),
+          issueDate: r.issueDate,
+          preferredDate: r.preferredDate || undefined,
+          expenseCategory: r.expenseCategory || undefined,
+          dealId: r.dealId || undefined,
+          partnerId: r.partnerId || undefined,
+          label: [r.purpose, r.itemName].filter(Boolean).join(' | ') || undefined,
+        });
+      }
+      return valid.length;
+    },
+    onSuccess: (count: number) => {
+      toast(`세금계산서 ${count}건이 등록되었습니다. 홈택스 전자발행은 목록에서 해당 건을 눌러 별도로 진행하세요.`, "success");
       invalidate();
       setShowForm(false);
-      setForm({
-        type: "sales",
-        counterpartyName: "",
-        counterpartyBizno: "",
-        counterpartyBusinessType: "",
-        counterpartyBusinessItem: "",
-        partnerId: "",
-        supplyAmount: "",
-        issueDate: "",
-        preferredDate: "",
-        expenseCategory: "",
-        dealId: "",
-        purpose: "청구",
-        itemName: "",
-        itemSpec: "",
-        itemQty: "1",
-        itemUnitPrice: "",
-      });
-      setPartnerSearch("");
+      setRows([blankRow()]);
+      setDropdownRowKey(null);
     },
     onError: (err: any) => toast("세금계산서 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
@@ -1173,11 +1192,17 @@ export default function TaxInvoicesPage() {
 
   const currentList = tab === "sales" ? salesInvoices : tab === "purchase" ? purchaseInvoices : [];
 
-  const canSubmit =
-    form.counterpartyName?.trim() &&
-    form.supplyAmount &&
-    form.issueDate &&
-    Number(form.supplyAmount) > 0;
+  const validRowCount = rows.filter(isRowValid).length;
+  const canSubmit = validRowCount > 0;
+  const rowsTotal = rows.reduce(
+    (a, r) => {
+      const s = Number(r.supplyAmount) || 0;
+      a.supply += s;
+      a.tax += Math.round(s * 0.1);
+      return a;
+    },
+    { supply: 0, tax: 0 },
+  );
 
   const draftInCurrentList = currentList.filter((inv: any) => inv.status === 'draft');
   const selectedDrafts = draftInCurrentList.filter((inv: any) => selectedIds.has(inv.id));
@@ -1691,255 +1716,231 @@ export default function TaxInvoicesPage() {
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-            <h3 className="text-base font-bold">세금계산서 등록</h3>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">
+            <div>
+              <h3 className="text-base font-bold">세금계산서 등록</h3>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">한 줄이 1건입니다. [+ 항목 추가]로 여러 건을 한 번에 등록할 수 있습니다.</p>
+            </div>
             <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none transition" aria-label="닫기">✕</button>
           </div>
 
-          {/* Body */}
-          <div className="px-6 py-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-              {/* 유형 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">유형 *</label>
-                <div className="relative">
-                  <select
-                    value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value as "sales" | "purchase" })}
-                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                  >
-                    {INVOICE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                </div>
+          {/* Body — 가로 스프레드시트식 다행 입력 */}
+          <div className="flex-1 overflow-auto px-6 py-4">
+            <div className="min-w-[1180px]">
+              {/* 컬럼 헤더 */}
+              <div className="grid grid-cols-[84px_124px_minmax(150px,1.3fr)_108px_128px_46px_84px_124px_120px_minmax(120px,1fr)_32px] gap-2 px-1 pb-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wide border-b border-[var(--border)]/60 sticky top-0 bg-[var(--bg-card)] z-10">
+                <span>유형</span>
+                <span>작성일자 *</span>
+                <span>거래처명 *</span>
+                <span>사업자번호</span>
+                <span className="text-right">공급가액 *</span>
+                <span></span>
+                <span>영수/청구</span>
+                <span>연결 프로젝트</span>
+                <span>비목</span>
+                <span>품목명</span>
+                <span></span>
               </div>
 
-              {/* 작성일자 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">작성일자 (발행일) *</label>
-                <input
-                  type="date"
-                  value={form.issueDate}
-                  onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
-                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                />
-                <span className="block text-[10px] text-[var(--text-dim)] mt-1">이 날짜로 세금계산서가 발행됩니다</span>
-              </div>
+              {/* 데이터 행 */}
+              <div className="space-y-2 pt-2">
+                {rows.map((row) => {
+                  const sa = Number(row.supplyAmount) || 0;
+                  return (
+                    <div key={row.key}>
+                      <div className="grid grid-cols-[84px_124px_minmax(150px,1.3fr)_108px_128px_46px_84px_124px_120px_minmax(120px,1fr)_32px] gap-2 items-center">
+                        {/* 유형 */}
+                        <select
+                          value={row.type}
+                          onChange={(e) => patchRow(row.key, { type: e.target.value as "sales" | "purchase" })}
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        >
+                          {INVOICE_TYPES.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </select>
 
-              {/* 거래처명 */}
-              <div className="relative">
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">거래처명 * <span className="font-normal text-[var(--text-dim)]">(검색 또는 직접 입력)</span></label>
-                <input
-                  value={form.counterpartyName}
-                  onChange={(e) => {
-                    setForm({ ...form, counterpartyName: e.target.value });
-                    setPartnerSearch(e.target.value);
-                    setShowPartnerDropdown(true);
-                  }}
-                  onFocus={() => { if (form.counterpartyName) setShowPartnerDropdown(true); }}
-                  onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
-                  placeholder="거래처명 입력 또는 검색..."
-                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                />
-                {showPartnerDropdown && filteredPartners.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {filteredPartners.slice(0, 10).map((p: any) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setForm({
-                            ...form,
-                            counterpartyName: p.name,
-                            counterpartyBizno: p.business_number || "",
-                            counterpartyBusinessType: p.business_type || "",
-                            counterpartyBusinessItem: p.business_item || "",
-                            partnerId: p.id,
-                          });
-                          setShowPartnerDropdown(false);
-                          setPartnerSearch("");
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{p.name}</span>
-                          {p.business_number && (
-                            <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                        {/* 작성일자 */}
+                        <input
+                          type="date"
+                          value={row.issueDate}
+                          onChange={(e) => patchRow(row.key, { issueDate: e.target.value })}
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        />
+
+                        {/* 거래처명 + 검색 드롭다운 */}
+                        <div className="relative">
+                          <input
+                            value={row.counterpartyName}
+                            onChange={(e) => { patchRow(row.key, { counterpartyName: e.target.value, partnerId: "" }); setDropdownRowKey(row.key); }}
+                            onFocus={() => { if (row.counterpartyName) setDropdownRowKey(row.key); }}
+                            onBlur={() => setTimeout(() => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
+                            placeholder="거래처명 검색/입력"
+                            className="w-full h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                          />
+                          {dropdownRowKey === row.key && filterPartners(row.counterpartyName).length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                              {filterPartners(row.counterpartyName).slice(0, 10).map((p: any) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    patchRow(row.key, {
+                                      counterpartyName: p.name,
+                                      counterpartyBizno: p.business_number || "",
+                                      counterpartyBusinessType: p.business_type || "",
+                                      counterpartyBusinessItem: p.business_item || "",
+                                      partnerId: p.id,
+                                    });
+                                    setDropdownRowKey(null);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">{p.name}</span>
+                                    {p.business_number && (
+                                      <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                                    )}
+                                  </div>
+                                  {(p.business_type || p.business_item) && (
+                                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5 flex gap-2">
+                                      {p.business_type && <span>{p.business_type}</span>}
+                                      {p.business_item && <span>/ {p.business_item}</span>}
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        {(p.business_type || p.business_item || p.contact_email) && (
-                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5 flex gap-2">
-                            {p.business_type && <span>{p.business_type}</span>}
-                            {p.business_item && <span>/ {p.business_item}</span>}
-                            {p.contact_email && <span className="ml-auto">{p.contact_email}</span>}
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+                        {/* 사업자번호 */}
+                        <input
+                          value={row.counterpartyBizno}
+                          onChange={(e) => patchRow(row.key, { counterpartyBizno: e.target.value })}
+                          placeholder="000-00-00000"
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        />
+
+                        {/* 공급가액 */}
+                        <CurrencyInput
+                          value={row.supplyAmount}
+                          onValueChange={(raw) => patchRow(row.key, { supplyAmount: raw })}
+                          placeholder="0"
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition text-right font-mono"
+                        />
+
+                        {/* 계산 (인라인: 입력값을 부가세 포함 합계로 보고 공급가액 분리) */}
+                        <button
+                          type="button"
+                          onClick={() => { const t = Number(row.supplyAmount) || 0; if (t > 0) patchRow(row.key, { supplyAmount: String(Math.round(t / 1.1)) }); }}
+                          title="입력한 금액을 '부가세 포함 합계'로 보고 공급가액으로 분리합니다 (÷1.1)"
+                          className="h-9 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition"
+                        >
+                          계산
+                        </button>
+
+                        {/* 영수/청구 */}
+                        <select
+                          value={row.purpose}
+                          onChange={(e) => patchRow(row.key, { purpose: e.target.value as "영수" | "청구" })}
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        >
+                          <option value="청구">청구</option>
+                          <option value="영수">영수</option>
+                        </select>
+
+                        {/* 연결 프로젝트 */}
+                        <select
+                          value={row.dealId}
+                          onChange={(e) => patchRow(row.key, { dealId: e.target.value })}
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        >
+                          <option value="">미연결</option>
+                          {dealsForLink.map((d: any) => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
+
+                        {/* 비목 */}
+                        <select
+                          value={row.expenseCategory}
+                          onChange={(e) => patchRow(row.key, { expenseCategory: e.target.value })}
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        >
+                          {EXPENSE_CATEGORIES.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                        </select>
+
+                        {/* 품목명 */}
+                        <input
+                          value={row.itemName}
+                          onChange={(e) => patchRow(row.key, { itemName: e.target.value })}
+                          placeholder="품목명 (선택)"
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        />
+
+                        {/* 삭제 */}
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.key)}
+                          title="이 행 삭제"
+                          className="h-9 w-8 flex items-center justify-center rounded-lg text-[var(--text-dim)] hover:text-red-500 hover:bg-red-500/10 transition"
+                          aria-label="행 삭제"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* 행별 인라인 계산 결과 */}
+                      {sa > 0 && (
+                        <div className="mt-1 pl-1 text-[10px] text-[var(--text-dim)]">
+                          {row.counterpartyName || "(거래처 미입력)"} — 세액 <span className="font-mono text-[var(--text-muted)]">₩{Math.round(sa * 0.1).toLocaleString("ko-KR")}</span> · 합계 <span className="font-mono font-semibold text-[var(--primary)]">₩{Math.round(sa * 1.1).toLocaleString("ko-KR")}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* 사업자번호 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">사업자번호</label>
-                <input
-                  value={form.counterpartyBizno}
-                  onChange={(e) => setForm({ ...form, counterpartyBizno: e.target.value })}
-                  placeholder="123-45-67890"
-                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                />
-              </div>
-
-              {/* 공급가액 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">공급가액 (원) *</label>
-                <div className="flex gap-2">
-                  <CurrencyInput
-                    value={form.supplyAmount}
-                    onValueChange={(raw) => { setForm({ ...form, supplyAmount: raw }); }}
-                    placeholder="10,000,000"
-                    className="flex-1 h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition text-right font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = prompt("공급대가(합계금액)를 입력하세요.\n부가세 포함 총액에서 공급가액과 부가세를 자동 분리합니다.");
-                      if (input) {
-                        const total = Number(input.replace(/[^0-9]/g, ""));
-                        if (total > 0) {
-                          const supply = Math.round(total / 1.1);
-                          const tax = total - supply;
-                          setForm({ ...form, supplyAmount: String(supply) });
-                          toast(`공급가액 ₩${supply.toLocaleString()} + 세액 ₩${tax.toLocaleString()} = 합계 ₩${total.toLocaleString()}`, "success");
-                        }
-                      }
-                    }}
-                    className="shrink-0 h-11 px-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition whitespace-nowrap"
-                    title="홈택스 방식: 합계금액 입력 → 공급가액/부가세 자동 분리"
-                  >
-                    계산
-                  </button>
-                </div>
-              </div>
-
-              {/* 영수/청구 구분 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">영수/청구 구분</label>
-                <div className="flex gap-2">
-                  {(["영수", "청구"] as const).map((p) => (
-                    <button key={p} type="button" onClick={() => setForm({ ...form, purpose: p })}
-                      className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition ${form.purpose === p ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 연결 프로젝트 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">연결 프로젝트</label>
-                <div className="relative">
-                  <select
-                    value={form.dealId}
-                    onChange={(e) => setForm({ ...form, dealId: e.target.value })}
-                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                  >
-                    <option value="">프로젝트 선택 (선택사항)</option>
-                    {dealsForLink.map((d: any) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} {d.contract_total ? `(₩${Number(d.contract_total).toLocaleString()})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-                <span className="block text-[10px] text-[var(--text-dim)] mt-1">프로젝트를 연결하면 3-way 매칭에 자동 반영됩니다</span>
-              </div>
-
-              {/* 비목 */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">비목 (품목)</label>
-                <div className="relative">
-                  <select
-                    value={form.expenseCategory}
-                    onChange={(e) => setForm({ ...form, expenseCategory: e.target.value })}
-                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                  >
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
-
-              {/* 업태/종목 (자동 표시) */}
-              {(form.counterpartyBusinessType || form.counterpartyBusinessItem) && (
-                <div className="sm:col-span-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-muted)]">
-                  <span className="text-[var(--text-dim)]">업태/종목: </span>
-                  {[form.counterpartyBusinessType, form.counterpartyBusinessItem].filter(Boolean).join(" / ")}
-                </div>
-              )}
-
-              {/* 품목 상세 */}
-              <div className="sm:col-span-2 border-t border-[var(--border)] pt-4 mt-1">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">품목 상세 (선택)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div>
-                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">품목명</label>
-                    <input value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} placeholder="예: 소프트웨어 개발" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">규격</label>
-                    <input value={form.itemSpec} onChange={(e) => setForm({ ...form, itemSpec: e.target.value })} placeholder="예: 건" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">수량</label>
-                    <input type="number" value={form.itemQty} onChange={(e) => { const q = e.target.value; setForm({ ...form, itemQty: q, supplyAmount: form.itemUnitPrice ? String(Number(q) * Number(form.itemUnitPrice)) : form.supplyAmount }); }} placeholder="1" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">단가</label>
-                    <CurrencyInput value={form.itemUnitPrice} onValueChange={(raw) => { setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition text-right font-mono" />
-                  </div>
-                </div>
-              </div>
-
-              {/* 합계 요약 */}
-              {Number(form.supplyAmount) > 0 && (() => {
-                const sa = Number(form.supplyAmount);
-                const ta = Math.round(sa * 0.1);
-                return (
-                  <div className="sm:col-span-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="text-[var(--text-dim)]">공급가액 <span className="font-mono font-medium text-[var(--text)]">₩{sa.toLocaleString("ko-KR")}</span></span>
-                    <span className="text-[var(--text-dim)]">부가세 <span className="font-mono font-medium text-[var(--text)]">₩{ta.toLocaleString("ko-KR")}</span></span>
-                    <span className="text-[var(--text-dim)] ml-auto">합계 <span className="font-mono font-bold text-[var(--primary)] text-sm">₩{(sa + ta).toLocaleString("ko-KR")}</span></span>
-                  </div>
-                );
-              })()}
+              {/* 항목 추가 */}
+              <button
+                type="button"
+                onClick={() => setRows((rs) => [...rs, blankRow()])}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+              >
+                + 항목 추가
+              </button>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border)]">
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-5 h-11 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
-            >
-              취소
-            </button>
-            <button
-              onClick={() => canSubmit && createMut.mutate()}
-              disabled={!canSubmit || createMut.isPending}
-              className="px-7 h-11 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition"
-            >
-              {createMut.isPending ? "등록 중..." : "등록"}
-            </button>
+          <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[var(--border)] shrink-0">
+            <div className="text-xs text-[var(--text-dim)] flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span>유효 <b className="text-[var(--text)]">{validRowCount}</b>건</span>
+              <span>공급가액 <span className="font-mono text-[var(--text-muted)]">₩{rowsTotal.supply.toLocaleString("ko-KR")}</span></span>
+              <span>세액 <span className="font-mono text-[var(--text-muted)]">₩{rowsTotal.tax.toLocaleString("ko-KR")}</span></span>
+              <span>합계 <span className="font-mono font-bold text-[var(--primary)]">₩{(rowsTotal.supply + rowsTotal.tax).toLocaleString("ko-KR")}</span></span>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                onClick={() => setShowForm(false)}
+                className="px-5 h-11 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => canSubmit && createMut.mutate()}
+                disabled={!canSubmit || createMut.isPending}
+                className="px-7 h-11 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition"
+              >
+                {createMut.isPending ? "등록 중..." : `${validRowCount}건 등록`}
+              </button>
+            </div>
           </div>
         </div>
         </div>
