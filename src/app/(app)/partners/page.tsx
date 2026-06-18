@@ -644,7 +644,7 @@ export default function PartnersPage() {
   const handleExport = useCallback(async () => {
     const XLSX = await import("xlsx");
     const rows = partners.map((p: any) => ({
-      이름: p.name, 구분: p.type || "", 사업자번호: p.business_number || "",
+      코드: p.code != null ? String(p.code).padStart(4, "0") : "", 이름: p.name, 구분: p.type || "", 사업자번호: p.business_number || "",
       담당자: p.contact_name || "", 이메일: p.contact_email || "",
       연락처: p.contact_phone || "", 태그: (p.tags || []).join(", "),
       상태: p.is_active ? "활성" : "비활성",
@@ -859,6 +859,7 @@ export default function PartnersPage() {
                       onClick={(e) => e.stopPropagation()}
                     />
                   </th>
+                  <th className="text-center px-3 py-3 font-medium w-[64px]">코드</th>
                   <th className="text-left px-5 py-3 font-medium">이름</th>
                   <th className="text-center px-4 py-3 font-medium">구분</th>
                   <th className="text-left px-4 py-3 font-medium">사업자번호</th>
@@ -886,6 +887,7 @@ export default function PartnersPage() {
                           }}
                         />
                       </td>
+                      <td className="px-3 py-3 text-center text-xs text-[var(--text-dim)] mono-number">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
                       <td className="px-5 py-3 text-sm font-medium">
                         <span className="inline-flex items-center gap-1.5">
                           {p.name}

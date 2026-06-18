@@ -64,16 +64,19 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId,
   });
 
-  const { data: partnerMap = {} } = useQuery<Record<string, string>>({
+  const { data: partnerInfo = { names: {}, codes: {} } } = useQuery<{ names: Record<string, string>; codes: Record<string, number> }>({
     queryKey: ["partner-ledger-names", companyId],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name").eq("company_id", companyId);
-      const m: Record<string, string> = {};
-      for (const p of (data || []) as any[]) m[p.id] = p.name;
-      return m;
+      const { data } = await db.from("partners").select("id, name, code").eq("company_id", companyId);
+      const names: Record<string, string> = {};
+      const codes: Record<string, number> = {};
+      for (const p of (data || []) as any[]) { names[p.id] = p.name; if (p.code != null) codes[p.id] = p.code; }
+      return { names, codes };
     },
     enabled: !!companyId,
   });
+  const partnerMap = partnerInfo.names;
+  const partnerCodeMap = partnerInfo.codes;
 
   // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
   //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
@@ -291,7 +294,7 @@ export default function PartnerLedgerPage() {
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border)]/40 text-left transition border-l-2 ${active ? "" : "hover:bg-[var(--bg-surface)] border-l-transparent"}`}
                     style={active ? { background: `color-mix(in srgb, ${pal.main} 8%, transparent)`, borderLeftColor: pal.main } : undefined}>
                     <span className="min-w-0">
-                      <span className="block text-[10px] text-[var(--text-dim)] mono-number">{String(idx + 1).padStart(3, "0")}</span>
+                      <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
                       <span className={`block text-xs truncate ${active ? "font-bold" : "text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
                     </span>
                     <span className={`shrink-0 text-xs mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
