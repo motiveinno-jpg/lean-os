@@ -1192,6 +1192,41 @@ export default function TaxInvoicesPage() {
 
   const currentList = tab === "sales" ? salesInvoices : tab === "purchase" ? purchaseInvoices : [];
 
+  // 헤더 클릭 정렬 (표시용) — 합계/선택/내보내기는 currentList(원본) 사용, 렌더만 정렬
+  type InvSortKey = "issue_date" | "counterparty_name" | "label" | "supply_amount" | "tax_amount" | "total_amount" | "status";
+  const [invSortKey, setInvSortKey] = useState<InvSortKey>("issue_date");
+  const [invSortDir, setInvSortDir] = useState<"asc" | "desc">("desc");
+  const toggleInvSort = (k: InvSortKey) => {
+    if (k === invSortKey) setInvSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setInvSortKey(k); setInvSortDir(k === "issue_date" ? "desc" : "asc"); }
+  };
+  const invSortTh = (k: InvSortKey, label: string, cls: string) => (
+    <th className={`px-3 py-2.5 font-semibold whitespace-nowrap border-l border-[var(--border)]/50 ${cls} cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleInvSort(k)}>
+      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
+        {label}
+        <span className={`text-[9px] ${invSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{invSortKey === k ? (invSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </span>
+    </th>
+  );
+  const displayList = useMemo(() => {
+    const arr = [...currentList];
+    arr.sort((a: any, b: any) => {
+      let c = 0;
+      switch (invSortKey) {
+        case "counterparty_name": c = (a.counterparty_name || "").localeCompare(b.counterparty_name || "", "ko"); break;
+        case "label": c = (a.label || a.deals?.name || "").localeCompare(b.label || b.deals?.name || "", "ko"); break;
+        case "supply_amount": c = Number(a.supply_amount || 0) - Number(b.supply_amount || 0); break;
+        case "tax_amount": c = Number(a.tax_amount || 0) - Number(b.tax_amount || 0); break;
+        case "total_amount": c = Number(a.total_amount || 0) - Number(b.total_amount || 0); break;
+        case "status": c = (a.status || "").localeCompare(b.status || "", "ko"); break;
+        default: c = (a.issue_date || "").localeCompare(b.issue_date || "");
+      }
+      if (c === 0 && invSortKey !== "issue_date") c = (a.issue_date || "").localeCompare(b.issue_date || "");
+      return invSortDir === "asc" ? c : -c;
+    });
+    return arr;
+  }, [currentList, invSortKey, invSortDir]);
+
   const validRowCount = rows.filter(isRowValid).length;
   const canSubmit = validRowCount > 0;
   const rowsTotal = rows.reduce(
@@ -2111,20 +2146,20 @@ export default function TaxInvoicesPage() {
                             className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
                         )}
                       </th>
-                      <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[90px]">작성일자</th>
+                      {invSortTh("issue_date", "작성일자", "text-left w-[90px]")}
                       <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[150px]">승인번호</th>
-                      <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50">상호(거래처)</th>
-                      <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50">품목</th>
-                      <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[110px]">공급가액</th>
-                      <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[100px]">세액</th>
-                      <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[110px]">합계금액</th>
+                      {invSortTh("counterparty_name", "상호(거래처)", "text-left")}
+                      {invSortTh("label", "품목", "text-left")}
+                      {invSortTh("supply_amount", "공급가액", "text-right w-[110px]")}
+                      {invSortTh("tax_amount", "세액", "text-right w-[100px]")}
+                      {invSortTh("total_amount", "합계금액", "text-right w-[110px]")}
                       <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[76px]">전송</th>
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[76px]">상태</th>
+                      {invSortTh("status", "상태", "text-center w-[76px]")}
                       <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[70px]">관리</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {currentList.map((inv: any) => {
+                    {displayList.map((inv: any) => {
                       const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
                       const canSelect = isUnissued(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
