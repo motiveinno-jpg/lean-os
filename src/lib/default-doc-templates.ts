@@ -215,16 +215,16 @@ export const DEFAULT_DOC_TEMPLATES = [
   },
 ];
 
-export async function seedDefaultDocTemplates(companyId: string, userId: string) {
-  for (const tpl of DEFAULT_DOC_TEMPLATES) {
-    await (supabase as any).from("doc_templates").insert({
-      company_id: companyId,
-      created_by: userId,
-      name: tpl.name,
-      type: tpl.type,
-      content_json: tpl.content_json,
-      variables: (tpl as any).variables,
-      is_active: true,
-    });
-  }
+// userId 인자는 호환을 위해 유지(미사용) — doc_templates 에 created_by 컬럼 없음.
+export async function seedDefaultDocTemplates(companyId: string, _userId?: string) {
+  const rows = DEFAULT_DOC_TEMPLATES.map((tpl) => ({
+    company_id: companyId,
+    name: tpl.name,
+    type: tpl.type,
+    content_json: tpl.content_json,
+    variables: (tpl as any).variables,
+    is_active: true,
+  }));
+  const { error } = await (supabase as any).from("doc_templates").insert(rows);
+  if (error) throw error;
 }

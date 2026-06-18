@@ -1266,7 +1266,6 @@ function DocumentsPageInner() {
       for (const tpl of DEFAULT_TEMPLATES) {
         await (supabase as any).from("doc_templates").insert({
           company_id: companyId,
-          created_by: userId,
           name: tpl.name,
           type: tpl.type,
           content_json: tpl.content_json,
@@ -2869,7 +2868,6 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
       for (const tpl of DEFAULT_TEMPLATES) {
         await (supabase as any).from("doc_templates").insert({
           company_id: companyId,
-          created_by: userId,
           name: tpl.name,
           type: tpl.type,
           content_json: tpl.content_json,
@@ -2929,7 +2927,6 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
         const { error } = await (supabase as any).from("doc_templates").insert({
           ...payload,
           company_id: companyId,
-          created_by: userId,
           is_active: true,
         });
         if (error) throw error;
