@@ -1091,6 +1091,7 @@ export default function TaxInvoicesPage() {
         label: [form.purpose, form.itemName].filter(Boolean).join(' | ') || undefined,
       }),
     onSuccess: () => {
+      toast(`세금계산서가 등록되었습니다 — ${form.counterpartyName} ₩${(Number(form.supplyAmount) * 1.1).toLocaleString("ko-KR")}. 홈택스 전자발행은 목록에서 해당 건을 눌러 별도로 진행하세요.`, "success");
       invalidate();
       setShowForm(false);
       setForm({
