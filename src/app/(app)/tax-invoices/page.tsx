@@ -1204,14 +1204,17 @@ export default function TaxInvoicesPage() {
     { supply: 0, tax: 0 },
   );
 
-  const draftInCurrentList = currentList.filter((inv: any) => inv.status === 'draft');
-  const selectedDrafts = draftInCurrentList.filter((inv: any) => selectedIds.has(inv.id));
+  // 미발행 = 홈택스 승인번호 없음 + 무효 아님 → 체크박스로 선택해 일괄 발행/삭제 가능 (발행완료 건은 보호)
+  const isUnissued = (inv: any) => !inv.nts_confirm_no && inv.status !== 'void';
+  const selectableInList = currentList.filter(isUnissued);
+  const selectedRows = selectableInList.filter((inv: any) => selectedIds.has(inv.id));
+  const selectedIssuable = selectedRows.filter((inv: any) => inv.type === 'sales'); // 발행 가능(매출 미발행)
 
   function toggleSelectAll() {
-    if (selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0) {
+    if (selectedRows.length === selectableInList.length && selectableInList.length > 0) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(draftInCurrentList.map((inv: any) => inv.id)));
+      setSelectedIds(new Set(selectableInList.map((inv: any) => inv.id)));
     }
   }
 
@@ -1225,12 +1228,15 @@ export default function TaxInvoicesPage() {
   }
 
   async function handleBatchIssue() {
-    if (selectedDrafts.length === 0) return;
+    if (selectedIssuable.length === 0) {
+      toast("발행할 미발행 매출 세금계산서를 선택하세요", "error");
+      return;
+    }
     setBatchIssuing(true);
     let successCount = 0;
     let failCount = 0;
     let firstHint = "";
-    for (const inv of selectedDrafts) {
+    for (const inv of selectedIssuable) {
       try {
         await issueTaxInvoice(inv.id);
         successCount++;
@@ -1247,6 +1253,25 @@ export default function TaxInvoicesPage() {
     } else {
       toast(`${successCount}건 발행, ${failCount}건 실패${firstHint ? ' — ' + firstHint : ''}`, "error");
     }
+  }
+
+  // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
+  async function handleBatchDelete() {
+    if (selectedRows.length === 0) return;
+    if (!confirm(`선택한 ${selectedRows.length}건을 삭제합니다.\n홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다. 계속할까요?`)) return;
+    setBatchIssuing(true);
+    let ok = 0, fail = 0;
+    for (const inv of selectedRows) {
+      try {
+        const { error } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
+        if (error) throw error;
+        ok++;
+      } catch { fail++; }
+    }
+    setBatchIssuing(false);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
   }
 
   async function handleSingleIssue(id: string) {
@@ -2009,15 +2034,24 @@ export default function TaxInvoicesPage() {
       </div>
 
       {/* Batch Actions */}
-      {(tab === "sales" || tab === "purchase") && selectedDrafts.length > 0 && (
-        <div className="mb-3 flex items-center gap-3 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
-          <span className="text-xs font-semibold text-[var(--primary)]">{selectedDrafts.length}건 선택</span>
+      {(tab === "sales" || tab === "purchase") && selectedRows.length > 0 && (
+        <div className="mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
+          <span className="text-xs font-semibold text-[var(--primary)]">{selectedRows.length}건 선택</span>
+          {selectedIssuable.length > 0 && (
+            <button
+              onClick={handleBatchIssue}
+              disabled={batchIssuing}
+              className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+            >
+              {batchIssuing ? "처리 중..." : `미발행 ${selectedIssuable.length}건 일괄 발행`}
+            </button>
+          )}
           <button
-            onClick={handleBatchIssue}
+            onClick={handleBatchDelete}
             disabled={batchIssuing}
-            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+            className="px-3 py-1.5 bg-red-500/90 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-500 transition"
           >
-            {batchIssuing ? "발행 중..." : "일괄 발행"}
+            선택 삭제
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
@@ -2026,7 +2060,7 @@ export default function TaxInvoicesPage() {
             선택 해제
           </button>
           <span className="text-[10px] text-[var(--text-dim)] ml-auto">
-            합계 ₩{selectedDrafts.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}
+            합계 ₩{selectedRows.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}
           </span>
         </div>
       )}
@@ -2065,9 +2099,9 @@ export default function TaxInvoicesPage() {
                   <thead className="sticky top-0 z-10">
                     <tr className="text-[var(--text-muted)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, #027B8C 8%, var(--bg-surface))" }}>
                       <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
-                        {draftInCurrentList.length > 0 && (
-                          <input type="checkbox" checked={selectedDrafts.length === draftInCurrentList.length && draftInCurrentList.length > 0} onChange={toggleSelectAll}
-                            className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="작성중 전체 선택" />
+                        {selectableInList.length > 0 && (
+                          <input type="checkbox" checked={selectedRows.length === selectableInList.length && selectableInList.length > 0} onChange={toggleSelectAll}
+                            className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
                         )}
                       </th>
                       <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[90px]">작성일자</th>
@@ -2085,13 +2119,14 @@ export default function TaxInvoicesPage() {
                   <tbody>
                     {currentList.map((inv: any) => {
                       const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
-                      const isDraft = inv.status === 'draft';
+                      const canSelect = isUnissued(inv);
+                      const canIssue = inv.type === 'sales' && isUnissued(inv);
                       const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
                           className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 cursor-pointer">
                           <td className="px-2 py-2 text-center border-l border-[var(--border)]/40 first:border-l-0" onClick={(e) => e.stopPropagation()}>
-                            {isDraft && draftInCurrentList.length > 0 && (
+                            {canSelect && (
                               <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)}
                                 className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" />
                             )}
@@ -2128,7 +2163,7 @@ export default function TaxInvoicesPage() {
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${sc.bg} ${sc.text}`}>{sc.label}</span>
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
-                            {isDraft && (
+                            {canIssue && (
                               <button
                                 onClick={() => handleSingleIssue(inv.id)}
                                 className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110"
