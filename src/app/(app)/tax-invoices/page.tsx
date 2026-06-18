@@ -1787,11 +1787,16 @@ export default function TaxInvoicesPage() {
                           ))}
                         </select>
 
-                        {/* 작성일자 */}
+                        {/* 작성일자 — 연도 4자리로 제한 */}
                         <input
                           type="date"
                           value={row.issueDate}
-                          onChange={(e) => patchRow(row.key, { issueDate: e.target.value })}
+                          max="9999-12-31"
+                          onChange={(e) => {
+                            const parts = e.target.value.split("-");
+                            if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4); // 연도 6자리 입력 방지
+                            patchRow(row.key, { issueDate: parts.join("-") });
+                          }}
                           className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
                         />
 
