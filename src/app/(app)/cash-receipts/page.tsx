@@ -95,6 +95,41 @@ export default function CashReceiptsPage() {
     enabled: !!companyId && tab !== "register",
   });
 
+  // 헤더 클릭 정렬 (표시용)
+  type CrSortKey = "issue_date" | "counterparty_name" | "amount" | "supply_amount" | "tax_amount" | "purpose" | "status";
+  const [crSortKey, setCrSortKey] = useState<CrSortKey>("issue_date");
+  const [crSortDir, setCrSortDir] = useState<"asc" | "desc">("desc");
+  const toggleCrSort = (k: CrSortKey) => {
+    if (k === crSortKey) setCrSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setCrSortKey(k); setCrSortDir(k === "issue_date" ? "desc" : "asc"); }
+  };
+  const crSortTh = (k: CrSortKey, label: string, cls: string) => (
+    <th className={`${cls} px-5 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
+      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
+        {label}
+        <span className={`text-[9px] ${crSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{crSortKey === k ? (crSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </span>
+    </th>
+  );
+  const displayReceipts = useMemo(() => {
+    const arr = [...(receipts as any[])];
+    arr.sort((a: any, b: any) => {
+      let c = 0;
+      switch (crSortKey) {
+        case "counterparty_name": c = (a.counterparty_name || "").localeCompare(b.counterparty_name || "", "ko"); break;
+        case "amount": c = Number(a.amount || 0) - Number(b.amount || 0); break;
+        case "supply_amount": c = Number(a.supply_amount || 0) - Number(b.supply_amount || 0); break;
+        case "tax_amount": c = Number(a.tax_amount || 0) - Number(b.tax_amount || 0); break;
+        case "purpose": c = (a.purpose || "").localeCompare(b.purpose || "", "ko"); break;
+        case "status": c = (a.status || "").localeCompare(b.status || "", "ko"); break;
+        default: c = (a.issue_date || "").localeCompare(b.issue_date || "");
+      }
+      if (c === 0 && crSortKey !== "issue_date") c = (a.issue_date || "").localeCompare(b.issue_date || "");
+      return crSortDir === "asc" ? c : -c;
+    });
+    return arr;
+  }, [receipts, crSortKey, crSortDir]);
+
   // Summary
   const { data: summary } = useQuery({
     queryKey: ["cash-receipt-summary", companyId, startDate, endDate],
@@ -676,34 +711,20 @@ export default function CashReceiptsPage() {
               <table className="w-full min-w-[700px]">
                 <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">
-                      발행일
-                    </th>
-                    <th className="text-left px-5 py-3 font-medium">
-                      거래처
-                    </th>
-                    <th className="text-right px-5 py-3 font-medium">
-                      합계금액
-                    </th>
-                    <th className="text-right px-5 py-3 font-medium">
-                      공급가액
-                    </th>
-                    <th className="text-right px-5 py-3 font-medium">
-                      세액
-                    </th>
-                    <th className="text-center px-5 py-3 font-medium">
-                      용도
-                    </th>
-                    <th className="text-center px-5 py-3 font-medium">
-                      상태
-                    </th>
+                    {crSortTh("issue_date", "발행일", "text-left")}
+                    {crSortTh("counterparty_name", "거래처", "text-left")}
+                    {crSortTh("amount", "합계금액", "text-right")}
+                    {crSortTh("supply_amount", "공급가액", "text-right")}
+                    {crSortTh("tax_amount", "세액", "text-right")}
+                    {crSortTh("purpose", "용도", "text-center")}
+                    {crSortTh("status", "상태", "text-center")}
                     <th className="text-center px-5 py-3 font-medium">
                       작업
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {receipts.map((r) => {
+                  {displayReceipts.map((r: any) => {
                     const st = STATUS_LABELS[r.status] || STATUS_LABELS.issued;
                     return (
                       <tr
