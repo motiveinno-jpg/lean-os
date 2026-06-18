@@ -473,6 +473,15 @@ export default function SignaturesDashboardPage() {
                     <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "—"}</span>
                     <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? new Date(r.expires_at).toLocaleDateString("ko-KR") : "—"}</span>
                     {r.reminder_count ? <span className="text-[11px] text-[var(--text-dim)]">리마인더 {r.reminder_count}회</span> : null}
+                    {r.delivery_status && (() => {
+                      const m = ({
+                        delivered: { t: "전달됨", c: "bg-green-500/10 text-green-500" },
+                        bounced: { t: "반송됨", c: "bg-red-500/10 text-red-500" },
+                        complained: { t: "스팸신고", c: "bg-red-500/10 text-red-500" },
+                        delayed: { t: "전달지연", c: "bg-amber-500/10 text-amber-500" },
+                      } as any)[r.delivery_status];
+                      return m ? <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${m.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}>✉ {m.t}</span> : null;
+                    })()}
                   </div>
                 </div>
               </div>

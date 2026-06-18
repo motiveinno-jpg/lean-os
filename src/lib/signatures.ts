@@ -192,7 +192,7 @@ export async function getSignatureRequests(companyId: string, status?: string) {
   //   (기존 select('*') 가 계약서 전문 HTML 통째 전송으로 목록 쿼리 ~2초 → 컬럼 한정으로 단축)
   let query = db
     .from('signature_requests')
-    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, signature_data, signer_inputs, documents(name, status)')
+    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, signature_data, signer_inputs, delivery_status, delivery_detail, delivery_at, documents(name, status)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
