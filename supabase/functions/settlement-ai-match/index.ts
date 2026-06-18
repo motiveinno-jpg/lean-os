@@ -28,7 +28,7 @@ function normalize(s: string): string {
 const SYSTEM_PROMPT = `당신은 한국 중소기업 회계의 거래처 채권/채무 대사 전문가입니다.
 통장 입출금 1건이 어느 거래처의 어느 세금계산서(들)를 정산한 것인지 매칭합니다.
 규칙:
-- 거래처 해소: 약칭/법인격 생략("(주)에이비씨"="에이비씨"), 대표자 개인명 입금 흔함(representative 와도 비교). 무관하면 partner_id=null.
+- 거래처 해소: 약칭/법인격 생략("(주)에이비씨"="에이비씨"), 대표자 개인명 입금 흔함(representative 와도 비교). 후보에는 이름이 안 맞아도 금액이 일치하는 거래처가 포함될 수 있으니 금액·일자·정황으로 판단한다. 정말 무관하면 partner_id=null.
 - 금액: one_to_one(정확, 수수료 ±1000원 허용) / aggregate(여러 송장 합=입금액) / partial(부분입금, 잔액 이월) / withholding(원천징수 3.3% 공제 = 입금액≈공급가×0.967).
 - 날짜: 송장 issue_date ≤ 입금일, 통상 같은 달~익월.
 - 불확실하면 needs_review=true, 신뢰도(confidence) 정직하게.
@@ -123,10 +123,22 @@ serve(async (req) => {
       const nc = normalize(tx.counterparty || "");
       if (!nc) continue;
 
-      // 후보 거래처: 정규화 부분일치(양방향) 상위 8, 없으면 토큰 겹침
-      const cands = normPartners
-        .filter((p: any) => p.nn && (p.nn.includes(nc) || nc.includes(p.nn) || (p.nr && (p.nr === nc || nc.includes(p.nr)))))
-        .slice(0, 8)
+      // 후보 거래처: (1) 입금자명 부분일치 + (2) 금액 일치(±2%) 미정산 송장 보유 거래처
+      //   → 입금자명이 거래처와 안 맞아도(자사명·개인명 등) AI 가 금액으로 판단해 추천할 수 있게 함.
+      const txAmt = Number(tx.amount) || 0;
+      const nameMatched = normPartners.filter((p: any) => p.nn && (p.nn.includes(nc) || nc.includes(p.nn) || (p.nr && (p.nr === nc || nc.includes(p.nr)))));
+      const amtPartnerIds = new Set<string>();
+      if (txAmt > 0) {
+        for (const inv of (invoices || [])) {
+          if (inv.type !== wantType || !inv.partner_id) continue;
+          const rem = Number(inv.total_amount || 0) - Number(inv.settled_amount || 0);
+          if (rem > 0 && Math.abs(rem - txAmt) <= txAmt * 0.02) amtPartnerIds.add(inv.partner_id);
+        }
+      }
+      const nameIds = new Set(nameMatched.map((p: any) => p.id));
+      const amountMatched = normPartners.filter((p: any) => amtPartnerIds.has(p.id) && !nameIds.has(p.id));
+      const cands = [...nameMatched, ...amountMatched]
+        .slice(0, 10)
         .map((p: any) => ({
           id: p.id, name: p.name, representative: p.representative, business_number: p.business_number,
           unsettled_invoices: (invByPartner.get(p.id) || []).filter((i: any) => i.type === wantType).map((i: any) => ({

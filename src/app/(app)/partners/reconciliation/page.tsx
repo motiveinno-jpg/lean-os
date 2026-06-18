@@ -413,7 +413,10 @@ export default function ReconciliationPage() {
             <div className="p-12 text-center glass-card">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-sm text-[var(--text)]">확인 대기 중인 매칭이 없습니다</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">상단에서 기간(최대 6개월)을 고르고 “⚙️ 이 기간 매칭”으로 제안을 생성하세요. 기간을 바꿔 여러 번 돌려도 누적됩니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">
+                대기 매칭은 <b>자동 제안</b>만 표시됩니다. 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
+                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“✨ AI 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(15건씩, 여러 번 눌러 누적).
+              </div>
             </div>
           ) : (
             <>
