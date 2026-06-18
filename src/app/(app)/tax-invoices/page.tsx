@@ -1407,17 +1407,6 @@ export default function TaxInvoicesPage() {
               : activeJobId ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ''})`
               : "홈택스에서 가져오기"}
           </button>
-          <button
-            onClick={async () => {
-              const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-              exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
-            }}
-            disabled={currentList.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-xs font-semibold transition border border-[var(--border)] disabled:opacity-50"
-            title="현재 보이는 세금계산서를 더존 Smart-A 양식 CSV 로 다운로드"
-          >
-            📄 더존 CSV
-          </button>
         </div>
       </div>
       <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
@@ -2012,28 +2001,41 @@ export default function TaxInvoicesPage() {
               <line x1="12" y1="18" x2="12" y2="12" strokeLinecap="round"/>
               <polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Excel 가져오기
+            엑셀 업로드
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
           </label>
 
-          {/* Excel export */}
+          {/* Export — Excel(.xlsx) / 더존 Smart-A CSV (한 곳에 묶음) */}
           {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
-            <button
-              onClick={() =>
-                exportToExcel(
-                  currentList,
-                  `세금계산서_${tab === "sales" ? "매출" : "매입"}_${viewFromMonth}~${viewToMonth}.xlsx`
-                )
-              }
-              className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Excel 내보내기
-            </button>
+            <>
+              <button
+                onClick={() =>
+                  exportToExcel(
+                    currentList,
+                    `세금계산서_${tab === "sales" ? "매출" : "매입"}_${viewFromMonth}~${viewToMonth}.xlsx`
+                  )
+                }
+                className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
+                title="현재 목록을 Excel(.xlsx)로 내보내기"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Excel 내보내기
+              </button>
+              <button
+                onClick={async () => {
+                  const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+                  exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+                }}
+                className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-1.5"
+                title="현재 목록을 더존 Smart-A 양식 CSV로 내보내기"
+              >
+                📄 더존 CSV
+              </button>
+            </>
           )}
         </div>
       </div>
