@@ -55,6 +55,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const [tab, setTab] = useState<"content" | "revisions" | "approvals">("content");
   // 품목/결제조건/직인 상태
   const [editItems, setEditItems] = useState<any[]>([]);
+  const [isEditing, setIsEditing] = useState(false); // 문서 내용 편집 모드 — 기본은 보기(렌더), '수정하기'로 전환
   const [editPaymentSchedule, setEditPaymentSchedule] = useState<any[]>([]);
   const [sealApplying, setSealApplying] = useState(false);
   const [showSelfSign, setShowSelfSign] = useState(false);
@@ -177,6 +178,27 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     enabled: !!id,
   });
 
+  // 변수 치환용 — 회사 정보 + 연결 거래처명
+  const { data: docCompanyInfo } = useQuery({
+    queryKey: ["doc-company-info", companyId],
+    queryFn: async () => (await (supabase as any).from("companies").select("name, representative").eq("id", companyId).maybeSingle()).data,
+    enabled: !!companyId,
+  });
+  const { data: docPartnerName } = useQuery({
+    queryKey: ["doc-deal-partner", (doc as any)?.deal_id],
+    queryFn: async () => {
+      const dealId = (doc as any)?.deal_id;
+      if (!dealId) return null;
+      const { data: deal } = await (supabase as any).from("deals").select("partner_id, name").eq("id", dealId).maybeSingle();
+      if (deal?.partner_id) {
+        const { data: p } = await (supabase as any).from("partners").select("name").eq("id", deal.partner_id).maybeSingle();
+        return p?.name || deal?.name || null;
+      }
+      return deal?.name || null;
+    },
+    enabled: !!(doc as any)?.deal_id,
+  });
+
   useEffect(() => {
     if (doc?.content_json) {
       const cj = doc.content_json as any;
@@ -256,6 +278,22 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const canLock = status === "approved";
   const canForceApprove = status === "draft" || status === "review";
   const contentType = (doc.content_json as any)?.type || "contract";
+
+  // {{변수}} → 실제 값 치환 (모르는 변수는 빈칸 ____). 보기 모드에서 실제 견적서 내용으로 렌더.
+  const docVarValues: Record<string, string> = {
+    회사명: docCompanyInfo?.name || "",
+    공급자: docCompanyInfo?.name || "",
+    대표자명: docCompanyInfo?.representative || "",
+    거래처명: docPartnerName || "",
+    수신: docPartnerName || "",
+    견적일자: doc.created_at ? new Date(doc.created_at).toLocaleDateString("ko-KR") : "",
+    유효기간: "견적일로부터 30일",
+  };
+  const fillVars = (text: string) =>
+    (text || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_m, k) => {
+      const v = docVarValues[String(k).trim()];
+      return v && v.length ? v : "____";
+    });
 
   // Auto-classification badge
   const autoType = (doc as any).auto_classified_type;
@@ -1055,12 +1093,22 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           <div className="glass-card overflow-hidden">
             <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <span className="text-xs text-[var(--text-dim)] font-medium">문서 내용</span>
-              {canEdit && (
-                <span className="text-[10px] text-[var(--text-dim)]">서식 · PDF 삽입 지원</span>
-              )}
+              <div className="flex items-center gap-2">
+                {canEdit && (
+                  <button
+                    onClick={() => setIsEditing((v) => !v)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${isEditing ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--primary)]"}`}
+                  >
+                    {isEditing ? "✓ 보기" : "✏️ 수정하기"}
+                  </button>
+                )}
+                {canEdit && isEditing && (
+                  <span className="text-[10px] text-[var(--text-dim)]">서식 · PDF 삽입 지원</span>
+                )}
+              </div>
             </div>
             <div className="p-5">
-              {canEdit ? (
+              {canEdit && isEditing ? (
                 <RichEditor
                   content={editContent}
                   onChange={setEditContent}
@@ -1071,18 +1119,28 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     return res.fileUrl;
                   }}
                 />
-              ) : (
-                editContent && (editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html') || editContent.trim().startsWith('<div') || editContent.trim().startsWith('<h') || editContent.trim().startsWith('<p') || editContent.trim().startsWith('<ul') || editContent.trim().startsWith('<ol') || editContent.trim().startsWith('<img') || editContent.trim().startsWith('<blockquote')) ? (
-                  <div
-                    className="text-sm leading-relaxed text-[var(--text-muted)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2"
-                    dangerouslySetInnerHTML={{ __html: editContent }}
-                  />
-                ) : (
-                  <pre className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-[var(--text-muted)]">
-                    {editContent || "(내용 없음)"}
-                  </pre>
-                )
-              )}
+              ) : (() => {
+                const filled = fillVars(editContent);
+                const t = filled.trim();
+                if (t.startsWith('<!DOCTYPE') || t.startsWith('<html') || t.startsWith('<div') || t.startsWith('<h') || t.startsWith('<p') || t.startsWith('<ul') || t.startsWith('<ol') || t.startsWith('<img') || t.startsWith('<blockquote')) {
+                  return <div className="text-sm leading-relaxed text-[var(--text)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2" dangerouslySetInnerHTML={{ __html: filled }} />;
+                }
+                if (!t) return <div className="text-sm text-[var(--text-dim)]">(내용 없음)</div>;
+                // 마크다운식 렌더 — ## 제목, ※ 주석, [품목 테이블]은 위 품목표로 대체(숨김)
+                return (
+                  <div className="space-y-1.5 text-sm leading-relaxed">
+                    {filled.split('\n').map((ln, i) => {
+                      const line = ln.trim();
+                      if (!line) return <div key={i} className="h-1" />;
+                      if (line.startsWith('## ')) return <h4 key={i} className="text-sm font-bold text-[var(--text)] mt-4 first:mt-0 pb-1 border-b border-[var(--border)]/40">{line.slice(3)}</h4>;
+                      if (line.startsWith('# ')) return <h3 key={i} className="text-base font-bold text-[var(--text)] mt-4 first:mt-0">{line.slice(2)}</h3>;
+                      if (line.startsWith('[') && line.includes('품목 테이블')) return null;
+                      if (line.startsWith('※')) return <p key={i} className="text-xs text-[var(--text-dim)]">{line}</p>;
+                      return <p key={i} className="text-[var(--text-muted)] whitespace-pre-wrap">{line}</p>;
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
