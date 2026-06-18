@@ -1690,245 +1690,254 @@ export default function TaxInvoicesPage() {
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold">세금계산서 등록</h3>
-            <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+            <h3 className="text-base font-bold">세금계산서 등록</h3>
+            <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none transition" aria-label="닫기">✕</button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                유형 *
-              </label>
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm({ ...form, type: e.target.value as "sales" | "purchase" })
-                }
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              >
-                {INVOICE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="relative">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                거래처명 * <span className="text-[var(--text-dim)]">(등록 거래처 검색 또는 직접 입력)</span>
-              </label>
-              <input
-                value={form.counterpartyName}
-                onChange={(e) => {
-                  setForm({ ...form, counterpartyName: e.target.value });
-                  setPartnerSearch(e.target.value);
-                  setShowPartnerDropdown(true);
-                }}
-                onFocus={() => { if (form.counterpartyName) setShowPartnerDropdown(true); }}
-                onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
-                placeholder="거래처명 입력 또는 검색..."
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-              {showPartnerDropdown && filteredPartners.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                  {filteredPartners.slice(0, 10).map((p: any) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setForm({
-                          ...form,
-                          counterpartyName: p.name,
-                          counterpartyBizno: p.business_number || "",
-                          counterpartyBusinessType: p.business_type || "",
-                          counterpartyBusinessItem: p.business_item || "",
-                          partnerId: p.id,
-                        });
-                        setShowPartnerDropdown(false);
-                        setPartnerSearch("");
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{p.name}</span>
-                        {p.business_number && (
-                          <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
-                        )}
-                      </div>
-                      {(p.business_type || p.business_item || p.contact_email) && (
-                        <div className="text-[10px] text-[var(--text-dim)] mt-0.5 flex gap-2">
-                          {p.business_type && <span>{p.business_type}</span>}
-                          {p.business_item && <span>/ {p.business_item}</span>}
-                          {p.contact_email && <span className="ml-auto">{p.contact_email}</span>}
+
+          {/* Body */}
+          <div className="px-6 py-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+              {/* 유형 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">유형 *</label>
+                <div className="relative">
+                  <select
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value as "sales" | "purchase" })}
+                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                  >
+                    {INVOICE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+
+              {/* 작성일자 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">작성일자 (발행일) *</label>
+                <input
+                  type="date"
+                  value={form.issueDate}
+                  onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
+                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                />
+                <span className="block text-[10px] text-[var(--text-dim)] mt-1">이 날짜로 세금계산서가 발행됩니다</span>
+              </div>
+
+              {/* 거래처명 */}
+              <div className="relative">
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">거래처명 * <span className="font-normal text-[var(--text-dim)]">(검색 또는 직접 입력)</span></label>
+                <input
+                  value={form.counterpartyName}
+                  onChange={(e) => {
+                    setForm({ ...form, counterpartyName: e.target.value });
+                    setPartnerSearch(e.target.value);
+                    setShowPartnerDropdown(true);
+                  }}
+                  onFocus={() => { if (form.counterpartyName) setShowPartnerDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                  placeholder="거래처명 입력 또는 검색..."
+                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                />
+                {showPartnerDropdown && filteredPartners.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {filteredPartners.slice(0, 10).map((p: any) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setForm({
+                            ...form,
+                            counterpartyName: p.name,
+                            counterpartyBizno: p.business_number || "",
+                            counterpartyBusinessType: p.business_type || "",
+                            counterpartyBusinessItem: p.business_item || "",
+                            partnerId: p.id,
+                          });
+                          setShowPartnerDropdown(false);
+                          setPartnerSearch("");
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{p.name}</span>
+                          {p.business_number && (
+                            <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                          )}
                         </div>
-                      )}
+                        {(p.business_type || p.business_item || p.contact_email) && (
+                          <div className="text-[10px] text-[var(--text-dim)] mt-0.5 flex gap-2">
+                            {p.business_type && <span>{p.business_type}</span>}
+                            {p.business_item && <span>/ {p.business_item}</span>}
+                            {p.contact_email && <span className="ml-auto">{p.contact_email}</span>}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 사업자번호 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">사업자번호</label>
+                <input
+                  value={form.counterpartyBizno}
+                  onChange={(e) => setForm({ ...form, counterpartyBizno: e.target.value })}
+                  placeholder="123-45-67890"
+                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                />
+              </div>
+
+              {/* 공급가액 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">공급가액 (원) *</label>
+                <div className="flex gap-2">
+                  <CurrencyInput
+                    value={form.supplyAmount}
+                    onValueChange={(raw) => { setForm({ ...form, supplyAmount: raw }); }}
+                    placeholder="10,000,000"
+                    className="flex-1 h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition text-right font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = prompt("공급대가(합계금액)를 입력하세요.\n부가세 포함 총액에서 공급가액과 부가세를 자동 분리합니다.");
+                      if (input) {
+                        const total = Number(input.replace(/[^0-9]/g, ""));
+                        if (total > 0) {
+                          const supply = Math.round(total / 1.1);
+                          const tax = total - supply;
+                          setForm({ ...form, supplyAmount: String(supply) });
+                          toast(`공급가액 ₩${supply.toLocaleString()} + 세액 ₩${tax.toLocaleString()} = 합계 ₩${total.toLocaleString()}`, "success");
+                        }
+                      }
+                    }}
+                    className="shrink-0 h-11 px-3.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition whitespace-nowrap"
+                    title="홈택스 방식: 합계금액 입력 → 공급가액/부가세 자동 분리"
+                  >
+                    계산
+                  </button>
+                </div>
+              </div>
+
+              {/* 영수/청구 구분 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">영수/청구 구분</label>
+                <div className="flex gap-2">
+                  {(["영수", "청구"] as const).map((p) => (
+                    <button key={p} type="button" onClick={() => setForm({ ...form, purpose: p })}
+                      className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition ${form.purpose === p ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                      {p}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* 연결 프로젝트 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">연결 프로젝트</label>
+                <div className="relative">
+                  <select
+                    value={form.dealId}
+                    onChange={(e) => setForm({ ...form, dealId: e.target.value })}
+                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                  >
+                    <option value="">프로젝트 선택 (선택사항)</option>
+                    {dealsForLink.map((d: any) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} {d.contract_total ? `(₩${Number(d.contract_total).toLocaleString()})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+                <span className="block text-[10px] text-[var(--text-dim)] mt-1">프로젝트를 연결하면 3-way 매칭에 자동 반영됩니다</span>
+              </div>
+
+              {/* 비목 */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">비목 (품목)</label>
+                <div className="relative">
+                  <select
+                    value={form.expenseCategory}
+                    onChange={(e) => setForm({ ...form, expenseCategory: e.target.value })}
+                    className="w-full h-11 pl-3.5 pr-10 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm appearance-none focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                  >
+                    {EXPENSE_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+
+              {/* 업태/종목 (자동 표시) */}
+              {(form.counterpartyBusinessType || form.counterpartyBusinessItem) && (
+                <div className="sm:col-span-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--text-muted)]">
+                  <span className="text-[var(--text-dim)]">업태/종목: </span>
+                  {[form.counterpartyBusinessType, form.counterpartyBusinessItem].filter(Boolean).join(" / ")}
+                </div>
               )}
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                사업자번호
-              </label>
-              <input
-                value={form.counterpartyBizno}
-                onChange={(e) =>
-                  setForm({ ...form, counterpartyBizno: e.target.value })
-                }
-                placeholder="123-45-67890"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            {(form.counterpartyBusinessType || form.counterpartyBusinessItem) && (
-              <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--text-muted)]">
-                <span className="text-[var(--text-dim)]">업태/종목: </span>
-                {[form.counterpartyBusinessType, form.counterpartyBusinessItem].filter(Boolean).join(" / ")}
-              </div>
-            )}
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                연결 프로젝트
-              </label>
-              <select
-                value={form.dealId}
-                onChange={(e) => setForm({ ...form, dealId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              >
-                <option value="">프로젝트 선택 (선택사항)</option>
-                {dealsForLink.map((d: any) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} {d.contract_total ? `(₩${Number(d.contract_total).toLocaleString()})` : ""}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">프로젝트를 연결하면 3-way 매칭에 자동 반영됩니다</span>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                공급가액 (원) *
-              </label>
-              <div className="flex gap-2">
-                <CurrencyInput
-                  value={form.supplyAmount}
-                  onValueChange={(raw) => {
-                    setForm({ ...form, supplyAmount: raw });
-                  }}
-                  placeholder="10,000,000"
-                  className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = prompt("공급대가(합계금액)를 입력하세요.\n부가세 포함 총액에서 공급가액과 부가세를 자동 분리합니다.");
-                    if (input) {
-                      const total = Number(input.replace(/[^0-9]/g, ""));
-                      if (total > 0) {
-                        const supply = Math.round(total / 1.1);
-                        const tax = total - supply;
-                        setForm({ ...form, supplyAmount: String(supply) });
-                        toast(`공급가액 ₩${supply.toLocaleString()} + 세액 ₩${tax.toLocaleString()} = 합계 ₩${total.toLocaleString()}`, "success");
-                      }
-                    }
-                  }}
-                  className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 transition whitespace-nowrap"
-                  title="홈택스 방식: 합계금액 입력 → 공급가액/부가세 자동 분리"
-                >
-                  계산
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                작성일자 (발행일) *
-              </label>
-              <input
-                type="date"
-                value={form.issueDate}
-                onChange={(e) =>
-                  setForm({ ...form, issueDate: e.target.value })
-                }
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-              <span className="text-[10px] text-[var(--text-dim)] mt-0.5 block">이 날짜로 세금계산서가 발행됩니다</span>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">영수/청구 구분</label>
-              <div className="flex gap-2">
-                {(["영수", "청구"] as const).map((p) => (
-                  <button key={p} type="button" onClick={() => setForm({ ...form, purpose: p })}
-                    className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition ${form.purpose === p ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                비목 (품목)
-              </label>
-              <select
-                value={form.expenseCategory}
-                onChange={(e) =>
-                  setForm({ ...form, expenseCategory: e.target.value })
-                }
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              >
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2 border-t border-[var(--border)] pt-3 mt-1">
-              <label className="block text-xs text-[var(--text-muted)] mb-2 font-semibold">품목 상세 (선택)</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">품목명</label>
-                  <input value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} placeholder="예: 소프트웨어 개발" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">규격</label>
-                  <input value={form.itemSpec} onChange={(e) => setForm({ ...form, itemSpec: e.target.value })} placeholder="예: 건" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">수량</label>
-                  <input type="number" value={form.itemQty} onChange={(e) => { const q = e.target.value; setForm({ ...form, itemQty: q, supplyAmount: form.itemUnitPrice ? String(Number(q) * Number(form.itemUnitPrice)) : form.supplyAmount }); }} placeholder="1" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5">단가</label>
-                  <CurrencyInput value={form.itemUnitPrice} onValueChange={(raw) => { setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-              </div>
-            </div>
-            {Number(form.supplyAmount) > 0 && (() => {
-              const sa = Number(form.supplyAmount);
-              const ta = Math.round(sa * 0.1);
-              return (
-                <div className="col-span-2 flex items-end pb-1">
-                  <div className="text-xs text-[var(--text-dim)]">
-                    공급가액: <span className="font-mono font-medium text-[var(--text)]">₩{sa.toLocaleString("ko-KR")}</span>
-                    {" / "}부가세: <span className="font-mono font-medium text-[var(--text)]">₩{ta.toLocaleString("ko-KR")}</span>
-                    {" / "}합계: <span className="font-mono font-semibold text-[var(--primary)]">₩{(sa + ta).toLocaleString("ko-KR")}</span>
+
+              {/* 품목 상세 */}
+              <div className="sm:col-span-2 border-t border-[var(--border)] pt-4 mt-1">
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">품목 상세 (선택)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">품목명</label>
+                    <input value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} placeholder="예: 소프트웨어 개발" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">규격</label>
+                    <input value={form.itemSpec} onChange={(e) => setForm({ ...form, itemSpec: e.target.value })} placeholder="예: 건" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">수량</label>
+                    <input type="number" value={form.itemQty} onChange={(e) => { const q = e.target.value; setForm({ ...form, itemQty: q, supplyAmount: form.itemUnitPrice ? String(Number(q) * Number(form.itemUnitPrice)) : form.supplyAmount }); }} placeholder="1" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-[var(--text-dim)] mb-1">단가</label>
+                    <CurrencyInput value={form.itemUnitPrice} onValueChange={(raw) => { setForm({ ...form, itemUnitPrice: raw, supplyAmount: form.itemQty ? String(Number(form.itemQty) * Number(raw)) : raw }); }} placeholder="1,000,000" className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition text-right font-mono" />
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+
+              {/* 합계 요약 */}
+              {Number(form.supplyAmount) > 0 && (() => {
+                const sa = Number(form.supplyAmount);
+                const ta = Math.round(sa * 0.1);
+                return (
+                  <div className="sm:col-span-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-4 py-3 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="text-[var(--text-dim)]">공급가액 <span className="font-mono font-medium text-[var(--text)]">₩{sa.toLocaleString("ko-KR")}</span></span>
+                    <span className="text-[var(--text-dim)]">부가세 <span className="font-mono font-medium text-[var(--text)]">₩{ta.toLocaleString("ko-KR")}</span></span>
+                    <span className="text-[var(--text-dim)] ml-auto">합계 <span className="font-mono font-bold text-[var(--primary)] text-sm">₩{(sa + ta).toLocaleString("ko-KR")}</span></span>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
-          <div className="flex gap-2">
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[var(--border)]">
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-5 h-11 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+            >
+              취소
+            </button>
             <button
               onClick={() => canSubmit && createMut.mutate()}
               disabled={!canSubmit || createMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
+              className="px-7 h-11 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition"
             >
               {createMut.isPending ? "등록 중..." : "등록"}
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition"
-            >
-              취소
             </button>
           </div>
         </div>
