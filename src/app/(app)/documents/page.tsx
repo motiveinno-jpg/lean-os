@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -1246,11 +1246,47 @@ function DocumentsPageInner() {
     enabled: !!companyId,
   });
 
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [], isSuccess: templatesLoaded } = useQuery({
     queryKey: ["doc-templates", companyId],
     queryFn: () => getDocTemplates(companyId!),
     enabled: !!companyId,
   });
+
+  // 기본 양식(견적서/계약서 등) 자동 시드 — 회사에 비-HR 양식이 0건이면 1회 생성.
+  //   기존: "양식 관리" 탭 버튼으로만 시드돼 견적서 작성 시 양식이 비어 보였음.
+  const didSeedRef = useRef(false);
+  useEffect(() => {
+    if (!companyId || !userId || !templatesLoaded || didSeedRef.current) return;
+    const hasBiz = (templates as any[]).some((t: any) => !HR_CATEGORIES.includes(t.type));
+    if (hasBiz) return;
+    didSeedRef.current = true;
+    (async () => {
+      for (const tpl of DEFAULT_TEMPLATES) {
+        await (supabase as any).from("doc_templates").insert({
+          company_id: companyId,
+          created_by: userId,
+          name: tpl.name,
+          type: tpl.type,
+          content_json: tpl.content_json,
+          variables: tpl.variables,
+          is_active: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
+    })();
+  }, [companyId, userId, templatesLoaded, templates, queryClient]);
+
+  // 프로젝트 견적서 탭에서 ?create=quote 로 진입 시 — 견적서 양식 자동 선택(빈 문서 대신 견적서 폼).
+  const didPrefillQuoteRef = useRef(false);
+  useEffect(() => {
+    if (didPrefillQuoteRef.current) return;
+    if (searchParams.get("create") !== "quote" || !templatesLoaded) return;
+    const q = (templates as any[]).find((t: any) => t.type === "quote");
+    if (!q) return;
+    didPrefillQuoteRef.current = true;
+    setDocForm((f) => (f.template_id ? f : { ...f, template_id: q.id, name: f.name || q.name, type: "quote" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, templatesLoaded, templates]);
 
   // Contract Archives (계약서 보관함)
   const { data: contractArchives = [] } = useQuery({
