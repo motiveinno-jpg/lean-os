@@ -860,6 +860,15 @@ export default function TaxInvoicesPage() {
     ensurePrintStyles();
   }, []);
 
+  // 중복 '중복아님' 처리 영구 유지 — 새로고침 후에도 숨김 유지 (localStorage, 회사별)
+  useEffect(() => {
+    if (!companyId || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(`tax-dup-dismissed-${companyId}`);
+      if (raw) setDismissedDups(new Set(JSON.parse(raw) as string[]));
+    } catch { /* noop */ }
+  }, [companyId]);
+
   // 보기 기간 계산 — viewFromMonth ~ viewToMonth 전체. 단일 월 보고 싶으면 from=to 로 설정.
   const { startDate, endDate } = useMemo(() => {
     const [ty, tm] = viewToMonth.split('-').map(Number);
@@ -1579,7 +1588,11 @@ export default function TaxInvoicesPage() {
                   ))}
                 </div>
                 <button type="button" onClick={() => {
-                  setDismissedDups(prev => new Set([...prev, expandedDupKey!]));
+                  setDismissedDups(prev => {
+                    const next = new Set([...prev, expandedDupKey!]);
+                    try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
+                    return next;
+                  });
                   setExpandedDupKey(null);
                 }}
                   className="mt-2 text-[10px] px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition font-semibold">
