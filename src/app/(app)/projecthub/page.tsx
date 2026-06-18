@@ -90,9 +90,41 @@ export default function ProjectHubPage() {
     return m;
   }, [milestones]);
 
+  // 제목줄 클릭 정렬
+  type PSortKey = "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
+  const [sortKey, setSortKey] = useState<PSortKey>("contract");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (k: PSortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir(["contract", "direct_cost", "cost_ratio", "progress"].includes(k) ? "desc" : "asc"); }
+  };
+  const sortableTh = (k: PSortKey, label: string, cls: string) => (
+    <th className={`${cls} cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleSort(k)} title="클릭하여 정렬">
+      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
+        {label}
+        <span className={`text-[9px] ${sortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{sortKey === k ? (sortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </span>
+    </th>
+  );
   const rows = useMemo(() => {
-    return (deals as any[]).slice().sort((a, b) => Number(b.contract_total || 0) - Number(a.contract_total || 0));
-  }, [deals]);
+    const pctOf = (d: any) => { const pr = progressByDeal[d.id]; return pr && pr.total > 0 ? pr.done / pr.total : -1; };
+    return (deals as any[]).slice().sort((a, b) => {
+      let c = 0;
+      switch (sortKey) {
+        case "name": c = (a.name || "").localeCompare(b.name || "", "ko"); break;
+        case "partner": c = (partnerName[a.partner_id] || "").localeCompare(partnerName[b.partner_id] || "", "ko"); break;
+        case "manager": c = (userName[a.internal_manager_id] || "").localeCompare(userName[b.internal_manager_id] || "", "ko"); break;
+        case "stage": c = STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage); break;
+        case "direct_cost": c = Number(pnlByDeal[a.id]?.direct_cost || 0) - Number(pnlByDeal[b.id]?.direct_cost || 0); break;
+        case "cost_ratio": c = Number(pnlByDeal[a.id]?.direct_cost_ratio || 0) - Number(pnlByDeal[b.id]?.direct_cost_ratio || 0); break;
+        case "progress": c = pctOf(a) - pctOf(b); break;
+        case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
+        default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
+      }
+      if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
+      return sortDir === "asc" ? c : -c;
+    });
+  }, [deals, sortKey, sortDir, partnerName, userName, pnlByDeal, progressByDeal]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -160,15 +192,15 @@ export default function ProjectHubPage() {
           <table className="w-full min-w-[1000px] text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="px-3 py-2 text-left font-semibold">프로젝트명</th>
-                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60">거래처</th>
-                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]">담당자</th>
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]">단계</th>
-                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">계약금액</th>
-                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]">직접원가</th>
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]">원가율</th>
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]">진행률</th>
-                <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]">기간</th>
+                {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
+                {sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60")}
+                {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]")}
+                {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
+                {sortableTh("contract", "계약금액", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]")}
+                {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]")}
+                {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
+                {sortableTh("progress", "진행률", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]")}
+                {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]")}
               </tr>
             </thead>
             <tbody>
