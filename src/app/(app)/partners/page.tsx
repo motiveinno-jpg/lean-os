@@ -158,7 +158,22 @@ export default function PartnersPage() {
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"name" | "type" | "tag">("name");
+  type SortKey = "code" | "name" | "type" | "business_number" | "contact" | "phone" | "tag" | "status";
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir("asc"); }
+  };
+  // 헤더 클릭 정렬 — 정렬 가능한 <th>. 클릭 시 해당 컬럼 정렬(재클릭 오름/내림 토글).
+  const sortableTh = (k: SortKey, label: string, cls: string) => (
+    <th className={`${cls} cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleSort(k)} title="클릭하여 정렬">
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span className={`text-[9px] ${sortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{sortKey === k ? (sortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </span>
+    </th>
+  );
   const [classFilter, setClassFilter] = useState<string>("");
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("");
@@ -393,24 +408,21 @@ export default function PartnersPage() {
   // 태그 목록 수집 (필터용)
   const allTags = Array.from(new Set(filteredPartners.flatMap((p: any) => p.tags || []))) as string[];
 
-  // 정렬: 이름순 / 구분(거래처 유형)순 / 태그순 (한글 로케일 비교)
+  // 정렬: 헤더 클릭한 컬럼 기준 (한글 로케일 비교, 코드/상태는 수치)
   const partners = [...filteredPartners].sort((a: any, b: any) => {
-    if (sortBy === "type") {
-      const la = TYPE_BADGE[a.type]?.label || a.type || "";
-      const lb = TYPE_BADGE[b.type]?.label || b.type || "";
-      const c = la.localeCompare(lb, "ko");
-      if (c !== 0) return c;
-    } else if (sortBy === "tag") {
-      const ta = ((a.tags || [])[0] || "").toString();
-      const tb = ((b.tags || [])[0] || "").toString();
-      // 태그 없는 거래처는 뒤로
-      if (!ta && tb) return 1;
-      if (ta && !tb) return -1;
-      const c = ta.localeCompare(tb, "ko");
-      if (c !== 0) return c;
+    let c = 0;
+    switch (sortKey) {
+      case "code": c = (a.code ?? Number.MAX_SAFE_INTEGER) - (b.code ?? Number.MAX_SAFE_INTEGER); break;
+      case "type": c = (TYPE_BADGE[a.type]?.label || a.type || "").localeCompare(TYPE_BADGE[b.type]?.label || b.type || "", "ko"); break;
+      case "business_number": c = (a.business_number || "").localeCompare(b.business_number || "", "ko"); break;
+      case "contact": c = (a.contact_name || "").localeCompare(b.contact_name || "", "ko"); break;
+      case "phone": c = (a.contact_phone || "").localeCompare(b.contact_phone || "", "ko"); break;
+      case "tag": c = ((a.tags || [])[0] || "").localeCompare(((b.tags || [])[0] || ""), "ko"); break;
+      case "status": c = (a.is_active ? 0 : 1) - (b.is_active ? 0 : 1); break;
+      default: c = (a.name || "").localeCompare(b.name || "", "ko");
     }
-    // 동률 또는 이름순: 이름으로 정렬
-    return (a.name || "").localeCompare(b.name || "", "ko");
+    if (c === 0 && sortKey !== "name") c = (a.name || "").localeCompare(b.name || "", "ko"); // 동률은 이름순
+    return sortDir === "asc" ? c : -c;
   });
 
   const saveMutation = useMutation({
@@ -747,14 +759,6 @@ export default function PartnersPage() {
 
       {/* 정렬 + 고급 필터 바 — 산업/지역/거래규모 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs text-[var(--text-dim)]">정렬:</span>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "name" | "type" | "tag")}
-          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
-          <option value="name">이름순</option>
-          <option value="type">구분순</option>
-          <option value="tag">태그순</option>
-        </select>
-        <span className="w-px h-4 bg-[var(--border)] mx-1" />
         <span className="text-xs text-[var(--text-dim)]">필터:</span>
         <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
           className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
@@ -859,14 +863,14 @@ export default function PartnersPage() {
                       onClick={(e) => e.stopPropagation()}
                     />
                   </th>
-                  <th className="text-center px-3 py-3 font-medium w-[64px]">코드</th>
-                  <th className="text-left px-5 py-3 font-medium">이름</th>
-                  <th className="text-center px-4 py-3 font-medium">구분</th>
-                  <th className="text-left px-4 py-3 font-medium">사업자번호</th>
-                  <th className="text-left px-4 py-3 font-medium">담당자</th>
-                  <th className="text-left px-4 py-3 font-medium">연락처</th>
-                  <th className="text-left px-4 py-3 font-medium">태그</th>
-                  <th className="text-center px-4 py-3 font-medium">상태</th>
+                  {sortableTh("code", "코드", "text-center px-3 py-3 font-medium w-[64px]")}
+                  {sortableTh("name", "이름", "text-left px-5 py-3 font-medium")}
+                  {sortableTh("type", "구분", "text-center px-4 py-3 font-medium")}
+                  {sortableTh("business_number", "사업자번호", "text-left px-4 py-3 font-medium")}
+                  {sortableTh("contact", "담당자", "text-left px-4 py-3 font-medium")}
+                  {sortableTh("phone", "연락처", "text-left px-4 py-3 font-medium")}
+                  {sortableTh("tag", "태그", "text-left px-4 py-3 font-medium")}
+                  {sortableTh("status", "상태", "text-center px-4 py-3 font-medium")}
                 </tr>
               </thead>
               <tbody>
