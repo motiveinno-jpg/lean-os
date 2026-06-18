@@ -108,16 +108,28 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
-  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+세금계산서 매칭 (Edge). 한 번에 30건씩.
+  // AI 매칭 — 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(30건씩, 더 없을 때까지).
+  const [aiProgress, setAiProgress] = useState<{ processed: number; suggested: number } | null>(null);
   const aiMut = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 30 } });
-      if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
-      return data as { processed: number; resolved: number; suggested: number };
+      let totalProcessed = 0, totalResolved = 0, totalSuggested = 0;
+      setAiProgress({ processed: 0, suggested: 0 });
+      for (let round = 0; round < 100; round++) { // 안전 상한 100*30=3000건
+        const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 30 } });
+        if (error) throw new Error(error.message);
+        if ((data as any)?.error) throw new Error((data as any).error);
+        const r = data as { processed: number; resolved: number; suggested: number; remaining?: number };
+        totalProcessed += r.processed || 0;
+        totalResolved += r.resolved || 0;
+        totalSuggested += r.suggested || 0;
+        setAiProgress({ processed: totalProcessed, suggested: totalSuggested });
+        qc.invalidateQueries({ queryKey: ["settlement-queue"] }); // 라운드마다 큐 실시간 반영
+        if ((r.processed || 0) === 0) break; // 더 처리할 입금 없음 → 종료
+      }
+      return { processed: totalProcessed, resolved: totalResolved, suggested: totalSuggested };
     },
-    onSuccess: (r) => { invalidateAll(); toast(`AI: ${r?.processed ?? 0}건 분석 · 거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건`, "success"); },
-    onError: (e: any) => toast(e?.message || "AI 매칭 실패", "error"),
+    onSuccess: (r) => { invalidateAll(); setAiProgress(null); toast(`AI 매칭 완료 — ${r.processed}건 분석 · 제안 ${r.suggested}건 생성`, "success"); },
+    onError: (e: any) => { setAiProgress(null); toast(e?.message || "AI 매칭 실패", "error"); },
   });
 
   // 별칭 학습(대사 핸드오프 TASK A): 사람이 매칭을 확정하면 입금자명→거래처를 partner_aliases 에
@@ -392,8 +404,8 @@ export default function ReconciliationPage() {
             {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
           <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
-            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+세금계산서 매칭 (30건씩)">
-            {aiMut.isPending ? "AI 분석 중..." : "✨ AI 매칭"}</button>
+            title="규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다.">
+            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : "✨ AI 전체 매칭"}</button>
         </div>
       </div>
 

@@ -99,6 +99,7 @@ serve(async (req) => {
     const { data: allTx } = await admin.from("bank_transactions")
       .select("id, amount, transaction_date, counterparty, type")
       .eq("company_id", companyId).eq("settlement_status", "open").in("type", ["income", "expense"])
+      .is("ai_attempted_at", null)
       .gt("amount", 0).order("transaction_date", { ascending: false }).limit(400);
     const txs = (allTx || []).filter((t: any) => !skip.has(t.id)).slice(0, limit);
     if (txs.length === 0) {
@@ -188,7 +189,15 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ processed: txs.length, resolved, suggested }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // 처리한 입금(매칭 여부 무관) AI 시도 표시 → 다음 호출에서 재처리 안 함(끝까지 1회 처리, 무한루프 방지).
+    await admin.from("bank_transactions").update({ ai_attempted_at: new Date().toISOString() }).in("id", txs.map((t: any) => t.id));
+    // 아직 AI 시도 안 한 미정산 건수
+    const { count: remaining } = await admin.from("bank_transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId).eq("settlement_status", "open").in("type", ["income", "expense"])
+      .is("ai_attempted_at", null).gt("amount", 0);
+
+    return new Response(JSON.stringify({ processed: txs.length, resolved, suggested, remaining: remaining ?? 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message || "AI 매칭 오류" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
