@@ -1257,7 +1257,8 @@ function DocumentsPageInner() {
   const didSeedRef = useRef(false);
   useEffect(() => {
     if (!companyId || !userId || !templatesLoaded || didSeedRef.current) return;
-    const hasBiz = (templates as any[]).some((t: any) => !HR_CATEGORIES.includes(t.type));
+    // 견적서/계약서 양식이 하나도 없으면 시드 (hr_contract 등 HR 양식만 있는 회사도 포함)
+    const hasBiz = (templates as any[]).some((t: any) => t.type === "contract" || t.type === "quote");
     if (hasBiz) return;
     didSeedRef.current = true;
     (async () => {

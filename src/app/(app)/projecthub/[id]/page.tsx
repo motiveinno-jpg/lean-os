@@ -15,6 +15,17 @@ import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 
 const db = supabase as any;
+
+// 견적서 기본 구조 — 프로젝트에서 바로 생성(문서함 이동 없이). 품목은 생성 후 편집기에서 추가.
+const QUOTE_CONTENT = {
+  title: "견적서",
+  sections: [
+    { title: "견적 정보", content: "공급자: {{회사명}} (대표: {{대표자명}})\n수신: {{거래처명}}\n견적일자: {{견적일자}}\n유효기간: {{유효기간}}" },
+    { title: "견적 품목", content: "[품목 테이블]\n\n※ 품목은 문서 생성 후 품목 편집 테이블에서 추가해 주세요.\n각 품목의 공급가액, 세액(10%), 합계가 자동 계산됩니다." },
+    { title: "거래 조건", content: "납품 조건: {{납품조건}}\n결제 조건: {{결제조건}}\n\n※ 상기 금액은 부가가치세 별도 금액이며, 세금계산서를 발행합니다." },
+    { title: "비고", content: "1. 본 견적서의 유효기간은 견적일로부터 {{유효기간}}입니다.\n2. 수량 및 사양 변경 시 단가가 변동될 수 있습니다.\n3. 기타 문의사항은 담당자에게 연락 바랍니다." },
+  ],
+};
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 
@@ -29,12 +40,42 @@ const TABS: { key: TabKey; label: string }[] = [
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
+  const userId = user?.id ?? null;
   const role = user?.role;
   const params = useParams();
   const dealId = String(params?.id || "");
   const [tab, setTab] = useState<TabKey>("overview");
   const { toast } = useToast();
   const qc = useQueryClient();
+  // 견적서 작성(인라인) — 문서함으로 넘어가지 않고 프로젝트에서 바로 생성
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [quoteName, setQuoteName] = useState("");
+  const [creatingQuote, setCreatingQuote] = useState(false);
+  const createQuote = async () => {
+    if (!companyId || !userId || creatingQuote) return;
+    setCreatingQuote(true);
+    try {
+      const { error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        name: quoteName.trim() || "견적서",
+        status: "draft",
+        content_type: "invoice",
+        content_json: QUOTE_CONTENT,
+        version: 1,
+        created_by: userId,
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      setShowQuoteForm(false);
+      setQuoteName("");
+      toast("견적서를 생성했습니다. 목록에서 클릭해 품목·내용을 편집하세요.", "success");
+    } catch (e: any) {
+      toast(e?.message || "견적서 생성 실패", "error");
+    } finally {
+      setCreatingQuote(false);
+    }
+  };
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
 
@@ -247,9 +288,35 @@ export default function ProjectHubDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다.</p>
-            <Link href={`/documents?create=quote&deal=${dealId}`}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</Link>
+            <button onClick={() => { setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</button>
           </div>
+
+          {/* 견적서 작성 모달 — 문서함 이동 없이 이 자리에서 생성 */}
+          {showQuoteForm && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold">견적서 작성</h3>
+                  <button onClick={() => setShowQuoteForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+                </div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">견적서명</label>
+                <input
+                  autoFocus
+                  value={quoteName}
+                  onChange={(e) => setQuoteName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") createQuote(); }}
+                  placeholder="견적서명"
+                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+                />
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">이 프로젝트에 연결된 견적서로 바로 생성됩니다. 생성 후 목록에서 클릭해 품목·내용을 편집하세요.</p>
+                <div className="flex items-center justify-end gap-2.5 mt-5">
+                  <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={createQuote} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : "생성"}</button>
+                </div>
+              </div>
+            </div>
+          )}
           {documents.length === 0 ? (
             <Empty text="이 프로젝트에 연결된 문서(견적서)가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
