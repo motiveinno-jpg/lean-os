@@ -108,10 +108,10 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
-  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+세금계산서 매칭 (Edge). 한 번에 15건씩.
+  // AI 매칭 — 규칙으로 안 풀린 입금만 Claude 로 거래처 해소+세금계산서 매칭 (Edge). 한 번에 30건씩.
   const aiMut = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 15 } });
+      const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 30 } });
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
       return data as { processed: number; resolved: number; suggested: number };
@@ -392,7 +392,7 @@ export default function ReconciliationPage() {
             {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
           <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
-            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+세금계산서 매칭 (15건씩)">
+            title="규칙으로 안 풀린 입금을 AI(Claude)로 거래처 해소+세금계산서 매칭 (30건씩)">
             {aiMut.isPending ? "AI 분석 중..." : "✨ AI 매칭"}</button>
         </div>
       </div>
@@ -415,7 +415,7 @@ export default function ReconciliationPage() {
               <div className="text-sm text-[var(--text)]">확인 대기 중인 매칭이 없습니다</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">
                 대기 매칭은 <b>자동 제안</b>만 표시됩니다. 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
-                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“✨ AI 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(15건씩, 여러 번 눌러 누적).
+                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“✨ AI 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(30건씩, 여러 번 눌러 누적).
               </div>
             </div>
           ) : (
