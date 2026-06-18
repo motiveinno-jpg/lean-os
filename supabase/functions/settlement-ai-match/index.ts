@@ -13,7 +13,7 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-haiku-4-5"; // 빠른 모델 — 매칭은 단순 구조화 판단이라 haiku 로 충분(속도↑)
 
 // SQL normalize_party_name 과 동일 규칙(전각/법인격/기호 제거).
 function normalize(s: string): string {
@@ -63,6 +63,20 @@ async function callClaude(userContent: string): Promise<any | null> {
     console.error("[anthropic] JSON parse fail:", text.slice(0, 200));
     return null;
   }
+}
+
+// 동시 처리 풀 — Claude 호출을 병렬로 돌려 속도 ↑
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 serve(async (req) => {
@@ -118,14 +132,12 @@ serve(async (req) => {
     }
     const normPartners = (partners || []).map((p: any) => ({ ...p, nn: normalize(p.name || ""), nr: normalize(p.representative || "") }));
 
-    let resolved = 0, suggested = 0;
+    // 1) 후보 준비 (CPU만 — 빠름)
+    const prepared: { tx: any; cands: any[]; userContent: string }[] = [];
     for (const tx of txs) {
       const wantType = tx.type === "income" ? "sales" : "purchase";
       const nc = normalize(tx.counterparty || "");
       if (!nc) continue;
-
-      // 후보 거래처: (1) 입금자명 부분일치 + (2) 금액 일치(±2%) 미정산 송장 보유 거래처
-      //   → 입금자명이 거래처와 안 맞아도(자사명·개인명 등) AI 가 금액으로 판단해 추천할 수 있게 함.
       const txAmt = Number(tx.amount) || 0;
       const nameMatched = normPartners.filter((p: any) => p.nn && (p.nn.includes(nc) || nc.includes(p.nn) || (p.nr && (p.nr === nc || nc.includes(p.nr)))));
       const amtPartnerIds = new Set<string>();
@@ -148,17 +160,23 @@ serve(async (req) => {
           })),
         }))
         .filter((p: any) => p.unsettled_invoices.length > 0);
-
       if (cands.length === 0) continue; // 후보 없음 → 수동 대상
-
-      const userContent = JSON.stringify({
-        payment: { amount: Number(tx.amount), transaction_date: tx.transaction_date, counterparty: tx.counterparty, direction: tx.type === "income" ? "입금(매출수금)" : "출금(매입지급)" },
-        partner_candidates: cands,
+      prepared.push({
+        tx, cands,
+        userContent: JSON.stringify({
+          payment: { amount: Number(tx.amount), transaction_date: tx.transaction_date, counterparty: tx.counterparty, direction: tx.type === "income" ? "입금(매출수금)" : "출금(매입지급)" },
+          partner_candidates: cands,
+        }),
       });
-      const ai = await callClaude(userContent);
-      if (!ai || !ai.partner_id || !Array.isArray(ai.matched) || ai.matched.length === 0) continue;
+    }
 
-      // 검증: partner_id 가 후보 중 하나, matched 가 그 거래처 송장, amount 합 ≤ 입금액*1.01
+    // 2) Claude 병렬 호출 (느린 단계 — 동시 10건 처리로 속도 ↑)
+    const aiResults = await mapLimit(prepared, 10, async (p) => ({ ...p, ai: await callClaude(p.userContent) }));
+
+    // 3) 결과 검증 + 저장
+    let resolved = 0, suggested = 0;
+    for (const { tx, cands, ai } of aiResults) {
+      if (!ai || !ai.partner_id || !Array.isArray(ai.matched) || ai.matched.length === 0) continue;
       const cand = cands.find((c: any) => c.id === ai.partner_id);
       if (!cand) continue;
       const validIds = new Set(cand.unsettled_invoices.map((i: any) => i.tax_invoice_id));
@@ -166,11 +184,9 @@ serve(async (req) => {
       if (rows.length === 0) continue;
       const sumAmt = rows.reduce((s: number, m: any) => s + Number(m.amount), 0);
       if (sumAmt > Number(tx.amount) * 1.01 + 1000) continue; // 과배분 방지
-
       resolved++;
       const conf = Math.max(0, Math.min(1, Number(ai.confidence) || 0.5));
       const status = (ai.needs_review || conf < 0.9) ? "needs_review" : "suggested";
-      // bank_transactions.partner_id 기록
       await admin.from("bank_transactions").update({ partner_id: ai.partner_id }).eq("id", tx.id).is("partner_id", null);
       for (const m of rows) {
         const { error } = await admin.from("invoice_settlements").insert({
@@ -180,8 +196,6 @@ serve(async (req) => {
         });
         if (!error) suggested++;
       }
-      // 별칭 학습 (입금자명 → 거래처). uq_partner_alias=(company_id, lower(alias)) 표현식 인덱스라
-      //   onConflict 컬럼 지정 불가 → plain insert, 중복 시 에러는 무시(best-effort).
       if (conf >= 0.85 && tx.counterparty) {
         await admin.from("partner_aliases").insert({
           company_id: companyId, partner_id: ai.partner_id, alias: tx.counterparty, source: "ai", confidence: conf,

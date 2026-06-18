@@ -108,7 +108,7 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
-  // AI 매칭 — 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(30건씩, 더 없을 때까지).
+  // AI 매칭 — 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(50건씩, 더 없을 때까지).
   const [aiProgress, setAiProgress] = useState<{ total: number; processed: number; suggested: number } | null>(null);
   const aiMut = useMutation({
     mutationFn: async () => {
@@ -119,7 +119,7 @@ export default function ReconciliationPage() {
       let totalProcessed = 0, totalResolved = 0, totalSuggested = 0;
       setAiProgress({ total: total ?? 0, processed: 0, suggested: 0 });
       for (let round = 0; round < 100; round++) { // 안전 상한 100*30=3000건
-        const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 30 } });
+        const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 50 } });
         if (error) throw new Error(error.message);
         if ((data as any)?.error) throw new Error((data as any).error);
         const r = data as { processed: number; resolved: number; suggested: number; remaining?: number };
