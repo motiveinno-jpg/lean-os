@@ -935,6 +935,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               )}
             </button>
           )}
+          {/* CODEF 동기화 — 카드 전용 (통장은 위 '최근 거래 불러오기'로 통일, 중복 제거) */}
+          {(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
           <button
             onClick={async () => {
               setCodefSyncing(true);
@@ -986,6 +988,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           >
             {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
           </button>
+          )}
           <button
             onClick={async () => {
               if (!companyId) return;
