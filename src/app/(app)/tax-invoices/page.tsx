@@ -1336,7 +1336,7 @@ export default function TaxInvoicesPage() {
               마지막 업데이트: <strong className="text-[var(--text)]">{new Date(lastSyncData).toLocaleString('ko', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>
             </span>
           ) : isHometaxConnected ? (
-            <span>홈택스 연결됨 — 첫 동기화를 시작하세요</span>
+            <span>홈택스 연결됨</span>
           ) : (
             <span>
               홈택스 미연결 —{" "}
@@ -2435,32 +2435,9 @@ export default function TaxInvoicesPage() {
                   설정 &gt; 은행연동에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="month"
-                  value={syncFromMonth}
-                  onChange={(e) => setSyncFromMonth(e.target.value)}
-                  disabled={syncing}
-                  className="px-2 py-2 text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-                  aria-label="동기화 시작 월"
-                />
-                <span className="text-xs text-[var(--text-muted)]">~</span>
-                <input
-                  type="month"
-                  value={syncToMonth}
-                  onChange={(e) => setSyncToMonth(e.target.value)}
-                  disabled={syncing}
-                  className="px-2 py-2 text-sm bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-                  aria-label="동기화 종료 월"
-                />
-                <button
-                  onClick={() => runHometaxSync(syncFromMonth, syncToMonth)}
-                  disabled={syncing || !isHometaxConnected}
-                  className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
-                >
-                  {syncing ? (syncProgress ? `동기화 중... ${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...") : "동기화 실행"}
-                </button>
+              {/* 동기화 실행은 페이지 상단 [홈택스에서 가져오기] 버튼으로 통일 (중복 제거) */}
+              <div className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-lg px-3 py-2 max-w-[280px] leading-relaxed">
+                동기화는 페이지 상단의 <strong className="text-[var(--primary)]">홈택스에서 가져오기</strong> 버튼으로 실행하세요. (기간·최신만·백그라운드 옵션 포함)
               </div>
             </div>
 
