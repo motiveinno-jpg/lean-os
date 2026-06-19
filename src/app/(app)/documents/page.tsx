@@ -932,6 +932,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 taxRate={quoteHeader.taxType === 'exempt' || quoteHeader.taxType === 'zero' ? 0 : 0.1}
                 discount={Number((quoteHeader as any).discount) || 0}
                 onDiscountChange={(n) => setQuoteHeader({ ...quoteHeader, discount: n } as any)}
+                partnerName={quoteHeader.partnerName}
               />
             </div>
           )}
