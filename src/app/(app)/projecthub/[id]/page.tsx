@@ -35,8 +35,8 @@ type TabKey = "overview" | "quote" | "contract" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
   { key: "quote", label: "견적서" },
-  { key: "contract", label: "계약" },
-  { key: "pnl", label: "손익" },
+  { key: "contract", label: "전자계약" },
+  { key: "pnl", label: "프로젝트 운영" },
 ];
 
 export default function ProjectHubDetailPage() {
