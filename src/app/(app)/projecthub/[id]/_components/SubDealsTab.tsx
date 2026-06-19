@@ -46,6 +46,16 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
     },
     enabled: !!dealId,
   });
+  // 세부별 실적원가 (전표 sub_deal_id 귀속분) — v_sub_deal_pnl
+  const { data: pnlRows = [] } = useQuery({
+    queryKey: ["sub-deal-pnl", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("v_sub_deal_pnl").select("sub_deal_id, actual_cost").eq("deal_id", dealId);
+      return (data || []) as { sub_deal_id: string; actual_cost: number }[];
+    },
+    enabled: !!dealId,
+  });
+  const actualCost = (id: string) => Number(pnlRows.find((r) => r.sub_deal_id === id)?.actual_cost || 0);
   const { data: partners = [] } = useQuery({
     queryKey: ["sub-deal-partners", companyId],
     queryFn: async () => {
@@ -134,7 +144,8 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
                 <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">세부 프로젝트명</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">구분</th>
                 <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">거래처</th>
-                <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">금액</th>
+                <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">금액(계획)</th>
+                <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">실적원가</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">기간</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">상태</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">관리</th>
@@ -149,6 +160,7 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
                   </td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)]">{partnerName(s.partner_id)}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{s.contract_amount != null ? Number(s.contract_amount).toLocaleString("ko-KR") : "—"}</td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]" title="전표에서 이 세부로 귀속한 비용계정 실적">{actualCost(s.id) ? Number(actualCost(s.id)).toLocaleString("ko-KR") : "—"}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center text-[11px] text-[var(--text-muted)] whitespace-nowrap">{s.start_date || s.end_date ? `${fmtDate(s.start_date)}~${fmtDate(s.end_date)}` : "—"}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{STATUS_LABEL[s.status || ""] || "—"}</span></td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
