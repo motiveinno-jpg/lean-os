@@ -678,11 +678,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   return createPortal(
     <div className="fixed inset-0 z-[70] bg-black/40" onClick={onClose}>
       <div
-        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-5xl flex flex-col shadow-2xl fixed left-1/2 top-1/2"
+        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-3xl max-h-[calc(100vh-3rem)] overflow-y-auto flex flex-col shadow-2xl fixed left-1/2 top-1/2"
         style={{ transform: `translate(calc(-50% + ${drag.x}px), calc(-50% + ${drag.y}px))` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div onMouseDown={startDrag} className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
+        <div onMouseDown={startDrag} className="sticky top-0 z-10 bg-[var(--bg-card)] rounded-t-2xl px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
           <div>
             <div className="text-base font-bold text-[var(--text)]">{isNew ? "신규 전표 입력" : <>전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</>}</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5 flex items-center gap-1.5 flex-wrap">
