@@ -50,8 +50,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       // 프로젝트(라이프사이클·손익 뷰) 부모 + 프로젝트 운영(보드 뷰) 하위 토글 — 같은 deals 두 렌즈 (2026-06-17).
       // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view. 부모가 role 로 숨겨지면 자식이 top-level 로 승격.
-      // 견적서·전자계약·프로젝트 운영은 별도 메뉴 제거 — 프로젝트 명 클릭(상세) 탭에서만 노출 (2026-06-19).
+      // 견적서·프로젝트 운영은 프로젝트 상세 탭으로 이동. 전자계약은 단체 일괄발송 즉시 사용 위해 워크스페이스 메뉴 유지 (2026-06-19).
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
+      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
   {
