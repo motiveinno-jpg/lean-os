@@ -192,7 +192,9 @@ export async function getSignatureRequests(companyId: string, status?: string) {
   //   (기존 select('*') 가 계약서 전문 HTML 통째 전송으로 목록 쿼리 ~2초 → 컬럼 한정으로 단축)
   let query = db
     .from('signature_requests')
-    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, signature_data, signer_inputs, delivery_status, delivery_detail, delivery_at, documents(name, status)')
+    // signature_data(서명 base64 ~20KB/행)·signer_inputs 는 목록에서 제외 — '서명본 보기' 클릭 시 getSignatureProof 로 단건 조회.
+    //   (615행 × 20KB ≈ 12MB 통째 전송이 30초 폴링마다 발생해 목록 쿼리 ~1.1초였음)
+    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, delivery_status, delivery_detail, delivery_at, documents(name, status)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
@@ -203,6 +205,12 @@ export async function getSignatureRequests(companyId: string, status?: string) {
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
+}
+
+// ── 서명본(증거) 단건 조회 — 목록에서 뺀 무거운 컬럼을 '서명본 보기' 클릭 시에만 가져온다 ──
+export async function getSignatureProof(id: string): Promise<{ signature_data: { type?: string; data?: string } | null; signer_inputs: Record<string, string> | null }> {
+  const { data } = await db.from('signature_requests').select('signature_data, signer_inputs').eq('id', id).maybeSingle();
+  return { signature_data: (data as any)?.signature_data ?? null, signer_inputs: (data as any)?.signer_inputs ?? null };
 }
 
 // ── Get Document Signatures ──

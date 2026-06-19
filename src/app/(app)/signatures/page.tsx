@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
 import {
   getSignatureRequests,
+  getSignatureProof,
   sendSignatureReminder,
   bulkSendReminders,
   cancelSignature,
@@ -458,7 +459,7 @@ export default function SignaturesDashboardPage() {
                       )}
                       <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드">📄</button>
                       {r.status === 'signed' && (
-                        <button onClick={() => setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: (r as any).signature_data || null, title: r.title, signer_inputs: (r as any).signer_inputs || null })} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" aria-label="서명본 보기" title="서명본 보기">✅</button>
+                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" aria-label="서명본 보기" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
                         <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" aria-label="서명 요청 취소" title="취소(만료 처리)">✕</button>
