@@ -324,7 +324,10 @@ export default function VoucherEntryPage() {
   };
   const ptMatches = (q: string) => {
     const t = q.trim().toLowerCase();
-    return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12);
+    if (!t) return partners.slice(0, 30); // 빈 검색은 상위 30(성능)
+    const tn = t.replace(/-/g, "");
+    // 검색어 포함 거래처는 모두 표시 (이름 또는 사업자번호, 하이픈 무시)
+    return partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
   };
 
   const TD = "px-2 py-1 border-l border-[var(--border)]/40 whitespace-nowrap";
