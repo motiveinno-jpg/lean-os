@@ -51,10 +51,10 @@ const NAV_GROUPS: NavGroup[] = [
       // 프로젝트(라이프사이클·손익 뷰) 부모 + 프로젝트 운영(보드 뷰) 하위 토글 — 같은 deals 두 렌즈 (2026-06-17).
       // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view. 부모가 role 로 숨겨지면 자식이 top-level 로 승격.
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"], children: [
-        { href: "/projects", label: "프로젝트 운영", icon: "kanban", roles: ["owner", "admin", "partner"] },
         { href: "/projecthub/quotes", label: "견적서", icon: "file-text", roles: ["owner", "admin"] },
+        { href: "/projects", label: "프로젝트 운영", icon: "kanban", roles: ["owner", "admin", "partner"] },
+        { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
       ] },
-      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
   {
