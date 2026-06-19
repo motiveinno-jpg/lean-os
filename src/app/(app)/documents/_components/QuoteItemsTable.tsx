@@ -25,8 +25,9 @@ const STANDARD_COLS: QuoteCol[] = [
   { key: "taxAmount", label: "부가세", type: "calc", calc: "tax" },
   { key: "summary", label: "적요", type: "text" },
   { key: "unitPriceVat", label: "단가(VAT포함)", type: "calc", calc: "unitVat" },
-  { key: "extraQty", label: "추가수량", type: "number" },
+    { key: "extraQty", label: "추가수량", type: "number" },
   { key: "serial", label: "시리얼/로트", type: "text" },
+  { key: "cost", label: "원가", type: "number" },
   { key: "totalAmount", label: "합계", type: "calc", calc: "total" },
   { key: "note", label: "비고", type: "text" },
 ];
@@ -43,8 +44,8 @@ function calcRow(row: any, taxRate: number): any {
 }
 
 export function QuoteItemsTable({
-  items, onChange, companyId, editable, taxRate = 0.1,
-}: { items: any[]; onChange: (items: any[]) => void; companyId: string | null; editable: boolean; taxRate?: number }) {
+  items, onChange, companyId, editable, taxRate = 0.1, discount = 0, onDiscountChange,
+}: { items: any[]; onChange: (items: any[]) => void; companyId: string | null; editable: boolean; taxRate?: number; discount?: number; onDiscountChange?: (n: number) => void }) {
   const [cols, setCols] = useState<QuoteCol[]>(DEFAULT_COLS);
   const [showEditor, setShowEditor] = useState(false);
 
@@ -157,6 +158,33 @@ export function QuoteItemsTable({
           </tfoot>
         </table>
       </div>
+
+      {/* 요약 — 할인 + 이익계산 */}
+      {(() => {
+        const supplyTotal = rows.reduce((a, r) => a + (Number(r.supplyAmount) || 0), 0);
+        const taxTotal = rows.reduce((a, r) => a + (Number(r.taxAmount) || 0), 0);
+        const hasCost = cols.some((c) => c.key === "cost");
+        const costTotal = rows.reduce((a, r) => a + (Number(r.cost) || 0) * (Number(r.quantity) || 1), 0);
+        const grand = supplyTotal + taxTotal - (Number(discount) || 0);
+        const profit = supplyTotal - costTotal;
+        const profitRate = supplyTotal ? profit / supplyTotal : 0;
+        return (
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-x-5 gap-y-2 text-xs">
+            <span className="text-[var(--text-muted)]">공급가액 <b className="mono-number text-[var(--text)]">{fmt(supplyTotal)}</b></span>
+            <span className="text-[var(--text-muted)]">부가세 <b className="mono-number text-[var(--text)]">{fmt(taxTotal)}</b></span>
+            <span className="flex items-center gap-1.5 text-[var(--text-muted)]">할인
+              {editable ? (
+                <CurrencyInput value={discount || ""} onValueChange={(raw) => onDiscountChange?.(Number(raw) || 0)} placeholder="0"
+                  className="w-24 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs text-right font-mono focus:outline-none focus:border-[var(--primary)]" />
+              ) : <b className="mono-number text-[var(--text)]">{discount ? `-${fmt(discount)}` : "0"}</b>}
+            </span>
+            <span className="text-sm text-[var(--text-muted)]">합계 <b className="mono-number text-[var(--primary)]">{fmt(grand)}</b></span>
+            {hasCost && (
+              <span className="text-[var(--text-dim)]">이익 <b className={`mono-number ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmt(profit)}</b> <span className="text-[10px]">({Math.round(profitRate * 100)}%)</span></span>
+            )}
+          </div>
+        );
+      })()}
 
       {showEditor && (
         <ColumnEditor cols={cols} onClose={() => setShowEditor(false)} onSave={(next) => { saveCols(next); setShowEditor(false); }} />

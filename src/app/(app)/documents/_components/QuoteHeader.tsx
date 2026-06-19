@@ -16,6 +16,7 @@ export type QuoteHeaderData = {
   reference?: string;
   warehouse?: string;
   deliveryTerms?: string;
+  discount?: number;
 };
 
 export const TAX_TYPE_LABEL: Record<string, string> = {
