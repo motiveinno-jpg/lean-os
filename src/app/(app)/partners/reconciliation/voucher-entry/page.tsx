@@ -337,13 +337,19 @@ export default function VoucherEntryPage() {
         onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value })}
         onFocus={() => setPicker({ kind: "acct", rowId, q: "" })}
         onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
+        onKeyDown={(e) => {
+          // 검색어 친 상태에서 Enter → 첫 결과 선택(이후 다음 칸 이동은 컨테이너가 처리)
+          if (e.key !== "Enter" || !(picker?.kind === "acct" && picker.rowId === rowId && picker.q.trim())) return;
+          const first = acctMatches(picker.q)[0];
+          if (first) { update({ account: first }); setPicker(null); }
+        }}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
         <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
-          {acctMatches(picker.q).map((a) => (
+          {acctMatches(picker.q).map((a, i) => (
             <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
-              className="w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] hover:bg-[var(--bg-surface)]">
-              <span>{a.name}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
+              className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+              <span>{a.name}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
             </button>
           ))}
           {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과 없음" : "계정과목 마스터 미적용"}</div>}
@@ -362,15 +368,20 @@ export default function VoucherEntryPage() {
             onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value })}
             onFocus={() => setPicker({ kind: "pt", rowId, q: "" })}
             onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "pt" ? null : p)), 150)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !(picker?.kind === "pt" && picker.rowId === rowId && picker.q.trim())) return;
+              const first = ptMatches(picker.q)[0];
+              if (first) { update({ partner: first }); setPicker(null); }
+            }}
             placeholder="—" className={IN} />
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
           <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
-            {ptMatches(picker.q).map((p) => (
+            {ptMatches(picker.q).map((p, i) => (
               <button key={p.id} onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
-                className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
-                {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}
+                className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+                {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
               </button>
             ))}
             {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
