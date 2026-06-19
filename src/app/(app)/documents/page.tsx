@@ -26,6 +26,7 @@ import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
 import { CurrencyInput } from "@/components/currency-input";
 import { QuoteItemsTable } from "./_components/QuoteItemsTable";
+import { QuoteHeader, type QuoteHeaderData } from "./_components/QuoteHeader";
 import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
@@ -57,6 +58,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   // 품목/결제조건/직인 상태
   const [editItems, setEditItems] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false); // 문서 내용 편집 모드 — 기본은 보기(렌더), '수정하기'로 전환
+  const [quoteHeader, setQuoteHeader] = useState<QuoteHeaderData>({}); // 견적서 헤더(거래처/거래유형/결제조건 등)
   const [editPaymentSchedule, setEditPaymentSchedule] = useState<any[]>([]);
   const [sealApplying, setSealApplying] = useState(false);
   const [showSelfSign, setShowSelfSign] = useState(false);
@@ -217,6 +219,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (Array.isArray(cj.paymentSchedule) && cj.paymentSchedule.length > 0) {
         setEditPaymentSchedule(cj.paymentSchedule);
       }
+      if (cj.header && typeof cj.header === "object") {
+        setQuoteHeader(cj.header);
+      }
     }
   }, [doc?.content_json]);
 
@@ -235,6 +240,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (editItems.length > 0) cj.items = editItems;
       // 결제조건 데이터 포함
       if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
+      // 견적서 헤더 포함
+      cj.header = quoteHeader;
       return saveRevision({
         documentId: id,
         authorId: userId!,
@@ -244,6 +251,35 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     },
     onSuccess: () => { invalidate(); setComment(""); },
     onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
+  });
+
+  // 저장/전표 — 견적서 저장 + 품목 합계로 매출 세금계산서(초안) 자동 생성 (견적→매출 전표 연동)
+  const saveAndInvoiceMut = useMutation({
+    mutationFn: async () => {
+      const supply = editItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0);
+      if (!supply) throw new Error("품목 금액이 없습니다. 품목을 입력하세요.");
+      const counterparty = quoteHeader.partnerName || docPartnerName || "";
+      if (!counterparty) throw new Error("거래처를 입력하세요.");
+      // 1) 견적서 저장
+      const cleanBody = (editContent || "").replace(/<span[^>]*data-doc-var[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+      const cj = { ...(doc?.content_json as any || {}), body: cleanBody, header: quoteHeader };
+      if (editItems.length > 0) cj.items = editItems;
+      if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
+      await saveRevision({ documentId: id, authorId: userId!, contentJson: cj as unknown as Json, comment: comment || "저장/전표" });
+      // 2) 매출 세금계산서(초안) 생성
+      await createTaxInvoice({
+        companyId: companyId!,
+        dealId: (doc as any)?.deal_id || undefined,
+        type: "sales",
+        counterpartyName: counterparty,
+        partnerId: quoteHeader.partnerId || undefined,
+        supplyAmount: supply,
+        issueDate: new Date().toISOString().slice(0, 10),
+        label: `견적서: ${doc?.name || "견적"}`,
+      });
+    },
+    onSuccess: () => { invalidate(); setComment(""); toast("견적서 저장 + 매출 세금계산서(초안) 생성 완료 — 세금계산서 메뉴에서 확인/발행하세요", "success"); },
+    onError: (err: any) => toast(`저장/전표 실패: ${err.message || err}`, "error"),
   });
 
   const submitMut = useMutation({
@@ -287,10 +323,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     회사명: docCompanyInfo?.name || "",
     공급자: docCompanyInfo?.name || "",
     대표자명: docCompanyInfo?.representative || "",
-    거래처명: docPartnerName || "",
-    수신: docPartnerName || "",
+    거래처명: quoteHeader.partnerName || docPartnerName || "",
+    수신: quoteHeader.partnerName || docPartnerName || "",
     견적일자: doc.created_at ? new Date(doc.created_at).toLocaleDateString("ko-KR") : "",
-    유효기간: "견적일로부터 30일",
+    유효기간: quoteHeader.validUntil || "견적일로부터 30일",
+    결제조건: quoteHeader.paymentTerms || "",
+    납품조건: quoteHeader.deliveryTerms || "",
+    참조: quoteHeader.reference || "",
   };
   const fillVars = (text: string) =>
     (text || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_m, k) => {
@@ -877,6 +916,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
+          {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) ── */}
+          {(contentType === 'invoice' || contentType === 'quote') && (Object.keys(quoteHeader).length > 0 || (canEdit && isEditing)) && (
+            <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={canEdit && isEditing} />
+          )}
+
           {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
           {(contentType === 'invoice' || contentType === 'quote' || contentType === 'contract') && (editItems.length > 0 || (canEdit && isEditing)) && (
             <div className="glass-card overflow-hidden p-4">
@@ -885,6 +929,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 onChange={setEditItems}
                 companyId={companyId}
                 editable={canEdit && isEditing}
+                taxRate={quoteHeader.taxType === 'exempt' || quoteHeader.taxType === 'zero' ? 0 : 0.1}
               />
             </div>
           )}
@@ -1112,6 +1157,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
                 {saveMut.isPending ? "저장 중..." : "저장"}
               </button>
+              {(contentType === 'invoice' || contentType === 'quote') && (
+                <button onClick={() => saveAndInvoiceMut.mutate()} disabled={saveAndInvoiceMut.isPending}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap"
+                  title="견적서를 저장하고, 품목 합계로 매출 세금계산서(초안)를 자동 생성합니다">
+                  {saveAndInvoiceMut.isPending ? "처리 중..." : "💾 저장/전표"}
+                </button>
+              )}
             </div>
           )}
         </div>

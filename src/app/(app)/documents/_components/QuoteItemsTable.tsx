@@ -34,17 +34,17 @@ const STANDARD_COLS: QuoteCol[] = [
 const DEFAULT_KEYS = ["name", "spec", "quantity", "unitPrice", "supplyAmount", "taxAmount", "summary", "totalAmount"];
 const DEFAULT_COLS: QuoteCol[] = STANDARD_COLS.filter((c) => DEFAULT_KEYS.includes(c.key));
 
-function calcRow(row: any): any {
+function calcRow(row: any, taxRate: number): any {
   const q = Number(row.quantity) || 0;
   const u = Number(row.unitPrice) || 0;
   const supply = Math.round(q * u);
-  const tax = Math.round(supply * 0.1);
-  return { ...row, supplyAmount: supply, taxAmount: tax, totalAmount: supply + tax, unitPriceVat: Math.round(u * 1.1) };
+  const tax = Math.round(supply * taxRate);
+  return { ...row, supplyAmount: supply, taxAmount: tax, totalAmount: supply + tax, unitPriceVat: Math.round(u * (1 + taxRate)) };
 }
 
 export function QuoteItemsTable({
-  items, onChange, companyId, editable,
-}: { items: any[]; onChange: (items: any[]) => void; companyId: string | null; editable: boolean }) {
+  items, onChange, companyId, editable, taxRate = 0.1,
+}: { items: any[]; onChange: (items: any[]) => void; companyId: string | null; editable: boolean; taxRate?: number }) {
   const [cols, setCols] = useState<QuoteCol[]>(DEFAULT_COLS);
   const [showEditor, setShowEditor] = useState(false);
 
@@ -71,7 +71,7 @@ export function QuoteItemsTable({
   };
 
   const rows = items.length ? items : [{}];
-  const setRow = (idx: number, patch: any) => onChange(rows.map((r, i) => (i === idx ? calcRow({ ...r, ...patch }) : r)));
+  const setRow = (idx: number, patch: any) => onChange(rows.map((r, i) => (i === idx ? calcRow({ ...r, ...patch }, taxRate) : r)));
   const addRow = () => onChange([...rows, {}]);
   const delRow = (idx: number) => onChange(rows.length > 1 ? rows.filter((_, i) => i !== idx) : [{}]);
 
