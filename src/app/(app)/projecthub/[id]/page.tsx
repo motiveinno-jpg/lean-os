@@ -127,6 +127,15 @@ export default function ProjectHubDetailPage() {
     if (!v || v === (deal?.name || "")) { setEditingName(false); return; }
     renameMut.mutate(v);
   };
+  // 진행 단계 변경 (프로젝트 운영)
+  const stageMut = useMutation({
+    mutationFn: async (newStage: ProjectStage) => {
+      const { error } = await db.from("deals").update({ stage: newStage }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] }); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); toast("진행 단계가 변경되었습니다", "success"); },
+    onError: (e: any) => toast(e?.message || "단계 변경 실패", "error"),
+  });
 
   const { data: deal, isLoading } = useQuery({
     queryKey: ["projecthub-deal", dealId],
@@ -400,8 +409,11 @@ export default function ProjectHubDetailPage() {
       {tab === "contract" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--text-muted)]">전자계약(전자서명) 상태입니다. 발송·관리는 전자계약 메뉴에서 합니다.</p>
-            <Link href="/signatures" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">전자계약 메뉴 →</Link>
+            <p className="text-xs text-[var(--text-muted)]">전자계약(전자서명) 상태입니다.</p>
+            <div className="flex items-center gap-2">
+              <Link href="/signatures?bulk=1" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:opacity-90">📤 단체 일괄 발송</Link>
+              <Link href="/signatures" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">전자계약 메뉴 →</Link>
+            </div>
           </div>
           {sigRequests.length === 0 && approvals.length === 0 ? (
             <Empty text="이 프로젝트에 연결된 전자계약·승인 내역이 없습니다." />
@@ -433,9 +445,25 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {/* 손익 — 계약금액(매출) - 비용 = 마진금액 / 마진률 */}
+      {/* 프로젝트 운영 — 진행 단계 + 손익 */}
       {tab === "pnl" && (
         <div className="space-y-4">
+          <div className="glass-card p-4">
+            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">진행 단계 <span className="font-normal text-[var(--text-dim)]">— 단계를 클릭해 변경하세요</span></div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {STAGE_ORDER.map((st) => {
+                const active = st === stage;
+                const passed = STAGE_ORDER.indexOf(st) < STAGE_ORDER.indexOf(stage);
+                const c = STAGE_COLOR[st];
+                return (
+                  <button key={st} onClick={() => !stageMut.isPending && stageMut.mutate(st)} disabled={stageMut.isPending}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-60 ${active ? `${c.bg} ${c.text} ring-2 ring-[var(--primary)]/40` : passed ? "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                    {STAGE_LABEL[st]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Metric label="계약금액(매출)" value={won(contract)} />
             <Metric label="총 비용" value={won(totalCost)} />

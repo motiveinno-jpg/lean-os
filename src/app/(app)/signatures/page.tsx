@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +49,8 @@ export default function SignaturesDashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showOrgBulkWizard, setShowOrgBulkWizard] = useState(false);
+  const searchParams = useSearchParams();
+  useEffect(() => { if (searchParams.get("bulk") === "1") setShowOrgBulkWizard(true); }, [searchParams]);
   // U4 페이지네이션 — 한 페이지 10/25/50건. 필터/검색 변경 시 1페이지 리셋.
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
