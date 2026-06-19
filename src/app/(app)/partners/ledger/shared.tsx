@@ -731,12 +731,18 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             onChange={(e) => setPicker({ kind: "acct", key: l.key, q: e.target.value })}
                             onFocus={() => setPicker({ kind: "acct", key: l.key, q: "" })}
                             onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "acct" ? null : p)), 150)}
+                            onKeyDown={(e) => {
+                              if (e.key !== "Enter") return;
+                              const q = picker?.kind === "acct" && picker.key === l.key ? picker.q : "";
+                              const first = acctMatches(q)[0];
+                              if (first) { e.preventDefault(); setLine(l.key, { account: first }); setPicker(null); }
+                            }}
                             placeholder="계정 검색" className={IN} />
                           {picker?.kind === "acct" && picker.key === l.key && (
                             <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
-                              {acctMatches(picker.q).map((a) => (
+                              {acctMatches(picker.q).map((a, i) => (
                                 <button key={a.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { account: a }); setPicker(null); }}
-                                  className="w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] hover:bg-[var(--bg-surface)]"><span>{a.name}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
+                                  className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}><span>{a.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
                               ))}
                               {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
                             </div>
@@ -749,6 +755,13 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                               onChange={(e) => setPicker({ kind: "pt", key: l.key, q: e.target.value })}
                               onFocus={() => setPicker({ kind: "pt", key: l.key, q: "" })}
                               onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "pt" ? null : p)), 150)}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter") return;
+                                const q = picker?.kind === "pt" && picker.key === l.key ? picker.q : "";
+                                const p = ptMatches(q)[0]; const a = assetMatches(q)[0];
+                                if (p) { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }
+                                else if (a) { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }
+                              }}
                               placeholder="—" className={IN} />
                             {l.asset && <span className="pr-1 text-[8px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">{l.asset.kind === "bank" ? "통장" : "카드"}</span>}
                             {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
@@ -756,9 +769,9 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                           {picker?.kind === "pt" && picker.key === l.key && (
                             <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
                               {ptMatches(picker.q).length > 0 && <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
-                              {ptMatches(picker.q).map((p) => (
+                              {ptMatches(picker.q).map((p, i) => (
                                 <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
-                                  className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">{p.name}</button>
+                                  className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>{p.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</button>
                               ))}
                               {assetMatches(picker.q).length > 0 && <div className="px-2 pt-1.5 pb-0.5 mt-1 text-[10px] font-semibold text-[var(--text-dim)] border-t border-[var(--border)]/40">내 통장·카드</div>}
                               {assetMatches(picker.q).map((a) => (
