@@ -937,6 +937,77 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
+          {/* ── 견적서 미리보기 (헤더·품목 값으로 구성된 결과물) ── */}
+          {(contentType === 'invoice' || contentType === 'quote') && (() => {
+            const validItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
+            const supplyTotal = editItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0);
+            const taxTotal = editItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0);
+            const discountVal = Number((quoteHeader as any).discount) || 0;
+            const grand = supplyTotal + taxTotal - discountVal;
+            const w = (n: number) => `₩${(Number(n) || 0).toLocaleString('ko')}`;
+            return (
+              <div className="glass-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기</div>
+                <div className="p-6 bg-white text-[#222]">
+                  <div className="text-center text-2xl font-bold mb-5 tracking-[0.3em] text-[#222]">견 적 서</div>
+                  <div className="flex justify-between text-xs mb-4 text-[#333]">
+                    <div className="space-y-0.5">
+                      <div><b>수신:</b> {quoteHeader.partnerName || '________'} 귀하</div>
+                      <div className="text-[11px] text-[#777]">아래와 같이 견적합니다.</div>
+                    </div>
+                    <div className="space-y-0.5 text-right">
+                      <div><b>공급자:</b> {docCompanyInfo?.name || ''}</div>
+                      {docCompanyInfo?.representative && <div>대표: {docCompanyInfo.representative}</div>}
+                      <div>견적일자: {doc.created_at ? new Date(doc.created_at).toLocaleDateString('ko-KR') : ''}</div>
+                      <div>유효기간: {quoteHeader.validUntil || '견적일로부터 30일'}</div>
+                    </div>
+                  </div>
+                  <table className="w-full text-xs border-collapse mb-3 text-[#333]">
+                    <thead>
+                      <tr className="bg-[#f3f4f6] border-y border-[#ddd]">
+                        <th className="px-2 py-1.5 text-left">품목</th>
+                        <th className="px-2 py-1.5 text-right w-16">수량</th>
+                        <th className="px-2 py-1.5 text-right w-24">단가</th>
+                        <th className="px-2 py-1.5 text-right w-28">공급가액</th>
+                        <th className="px-2 py-1.5 text-right w-24">부가세</th>
+                        <th className="px-2 py-1.5 text-right w-28">합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validItems.length === 0 ? (
+                        <tr><td colSpan={6} className="px-2 py-6 text-center text-[#999]">품목을 입력하면 여기에 표시됩니다</td></tr>
+                      ) : validItems.map((it: any, i: number) => (
+                        <tr key={i} className="border-b border-[#eee]">
+                          <td className="px-2 py-1.5">{it.name}{it.spec ? ` (${it.spec})` : ''}</td>
+                          <td className="px-2 py-1.5 text-right">{Number(it.quantity || 0).toLocaleString('ko')}</td>
+                          <td className="px-2 py-1.5 text-right">{Number(it.unitPrice || 0).toLocaleString('ko')}</td>
+                          <td className="px-2 py-1.5 text-right">{Number(it.supplyAmount || 0).toLocaleString('ko')}</td>
+                          <td className="px-2 py-1.5 text-right">{Number(it.taxAmount || 0).toLocaleString('ko')}</td>
+                          <td className="px-2 py-1.5 text-right font-semibold">{Number(it.totalAmount || 0).toLocaleString('ko')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="flex justify-end mb-4">
+                    <div className="w-64 text-xs space-y-1 text-[#333]">
+                      <div className="flex justify-between"><span>공급가액</span><span>{w(supplyTotal)}</span></div>
+                      <div className="flex justify-between"><span>부가세</span><span>{w(taxTotal)}</span></div>
+                      {discountVal > 0 && <div className="flex justify-between"><span>할인</span><span>-{w(discountVal)}</span></div>}
+                      <div className="flex justify-between border-t border-[#ccc] pt-1 font-bold text-sm text-[#111]"><span>합계금액</span><span>{w(grand)}</span></div>
+                    </div>
+                  </div>
+                  {(quoteHeader.paymentTerms || quoteHeader.deliveryTerms || quoteHeader.reference) && (
+                    <div className="text-[11px] text-[#555] space-y-0.5 border-t border-[#eee] pt-3">
+                      {quoteHeader.paymentTerms && <div>· 결제조건: {quoteHeader.paymentTerms}</div>}
+                      {quoteHeader.deliveryTerms && <div>· 납품조건: {quoteHeader.deliveryTerms}</div>}
+                      {quoteHeader.reference && <div>· 참조: {quoteHeader.reference}</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── 결제조건 편집 테이블 (계약서) ── */}
           {contentType === 'contract' && editPaymentSchedule.length > 0 && (
             <div className="glass-card overflow-hidden">
