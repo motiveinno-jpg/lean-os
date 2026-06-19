@@ -17,6 +17,7 @@ import {
   won, fmt, GRID_TH, GRID_TD, MATCH_LABEL, ADJ_REASON_LABEL,
   useColWidths, ResizableTh,
 } from "../ledger/shared";
+import { STAGE_LABEL } from "@/lib/project-rules";
 
 export default function ReconciliationPage() {
   const { user } = useUser();
@@ -179,6 +180,34 @@ export default function ReconciliationPage() {
     return m || "처리 실패";
   };
 
+  // 확정 후 프로젝트 연결 제안 — 계산서상 거래처(partner_id)와 같은 거래처를 가진 프로젝트가 있으면
+  //   팝업으로 보여주고, 선택 시 tax_invoices.deal_id 를 연결(= 프로젝트 운영 > 비용 구성에 집계).
+  const [linkPrompt, setLinkPrompt] = useState<null | { taxInvoiceId: string; counterparty: string; deals: { id: string; name: string; stage: string }[] }>(null);
+  const [linkSelected, setLinkSelected] = useState<string>("");
+  const maybePromptProjectLink = async (taxInvoiceId?: string, counterparty?: string | null) => {
+    try {
+      if (!taxInvoiceId || !companyId) return;
+      // 비용 구성은 매입(purchase) 계산서만 집계 — 매입 계산서일 때만 연결 제안
+      const { data: inv } = await db.from("tax_invoices").select("id, partner_id, deal_id, counterparty_name, type").eq("id", taxInvoiceId).maybeSingle();
+      if (!inv || inv.type !== "purchase" || !inv.partner_id) return;
+      const { data: deals } = await db.from("deals")
+        .select("id, name, stage").eq("company_id", companyId).eq("partner_id", inv.partner_id)
+        .order("created_at", { ascending: false });
+      if (!deals || deals.length === 0) return;
+      const preset = inv.deal_id && (deals as any[]).some((d) => d.id === inv.deal_id) ? inv.deal_id : deals.length === 1 ? deals[0].id : "";
+      setLinkSelected(preset);
+      setLinkPrompt({ taxInvoiceId, counterparty: inv.counterparty_name || counterparty || "거래처", deals: deals as any[] });
+    } catch { /* 연결 제안 실패는 확정 자체에 영향 없음 — 무시 */ }
+  };
+  const linkProjectMut = useMutation({
+    mutationFn: async ({ taxInvoiceId, dealId }: { taxInvoiceId: string; dealId: string }) => {
+      const { error } = await db.from("tax_invoices").update({ deal_id: dealId }).eq("id", taxInvoiceId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { toast("프로젝트 비용 구성에 연결했습니다", "success"); setLinkPrompt(null); setLinkSelected(""); },
+    onError: (e: any) => toast(e?.message || "프로젝트 연결 실패", "error"),
+  });
+
   const decideMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "confirmed" | "rejected"; counterparty?: string | null; tax_invoice_id?: string }) => {
       const { error } = await db.from("invoice_settlements").update({ status }).eq("id", id);
@@ -195,7 +224,10 @@ export default function ReconciliationPage() {
       toast(settlementErrMsg(e), "error");
     },
     onSuccess: (_d, v) => {
-      if (v.status === "confirmed" && v.tax_invoice_id) learnAliases([{ counterparty: v.counterparty ?? null, tax_invoice_id: v.tax_invoice_id }]);
+      if (v.status === "confirmed" && v.tax_invoice_id) {
+        learnAliases([{ counterparty: v.counterparty ?? null, tax_invoice_id: v.tax_invoice_id }]);
+        maybePromptProjectLink(v.tax_invoice_id, v.counterparty ?? null);
+      }
       toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info");
     },
     onSettled: () => invalidateAll(),
@@ -800,6 +832,37 @@ export default function ReconciliationPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">※ 확정하면 미수금/미지급 차감과 분개 전표 기장이 함께 처리됩니다. 거래처별 잔액은 <Link href="/partners/ledger" className="text-[var(--primary)] hover:underline">거래처 원장</Link>에서 확인하세요.</p>
+
+      {/* 확정 후 프로젝트 연결 제안 — 같은 거래처 프로젝트가 있으면 비용 구성에 연결 */}
+      {linkPrompt && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 p-4" onClick={() => setLinkPrompt(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-bold text-[var(--text)]">프로젝트 비용에 연결</h3>
+              <button onClick={() => setLinkPrompt(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mb-4">
+              <b className="text-[var(--text)]">{linkPrompt.counterparty}</b> 거래처가 포함된 프로젝트가 {linkPrompt.deals.length}개 있습니다.
+              연결할 프로젝트를 선택하면 이 매입 계산서가 해당 <b className="text-[var(--text)]">프로젝트 운영 &gt; 비용 구성</b>에 집계됩니다.
+            </p>
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {linkPrompt.deals.map((d) => (
+                <label key={d.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition ${linkSelected === d.id ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
+                  <input type="radio" name="link-deal" checked={linkSelected === d.id} onChange={() => setLinkSelected(d.id)} className="accent-[var(--primary)]" />
+                  <span className="text-sm text-[var(--text)] flex-1 truncate">{d.name || "(이름 없음)"}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{STAGE_LABEL[d.stage as keyof typeof STAGE_LABEL] || d.stage || "—"}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-2.5 mt-5">
+              <button onClick={() => setLinkPrompt(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">연결 안 함</button>
+              <button onClick={() => linkSelected && linkProjectMut.mutate({ taxInvoiceId: linkPrompt.taxInvoiceId, dealId: linkSelected })}
+                disabled={!linkSelected || linkProjectMut.isPending}
+                className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{linkProjectMut.isPending ? "연결 중..." : "확인"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
