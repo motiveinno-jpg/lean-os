@@ -15,6 +15,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { createFromTemplate } from "@/lib/documents";
 import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
+import { SubDealsTab } from "./_components/SubDealsTab";
 
 const db = supabase as any;
 
@@ -39,6 +40,7 @@ const QUOTE_LIST_COLS: QCol[] = [
   { key: "partner", label: "거래처명", default: true, align: "l" },
   { key: "manager", label: "사원(담당)명", default: true, align: "c" },
   { key: "items", label: "품목명(요약)", default: true, align: "l" },
+  { key: "subdeal", label: "세부 프로젝트", default: false, align: "l" },
   { key: "valid", label: "유효기간", default: true, align: "c" },
   { key: "amount", label: "견적금액합계", default: true, align: "r" },
   { key: "status", label: "진행상태", default: true, align: "c" },
@@ -67,9 +69,10 @@ const quoteAmount = (doc: any): number => {
   }, 0);
 };
 
-type TabKey = "overview" | "quote" | "contract" | "pnl";
+type TabKey = "overview" | "subdeals" | "quote" | "contract" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
+  { key: "subdeals", label: "세부 프로젝트" },
   { key: "quote", label: "견적서" },
   { key: "contract", label: "전자계약" },
   { key: "pnl", label: "프로젝트 운영" },
@@ -110,19 +113,23 @@ export default function ProjectHubDetailPage() {
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [quoteName, setQuoteName] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택)
   const [creatingQuote, setCreatingQuote] = useState(false);
   const createQuote = async () => {
     if (!companyId || !userId || creatingQuote) return;
     setCreatingQuote(true);
     try {
+      const subDealId = quoteSubDealId || null;
       if (selectedTemplateId) {
-        // 선택한 양식(계약서 등)으로 생성
-        await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || "문서", createdBy: userId });
+        // 선택한 양식(계약서 등)으로 생성 후, 세부 연결 시 sub_deal_id 부착
+        const doc: any = await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || "문서", createdBy: userId });
+        if (subDealId && doc?.id) await db.from("documents").update({ sub_deal_id: subDealId }).eq("id", doc.id);
       } else {
         // 기본 견적서 구조로 생성
         const { error } = await db.from("documents").insert({
           company_id: companyId,
           deal_id: dealId,
+          sub_deal_id: subDealId,
           name: quoteName.trim() || "견적서",
           status: "draft",
           content_type: "invoice",
@@ -136,6 +143,7 @@ export default function ProjectHubDetailPage() {
       setShowQuoteForm(false);
       setQuoteName("");
       setSelectedTemplateId("");
+      setQuoteSubDealId("");
       toast("문서를 생성했습니다. 목록에서 ‘열기/편집’으로 내용을 작성하세요.", "success");
     } catch (e: any) {
       toast(e?.message || "문서 생성 실패", "error");
@@ -202,6 +210,15 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!companyId && !!dealId,
   });
+  // 계획 마진 롤업 (세부 프로젝트 포함) — v_project_margin
+  const { data: marginRow } = useQuery({
+    queryKey: ["project-margin", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("v_project_margin").select("main_revenue, sub_sales_planned, sub_purchase_planned, planned_margin, actual_direct_cost, actual_margin").eq("deal_id", dealId).maybeSingle();
+      return data as any;
+    },
+    enabled: !!dealId && (tab === "overview" || tab === "pnl"),
+  });
   const { data: partner } = useQuery({
     queryKey: ["projecthub-deal-partner", deal?.partner_id],
     queryFn: async () => {
@@ -223,12 +240,21 @@ export default function ProjectHubDetailPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
     queryFn: async () => {
-      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id").eq("deal_id", dealId).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
     enabled: !!dealId && (tab === "quote" || tab === "contract"),
   });
   const docIds = useMemo(() => documents.map((d) => d.id), [documents]);
+  // 세부 프로젝트 목록(견적 작성 시 연결용) — 경량 select
+  const { data: subDealOpts = [] } = useQuery({
+    queryKey: ["sub-deals-mini", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
+      return (data || []) as { id: string; name: string; type: string | null }[];
+    },
+    enabled: !!dealId && tab === "quote",
+  });
   const { data: quoteTracking = [] } = useQuery({
     queryKey: ["projecthub-quotes", dealId, docIds.length],
     queryFn: async () => {
@@ -366,6 +392,7 @@ export default function ProjectHubDetailPage() {
             <Metric label="마진금액" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
             <Metric label="마진률" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
           </div>
+          <MarginRollup contract={contract} marginRow={marginRow} totalCost={totalCost} />
           <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <Info label="거래처" value={partner?.name || "—"} />
             <Info label="담당자" value={manager?.name || "—"} />
@@ -378,6 +405,9 @@ export default function ProjectHubDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 세부 프로젝트 */}
+      {tab === "subdeals" && companyId && <SubDealsTab dealId={dealId} companyId={companyId} />}
 
       {/* 견적서 */}
       {tab === "quote" && (
@@ -427,6 +457,15 @@ export default function ProjectHubDetailPage() {
                   <option value="">견적서 (기본 양식)</option>
                   {selectableTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">세부 프로젝트 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 매출/매입 견적을 세부에 부착)</span></label>
+                <select
+                  value={quoteSubDealId}
+                  onChange={(e) => setQuoteSubDealId(e.target.value)}
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                >
+                  <option value="">프로젝트 전체 (세부 미지정)</option>
+                  {subDealOpts.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출]" : s.type === "purchase" ? "[매입]" : ""} {s.name}</option>)}
+                </select>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">문서명</label>
                 <input
                   autoFocus
@@ -469,6 +508,7 @@ export default function ProjectHubDetailPage() {
                           if (c.key === "partner") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate">{header.partnerName || partner?.name || "—"}</span></td>;
                           if (c.key === "manager") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)]">{header.manager || manager?.name || "—"}</span></td>;
                           if (c.key === "items") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate" title={quoteItemSummary(doc)}>{quoteItemSummary(doc)}</span></td>;
+                          if (c.key === "subdeal") { const sd = subDealOpts.find((x) => x.id === doc.sub_deal_id); return <td key={c.key} className={cellCls(c)}>{sd ? <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{sd.type === "sales" ? "매출·" : sd.type === "purchase" ? "매입·" : ""}{sd.name}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>; }
                           if (c.key === "valid") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{header.validUntil ? fmtDate(header.validUntil) : "—"}</span></td>;
                           if (c.key === "amount") { const a = quoteAmount(doc); return <td key={c.key} className={cellCls(c)}><span className="mono-number text-[var(--text)]">{a ? a.toLocaleString("ko-KR") : "—"}</span></td>; }
                           if (c.key === "status") return <td key={c.key} className={cellCls(c)}><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{st}</span></td>;
@@ -560,6 +600,7 @@ export default function ProjectHubDetailPage() {
             <Metric label="마진금액" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
             <Metric label="마진률" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
           </div>
+          <MarginRollup contract={contract} marginRow={marginRow} totalCost={totalCost} />
           <div className="glass-card overflow-hidden">
             <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--text-muted)]">비용 구성 (프로젝트에 태그된 비용처리 내역)</span>
@@ -593,6 +634,36 @@ export default function ProjectHubDetailPage() {
   );
 }
 
+// 계획 마진(세부 포함) vs 실적 마진 — 합산 금지(계획·실적 별도 축). v_project_margin 사용.
+function MarginRollup({ contract, marginRow, totalCost }: { contract: number; marginRow: any; totalCost: number }) {
+  const subSales = Number(marginRow?.sub_sales_planned || 0);
+  const subPurchase = Number(marginRow?.sub_purchase_planned || 0);
+  if (subSales === 0 && subPurchase === 0) return null; // 세부 없으면 롤업 숨김(기존 카드로 충분)
+  const planned = marginRow?.planned_margin != null ? Number(marginRow.planned_margin) : contract + subSales - subPurchase;
+  const plannedRevenue = contract + subSales;
+  const plannedRate = plannedRevenue > 0 ? Math.round((planned / plannedRevenue) * 100) : null;
+  const actualMargin = marginRow?.actual_margin != null ? Number(marginRow.actual_margin) : contract - totalCost;
+  return (
+    <div className="glass-card overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <span className="text-xs font-bold text-[var(--text-muted)]">마진 롤업 <span className="font-normal text-[var(--text-dim)]">— 세부 프로젝트 포함(계획) · 전표(실적) 병기</span></span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Metric label="총계약금액(주매출)" value={won(contract)} />
+          <Metric label="Σ 매출형 세부" value={won(subSales)} accent="primary" />
+          <Metric label="Σ 매입형 세부" value={won(subPurchase)} accent="danger" />
+          <Metric label="계획 마진" value={won(planned)} hint="(총계약 + 매출형세부) − 매입형세부" accent={planned < 0 ? "danger" : "primary"} />
+        </div>
+        <div className="flex items-center justify-between text-xs px-1">
+          <span className="text-[var(--text-muted)]">계획 마진율 <b className="text-[var(--text)] mono-number">{plannedRate == null ? "—" : `${plannedRate}%`}</b></span>
+          <span className="text-[var(--text-dim)]">실적 마진(전표 기준) <b className="text-[var(--text)] mono-number">{won(actualMargin)}</b> · 실적원가 {won(Number(marginRow?.actual_direct_cost || totalCost))}</span>
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">· 계획 마진 = 약정 기준(세부 매출형 더하고 매입형 뺌). 실적 마진 = 전표 직접원가 기준. <b className="text-[var(--text)]">두 축은 합산하지 않습니다</b>(이중계상 방지).</p>
+      </div>
+    </div>
+  );
+}
 function Metric({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: "primary" | "danger" }) {
   const color = value === "—" ? "text-[var(--text-dim)]"
     : accent === "danger" ? "text-[var(--danger)]"
