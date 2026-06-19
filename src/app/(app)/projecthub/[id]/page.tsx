@@ -30,6 +30,42 @@ const QUOTE_CONTENT = {
 };
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
+const fmtNo = (d: any) => (d.document_number ? d.document_number : d.created_at ? String(d.created_at).slice(0, 10).replace(/-/g, "/") : "—");
+
+// 견적 리스트 컬럼 — 노출 항목 커스터마이징(브라우저별 저장). align 'r' = 우측(금액)
+type QCol = { key: string; label: string; default: boolean; align?: "l" | "c" | "r" };
+const QUOTE_LIST_COLS: QCol[] = [
+  { key: "no", label: "견적No.", default: true, align: "l" },
+  { key: "partner", label: "거래처명", default: true, align: "l" },
+  { key: "manager", label: "사원(담당)명", default: true, align: "c" },
+  { key: "items", label: "품목명(요약)", default: true, align: "l" },
+  { key: "valid", label: "유효기간", default: true, align: "c" },
+  { key: "amount", label: "견적금액합계", default: true, align: "r" },
+  { key: "status", label: "진행상태", default: true, align: "c" },
+  { key: "created", label: "작성일", default: false, align: "c" },
+  { key: "views", label: "열람수", default: false, align: "c" },
+  { key: "print", label: "인쇄", default: true, align: "c" },
+];
+const QUOTE_COLS_LSKEY = "projecthub_quote_cols_v1";
+
+// content_json 에서 견적 품목/금액 추출 (필드명 방어적)
+const quoteItems = (doc: any): any[] => {
+  const cj = doc?.content_json;
+  return Array.isArray(cj?.items) ? cj.items : [];
+};
+const quoteItemSummary = (doc: any): string => {
+  const items = quoteItems(doc);
+  if (items.length === 0) return "—";
+  const first = items[0]?.name || items[0]?.품목명 || items[0]?.spec || "(품목)";
+  return items.length > 1 ? `${first} 외 ${items.length - 1}건` : String(first);
+};
+const quoteAmount = (doc: any): number => {
+  if (doc?.contract_amount != null) return Number(doc.contract_amount) || 0;
+  return quoteItems(doc).reduce((s: number, it: any) => {
+    const total = it.totalAmount ?? it.total ?? (Number(it.supplyAmount ?? Number(it.quantity || 0) * Number(it.unitPrice || 0)) + Number(it.taxAmount ?? 0));
+    return s + (Number(total) || 0);
+  }, 0);
+};
 
 type TabKey = "overview" | "quote" | "contract" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
@@ -49,6 +85,27 @@ export default function ProjectHubDetailPage() {
   const [tab, setTab] = useState<TabKey>("overview");
   const { toast } = useToast();
   const qc = useQueryClient();
+  // 견적 리스트 노출 컬럼 (커스터마이징) — 브라우저 localStorage 저장
+  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    QUOTE_LIST_COLS.forEach((c) => (init[c.key] = c.default));
+    return init;
+  });
+  const [showColSettings, setShowColSettings] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUOTE_COLS_LSKEY);
+      if (raw) setVisibleCols((prev) => ({ ...prev, ...JSON.parse(raw) }));
+    } catch { /* ignore */ }
+  }, []);
+  const toggleCol = (key: string) => {
+    setVisibleCols((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(QUOTE_COLS_LSKEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const cols = useMemo(() => QUOTE_LIST_COLS.filter((c) => visibleCols[c.key]), [visibleCols]);
   // 견적서 작성(인라인) — 문서함으로 넘어가지 않고 프로젝트에서 바로 생성
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [quoteName, setQuoteName] = useState("");
@@ -166,7 +223,7 @@ export default function ProjectHubDetailPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
     queryFn: async () => {
-      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json").eq("deal_id", dealId).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
     enabled: !!dealId && (tab === "quote" || tab === "contract"),
@@ -326,9 +383,27 @@ export default function ProjectHubDetailPage() {
       {tab === "quote" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다.</p>
-            <button onClick={() => { setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</button>
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
+            <div className="flex items-center gap-2 relative">
+              <button onClick={() => setShowColSettings((v) => !v)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">⚙ 열 설정</button>
+              <button onClick={() => { setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</button>
+              {showColSettings && (
+                <>
+                  <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-[61] w-52 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] px-2 py-1.5">리스트에 표시할 항목</div>
+                    {QUOTE_LIST_COLS.map((c) => (
+                      <label key={c.key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer text-sm">
+                        <input type="checkbox" checked={!!visibleCols[c.key]} onChange={() => toggleCol(c.key)} className="accent-[var(--primary)]" />
+                        <span className="text-[var(--text)]">{c.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* 견적서 작성 모달 — 문서함 이동 없이 이 자리에서 생성 */}
@@ -372,26 +447,41 @@ export default function ProjectHubDetailPage() {
           {documents.length === 0 ? (
             <Empty text="이 프로젝트에 연결된 문서(견적서)가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
-            <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
-              {documents.map((doc) => {
-                const qt = quoteTracking.find((q) => q.document_id === doc.id);
-                return (
-                  <div key={doc.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-[var(--text)] truncate">{doc.name || qt?.quote_title || "문서"}</div>
-                      <div className="text-[11px] text-[var(--text-dim)]">{doc.content_type || "문서"} · {fmtDate(doc.created_at)}{doc.document_number ? ` · ${doc.document_number}` : ""}</div>
-                    </div>
-                    {qt && (
-                      <div className="text-[11px] text-[var(--text-muted)] shrink-0">
-                        열람 {qt.view_count ?? 0}회{qt.viewed_at ? ` · 최근 ${fmtDate(qt.viewed_at)}` : ""}
-                      </div>
-                    )}
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{qt?.status || doc.status || "—"}</span>
-                    {doc.contract_amount != null && <span className="text-xs mono-number text-[var(--text)] shrink-0">{won(doc.contract_amount)}</span>}
-                    <Link href={`/documents?id=${doc.id}`} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0">열기/편집 →</Link>
-                  </div>
-                );
-              })}
+            <div className="glass-card overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                    {cols.map((c) => (
+                      <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`}>{c.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc) => {
+                    const qt = quoteTracking.find((q) => q.document_id === doc.id);
+                    const header = (doc.content_json as any)?.header || {};
+                    const st = qt?.status || doc.status || "—";
+                    const cellCls = (c: QCol) => `px-3 py-2.5 border-b border-[var(--border)]/40 ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`;
+                    return (
+                      <tr key={doc.id} className="hover:bg-[var(--bg-surface)]/50">
+                        {cols.map((c) => {
+                          if (c.key === "no") return <td key={c.key} className={cellCls(c)}><Link href={`/documents?id=${doc.id}`} className="font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">{fmtNo(doc)}</Link></td>;
+                          if (c.key === "partner") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate">{header.partnerName || partner?.name || "—"}</span></td>;
+                          if (c.key === "manager") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)]">{header.manager || manager?.name || "—"}</span></td>;
+                          if (c.key === "items") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate" title={quoteItemSummary(doc)}>{quoteItemSummary(doc)}</span></td>;
+                          if (c.key === "valid") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{header.validUntil ? fmtDate(header.validUntil) : "—"}</span></td>;
+                          if (c.key === "amount") { const a = quoteAmount(doc); return <td key={c.key} className={cellCls(c)}><span className="mono-number text-[var(--text)]">{a ? a.toLocaleString("ko-KR") : "—"}</span></td>; }
+                          if (c.key === "status") return <td key={c.key} className={cellCls(c)}><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{st}</span></td>;
+                          if (c.key === "created") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{fmtDate(doc.created_at)}</span></td>;
+                          if (c.key === "views") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)]">{qt?.view_count ?? 0}</span></td>;
+                          if (c.key === "print") return <td key={c.key} className={cellCls(c)}><Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</Link></td>;
+                          return <td key={c.key} className={cellCls(c)}>—</td>;
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
           {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").length > 0 && (
