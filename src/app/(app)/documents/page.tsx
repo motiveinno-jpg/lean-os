@@ -918,7 +918,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) — 견적/계산서면 항상 표시 ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (
-            <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={canEdit && (isEditing || contentType === 'invoice' || contentType === 'quote')} />
+            <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)} />
           )}
 
           {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
@@ -928,7 +928,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 items={editItems}
                 onChange={setEditItems}
                 companyId={companyId}
-                editable={canEdit && (isEditing || contentType === 'invoice' || contentType === 'quote')}
+                editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)}
                 taxRate={quoteHeader.taxType === 'exempt' || quoteHeader.taxType === 'zero' ? 0 : 0.1}
                 discount={Number((quoteHeader as any).discount) || 0}
                 onDiscountChange={(n) => setQuoteHeader({ ...quoteHeader, discount: n } as any)}
@@ -1225,7 +1225,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           </div>
           )}
 
-          {canEdit && (
+          {(canEdit || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)) && (
             <div className="flex items-center gap-3">
               <input value={comment} onChange={(e) => setComment(e.target.value)}
                 placeholder="변경 코멘트 (선택)"
