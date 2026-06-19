@@ -666,7 +666,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   };
 
   const acctMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12); };
-  const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").includes(t)) : partners).slice(0, 12); };
+  const ptMatches = (q: string) => { const t = q.trim().toLowerCase(); if (!t) return partners.slice(0, 30); const tn = t.replace(/-/g, ""); return partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200); };
   const assetItems = [
     ...bankAccts.map((b: any) => ({ kind: "bank" as const, id: b.id, name: b.alias || b.bank_name })),
     ...cards.map((c: any) => ({ kind: "card" as const, id: c.id, name: c.card_name })),
