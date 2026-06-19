@@ -3,6 +3,7 @@
 // 견적서 품목 입력 테이블 — 회사별 컬럼 커스터마이징(수량·단가·부가세·적요·비고 등 자유 추가/삭제) + 자동계산.
 //   컬럼 설정은 company_settings.settings.quote_columns(jsonb)에 회사별 저장.
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { CurrencyInput } from "@/components/currency-input";
 
@@ -216,15 +217,13 @@ export function QuoteItemsTable({
         );
       })()}
 
-      {showEditor && (
-        <ColumnEditor cols={cols} onClose={() => setShowEditor(false)} onSave={(next) => { saveCols(next); setShowEditor(false); }} />
-      )}
-      {showHistory && (
-        <HistoryPicker companyId={companyId} partnerName={partnerName} onClose={() => setShowHistory(false)} onPick={(picked) => { appendItems(picked); setShowHistory(false); }} />
-      )}
-      {showMyItems && (
-        <MyItemsPicker companyId={companyId} currentItems={items} onClose={() => setShowMyItems(false)} onPick={(picked) => { appendItems(picked); setShowMyItems(false); }} />
-      )}
+      {/* 팝업은 portal로 body 에 띄움 — glass-card(backdrop-filter) 안에 갇히지 않게 */}
+      {showEditor && typeof document !== "undefined" && createPortal(
+        <ColumnEditor cols={cols} onClose={() => setShowEditor(false)} onSave={(next) => { saveCols(next); setShowEditor(false); }} />, document.body)}
+      {showHistory && typeof document !== "undefined" && createPortal(
+        <HistoryPicker companyId={companyId} partnerName={partnerName} onClose={() => setShowHistory(false)} onPick={(picked) => { appendItems(picked); setShowHistory(false); }} />, document.body)}
+      {showMyItems && typeof document !== "undefined" && createPortal(
+        <MyItemsPicker companyId={companyId} currentItems={items} onClose={() => setShowMyItems(false)} onPick={(picked) => { appendItems(picked); setShowMyItems(false); }} />, document.body)}
     </div>
   );
 }
