@@ -25,6 +25,7 @@ import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/docu
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
 import { CurrencyInput } from "@/components/currency-input";
+import { QuoteItemsTable } from "./_components/QuoteItemsTable";
 import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
@@ -876,96 +877,15 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
-          {/* ── 품목 편집 테이블 (견적서/계약서) ── */}
-          {(contentType === 'invoice' || contentType === 'quote' || contentType === 'contract') && editItems.length > 0 && (
-            <div className="glass-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
-                <span className="text-xs text-[var(--text-dim)] font-medium">품목 목록</span>
-                {canEdit && (
-                  <button onClick={() => setEditItems([...editItems, { name: '', quantity: 1, unitPrice: 0, supplyAmount: 0, taxAmount: 0, totalAmount: 0, note: '' }])}
-                    className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-xs">
-                  <thead>
-                    <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-left px-3 py-2 font-medium">품명</th>
-                      <th className="text-right px-3 py-2 font-medium w-20">수량</th>
-                      <th className="text-right px-3 py-2 font-medium w-28">단가</th>
-                      <th className="text-right px-3 py-2 font-medium w-28">공급가액</th>
-                      <th className="text-right px-3 py-2 font-medium w-24">세액(10%)</th>
-                      <th className="text-right px-3 py-2 font-medium w-28">합계</th>
-                      <th className="text-left px-3 py-2 font-medium w-24">비고</th>
-                      {canEdit && <th className="w-10" />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {editItems.map((item: any, idx: number) => (
-                      <tr key={idx} className="border-b border-[var(--border)]/50">
-                        <td className="px-3 py-2">
-                          {canEdit ? (
-                            <input value={item.name || ''} onChange={(e) => {
-                              const arr = [...editItems]; arr[idx] = { ...arr[idx], name: e.target.value }; setEditItems(arr);
-                            }} className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" />
-                          ) : <span>{item.name}</span>}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {canEdit ? (
-                            <input type="number" value={item.quantity || 0} onChange={(e) => {
-                              const arr = [...editItems]; const q = Number(e.target.value) || 0; const u = arr[idx].unitPrice || 0;
-                              const supply = q * u; arr[idx] = { ...arr[idx], quantity: q, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) };
-                              setEditItems(arr);
-                            }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" />
-                          ) : <span>{item.quantity}</span>}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {canEdit ? (
-                            <CurrencyInput value={item.unitPrice || 0} onValueChange={(raw) => {
-                              const arr = [...editItems]; const u = Number(raw) || 0; const q = arr[idx].quantity || 0;
-                              const supply = q * u; arr[idx] = { ...arr[idx], unitPrice: u, supplyAmount: supply, taxAmount: Math.round(supply * 0.1), totalAmount: Math.round(supply * 1.1) };
-                              setEditItems(arr);
-                            }} className="w-full text-right bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" />
-                          ) : <span>{Number(item.unitPrice || 0).toLocaleString('ko')}</span>}
-                        </td>
-                        <td className="px-3 py-2 text-right text-[var(--text-muted)]">{Number(item.supplyAmount || 0).toLocaleString('ko')}</td>
-                        <td className="px-3 py-2 text-right text-[var(--text-dim)]">{Number(item.taxAmount || 0).toLocaleString('ko')}</td>
-                        <td className="px-3 py-2 text-right font-semibold">{Number(item.totalAmount || 0).toLocaleString('ko')}</td>
-                        <td className="px-3 py-2">
-                          {canEdit ? (
-                            <input value={item.note || ''} onChange={(e) => {
-                              const arr = [...editItems]; arr[idx] = { ...arr[idx], note: e.target.value }; setEditItems(arr);
-                            }} className="w-full bg-transparent border-b border-[var(--border)] focus:outline-none focus:border-[var(--primary)] px-1 py-0.5" />
-                          ) : <span className="text-[var(--text-dim)]">{item.note || ''}</span>}
-                        </td>
-                        {canEdit && (
-                          <td className="px-2 py-2 text-center">
-                            {editItems.length > 1 && (
-                              <button onClick={() => setEditItems(editItems.filter((_: any, i: number) => i !== idx))}
-                                className="text-red-400 hover:text-red-300 text-xs">X</button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
-                    <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
-                      <td colSpan={3} className="px-3 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td>
-                      <td className="px-3 py-2 text-right text-xs font-bold">
-                        {editItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0).toLocaleString('ko')}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs font-bold text-[var(--text-dim)]">
-                        {editItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0).toLocaleString('ko')}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs font-black">
-                        {editItems.reduce((s: number, i: any) => s + Number(i.totalAmount || 0), 0).toLocaleString('ko')}
-                      </td>
-                      <td colSpan={canEdit ? 2 : 1} />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+          {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
+          {(contentType === 'invoice' || contentType === 'quote' || contentType === 'contract') && (editItems.length > 0 || (canEdit && isEditing)) && (
+            <div className="glass-card overflow-hidden p-4">
+              <QuoteItemsTable
+                items={editItems}
+                onChange={setEditItems}
+                companyId={companyId}
+                editable={canEdit && isEditing}
+              />
             </div>
           )}
 
