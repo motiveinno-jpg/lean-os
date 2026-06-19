@@ -52,10 +52,10 @@ export function QuoteHeader({
   }, [companyId]);
 
   const set = (patch: Partial<QuoteHeaderData>) => onChange({ ...header, ...patch });
-  const filtered = useMemo(
-    () => partners.filter((p) => !pSearch || p.name?.toLowerCase().includes(pSearch.toLowerCase()) || (p.business_number || "").includes(pSearch)).slice(0, 10),
-    [partners, pSearch],
-  );
+  const filtered = useMemo(() => {
+    const q = pSearch.trim().toLowerCase();
+    return partners.filter((p) => !q || (p.name || "").toLowerCase().includes(q) || (p.business_number || "").replace(/-/g, "").includes(q.replace(/-/g, "")));
+  }, [partners, pSearch]);
 
   const field = (label: string, node: React.ReactNode) => (
     <div className="flex items-center gap-2">
@@ -82,8 +82,8 @@ export function QuoteHeader({
               className={IN}
             />
             {pOpen && editable && filtered.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                {filtered.map((p) => (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                {filtered.slice(0, 200).map((p) => (
                   <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
                     onClick={() => { set({ partnerId: p.id, partnerName: p.name }); setPOpen(false); }}
                     className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-surface)] text-xs flex items-center justify-between">
@@ -91,6 +91,7 @@ export function QuoteHeader({
                     {p.business_number && <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>}
                   </button>
                 ))}
+                {filtered.length > 200 && <div className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">검색어를 더 입력해 좁혀주세요 (총 {filtered.length}개)</div>}
               </div>
             )}
           </div>
