@@ -36,8 +36,9 @@ import { OrgBulkWizard } from "./_components/OrgBulkWizard";
 
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
-    return <AccessDenied detail="전자서명 대시보드는 대표·관리자 전용입니다." />;
+  // 직원도 전자계약 발송 가능. 외부 파트너만 차단. (영구 삭제·발송실패 패널은 아래에서 관리자 전용)
+  if (role === "partner") {
+    return <AccessDenied detail="전자서명 대시보드는 회사 구성원 전용입니다." />;
   }
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -64,7 +65,7 @@ export default function SignaturesDashboardPage() {
   // 일괄 PDF 저장 — 현재 필터+검색 결과 중 서명완료 건을 한 zip 으로 (서버 네이티브 렌더)
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
-  const isManager = true;
+  const isManager = role === "owner" || role === "admin";
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {
@@ -462,7 +463,9 @@ export default function SignaturesDashboardPage() {
                       {canRemind && (
                         <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" aria-label="서명 요청 취소" title="취소(만료 처리)">✕</button>
                       )}
-                      <button onClick={() => { if (confirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.")) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="px-2 py-1 text-xs bg-red-500/15 text-red-600 rounded-lg hover:bg-red-500/25 disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
+                      {isManager && (
+                        <button onClick={() => { if (confirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.")) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="px-2 py-1 text-xs bg-red-500/15 text-red-600 rounded-lg hover:bg-red-500/25 disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
