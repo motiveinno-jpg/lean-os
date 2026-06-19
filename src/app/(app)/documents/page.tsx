@@ -316,7 +316,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const canApprove = status === "review";
   const canLock = status === "approved";
   const canForceApprove = status === "draft" || status === "review";
-  const contentType = (doc.content_json as any)?.type || "contract";
+  const contentType = (doc.content_json as any)?.type || (doc as any).content_type || "contract";
 
   // {{변수}} → 실제 값 치환 (모르는 변수는 빈칸 ____). 보기 모드에서 실제 견적서 내용으로 렌더.
   const docVarValues: Record<string, string> = {
@@ -916,13 +916,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
-          {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) ── */}
-          {(contentType === 'invoice' || contentType === 'quote') && (Object.keys(quoteHeader).length > 0 || (canEdit && isEditing)) && (
+          {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) — 견적/계산서면 항상 표시 ── */}
+          {(contentType === 'invoice' || contentType === 'quote') && (
             <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={canEdit && isEditing} />
           )}
 
           {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
-          {(contentType === 'invoice' || contentType === 'quote' || contentType === 'contract') && (editItems.length > 0 || (canEdit && isEditing)) && (
+          {((contentType === 'invoice' || contentType === 'quote') || (contentType === 'contract' && (editItems.length > 0 || (canEdit && isEditing)))) && (
             <div className="glass-card overflow-hidden p-4">
               <QuoteItemsTable
                 items={editItems}
