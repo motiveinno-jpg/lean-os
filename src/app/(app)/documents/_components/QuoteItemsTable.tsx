@@ -84,6 +84,21 @@ export function QuoteItemsTable({
   const addRow = () => onChange([...rows, {}]);
   const delRow = (idx: number) => onChange(rows.length > 1 ? rows.filter((_, i) => i !== idx) : [{}]);
 
+  // Enter 로 다음 입력칸 이동 (오른쪽 → 다음 행 → 마지막이면 새 행). 마우스 없이 연속 입력.
+  const editableCols = cols.filter((c) => c.type !== "calc");
+  const focusCell = (r: number, c: number) => { const el = document.getElementById(`qcell-${r}-${c}`); if (el) (el as HTMLElement).focus(); };
+  const onTableKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter") return;
+    const active = document.activeElement as HTMLElement | null;
+    const m = active?.id?.match(/^qcell-(\d+)-(\d+)$/);
+    if (!m) return;
+    e.preventDefault();
+    const r = Number(m[1]), c = Number(m[2]);
+    if (c + 1 < editableCols.length) focusCell(r, c + 1);
+    else if (r + 1 < rows.length) focusCell(r + 1, 0);
+    else { addRow(); setTimeout(() => focusCell(r + 1, 0), 30); }
+  };
+
   const sums = useMemo(() => {
     const s: Record<string, number> = {};
     for (const c of cols) {
@@ -110,7 +125,7 @@ export function QuoteItemsTable({
           </div>
         )}
       </div>
-      <div className="overflow-x-auto border border-[var(--border)] rounded-lg">
+      <div className="overflow-x-auto border border-[var(--border)] rounded-lg" onKeyDown={onTableKeyDown}>
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="bg-[var(--bg-surface)] text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -125,7 +140,9 @@ export function QuoteItemsTable({
             {rows.map((item, idx) => (
               <tr key={idx} className="border-b border-[var(--border)]/40">
                 <td className="px-2 py-1.5 text-center text-[var(--text-dim)]">{idx + 1}</td>
-                {cols.map((c) => (
+                {cols.map((c) => {
+                  const eci = editableCols.findIndex((ec) => ec.key === c.key);
+                  return (
                   <td key={c.key} className={`px-2 py-1 ${c.type === "text" ? "" : "text-right"}`}>
                     {c.type === "calc" ? (
                       <span className="mono-number text-[var(--text)]">{fmt(item[c.key])}</span>
@@ -133,6 +150,7 @@ export function QuoteItemsTable({
                       <span className={c.type === "number" ? "mono-number" : ""}>{c.type === "number" ? fmt(item[c.key]) : (item[c.key] || "")}</span>
                     ) : c.type === "number" ? (
                       <CurrencyInput
+                        id={`qcell-${idx}-${eci}`}
                         value={item[c.key] ?? ""}
                         onValueChange={(raw) => setRow(idx, { [c.key]: raw })}
                         placeholder="0"
@@ -140,13 +158,15 @@ export function QuoteItemsTable({
                       />
                     ) : (
                       <input
+                        id={`qcell-${idx}-${eci}`}
                         value={item[c.key] || ""}
                         onChange={(e) => setRow(idx, { [c.key]: e.target.value })}
                         className="w-full px-1.5 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
                       />
                     )}
                   </td>
-                ))}
+                  );
+                })}
                 {editable && (
                   <td className="px-1 text-center">
                     <button onClick={() => delRow(idx)} className="text-[var(--text-dim)] hover:text-red-500" title="행 삭제">✕</button>
