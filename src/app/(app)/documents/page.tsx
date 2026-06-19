@@ -227,7 +227,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
   const saveMut = useMutation({
     mutationFn: () => {
-      const cj = { ...(doc?.content_json as any || {}), body: editContent };
+      // 변수 하이라이트 토큰(data-doc-var) 제거 → 저장본은 값/텍스트만 깔끔하게
+      const cleanBody = (editContent || "").replace(/<span[^>]*data-doc-var[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+      const cj = { ...(doc?.content_json as any || {}), body: cleanBody };
       // 품목 데이터 포함
       if (editItems.length > 0) cj.items = editItems;
       // 결제조건 데이터 포함
@@ -297,16 +299,32 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     });
   // 마크다운(##) + 변수 → 보기와 동일한 채워진 HTML (편집기에서 양식 그대로 수정)
   const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // 변수 → 노란 하이라이트 토큰(수정하기에서 '여기가 변수'임을 직관적으로). 저장 시 제거됨.
+  const varSpan = (display: string) => `<span data-doc-var="1" style="background:#fde68a;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700;white-space:nowrap;">${escHtml(display)}</span>`;
+  const lineToHtml = (line: string) => {
+    let html = "", last = 0;
+    const re = /\{\{\s*([^}]+?)\s*\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(line)) !== null) {
+      html += escHtml(line.slice(last, m.index));
+      const key = m[1].trim();
+      const v = docVarValues[key];
+      html += varSpan(v && v.length ? v : `[${key}]`);
+      last = m.index + m[0].length;
+    }
+    html += escHtml(line.slice(last));
+    return html;
+  };
   const toRichHtml = (text: string) => {
-    const filled = fillVars(text || "");
-    if (filled.trim().startsWith("<")) return filled; // 이미 HTML
-    return filled.split("\n").map((ln) => {
+    const raw = text || "";
+    if (raw.trim().startsWith("<")) return raw; // 이미 HTML
+    return raw.split("\n").map((ln) => {
       const t = ln.trim();
       if (!t) return "";
-      if (t.startsWith("## ")) return `<h3>${escHtml(t.slice(3))}</h3>`;
-      if (t.startsWith("# ")) return `<h2>${escHtml(t.slice(2))}</h2>`;
+      if (t.startsWith("## ")) return `<h3>${lineToHtml(t.slice(3))}</h3>`;
+      if (t.startsWith("# ")) return `<h2>${lineToHtml(t.slice(2))}</h2>`;
       if (t.startsWith("[") && t.includes("품목 테이블")) return ""; // 품목은 아래 품목표로 편집
-      return `<p>${escHtml(t)}</p>`;
+      return `<p>${lineToHtml(t)}</p>`;
     }).filter(Boolean).join("");
   };
 
