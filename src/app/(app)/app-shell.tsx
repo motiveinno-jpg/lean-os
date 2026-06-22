@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch } from "@/components/global-search";
+import { FloatingMessenger } from "@/components/floating-messenger";
 // NotificationCenter import 제거 — 알림은 사이드바 페이지(/notifications)로 통합됨
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
@@ -19,14 +20,14 @@ const PARTNER_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
   { href: "/projects", label: "프로젝트", icon: "briefcase" },
   { href: "/documents", label: "서류", icon: "file" },
-  { href: "/chat", label: "채팅", icon: "chat" },
+  { href: "/chat", label: "메신저", icon: "chat" },
   { href: "/guide", label: "가이드", icon: "book" },
 ];
 const EMPLOYEE_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
   { href: "/attendance", label: "근태", icon: "clock" },
   { href: "/leave", label: "휴가", icon: "umbrella" },
-  { href: "/chat", label: "채팅", icon: "chat" },
+  { href: "/chat", label: "메신저", icon: "chat" },
   { href: "/documents", label: "서류", icon: "file" },
 ];
 const OWNER_TABS = [
@@ -34,7 +35,7 @@ const OWNER_TABS = [
   // PR5: owner 의 모바일 진입도 /projects 칸반으로
   { href: "/projects", label: "프로젝트", icon: "briefcase" },
   { href: "/payments", label: "결제", icon: "card" },
-  { href: "/chat", label: "채팅", icon: "chat" },
+  { href: "/chat", label: "메신저", icon: "chat" },
 ];
 
 function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
@@ -313,6 +314,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       </main>
       <MobileBottomNav />
       <GlobalSearch />
+      {/* 플로팅 팝업 메신저 — 영속 셸 마운트(페이지 이동에도 유지). 데스크톱 전용, /chat 에선 숨김. */}
+      <FloatingMessenger />
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">

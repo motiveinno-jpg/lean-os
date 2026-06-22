@@ -45,7 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "워크스페이스",
     items: [
       { href: "/board", label: "게시판", icon: "message-square" },
-      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
+      { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       // 프로젝트(라이프사이클·손익 뷰) 부모 + 프로젝트 운영(보드 뷰) 하위 토글 — 같은 deals 두 렌즈 (2026-06-17).
@@ -112,7 +112,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
   {
     label: "소통 · 도움말",
     items: [
-      { href: "/chat", label: "팀 채팅", icon: "message-circle", badgeKey: "chat" },
+      { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/team", label: "팀 디렉토리", icon: "users" },
       { href: "/announcements", label: "공지사항", icon: "megaphone" },
       { href: "/mypage", label: "내 계정", icon: "user" },
