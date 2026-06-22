@@ -714,25 +714,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
   return (
     <div
       className={embedded ? "flex flex-col h-full min-h-0 min-w-0" : "max-w-[900px] flex flex-col"}
-      // compact(플로팅 글래스 팝업): 테마 토큰을 라이트/반투명으로 재정의해 참가자·파일·이벤트·초대모달 등
-      //   var(--...) 기반 하위 요소가 자동으로 다크 글래스에 맞춰지게 함. /chat(비-compact)은 무영향.
-      style={
-        !embedded
-          ? { height: "calc(100dvh - 60px)" }
-          : compact
-          ? ({
-              "--text": "#ffffff",
-              "--text-muted": "rgba(255,255,255,0.78)",
-              "--text-dim": "rgba(255,255,255,0.52)",
-              "--border": "rgba(255,255,255,0.16)",
-              "--bg": "rgba(255,255,255,0.06)",
-              "--bg-surface": "rgba(255,255,255,0.12)",
-              "--bg-card": "rgba(255,255,255,0.10)",
-              "--glass-bg": "rgba(255,255,255,0.08)",
-              "--glass-border": "rgba(255,255,255,0.16)",
-            } as any)
-          : undefined
-      }
+      style={!embedded ? { height: "calc(100dvh - 60px)" } : undefined}
     >
       {/* compact(플로팅 팝업): 팝업이 자체 헤더(채널명/뒤로/닫기)를 제공하므로 내부 헤더 숨김 — 중복·짤림 방지 */}
       {!compact && (
@@ -822,7 +804,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         </div>
       )}
 
-      <div className={`flex gap-1 rounded-xl p-1 mb-3 shrink-0 ${compact ? "bg-white/10 backdrop-blur-md" : "bg-[var(--bg-surface)]"}`}>
+      <div className="flex gap-1 rounded-xl p-1 mb-3 shrink-0 bg-[var(--bg-surface)]">
         {([
           { key: "chat" as const, label: `채팅 (${messages.length})` },
           { key: "participants" as const, label: `참가자 (${participants.length})` },
@@ -831,9 +813,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         ]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tab === t.key
-                ? (compact ? "bg-white/25 text-white" : "bg-[var(--primary)] text-white")
-                : (compact ? "text-white/70 hover:text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]")
+              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
             }`}>
             {t.label}
           </button>
@@ -876,7 +856,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               </div>
             )}
             {messages.length === 0 ? (
-              <div className={`text-center py-20 text-sm ${compact ? "text-white/70" : "text-[var(--text-muted)]"}`}>첫 메시지를 보내세요</div>
+              <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
             ) : (
               messages.map((msg: any) => {
                 const ac = actionCardMap.get(msg.id);

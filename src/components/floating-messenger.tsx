@@ -25,9 +25,9 @@ function ChannelButton({ ch, unread, onClick }: { ch: any; unread: number; onCli
   const isDM = ch.is_dm;
   return (
     <button onClick={onClick}
-      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-white/10 text-white/80">
-      <span className="text-sm shrink-0 text-white/50">{isDM ? "@" : "#"}</span>
-      <span className={`flex-1 truncate text-sm ${unread > 0 ? "font-bold text-white" : "font-medium"}`}>
+      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">
+      <span className="text-sm shrink-0 text-[var(--text-dim)]">{isDM ? "@" : "#"}</span>
+      <span className={`flex-1 truncate text-sm ${unread > 0 ? "font-bold text-[var(--text)]" : "font-medium"}`}>
         {isDM ? (ch.dm_name || "1:1 대화") : ch.name}
       </span>
       {unread > 0 && (
@@ -130,22 +130,22 @@ export function FloatingMessenger() {
     <div className="hidden md:block">
       {/* 팝업 패널 */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-white/15 overflow-hidden backdrop-blur-2xl text-white"
-          style={{ background: "linear-gradient(160deg, rgba(30,30,46,0.82), rgba(22,24,37,0.84))", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
-          {/* 헤더 — 글래스, 우측 원형 버튼 */}
-          <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-white/15">
+        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-[var(--border)] overflow-hidden backdrop-blur-2xl text-[var(--text)]"
+          style={{ background: "var(--glass-bg)", boxShadow: "0 24px 60px rgba(0,0,0,0.22)" }}>
+          {/* 헤더 — 우측 원형 버튼. 색은 테마 토큰(라이트=밝게/다크=어둡게 자동 전환) */}
+          <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-[var(--border)]">
             {selected && (
-              <button onClick={() => setSelected(null)} title="채널 목록" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
+              <button onClick={() => setSelected(null)} title="채널 목록" className="w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
               </button>
             )}
-            <span className="flex-1 truncate text-base font-bold text-white">
+            <span className="flex-1 truncate text-base font-bold text-[var(--text)]">
               {selectedChannel ? `${selectedChannel.is_dm ? "@" : "#"} ${selectedChannel.is_dm ? (selectedChannel.dm_name || "1:1 대화") : selectedChannel.name}` : "# 메신저"}
             </span>
-            <button onClick={openFull} title="전체화면" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
+            <button onClick={openFull} title="전체화면" className="w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
             </button>
-            <button onClick={() => setOpen(false)} title="닫기" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
+            <button onClick={() => setOpen(false)} title="닫기" className="w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
@@ -155,12 +155,12 @@ export function FloatingMessenger() {
             <ChatRoomView channelId={selected} embedded compact onBack={() => setSelected(null)} />
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="shrink-0 p-2 border-b border-white/15 space-y-2">
+              <div className="shrink-0 p-2 border-b border-[var(--border)] space-y-2">
                 <div className="flex items-center gap-2">
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널 검색"
-                    className="flex-1 px-3 py-1.5 rounded-full bg-white/15 border border-white/25 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/50 backdrop-blur-md" />
+                    className="flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
                   <button onClick={() => { setCreating((v) => !v); setNewName(""); }} title="새 채널 만들기"
-                    className="shrink-0 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg leading-none transition border border-white/20">
+                    className="shrink-0 w-8 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white flex items-center justify-center text-lg leading-none transition">
                     {creating ? "×" : "+"}
                   </button>
                 </div>
@@ -169,9 +169,9 @@ export function FloatingMessenger() {
                     <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && newName.trim() && !createMut.isPending) createMut.mutate(); }}
                       placeholder="새 채널 이름"
-                      className="flex-1 px-3 py-1.5 rounded-full bg-white/15 border border-white/25 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/50 backdrop-blur-md" />
+                      className="flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
                     <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
-                      className="shrink-0 px-3 h-8 rounded-full bg-white/25 hover:bg-white/35 text-white text-xs font-semibold transition disabled:opacity-40 border border-white/20">
+                      className="shrink-0 px-3 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white text-xs font-semibold transition disabled:opacity-40">
                       {createMut.isPending ? "생성중" : "만들기"}
                     </button>
                   </div>
@@ -181,7 +181,7 @@ export function FloatingMessenger() {
                 {([["프로젝트", matched.deal], ["팀", matched.team], ["1:1", matched.dm]] as [string, any[]][]).map(([title, list]) =>
                   list.length === 0 ? null : (
                     <div key={title}>
-                      <div className="px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">{title} {list.length}</div>
+                      <div className="px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{title} {list.length}</div>
                       <div className="space-y-0.5">
                         {list.map((ch) => (
                           <ChannelButton key={ch.id} ch={ch} unread={unreadMap?.get(ch.id) || 0} onClick={() => setSelected(ch.id)} />
@@ -191,7 +191,7 @@ export function FloatingMessenger() {
                   )
                 )}
                 {channels.length === 0 && (
-                  <div className="py-10 text-center text-xs text-white/70">채널이 없습니다. 위 + 버튼으로 새 채널을 만들어 보세요.</div>
+                  <div className="py-10 text-center text-xs text-[var(--text-dim)]">채널이 없습니다. 위 + 버튼으로 새 채널을 만들어 보세요.</div>
                 )}
               </div>
             </div>
