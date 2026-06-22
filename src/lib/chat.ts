@@ -298,6 +298,18 @@ export async function sendMessageWithMentions(params: {
         const { data: ch } = await db.from('chat_channels').select('company_id, name, is_dm').eq('id', params.channelId).maybeSingle();
         const { data: sender } = await db.from('users').select('name, email').eq('id', params.senderId).maybeSingle();
         if (ch?.company_id) {
+          // 멘션된 사용자가 팀 채널 참가자가 아니면 추가 — 알림만 받고 채널 목록·미읽음(getUnreadCounts)·
+          //   딥링크가 안 되던 문제(2026-06-22). chat_members(RLS SELECT 게이트) + chat_participants(미읽음) 양쪽.
+          //   존재체크 후 plain insert (upsert+ignoreDuplicates 는 RLS WITH CHECK 충돌로 조용히 실패 — 2026-06-15 교훈).
+          //   DM 채널은 멤버 고정이라 제외.
+          if (!ch.is_dm) {
+            for (const uid of recipients) {
+              const { data: m } = await db.from('chat_members').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle();
+              if (!m) await db.from('chat_members').insert({ channel_id: params.channelId, user_id: uid, role: 'member' });
+              const { data: p } = await db.from('chat_participants').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle();
+              if (!p) await db.from('chat_participants').insert({ channel_id: params.channelId, user_id: uid, role: 'member' });
+            }
+          }
           const senderName = sender?.name || sender?.email || '누군가';
           const where = ch.is_dm ? 'DM' : `#${ch.name}`;
           const preview = params.content.length > 80 ? `${params.content.slice(0, 80)}…` : params.content;
