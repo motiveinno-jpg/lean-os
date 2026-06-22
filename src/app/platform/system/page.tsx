@@ -41,19 +41,8 @@ export default function SystemPage() {
     },
   });
 
-  // DB에서 릴리스 노트 조회 (없으면 기본값 사용)
-  const { data: releaseLog = FALLBACK_RELEASES } = useQuery({
-    queryKey: ["release-notes"],
-    queryFn: async () => {
-      const { data } = await db
-        .from('release_notes')
-        .select('version, date, title, changes')
-        .order('date', { ascending: false })
-        .limit(20);
-      if (data && data.length > 0) return data;
-      return FALLBACK_RELEASES;
-    },
-  });
+  // 릴리스 노트는 코드 상수로 관리 (release_notes 테이블·입력 UI 미구축, 쿼리 구조도 렌더와 불일치했음)
+  const releaseLog = FALLBACK_RELEASES;
 
   const roleCounts = users.reduce((acc: Record<string, number>, u: any) => {
     acc[u.role] = (acc[u.role] || 0) + 1;
