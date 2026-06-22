@@ -75,15 +75,7 @@ function defaultRange(): { from: Date; to: Date } {
 
 function BankIcon({ name, size = 40 }: { name: string | undefined; size?: number }) {
   const st = bankStyle(name);
-  const [failed, setFailed] = useState(false);
-  if (st.logo && !failed) {
-    return (
-      <span className="rounded-lg shrink-0 flex items-center justify-center overflow-hidden bg-white border border-[var(--border)]" style={{ width: size, height: size }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/bank-logos/${st.logo}`} alt={st.label} className="object-contain" style={{ width: size * 0.7, height: size * 0.7 }} onError={() => setFailed(true)} />
-      </span>
-    );
-  }
+  // 은행 로고 자산(public/bank-logos)이 아직 없어 브랜드색+이니셜로 표시. 자산 비치 시 BANK_STYLE.logo 분기 복구.
   return (
     <span className="rounded-lg shrink-0 flex items-center justify-center text-[10px] font-extrabold" style={{ width: size, height: size, background: st.color, color: st.fg || "#fff" }}>
       {st.initial}
