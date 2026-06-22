@@ -130,8 +130,8 @@ export function FloatingMessenger() {
     <div className="hidden md:block">
       {/* 팝업 패널 */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-white/25 overflow-hidden backdrop-blur-2xl text-white"
-          style={{ background: "linear-gradient(150deg, rgba(124,58,237,0.42), rgba(59,130,246,0.34) 55%, rgba(236,72,153,0.30))", boxShadow: "0 24px 70px rgba(67,56,160,0.45)" }}>
+        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-white/15 overflow-hidden backdrop-blur-2xl text-white"
+          style={{ background: "linear-gradient(160deg, rgba(30,30,46,0.82), rgba(22,24,37,0.84))", boxShadow: "0 24px 60px rgba(0,0,0,0.45)" }}>
           {/* 헤더 — 글래스, 우측 원형 버튼 */}
           <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-white/15">
             {selected && (
@@ -203,8 +203,8 @@ export function FloatingMessenger() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="메신저 열기"
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/20"
-        style={{ background: "linear-gradient(135deg, #7c3aed, #3b82f6 60%, #ec4899)", boxShadow: "0 8px 24px rgba(80,60,180,0.45)" }}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15"
+        style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}
       >
         {open ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>

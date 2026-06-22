@@ -159,8 +159,8 @@ export function ChatBubble({
           <div
             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
               isOwn
-                ? (glass ? "bg-violet-500/60 backdrop-blur-md text-white border border-white/20 rounded-br-md" : "bg-[#3B82F6] text-white rounded-br-md")
-                : (glass ? "bg-white/15 backdrop-blur-md text-white border border-white/25 rounded-bl-md" : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]")
+                ? (glass ? "bg-indigo-500/55 backdrop-blur-md text-white border border-white/15 rounded-br-md" : "bg-[#3B82F6] text-white rounded-br-md")
+                : (glass ? "bg-white/10 backdrop-blur-md text-white border border-white/15 rounded-bl-md" : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]")
             } ${pinned ? "ring-1 ring-yellow-500/50" : ""}`}
           >
             {/* File content */}

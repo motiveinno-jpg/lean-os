@@ -708,7 +708,28 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
     : (channel?.name || "...");
 
   return (
-    <div className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"} style={embedded ? undefined : { height: "calc(100dvh - 60px)" }}>
+    <div
+      className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"}
+      // compact(플로팅 글래스 팝업): 테마 토큰을 라이트/반투명으로 재정의해 참가자·파일·이벤트·초대모달 등
+      //   var(--...) 기반 하위 요소가 자동으로 다크 글래스에 맞춰지게 함. /chat(비-compact)은 무영향.
+      style={
+        !embedded
+          ? { height: "calc(100dvh - 60px)" }
+          : compact
+          ? ({
+              "--text": "#ffffff",
+              "--text-muted": "rgba(255,255,255,0.78)",
+              "--text-dim": "rgba(255,255,255,0.52)",
+              "--border": "rgba(255,255,255,0.16)",
+              "--bg": "rgba(255,255,255,0.06)",
+              "--bg-surface": "rgba(255,255,255,0.12)",
+              "--bg-card": "rgba(255,255,255,0.10)",
+              "--glass-bg": "rgba(255,255,255,0.08)",
+              "--glass-border": "rgba(255,255,255,0.16)",
+            } as any)
+          : undefined
+      }
+    >
       {/* compact(플로팅 팝업): 팝업이 자체 헤더(채널명/뒤로/닫기)를 제공하므로 내부 헤더 숨김 — 중복·짤림 방지 */}
       {!compact && (
       <div className="flex items-center justify-between mb-3 shrink-0">
