@@ -40,7 +40,7 @@ const QUOTE_LIST_COLS: QCol[] = [
   { key: "partner", label: "거래처명", default: true, align: "l" },
   { key: "manager", label: "사원(담당)명", default: true, align: "c" },
   { key: "items", label: "품목명(요약)", default: true, align: "l" },
-  { key: "subdeal", label: "외주/매입 분해", default: false, align: "l" },
+  { key: "subdeal", label: "매출/매입 관리", default: false, align: "l" },
   { key: "valid", label: "유효기간", default: true, align: "c" },
   { key: "amount", label: "견적금액합계", default: true, align: "r" },
   { key: "status", label: "진행상태", default: true, align: "c" },
@@ -74,7 +74,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
   { key: "quote", label: "견적서" },
   { key: "contract", label: "전자계약" },
-  { key: "subdeals", label: "외주/매입 분해" },
+  { key: "subdeals", label: "매출/매입 관리" },
   { key: "subprojects", label: "세부 프로젝트(캠페인)" },
   { key: "pnl", label: "프로젝트 운영" },
 ];
@@ -439,9 +439,9 @@ export default function ProjectHubDetailPage() {
         </Link>
       </div>
 
-      {/* 탭 */}
+      {/* 탭 — 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영'(전체 현황) 숨김 */}
       <div className="flex gap-2 border-b border-[var(--border)] overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.filter((t) => !(deal.parent_deal_id && (t.key === "subprojects" || t.key === "pnl"))).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${tab === t.key ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
             {t.label}
