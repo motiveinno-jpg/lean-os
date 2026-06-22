@@ -29,9 +29,19 @@ const QUOTE_CONTENT = {
     { title: "비고", content: "1. 본 견적서의 유효기간은 견적일로부터 {{유효기간}}입니다.\n2. 수량 및 사양 변경 시 단가가 변동될 수 있습니다.\n3. 기타 문의사항은 담당자에게 연락 바랍니다." },
   ],
 };
+// 계약서 기본 구조 — 전자계약 탭에서 생성. (견적서와 분리: 계약서는 본문 텍스트형)
+const CONTRACT_CONTENT = {
+  title: "계약서",
+  sections: [{ title: "계약 내용", content: "" }],
+};
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 const fmtNo = (d: any) => (d.document_number ? d.document_number : d.created_at ? String(d.created_at).slice(0, 10).replace(/-/g, "/") : "—");
+// 문서 분류: 견적서(invoice/quote) vs 계약(나머지·전자계약). content_json.type → content_type 순.
+const docKind = (d: any): "quote" | "contract" => {
+  const t = (d?.content_json?.type as string) || d?.content_type || "";
+  return t === "invoice" || t === "quote" ? "quote" : "contract";
+};
 
 // 견적 리스트 컬럼 — 노출 항목 커스터마이징(브라우저별 저장). align 'r' = 우측(금액)
 type QCol = { key: string; label: string; default: boolean; align?: "l" | "c" | "r" };
@@ -117,29 +127,30 @@ export default function ProjectHubDetailPage() {
   const cols = useMemo(() => QUOTE_LIST_COLS.filter((c) => visibleCols[c.key]), [visibleCols]);
   // 견적서 작성(인라인) — 문서함으로 넘어가지 않고 프로젝트에서 바로 생성
   const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [formKind, setFormKind] = useState<"quote" | "contract">("quote"); // 견적서 탭 vs 전자계약 탭 작성 구분
   const [quoteName, setQuoteName] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택)
+  const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
   const [creatingQuote, setCreatingQuote] = useState(false);
-  const createQuote = async () => {
+  const createDoc = async () => {
     if (!companyId || !userId || creatingQuote) return;
     setCreatingQuote(true);
     try {
-      const subDealId = quoteSubDealId || null;
+      const subDealId = formKind === "quote" ? (quoteSubDealId || null) : null;
       if (selectedTemplateId) {
-        // 선택한 양식(계약서 등)으로 생성 후, 세부 연결 시 sub_deal_id 부착
-        const doc: any = await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || "문서", createdBy: userId });
+        // 선택한 양식으로 생성(양식 type → content_type 보존). 견적서면 세부 연결 부착.
+        const doc: any = await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"), createdBy: userId });
         if (subDealId && doc?.id) await db.from("documents").update({ sub_deal_id: subDealId }).eq("id", doc.id);
       } else {
-        // 기본 견적서 구조로 생성
+        // 기본 구조로 생성 — 견적서(invoice·품목표) / 계약서(contract·본문)
         const { error } = await db.from("documents").insert({
           company_id: companyId,
           deal_id: dealId,
           sub_deal_id: subDealId,
-          name: quoteName.trim() || "견적서",
+          name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"),
           status: "draft",
-          content_type: "invoice",
-          content_json: QUOTE_CONTENT,
+          content_type: formKind === "quote" ? "invoice" : "contract",
+          content_json: formKind === "quote" ? QUOTE_CONTENT : CONTRACT_CONTENT,
           version: 1,
           created_by: userId,
         });
@@ -166,17 +177,23 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!companyId,
   });
-  const selectableTemplates = useMemo(
-    () => (docTemplates as any[]).filter((t: any) => ["contract", "quote", "agreement", "nda"].includes(t.type)),
+  const quoteTemplates = useMemo(
+    () => (docTemplates as any[]).filter((t: any) => ["quote", "invoice"].includes(t.type)),
     [docTemplates],
   );
+  const contractTemplates = useMemo(
+    () => (docTemplates as any[]).filter((t: any) => ["contract", "agreement", "nda"].includes(t.type)),
+    [docTemplates],
+  );
+  // 작성 모달에 노출할 양식 — 견적서 탭이면 견적서 양식, 전자계약 탭이면 계약서 양식만
+  const formTemplates = formKind === "quote" ? quoteTemplates : contractTemplates;
   const didSeedTplRef = useRef(false);
   useEffect(() => {
     if (!companyId || !userId || !templatesLoaded || didSeedTplRef.current) return;
-    if (selectableTemplates.length > 0) return;
+    if (quoteTemplates.length + contractTemplates.length > 0) return;
     didSeedTplRef.current = true;
     seedDefaultDocTemplates(companyId, userId).then(() => qc.invalidateQueries({ queryKey: ["projecthub-doc-templates", companyId] }));
-  }, [companyId, userId, templatesLoaded, selectableTemplates, qc]);
+  }, [companyId, userId, templatesLoaded, quoteTemplates, contractTemplates, qc]);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
 
@@ -320,6 +337,9 @@ export default function ProjectHubDetailPage() {
     enabled: !!dealId && (tab === "quote" || tab === "contract"),
   });
   const docIds = useMemo(() => documents.map((d) => d.id), [documents]);
+  // 견적서 탭 / 전자계약 탭 문서 분리 — 견적서(invoice·quote) vs 계약(나머지)
+  const quoteDocs = useMemo(() => (documents as any[]).filter((d) => docKind(d) === "quote"), [documents]);
+  const contractDocs = useMemo(() => (documents as any[]).filter((d) => docKind(d) === "contract"), [documents]);
   // 세부 프로젝트 목록(견적 작성 시 연결용) — 경량 select
   const { data: subDealOpts = [] } = useQuery({
     queryKey: ["sub-deals-mini", dealId],
@@ -517,7 +537,7 @@ export default function ProjectHubDetailPage() {
             <div className="flex items-center gap-2 relative">
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">⚙ 열 설정</button>
-              <button onClick={() => { setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
+              <button onClick={() => { setFormKind("quote"); setSelectedTemplateId(""); setQuoteSubDealId(""); setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</button>
               {showColSettings && (
                 <>
@@ -536,55 +556,8 @@ export default function ProjectHubDetailPage() {
             </div>
           </div>
 
-          {/* 견적서 작성 모달 — 문서함 이동 없이 이 자리에서 생성 */}
-          {showQuoteForm && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold">문서 작성</h3>
-                  <button onClick={() => setShowQuoteForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
-                </div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">양식 선택</label>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => {
-                    setSelectedTemplateId(e.target.value);
-                    const t = selectableTemplates.find((x: any) => x.id === e.target.value);
-                    setQuoteName(`${deal?.name || "프로젝트"} ${t ? t.name : "견적서"}`);
-                  }}
-                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-                >
-                  <option value="">견적서 (기본 양식)</option>
-                  {selectableTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">세부 프로젝트 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 매출/매입 견적을 세부에 부착)</span></label>
-                <select
-                  value={quoteSubDealId}
-                  onChange={(e) => setQuoteSubDealId(e.target.value)}
-                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-                >
-                  <option value="">프로젝트 전체 (세부 미지정)</option>
-                  {subDealOpts.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출]" : s.type === "purchase" ? "[매입]" : ""} {s.name}</option>)}
-                </select>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">문서명</label>
-                <input
-                  autoFocus
-                  value={quoteName}
-                  onChange={(e) => setQuoteName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") createQuote(); }}
-                  placeholder="견적서명"
-                  className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
-                />
-                <p className="text-[11px] text-[var(--text-dim)] mt-2">선택한 양식으로 이 프로젝트에 연결된 문서가 생성됩니다. 생성 후 목록의 ‘열기/편집’으로 내용을 작성·수정하세요.</p>
-                <div className="flex items-center justify-end gap-2.5 mt-5">
-                  <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-                  <button onClick={createQuote} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : "생성"}</button>
-                </div>
-              </div>
-            </div>
-          )}
-          {documents.length === 0 ? (
-            <Empty text="이 프로젝트에 연결된 문서(견적서)가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
+          {quoteDocs.length === 0 ? (
+            <Empty text="이 프로젝트에 연결된 견적서가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
@@ -596,7 +569,7 @@ export default function ProjectHubDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {documents.map((doc) => {
+                  {quoteDocs.map((doc) => {
                     const qt = quoteTracking.find((q) => q.document_id === doc.id);
                     const header = (doc.content_json as any)?.header || {};
                     const st = qt?.status || doc.status || "—";
@@ -638,15 +611,33 @@ export default function ProjectHubDetailPage() {
       {/* 계약 */}
       {tab === "contract" && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--text-muted)]">전자계약(전자서명) 상태입니다.</p>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
+              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 계약서 작성</button>
               <Link href="/signatures?bulk=1" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:opacity-90">📤 단체 일괄 발송</Link>
-              <Link href="/signatures" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">전자계약 메뉴 →</Link>
+              <Link href="/signatures" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">전자계약 메뉴 →</Link>
             </div>
           </div>
-          {sigRequests.length === 0 && approvals.length === 0 ? (
-            <Empty text="이 프로젝트에 연결된 전자계약·승인 내역이 없습니다." />
+
+          {/* 계약 문서 (견적서 제외) — 작성·편집 */}
+          {contractDocs.length > 0 && (
+            <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
+              <div className="px-4 py-2.5 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-muted)]">계약 문서</div>
+              {contractDocs.map((doc) => (
+                <div key={doc.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
+                  <Link href={`/documents?id=${doc.id}`} className="min-w-0 flex-1 text-sm text-[var(--primary)] font-medium hover:underline truncate">{doc.name || "계약서"}</Link>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
+                  <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
+                  <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {sigRequests.length === 0 && approvals.length === 0 && contractDocs.length === 0 ? (
+            <Empty text="이 프로젝트에 연결된 계약서·전자계약 내역이 없습니다. 위 “+ 계약서 작성”으로 만들어 보세요." />
           ) : (
             <>
               {sigRequests.length > 0 && (
@@ -813,6 +804,58 @@ export default function ProjectHubDetailPage() {
           <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
             <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
             <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
+          </div>
+        </div>
+      )}
+
+      {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {showQuoteForm && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold">{formKind === "quote" ? "견적서 작성" : "계약서(전자계약) 작성"}</h3>
+              <button onClick={() => setShowQuoteForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+            </div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">양식 선택</label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => {
+                setSelectedTemplateId(e.target.value);
+                const t = formTemplates.find((x: any) => x.id === e.target.value);
+                setQuoteName(`${deal?.name || "프로젝트"} ${t ? t.name : formKind === "quote" ? "견적서" : "계약서"}`);
+              }}
+              className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="">{formKind === "quote" ? "견적서 (기본 양식)" : "계약서 (기본 양식)"}</option>
+              {formTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            {formKind === "quote" && (
+              <>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">세부 프로젝트 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 매출/매입 견적을 세부에 부착)</span></label>
+                <select
+                  value={quoteSubDealId}
+                  onChange={(e) => setQuoteSubDealId(e.target.value)}
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                >
+                  <option value="">프로젝트 전체 (세부 미지정)</option>
+                  {subDealOpts.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출]" : s.type === "purchase" ? "[매입]" : ""} {s.name}</option>)}
+                </select>
+              </>
+            )}
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">문서명</label>
+            <input
+              autoFocus
+              value={quoteName}
+              onChange={(e) => setQuoteName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") createDoc(); }}
+              placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
+              className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+            />
+            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성됩니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요."} 생성 후 목록의 ‘열기/편집’으로 작성하세요.</p>
+            <div className="flex items-center justify-end gap-2.5 mt-5">
+              <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+              <button onClick={createDoc} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : "생성"}</button>
+            </div>
           </div>
         </div>
       )}
