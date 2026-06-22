@@ -54,9 +54,9 @@ export default function BillingPage() {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const iso = monthStart.toISOString();
       const [emp, deals, sigs, ai, partners] = await Promise.all([
-        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
+        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("status", ["active", "joined"]),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("signatures").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
+        db.from("signature_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
         db.from("ai_usage_logs").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
       ]);
