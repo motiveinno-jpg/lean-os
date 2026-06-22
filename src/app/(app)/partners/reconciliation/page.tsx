@@ -46,7 +46,7 @@ export default function ReconciliationPage() {
   //   방어적으로 클라이언트에서도 포함 목록 필터(핸드오프 §6: 부정 조건 금지, 뷰 오염 시에도 화면 안전).
   //   refetchInterval 30s: 전역 refetchOnWindowFocus OFF 라 타 세션 확정 건이 남는 것 방지.
   const QUEUE_STATUSES = ["suggested", "needs_review"];
-  const { data: queue = [], isLoading: qLoading } = useQuery<QueueRow[]>({
+  const { data: queueRaw = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
     queryFn: async () => {
       const { data } = await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId)
@@ -56,6 +56,12 @@ export default function ReconciliationPage() {
     enabled: !!companyId,
     refetchInterval: 30_000,
   });
+  // 큐도 상단 기간(engStart~engEnd)으로 거래일 필터 — 기간 밖 미확정 제안 숨김.
+  //   차액 마감 등 거래일이 없는 행은 숨기지 않는다(날짜 없는 건은 항상 노출).
+  const queue = useMemo(
+    () => (queueRaw as QueueRow[]).filter((m) => !m.transaction_date || (m.transaction_date >= engStart && m.transaction_date <= engEnd)),
+    [queueRaw, engStart, engEnd],
+  );
 
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
     queryKey: ["settlement-confirmed", companyId],
@@ -506,9 +512,12 @@ export default function ReconciliationPage() {
           ) : queue.length === 0 ? (
             <div className="p-12 text-center glass-card">
               <div className="text-3xl mb-2">✅</div>
-              <div className="text-sm text-[var(--text)]">확인 대기 중인 매칭이 없습니다</div>
+              <div className="text-sm text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
+              {queueRaw.length > queue.length && (
+                <div className="text-[12px] text-[var(--primary)] mt-1.5 font-semibold">이 기간 밖에 미확정 제안 {queueRaw.length - queue.length}건이 있습니다 — 상단에서 기간을 넓혀 보세요.</div>
+              )}
               <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">
-                대기 매칭은 <b>자동 제안</b>만 표시됩니다. 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
+                대기 매칭은 <b>자동 제안</b>만 표시됩니다(상단 기간의 거래일만 노출). 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
                 입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“✨ AI 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(30건씩, 여러 번 눌러 누적).
               </div>
             </div>
@@ -518,7 +527,7 @@ export default function ReconciliationPage() {
                 <div className="flex items-center gap-2 text-[11px]">
                   <button onClick={() => setSelected(new Set(queue.map((m) => m.id)))} className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold">전체 선택</button>
                   {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="px-2.5 py-1 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)]">해제</button>}
-                  <span className="text-[var(--text-dim)]">{selected.size > 0 ? `${selected.size}건 선택됨` : `대기 ${queue.length}건 · 높음 ${highConfIds.length}건`}</span>
+                  <span className="text-[var(--text-dim)]">{selected.size > 0 ? `${selected.size}건 선택됨` : `이 기간 대기 ${queue.length}건 · 높음 ${highConfIds.length}건${queueRaw.length > queue.length ? ` · 기간 밖 ${queueRaw.length - queue.length}건` : ""}`}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {selected.size > 0 ? (
