@@ -5,7 +5,7 @@
 //   · 데스크톱 전용: 모바일은 좁아 부적합 → 하단탭 '메신저'(/chat) 사용 (hidden md:block).
 //   · /chat 페이지에서는 중복 방지로 런처 숨김.
 //   · ChatRoomView 는 무겁고 전역 셸에 항상 마운트되므로 next/dynamic 으로 열 때만 로드.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -44,6 +44,25 @@ export function FloatingMessenger() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  // 영속화 — 영속 셸 마운트로 페이지 이동에는 이미 유지되지만, 혹시 모를 remount/새로고침에도
+  //   열림 상태·선택 채널을 복원해 "이동해도 유지" 를 확실히 보장. (SSR 하이드레이션 충돌 방지 위해 useEffect 에서 복원)
+  useEffect(() => {
+    try {
+      setOpen(localStorage.getItem("messenger:open") === "1");
+      const ch = localStorage.getItem("messenger:channel");
+      if (ch) setSelected(ch);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("messenger:open", open ? "1" : "0"); } catch {}
+  }, [open]);
+  useEffect(() => {
+    try {
+      if (selected) localStorage.setItem("messenger:channel", selected);
+      else localStorage.removeItem("messenger:channel");
+    } catch {}
+  }, [selected]);
 
   const { data: me } = useQuery({
     queryKey: ["current-user"],
@@ -121,7 +140,7 @@ export function FloatingMessenger() {
 
           {/* 본문: 선택 시 채팅방, 미선택 시 채널 목록 */}
           {selected ? (
-            <ChatRoomView channelId={selected} embedded onBack={() => setSelected(null)} />
+            <ChatRoomView channelId={selected} embedded compact onBack={() => setSelected(null)} />
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
               <div className="shrink-0 p-2 border-b border-[var(--border)]">

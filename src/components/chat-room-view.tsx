@@ -383,7 +383,7 @@ function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c
 
 // ── Chat Room View (previously chat/[channelId]/client.tsx) ──
 //   embedded=true: 슬랙식 2단 레이아웃의 우측 대화 패널로 렌더 (전체화면 대신 부모 높이 채움).
-export function ChatRoomView({ channelId, onBack, embedded }: { channelId: string; onBack: () => void; embedded?: boolean }) {
+export function ChatRoomView({ channelId, onBack, embedded, compact }: { channelId: string; onBack: () => void; embedded?: boolean; compact?: boolean }) {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -709,6 +709,8 @@ export function ChatRoomView({ channelId, onBack, embedded }: { channelId: strin
 
   return (
     <div className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"} style={embedded ? undefined : { height: "calc(100dvh - 60px)" }}>
+      {/* compact(플로팅 팝업): 팝업이 자체 헤더(채널명/뒤로/닫기)를 제공하므로 내부 헤더 숨김 — 중복·짤림 방지 */}
+      {!compact && (
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className={`text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition ${embedded ? "lg:hidden" : ""}`}>
@@ -728,6 +730,7 @@ export function ChatRoomView({ channelId, onBack, embedded }: { channelId: strin
           검색
         </button>
       </div>
+      )}
 
       {showSearch && (
         <ChatSearch
@@ -832,7 +835,7 @@ export function ChatRoomView({ channelId, onBack, embedded }: { channelId: strin
               )}
             </div>
           )}
-          <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
+          <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] ${compact ? 'p-3' : 'p-5'}`}>
             {/* Load older messages button */}
             {hasOlderMessages && (
               <div className="text-center mb-3">
