@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { FileUploadZone } from "./file-upload-zone";
-import { MentionDropdown } from "./mention-dropdown";
+import { MentionDropdown, filterMentionUsers } from "./mention-dropdown";
 
 interface MentionUser {
   id: string;
@@ -31,11 +31,19 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   const [text, setText] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // 멘션 드롭다운 후보(드롭다운과 동일 필터 공유) + 키보드 화살표 선택용 인덱스
+  const mentionCandidates = useMemo(
+    () => (mentionQuery !== null && users ? filterMentionUsers(users, mentionQuery) : []),
+    [mentionQuery, users]
+  );
+  useEffect(() => { setMentionIndex(0); }, [mentionQuery]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
@@ -58,6 +66,29 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   }, [text, disabled, onSend, mentionedIds, replyTo, onCancelReply, users]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    // 멘션 드롭다운 열림 시: ↑/↓ 이동, Enter·Tab 선택, Esc 닫기 (전송보다 우선)
+    if (mentionQuery !== null && mentionCandidates.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % mentionCandidates.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        handleMentionSelect(mentionCandidates[Math.min(mentionIndex, mentionCandidates.length - 1)]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -122,6 +153,8 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             <MentionDropdown
               users={users}
               filter={mentionQuery}
+              activeIndex={mentionIndex}
+              onHoverIndex={setMentionIndex}
               onSelect={handleMentionSelect}
               onClose={() => setMentionQuery(null)}
             />
