@@ -551,15 +551,19 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
   }, [channelId, userId, allMessages.length]);
 
   // Auto-scroll on new messages (skip during initial load — handled separately)
+  //   ⚠️ scrollIntoView 는 스크롤 가능한 모든 "조상"을 스크롤 → 플로팅 팝업에서 패널 자체가 스크롤되어
+  //   헤더가 위로 밀려 사라지던 버그. 메시지 컨테이너 내부만 스크롤하도록 scrollTop 사용.
   useEffect(() => {
     if (isInitialLoad.current) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [allMessages.length]);
 
   // Scroll to bottom after initial load
   useEffect(() => {
     if (!isInitialLoad.current && allMessages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      const el = scrollContainerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     }
   }, [channelId]);
 
@@ -709,7 +713,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
 
   return (
     <div
-      className={embedded ? "flex flex-col h-full min-w-0" : "max-w-[900px] flex flex-col"}
+      className={embedded ? "flex flex-col h-full min-h-0 min-w-0" : "max-w-[900px] flex flex-col"}
       // compact(플로팅 글래스 팝업): 테마 토큰을 라이트/반투명으로 재정의해 참가자·파일·이벤트·초대모달 등
       //   var(--...) 기반 하위 요소가 자동으로 다크 글래스에 맞춰지게 함. /chat(비-compact)은 무영향.
       style={
