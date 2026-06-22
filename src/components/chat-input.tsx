@@ -73,7 +73,8 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
     // Detect @mention
     const cursorPos = e.target.selectionStart;
     const beforeCursor = val.slice(0, cursorPos);
-    const match = beforeCursor.match(/@(\w*)$/);
+    // \w 는 한글(CJK)을 매칭 못 해 한글 이름 멘션 시 드롭다운이 안 열리던 버그 → 공백·@ 제외 모든 문자 허용.
+    const match = beforeCursor.match(/@([^\s@]*)$/);
     if (match && users && users.length > 0) {
       setMentionQuery(match[1]);
     } else {
@@ -85,7 +86,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
     const cursorPos = inputRef.current?.selectionStart || text.length;
     const beforeCursor = text.slice(0, cursorPos);
     const afterCursor = text.slice(cursorPos);
-    const newBefore = beforeCursor.replace(/@\w*$/, `@${user.name || user.email} `);
+    const newBefore = beforeCursor.replace(/@[^\s@]*$/, `@${user.name || user.email} `);
     setText(newBefore + afterCursor);
     setMentionedIds(prev => prev.includes(user.id) ? prev : [...prev, user.id]);
     setMentionQuery(null);
