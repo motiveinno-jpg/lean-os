@@ -58,6 +58,9 @@ export async function createFromTemplate(params: {
       deal_id: params.dealId || null,
       name: params.name,
       status: 'draft',
+      // 양식 type 을 content_type 으로 보존 — 누락 시 편집기가 무조건 'contract'(텍스트)로 fallback 되어
+      // 견적서(quote/invoice) 양식도 품목·단가·부가세 표가 안 뜨던 문제 수정.
+      content_type: (template as any).type || null,
       content_json: template.content_json,
       version: 1,
       created_by: params.createdBy,
