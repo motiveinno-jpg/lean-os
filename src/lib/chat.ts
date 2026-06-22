@@ -71,6 +71,7 @@ export async function sendMessage(params: {
   content: string;
   type?: string;
   threadId?: string;
+  replyToId?: string;
   metadata?: Record<string, any>;
 }) {
   const { data, error } = await supabase
@@ -81,6 +82,7 @@ export async function sendMessage(params: {
       content: params.content,
       type: params.type || 'text',
       thread_id: params.threadId || null,
+      reply_to_id: params.replyToId || null,
       metadata: (params.metadata as Json) || null,
     })
     .select()

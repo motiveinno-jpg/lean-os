@@ -609,7 +609,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
             channelId,
             senderId: userId,
             content: params.content,
-            threadId: params.replyToId,
+            replyToId: params.replyToId,
           });
     },
     onSuccess: (data: any) => {
