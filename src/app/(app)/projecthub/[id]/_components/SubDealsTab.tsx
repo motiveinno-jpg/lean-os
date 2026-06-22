@@ -15,7 +15,7 @@ const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : 
 
 type SubDeal = {
   id: string; parent_deal_id: string; name: string; type: string | null;
-  contract_amount: number | null; partner_id: string | null;
+  contract_amount: number | null; partner_id: string | null; vat_type: string | null;
   status: string | null; start_date: string | null; end_date: string | null;
 };
 type Partner = { id: string; name: string; business_number: string | null };
@@ -27,7 +27,8 @@ const STATUS_OPTS = [
   { v: "canceled", label: "취소" },
 ];
 const STATUS_LABEL: Record<string, string> = Object.fromEntries(STATUS_OPTS.map((s) => [s.v, s.label]));
-const emptyForm = () => ({ name: "", type: "purchase", partner_id: "", contract_amount: "", status: "estimate", start_date: "", end_date: "" });
+// 금액은 '입력한 총액' 그대로 저장하고 vat_type(포함/별도) 플래그를 함께 저장. 마진은 뷰에서 net 역산.
+const emptyForm = () => ({ name: "", type: "purchase", partner_id: "", contract_amount: "", status: "estimate", start_date: "", end_date: "", vat_type: "exclude" as "exclude" | "include" });
 
 export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: string | null }) {
   const qc = useQueryClient();
@@ -41,7 +42,7 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
   const { data: subs = [], isLoading } = useQuery({
     queryKey: ["sub-deals", dealId],
     queryFn: async () => {
-      const { data } = await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, status, start_date, end_date").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
+      const { data } = await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, vat_type, status, start_date, end_date").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
       return (data || []) as SubDeal[];
     },
     enabled: !!dealId,
@@ -75,7 +76,8 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
   const openCreate = () => { setEditId(null); setForm(emptyForm()); setPtSearch(""); setShowForm(true); };
   const openEdit = (s: SubDeal) => {
     setEditId(s.id);
-    setForm({ name: s.name || "", type: s.type || "purchase", partner_id: s.partner_id || "", contract_amount: s.contract_amount != null ? String(s.contract_amount) : "", status: s.status || "estimate", start_date: s.start_date || "", end_date: s.end_date || "" });
+    // 저장값은 입력한 총액 그대로 → vat_type 플래그를 그대로 복원
+    setForm({ name: s.name || "", type: s.type || "purchase", partner_id: s.partner_id || "", contract_amount: s.contract_amount != null ? String(s.contract_amount) : "", status: s.status || "estimate", start_date: s.start_date || "", end_date: s.end_date || "", vat_type: s.vat_type === "inclusive" ? "include" : "exclude" });
     setPtSearch(partnerName(s.partner_id));
     setShowForm(true);
   };
@@ -87,7 +89,9 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
         name: form.name.trim(),
         type: form.type,
         partner_id: form.partner_id || null,
+        // 입력한 총액 그대로 저장 + vat_type 플래그(마진은 뷰에서 net 역산).
         contract_amount: form.contract_amount === "" ? null : Number(form.contract_amount),
+        vat_type: form.vat_type === "include" ? "inclusive" : "exclusive",
         status: form.status,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
@@ -225,8 +229,20 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">금액 ({form.type === "sales" ? "받을 돈" : "줄 돈"})</label>
-                <input value={form.contract_amount} onChange={(e) => setForm((f) => ({ ...f, contract_amount: e.target.value.replace(/[^0-9]/g, "") }))} inputMode="numeric" placeholder="0"
-                  className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+                <div className="flex gap-1.5">
+                  <input value={form.contract_amount} onChange={(e) => setForm((f) => ({ ...f, contract_amount: e.target.value.replace(/[^0-9]/g, "") }))} inputMode="numeric" placeholder="0"
+                    className="flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+                  <select value={form.vat_type} onChange={(e) => setForm((f) => ({ ...f, vat_type: e.target.value as "exclude" | "include" }))}
+                    className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]">
+                    <option value="exclude">VAT 별도</option>
+                    <option value="include">VAT 포함</option>
+                  </select>
+                </div>
+                {form.contract_amount !== "" && form.vat_type === "include" && (
+                  <p className="text-[11px] text-[var(--text-dim)] mt-1 text-right">
+                    총액 {Number(form.contract_amount).toLocaleString("ko-KR")}원 저장 · 마진은 공급가액 {Math.round(Number(form.contract_amount) / 1.1).toLocaleString("ko-KR")}원 기준
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

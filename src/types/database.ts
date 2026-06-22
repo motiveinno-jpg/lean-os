@@ -7248,6 +7248,7 @@ export type Database = {
           start_date: string | null
           status: string | null
           type: string | null
+          vat_type: string
           vendor_id: string | null
         }
         Insert: {
@@ -7262,6 +7263,7 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           type?: string | null
+          vat_type?: string
           vendor_id?: string | null
         }
         Update: {
@@ -7276,6 +7278,7 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           type?: string | null
+          vat_type?: string
           vendor_id?: string | null
         }
         Relationships: [

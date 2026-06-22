@@ -250,26 +250,30 @@ export default function ProjectHubDetailPage() {
   const costDealIds = useMemo(() => [dealId, ...childIds], [dealId, childIds]);
 
   // 매출/매입 관리(sub_deals) — 자기 + 모든 캠페인 롤업. 개요=계획 마진 산출, 캠페인 목록=항목별 합.
+  //   금액은 '입력 총액'으로 저장되고 vat_type 플래그를 가짐 → 마진은 공급가액(net)으로 환산(inclusive ÷1.1).
   const { data: subDeals = [] } = useQuery({
     queryKey: ["projecthub-subdeals-roll", dealId, childIds.length],
     queryFn: async () => {
       const { data } = await db.from("sub_deals")
-        .select("id, parent_deal_id, type, contract_amount")
+        .select("id, parent_deal_id, type, contract_amount, vat_type")
         .in("parent_deal_id", costDealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && !!dealId && (tab === "overview" || tab === "pnl" || tab === "subprojects"),
   });
-  const subSalesSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "sales").reduce((a, s) => a + Number(s.contract_amount || 0), 0), [subDeals]);
-  const subPurchaseSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "purchase").reduce((a, s) => a + Number(s.contract_amount || 0), 0), [subDeals]);
-  // 캠페인(자식 deal)별 매출/매입 합 — 캠페인 목록 표시용
+  // 공급가액(net) — VAT 포함 입력분은 ÷1.1, 별도면 입력값 그대로. 마진 정확성용.
+  const subNet = (s: any) => (s?.vat_type === "inclusive" ? Math.round(Number(s.contract_amount || 0) / 1.1) : Number(s.contract_amount || 0));
+  const hasInclusiveSub = useMemo(() => (subDeals as any[]).some((s) => s.vat_type === "inclusive"), [subDeals]);
+  const subSalesSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "sales").reduce((a, s) => a + subNet(s), 0), [subDeals]);
+  const subPurchaseSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "purchase").reduce((a, s) => a + subNet(s), 0), [subDeals]);
+  // 캠페인(자식 deal)별 매출/매입 합 — 캠페인 목록 표시용 (공급가액 기준)
   const subByDeal = useMemo(() => {
     const m: Record<string, { sales: number; purchase: number }> = {};
     for (const s of subDeals as any[]) {
       const pid = s.parent_deal_id;
       if (!m[pid]) m[pid] = { sales: 0, purchase: 0 };
-      if (s.type === "sales") m[pid].sales += Number(s.contract_amount || 0);
-      else if (s.type === "purchase") m[pid].purchase += Number(s.contract_amount || 0);
+      if (s.type === "sales") m[pid].sales += subNet(s);
+      else if (s.type === "purchase") m[pid].purchase += subNet(s);
     }
     return m;
   }, [subDeals]);
@@ -485,6 +489,9 @@ export default function ProjectHubDetailPage() {
             <Metric label="마진금액" value={won(planMargin)} accent={planMargin < 0 ? "danger" : "primary"} />
             <Metric label="마진률" value={planMarginRatePct} accent={planMarginRate != null && planMarginRate < 0 ? "danger" : "primary"} />
           </div>
+          {hasInclusiveSub && (
+            <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b>으로 환산해 표시·계산됩니다. 입력한 총액은 ‘매출/매입 관리’ 탭에서 확인하세요.</p>
+          )}
           <MarginRollup contract={ownContract} marginRow={marginRow} totalCost={totalCost} />
           <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <Info label="거래처" value={partner?.name || "—"} />
