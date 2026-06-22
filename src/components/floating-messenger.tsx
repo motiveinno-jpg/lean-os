@@ -25,9 +25,9 @@ function ChannelButton({ ch, unread, onClick }: { ch: any; unread: number; onCli
   const isDM = ch.is_dm;
   return (
     <button onClick={onClick}
-      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">
-      <span className="text-sm shrink-0 text-[var(--text-dim)]">{isDM ? "@" : "#"}</span>
-      <span className={`flex-1 truncate text-sm ${unread > 0 ? "font-bold text-[var(--text)]" : "font-medium"}`}>
+      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-white/10 text-white/80">
+      <span className="text-sm shrink-0 text-white/50">{isDM ? "@" : "#"}</span>
+      <span className={`flex-1 truncate text-sm ${unread > 0 ? "font-bold text-white" : "font-medium"}`}>
         {isDM ? (ch.dm_name || "1:1 대화") : ch.name}
       </span>
       {unread > 0 && (
@@ -130,25 +130,23 @@ export function FloatingMessenger() {
     <div className="hidden md:block">
       {/* 팝업 패널 */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden"
-          style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}>
-          {/* 헤더 */}
-          <div className="shrink-0 flex items-center gap-2 px-3 h-12 border-b border-[var(--border)] bg-[var(--bg-surface)]">
-            {selected ? (
-              <button onClick={() => setSelected(null)} title="채널 목록" className="p-1 -ml-1 rounded-md hover:bg-[var(--bg-card)] text-[var(--text-muted)]">
+        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-white/25 overflow-hidden backdrop-blur-2xl text-white"
+          style={{ background: "linear-gradient(150deg, rgba(124,58,237,0.42), rgba(59,130,246,0.34) 55%, rgba(236,72,153,0.30))", boxShadow: "0 24px 70px rgba(67,56,160,0.45)" }}>
+          {/* 헤더 — 글래스, 우측 원형 버튼 */}
+          <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-white/15">
+            {selected && (
+              <button onClick={() => setSelected(null)} title="채널 목록" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
               </button>
-            ) : (
-              <span className="text-sm">💬</span>
             )}
-            <span className="flex-1 truncate text-sm font-bold text-[var(--text)]">
-              {selectedChannel ? `${selectedChannel.is_dm ? "@" : "#"} ${selectedChannel.is_dm ? (selectedChannel.dm_name || "1:1 대화") : selectedChannel.name}` : "메신저"}
+            <span className="flex-1 truncate text-base font-bold text-white">
+              {selectedChannel ? `${selectedChannel.is_dm ? "@" : "#"} ${selectedChannel.is_dm ? (selectedChannel.dm_name || "1:1 대화") : selectedChannel.name}` : "# 메신저"}
             </span>
-            <button onClick={openFull} title="전체화면" className="p-1 rounded-md hover:bg-[var(--bg-card)] text-[var(--text-muted)]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
+            <button onClick={openFull} title="전체화면" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
             </button>
-            <button onClick={() => setOpen(false)} title="닫기" className="p-1 rounded-md hover:bg-[var(--bg-card)] text-[var(--text-muted)]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <button onClick={() => setOpen(false)} title="닫기" className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
 
@@ -157,12 +155,12 @@ export function FloatingMessenger() {
             <ChatRoomView channelId={selected} embedded compact onBack={() => setSelected(null)} />
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="shrink-0 p-2 border-b border-[var(--border)] space-y-2">
+              <div className="shrink-0 p-2 border-b border-white/15 space-y-2">
                 <div className="flex items-center gap-2">
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널 검색"
-                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                    className="flex-1 px-3 py-1.5 rounded-full bg-white/15 border border-white/25 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/50 backdrop-blur-md" />
                   <button onClick={() => { setCreating((v) => !v); setNewName(""); }} title="새 채널 만들기"
-                    className="shrink-0 w-8 h-8 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-lg leading-none hover:opacity-90 transition">
+                    className="shrink-0 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg leading-none transition border border-white/20">
                     {creating ? "×" : "+"}
                   </button>
                 </div>
@@ -171,9 +169,9 @@ export function FloatingMessenger() {
                     <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && newName.trim() && !createMut.isPending) createMut.mutate(); }}
                       placeholder="새 채널 이름"
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                      className="flex-1 px-3 py-1.5 rounded-full bg-white/15 border border-white/25 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/50 backdrop-blur-md" />
                     <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
-                      className="shrink-0 px-3 h-8 rounded-lg bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-40">
+                      className="shrink-0 px-3 h-8 rounded-full bg-white/25 hover:bg-white/35 text-white text-xs font-semibold transition disabled:opacity-40 border border-white/20">
                       {createMut.isPending ? "생성중" : "만들기"}
                     </button>
                   </div>
@@ -183,7 +181,7 @@ export function FloatingMessenger() {
                 {([["프로젝트", matched.deal], ["팀", matched.team], ["1:1", matched.dm]] as [string, any[]][]).map(([title, list]) =>
                   list.length === 0 ? null : (
                     <div key={title}>
-                      <div className="px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{title} {list.length}</div>
+                      <div className="px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-white/60">{title} {list.length}</div>
                       <div className="space-y-0.5">
                         {list.map((ch) => (
                           <ChannelButton key={ch.id} ch={ch} unread={unreadMap?.get(ch.id) || 0} onClick={() => setSelected(ch.id)} />
@@ -193,7 +191,7 @@ export function FloatingMessenger() {
                   )
                 )}
                 {channels.length === 0 && (
-                  <div className="py-10 text-center text-xs text-[var(--text-dim)]">채널이 없습니다. ‘전체화면’에서 새 채널을 만들어 보세요.</div>
+                  <div className="py-10 text-center text-xs text-white/70">채널이 없습니다. 위 + 버튼으로 새 채널을 만들어 보세요.</div>
                 )}
               </div>
             </div>
@@ -205,8 +203,8 @@ export function FloatingMessenger() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="메신저 열기"
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[var(--primary)] text-white flex items-center justify-center hover:opacity-90 transition active:scale-95"
-        style={{ boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/20"
+        style={{ background: "linear-gradient(135deg, #7c3aed, #3b82f6 60%, #ec4899)", boxShadow: "0 8px 24px rgba(80,60,180,0.45)" }}
       >
         {open ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>

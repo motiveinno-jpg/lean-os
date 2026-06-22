@@ -32,12 +32,13 @@ interface ChatBubbleProps {
   onReact?: (emoji: string) => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  glass?: boolean; // 플로팅 메신저 팝업의 글래스모피즘 변형 (기본 false → /chat 풀페이지 무영향)
 }
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
 
 // Parse @mentions and **bold** in content; return JSX with highlighted mentions
-function renderContent(text: string, isOwn: boolean) {
+function renderContent(text: string, isOwn: boolean, glass?: boolean) {
   if (!text) return null;
   const parts = text.split(/(@[\w가-힣.\-_]+)/g);
   return parts.map((part, i) => {
@@ -46,7 +47,7 @@ function renderContent(text: string, isOwn: boolean) {
         <span
           key={i}
           className={`font-semibold px-1 rounded ${
-            isOwn ? 'bg-white/20 text-white' : 'bg-[var(--primary)]/15 text-[var(--primary)]'
+            isOwn || glass ? 'bg-white/20 text-white' : 'bg-[var(--primary)]/15 text-[var(--primary)]'
           }`}
         >
           {part}
@@ -60,7 +61,7 @@ function renderContent(text: string, isOwn: boolean) {
 export function ChatBubble({
   senderName, content, time, isOwn, type, pinned,
   editedAt, deletedAt, replyTo, reactions, metadata, actionCard,
-  onPin, onReply, onReact, onEdit, onDelete,
+  onPin, onReply, onReact, onEdit, onDelete, glass,
 }: ChatBubbleProps) {
   const [showReactions, setShowReactions] = useState(false);
 
@@ -94,7 +95,7 @@ export function ChatBubble({
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-3 group`}>
       <div className={`max-w-[70%] ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
-          <div className="text-[10px] text-[var(--text-dim)] mb-1 px-1">{senderName}</div>
+          <div className={`text-[10px] mb-1 px-1 ${glass ? "text-white/70" : "text-[var(--text-dim)]"}`}>{senderName}</div>
         )}
 
         {/* Reply indicator */}
@@ -109,7 +110,7 @@ export function ChatBubble({
 
         <div className="flex items-end gap-2 relative">
           {isOwn && (
-            <span className="text-[9px] text-[var(--text-dim)] mb-1">
+            <span className={`text-[9px] mb-1 ${glass ? "text-white/60" : "text-[var(--text-dim)]"}`}>
               {time}
             </span>
           )}
@@ -158,8 +159,8 @@ export function ChatBubble({
           <div
             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
               isOwn
-                ? "bg-[#3B82F6] text-white rounded-br-md"
-                : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]"
+                ? (glass ? "bg-violet-500/60 backdrop-blur-md text-white border border-white/20 rounded-br-md" : "bg-[#3B82F6] text-white rounded-br-md")
+                : (glass ? "bg-white/15 backdrop-blur-md text-white border border-white/25 rounded-bl-md" : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]")
             } ${pinned ? "ring-1 ring-yellow-500/50" : ""}`}
           >
             {/* File content */}
@@ -184,7 +185,7 @@ export function ChatBubble({
                 )}
               </div>
             ) : (
-              <span className="whitespace-pre-wrap break-words">{renderContent(content, isOwn)}</span>
+              <span className="whitespace-pre-wrap break-words">{renderContent(content, isOwn, glass)}</span>
             )}
 
             {/* Action card inline */}
@@ -205,7 +206,7 @@ export function ChatBubble({
           </div>
 
           {!isOwn && (
-            <span className="text-[9px] text-[var(--text-dim)] mb-1">
+            <span className={`text-[9px] mb-1 ${glass ? "text-white/60" : "text-[var(--text-dim)]"}`}>
               {time}
             </span>
           )}

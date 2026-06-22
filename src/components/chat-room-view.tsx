@@ -797,7 +797,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         </div>
       )}
 
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-3 shrink-0">
+      <div className={`flex gap-1 rounded-xl p-1 mb-3 shrink-0 ${compact ? "bg-white/10 backdrop-blur-md" : "bg-[var(--bg-surface)]"}`}>
         {([
           { key: "chat" as const, label: `채팅 (${messages.length})` },
           { key: "participants" as const, label: `참가자 (${participants.length})` },
@@ -806,7 +806,9 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         ]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+              tab === t.key
+                ? (compact ? "bg-white/25 text-white" : "bg-[var(--primary)] text-white")
+                : (compact ? "text-white/70 hover:text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]")
             }`}>
             {t.label}
           </button>
@@ -835,7 +837,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               )}
             </div>
           )}
-          <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] ${compact ? 'p-3' : 'p-5'}`}>
+          <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto ${compact ? 'bg-transparent p-3' : `bg-[var(--bg-card)] border border-b-0 border-[var(--border)] p-5 ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''}`}`}>
             {/* Load older messages button */}
             {hasOlderMessages && (
               <div className="text-center mb-3">
@@ -849,7 +851,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               </div>
             )}
             {messages.length === 0 ? (
-              <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
+              <div className={`text-center py-20 text-sm ${compact ? "text-white/70" : "text-[var(--text-muted)]"}`}>첫 메시지를 보내세요</div>
             ) : (
               messages.map((msg: any) => {
                 const ac = actionCardMap.get(msg.id);
@@ -863,6 +865,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                       />
                     ) : (
                       <ChatBubble
+                        glass={compact}
                         senderName={msg.users?.name || msg.users?.email || "—"}
                         content={msg.content}
                         time={formatTime(msg.created_at)}
@@ -895,8 +898,9 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           {sendError && (
             <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{sendError}</div>
           )}
-          <div className="rounded-b-2xl border border-t-0 border-[var(--border)]">
+          <div className={compact ? "rounded-b-3xl" : "rounded-b-2xl border border-t-0 border-[var(--border)]"}>
             <ChatInput
+              glass={compact}
               onSend={(content, mentionedUserIds, replyToId) =>
                 sendMut.mutate({ content, mentionedUserIds, replyToId: replyToId || replyTo?.messageId })
               }

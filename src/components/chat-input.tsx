@@ -24,9 +24,10 @@ interface ChatInputProps {
   users?: MentionUser[];
   replyTo?: ReplyInfo | null;
   onCancelReply?: () => void;
+  glass?: boolean; // 플로팅 메신저 팝업의 글래스모피즘 변형 (기본 false → /chat 풀페이지 무영향)
 }
 
-export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, replyTo, onCancelReply }: ChatInputProps) {
+export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, replyTo, onCancelReply, glass }: ChatInputProps) {
   const [text, setText] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
@@ -94,7 +95,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   }
 
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--bg-card)] rounded-b-2xl">
+    <div className={glass ? "border-t border-white/15 bg-transparent rounded-b-3xl" : "border-t border-[var(--border)] bg-[var(--bg-card)] rounded-b-2xl"}>
       {/* Reply preview */}
       {replyTo && (
         <div className="px-4 pt-2 flex items-center gap-2">
@@ -134,13 +135,21 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             placeholder={placeholder || "메시지를 입력하세요... (@멘션 가능)"}
             disabled={disabled}
             rows={1}
-            className="flex-1 px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm resize-none focus:outline-none focus:border-[var(--primary)] disabled:opacity-50 max-h-32"
+            className={`flex-1 px-4 py-2.5 text-sm resize-none focus:outline-none disabled:opacity-50 max-h-32 ${
+              glass
+                ? "bg-white/15 border border-white/25 rounded-full text-white placeholder-white/50 focus:border-white/50 backdrop-blur-md"
+                : "bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl focus:border-[var(--primary)]"
+            }`}
             style={{ minHeight: "42px" }}
           />
           <button
             onClick={handleSubmit}
             disabled={!text.trim() || disabled}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-30 shrink-0"
+            className={`px-4 py-2.5 text-white text-sm font-semibold transition disabled:opacity-30 shrink-0 ${
+              glass
+                ? "bg-white/25 hover:bg-white/35 rounded-full backdrop-blur-md border border-white/20"
+                : "bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-xl"
+            }`}
           >
             전송
           </button>
