@@ -43,8 +43,16 @@ export default function ProjectHubPage() {
     enabled: !!companyId,
   });
 
+  // 세부 프로젝트(캠페인)는 목록에서 숨기고 상위 프로젝트만 노출. 자식 수는 배지로 표시.
+  const topDeals = useMemo(() => (deals as any[]).filter((d) => !d.parent_deal_id), [deals]);
+  const childCount = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const d of deals as any[]) if (d.parent_deal_id) m[d.parent_deal_id] = (m[d.parent_deal_id] || 0) + 1;
+    return m;
+  }, [deals]);
+
   // 진행률 — deal_milestones 완료율 (없으면 null → "—")
-  const dealIds = useMemo(() => (deals as any[]).map((d) => d.id), [deals]);
+  const dealIds = useMemo(() => topDeals.map((d) => d.id), [topDeals]);
   const { data: milestones = [] } = useQuery({
     queryKey: ["projecthub-milestones", companyId, dealIds.length],
     queryFn: async () => {
@@ -108,7 +116,7 @@ export default function ProjectHubPage() {
   );
   const rows = useMemo(() => {
     const pctOf = (d: any) => { const pr = progressByDeal[d.id]; return pr && pr.total > 0 ? pr.done / pr.total : -1; };
-    return (deals as any[]).slice().sort((a, b) => {
+    return topDeals.slice().sort((a, b) => {
       let c = 0;
       switch (sortKey) {
         case "name": c = (a.name || "").localeCompare(b.name || "", "ko"); break;
@@ -124,7 +132,7 @@ export default function ProjectHubPage() {
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [deals, sortKey, sortDir, partnerName, userName, pnlByDeal, progressByDeal]);
+  }, [topDeals, sortKey, sortDir, partnerName, userName, pnlByDeal, progressByDeal]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -218,7 +226,14 @@ export default function ProjectHubPage() {
                 return (
                   <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
                     className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer">
-                    <td className="px-3 py-2 text-[var(--text)] font-medium">{d.name || "(이름 없음)"}</td>
+                    <td className="px-3 py-2 text-[var(--text)] font-medium">
+                      {d.name || "(이름 없음)"}
+                      {childCount[d.id] > 0 && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle" title={`세부 프로젝트 ${childCount[d.id]}개`}>
+                          캠페인 {childCount[d.id]}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">{partnerName[d.partner_id] || "—"}</td>
                     <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">{userName[d.internal_manager_id] || "—"}</td>
                     <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
