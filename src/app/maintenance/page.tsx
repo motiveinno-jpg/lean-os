@@ -29,7 +29,7 @@ export default function MaintenancePage() {
         >
           {retrying ? "다시 시도 중..." : "다시 시도"}
         </button>
-        <p className="text-[11px] text-[var(--text-dim)]">문제가 계속되면 잠시 후 다시 접속해 주세요.</p>
+        <p className="text-[11px] text-[var(--text-dim)]">문제가 계속되면 070-5097-6371 로 연락 주세요.</p>
       </div>
     </div>
   );
