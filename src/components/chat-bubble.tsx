@@ -65,6 +65,11 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const [showReactions, setShowReactions] = useState(false);
 
+  // 액션 툴바 버튼 공통 스타일 (카카오/인스타식 원형 아이콘 버튼)
+  const actionBtnCls = `w-7 h-7 rounded-full flex items-center justify-center transition ${
+    glass ? "text-white/75 hover:text-white hover:bg-white/15" : "text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+  }`;
+
   // Deleted message
   if (deletedAt) {
     return (
@@ -115,41 +120,45 @@ export function ChatBubble({
             </span>
           )}
 
-          {/* Hover action bar */}
-          <div className={`absolute ${isOwn ? 'left-0 -translate-x-full' : 'right-0 translate-x-full'} top-0 opacity-0 group-hover:opacity-100 transition flex items-center gap-0.5 px-1`}>
-            {onReply && (
-              <button onClick={onReply} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="답장">
-                ↩
+          {/* Hover action bar — 카카오/인스타식 플로팅 툴바 (버블 상단 모서리에 떠서 표시) */}
+          <div className={`absolute -top-4 ${isOwn ? 'right-1' : 'left-1'} z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 p-1 rounded-full shadow-lg ${
+            glass ? 'bg-black/45 border border-white/15 backdrop-blur-md' : 'bg-[var(--bg-card)] border border-[var(--border)]'
+          }`}>
+            {onReact && (
+              <button onClick={() => setShowReactions(!showReactions)} className={actionBtnCls} title="공감">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </button>
             )}
-            {onReact && (
-              <button onClick={() => setShowReactions(!showReactions)} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="리액션">
-                +
+            {onReply && (
+              <button onClick={onReply} className={actionBtnCls} title="답장">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
               </button>
             )}
             {onPin && (
-              <button onClick={onPin} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-yellow-400" title={pinned ? 'Unpin' : 'Pin'}>
-                {pinned ? '📌' : '📍'}
+              <button onClick={onPin} className={`${actionBtnCls} ${pinned ? (glass ? 'text-yellow-300' : 'text-yellow-500') : ''}`} title={pinned ? '고정 해제' : '고정'}>
+                <svg className="w-3.5 h-3.5" fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2v.8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
               </button>
             )}
             {isOwn && onEdit && (
-              <button onClick={onEdit} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]" title="편집">
-                ✏
+              <button onClick={onEdit} className={actionBtnCls} title="편집">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
               </button>
             )}
             {isOwn && onDelete && (
-              <button onClick={onDelete} className="p-1 hover:bg-[var(--bg-surface)] rounded text-[10px] text-[var(--text-dim)] hover:text-red-400" title="삭제">
-                ×
+              <button onClick={onDelete} className={`${actionBtnCls} hover:text-red-400`} title="삭제">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             )}
           </div>
 
-          {/* Quick reactions popup */}
+          {/* Quick reactions popup — 툴바 위에 뜨는 이모지 피커 */}
           {showReactions && onReact && (
-            <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-8 flex gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-1.5 py-0.5 shadow-xl z-10`}>
+            <div className={`absolute ${isOwn ? 'right-1' : 'left-1'} -top-14 flex gap-1 rounded-full px-2 py-1.5 shadow-xl z-20 ${
+              glass ? 'bg-black/55 border border-white/15 backdrop-blur-md' : 'bg-[var(--bg-card)] border border-[var(--border)]'
+            }`}>
               {QUICK_REACTIONS.map(emoji => (
                 <button key={emoji} onClick={() => { onReact(emoji); setShowReactions(false); }}
-                  className="text-sm hover:scale-125 transition-transform p-0.5">
+                  className="text-lg leading-none hover:scale-[1.35] transition-transform">
                   {emoji}
                 </button>
               ))}
