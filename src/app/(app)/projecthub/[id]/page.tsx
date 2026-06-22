@@ -6,7 +6,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -40,7 +40,7 @@ const QUOTE_LIST_COLS: QCol[] = [
   { key: "partner", label: "거래처명", default: true, align: "l" },
   { key: "manager", label: "사원(담당)명", default: true, align: "c" },
   { key: "items", label: "품목명(요약)", default: true, align: "l" },
-  { key: "subdeal", label: "세부 프로젝트", default: false, align: "l" },
+  { key: "subdeal", label: "외주/매입 분해", default: false, align: "l" },
   { key: "valid", label: "유효기간", default: true, align: "c" },
   { key: "amount", label: "견적금액합계", default: true, align: "r" },
   { key: "status", label: "진행상태", default: true, align: "c" },
@@ -69,12 +69,13 @@ const quoteAmount = (doc: any): number => {
   }, 0);
 };
 
-type TabKey = "overview" | "subdeals" | "quote" | "contract" | "pnl";
+type TabKey = "overview" | "quote" | "contract" | "subdeals" | "subprojects" | "pnl";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "개요" },
-  { key: "subdeals", label: "세부 프로젝트" },
   { key: "quote", label: "견적서" },
   { key: "contract", label: "전자계약" },
+  { key: "subdeals", label: "외주/매입 분해" },
+  { key: "subprojects", label: "세부 프로젝트(캠페인)" },
   { key: "pnl", label: "프로젝트 운영" },
 ];
 
@@ -84,8 +85,15 @@ export default function ProjectHubDetailPage() {
   const userId = user?.id ?? null;
   const role = user?.role;
   const params = useParams();
+  const router = useRouter();
   const dealId = String(params?.id || "");
   const [tab, setTab] = useState<TabKey>("overview");
+  // 세부 프로젝트(캠페인) 추가 폼
+  const [showChildForm, setShowChildForm] = useState(false);
+  const [childName, setChildName] = useState("");
+  const [childAmount, setChildAmount] = useState("");
+  const [childVat, setChildVat] = useState<"exclude" | "include">("exclude");
+  const [creatingChild, setCreatingChild] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
   // 견적 리스트 노출 컬럼 (커스터마이징) — 브라우저 localStorage 저장
@@ -236,6 +244,55 @@ export default function ProjectHubDetailPage() {
     enabled: !!deal?.internal_manager_id,
   });
 
+  // 세부 프로젝트(캠페인) — 이 프로젝트를 부모로 하는 deals. 손익 롤업·목록 양쪽에 사용 → 항상 로드.
+  const { data: children = [] } = useQuery({
+    queryKey: ["projecthub-children", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("deals")
+        .select("id, name, contract_total, stage, status, start_date, end_date")
+        .eq("parent_deal_id", dealId).is("archived_at", null)
+        .order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && !!dealId,
+  });
+  const childIds = useMemo(() => (children as any[]).map((c) => c.id), [children]);
+  // 손익 집계 대상 = 자기 자신 + 모든 세부 프로젝트 (롤업)
+  const costDealIds = useMemo(() => [dealId, ...childIds], [dealId, childIds]);
+
+  // 상위 프로젝트 (이 deal 이 세부 프로젝트일 때) — 브레드크럼·복귀 링크
+  const { data: parentDeal } = useQuery({
+    queryKey: ["projecthub-parent", deal?.parent_deal_id],
+    queryFn: async () => {
+      const { data } = await db.from("deals").select("id, name").eq("id", deal.parent_deal_id).maybeSingle();
+      return data as any;
+    },
+    enabled: !!deal?.parent_deal_id,
+  });
+
+  const createChild = async () => {
+    if (!companyId || creatingChild) return;
+    if (!childName.trim()) { toast("세부 프로젝트명을 입력하세요", "error"); return; }
+    setCreatingChild(true);
+    try {
+      const raw = Number(String(childAmount).replace(/[^0-9]/g, ""));
+      const contractAmount = childVat === "include" ? Math.round(raw / 1.1) : raw;
+      // 거래처·담당자·분류는 상위 프로젝트에서 상속 (캠페인은 같은 거래처 산하가 일반적)
+      const { data, error } = await db.from("deals").insert({
+        company_id: companyId, parent_deal_id: dealId, name: childName.trim(),
+        contract_total: contractAmount || 0, status: "active", stage: "estimate",
+        partner_id: deal?.partner_id || null, internal_manager_id: deal?.internal_manager_id || null,
+        classification: deal?.classification || null,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      setShowChildForm(false); setChildName(""); setChildAmount(""); setChildVat("exclude");
+      toast("세부 프로젝트를 생성했습니다", "success");
+      if (data?.id) router.push(`/projecthub/${data.id}`);
+    } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setCreatingChild(false); }
+  };
+
   // 견적/계약 — documents(deal_id) + quote_tracking + quote_approvals + signature_requests
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
@@ -285,33 +342,33 @@ export default function ProjectHubDetailPage() {
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
   const costEnabled = (tab === "overview" || tab === "pnl") && !!dealId;
   const { data: costInvoices = [] } = useQuery({
-    queryKey: ["projecthub-cost-inv", dealId],
+    queryKey: ["projecthub-cost-inv", dealId, childIds.length],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").eq("deal_id", dealId).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false });
+      const { data } = await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").in("deal_id", costDealIds).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false });
       return (data || []) as any[];
     },
     enabled: costEnabled,
   });
   const { data: costCash = [] } = useQuery({
-    queryKey: ["projecthub-cost-cash", dealId],
+    queryKey: ["projecthub-cost-cash", dealId, childIds.length],
     queryFn: async () => {
-      const { data } = await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").eq("deal_id", dealId).order("issue_date", { ascending: false });
+      const { data } = await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").in("deal_id", costDealIds).order("issue_date", { ascending: false });
       return (data || []) as any[];
     },
     enabled: costEnabled,
   });
   const { data: costCards = [] } = useQuery({
-    queryKey: ["projecthub-cost-card", dealId],
+    queryKey: ["projecthub-cost-card", dealId, childIds.length],
     queryFn: async () => {
-      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").eq("deal_id", dealId).is("journal_entry_id", null).order("transaction_date", { ascending: false });
+      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").in("deal_id", costDealIds).is("journal_entry_id", null).order("transaction_date", { ascending: false });
       return (data || []) as any[];
     },
     enabled: costEnabled,
   });
   const { data: costVouchers = [] } = useQuery({
-    queryKey: ["projecthub-cost-voucher", dealId],
+    queryKey: ["projecthub-cost-voucher", dealId, childIds.length],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").eq("deal_id", dealId).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false });
+      const { data } = await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").in("deal_id", costDealIds).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false });
       return (data || []) as any[];
     },
     enabled: costEnabled,
@@ -323,7 +380,11 @@ export default function ProjectHubDetailPage() {
 
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
-  const contract = Number(deal.contract_total || 0);
+  const hasChildren = (children as any[]).length > 0;
+  // 계약금액 = 자기 자신 + 세부 프로젝트 합계 (롤업). 비용도 costDealIds(자기+자식) 기준으로 이미 합산됨.
+  const ownContract = Number(deal.contract_total || 0);
+  const childContractSum = (children as any[]).reduce((s, c) => s + Number(c.contract_total || 0), 0);
+  const contract = ownContract + childContractSum;
   // 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
   const sumBy = (arr: any[], f: (x: any) => number) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
   const costInvoiceSum = sumBy(costInvoices as any[], (i) => i.supply_amount || i.total_amount);
@@ -347,7 +408,12 @@ export default function ProjectHubDetailPage() {
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
+            {deal.parent_deal_id ? (
+              <Link href={`/projecthub/${deal.parent_deal_id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+            ) : (
+              <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
+            )}
+            {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
           </div>
           {editingName ? (
@@ -379,6 +445,7 @@ export default function ProjectHubDetailPage() {
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${tab === t.key ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
             {t.label}
+            {t.key === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
           </button>
         ))}
       </div>
@@ -386,9 +453,12 @@ export default function ProjectHubDetailPage() {
       {/* 개요 */}
       {tab === "overview" && (
         <div className="space-y-4">
+          {hasChildren && (
+            <p className="text-[11px] text-[var(--text-dim)]">아래 금액·손익은 이 프로젝트 + 세부 프로젝트 {(children as any[]).length}개를 <b className="text-[var(--text-muted)]">합산(롤업)</b>한 값입니다. (자체 계약 {won(ownContract)} + 세부 {won(childContractSum)})</p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="계약금액(매출)" value={won(contract)} />
-            <Metric label="총 비용" value={won(totalCost)} hint="프로젝트 태그 비용 합계" />
+            <Metric label="계약금액(매출)" value={won(contract)} hint={hasChildren ? "자체 + 세부 프로젝트 합계" : undefined} />
+            <Metric label="총 비용" value={won(totalCost)} hint={hasChildren ? "자체 + 세부 태그 비용 합계" : "프로젝트 태그 비용 합계"} />
             <Metric label="마진금액" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
             <Metric label="마진률" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
           </div>
@@ -571,6 +641,94 @@ export default function ProjectHubDetailPage() {
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* 세부 프로젝트 (캠페인 속 캠페인) */}
+      {tab === "subprojects" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트(캠페인)입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 캠페인의 개요·견적서·전자계약으로 이동합니다.</span></p>
+            {deal.parent_deal_id ? (
+              <span className="text-[11px] text-[var(--text-dim)]">세부 프로젝트는 2단계까지만 — 캠페인 안에는 추가할 수 없습니다.</span>
+            ) : (
+              <button onClick={() => { setChildName(`${deal.name || "프로젝트"} 캠페인`); setChildAmount(""); setChildVat("exclude"); setShowChildForm(true); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 세부 프로젝트 추가</button>
+            )}
+          </div>
+
+          {showChildForm && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowChildForm(false)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold">세부 프로젝트(캠페인) 추가</h3>
+                  <button onClick={() => setShowChildForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+                </div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">캠페인명 *</label>
+                <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") createChild(); }} placeholder="예: 봄 시즌 캠페인"
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약금액</label>
+                <div className="flex gap-1.5">
+                  <input value={childAmount} onChange={(e) => { const n = Number(e.target.value.replace(/[^0-9]/g, "")); setChildAmount(n ? n.toLocaleString("ko-KR") : ""); }}
+                    inputMode="numeric" placeholder="0" className="flex-1 h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+                  <select value={childVat} onChange={(e) => setChildVat(e.target.value as "exclude" | "include")} className="px-2 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
+                    <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                  </select>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">거래처·담당자는 상위 프로젝트({partner?.name || "미지정"})에서 상속됩니다. 생성 후 캠페인의 견적서·전자계약을 각각 관리하세요.</p>
+                <div className="flex items-center justify-end gap-2.5 mt-5">
+                  <button onClick={() => setShowChildForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={createChild} disabled={creatingChild || !childName.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingChild ? "생성 중..." : "생성"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(children as any[]).length === 0 ? (
+            <Empty text={deal.parent_deal_id ? "이 캠페인에는 세부 프로젝트가 없습니다." : "세부 프로젝트(캠페인)가 없습니다. 위 “+ 세부 프로젝트 추가”로 캠페인을 만들어 보세요."} />
+          ) : (
+            <div className="glass-card overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">캠페인명</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[80px]">단계</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[130px]">계약금액</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)] w-[170px]">기간</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[60px]"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(children as any[]).map((c) => {
+                    const cst = (STAGE_ORDER.includes(c.stage) ? c.stage : "estimate") as ProjectStage;
+                    const csc = STAGE_COLOR[cst];
+                    return (
+                      <tr key={c.id} onClick={() => router.push(`/projecthub/${c.id}`)}
+                        className="hover:bg-[var(--bg-surface)]/50 cursor-pointer">
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)] font-medium">{c.name || "(이름 없음)"}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${csc.bg} ${csc.text}`}>{STAGE_LABEL[cst]}</span></td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(c.contract_total)}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[11px] text-[var(--text-muted)] mono-number">{fmtDate(c.start_date)}{c.end_date ? ` ~ ${fmtDate(c.end_date)}` : ""}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center text-[var(--text-dim)]">→</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-[var(--bg-surface)]/60">
+                    <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-muted)]">합계 (세부 {(children as any[]).length}개)</td>
+                    <td className="px-3 py-2.5"></td>
+                    <td className="px-3 py-2.5 text-right mono-number font-bold text-[var(--text)]">{won(childContractSum)}</td>
+                    <td className="px-3 py-2.5" colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+          {!deal.parent_deal_id && (
+            <p className="text-[11px] text-[var(--text-dim)]">※ 상위 프로젝트의 개요·운영 탭 금액·손익은 자기 자신 + 모든 세부 프로젝트를 <b className="text-[var(--text-muted)]">합산(롤업)</b>해 표시됩니다.</p>
           )}
         </div>
       )}

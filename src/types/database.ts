@@ -3170,6 +3170,7 @@ export type Database = {
           last_activity_at: string | null
           name: string
           next_action_text: string | null
+          parent_deal_id: string | null
           partner_company_id: string | null
           partner_id: string | null
           priority: string | null
@@ -3198,6 +3199,7 @@ export type Database = {
           last_activity_at?: string | null
           name: string
           next_action_text?: string | null
+          parent_deal_id?: string | null
           partner_company_id?: string | null
           partner_id?: string | null
           priority?: string | null
@@ -3226,6 +3228,7 @@ export type Database = {
           last_activity_at?: string | null
           name?: string
           next_action_text?: string | null
+          parent_deal_id?: string | null
           partner_company_id?: string | null
           partner_id?: string | null
           priority?: string | null
