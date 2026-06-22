@@ -8,8 +8,9 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getChannels, getUnreadCounts } from "@/lib/queries";
+import { createTeamChannel } from "@/lib/chat";
 
 const ChatRoomView = dynamic(() => import("@/components/chat-room-view").then((m) => m.ChatRoomView), {
   ssr: false,
@@ -41,9 +42,12 @@ function ChannelButton({ ch, unread, onClick }: { ch: any; unread: number; onCli
 export function FloatingMessenger() {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
 
   // 영속화 — 영속 셸 마운트로 페이지 이동에는 이미 유지되지만, 혹시 모를 remount/새로고침에도
   //   열림 상태·선택 채널을 복원해 "이동해도 유지" 를 확실히 보장. (SSR 하이드레이션 충돌 방지 위해 useEffect 에서 복원)
@@ -83,6 +87,16 @@ export function FloatingMessenger() {
     queryKey: ["chat-channels", companyId],
     queryFn: () => getChannels(companyId!, userId || undefined),
     enabled: !!companyId && open,
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => createTeamChannel({ companyId: companyId!, name: newName.trim(), creatorUserId: userId! }),
+    onSuccess: (ch: any) => {
+      queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
+      setCreating(false);
+      setNewName("");
+      if (ch?.id) setSelected(ch.id);
+    },
   });
 
   const totalUnread = useMemo(
@@ -143,9 +157,27 @@ export function FloatingMessenger() {
             <ChatRoomView channelId={selected} embedded compact onBack={() => setSelected(null)} />
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="shrink-0 p-2 border-b border-[var(--border)]">
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널 검색"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+              <div className="shrink-0 p-2 border-b border-[var(--border)] space-y-2">
+                <div className="flex items-center gap-2">
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널 검색"
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                  <button onClick={() => { setCreating((v) => !v); setNewName(""); }} title="새 채널 만들기"
+                    className="shrink-0 w-8 h-8 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-lg leading-none hover:opacity-90 transition">
+                    {creating ? "×" : "+"}
+                  </button>
+                </div>
+                {creating && (
+                  <div className="flex items-center gap-2">
+                    <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && newName.trim() && !createMut.isPending) createMut.mutate(); }}
+                      placeholder="새 채널 이름"
+                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                    <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
+                      className="shrink-0 px-3 h-8 rounded-lg bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-40">
+                      {createMut.isPending ? "생성중" : "만들기"}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-2 space-y-2">
                 {([["프로젝트", matched.deal], ["팀", matched.team], ["1:1", matched.dm]] as [string, any[]][]).map(([title, list]) =>
