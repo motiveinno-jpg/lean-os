@@ -85,12 +85,12 @@ export function DashboardSiyanHero({
 
   return (
     <div className="space-y-5 mb-6">
-      {/* ── 잔액 히어로 (네이비 그라데이션 — 양 테마 공통 다크 카드) ── */}
+      {/* ── 잔액 히어로 (브랜드 인디고 그라데이션 — 양 테마 공통) ── */}
       <div
         className="relative overflow-hidden rounded-2xl p-6 sm:p-7 text-white shadow-lg"
-        style={{ background: "linear-gradient(135deg, #101E36 0%, #1A2A47 55%, #243450 100%)" }}
+        style={{ background: "linear-gradient(135deg, #4338CA 0%, #4F46E5 55%, #6366F1 100%)" }}
       >
-        <div className="absolute top-0 right-0 w-56 h-56 rounded-full -mr-24 -mt-24 blur-3xl" style={{ background: "rgba(47,125,225,0.22)" }} />
+        <div className="absolute top-0 right-0 w-56 h-56 rounded-full -mr-24 -mt-24 blur-3xl" style={{ background: "rgba(129,140,248,0.30)" }} />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[13px] font-medium text-white/55 mb-2">총 자금</p>
