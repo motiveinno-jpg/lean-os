@@ -879,7 +879,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           <h1 className="text-xl sm:text-2xl font-extrabold">거래내역</h1>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 프로젝트/분류 매핑</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
           {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
             <button
