@@ -382,13 +382,10 @@ export async function getMonthlyBudgetOverview(
     ownerInjectionsRes,
     cardTransactionsRes,
   ] = await Promise.all([
-    // Bank balance (latest snapshot per month from cash_snapshots)
-    db.from('cash_snapshots')
-      .select('balance, snapshot_date')
-      .eq('company_id', companyId)
-      .gte('snapshot_date', startDate)
-      .lte('snapshot_date', endDate)
-      .order('snapshot_date', { ascending: false }),
+    // Bank balance — current total across bank_accounts (no historical snapshot table)
+    db.from('bank_accounts')
+      .select('balance')
+      .eq('company_id', companyId),
 
     // Recurring payments (for fixed cost estimates)
     db.from('recurring_payments')
@@ -404,17 +401,17 @@ export async function getMonthlyBudgetOverview(
 
     // Invoices for sales revenue
     db.from('tax_invoices')
-      .select('supply_amount, tax_amount, issue_date, direction')
+      .select('supply_amount, tax_amount, issue_date, type')
       .eq('company_id', companyId)
       .gte('issue_date', startDate)
       .lte('issue_date', endDate),
 
     // Payment queue items (expenses)
     db.from('payment_queue')
-      .select('amount, category, status, due_date, is_recurring')
+      .select('amount, category, status, created_at, is_recurring')
       .eq('company_id', companyId)
-      .gte('due_date', startDate)
-      .lte('due_date', endDate),
+      .gte('created_at', startDate)
+      .lte('created_at', endDate),
 
     // Owner injections (가수금)
     db.from('owner_injections')
@@ -447,7 +444,7 @@ export async function getMonthlyBudgetOverview(
 
     // ── Income ──
     const monthInvoices = invoices.filter(
-      (inv: any) => inv.issue_date?.startsWith(monthPrefix) && inv.direction === 'sales',
+      (inv: any) => inv.issue_date?.startsWith(monthPrefix) && inv.type === 'sales',
     );
     const salesRevenue = monthInvoices.reduce(
       (sum: number, inv: any) => sum + Number(inv.supply_amount || 0) + Number(inv.tax_amount || 0),
@@ -488,7 +485,7 @@ export async function getMonthlyBudgetOverview(
 
     // ── Variable Costs ──
     const monthPayments = payments.filter(
-      (p: any) => p.due_date?.startsWith(monthPrefix) && !p.is_recurring,
+      (p: any) => p.created_at?.startsWith(monthPrefix) && !p.is_recurring,
     );
     const variableFromPayments = monthPayments.reduce(
       (sum: number, p: any) => sum + Number(p.amount || 0),
@@ -506,13 +503,11 @@ export async function getMonthlyBudgetOverview(
     const variableCosts = variableFromPayments + variableFromCards;
     const expenseTotal = totalFixed + variableCosts;
 
-    // ── Bank Balance ──
-    const monthSnapshots = snapshots.filter(
-      (s: any) => s.snapshot_date?.startsWith(monthPrefix),
+    // ── Bank Balance ── (current total across bank_accounts; no historical snapshots)
+    const bankBalance = snapshots.reduce(
+      (sum: number, a: any) => sum + Number(a.balance || 0),
+      0,
     );
-    const bankBalance = monthSnapshots.length > 0
-      ? Number(monthSnapshots[0].balance || 0)
-      : 0;
 
     // ── Net ──
     const monthNet = incomeTotal - expenseTotal;
@@ -670,12 +665,9 @@ export async function getDailyCashProjection(
     ownerInjectionsRes,
   ] = await Promise.all([
     // Opening bank balance — latest snapshot before this month or start of month
-    db.from('cash_snapshots')
-      .select('balance, snapshot_date')
-      .eq('company_id', companyId)
-      .lte('snapshot_date', startDate)
-      .order('snapshot_date', { ascending: false })
-      .limit(1),
+    db.from('bank_accounts')
+      .select('balance')
+      .eq('company_id', companyId),
 
     db.from('fixed_costs')
       .select('name, amount, payment_day, category')
@@ -689,7 +681,7 @@ export async function getDailyCashProjection(
 
     // Receivable invoices due this month
     db.from('tax_invoices')
-      .select('supply_amount, tax_amount, issue_date, counterparty_name, direction')
+      .select('supply_amount, tax_amount, issue_date, counterparty_name, type')
       .eq('company_id', companyId)
       .gte('issue_date', startDate)
       .lte('issue_date', endDate),
@@ -716,9 +708,10 @@ export async function getDailyCashProjection(
       .lte('date', endDate),
   ]);
 
-  const openingBalance = snapshotRes.data?.[0]?.balance
-    ? Number(snapshotRes.data[0].balance)
-    : 0;
+  const openingBalance = (snapshotRes.data || []).reduce(
+    (sum: number, a: any) => sum + Number(a.balance || 0),
+    0,
+  );
 
   // Collect all daily events
   const events: Array<{
@@ -777,7 +770,7 @@ export async function getDailyCashProjection(
 
   // Income from invoices (sales)
   for (const inv of (invoicesRes.data || [])) {
-    if (inv.direction !== 'sales') continue;
+    if (inv.type !== 'sales') continue;
     const issueDate = inv.issue_date || startDate;
     const day = parseInt(issueDate.slice(8, 10)) || 1;
     const total = Number(inv.supply_amount || 0) + Number(inv.tax_amount || 0);
