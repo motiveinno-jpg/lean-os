@@ -485,8 +485,10 @@ export default function VoucherEntryPage() {
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto" style={{ overflowY: "visible" }}>
-          <table className="w-full text-xs border-collapse" style={{ minWidth: 860 }}>
+        {/* 입력 영역은 가로 스크롤 컨테이너를 쓰지 않음 — overflow-x-auto 면 거래처 자동완성 드롭다운이
+            세로로도 잘려(CSS상 overflow-y 도 auto 강제) 가로 스크롤해야 보였음. 폭에 맞춰 한눈에 표시. */}
+        <div className="overflow-visible">
+          <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-2 py-2 w-9 text-center font-semibold">No</th>
