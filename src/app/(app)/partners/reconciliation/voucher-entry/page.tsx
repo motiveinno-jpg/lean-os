@@ -341,7 +341,8 @@ export default function VoucherEntryPage() {
 
   // 계정과목 자동완성 셀 (상단·하단 편집 공용)
   const acctCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, withName: boolean) => (
-    <td className={`${TD} p-0 relative ${withName ? "w-[72px]" : ""}`}>
+    <td className={`${TD} p-0 ${withName ? "w-[72px]" : ""}`}>
+      <div className="relative">
       <input value={picker?.kind === "acct" && picker.rowId === rowId ? picker.q : (withName ? (l.account?.code || "") : (l.account ? `${l.account.name} (${l.account.code})` : ""))}
         onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value })}
         onFocus={() => setPicker({ kind: "acct", rowId, q: "" })}
@@ -364,14 +365,18 @@ export default function VoucherEntryPage() {
           {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과 없음" : "계정과목 마스터 미적용"}</div>}
         </div>
       )}
+      </div>
     </td>
   );
 
   // 거래처 자동완성 셀
   const ptCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => {
     const arApWarn = l.account && AR_AP_CODES.has(l.account.code) && !l.partner;
+    // relative 는 td 가 아닌 내부 div 에 — border-collapse 표에서 td position:relative 가
+    // 무시되어 드롭다운이 뷰포트 기준 top:100% 로 떨어지는 버그 회피
     return (
-      <td className={`${TD} p-0 relative`}>
+      <td className={`${TD} p-0`}>
+        <div className="relative">
         <div className="flex items-center">
           <input value={picker?.kind === "pt" && picker.rowId === rowId ? picker.q : (l.partner?.name || "")}
             onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value })}
@@ -402,13 +407,15 @@ export default function VoucherEntryPage() {
             {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
           </div>
         )}
+        </div>
       </td>
     );
   };
 
   // 적요 셀(+자주 쓰는 적요)
   const memoCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => (
-    <td className={`${TD} p-0 relative`}>
+    <td className={`${TD} p-0`}>
+      <div className="relative">
       <div className="flex items-center">
         <input value={l.memo} onChange={(e) => update({ memo: e.target.value })} placeholder="적요" className={IN} />
         {recentMemos.length > 0 && (
@@ -426,6 +433,7 @@ export default function VoucherEntryPage() {
           ))}
         </div>
       )}
+      </div>
     </td>
   );
 
