@@ -577,8 +577,10 @@ export default function VoucherEntryPage() {
               선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
           </div>
         </div>
-        <div className="overflow-x-auto" style={{ overflowY: "visible" }}>
-          <table className="w-full text-xs border-collapse" style={{ minWidth: 1080 }}>
+        {/* 전표목록도 가로 스크롤 제거 — 폭에 맞춰(w-full) 표시하고 페이지가 세로로 스크롤되게.
+            (overflow-y 컨테이너로 만들면 overflow-x 도 auto 강제돼 거래처 드롭다운이 잘림 → overflow-visible 유지) */}
+        <div className="overflow-visible">
+          <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">
