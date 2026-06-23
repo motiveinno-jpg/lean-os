@@ -137,13 +137,15 @@ export default function ProjectHubDetailPage() {
     setCreatingQuote(true);
     try {
       const subDealId = formKind === "quote" ? (quoteSubDealId || null) : null;
+      let newId: string | null = null;
       if (selectedTemplateId) {
         // 선택한 양식으로 생성(양식 type → content_type 보존). 견적서면 세부 연결 부착.
         const doc: any = await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"), createdBy: userId });
-        if (subDealId && doc?.id) await db.from("documents").update({ sub_deal_id: subDealId }).eq("id", doc.id);
+        newId = doc?.id || null;
+        if (subDealId && newId) await db.from("documents").update({ sub_deal_id: subDealId }).eq("id", newId);
       } else {
         // 기본 구조로 생성 — 견적서(invoice·품목표) / 계약서(contract·본문)
-        const { error } = await db.from("documents").insert({
+        const { data, error } = await db.from("documents").insert({
           company_id: companyId,
           deal_id: dealId,
           sub_deal_id: subDealId,
@@ -153,15 +155,21 @@ export default function ProjectHubDetailPage() {
           content_json: formKind === "quote" ? QUOTE_CONTENT : CONTRACT_CONTENT,
           version: 1,
           created_by: userId,
-        });
+        }).select("id").single();
         if (error) throw error;
+        newId = data?.id || null;
       }
       qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
       setShowQuoteForm(false);
       setQuoteName("");
       setSelectedTemplateId("");
       setQuoteSubDealId("");
-      toast("문서를 생성했습니다. 목록에서 ‘열기/편집’으로 내용을 작성하세요.", "success");
+      // 견적서는 생성 즉시 입력 화면(문서 편집기)으로 전환. 계약서는 발송·서명 흐름이 따로라 기존 동작 유지.
+      if (formKind === "quote" && newId) {
+        router.push(`/documents?id=${newId}`);
+      } else {
+        toast("문서를 생성했습니다. 목록에서 ‘열기/편집’으로 내용을 작성하세요.", "success");
+      }
     } catch (e: any) {
       toast(e?.message || "문서 생성 실패", "error");
     } finally {
@@ -851,10 +859,10 @@ export default function ProjectHubDetailPage() {
               placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
             />
-            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성됩니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요."} 생성 후 목록의 ‘열기/편집’으로 작성하세요.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
             <div className="flex items-center justify-end gap-2.5 mt-5">
               <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-              <button onClick={createDoc} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : "생성"}</button>
+              <button onClick={createDoc} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
             </div>
           </div>
         </div>
