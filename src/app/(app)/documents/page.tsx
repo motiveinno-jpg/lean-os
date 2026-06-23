@@ -451,6 +451,17 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const { data: bankAcct } = await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle();
                   const { data: currentUser } = await db.from('users').select('name, email').eq('id', userId).maybeSingle();
 
+                  // 견적 의뢰 기업(거래처) 상세 — partnerId 우선, 없으면 거래처명으로 company 범위 내 매칭
+                  const cpName = cj.counterpartyName || cj.partnerName || cj.header?.partnerName || quoteHeader.partnerName || '';
+                  const cpId = cj.header?.partnerId || quoteHeader.partnerId || null;
+                  let partnerRow: any = null;
+                  const pcols = 'name, representative, contact_name, contact_phone, contact_email, address';
+                  if (cpId) {
+                    partnerRow = (await db.from('partners').select(pcols).eq('id', cpId).maybeSingle()).data;
+                  } else if (cpName) {
+                    partnerRow = (await db.from('partners').select(pcols).eq('company_id', companyId).eq('name', cpName).limit(1).maybeSingle()).data;
+                  }
+
                   pdfBlob = await generateQuotePDF({
                     documentNumber: (doc as any).document_number || '-',
                     companyInfo: {
@@ -472,6 +483,16 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     managerContact: currentUser?.email || company.data?.phone || undefined,
                     bankInfo: bankAcct ? { bankName: bankAcct.bank_name, accountNumber: bankAcct.account_number, accountHolder: bankAcct.alias || companyName } : undefined,
                     deliveryDate: cj.deliveryDate || undefined,
+                    // 팩트시트 스타일 추가 — 제목(문서명)/견적의뢰기업 상세/제안사 사이트
+                    title: (doc as any).name || undefined,
+                    siteUrl: company.data?.website || company.data?.homepage || company.data?.site_url || undefined,
+                    counterpartyInfo: partnerRow ? {
+                      representative: partnerRow.representative || undefined,
+                      contactName: partnerRow.contact_name || undefined,
+                      contactPhone: partnerRow.contact_phone || undefined,
+                      contactEmail: partnerRow.contact_email || undefined,
+                      address: partnerRow.address || undefined,
+                    } : undefined,
                   });
                 } else if ((cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) || editContent.includes('<img')) {
                   // 2026-05-22 이미지(PDF 페이지 삽입 등) 포함 문서는 브라우저 인쇄 PDF 로 변환 —
