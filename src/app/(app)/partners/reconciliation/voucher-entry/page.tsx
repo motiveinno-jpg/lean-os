@@ -356,10 +356,10 @@ export default function VoucherEntryPage() {
         }}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
-        <CellDropdown anchor={picker.anchor} width={256} maxHeight={208}>
+        <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
           {acctMatches(picker.q).map((a, i) => (
             <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
-              className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+              className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
               <span>{a.name}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
             </button>
           ))}
@@ -392,13 +392,10 @@ export default function VoucherEntryPage() {
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
-          <CellDropdown anchor={picker.anchor} width={272} maxHeight={288}>
-            <div className="sticky top-0 bg-[var(--bg-card)] px-2 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]/50 mb-0.5">
-              거래처 {partners.length}개{picker.q.trim() ? ` · 검색결과 ${ptMatches(picker.q).length}` : ""}
-            </div>
+          <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
             {ptMatches(picker.q).map((p, i) => (
               <button key={p.id} onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
-                className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+                className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
                 {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
               </button>
             ))}
@@ -425,10 +422,10 @@ export default function VoucherEntryPage() {
         )}
       </div>
       {picker?.kind === "memo" && picker.rowId === rowId && (
-        <CellDropdown anchor={picker.anchor} width={224} maxHeight={208} align="right">
+        <CellDropdown anchor={picker.anchor} width={208} maxHeight={180} align="right">
           {recentMemos.map((m, i) => (
             <button key={i} onMouseDown={(e) => { e.preventDefault(); update({ memo: m }); setPicker(null); }}
-              className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
+              className="w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
               <span className="text-[var(--text-dim)] mono-number">{i + 1}.</span> {m}
             </button>
           ))}

@@ -769,10 +769,10 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             }}
                             placeholder="계정 검색" className={IN} />
                           {picker?.kind === "acct" && picker.key === l.key && (
-                            <CellDropdown anchor={picker.anchor} width={240} maxHeight={208}>
+                            <CellDropdown anchor={picker.anchor} width={224} maxHeight={196}>
                               {acctMatches(picker.q).map((a, i) => (
                                 <button key={a.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { account: a }); setPicker(null); }}
-                                  className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}><span>{a.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
+                                  className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}><span>{a.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
                               ))}
                               {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
                             </CellDropdown>
@@ -797,16 +797,16 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
-                            <CellDropdown anchor={picker.anchor} width={240} maxHeight={240}>
-                              {ptMatches(picker.q).length > 0 && <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
+                            <CellDropdown anchor={picker.anchor} width={224} maxHeight={196}>
+                              {ptMatches(picker.q).length > 0 && <div className="px-2 pt-0.5 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
                               {ptMatches(picker.q).map((p, i) => (
                                 <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
-                                  className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>{p.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</button>
+                                  className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>{p.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</button>
                               ))}
                               {assetMatches(picker.q).length > 0 && <div className="px-2 pt-1.5 pb-0.5 mt-1 text-[10px] font-semibold text-[var(--text-dim)] border-t border-[var(--border)]/40">내 통장·카드</div>}
                               {assetMatches(picker.q).map((a) => (
                                 <button key={`${a.kind}-${a.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }}
-                                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
                                   <span className="truncate">{a.name}</span>
                                   <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.kind === "bank" ? "통장" : "카드"}</span>
                                 </button>
