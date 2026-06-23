@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 
 const db = supabase as any;
 
@@ -508,7 +509,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const [voucherNo, setVoucherNo] = useState<number | null>(null);
   const [dealId, setDealId] = useState<string | null>(null); // 프로젝트 태그 → journal_entries.deal_id (직접원가 집계)
   const [subDealId, setSubDealId] = useState<string | null>(null); // 세부 프로젝트 태그 → journal_entries.sub_deal_id (세부 실적원가)
-  const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string } | null>(null);
+  const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string; anchor: Anchor } | null>(null);
   // glass-card(backdrop-filter)가 fixed 컨테이닝 블록이 되어 팝업이 카드 안에 갇히는 문제 →
   //   document.body 로 포털해 화면 전체에 렌더.
   const [mounted, setMounted] = useState(false);
@@ -757,8 +758,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                         <td className="p-0 relative">
                           <input value={picker?.kind === "acct" && picker.key === l.key ? picker.q : (l.account ? `${l.account.name} (${l.account.code})` : "")}
                             disabled={locked}
-                            onChange={(e) => setPicker({ kind: "acct", key: l.key, q: e.target.value })}
-                            onFocus={() => setPicker({ kind: "acct", key: l.key, q: "" })}
+                            onChange={(e) => setPicker({ kind: "acct", key: l.key, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
+                            onFocus={(e) => setPicker({ kind: "acct", key: l.key, q: "", anchor: anchorOf(e.currentTarget) })}
                             onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "acct" ? null : p)), 150)}
                             onKeyDown={(e) => {
                               if (e.key !== "Enter") return;
@@ -768,21 +769,21 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             }}
                             placeholder="계정 검색" className={IN} />
                           {picker?.kind === "acct" && picker.key === l.key && (
-                            <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                            <CellDropdown anchor={picker.anchor} width={240} maxHeight={208}>
                               {acctMatches(picker.q).map((a, i) => (
                                 <button key={a.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { account: a }); setPicker(null); }}
                                   className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}><span>{a.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
                               ))}
                               {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
-                            </div>
+                            </CellDropdown>
                           )}
                         </td>
                         <td className="p-0 relative border-l border-[var(--border)]/30">
                           <div className="flex items-center">
                             <input value={picker?.kind === "pt" && picker.key === l.key ? picker.q : (l.asset?.name || l.partner?.name || "")}
                               disabled={locked}
-                              onChange={(e) => setPicker({ kind: "pt", key: l.key, q: e.target.value })}
-                              onFocus={() => setPicker({ kind: "pt", key: l.key, q: "" })}
+                              onChange={(e) => setPicker({ kind: "pt", key: l.key, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
+                              onFocus={(e) => setPicker({ kind: "pt", key: l.key, q: "", anchor: anchorOf(e.currentTarget) })}
                               onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "pt" ? null : p)), 150)}
                               onKeyDown={(e) => {
                                 if (e.key !== "Enter") return;
@@ -796,7 +797,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
-                            <div className="absolute z-30 left-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                            <CellDropdown anchor={picker.anchor} width={240} maxHeight={240}>
                               {ptMatches(picker.q).length > 0 && <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
                               {ptMatches(picker.q).map((p, i) => (
                                 <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
@@ -812,7 +813,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                               ))}
                               {ptMatches(picker.q).length === 0 && assetMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
                               {(l.partner || l.asset) && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null, asset: null }); setPicker(null); }} className="w-full px-2 py-1 mt-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)] border-t border-[var(--border)]/40">지우기</button>}
-                            </div>
+                            </CellDropdown>
                           )}
                         </td>
                         <td className="p-0 border-l border-[var(--border)]/30">

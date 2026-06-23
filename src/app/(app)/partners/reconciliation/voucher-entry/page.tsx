@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
+import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 
 const db = supabase as any;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
@@ -60,7 +61,7 @@ export default function VoucherEntryPage() {
   const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
   const [selected, setSelected] = useState<Set<string>>(new Set()); // "s:entryId"
-  const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string } | null>(null);
+  const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string; anchor: Anchor } | null>(null);
   const [ctx, setCtx] = useState<{ x: number; y: number; rowId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null); // §3-3-B 방금 저장한 전표 하이라이트
@@ -344,8 +345,8 @@ export default function VoucherEntryPage() {
     <td className={`${TD} p-0 ${withName ? "w-[72px]" : ""}`}>
       <div className="relative">
       <input value={picker?.kind === "acct" && picker.rowId === rowId ? picker.q : (withName ? (l.account?.code || "") : (l.account ? `${l.account.name} (${l.account.code})` : ""))}
-        onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value })}
-        onFocus={() => setPicker({ kind: "acct", rowId, q: "" })}
+        onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
+        onFocus={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
         onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
         onKeyDown={(e) => {
           // 검색어 친 상태에서 Enter → 첫 결과 선택(이후 다음 칸 이동은 컨테이너가 처리)
@@ -355,7 +356,7 @@ export default function VoucherEntryPage() {
         }}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
-        <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+        <CellDropdown anchor={picker.anchor} width={256} maxHeight={208}>
           {acctMatches(picker.q).map((a, i) => (
             <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
               className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
@@ -363,7 +364,7 @@ export default function VoucherEntryPage() {
             </button>
           ))}
           {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과 없음" : "계정과목 마스터 미적용"}</div>}
-        </div>
+        </CellDropdown>
       )}
       </div>
     </td>
@@ -379,8 +380,8 @@ export default function VoucherEntryPage() {
         <div className="relative">
         <div className="flex items-center">
           <input value={picker?.kind === "pt" && picker.rowId === rowId ? picker.q : (l.partner?.name || "")}
-            onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value })}
-            onFocus={() => setPicker({ kind: "pt", rowId, q: "" })}
+            onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
+            onFocus={(e) => setPicker({ kind: "pt", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
             onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "pt" ? null : p)), 150)}
             onKeyDown={(e) => {
               if (e.key !== "Enter" || !(picker?.kind === "pt" && picker.rowId === rowId && picker.q.trim())) return;
@@ -391,7 +392,7 @@ export default function VoucherEntryPage() {
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
-          <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-72 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+          <CellDropdown anchor={picker.anchor} width={272} maxHeight={288}>
             <div className="sticky top-0 bg-[var(--bg-card)] px-2 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]/50 mb-0.5">
               거래처 {partners.length}개{picker.q.trim() ? ` · 검색결과 ${ptMatches(picker.q).length}` : ""}
             </div>
@@ -405,7 +406,7 @@ export default function VoucherEntryPage() {
               <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "등록된 거래처가 없습니다" : "검색 결과 없음"}</div>
             )}
             {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
-          </div>
+          </CellDropdown>
         )}
         </div>
       </td>
@@ -419,19 +420,19 @@ export default function VoucherEntryPage() {
       <div className="flex items-center">
         <input value={l.memo} onChange={(e) => update({ memo: e.target.value })} placeholder="적요" className={IN} />
         {recentMemos.length > 0 && (
-          <button onClick={() => setPicker({ kind: "memo", rowId, q: "" })} tabIndex={-1}
+          <button onClick={(e) => setPicker({ kind: "memo", rowId, q: "", anchor: anchorOf(e.currentTarget) })} tabIndex={-1}
             className="pr-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] shrink-0" title="자주 쓰는 적요">▾</button>
         )}
       </div>
       {picker?.kind === "memo" && picker.rowId === rowId && (
-        <div className="absolute z-30 right-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+        <CellDropdown anchor={picker.anchor} width={224} maxHeight={208} align="right">
           {recentMemos.map((m, i) => (
             <button key={i} onMouseDown={(e) => { e.preventDefault(); update({ memo: m }); setPicker(null); }}
               className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
               <span className="text-[var(--text-dim)] mono-number">{i + 1}.</span> {m}
             </button>
           ))}
-        </div>
+        </CellDropdown>
       )}
       </div>
     </td>
@@ -648,7 +649,7 @@ export default function VoucherEntryPage() {
                               )}
                             </td>
                             {acctCell(l, rowId, (p) => setEditLine(e.id, l.key, p), true)}
-                            <td className={`${TD} text-[var(--text)] cursor-pointer`} onClick={() => setPicker({ kind: "acct", rowId, q: "" })}>
+                            <td className={`${TD} text-[var(--text)] cursor-pointer`} onClick={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}>
                               {l.account?.name || <span className="text-[var(--text-dim)]">계정 선택</span>}
                             </td>
                             <td className={`${TD} mono-number text-[var(--text-dim)] w-[100px]`}>{l.partner?.business_number || "—"}</td>
