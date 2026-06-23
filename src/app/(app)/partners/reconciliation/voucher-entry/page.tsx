@@ -335,7 +335,7 @@ export default function VoucherEntryPage() {
 
   // 계정과목 자동완성 셀 (상단·하단 편집 공용)
   const acctCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, withName: boolean) => (
-    <td className={`${TD} p-0 relative ${withName ? "w-[72px]" : "min-w-[160px]"}`}>
+    <td className={`${TD} p-0 relative ${withName ? "w-[72px]" : ""}`}>
       <input value={picker?.kind === "acct" && picker.rowId === rowId ? picker.q : (withName ? (l.account?.code || "") : (l.account ? `${l.account.name} (${l.account.code})` : ""))}
         onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value })}
         onFocus={() => setPicker({ kind: "acct", rowId, q: "" })}
@@ -365,7 +365,7 @@ export default function VoucherEntryPage() {
   const ptCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => {
     const arApWarn = l.account && AR_AP_CODES.has(l.account.code) && !l.partner;
     return (
-      <td className={`${TD} p-0 relative min-w-[110px]`}>
+      <td className={`${TD} p-0 relative`}>
         <div className="flex items-center">
           <input value={picker?.kind === "pt" && picker.rowId === rowId ? picker.q : (l.partner?.name || "")}
             onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value })}
@@ -396,7 +396,7 @@ export default function VoucherEntryPage() {
 
   // 적요 셀(+자주 쓰는 적요)
   const memoCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => (
-    <td className={`${TD} p-0 min-w-[140px] relative`}>
+    <td className={`${TD} p-0 relative`}>
       <div className="flex items-center">
         <input value={l.memo} onChange={(e) => update({ memo: e.target.value })} placeholder="적요" className={IN} />
         {recentMemos.length > 0 && (
@@ -488,14 +488,14 @@ export default function VoucherEntryPage() {
         {/* 입력 영역은 가로 스크롤 컨테이너를 쓰지 않음 — overflow-x-auto 면 거래처 자동완성 드롭다운이
             세로로도 잘려(CSS상 overflow-y 도 auto 강제) 가로 스크롤해야 보였음. 폭에 맞춰 한눈에 표시. */}
         <div className="overflow-visible">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse table-fixed">
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-2 py-2 w-9 text-center font-semibold">No</th>
                 <th className="px-2 py-2 w-[68px] text-left font-semibold border-l border-[var(--border)]/50">구분</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[160px]">계정과목</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[140px]">적요</th>
+                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">계정과목</th>
+                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">거래처</th>
+                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
                 <th className="px-2 py-2 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">차변</th>
                 <th className="px-2 py-2 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">대변</th>
                 <th className="px-2 py-2 w-8" />
@@ -580,7 +580,7 @@ export default function VoucherEntryPage() {
         {/* 전표목록도 가로 스크롤 제거 — 폭에 맞춰(w-full) 표시하고 페이지가 세로로 스크롤되게.
             (overflow-y 컨테이너로 만들면 overflow-x 도 auto 강제돼 거래처 드롭다운이 잘림 → overflow-visible 유지) */}
         <div className="overflow-visible">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse table-fixed">
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">
@@ -591,13 +591,13 @@ export default function VoucherEntryPage() {
                 <th className="px-2 py-2.5 w-9 text-center font-semibold">No</th>
                 <th className="px-2 py-2.5 w-[76px] text-left font-semibold border-l border-[var(--border)]/50">구분</th>
                 <th className="px-2 py-2.5 w-[72px] text-left font-semibold border-l border-[var(--border)]/50">계정코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">계정명</th>
+                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">계정명</th>
                 <th className="px-2 py-2.5 w-[100px] text-left font-semibold border-l border-[var(--border)]/50">거래처코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처명</th>
+                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">거래처명</th>
                 <th className="px-2 py-2.5 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">차변</th>
                 <th className="px-2 py-2.5 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">대변</th>
                 <th className="px-2 py-2.5 w-[64px] text-center font-semibold border-l border-[var(--border)]/50">적요코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 min-w-[120px]">적요</th>
+                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
               </tr>
             </thead>
             <tbody>
@@ -628,7 +628,7 @@ export default function VoucherEntryPage() {
                               )}
                             </td>
                             {acctCell(l, rowId, (p) => setEditLine(e.id, l.key, p), true)}
-                            <td className={`${TD} text-[var(--text)] cursor-pointer min-w-[110px]`} onClick={() => setPicker({ kind: "acct", rowId, q: "" })}>
+                            <td className={`${TD} text-[var(--text)] cursor-pointer`} onClick={() => setPicker({ kind: "acct", rowId, q: "" })}>
                               {l.account?.name || <span className="text-[var(--text-dim)]">계정 선택</span>}
                             </td>
                             <td className={`${TD} mono-number text-[var(--text-dim)] w-[100px]`}>{l.partner?.business_number || "—"}</td>
