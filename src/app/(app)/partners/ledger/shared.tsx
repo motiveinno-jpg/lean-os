@@ -796,7 +796,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
-                            <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+                            <div className="absolute z-30 left-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
                               {ptMatches(picker.q).length > 0 && <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
                               {ptMatches(picker.q).map((p, i) => (
                                 <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}

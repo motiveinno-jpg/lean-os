@@ -355,7 +355,7 @@ export default function VoucherEntryPage() {
         }}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
-        <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+        <div className="absolute z-30 left-0 top-full mt-0.5 w-64 max-h-52 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
           {acctMatches(picker.q).map((a, i) => (
             <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
               className={`w-full flex justify-between px-2 py-1.5 rounded text-[12px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
@@ -391,7 +391,7 @@ export default function VoucherEntryPage() {
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
-          <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-72 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+          <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-72 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
             <div className="sticky top-0 bg-[var(--bg-card)] px-2 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]/50 mb-0.5">
               거래처 {partners.length}개{picker.q.trim() ? ` · 검색결과 ${ptMatches(picker.q).length}` : ""}
             </div>
@@ -424,7 +424,7 @@ export default function VoucherEntryPage() {
         )}
       </div>
       {picker?.kind === "memo" && picker.rowId === rowId && (
-        <div className="absolute z-30 right-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+        <div className="absolute z-30 right-0 top-full mt-0.5 w-56 max-h-52 overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
           {recentMemos.map((m, i) => (
             <button key={i} onMouseDown={(e) => { e.preventDefault(); update({ memo: m }); setPicker(null); }}
               className="w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
