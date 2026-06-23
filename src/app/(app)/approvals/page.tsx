@@ -1849,7 +1849,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold text-[var(--text)]">{step.approver_name || "담당자"}</span>
                 <StatusBadge status={step.status} />
-                <span className="text-[10px] text-[var(--text-dim)]">({step.stage_name})</span>
+                <span className="caption">({step.stage_name})</span>
               </div>
               <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                 {step.decided_at ? formatDateTime(step.decided_at) : step.created_at ? `${formatDateTime(step.created_at)} 배정` : "대기 중"}

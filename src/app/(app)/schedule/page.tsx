@@ -219,7 +219,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       </div>
 
       {/* 현재 보기 안내 */}
-      <p className="text-[10px] text-[var(--text-dim)]">
+      <p className="caption">
         {scope === "shared"
           ? "🏢 전체공유 일정 — 회사 모든 구성원에게 보입니다."
           : scope === "personal"

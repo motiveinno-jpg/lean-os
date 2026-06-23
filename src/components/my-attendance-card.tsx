@@ -143,19 +143,19 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
 
       <div className="flex items-center gap-6 mb-4">
         <div>
-          <div className="text-[10px] text-[var(--text-dim)] mb-0.5">출근</div>
+          <div className="caption mb-0.5">출근</div>
           <div className="text-lg font-black font-mono">{fmtTime(todayAtt?.check_in)}</div>
         </div>
         <div className="text-[var(--text-dim)]">→</div>
         <div>
-          <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴근</div>
+          <div className="caption mb-0.5">퇴근</div>
           <div className="text-lg font-black font-mono">{fmtTime(todayAtt?.check_out)}</div>
         </div>
         {todayAtt?.work_hours > 0 && (
           <>
             <div className="text-[var(--border)]">|</div>
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근무시간</div>
+              <div className="caption mb-0.5">근무시간</div>
               <div className="text-lg font-black">{todayAtt.work_hours}h</div>
             </div>
           </>

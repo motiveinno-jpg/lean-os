@@ -596,7 +596,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           {addExisting ? (
             <p className="text-[10px] text-amber-500">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 직원 권한이 됩니다.</b> (초대 이메일 없이 즉시 적용)</p>
           ) : (
-            <p className="text-[10px] text-[var(--text-dim)]">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
+            <p className="caption">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
           )}
         </div>
       )}
@@ -685,7 +685,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                           {leaveBalanceMap[e.id]}일{leaveBalanceMap[e.id] <= 0 ? " (소진)" : leaveBalanceMap[e.id] <= 3 ? " (임박)" : ""}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-[var(--text-dim)]">미설정</span>
+                        <span className="caption">미설정</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>

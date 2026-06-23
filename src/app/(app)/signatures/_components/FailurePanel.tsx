@@ -163,7 +163,7 @@ function FailureGroupRow({
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-[var(--text-dim)]">
+                    <span className="caption">
                       {new Date(r.failed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                     </span>
                     {r.error_message && (

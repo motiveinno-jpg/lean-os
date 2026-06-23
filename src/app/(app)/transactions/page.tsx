@@ -1325,7 +1325,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                 <input type="checkbox" checked={ruleForm.is_fixed_cost} onChange={e => setRuleForm({ ...ruleForm, is_fixed_cost: e.target.checked })} />
-                자동이체로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 이 규칙에 매칭되는 거래를 자동이체로 표시</span>
+                자동이체로 표시 <span className="caption">— 이 규칙에 매칭되는 거래를 자동이체로 표시</span>
               </label>
               <div className="flex gap-2">
                 <button onClick={() => ruleForm.rule_name && ruleForm.match_value && addRuleMut.mutate()}
@@ -1902,7 +1902,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                           {tx.deals?.name && <span className="text-[9px] text-[var(--text-dim)]">{tx.deals.name}</span>}
                           {tx.receipt_url && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">영수증</span>}
                           {!tx.merchant_category && !tx.category && !tx.classification && tx.is_deductible == null && !tx.deals?.name && (
-                            <span className="text-[10px] text-[var(--text-dim)]">—</span>
+                            <span className="caption">—</span>
                           )}
                         </div>
                       </td>
@@ -2272,10 +2272,10 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-            자동이체로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 자동이체(반복결제) 거래면 체크</span>
+            자동이체로 표시 <span className="caption">— 자동이체(반복결제) 거래면 체크</span>
           </label>
         </div>
 
@@ -2390,15 +2390,15 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="text-[10px] text-[var(--text-dim)]">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <div className="flex gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-              고정비로 표시 <span className="text-[10px] text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
+              고정비로 표시 <span className="caption">— 매월 반복되는 지출이면 체크</span>
             </label>
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isDeductible} onChange={e => setIsDeductible(e.target.checked)} />
-              공제 가능 <span className="text-[10px] text-[var(--text-dim)]">— 부가세 매입세액 공제 대상이면 체크</span>
+              공제 가능 <span className="caption">— 부가세 매입세액 공제 대상이면 체크</span>
             </label>
           </div>
         </div>

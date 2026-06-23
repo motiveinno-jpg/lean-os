@@ -698,7 +698,7 @@ export default function MatchingPage() {
                                 {match.score}점
                               </span>
                               {match.reasons.map((r) => (
-                                <span key={r} className="text-[10px] text-[var(--text-dim)]">
+                                <span key={r} className="caption">
                                   {r}
                                 </span>
                               ))}

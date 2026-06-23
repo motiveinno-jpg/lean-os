@@ -1084,7 +1084,7 @@ export default function VaultPage() {
                           <button type="button" onClick={(e) => { e.stopPropagation(); openStoredFile(a.attachment_url); }} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서">📎</button>
                         )}
                       </div>
-                      {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
+                      {a.notes && <div className="caption">{a.notes}</div>}
                     </td>
                     <td className="p-4 text-center">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -1271,7 +1271,7 @@ export default function VaultPage() {
                     {opens.map((o, i) => (
                       <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-xs">
                         <span className="font-mono text-[var(--text-muted)]">{new Date(o.at).toLocaleString("ko")}</span>
-                        <span className="text-[10px] text-[var(--text-dim)]">{o.by ? `사용자 ${o.by.slice(0, 8)}` : "—"}</span>
+                        <span className="caption">{o.by ? `사용자 ${o.by.slice(0, 8)}` : "—"}</span>
                       </div>
                     ))}
                   </div>

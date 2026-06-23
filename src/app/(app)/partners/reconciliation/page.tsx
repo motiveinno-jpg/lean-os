@@ -446,7 +446,7 @@ export default function ReconciliationPage() {
           <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-2 py-1">
             <input type="date" value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
               className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
-            <span className="text-[10px] text-[var(--text-dim)]">~</span>
+            <span className="caption">~</span>
             <input type="date" value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
               className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
           </span>

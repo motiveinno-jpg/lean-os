@@ -1391,7 +1391,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                     <span className="text-[var(--text-dim)] line-through">₩{r.oldAmount.toLocaleString()}</span>
                     <span className="text-[var(--text-dim)]">&rarr;</span>
                     <span className="font-bold text-green-500">₩{r.newAmount.toLocaleString()}</span>
-                    <span className="text-[10px] text-[var(--text-dim)]">({r.lastTxDate})</span>
+                    <span className="caption">({r.lastTxDate})</span>
                   </div>
                 </div>
               ))}
@@ -1527,7 +1527,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                     {r.auto_transfer_date ? (
                       <div>
                         <div>매월 {r.auto_transfer_date}일</div>
-                        {r.auto_transfer_memo && <div className="text-[10px] text-[var(--text-dim)]">{r.auto_transfer_memo}</div>}
+                        {r.auto_transfer_memo && <div className="caption">{r.auto_transfer_memo}</div>}
                       </div>
                     ) : <span className="text-[var(--text-dim)]">미설정</span>}
                   </td>
@@ -1644,7 +1644,7 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-bold text-[var(--text)]">자동화 진행 현황</span>
-          <span className="text-[10px] text-[var(--text-dim)]">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
+          <span className="caption">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto">
           {[
@@ -2112,7 +2112,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
                 }}
                 className="text-xs text-[var(--text-muted)]" />
             </div>
-            {uploadingReceipt && <div className="text-[10px] text-[var(--text-dim)]">업로드 중...</div>}
+            {uploadingReceipt && <div className="caption">업로드 중...</div>}
             {form.receipt_urls.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-1">
                 {form.receipt_urls.map((url, idx) => (

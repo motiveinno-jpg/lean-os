@@ -571,7 +571,7 @@ export default function VoucherEntryPage() {
         <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
           <span className="text-xs font-bold text-[var(--text)]">{entryDate} 전표목록 <span className="text-[var(--text-dim)] font-normal">— 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span></span>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-[var(--text-dim)]">{entries.length}건</span>
+            <span className="caption">{entries.length}건</span>
             <button onClick={deleteSelected} disabled={busy || selected.size === 0}
               className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/40 disabled:opacity-40">
               선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>

@@ -344,7 +344,7 @@ function PanelBody({
                 <span className={`w-1.5 h-1.5 rounded-full ${stageColor.dot}`} />
                 {STAGE_LABEL[stage] || stage}
               </span>
-              <span className="text-[10px] text-[var(--text-dim)]">
+              <span className="caption">
                 {deal.partner_id ? data.partner?.name || "—" : "—"}
               </span>
             </div>
@@ -792,7 +792,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-[10px] text-[var(--text-dim)] mb-0.5">{label}</dt>
+      <dt className="caption mb-0.5">{label}</dt>
       <dd className="text-[var(--text)] font-medium truncate">{value}</dd>
     </div>
   );
@@ -1245,7 +1245,7 @@ function KV({ label, value, tone }: { label: string; value: string; tone?: "posi
       : "text-[var(--text)]";
   return (
     <div className="flex flex-col">
-      <span className="text-[10px] text-[var(--text-dim)] mb-0.5">{label}</span>
+      <span className="caption mb-0.5">{label}</span>
       <span className={`text-sm font-bold ${color}`}>{value}</span>
     </div>
   );
@@ -1566,7 +1566,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                       className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] border-b border-[var(--border)]/30 last:border-b-0 text-xs"
                     >
                       <div className="font-medium">{u.name || '(이름 없음)'}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">{u.email}</div>
+                      <div className="caption">{u.email}</div>
                     </button>
                   ))
                 )}

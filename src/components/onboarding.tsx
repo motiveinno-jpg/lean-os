@@ -1036,7 +1036,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-[var(--text)]">{c["cert.subjectname.CN"]}</span>
-                              <span className="text-[10px] text-[var(--text-dim)]">{certExpiry(c["cert.validity.notAfter"])}</span>
+                              <span className="caption">{certExpiry(c["cert.validity.notAfter"])}</span>
                             </div>
                           </button>
                         ))}

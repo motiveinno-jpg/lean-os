@@ -307,11 +307,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   <div className="bg-[var(--bg)] rounded-xl border border-[var(--border)] p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">입사일</div>
+                        <div className="caption mb-0.5">입사일</div>
                         <div className="font-medium">{emp.hire_date}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴직일 (예상)</div>
+                        <div className="caption mb-0.5">퇴직일 (예상)</div>
                         <input
                           type="date"
                           value={retirementEndDate}
@@ -320,22 +320,22 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                         />
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근속기간</div>
+                        <div className="caption mb-0.5">근속기간</div>
                         <div className="font-medium">
                           {tenureYears > 0 && `${tenureYears}년 `}{tenureMonths > 0 && `${tenureMonths}개월 `}{tenureDays}일
                           <span className="text-[var(--text-dim)] ml-1">({totalDaysRaw}일)</span>
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">월 평균임금</div>
+                        <div className="caption mb-0.5">월 평균임금</div>
                         <div className="font-medium">{`₩${Number(emp.salary).toLocaleString("ko-KR")}`}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">1일 평균임금</div>
+                        <div className="caption mb-0.5">1일 평균임금</div>
                         <div className="font-medium">{`₩${retCalcResult.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}`}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-[var(--text-dim)] mb-0.5">수급 자격</div>
+                        <div className="caption mb-0.5">수급 자격</div>
                         <div className={`font-medium ${retCalcResult.eligible ? "text-green-400" : "text-amber-500"}`}>
                           {retCalcResult.eligible ? "해당 (1년 이상)" : "미해당 (1년 미만)"}
                         </div>
@@ -468,7 +468,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                     <div key={log.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
                       <div>
                         <div className="text-xs font-medium">{log.certificate_type}</div>
-                        <div className="text-[10px] text-[var(--text-dim)]">{log.certificate_number} · {new Date(log.created_at).toLocaleDateString("ko-KR")}</div>
+                        <div className="caption">{log.certificate_number} · {new Date(log.created_at).toLocaleDateString("ko-KR")}</div>
                       </div>
                       {log.pdf_url && (
                         <a href={log.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">PDF</a>
@@ -488,15 +488,15 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
             {empLeaveBalance ? (
               <div className="grid grid-cols-3 gap-3">
                 <div className="glass-card p-3 text-center">
-                  <div className="text-[10px] text-[var(--text-dim)]">총 부여</div>
+                  <div className="caption">총 부여</div>
                   <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
                 </div>
                 <div className="glass-card p-3 text-center">
-                  <div className="text-[10px] text-[var(--text-dim)]">사용</div>
+                  <div className="caption">사용</div>
                   <div className="text-lg font-bold text-red-400 mt-0.5">{empLeaveBalance.used_days}일</div>
                 </div>
                 <div className="glass-card p-3 text-center">
-                  <div className="text-[10px] text-[var(--text-dim)]">잔여</div>
+                  <div className="caption">잔여</div>
                   <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-green-400"}`}>
                     {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
                   </div>
@@ -517,7 +517,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                     .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
                   return (
                     <div key={lt.value} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border)] px-3 py-2">
-                      <div className="text-[10px] text-[var(--text-dim)]">{lt.label}</div>
+                      <div className="caption">{lt.label}</div>
                       <div className="text-sm font-bold mt-0.5">{used > 0 ? `${used}일 사용` : `${lt.defaultDays}일`}</div>
                     </div>
                   );
@@ -543,7 +543,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                       <div key={r.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
                         <div>
                           <div className="text-xs font-medium">{typeLabel} · {r.days}일</div>
-                          <div className="text-[10px] text-[var(--text-dim)]">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
+                          <div className="caption">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || "text-gray-400 bg-gray-500/10"}`}>
                           {r.status === "pending" ? "대기" : r.status === "approved" ? "승인" : "반려"}

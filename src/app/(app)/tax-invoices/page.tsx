@@ -1547,7 +1547,7 @@ export default function TaxInvoicesPage() {
                   </div>
                 ))}
               </div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-1.5">
+              <div className="caption mt-1.5">
                 클릭하면 해당 세금계산서를 확인할 수 있습니다. 중복이 아닌 경우 &quot;확인&quot;을 눌러주세요.
               </div>
             </div>
@@ -1869,7 +1869,7 @@ export default function TaxInvoicesPage() {
                                   <div className="flex items-center justify-between">
                                     <span className="font-medium">{p.name}</span>
                                     {p.business_number && (
-                                      <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>
+                                      <span className="caption">{p.business_number}</span>
                                     )}
                                   </div>
                                   {(p.business_type || p.business_item) && (
@@ -3011,19 +3011,19 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
             {/* Amount summary */}
             <div className="border-t border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--border)] text-center">
               <div className="p-2">
-                <div className="text-[10px] text-[var(--text-dim)]">작성일자</div>
+                <div className="caption">작성일자</div>
                 <div className="text-xs font-bold mt-0.5">{inv.issue_date}</div>
               </div>
               <div className="p-2">
-                <div className="text-[10px] text-[var(--text-dim)]">공급가액</div>
+                <div className="caption">공급가액</div>
                 <div className="text-xs font-bold mt-0.5 text-green-500">₩{supplyAmt.toLocaleString()}</div>
               </div>
               <div className="p-2">
-                <div className="text-[10px] text-[var(--text-dim)]">세액</div>
+                <div className="caption">세액</div>
                 <div className="text-xs font-bold mt-0.5">₩{taxAmt.toLocaleString()}</div>
               </div>
               <div className="p-2">
-                <div className="text-[10px] text-[var(--text-dim)]">합계금액</div>
+                <div className="caption">합계금액</div>
                 <div className="text-sm font-black mt-0.5 text-[var(--primary)]">₩{totalAmt.toLocaleString()}</div>
               </div>
             </div>

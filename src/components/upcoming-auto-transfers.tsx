@@ -129,7 +129,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           <IconTile tone="warning" size={38}><TileIcon name="clock" /></IconTile>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">고정비 지출예정</h2>
-            <span className="text-[10px] text-[var(--text-dim)]">{windowDays}일 안 · {items.length}건</span>
+            <span className="caption">{windowDays}일 안 · {items.length}건</span>
           </div>
         </div>
         {items.length > 0 && (

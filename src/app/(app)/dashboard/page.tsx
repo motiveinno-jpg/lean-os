@@ -695,8 +695,8 @@ function QuickNavWidget() {
   return (
     <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">빠른 이동</h2>
+        <div className="dot-primary" />
+        <h2 className="eyebrow">빠른 이동</h2>
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {QUICK_NAV_LINKS.map((l) => (
@@ -795,8 +795,8 @@ function SummaryKpisWidget({
   return (
     <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">요약</h2>
+        <div className="dot-primary" />
+        <h2 className="eyebrow">요약</h2>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {cells.map((c) => (
@@ -846,8 +846,8 @@ function MyTodosWidget({ userId }: { userId: string }) {
     <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">내 할일</h2>
+          <div className="dot-primary" />
+          <h2 className="eyebrow">내 할일</h2>
           {todos.length > 0 && (
             <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-[10px] font-bold px-1.5">
               {todos.length}
@@ -920,8 +920,8 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
   return (
     <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">현금 펄스</h2>
+        <div className="dot-primary" />
+        <h2 className="eyebrow">현금 펄스</h2>
         <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold" style={{
           background: pulse.pulseScore >= 60 ? 'rgba(34,197,94,0.1)' : pulse.pulseScore >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
           color: pulse.pulseScore >= 60 ? '#22c55e' : pulse.pulseScore >= 40 ? '#f59e0b' : '#ef4444',
@@ -1343,8 +1343,8 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
     <div className="mb-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">재무 개요</h2>
+          <div className="dot-primary" />
+          <h2 className="eyebrow">재무 개요</h2>
         </div>
         <div className="flex items-center gap-2">
           {/* Period Toggle */}
@@ -1426,7 +1426,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       {barData.length > 0 && (
         <div className="glass-card p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-[var(--text-dim)]">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
+            <span className="caption">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
             <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--primary)]" />매출</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[#ef4444]" />비용</span>
@@ -1810,8 +1810,8 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
     <div className="mb-5">
       <div className="flex items-center gap-2 mb-3">
         <div className={`w-2 h-2 rounded-full ${checklist.status === 'completed' ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
-        <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">월 마감 체크리스트</h2>
-        <span className="text-[10px] text-[var(--text-dim)]">{month} · {done}/{total} ({pct}%)</span>
+        <h2 className="eyebrow">월 마감 체크리스트</h2>
+        <span className="caption">{month} · {done}/{total} ({pct}%)</span>
         {autoClosed && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)]">자동마감</span>}
       </div>
 
@@ -1977,25 +1977,25 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
       <div className="flex items-center gap-2 mb-3">
         <div className="w-2 h-2 rounded-full bg-blue-500" />
         <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">프로젝트 진행 현황</h2>
-        <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 진행중</span>
+        <span className="caption">{deals.length}건 진행중</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <Link href="/projects" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
-          <div className="text-[10px] text-[var(--text-dim)]">진행 현황 총액</div>
+          <div className="caption">진행 현황 총액</div>
           <div className="text-sm font-bold text-blue-400 mt-0.5">{totalPipeline > 0 ? `₩${totalPipeline.toLocaleString()}` : '—'}</div>
         </Link>
         <Link href="/projects" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
-          <div className="text-[10px] text-[var(--text-dim)]">미수금 예정</div>
+          <div className="caption">미수금 예정</div>
           <div className={`text-sm font-bold mt-0.5 ${overdue.length > 0 ? 'text-red-400' : 'text-green-400'}`}>{pendingAmount > 0 ? `₩${pendingAmount.toLocaleString()}` : '—'}</div>
           {overdue.length > 0 && <div className="text-[9px] text-red-400 mt-0.5">{overdue.length}건 연체</div>}
         </Link>
         <Link href="/documents" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
-          <div className="text-[10px] text-[var(--text-dim)]">문서 대기</div>
+          <div className="caption">문서 대기</div>
           <div className="text-sm font-bold text-yellow-400 mt-0.5">{draftDocs > 0 ? `${draftDocs}건 초안` : '—'}</div>
           {reviewDocs > 0 && <div className="text-[9px] text-purple-400 mt-0.5">{reviewDocs}건 검토/발송</div>}
         </Link>
         <Link href="/signatures" className="glass-card p-3 hover:border-[var(--primary)]/50 transition">
-          <div className="text-[10px] text-[var(--text-dim)]">서명 요청</div>
+          <div className="caption">서명 요청</div>
           <div className="text-sm font-bold text-purple-400 mt-0.5">{reviewDocs > 0 ? `${reviewDocs}건` : '—'}</div>
         </Link>
       </div>
@@ -2010,7 +2010,7 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
               <Link key={d.id} href={`/projects/${d.id}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold truncate">{d.name}</div>
-                  <div className="text-[10px] text-[var(--text-dim)]">{d.counterparty || '거래처 미등록'} | ₩{Number(d.contract_total || 0).toLocaleString()}</div>
+                  <div className="caption">{d.counterparty || '거래처 미등록'} | ₩{Number(d.contract_total || 0).toLocaleString()}</div>
                 </div>
                 <div className="flex gap-1">
                   <span className={`text-[9px] px-1.5 py-0.5 rounded ${hasQuote ? 'bg-blue-500/10 text-blue-400' : 'bg-[var(--bg-surface)] text-[var(--text-dim)]'}`}>견적</span>
@@ -2368,7 +2368,7 @@ function AutomationWidget({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">자동화 엔진</h2>
+          <h2 className="eyebrow">자동화 엔진</h2>
         </div>
         <button
           onClick={handleRun}
@@ -2508,7 +2508,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" />
-          <h3 className="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider">
+          <h3 className="eyebrow">
             승인센터
           </h3>
           {total > 0 && (
@@ -2659,10 +2659,10 @@ function EmployeeProjectsWidget() {
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+        <div className="dot-primary" />
         <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">내 프로젝트</h2>
         {deals.length > 0 && (
-          <span className="text-[10px] text-[var(--text-dim)]">{deals.length}건 (담당·참여)</span>
+          <span className="caption">{deals.length}건 (담당·참여)</span>
         )}
       </div>
       <div className="glass-card overflow-hidden">
@@ -2698,7 +2698,7 @@ function EmployeeProjectsWidget() {
           </div>
         )}
       </div>
-      <p className="text-[10px] text-[var(--text-dim)] mt-1.5">
+      <p className="caption mt-1.5">
         ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용 — 재무 정보 비공개).
       </p>
     </div>
@@ -2992,19 +2992,19 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 
           <div className="flex items-center gap-6 mb-3">
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">출근</div>
+              <div className="caption mb-0.5">출근</div>
               <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in)}</div>
             </div>
             <div className="text-[var(--text-dim)]">→</div>
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">퇴근</div>
+              <div className="caption mb-0.5">퇴근</div>
               <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out)}</div>
             </div>
             {todayAttendance?.work_hours > 0 && (
               <>
                 <div className="text-[var(--border)]">|</div>
                 <div>
-                  <div className="text-[10px] text-[var(--text-dim)] mb-0.5">근무시간</div>
+                  <div className="caption mb-0.5">근무시간</div>
                   <div className="text-lg font-black">{todayAttendance.work_hours}h</div>
                 </div>
               </>
@@ -3080,7 +3080,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               <span className="text-base">📝</span>
               {pendingCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-orange-500 text-white text-[9px] font-bold rounded-full">{pendingCount}</span>}
             </div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">승인 대기</div>
+            <div className="caption mt-1.5">승인 대기</div>
             <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: pendingCount > 0 ? "var(--warning)" : undefined }}>{pendingCount}건</div>
           </Link>
           <Link href="/my-contracts" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
@@ -3088,14 +3088,14 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               <span className="text-base">✍️</span>
               {signPending > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{signPending}</span>}
             </div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">서명 요청</div>
+            <div className="caption mt-1.5">서명 요청</div>
             <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: signPending > 0 ? "var(--primary)" : undefined }}>{signPending}건</div>
           </Link>
           <Link href="/leave" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
             <div className="flex items-center justify-between">
               <span className="text-base">🏖️</span>
             </div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">휴가 잔여</div>
+            <div className="caption mt-1.5">휴가 잔여</div>
             <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{leaveBalance ? `${leaveBalance.remaining}일` : "—"}</div>
             {leaveBalance && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>}
           </Link>
@@ -3104,7 +3104,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               <span className="text-base">🧾</span>
               {expenseCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{expenseCount}</span>}
             </div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-1.5">경비 청구</div>
+            <div className="caption mt-1.5">경비 청구</div>
             <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{expenseCount}건</div>
           </Link>
         </div>
@@ -3136,15 +3136,15 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         {myPayroll ? (
           <div className="flex items-end gap-6">
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">기본급</div>
+              <div className="caption mb-0.5">기본급</div>
               <div className="text-sm font-bold">{fmtWFull(myPayroll.base_salary)}</div>
             </div>
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">공제</div>
+              <div className="caption mb-0.5">공제</div>
               <div className="text-sm font-bold text-red-400">-{fmtWFull(myPayroll.deductions_total)}</div>
             </div>
             <div>
-              <div className="text-[10px] text-[var(--text-dim)] mb-0.5">실수령</div>
+              <div className="caption mb-0.5">실수령</div>
               <div className="text-lg font-black text-[var(--primary)]">{fmtWFull(myPayroll.net_pay)}</div>
             </div>
             <span className={`ml-auto text-[9px] px-2 py-0.5 rounded-full font-semibold ${
@@ -3399,7 +3399,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
       {recentActivity.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+            <div className="dot-primary" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">최근 활동</h2>
           </div>
           <div className="glass-card divide-y divide-[var(--border)]">

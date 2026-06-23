@@ -752,7 +752,7 @@ export default function CashReceiptsPage() {
                           ₩{Number(r.tax_amount || 0).toLocaleString()}
                         </td>
                         <td className="px-5 py-3 text-center">
-                          <span className="text-[10px] text-[var(--text-dim)]">
+                          <span className="caption">
                             {r.purpose
                               ? PURPOSE_LABELS[r.purpose] || r.purpose
                               : "—"}

@@ -289,7 +289,7 @@ export default function SubscriptionsPage() {
                 <td className="p-4">
                   <div className="font-semibold flex items-center gap-1.5">
                     <span className="text-[var(--primary)]">★</span> OwnerView
-                    <span className="text-[10px] text-[var(--text-dim)]">{ovPlan.name || ovPlan.slug}</span>
+                    <span className="caption">{ovPlan.name || ovPlan.slug}</span>
                   </div>
                 </td>
                 <td className="p-4 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">자체 SaaS</span></td>
@@ -312,7 +312,7 @@ export default function SubscriptionsPage() {
                   onClick={() => { if (!canEdit) return; setEditingId(a.id); setForm({ serviceName: a.service_name || "", category: a.category || "other", monthlyCost: String(a.monthly_cost || ""), billingCycle: a.billing_cycle || "monthly", renewalDate: a.renewal_date || "", paymentMethod: a.payment_method || "", ownerId: a.owner_id || "", url: a.url || "", notes: a.notes || "" }); setShowForm(true); }}>
                   <td className="p-4">
                     <div className="font-semibold">{a.service_name}</div>
-                    {a.notes && <div className="text-[10px] text-[var(--text-dim)]">{a.notes}</div>}
+                    {a.notes && <div className="caption">{a.notes}</div>}
                   </td>
                   <td className="p-4 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{CATEGORY_LABEL[a.category] || "기타"}</span></td>
                   <td className="p-4 text-right font-bold mono-number">{Number(a.monthly_cost || 0).toLocaleString()}원</td>

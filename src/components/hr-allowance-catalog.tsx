@@ -422,7 +422,7 @@ function AllowanceTypeModal({
             </div>
             {form.applies_to === "employees" && (
               <div className="flex flex-wrap gap-1.5 p-2 bg-[var(--bg)] border border-[var(--border)] rounded">
-                {employees.length === 0 && <span className="text-[10px] text-[var(--text-dim)]">직원 없음</span>}
+                {employees.length === 0 && <span className="caption">직원 없음</span>}
                 {employees.map((e) => {
                   const selected = form.target_employee_ids.includes(e.id);
                   return (

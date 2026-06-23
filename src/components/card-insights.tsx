@@ -91,7 +91,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
           <IconTile tone="danger" size={38}><TileIcon name="card" /></IconTile>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">최근 90일 카드 큰 지출 TOP 5</h2>
-            <span className="text-[10px] text-[var(--text-dim)]">{dateFrom} ~ {dateTo}</span>
+            <span className="caption">{dateFrom} ~ {dateTo}</span>
           </div>
         </div>
         <div className="text-right">
@@ -212,7 +212,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
         <div className="flex items-center gap-2.5">
           <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
           <h2 className="text-[15px] font-bold text-[var(--text)]">정기결제내역</h2>
-          <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
+          <span className="caption">{monthLabel} · {items.length}건</span>
         </div>
         {items.length > 0 && (
           <div className="text-right">
@@ -402,7 +402,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
           <IconTile tone="brand" size={38}><TileIcon name="trendingUp" /></IconTile>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">카드 월별 사용금액</h2>
-            <span className="text-[10px] text-[var(--text-dim)]">최근 6개월</span>
+            <span className="caption">최근 6개월</span>
           </div>
         </div>
         <div className="text-right">

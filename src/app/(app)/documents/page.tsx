@@ -1203,7 +1203,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   </button>
                 )}
                 {canEdit && isEditing && (
-                  <span className="text-[10px] text-[var(--text-dim)]">서식 · PDF 삽입 지원</span>
+                  <span className="caption">서식 · PDF 삽입 지원</span>
                 )}
               </div>
             </div>
@@ -1281,7 +1281,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         {rev.users?.name || rev.users?.email || "\u2014"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-[var(--text-dim)]">
+                    <span className="caption">
                       {rev.created_at ? new Date(rev.created_at).toLocaleString("ko") : "\u2014"}
                     </span>
                   </div>
@@ -1318,7 +1318,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         {appr.users?.name || appr.users?.email || "\u2014"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-[var(--text-dim)]">
+                    <span className="caption">
                       {appr.signed_at ? new Date(appr.signed_at).toLocaleString("ko") : "\u2014"}
                     </span>
                   </div>
@@ -1787,7 +1787,7 @@ function DocumentsPageInner() {
                 placeholder="수출바우처 계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
               {docFormClassification && docForm.name.trim() && (
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-[10px] text-[var(--text-dim)]">자동 분류:</span>
+                  <span className="caption">자동 분류:</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full ${docFormClassification.color}`}>
                     {docFormClassification.label}
                   </span>
@@ -2961,7 +2961,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
             <div key={share.id} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-purple-500 font-semibold">🔗 공유 링크</span>
-                <span className="text-[10px] text-[var(--text-dim)]">
+                <span className="caption">
                   {new Date(share.created_at).toLocaleDateString('ko-KR')} 생성
                 </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[var(--text-muted)]">
@@ -2975,7 +2975,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
                     {fb.responder_name ? ` (${fb.responder_name})` : ''}
                   </span>
                 )) : (
-                  <span className="text-[10px] text-[var(--text-dim)]">피드백 대기</span>
+                  <span className="caption">피드백 대기</span>
                 )}
                 <button
                   onClick={async () => {
@@ -3278,7 +3278,7 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
                           <span className="text-sm font-medium">{tpl.name}</span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500">{typeLabel}</span>
                           {sectionCount > 0 && (
-                            <span className="text-[10px] text-[var(--text-dim)]">{sectionCount}개 섹션</span>
+                            <span className="caption">{sectionCount}개 섹션</span>
                           )}
                         </div>
                         {vars.length > 0 && (
@@ -3289,7 +3289,7 @@ function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
                               </span>
                             ))}
                             {vars.length > 6 && (
-                              <span className="text-[10px] text-[var(--text-dim)]">+{vars.length - 6}개</span>
+                              <span className="caption">+{vars.length - 6}개</span>
                             )}
                           </div>
                         )}

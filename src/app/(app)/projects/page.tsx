@@ -953,7 +953,7 @@ function KanbanView({
                 <h3 className="text-xs font-bold text-[var(--text)]">{s.label}</h3>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg)] text-[var(--text-muted)] font-semibold">{cards.length}</span>
               </div>
-              <span className="text-[10px] text-[var(--text-dim)]">₩{sum.toLocaleString()}</span>
+              <span className="caption">₩{sum.toLocaleString()}</span>
             </div>
             <div className="flex flex-col gap-2">
               {cards.length === 0 && (
@@ -1108,7 +1108,7 @@ function ProjectCardView({
         </div>
       )}
       <div className="mt-2 pt-2 border-t border-[var(--border)] flex items-center justify-between">
-        <span className="text-[10px] text-[var(--text-dim)]">클릭 → 상세 패널</span>
+        <span className="caption">클릭 → 상세 패널</span>
         <span
           role="link"
           tabIndex={0}
@@ -1213,7 +1213,7 @@ function ListView({
                     return s ? (
                       <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: s.color }}>{s.text}</span>
                     ) : (
-                      <span className="text-[10px] text-[var(--text-dim)]">—</span>
+                      <span className="caption">—</span>
                     );
                   })()}
                 </td>
@@ -1228,7 +1228,7 @@ function ListView({
                       <span>{c.badge.emoji}</span>{c.badge.label}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-[var(--text-dim)]">—</span>
+                    <span className="caption">—</span>
                   )}
                 </td>
               </tr>

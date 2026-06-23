@@ -88,7 +88,7 @@ export function QuoteHeader({
                     onClick={() => { set({ partnerId: p.id, partnerName: p.name }); setPOpen(false); }}
                     className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-surface)] text-xs flex items-center justify-between">
                     <span className="font-medium">{p.name}</span>
-                    {p.business_number && <span className="text-[10px] text-[var(--text-dim)]">{p.business_number}</span>}
+                    {p.business_number && <span className="caption">{p.business_number}</span>}
                   </button>
                 ))}
                 {filtered.length > 200 && <div className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">검색어를 더 입력해 좁혀주세요 (총 {filtered.length}개)</div>}

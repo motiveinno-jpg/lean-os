@@ -936,7 +936,7 @@ export default function PartnersPage() {
                               <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{tag}</span>
                             ))}
                             {(p.tags as string[]).length > 3 && (
-                              <span className="text-[10px] text-[var(--text-dim)]">+{(p.tags as string[]).length - 3}</span>
+                              <span className="caption">+{(p.tags as string[]).length - 3}</span>
                             )}
                           </div>
                         ) : <span className="text-sm text-[var(--text-dim)]">—</span>}
@@ -1221,11 +1221,11 @@ export default function PartnersPage() {
                     <>
                       <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 flex gap-6">
                         <div>
-                          <div className="text-[10px] text-[var(--text-dim)]">총 프로젝트</div>
+                          <div className="caption">총 프로젝트</div>
                           <div className="text-lg font-bold">{partnerDeals.length}건</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-[var(--text-dim)]">총 계약금액</div>
+                          <div className="caption">총 계약금액</div>
                           <div className="text-lg font-bold text-[var(--primary)]">
                             {partnerDeals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0).toLocaleString()}원
                           </div>

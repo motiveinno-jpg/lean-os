@@ -400,7 +400,7 @@ export default function LoansPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-sm">{loan.name}</span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
-                            <span className="text-[10px] text-[var(--text-dim)]">{LOAN_TYPES[loan.loan_type] || loan.loan_type}</span>
+                            <span className="caption">{LOAN_TYPES[loan.loan_type] || loan.loan_type}</span>
                             <MaturityBadge maturityDate={loan.maturity_date} />
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mb-2">{loan.lender}</div>
@@ -456,15 +456,15 @@ export default function LoansPage() {
               <h3 className="text-sm font-bold mb-3">상환 현황</h3>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
-                  <div className="text-[10px] text-[var(--text-dim)]">총 대출잔액</div>
+                  <div className="caption">총 대출잔액</div>
                   <div className="text-base font-bold mt-0.5">{fmtW(summary?.totalRemaining || 0)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-[var(--text-dim)]">월 예상상환액</div>
+                  <div className="caption">월 예상상환액</div>
                   <div className="text-base font-bold mt-0.5">{fmtW(summary?.monthlyPayment || 0)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-[var(--text-dim)]">잔여기간</div>
+                  <div className="caption">잔여기간</div>
                   <div className="text-base font-bold mt-0.5">
                     {(() => {
                       const nearestMaturity = loans
@@ -494,7 +494,7 @@ export default function LoansPage() {
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold">{loan.name}</span>
-                          <span className="text-[10px] text-[var(--text-dim)]">{loan.lender}</span>
+                          <span className="caption">{loan.lender}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-semibold">{repaidPct}% 상환</span>
@@ -676,7 +676,7 @@ export default function LoansPage() {
                             {p.bank_transaction_id ? (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">연결됨</span>
                             ) : (
-                              <span className="text-[10px] text-[var(--text-dim)]">-</span>
+                              <span className="caption">-</span>
                             )}
                           </td>
                         </tr>

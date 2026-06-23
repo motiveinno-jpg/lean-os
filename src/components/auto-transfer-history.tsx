@@ -66,7 +66,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
           <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">자동이체 연결 내역</h2>
-            <span className="text-[10px] text-[var(--text-dim)]">{monthLabel} · {items.length}건</span>
+            <span className="caption">{monthLabel} · {items.length}건</span>
           </div>
         </div>
         {items.length > 0 && (

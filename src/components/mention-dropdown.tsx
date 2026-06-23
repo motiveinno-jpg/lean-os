@@ -56,7 +56,7 @@ export function MentionDropdown({ users, filter, onSelect, onClose, activeIndex,
           </div>
           <div>
             <div className="text-xs font-medium">{u.name || u.email}</div>
-            {u.name && <div className="text-[10px] text-[var(--text-dim)]">{u.email}</div>}
+            {u.name && <div className="caption">{u.email}</div>}
           </div>
         </button>
       ))}

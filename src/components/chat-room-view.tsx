@@ -160,7 +160,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                     )}
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{f.file_name}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">
+                      <div className="caption">
                         {(f.users as any)?.name || (f.users as any)?.email || "—"}
                         {f.file_size ? ` · ${fmtSize(f.file_size)}` : ""}
                       </div>
@@ -947,7 +947,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                     </div>
                     <div>
                       <div className="text-sm font-medium">{p.users?.name || p.users?.email || "—"}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">
+                      <div className="caption">
                         {p.invited_at ? new Date(p.invited_at).toLocaleDateString("ko") : ""} 참가
                       </div>
                     </div>
@@ -1034,7 +1034,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                               </div>
                               <div>
                                 <div className="text-sm font-medium text-[var(--text)]">{u.name || "—"}</div>
-                                <div className="text-[10px] text-[var(--text-dim)]">{u.email}</div>
+                                <div className="caption">{u.email}</div>
                               </div>
                             </button>
                           ))}
@@ -1139,12 +1139,12 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                       {EVENT_LABELS[ev.event_type] || ev.event_type}
                     </span>
                     {ev.data_json && (
-                      <span className="text-[10px] text-[var(--text-dim)]">
+                      <span className="caption">
                         {JSON.stringify(ev.data_json).slice(0, 60)}
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-[var(--text-dim)]">
+                  <span className="caption">
                     {ev.created_at ? new Date(ev.created_at).toLocaleString("ko") : "—"}
                   </span>
                 </div>

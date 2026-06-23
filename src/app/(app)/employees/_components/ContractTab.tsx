@@ -633,7 +633,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                   </label>
                 </div>
                 <div className="text-sm font-semibold mb-0.5">{doc.label}</div>
-                <div className="text-[10px] text-[var(--text-dim)]">{doc.desc}</div>
+                <div className="caption">{doc.desc}</div>
               </div>
             ))}
           </div>
@@ -859,7 +859,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-bold">Step 3: 필수 입력 정보</h4>
-                <span className="text-[10px] text-[var(--text-dim)]">서식의 {"{{변수명}}"} 자리에 자동 치환됨</span>
+                <span className="caption">서식의 {"{{변수명}}"} 자리에 자동 치환됨</span>
               </div>
 
               {/* 발송 요약 */}
@@ -875,7 +875,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
               <div className="border border-[var(--border)] rounded-xl overflow-hidden mb-3">
                 <div className="bg-[var(--bg-surface)] px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
                   <span className="text-xs font-bold text-[var(--text)]">필수 입력 정보</span>
-                  <span className="text-[10px] text-[var(--text-dim)]">체크 해제 시 해당 필드 미사용</span>
+                  <span className="caption">체크 해제 시 해당 필드 미사용</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs" style={{ minWidth: contractFields.length * 130 }}>

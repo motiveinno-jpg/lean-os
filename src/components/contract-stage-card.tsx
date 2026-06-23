@@ -672,7 +672,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
       </div>
       <div className="text-[11px] text-[var(--text)] space-y-0.5">
         <div>{methodLabel}{approval.recipient_name ? ` · ${approval.recipient_name}` : ""}</div>
-        <div className="text-[10px] text-[var(--text-dim)]">{signedAt} (KST){approval.signer_ip ? ` · IP ${approval.signer_ip}` : ""}</div>
+        <div className="caption">{signedAt} (KST){approval.signer_ip ? ` · IP ${approval.signer_ip}` : ""}</div>
       </div>
       <div className="flex flex-wrap gap-1.5 pt-1">
         {hasHtml && (
@@ -694,7 +694,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
           </a>
         )}
         {!hasHtml && !hasPdfUrl && (
-          <span className="text-[10px] text-[var(--text-dim)]">서명 본문이 회수되지 않았습니다.</span>
+          <span className="caption">서명 본문이 회수되지 않았습니다.</span>
         )}
       </div>
     </div>

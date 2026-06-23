@@ -847,7 +847,7 @@ function NotificationsTab({ companyId }: { companyId: string | null }) {
               {telegramTesting ? "발송중..." : "테스트"}
             </button>
           </div>
-          <p className="text-[10px] text-[var(--text-dim)] mt-1.5">
+          <p className="caption mt-1.5">
             텔레그램에서 @motive_hajun_bot에게 메시지를 보낸 뒤, Chat ID를 입력하세요.
           </p>
         </div>
@@ -1074,7 +1074,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
                 ))}
               </div>
             ) : (
-              <p className="text-[10px] text-[var(--text-dim)]">등록된 번호 없음. 카톡 알림 받을 번호를 추가하세요.</p>
+              <p className="caption">등록된 번호 없음. 카톡 알림 받을 번호를 추가하세요.</p>
             )}
           </div>
 
@@ -1791,7 +1791,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       🪄 자동 생성
                     </button>
                   </div>
-                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB) · 또는 회사명으로 법인인감 자동 생성</p>
+                  <p className="caption">PNG, JPG (최대 5MB) · 또는 회사명으로 법인인감 자동 생성</p>
                 </>
               )}
             </div>
@@ -1897,7 +1897,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                   >
                     {uploading === "logo" ? "업로드 중..." : "로고 업로드"}
                   </button>
-                  <p className="text-[10px] text-[var(--text-dim)]">PNG, JPG (최대 5MB)</p>
+                  <p className="caption">PNG, JPG (최대 5MB)</p>
                 </>
               )}
             </div>
@@ -3202,7 +3202,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {accountType === "hometax" && (
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">대표자 주민번호 앞 7자리 <span className="text-[10px] text-[var(--text-dim)]">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -3717,7 +3717,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {new Date(connectionStatus.codef_connected_at).toLocaleDateString("ko-KR")}</p>
               )}
               {hasHometaxConnection && connectionStatus?.hometax_registered_at && (
-                <p className="text-[10px] text-[var(--text-dim)]">
+                <p className="caption">
                   홈택스 연결일: {new Date(connectionStatus.hometax_registered_at).toLocaleDateString("ko-KR")}
                   {connectionStatus.hometax_method === "certificate" && " (공동인증서)"}
                   {connectionStatus.hometax_method === "id_pw" && " (ID/PW)"}
@@ -3862,7 +3862,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold">{Number(acc.balance || 0).toLocaleString()}원</div>
-                  <div className="text-[10px] text-[var(--text-dim)]">{BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}</div>
+                  <div className="caption">{BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}</div>
                 </div>
               </div>
             ))}
@@ -4194,7 +4194,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-medium truncate">{cert.name || "인증서"}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">
+                      <div className="caption">
                         signCert.der {cert.keyFile ? "+ signPri.key" : "(개인키 없음)"}
                       </div>
                     </div>
@@ -4250,7 +4250,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
           </div>
         </div>
       )}
-      <p className="text-[10px] text-[var(--text-dim)]">
+      <p className="caption">
         인증서 파일은 암호화되어 안전하게 보관됩니다. 홈택스/은행 자동화 시 사용됩니다.
       </p>
     </div>
@@ -4619,7 +4619,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
                         {showPw[`bank_cert_${i}`] ? "숨기기" : "보기"}
                       </button>
                     </div>
-                    <p className="text-[10px] text-[var(--text-dim)]">상단에 등록된 공동인증서를 사용합니다</p>
+                    <p className="caption">상단에 등록된 공동인증서를 사용합니다</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -4739,7 +4739,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
                         {showPw[`card_cert_${i}`] ? "숨기기" : "보기"}
                       </button>
                     </div>
-                    <p className="text-[10px] text-[var(--text-dim)]">상단에 등록된 공동인증서를 사용합니다</p>
+                    <p className="caption">상단에 등록된 공동인증서를 사용합니다</p>
                   </div>
                 ) : (
                   <div className="space-y-2">

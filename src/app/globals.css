@@ -471,3 +471,11 @@ input, textarea, [contenteditable="true"] {
   box-shadow: inset 0 -1px 0 var(--border);
 }
 .sticky-head td { white-space: nowrap; }
+
+/* ──────────────────────────────────────────────────────────────
+   앱 공용 시맨틱 클래스 (가독성 정리 · 반복 유틸 묶음, @apply — 출력 동일)
+   ⚠️ 묶은 유틸이 기존과 100% 동일 → 시각/동작 변화 없음. 영역별 점진 적용.
+   ────────────────────────────────────────────────────────────── */
+.eyebrow { @apply text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider; } /* 섹션 라벨 */
+.caption { @apply text-[10px] text-[var(--text-dim)]; }            /* 보조 캡션 */
+.dot-primary { @apply w-2 h-2 rounded-full bg-[var(--primary)]; }   /* 강조 점 표시 */

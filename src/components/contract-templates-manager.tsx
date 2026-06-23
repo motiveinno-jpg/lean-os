@@ -83,7 +83,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
               <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold flex-shrink-0">🔒 시스템</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
-                <div className="text-[10px] text-[var(--text-dim)]">변수 {t.variables.length}개 · {t.file_type}</div>
+                <div className="caption">변수 {t.variables.length}개 · {t.file_type}</div>
               </div>
               <button
                 onClick={() => setEditing(t)}
@@ -112,7 +112,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold flex-shrink-0">자체</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
-                  <div className="text-[10px] text-[var(--text-dim)]">변수 {t.variables.length}개 · {t.file_type}</div>
+                  <div className="caption">변수 {t.variables.length}개 · {t.file_type}</div>
                 </div>
                 <button
                   onClick={() => setEditing(t)}

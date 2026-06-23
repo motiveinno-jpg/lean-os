@@ -436,7 +436,7 @@ export function ProgressReportStageCard({
                 placeholder="recipient@example.com"
                 className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)]"
               />
-              <div className="text-[10px] text-[var(--text-dim)]">
+              <div className="caption">
                 💾 저장 = 우리 쪽 박제만 · 📤 발송 = 거래처 승인 요청 (만료 14일)
               </div>
             </>

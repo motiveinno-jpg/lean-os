@@ -95,7 +95,7 @@ export function ExtraPaySummaryCard({
 function Cell({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
-      <div className="text-[10px] text-[var(--text-dim)]">{label}</div>
+      <div className="caption">{label}</div>
       <div className="text-xs font-bold mt-0.5">{value}</div>
       {hint && <div className="text-[9px] text-[var(--text-muted)] mt-0.5">{hint}</div>}
     </div>

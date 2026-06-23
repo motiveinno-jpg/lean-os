@@ -392,7 +392,7 @@ export function OrgBulkWizard({
               <Link href="/documents" className="text-[var(--primary)] hover:underline">문서함</Link>
               에서 양식(서비스/공급/컨설팅 등) 기반으로 작성해 주세요.
               <br />
-              <span className="text-[10px] text-[var(--text-dim)]">
+              <span className="caption">
                 💡 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
               </span>
             </div>

@@ -130,7 +130,7 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
       </svg>
       <div className="flex flex-wrap gap-2 justify-center mt-3">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--primary)]" />매출
+          <span className="dot-primary" />매출
         </span>
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-orange-500/30 bg-orange-500/10 text-orange-500">
           <span className="w-2 h-2 rounded-full bg-orange-500" />총 비용

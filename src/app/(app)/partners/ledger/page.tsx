@@ -287,7 +287,7 @@ export default function PartnerLedgerPage() {
           <div className="glass-card overflow-hidden">
             <div className="px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
               <span className="text-xs font-bold text-[var(--text)]">{pal.label} 목록</span>
-              <span className="text-[10px] text-[var(--text-dim)]">{shown.length}곳</span>
+              <span className="caption">{shown.length}곳</span>
             </div>
             <div className="overflow-y-auto max-h-[560px]">
               {shown.length === 0 ? (

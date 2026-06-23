@@ -505,7 +505,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] text-[var(--text-dim)] font-medium">결제 단계 ({stages.length}단계)</span>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[var(--text-dim)]">합계 {stageSum}%
+                <span className="caption">합계 {stageSum}%
                   {contractTotal > 0 && (
                     <span className="text-[var(--text)] font-semibold ml-1">
                       (₩{Math.round((contractTotal * stageSum) / 100).toLocaleString()} / 계약가 ₩{contractTotal.toLocaleString()})
@@ -532,7 +532,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
                     }}
                     disabled={readonly} placeholder="0"
                     className="w-12 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-[10px] text-right focus:outline-none focus:border-[var(--primary)]" />
-                  <span className="text-[10px] text-[var(--text-dim)]">%</span>
+                  <span className="caption">%</span>
                   {contractTotal > 0 && (
                     <span className="text-[10px] text-[var(--text)] font-semibold min-w-[70px]">
                       = ₩{Math.round((contractTotal * (stage.ratio || 0)) / 100).toLocaleString()}
@@ -729,7 +729,7 @@ function PreviewCard({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] text-[var(--text-dim)] font-medium">결제 단계 ({stages.length}단계)</span>
-            <span className="text-[10px] text-[var(--text-dim)]">
+            <span className="caption">
               합계 {stageSum}%
               {stageSum !== 100 && <span className="text-red-400 ml-1">(100%가 아님)</span>}
             </span>
@@ -877,7 +877,7 @@ function StageStubCard({ stage, approval }: { stage: QuoteApprovalStage; approva
       </div>
       <div className="text-[11px] text-[var(--text-dim)] py-6 text-center leading-relaxed">
         {label} 단계 본 폼은 다음 라운드에 추가됩니다.<br/>
-        <span className="text-[10px] text-[var(--text-dim)]">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
+        <span className="caption">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
       </div>
     </div>
   );

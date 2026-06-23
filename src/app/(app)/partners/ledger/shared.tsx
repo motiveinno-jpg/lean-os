@@ -952,11 +952,11 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
             {/* 마감 정보 */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-                <div className="text-[10px] text-[var(--text-dim)]">마감 금액</div>
+                <div className="caption">마감 금액</div>
                 <div className="font-bold mono-number text-amber-500">{won(amount)}</div>
               </div>
               <div className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-                <div className="text-[10px] text-[var(--text-dim)]">처리일</div>
+                <div className="caption">처리일</div>
                 <div className="font-bold mono-number text-[var(--text)]">{String(s.created_at).slice(0, 10)}</div>
               </div>
             </div>
@@ -998,7 +998,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] text-[var(--text-dim)]">삭제하면 계산서 잔액이 원복됩니다 (이력은 보존)</span>
+              <span className="caption">삭제하면 계산서 잔액이 원복됩니다 (이력은 보존)</span>
               <button onClick={handleDelete} disabled={deleting || s.status !== "confirmed"}
                 className="px-4 py-2 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
                 title={s.status !== "confirmed" ? "이미 취소된 마감입니다" : "차액 마감을 삭제하고 잔액을 원복합니다"}>
@@ -1097,7 +1097,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
         <div className="px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2">
           {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], ["잔액", priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
             <div key={label} className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-              <div className="text-[10px] text-[var(--text-dim)]">{label}</div>
+              <div className="caption">{label}</div>
               <div className={`text-sm font-bold mono-number ${cls}`}>{won(val)}</div>
             </div>
           ))}
@@ -1139,7 +1139,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold text-[var(--text)] mono-number">{won(inv.total_amount)}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">공급 {won(inv.supply_amount)} · 세액 {won(inv.tax_amount)}</div>
+                      <div className="caption">공급 {won(inv.supply_amount)} · 세액 {won(inv.tax_amount)}</div>
                     </div>
                   </div>
                   <div className="mt-1 flex items-center gap-2 flex-wrap text-[11px] text-[var(--text-dim)]">
