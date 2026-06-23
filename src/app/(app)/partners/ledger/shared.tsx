@@ -289,6 +289,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   };
 
   let running = opening;
+  let cumDebit = 0;  // 누계(차변) — 기간 시작부터 누적
+  let cumCredit = 0; // 누계(대변)
 
   return (
     <div className="glass-card overflow-hidden">
@@ -335,6 +337,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                 {months.map(([m, entries]) => {
                   const md = entries.reduce((s, e) => s + e.debit, 0);
                   const mc = entries.reduce((s, e) => s + e.credit, 0);
+                  cumDebit += md;
+                  cumCredit += mc;
                   return (
                     <Fragment key={m}>
                       {entries.map((e, i) => {
@@ -359,11 +363,20 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                           </tr>
                         );
                       })}
-                      <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 text-[var(--text-muted)] font-semibold">
+                      {/* 월계 — 연한 초록 */}
+                      <tr className="bg-emerald-500/10 border-b border-[var(--border)]/40 text-emerald-700 dark:text-emerald-300 font-semibold">
                         <td className="px-3 py-1.5">{Number(m.slice(5, 7))}월</td>
-                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[월계]</td>
+                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[월 계]</td>
                         <td className={cellR}>{num(md)}</td>
                         <td className={cellR}>{num(mc)}</td>
+                        <td className={cellR} />
+                      </tr>
+                      {/* 누계 — 진한 초록 (월계와 색상 구분) */}
+                      <tr className="bg-emerald-500/20 border-b border-[var(--border)]/60 text-emerald-800 dark:text-emerald-200 font-bold">
+                        <td className="px-3 py-1.5" />
+                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[누 계]</td>
+                        <td className={cellR}>{num(cumDebit)}</td>
+                        <td className={cellR}>{num(cumCredit)}</td>
                         <td className={cellR} />
                       </tr>
                     </Fragment>
