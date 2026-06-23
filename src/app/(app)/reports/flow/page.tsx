@@ -305,7 +305,7 @@ export default function BusinessFlowPage() {
             </Link>
           )}
           {monthGap > 0 && (
-            <Link href="/partners/ledger" style={{ textDecoration: "none", display: "block", padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, #f59e0b 8%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 25%, transparent)", fontSize: 12.5, color: "#d97706", fontWeight: 600 }}>
+            <Link href="/partners/reconciliation" style={{ textDecoration: "none", display: "block", padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, #f59e0b 8%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 25%, transparent)", fontSize: 12.5, color: "#d97706", fontWeight: 600 }}>
               💸 {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
             </Link>
           )}
