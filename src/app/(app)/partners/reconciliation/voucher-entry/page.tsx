@@ -324,7 +324,7 @@ export default function VoucherEntryPage() {
   };
   const ptMatches = (q: string) => {
     const raw = q.trim().toLowerCase();
-    if (!raw) return partners.slice(0, 200); // 빈 검색도 충분히 노출 → 목록을 세로로 스크롤하며 탐색
+    if (!raw) return partners; // 빈 검색 = 회사 거래처 전체 노출(세로 스크롤로 탐색)
     const tn = raw.replace(/[-\s]/g, "");          // 공백·하이픈 제거(사업자번호/연속매칭용)
     const tokens = raw.split(/\s+/).filter(Boolean); // 토큰별(공백 구분) 매칭
     // 매칭을 넓게 — 공백 무시 부분일치 OR 모든 토큰 포함 OR 사업자번호 포함
@@ -387,12 +387,18 @@ export default function VoucherEntryPage() {
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
           <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-72 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+            <div className="sticky top-0 bg-[var(--bg-card)] px-2 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]/50 mb-0.5">
+              거래처 {partners.length}개{picker.q.trim() ? ` · 검색결과 ${ptMatches(picker.q).length}` : ""}
+            </div>
             {ptMatches(picker.q).map((p, i) => (
               <button key={p.id} onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
                 className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
                 {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
               </button>
             ))}
+            {ptMatches(picker.q).length === 0 && (
+              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "등록된 거래처가 없습니다" : "검색 결과 없음"}</div>
+            )}
             {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
           </div>
         )}
