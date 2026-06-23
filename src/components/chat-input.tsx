@@ -38,6 +38,12 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
     inputRef.current?.focus();
   }, []);
 
+  // 전송 중 disabled(=sendMut.isPending) 가 되면 textarea 가 비활성→포커스 상실.
+  //   전송 완료로 다시 활성화되면 재포커스 → 마우스 클릭 없이 연속 전송 가능.
+  useEffect(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
+
   // 멘션 드롭다운 후보(드롭다운과 동일 필터 공유) + 키보드 화살표 선택용 인덱스
   const mentionCandidates = useMemo(
     () => (mentionQuery !== null && users ? filterMentionUsers(users, mentionQuery) : []),
