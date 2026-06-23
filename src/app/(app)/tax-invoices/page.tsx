@@ -2166,7 +2166,7 @@ export default function TaxInvoicesPage() {
                       {invSortTh("supply_amount", "공급가액", "text-right w-[110px]")}
                       {invSortTh("tax_amount", "세액", "text-right w-[100px]")}
                       {invSortTh("total_amount", "합계금액", "text-right w-[110px]")}
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[76px]">전송</th>
+                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[84px]">전송</th>
                       {invSortTh("status", "상태", "text-center w-[76px]")}
                       <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[70px]">관리</th>
                     </tr>
@@ -2207,7 +2207,7 @@ export default function TaxInvoicesPage() {
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number font-semibold text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.total_amount).toLocaleString("ko")}</td>
-                          <td className="px-3 py-2 text-center border-l border-[var(--border)]/40">
+                          <td className="px-1.5 py-2 text-center border-l border-[var(--border)]/40 whitespace-nowrap">
                             {inv.source === 'hometax_sync'
                               ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 font-semibold">국세청</span>
                               : inv.hometax_synced_at
