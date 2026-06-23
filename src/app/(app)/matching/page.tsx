@@ -874,14 +874,14 @@ export default function MatchingPage() {
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">거래처명</th>
-                    <th className="text-left px-5 py-3 font-medium">문서명</th>
-                    <th className="text-center px-5 py-3 font-medium">발행일</th>
-                    <th className="text-center px-5 py-3 font-medium">만기일</th>
-                    <th className="text-right px-5 py-3 font-medium">금액</th>
-                    <th className="text-center px-5 py-3 font-medium">연체일수</th>
-                    <th className="text-center px-5 py-3 font-medium">액션</th>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">거래처명</th>
+                    <th className="th-cell text-left">문서명</th>
+                    <th className="th-cell text-center">발행일</th>
+                    <th className="th-cell text-center">만기일</th>
+                    <th className="th-cell text-right">금액</th>
+                    <th className="th-cell text-center">연체일수</th>
+                    <th className="th-cell text-center">액션</th>
                   </tr>
                 </thead>
                 <tbody>

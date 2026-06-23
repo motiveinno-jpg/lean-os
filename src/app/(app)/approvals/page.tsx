@@ -1062,7 +1062,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               <select
                 value={form.requestType}
                 onChange={(e) => setForm({ ...form, requestType: e.target.value as RequestType })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               >
                 {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -1108,7 +1108,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     <select
                       value={leaveForm.leaveType}
                       onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input"
                     >
                       {LEAVE_TYPE_OPTIONS.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
@@ -1120,7 +1120,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     <select
                       value={leaveForm.leaveUnit}
                       onChange={(e) => setLeaveForm({ ...leaveForm, leaveUnit: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input"
                     >
                       {LEAVE_UNIT_OPTIONS.map((u) => (
                         <option key={u.value} value={u.value}>{u.label}</option>
@@ -1139,7 +1139,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       type="date"
                       value={leaveForm.startDate}
                       onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value, endDate: leaveForm.leaveUnit !== "full_day" ? e.target.value : leaveForm.endDate })}
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input"
                     />
                   </div>
                   {leaveForm.leaveUnit === "full_day" && (
@@ -1150,7 +1150,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         value={leaveForm.endDate}
                         min={leaveForm.startDate}
                         onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                        className="field-input"
                       />
                     </div>
                   )}
@@ -1165,7 +1165,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         type="time"
                         value={leaveForm.startTime}
                         onChange={(e) => setLeaveForm({ ...leaveForm, startTime: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                        className="field-input"
                       />
                     </div>
                     <div>
@@ -1174,7 +1174,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         type="time"
                         value={leaveForm.endTime}
                         onChange={(e) => setLeaveForm({ ...leaveForm, endTime: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                        className="field-input"
                       />
                     </div>
                   </div>
@@ -1221,7 +1221,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                     placeholder="결재 요청 제목을 입력하세요"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    className="field-input"
                   />
                 </div>
 
@@ -1270,7 +1270,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         setSelectedApprovers(prev => [...prev, { userId: u.id, name: u.name || u.email }]);
                       }
                     }}
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                    className="field-input"
                   >
                     <option value="">+ {selectedApprovers.length === 0 ? "1차" : selectedApprovers.length === 1 ? "2차" : "최종"} 승인자 추가</option>
                     {companyUsers.filter((u: any) => !selectedApprovers.some(a => a.userId === u.id)).map((u: any) => (
@@ -1547,7 +1547,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="예: 경비 결재 정책"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
@@ -1555,7 +1555,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               <select
                 value={form.documentType}
                 onChange={(e) => setForm({ ...form, documentType: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               >
                 {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>

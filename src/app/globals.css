@@ -479,3 +479,8 @@ input, textarea, [contenteditable="true"] {
 .eyebrow { @apply text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider; } /* 섹션 라벨 */
 .caption { @apply text-[10px] text-[var(--text-dim)]; }            /* 보조 캡션 */
 .dot-primary { @apply w-2 h-2 rounded-full bg-[var(--primary)]; }   /* 강조 점 표시 */
+/* 폼/표 프리미티브 */
+.field-input { @apply w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]; } /* 표준 입력칸 */
+.field-label { @apply block text-xs font-semibold text-[var(--text-muted)] mb-1.5; } /* 폼 라벨 */
+.th-cell { @apply px-5 py-3 font-medium; }                                            /* 표 헤더 셀(정렬은 인라인) */
+.table-head-row { @apply text-xs text-[var(--text-dim)] border-b border-[var(--border)]; } /* 표 헤더 행 */

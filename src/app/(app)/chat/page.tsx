@@ -466,7 +466,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
             <div className="px-6 py-4">
               {creating === "team" && (
                 <>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">채널명</label>
+                  <label className="field-label">채널명</label>
                   <input value={teamName} onChange={(e) => setTeamName(e.target.value)} autoFocus placeholder="마케팅팀, 개발팀..."
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]" />
                   <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
@@ -475,16 +475,16 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
               )}
               {creating === "deal" && (
                 <>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">채널명</label>
+                  <label className="field-label">채널명</label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="수출바우처 A기업 채팅"
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-3 focus:outline-none focus:border-[var(--primary)]" />
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">연결 프로젝트</label>
+                  <label className="field-label">연결 프로젝트</label>
                   <select value={form.deal_id} onChange={(e) => setForm({ ...form, deal_id: e.target.value })}
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-3 focus:outline-none focus:border-[var(--primary)]">
                     <option value="">선택 안함</option>
                     {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">유형</label>
+                  <label className="field-label">유형</label>
                   <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]">
                     <option value="deal">프로젝트 채널</option>
@@ -497,7 +497,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
               )}
               {creating === "dm" && (
                 <>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">대상 멤버</label>
+                  <label className="field-label">대상 멤버</label>
                   <select value={dmUserId} onChange={(e) => setDmUserId(e.target.value)} autoFocus
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]">
                     <option value="">멤버 선택</option>

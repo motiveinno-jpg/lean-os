@@ -764,7 +764,7 @@ function NewProjectModal({
             <select
               value={form.classification}
               onChange={(e) => setForm({ ...form, classification: e.target.value })}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             >
               <option value="B2B">B2B</option>
               <option value="B2C">B2C</option>
@@ -777,7 +777,7 @@ function NewProjectModal({
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="예: 수출바우처 - A기업"
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
           </div>
           <div className="col-span-2">
@@ -807,7 +807,7 @@ function NewProjectModal({
               type="date"
               value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
           </div>
           <div>
@@ -817,7 +817,7 @@ function NewProjectModal({
               value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })}
               min={form.start_date || undefined}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
           </div>
           <div>
@@ -825,7 +825,7 @@ function NewProjectModal({
             <select
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value as "low" | "medium" | "high" | "urgent" })}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             >
               <option value="low">낮음</option>
               <option value="medium">보통</option>
@@ -850,7 +850,7 @@ function NewProjectModal({
               onFocus={() => setPartnerFocused(true)}
               onBlur={() => setTimeout(() => setPartnerFocused(false), 200)}
               placeholder="거래처명 검색 (입력 후 선택, 없으면 신규 등록)"
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
             {partnerFocused && partnerResults.length > 0 && (
               <ul className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-xl z-10 shadow-lg">

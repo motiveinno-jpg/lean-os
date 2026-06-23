@@ -128,7 +128,7 @@ export default function FindEmailPage() {
           {results === null && (
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이름</label>
+                <label className="field-label">이름</label>
                 <input
                   type="text"
                   value={name}
@@ -139,7 +139,7 @@ export default function FindEmailPage() {
                 />
               </div>
               <div className="mb-6">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">전화번호 (선택)</label>
+                <label className="field-label">전화번호 (선택)</label>
                 <input
                   type="tel"
                   value={phone}

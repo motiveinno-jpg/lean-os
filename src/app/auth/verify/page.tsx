@@ -382,7 +382,7 @@ export default function VerifyEmailPage() {
                 className="text-left space-y-4"
               >
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                  <label className="field-label">
                     이메일
                   </label>
                   <input
@@ -396,7 +396,7 @@ export default function VerifyEmailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                  <label className="field-label">
                     비밀번호
                   </label>
                   <input

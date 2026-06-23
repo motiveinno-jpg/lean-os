@@ -1140,7 +1140,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래일 *</label>
                 <input type="date" value={manualForm.transaction_date} onChange={e => setManualForm(f => ({ ...f, transaction_date: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  className="field-input" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">금액 (원) *</label>
@@ -1150,17 +1150,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래처</label>
                 <input value={manualForm.counterparty} onChange={e => setManualForm(f => ({ ...f, counterparty: e.target.value }))}
-                  placeholder="(주)모티브" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  placeholder="(주)모티브" className="field-input" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">적요/설명</label>
                 <input value={manualForm.description} onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="서비스 용역대금" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  placeholder="서비스 용역대금" className="field-input" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">카테고리</label>
                 <select value={manualForm.category} onChange={e => setManualForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  className="field-input">
                   <option value="">선택 안함</option>
                   <option value="매출">매출</option><option value="급여">급여</option><option value="임대료">임대료</option>
                   <option value="복리후생비">복리후생비</option><option value="소모품비">소모품비</option><option value="통신비">통신비</option>
@@ -1172,12 +1172,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">은행/결제수단</label>
                 <input value={manualForm.bank_name} onChange={e => setManualForm(f => ({ ...f, bank_name: e.target.value }))}
-                  placeholder="국민은행, 신한카드 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  placeholder="국민은행, 신한카드 등" className="field-input" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">메모</label>
                 <input value={manualForm.memo} onChange={e => setManualForm(f => ({ ...f, memo: e.target.value }))}
-                  placeholder="비고" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  placeholder="비고" className="field-input" />
               </div>
             </div>
             <button
@@ -1240,7 +1240,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
                     <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
                     <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
                     <th className="text-left px-2 py-2">적요</th><th className="text-left px-2 py-2">카테고리</th>
@@ -1816,7 +1816,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <tr className="table-head-row">
                     <th
                       onClick={() => toggleCardSort('transaction_date')}
                       className="text-left px-4 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition"

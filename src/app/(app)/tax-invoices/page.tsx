@@ -2350,15 +2350,15 @@ export default function TaxInvoicesPage() {
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">액션</th>
-                    <th className="text-left px-5 py-3 font-medium">거래처</th>
-                    <th className="text-right px-5 py-3 font-medium">금액</th>
-                    <th className="text-left px-5 py-3 font-medium">발행일</th>
-                    <th className="text-left px-5 py-3 font-medium">프로젝트</th>
-                    <th className="text-center px-5 py-3 font-medium">상태</th>
-                    <th className="text-left px-5 py-3 font-medium">비고</th>
-                    <th className="text-center px-5 py-3 font-medium">승인</th>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">액션</th>
+                    <th className="th-cell text-left">거래처</th>
+                    <th className="th-cell text-right">금액</th>
+                    <th className="th-cell text-left">발행일</th>
+                    <th className="th-cell text-left">프로젝트</th>
+                    <th className="th-cell text-center">상태</th>
+                    <th className="th-cell text-left">비고</th>
+                    <th className="th-cell text-center">승인</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2519,7 +2519,7 @@ export default function TaxInvoicesPage() {
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <tr className="table-head-row">
                     <th className="text-left px-5 py-2 font-medium">유형</th>
                     <th className="text-center px-5 py-2 font-medium">상태</th>
                     <th className="text-right px-5 py-2 font-medium">조회</th>
@@ -2649,15 +2649,15 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">기간</th>
-                <th className="text-center px-5 py-3 font-medium">매출 건수</th>
-                <th className="text-right px-5 py-3 font-medium">매출 공급가</th>
-                <th className="text-right px-5 py-3 font-medium">매출 세액</th>
-                <th className="text-center px-5 py-3 font-medium">매입 건수</th>
-                <th className="text-right px-5 py-3 font-medium">매입 공급가</th>
-                <th className="text-right px-5 py-3 font-medium">매입 세액</th>
-                <th className="text-right px-5 py-3 font-medium">VAT 납부</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">기간</th>
+                <th className="th-cell text-center">매출 건수</th>
+                <th className="th-cell text-right">매출 공급가</th>
+                <th className="th-cell text-right">매출 세액</th>
+                <th className="th-cell text-center">매입 건수</th>
+                <th className="th-cell text-right">매입 공급가</th>
+                <th className="th-cell text-right">매입 세액</th>
+                <th className="th-cell text-right">VAT 납부</th>
               </tr>
             </thead>
             <tbody>
@@ -2699,13 +2699,13 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead>
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-5 py-3 font-medium">월</th>
-                  <th className="text-center px-5 py-3 font-medium">건수</th>
-                  <th className="text-right px-5 py-3 font-medium">총 사용액</th>
-                  <th className="text-right px-5 py-3 font-medium">공제대상</th>
-                  <th className="text-right px-5 py-3 font-medium">불공제</th>
-                  <th className="text-right px-5 py-3 font-medium">공제 추정</th>
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">월</th>
+                  <th className="th-cell text-center">건수</th>
+                  <th className="th-cell text-right">총 사용액</th>
+                  <th className="th-cell text-right">공제대상</th>
+                  <th className="th-cell text-right">불공제</th>
+                  <th className="th-cell text-right">공제 추정</th>
                 </tr>
               </thead>
               <tbody>
@@ -2770,14 +2770,14 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
           <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-            <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="text-left px-5 py-3 font-medium">분기</th>
-              <th className="text-right px-5 py-3 font-medium">매출세액</th>
-              <th className="text-right px-5 py-3 font-medium">매입세액</th>
-              <th className="text-right px-5 py-3 font-medium">카드공제</th>
-              <th className="text-right px-5 py-3 font-medium">납부세액</th>
-              <th className="text-left px-5 py-3 font-medium">납부기한</th>
-              <th className="text-center px-5 py-3 font-medium">상태</th>
+            <tr className="table-head-row">
+              <th className="th-cell text-left">분기</th>
+              <th className="th-cell text-right">매출세액</th>
+              <th className="th-cell text-right">매입세액</th>
+              <th className="th-cell text-right">카드공제</th>
+              <th className="th-cell text-right">납부세액</th>
+              <th className="th-cell text-left">납부기한</th>
+              <th className="th-cell text-center">상태</th>
             </tr>
           </thead>
           <tbody>
@@ -3232,7 +3232,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
                 value={modifyAmount}
                 onValueChange={(raw) => setModifyAmount(raw)}
                 placeholder={`현재: ${Number(invoice.supply_amount).toLocaleString()}`}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
           )}

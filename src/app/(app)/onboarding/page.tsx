@@ -786,7 +786,7 @@ function Step2Bank({
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">계좌 용도</label>
+          <label className="field-label">계좌 용도</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {ROLES.map((role) => (
               <button
@@ -1179,7 +1179,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+      <label className="field-label">
         {label}
         {required && <span className="text-[var(--danger)] ml-0.5">*</span>}
       </label>
@@ -1213,7 +1213,7 @@ function FormSelect({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+      <label className="field-label">
         {label}
         {required && <span className="text-[var(--danger)] ml-0.5">*</span>}
       </label>

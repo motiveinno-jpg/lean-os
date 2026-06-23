@@ -1233,7 +1233,7 @@ export default function PartnersPage() {
                       </div>
                       <table className="w-full">
                         <thead>
-                          <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                          <tr className="table-head-row">
                             <th className="text-left px-4 py-2 font-medium">프로젝트명</th>
                             <th className="text-center px-4 py-2 font-medium">상태</th>
                             <th className="text-right px-4 py-2 font-medium">금액</th>
@@ -1271,7 +1271,7 @@ export default function PartnersPage() {
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                        <tr className="table-head-row">
                           <th className="text-left px-4 py-2 font-medium">라벨</th>
                           <th className="text-right px-4 py-2 font-medium">금액</th>
                           <th className="text-center px-4 py-2 font-medium">상태</th>
@@ -1307,7 +1307,7 @@ export default function PartnersPage() {
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                        <tr className="table-head-row">
                           <th className="text-left px-4 py-2 font-medium">문서명</th>
                           <th className="text-center px-4 py-2 font-medium">상태</th>
                           <th className="text-right px-4 py-2 font-medium">생성일</th>

@@ -166,7 +166,7 @@ function ResetPasswordContent() {
           {!sent && !isNewStep && !success && (
             <form onSubmit={handleRequestReset}>
               <div className="mb-6">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이메일</label>
+                <label className="field-label">이메일</label>
                 <input
                   type="email"
                   value={email}
@@ -190,7 +190,7 @@ function ResetPasswordContent() {
           {isNewStep && !success && (
             <form onSubmit={handleUpdatePassword}>
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">새 비밀번호</label>
+                <label className="field-label">새 비밀번호</label>
                 <input
                   type="password"
                   value={password}
@@ -223,7 +223,7 @@ function ResetPasswordContent() {
                 )}
               </div>
               <div className="mb-6">
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호 확인</label>
+                <label className="field-label">비밀번호 확인</label>
                 <input
                   type="password"
                   value={confirmPassword}

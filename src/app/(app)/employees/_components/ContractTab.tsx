@@ -796,14 +796,14 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 *</label>
-                  <select value={reqForm.employeeId} onChange={e => setReqForm({...reqForm, employeeId: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  <select value={reqForm.employeeId} onChange={e => setReqForm({...reqForm, employeeId: e.target.value})} className="field-input">
                     <option value="">구성원을 선택하세요</option>
                     {allEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name} · {e.department || "미배정"} · {e.position || "미지정"}</option>))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약 제목</label>
-                  <input value={reqForm.title} onChange={e => setReqForm({...reqForm, title: e.target.value})} placeholder={`${new Date().getFullYear()}년 연봉계약`} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <input value={reqForm.title} onChange={e => setReqForm({...reqForm, title: e.target.value})} placeholder={`${new Date().getFullYear()}년 연봉계약`} className="field-input" />
                 </div>
               </div>
               {reqForm.employeeId && selectedEmployee && (
@@ -1181,12 +1181,12 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">계약 이력</h3>
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">구성원</th>
-                <th className="text-left px-5 py-3 font-medium">계약유형</th>
-                <th className="text-left px-5 py-3 font-medium">기간</th>
-                <th className="text-right px-5 py-3 font-medium">급여</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+                <th className="th-cell text-left">구성원</th>
+                <th className="th-cell text-left">계약유형</th>
+                <th className="th-cell text-left">기간</th>
+                <th className="th-cell text-right">급여</th>
+                <th className="th-cell text-center">상태</th>
               </tr></thead>
               <tbody>
                 {contracts.map((c: any) => (

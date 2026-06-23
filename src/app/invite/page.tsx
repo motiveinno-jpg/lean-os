@@ -181,7 +181,7 @@ function InviteContent() {
 
           <form onSubmit={handleAccept}>
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이름</label>
+              <label className="field-label">이름</label>
               <input
                 type="text"
                 value={name}
@@ -191,7 +191,7 @@ function InviteContent() {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이메일</label>
+              <label className="field-label">이메일</label>
               <input
                 type="email"
                 value={email}
@@ -200,7 +200,7 @@ function InviteContent() {
               />
             </div>
             <div className="mb-6">
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호 설정</label>
+              <label className="field-label">비밀번호 설정</label>
               <input
                 type="password"
                 value={password}

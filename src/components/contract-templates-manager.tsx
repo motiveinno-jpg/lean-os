@@ -265,7 +265,7 @@ function TemplateEditorModal({
           {/* 본문 입력 모드 */}
           {!readonly && (
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">본문 입력 방식</label>
+              <label className="field-label">본문 입력 방식</label>
               <div className="flex gap-1.5">
                 {[
                   { v: "html" as const, label: "HTML 직접 입력" },

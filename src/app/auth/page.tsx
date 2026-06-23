@@ -440,7 +440,7 @@ export default function AuthPage() {
           <form onSubmit={mode === "login" ? handleLogin : handleSignup}>
             {mode === "signup" && (
               <div className="mb-4">
-                <label htmlFor="company-name" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">회사명</label>
+                <label htmlFor="company-name" className="field-label">회사명</label>
                 <input
                   id="company-name"
                   type="text"
@@ -455,7 +455,7 @@ export default function AuthPage() {
               </div>
             )}
             <div className="mb-4">
-              <label htmlFor="auth-email" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">이메일</label>
+              <label htmlFor="auth-email" className="field-label">이메일</label>
               <input
                 id="auth-email"
                 type="email"
@@ -468,7 +468,7 @@ export default function AuthPage() {
               />
             </div>
             <div className="mb-6">
-              <label htmlFor="auth-password" className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">비밀번호</label>
+              <label htmlFor="auth-password" className="field-label">비밀번호</label>
               <div className="relative">
                 <input
                   id="auth-password"

@@ -1776,7 +1776,7 @@ function DocumentsPageInner() {
                   type: tpl ? tpl.type : docForm.type,
                 });
               }}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">빈 문서 (양식 없이)</option>
                 {templates.filter((t: any) => !HR_CATEGORIES.includes(t.type)).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
@@ -1784,7 +1784,7 @@ function DocumentsPageInner() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>
               <input value={docForm.name} onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
-                placeholder="수출바우처 계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="수출바우처 계약서" className="field-input" />
               {docFormClassification && docForm.name.trim() && (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="caption">자동 분류:</span>
@@ -1797,14 +1797,14 @@ function DocumentsPageInner() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
               <select value={docForm.type} onChange={(e) => setDocForm({ ...docForm, type: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={docForm.deal_id} onChange={(e) => setDocForm({ ...docForm, deal_id: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">선택 안함</option>
                 {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -1826,29 +1826,29 @@ function DocumentsPageInner() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
               <select value={invForm.type} onChange={(e) => setInvForm({ ...invForm, type: e.target.value as "sales" | "purchase" })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 {INVOICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">거래처명 *</label>
               <input value={invForm.counterparty_name} onChange={(e) => setInvForm({ ...invForm, counterparty_name: e.target.value })}
-                placeholder="A기업" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="A기업" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">공급가액 (원) *</label>
               <CurrencyInput value={invForm.supply_amount} onValueChange={(raw) => setInvForm({ ...invForm, supply_amount: raw })}
-                placeholder="10000000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="10000000" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">발행일 *</label>
               <input type="date" value={invForm.issue_date} onChange={(e) => setInvForm({ ...invForm, issue_date: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={invForm.deal_id} onChange={(e) => setInvForm({ ...invForm, deal_id: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">선택 안함</option>
                 {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -1890,13 +1890,13 @@ function DocumentsPageInner() {
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-5 py-3 font-medium">문서명</th>
-                  <th className="text-left px-5 py-3 font-medium">유형</th>
-                  <th className="text-left px-5 py-3 font-medium">AI 분류</th>
-                  <th className="text-left px-5 py-3 font-medium">연결 프로젝트</th>
-                  <th className="text-center px-5 py-3 font-medium">상태</th>
-                  <th className="text-left px-5 py-3 font-medium">생성일</th>
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">문서명</th>
+                  <th className="th-cell text-left">유형</th>
+                  <th className="th-cell text-left">AI 분류</th>
+                  <th className="th-cell text-left">연결 프로젝트</th>
+                  <th className="th-cell text-center">상태</th>
+                  <th className="th-cell text-left">생성일</th>
                 </tr>
               </thead>
               <tbody>
@@ -1974,13 +1974,13 @@ function DocumentsPageInner() {
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">계약서명</th>
-                    <th className="text-left px-5 py-3 font-medium">거래처</th>
-                    <th className="text-left px-5 py-3 font-medium">시작일</th>
-                    <th className="text-left px-5 py-3 font-medium">종료일</th>
-                    <th className="text-right px-5 py-3 font-medium">계약금액</th>
-                    <th className="text-center px-5 py-3 font-medium">상태</th>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">계약서명</th>
+                    <th className="th-cell text-left">거래처</th>
+                    <th className="th-cell text-left">시작일</th>
+                    <th className="th-cell text-left">종료일</th>
+                    <th className="th-cell text-right">계약금액</th>
+                    <th className="th-cell text-center">상태</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2165,14 +2165,14 @@ function DocumentsPageInner() {
             ) : contractArchives.length > 0 && (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">계약서명</th>
-                    <th className="text-left px-5 py-3 font-medium">유형</th>
-                    <th className="text-left px-5 py-3 font-medium">상대방</th>
-                    <th className="text-left px-5 py-3 font-medium">기간</th>
-                    <th className="text-right px-5 py-3 font-medium">금액</th>
-                    <th className="text-center px-5 py-3 font-medium">상태</th>
-                    <th className="text-center px-5 py-3 font-medium">파일</th>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">계약서명</th>
+                    <th className="th-cell text-left">유형</th>
+                    <th className="th-cell text-left">상대방</th>
+                    <th className="th-cell text-left">기간</th>
+                    <th className="th-cell text-right">금액</th>
+                    <th className="th-cell text-center">상태</th>
+                    <th className="th-cell text-center">파일</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2226,16 +2226,16 @@ function DocumentsPageInner() {
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-5 py-3 font-medium">거래처</th>
-                  <th className="text-center px-5 py-3 font-medium">유형</th>
-                  <th className="text-right px-5 py-3 font-medium">공급가액</th>
-                  <th className="text-right px-5 py-3 font-medium">부가세</th>
-                  <th className="text-right px-5 py-3 font-medium">합계</th>
-                  <th className="text-left px-5 py-3 font-medium">프로젝트</th>
-                  <th className="text-center px-5 py-3 font-medium">상태</th>
-                  <th className="text-left px-5 py-3 font-medium">발행일</th>
-                  <th className="text-center px-5 py-3 font-medium"></th>
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">거래처</th>
+                  <th className="th-cell text-center">유형</th>
+                  <th className="th-cell text-right">공급가액</th>
+                  <th className="th-cell text-right">부가세</th>
+                  <th className="th-cell text-right">합계</th>
+                  <th className="th-cell text-left">프로젝트</th>
+                  <th className="th-cell text-center">상태</th>
+                  <th className="th-cell text-left">발행일</th>
+                  <th className="th-cell text-center"></th>
                 </tr>
               </thead>
               <tbody>

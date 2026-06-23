@@ -565,8 +565,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="user@company.com" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="user@company.com" className="field-input" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="field-input" /></div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
               <div className="flex gap-2">
@@ -576,10 +576,10 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">부서</label><input value={form.department} onChange={e => setForm({...form, department: e.target.value})} className="field-input" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">직위</label><input value={form.position} onChange={e => setForm({...form, position: e.target.value})} className="field-input" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><input type="date" value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="field-input" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="field-input" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
               {addExisting ? (
                 <button onClick={() => form.email.trim() && addExistingMut.mutate()} disabled={!form.email.trim() || addExistingMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
@@ -647,15 +647,15 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 직원 등록</button></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="text-left px-5 py-3 font-medium">이름</th>
-              <th className="text-left px-5 py-3 font-medium">부서</th>
-              <th className="text-left px-5 py-3 font-medium">직위</th>
-              <th className="text-right px-5 py-3 font-medium">연봉</th>
-              <th className="text-left px-5 py-3 font-medium">입사일</th>
-              <th className="text-center px-5 py-3 font-medium">잔여연차</th>
-              <th className="text-right px-5 py-3 font-medium">퇴직충당금</th>
-              <th className="text-center px-5 py-3 font-medium">상태</th>
+            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <th className="th-cell text-left">이름</th>
+              <th className="th-cell text-left">부서</th>
+              <th className="th-cell text-left">직위</th>
+              <th className="th-cell text-right">연봉</th>
+              <th className="th-cell text-left">입사일</th>
+              <th className="th-cell text-center">잔여연차</th>
+              <th className="th-cell text-right">퇴직충당금</th>
+              <th className="th-cell text-center">상태</th>
               <th className="px-3 py-3 font-medium w-10"></th>
             </tr></thead>
             <tbody>
@@ -939,9 +939,9 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       {showForm && selectedEmpId && (
         <div className="glass-card p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><input type="date" value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="field-input" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="field-input" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="field-input" /></div>
           </div>
           <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addSalary.isPending ? "등록 중..." : "등록"}</button>
         </div>
@@ -958,12 +958,12 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
             <div className="p-10 text-center text-sm text-[var(--text-muted)]">급여 변경 이력이 없습니다</div>
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">적용일</th>
-                <th className="text-right px-5 py-3 font-medium">급여</th>
-                <th className="text-right px-5 py-3 font-medium">이전 급여</th>
-                <th className="text-left px-5 py-3 font-medium">사유</th>
-                <th className="text-left px-5 py-3 font-medium">승인자</th>
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+                <th className="th-cell text-left">적용일</th>
+                <th className="th-cell text-right">급여</th>
+                <th className="th-cell text-right">이전 급여</th>
+                <th className="th-cell text-left">사유</th>
+                <th className="th-cell text-left">승인자</th>
               </tr></thead>
               <tbody>
                 {salaryHistory.map((s: any) => (
@@ -1091,14 +1091,14 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
       {showForm && (
         <div className="glass-card p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="field-input" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="text" inputMode="numeric" value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setForm({...form, amount: v}); }} placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
               <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
                 {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="field-input" /></div>
           </div>
           {/* 영수증 첨부 */}
           <div className="mb-4">
@@ -1147,13 +1147,13 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
           <div className="p-16 text-center"><div className="text-4xl mb-4">🧾</div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="text-left px-5 py-3 font-medium">제목</th>
-              <th className="text-left px-5 py-3 font-medium">청구자</th>
-              <th className="text-left px-5 py-3 font-medium">분류</th>
-              <th className="text-right px-5 py-3 font-medium">금액</th>
-              <th className="text-center px-5 py-3 font-medium">상태</th>
-              <th className="text-center px-5 py-3 font-medium">액션</th>
+            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <th className="th-cell text-left">제목</th>
+              <th className="th-cell text-left">청구자</th>
+              <th className="th-cell text-left">분류</th>
+              <th className="th-cell text-right">금액</th>
+              <th className="th-cell text-center">상태</th>
+              <th className="th-cell text-center">액션</th>
             </tr></thead>
             <tbody>
               {expenses.map((e: any) => {
@@ -1858,15 +1858,15 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-5 py-3 font-medium">직원</th>
-                  <th className="text-left px-5 py-3 font-medium">날짜</th>
-                  <th className="text-left px-5 py-3 font-medium">출근</th>
-                  <th className="text-left px-5 py-3 font-medium">퇴근</th>
-                  <th className="text-right px-5 py-3 font-medium">근무시간</th>
-                  <th className="text-right px-5 py-3 font-medium">연장</th>
-                  <th className="text-center px-5 py-3 font-medium">상태</th>
-                  {isAdmin && <th className="text-center px-5 py-3 font-medium">관리</th>}
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">직원</th>
+                  <th className="th-cell text-left">날짜</th>
+                  <th className="th-cell text-left">출근</th>
+                  <th className="th-cell text-left">퇴근</th>
+                  <th className="th-cell text-right">근무시간</th>
+                  <th className="th-cell text-right">연장</th>
+                  <th className="th-cell text-center">상태</th>
+                  {isAdmin && <th className="th-cell text-center">관리</th>}
                 </tr>
               </thead>
               <tbody>
@@ -2031,20 +2031,20 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
                 <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">직원</th>
-                    <th className="text-center px-5 py-3 font-medium">출근일</th>
-                    <th className="text-center px-5 py-3 font-medium">지각</th>
-                    <th className="text-center px-5 py-3 font-medium">지각 합계</th>
-                    <th className="text-center px-5 py-3 font-medium">연장</th>
-                    <th className="text-center px-5 py-3 font-medium">야간</th>
-                    <th className="text-center px-5 py-3 font-medium">휴일</th>
-                    <th className="text-center px-5 py-3 font-medium">결근</th>
-                    <th className="text-center px-5 py-3 font-medium">재택</th>
-                    <th className="text-center px-5 py-3 font-medium">반차</th>
-                    <th className="text-right px-5 py-3 font-medium">총 근무</th>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">직원</th>
+                    <th className="th-cell text-center">출근일</th>
+                    <th className="th-cell text-center">지각</th>
+                    <th className="th-cell text-center">지각 합계</th>
+                    <th className="th-cell text-center">연장</th>
+                    <th className="th-cell text-center">야간</th>
+                    <th className="th-cell text-center">휴일</th>
+                    <th className="th-cell text-center">결근</th>
+                    <th className="th-cell text-center">재택</th>
+                    <th className="th-cell text-center">반차</th>
+                    <th className="th-cell text-right">총 근무</th>
                     {isAdminForAllowance && (
-                      <th className="text-right px-5 py-3 font-medium">수당 합계</th>
+                      <th className="th-cell text-right">수당 합계</th>
                     )}
                   </tr>
                 </thead>
@@ -2656,7 +2656,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           {/* Detail Table */}
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
                 <th className="text-left px-4 py-3 font-medium">직원</th>
                 <th className="text-right px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
                 <th className="text-right px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
@@ -3342,12 +3342,12 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">시작일 *</label>
-              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="field-input" />
             </div>
             {form.leaveUnit === "full_day" && (
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label>
-                <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="field-input" />
               </div>
             )}
             {form.leaveUnit === "two_hours" && (
@@ -3367,14 +3367,14 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
             )}
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
-              <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">승인자</label>
               <select
                 value={form.requestedApproverId}
                 onChange={(e) => setForm({ ...form, requestedApproverId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               >
                 <option value="">대표·관리자 전원에게 알림</option>
                 {approvers.map((u: any) => (
@@ -3413,15 +3413,15 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">직원</th>
-                <th className="text-left px-5 py-3 font-medium">유형</th>
-                <th className="text-left px-5 py-3 font-medium">기간</th>
-                <th className="text-center px-5 py-3 font-medium">일수</th>
-                <th className="text-left px-5 py-3 font-medium">사유</th>
-                <th className="text-left px-5 py-3 font-medium">승인자</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-center px-5 py-3 font-medium">액션</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">직원</th>
+                <th className="th-cell text-left">유형</th>
+                <th className="th-cell text-left">기간</th>
+                <th className="th-cell text-center">일수</th>
+                <th className="th-cell text-left">사유</th>
+                <th className="th-cell text-left">승인자</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -3583,7 +3583,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
                 <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
                 <th className="text-center px-2 py-2.5 font-medium">총부여</th>
                 {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
@@ -3644,7 +3644,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
                   </div>
                   <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
-                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
                       <th className="text-left px-5 py-2 font-medium">직원</th>
                       <th className="text-left px-5 py-2 font-medium">부서</th>
                       <th className="text-center px-5 py-2 font-medium">총 연차</th>
@@ -3698,7 +3698,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
                   </div>
                   <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
-                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
                       <th className="text-left px-5 py-2 font-medium">직원</th>
                       <th className="text-center px-5 py-2 font-medium">차수</th>
                       <th className="text-center px-5 py-2 font-medium">미사용</th>
@@ -3854,7 +3854,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             <select
               value={selectedEmpId}
               onChange={(e) => setSelectedEmpId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             >
               <option value="">직원을 선택하세요</option>
               {allEmployees.map((e: any) => (
@@ -3869,7 +3869,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             <select
               value={certType}
               onChange={(e) => setCertType(e.target.value as "employment" | "career")}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             >
               {CERT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -3882,7 +3882,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="제출용, 은행, 비자 등"
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
           </div>
           <div className="flex items-end">
@@ -3911,14 +3911,14 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">증명서번호</th>
-                <th className="text-left px-5 py-3 font-medium">유형</th>
-                <th className="text-left px-5 py-3 font-medium">직원</th>
-                <th className="text-left px-5 py-3 font-medium">소속/직위</th>
-                <th className="text-left px-5 py-3 font-medium">용도</th>
-                <th className="text-left px-5 py-3 font-medium">발급자</th>
-                <th className="text-left px-5 py-3 font-medium">발급일</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">증명서번호</th>
+                <th className="th-cell text-left">유형</th>
+                <th className="th-cell text-left">직원</th>
+                <th className="th-cell text-left">소속/직위</th>
+                <th className="th-cell text-left">용도</th>
+                <th className="th-cell text-left">발급자</th>
+                <th className="th-cell text-left">발급일</th>
               </tr>
             </thead>
             <tbody>

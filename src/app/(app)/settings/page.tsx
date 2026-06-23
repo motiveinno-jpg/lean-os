@@ -4893,7 +4893,7 @@ function AccountTab() {
 
         <form onSubmit={handleChangePw} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">현재 비밀번호</label>
+            <label className="field-label">현재 비밀번호</label>
             <input
               type="password"
               value={currentPw}
@@ -4904,7 +4904,7 @@ function AccountTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">새 비밀번호</label>
+            <label className="field-label">새 비밀번호</label>
             <input
               type="password"
               value={newPw}
@@ -4926,7 +4926,7 @@ function AccountTab() {
             )}
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">새 비밀번호 확인</label>
+            <label className="field-label">새 비밀번호 확인</label>
             <input
               type="password"
               value={confirmPw}

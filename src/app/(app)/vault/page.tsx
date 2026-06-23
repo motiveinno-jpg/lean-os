@@ -685,32 +685,32 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
               <input value={accForm.serviceName} onChange={(e) => setAccForm({ ...accForm, serviceName: e.target.value })}
-                placeholder="예: Notion, AWS" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="예: Notion, AWS" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">URL</label>
               <input value={accForm.url} onChange={(e) => setAccForm({ ...accForm, url: e.target.value })}
-                placeholder="https://..." className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="https://..." className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">월 비용 (원)</label>
               <CurrencyInput value={accForm.monthlyCost} onValueChange={(raw) => setAccForm({ ...accForm, monthlyCost: raw })}
-                placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="0" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">로그인 ID</label>
               <input value={accForm.loginId} onChange={(e) => setAccForm({ ...accForm, loginId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">비밀번호</label>
               <input type="password" value={accForm.loginPassword} onChange={(e) => setAccForm({ ...accForm, loginPassword: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제수단</label>
               <select value={accForm.paymentMethod} onChange={(e) => setAccForm({ ...accForm, paymentMethod: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">선택</option>
                 <option value="법인카드">법인카드</option>
                 <option value="계좌이체">계좌이체</option>
@@ -722,7 +722,7 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자동결제일 (매월)</label>
               <select value={accForm.billingDay} onChange={(e) => setAccForm({ ...accForm, billingDay: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">해당없음</option>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>{d}일</option>
@@ -732,7 +732,7 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">갱신일</label>
               <input type="date" value={accForm.renewalDate} onChange={(e) => setAccForm({ ...accForm, renewalDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -751,12 +751,12 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자산명 *</label>
               <input value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-                placeholder="예: MacBook Pro, 특허권" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="예: MacBook Pro, 특허권" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>
               <select value={assetForm.type} onChange={(e) => setAssetForm({ ...assetForm, type: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="tangible">유형자산</option>
                 <option value="intangible">무형자산</option>
               </select>
@@ -764,27 +764,27 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">가치 (원)</label>
               <CurrencyInput value={assetForm.value} onValueChange={(raw) => setAssetForm({ ...assetForm, value: raw })}
-                placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="0" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">취득일</label>
               <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">위치/보관</label>
               <input value={assetForm.location} onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
-                placeholder="사무실 / 클라우드" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="사무실 / 클라우드" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">내용연수 (개월)</label>
               <input type="number" min={0} value={assetForm.usefulLifeMonths} onChange={(e) => setAssetForm({ ...assetForm, usefulLifeMonths: e.target.value })}
-                placeholder="예: 60 (5년) · 비우면 감가 미적용" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="예: 60 (5년) · 비우면 감가 미적용" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">메모</label>
               <input value={assetForm.notes} onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div className="col-span-3">
               <label className="block text-xs text-[var(--text-muted)] mb-1">증빙 문서 (영수증·계약서 등)</label>
@@ -828,12 +828,12 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>
               <input value={docForm.name} onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
-                placeholder="예: 사업자등록증" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="예: 사업자등록증" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
               <select value={docForm.category} onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="license">라이선스</option>
                 <option value="certificate">인증서</option>
                 <option value="contract">계약서</option>
@@ -843,7 +843,7 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={docForm.linkedDealId} onChange={(e) => setDocForm({ ...docForm, linkedDealId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">선택 안함</option>
                 {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -851,12 +851,12 @@ export default function VaultPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">만료일</label>
               <input type="date" value={docForm.expiryDate} onChange={(e) => setDocForm({ ...docForm, expiryDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">태그 (쉼표 구분)</label>
               <input value={docForm.tags} onChange={(e) => setDocForm({ ...docForm, tags: e.target.value })}
-                placeholder="세무, 법인" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="세무, 법인" className="field-input" />
             </div>
             <div className="col-span-3">
               <label className="block text-xs text-[var(--text-muted)] mb-1">파일 첨부</label>

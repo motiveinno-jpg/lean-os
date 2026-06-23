@@ -528,7 +528,7 @@ export default function CashReceiptsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, issueDate: e.target.value }))
                 }
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
@@ -571,7 +571,7 @@ export default function CashReceiptsPage() {
                 onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
                 onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
                 placeholder="거래처명 검색"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
               {showPartnerDropdown && filteredPartners.length > 0 && (
                 <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">
@@ -602,7 +602,7 @@ export default function CashReceiptsPage() {
                   }))
                 }
                 placeholder="000-00-00000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
@@ -615,7 +615,7 @@ export default function CashReceiptsPage() {
                   setForm((f) => ({ ...f, approvalNumber: e.target.value }))
                 }
                 placeholder="승인번호"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
@@ -652,7 +652,7 @@ export default function CashReceiptsPage() {
                   }))
                 }
                 placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
               <div className="text-[10px] text-[var(--text-dim)] mt-1">
                 {form.purpose === "income_deduction"
@@ -670,7 +670,7 @@ export default function CashReceiptsPage() {
                   setForm((f) => ({ ...f, memo: e.target.value }))
                 }
                 placeholder="비고"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
           </div>
@@ -710,7 +710,7 @@ export default function CashReceiptsPage() {
             <div className="overflow-auto max-h-[560px] relative">
               <table className="w-full min-w-[700px]">
                 <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                  <tr className="table-head-row">
                     {crSortTh("issue_date", "발행일", "text-left")}
                     {crSortTh("counterparty_name", "거래처", "text-left")}
                     {crSortTh("amount", "합계금액", "text-right")}
@@ -718,7 +718,7 @@ export default function CashReceiptsPage() {
                     {crSortTh("tax_amount", "세액", "text-right")}
                     {crSortTh("purpose", "용도", "text-center")}
                     {crSortTh("status", "상태", "text-center")}
-                    <th className="text-center px-5 py-3 font-medium">
+                    <th className="th-cell text-center">
                       작업
                     </th>
                   </tr>

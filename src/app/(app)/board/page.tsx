@@ -651,7 +651,7 @@ export default function BoardPage() {
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="제목"
-            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            className="field-input"
           />
           <textarea
             value={form.content}

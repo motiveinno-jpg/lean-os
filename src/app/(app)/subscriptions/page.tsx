@@ -202,24 +202,24 @@ export default function SubscriptionsPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
               <input value={form.serviceName} onChange={(e) => setForm({ ...form, serviceName: e.target.value })}
-                placeholder="예: Claude, ChatGPT, Adobe" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="예: Claude, ChatGPT, Adobe" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">월 금액 (원)</label>
               <CurrencyInput value={form.monthlyCost} onValueChange={(raw) => setForm({ ...form, monthlyCost: raw })}
-                placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="0" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제주기</label>
               <select value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="monthly">월간</option>
                 <option value="yearly">연간</option>
               </select>
@@ -227,12 +227,12 @@ export default function SubscriptionsPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">다음 결제일</label>
               <input type="date" value={form.renewalDate} onChange={(e) => setForm({ ...form, renewalDate: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">담당자</label>
               <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">선택 안함</option>
                 {(users as any[]).map((u) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
               </select>
@@ -240,17 +240,17 @@ export default function SubscriptionsPage() {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제수단</label>
               <input value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
-                placeholder="법인카드 끝4자리 등" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="법인카드 끝4자리 등" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">해지 링크/URL</label>
               <input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })}
-                placeholder="https://" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                placeholder="https://" className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">메모</label>
               <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
           </div>
           <div className="flex gap-2">

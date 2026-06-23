@@ -340,13 +340,13 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
               <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="1000000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">설명</label>
               <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="외주비 - A업체"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -420,19 +420,19 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+              <tr className="table-head-row">
                 <th className="px-3 py-3 w-10">
                   <input type="checkbox" checked={allSelected} onChange={toggleAllSelectable}
                     disabled={selectableInView.length === 0}
                     className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30"
                     title="선택 가능 항목 전체 선택" />
                 </th>
-                <th className="text-left px-5 py-3 font-medium">설명</th>
-                <th className="text-right px-5 py-3 font-medium">금액</th>
-                <th className="text-left px-5 py-3 font-medium">통장</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-left px-5 py-3 font-medium">등록일</th>
-                <th className="text-center px-5 py-3 font-medium">액션</th>
+                <th className="th-cell text-left">설명</th>
+                <th className="th-cell text-right">금액</th>
+                <th className="th-cell text-left">통장</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-left">등록일</th>
+                <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -769,13 +769,13 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">배치명</th>
-                <th className="text-right px-5 py-3 font-medium">총액</th>
-                <th className="text-center px-5 py-3 font-medium">인원</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-left px-5 py-3 font-medium">생성일</th>
-                <th className="text-center px-5 py-3 font-medium">액션</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">배치명</th>
+                <th className="th-cell text-right">총액</th>
+                <th className="th-cell text-center">인원</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-left">생성일</th>
+                <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -898,12 +898,12 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">배치명</th>
-                <th className="text-right px-5 py-3 font-medium">총액</th>
-                <th className="text-center px-5 py-3 font-medium">건수</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-center px-5 py-3 font-medium">액션</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">배치명</th>
+                <th className="th-cell text-right">총액</th>
+                <th className="th-cell text-center">건수</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
             <tbody>
@@ -1408,35 +1408,35 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
               <label className="block text-xs text-[var(--text-muted)] mb-1">명칭 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="예: 스파크플러스 임대료"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
               <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="500000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 {Object.entries(categories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">수취인명</label>
               <input value={form.recipientName} onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">계좌번호</label>
               <input value={form.recipientAccount} onChange={(e) => setForm({ ...form, recipientAccount: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">이체일 (매월)</label>
               <input type="number" min="1" max="31" value={form.dayOfMonth} onChange={(e) => setForm({ ...form, dayOfMonth: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
           </div>
           <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
@@ -1446,12 +1446,12 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 <label className="block text-xs text-[var(--text-muted)] mb-1">자동이체 예약일 (매월)</label>
                 <input type="number" min="1" max="31" value={form.autoTransferDate} onChange={(e) => setForm({ ...form, autoTransferDate: e.target.value })}
                   placeholder="미설정"
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  className="field-input" />
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">출금 계좌</label>
                 <select value={form.autoTransferAccountId} onChange={(e) => setForm({ ...form, autoTransferAccountId: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  className="field-input">
                   <option value="">미지정</option>
                   {bankAccounts.map((a: any) => (
                     <option key={a.id} value={a.id}>{a.bank_name} {a.alias || a.account_number}</option>
@@ -1462,7 +1462,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 <label className="block text-xs text-[var(--text-muted)] mb-1">적요 (메모)</label>
                 <input value={form.autoTransferMemo} onChange={(e) => setForm({ ...form, autoTransferMemo: e.target.value })}
                   placeholder="자동이체 적요"
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  className="field-input" />
               </div>
             </div>
           </div>
@@ -1496,15 +1496,15 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">명칭</th>
-                <th className="text-left px-5 py-3 font-medium">카테고리</th>
-                <th className="text-right px-5 py-3 font-medium">금액</th>
-                <th className="text-left px-5 py-3 font-medium">수취인</th>
-                <th className="text-center px-5 py-3 font-medium">이체일</th>
-                <th className="text-left px-5 py-3 font-medium">자동이체</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-center px-5 py-3 font-medium">관리</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">명칭</th>
+                <th className="th-cell text-left">카테고리</th>
+                <th className="th-cell text-right">금액</th>
+                <th className="th-cell text-left">수취인</th>
+                <th className="th-cell text-center">이체일</th>
+                <th className="th-cell text-left">자동이체</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-center">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -1968,25 +1968,25 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
               <label className="block text-xs text-[var(--text-muted)] mb-1">{requestType === 'expense' ? '지출 제목' : '품의 제목'} *</label>
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder={requestType === 'expense' ? '거래처 접대비' : 'Adobe 연간 구독 구매'}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
               <CurrencyInput value={form.amount} onValueChange={(raw) => setForm({ ...form, amount: raw })}
                 placeholder="100000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">연결 프로젝트</label>
               <select value={form.dealId} onChange={(e) => setForm({ ...form, dealId: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="">없음 (독립 지출)</option>
                 {deals.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
@@ -2005,12 +2005,12 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
               <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 placeholder="예: 거래처 회의비 / 정기 SaaS 갱신"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제방법</label>
               <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value as any })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                className="field-input">
                 <option value="card">법인카드</option>
                 <option value="bank">통장 이체</option>
                 <option value="cash">현금</option>
@@ -2020,12 +2020,12 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">기안일</label>
               <input type="date" value={form.request_date} onChange={(e) => setForm({ ...form, request_date: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제요청일</label>
               <input type="date" value={form.payment_due_date} onChange={(e) => setForm({ ...form, payment_due_date: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                className="field-input" />
             </div>
           </div>
 
@@ -2148,15 +2148,15 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-5 py-3 font-medium">유형</th>
-                <th className="text-left px-5 py-3 font-medium">제목</th>
-                <th className="text-left px-5 py-3 font-medium">카테고리</th>
-                <th className="text-right px-5 py-3 font-medium">금액</th>
-                <th className="text-left px-5 py-3 font-medium">요청자</th>
-                <th className="text-left px-5 py-3 font-medium">프로젝트</th>
-                <th className="text-center px-5 py-3 font-medium">상태</th>
-                <th className="text-center px-5 py-3 font-medium">액션</th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">유형</th>
+                <th className="th-cell text-left">제목</th>
+                <th className="th-cell text-left">카테고리</th>
+                <th className="th-cell text-right">금액</th>
+                <th className="th-cell text-left">요청자</th>
+                <th className="th-cell text-left">프로젝트</th>
+                <th className="th-cell text-center">상태</th>
+                <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
             <tbody>

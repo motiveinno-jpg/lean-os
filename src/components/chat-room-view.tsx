@@ -1000,7 +1000,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                   {/* 내부 멤버 초대 */}
                   {inviteTab === "internal" && (
                     <div>
-                      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">역할</label>
+                      <label className="field-label">역할</label>
                       <select
                         value={inviteRole}
                         onChange={(e) => setInviteRole(e.target.value)}
@@ -1012,7 +1012,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                         <option value="VENDOR">외주사</option>
                       </select>
 
-                      <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">멤버 선택</label>
+                      <label className="field-label">멤버 선택</label>
                       <div className="max-h-48 overflow-y-auto border border-[var(--border)] rounded-xl">
                         {companyUsers
                           .filter((u: any) => !participants.some((p: any) => p.user_id === u.id))
@@ -1081,7 +1081,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                           </div>
 
                           {/* 연락처 입력 */}
-                          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">전화번호 또는 이메일</label>
+                          <label className="field-label">전화번호 또는 이메일</label>
                           <input
                             type="text"
                             value={extContact}
