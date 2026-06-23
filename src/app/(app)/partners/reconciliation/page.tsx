@@ -56,12 +56,13 @@ export default function ReconciliationPage() {
     enabled: !!companyId,
     refetchInterval: 30_000,
   });
-  // 큐도 상단 기간(engStart~engEnd)으로 거래일 필터 — 기간 밖 미확정 제안 숨김.
-  //   차액 마감 등 거래일이 없는 행은 숨기지 않는다(날짜 없는 건은 항상 노출).
-  const queue = useMemo(
-    () => (queueRaw as QueueRow[]).filter((m) => !m.transaction_date || (m.transaction_date >= engStart && m.transaction_date <= engEnd)),
-    [queueRaw, engStart, engEnd],
-  );
+  // 큐도 상단 기간(engStart~engEnd)으로 필터 — 거래일(통장)과 계산서 발행일이 "둘 다" 기간 내여야 표시.
+  //   이전엔 거래일만 봐서, 기간 내 입금이 기간 밖(예: 2025년) 계산서에 매칭된 제안이 계속 떴음.
+  //   날짜 없는 값(차액 마감 등)은 해당 날짜 기준으로는 숨기지 않는다.
+  const queue = useMemo(() => {
+    const inPeriod = (d?: string | null) => !d || (d >= engStart && d <= engEnd);
+    return (queueRaw as QueueRow[]).filter((m) => inPeriod(m.transaction_date) && inPeriod(m.issue_date));
+  }, [queueRaw, engStart, engEnd]);
 
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
     queryKey: ["settlement-confirmed", companyId],
