@@ -176,6 +176,33 @@ export default function ProjectHubDetailPage() {
       setCreatingQuote(false);
     }
   };
+
+  // 견적서 작성 — 모달 없이 즉시 기본 견적서 초안 생성 후 편집 화면(/documents)으로 이동.
+  //   문서번호는 기존 흐름대로 발행 시점에 부여됨.
+  const createQuoteInstant = async () => {
+    if (!companyId || !userId || creatingQuote) return;
+    setCreatingQuote(true);
+    try {
+      const { data, error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        sub_deal_id: null,
+        name: `${deal?.name || "프로젝트"} 견적서`,
+        status: "draft",
+        content_type: "invoice",
+        content_json: QUOTE_CONTENT,
+        version: 1,
+        created_by: userId,
+      }).select("id").single();
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      if (data?.id) router.push(`/documents?id=${data.id}`);
+    } catch (e: any) {
+      toast(e?.message || "견적서 생성 실패", "error");
+    } finally {
+      setCreatingQuote(false);
+    }
+  };
   // 양식 목록(계약서/견적서 등) — 없으면 기본양식 1회 시드
   const { data: docTemplates = [], isSuccess: templatesLoaded } = useQuery({
     queryKey: ["projecthub-doc-templates", companyId],
@@ -545,8 +572,8 @@ export default function ProjectHubDetailPage() {
             <div className="flex items-center gap-2 relative">
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">⚙ 열 설정</button>
-              <button onClick={() => { setFormKind("quote"); setSelectedTemplateId(""); setQuoteSubDealId(""); setQuoteName(`${deal?.name || "프로젝트"} 견적서`); setShowQuoteForm(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 견적서 작성</button>
+              <button onClick={createQuoteInstant} disabled={creatingQuote}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">{creatingQuote ? "생성 중..." : "+ 견적서 작성"}</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
