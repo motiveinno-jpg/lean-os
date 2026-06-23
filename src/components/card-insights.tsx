@@ -35,22 +35,17 @@ function endOfMonth(d: Date): string {
 }
 
 // ─────────────────────────────────────────
-// 1) 최근 90일 법인카드 큰 지출 TOP 5
-//    (월 초/말 데이터 부족 회피 — 90일 슬라이딩, 5건 항상 안정)
+// 1) 이번달 법인카드 지출 TOP 5
 // ─────────────────────────────────────────
 export function TopCardExpensesThisMonth({ companyId }: Props) {
   const now = new Date();
-  const dateFrom = useMemo(() => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 90);
-    return d.toISOString().slice(0, 10);
-  }, [now]);
+  const dateFrom = useMemo(() => now.toISOString().slice(0, 7) + "-01", [now]); // 이번달 1일
   const dateTo = now.toISOString().slice(0, 10);
 
   // nested JOIN(getCardTransactions) 우회 — corporate_cards/deals/tax_invoices FK NULL 시 row 누락 방지.
   // TopExpense 표시에 필요한 컬럼만 직접 SELECT.
   const { data: rows = [] } = useQuery({
-    queryKey: ['card-top-expenses-90d-simple', companyId, dateFrom, dateTo],
+    queryKey: ['card-top-expenses-month-simple', companyId, dateFrom, dateTo],
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from('card_transactions')
@@ -90,12 +85,12 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
         <div className="flex items-center gap-2.5">
           <IconTile tone="danger" size={38}><TileIcon name="card" /></IconTile>
           <div>
-            <h2 className="text-[15px] font-bold text-[var(--text)]">최근 90일 카드 큰 지출 TOP 5</h2>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 카드 지출 TOP 5</h2>
             <span className="caption">{dateFrom} ~ {dateTo}</span>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">90일 사용액</div>
+          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">이번달 사용액</div>
           <div className="text-base font-black mono-number text-[var(--danger)]">₩{fmtKRW(totalRecent)}</div>
         </div>
       </div>

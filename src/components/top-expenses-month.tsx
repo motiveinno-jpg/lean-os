@@ -91,7 +91,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
         <div className="flex items-center gap-2.5">
           <IconTile tone="danger" size={38}><TileIcon name="trendingDown" /></IconTile>
           <div>
-            <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 큰 지출 TOP {topN}</h2>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 지출 TOP {topN}</h2>
             <span className="caption">{monthLabel}</span>
           </div>
         </div>
