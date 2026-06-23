@@ -276,7 +276,7 @@ function PaymentSim() {
 
   return (
     <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden relative" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYMENT QUEUE</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">{items.filter(i => i.status === "완료").length}/3 처리됨</span>
       </div>
@@ -316,7 +316,7 @@ function PipelineSim() {
   const activeStage = Math.min(3, Math.floor(step / 4));
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
       <div className="flex items-center justify-between mb-5">
         <span className="text-xs font-bold text-blue-400">DEAL PIPELINE</span>
         <span className="text-[10px] text-slate-400">그**이 식품 납품</span>
@@ -379,8 +379,8 @@ function ContractSim() {
   const phaseIcon = ["📝", "👀", "✍️", "✅"];
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">E-CONTRACT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">{phases[phase]}</span>
       </div>
@@ -446,8 +446,8 @@ function PayrollSim() {
   const showApprove = step >= 9;
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYROLL</span>
         <span className="text-[10px] text-slate-400">2026년 3월</span>
       </div>
@@ -502,8 +502,8 @@ function AISim() {
   ];
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">AI ENGINE</span>
         <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
@@ -548,8 +548,8 @@ function ChatSim() {
   ];
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">TEAM CHAT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">실시간</span>
       </div>
@@ -589,8 +589,8 @@ function CRMSim() {
   const showInsight = step >= 10;
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">CLIENT DB</span>
         <span className="text-[10px] text-slate-400">{clients.filter(c => c.show).length}개 거래처</span>
       </div>
@@ -634,8 +634,8 @@ function DocSim() {
   const statusColors: Record<string, string> = { "검토중": "#F59E0B", "서명완료": "#3B82F6", "잠금": "#10B981", "대기": "#64748B", "생성됨": "#3B82F6", "백업완료": "#10B981", "발행됨": "#8B5CF6", "매칭완료": "#10B981", "작성중": "#F59E0B", "백업중": "#3B82F6", "아카이브": "#10B981" };
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden" style={{ minHeight: 280 }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+      <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">DOCUMENT HUB</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">자동관리</span>
       </div>
@@ -818,12 +818,12 @@ export default function LandingPage() {
             <span className="text-lg font-bold text-white tracking-tight"><RollingBrandText /></span>
           </a>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
-            <a href="#features" className="hover:text-white transition">주요기능</a>
-            <a href="#engines" className="hover:text-white transition">엔진</a>
-            <a href="#compare" className="hover:text-white transition">비교</a>
-            <a href="#pricing" className="hover:text-white transition">가격</a>
-            <a href="#partner" className="hover:text-white transition">제휴문의</a>
-            <a href="#faq" className="hover:text-white transition">FAQ</a>
+            <a href="#features" className="lp-nav-link">주요기능</a>
+            <a href="#engines" className="lp-nav-link">엔진</a>
+            <a href="#compare" className="lp-nav-link">비교</a>
+            <a href="#pricing" className="lp-nav-link">가격</a>
+            <a href="#partner" className="lp-nav-link">제휴문의</a>
+            <a href="#faq" className="lp-nav-link">FAQ</a>
           </div>
           <div className="flex items-center gap-3">
             {/* 모바일 햄버거 메뉴 버튼 */}
@@ -986,7 +986,7 @@ export default function LandingPage() {
 
       {/* ── CUSTOMER LOGOS & TESTIMONIALS ── */}
       <section className="py-20 px-6 bg-[#0B1120] border-t border-white/5">
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-blue-500/20 bg-blue-500/10 text-blue-300">
               정부사업 참여 기업 대상 무료 배포
@@ -1060,7 +1060,7 @@ export default function LandingPage() {
 
       {/* ── PAIN POINT → SOLUTION ── */}
       <section className="py-20 px-6 bg-[#0F1629]">
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               대표님, 이거 다 <span className="text-amber-400">혼자</span> 하고 계시죠?
@@ -1256,7 +1256,7 @@ export default function LandingPage() {
 
       {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
       <section className="py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className={`text-center mb-14 ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               이 서비스들, <span className="text-red-400">전부 쓰고 계시죠?</span>
@@ -1323,7 +1323,7 @@ export default function LandingPage() {
 
       {/* ── FEATURES + LIVE SIMULATION ── */}
       <section className="py-20 px-6 bg-[#111827]" id="features" ref={featRef.ref}>
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className={`text-center mb-12 ${featRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               실시간 <span className="text-blue-400">라이브 데모</span>
@@ -1377,7 +1377,7 @@ export default function LandingPage() {
       </section>
       {/* ── HOW IT WORKS — 도입 장벽 제거 ── */}
       <section className="py-20 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className="text-center mb-6">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">&quot;도입이 어렵지 않나요?&quot;</h2>
             <p className="text-gray-500 text-lg">아닙니다. <span className="text-blue-600 font-bold">기존 엑셀만 올리면 70~80% 즉시 완성</span>됩니다.</p>
@@ -1420,7 +1420,7 @@ export default function LandingPage() {
 
       {/* ── PRICING ── */}
       <section className="py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-amber-100 text-amber-700 border border-amber-200">
               BETA OPEN — 3개월 한정 얼리어답터 특가
@@ -1491,24 +1491,24 @@ export default function LandingPage() {
             <div className={`bg-white rounded-2xl border border-gray-200 p-8 shadow-sm ${partnerRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">회사명 *</label>
-                  <input type="text" value={partnerForm.company} onChange={(e) => setPartnerForm({ ...partnerForm, company: e.target.value })} placeholder="(주)회사명" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                  <label className="lp-field-label">회사명 *</label>
+                  <input type="text" value={partnerForm.company} onChange={(e) => setPartnerForm({ ...partnerForm, company: e.target.value })} placeholder="(주)회사명" className="lp-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">담당자명 *</label>
-                  <input type="text" value={partnerForm.name} onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })} placeholder="홍길동" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                  <label className="lp-field-label">담당자명 *</label>
+                  <input type="text" value={partnerForm.name} onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })} placeholder="홍길동" className="lp-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">이메일 *</label>
-                  <input type="email" value={partnerForm.email} onChange={(e) => setPartnerForm({ ...partnerForm, email: e.target.value })} placeholder="email@company.com" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                  <label className="lp-field-label">이메일 *</label>
+                  <input type="email" value={partnerForm.email} onChange={(e) => setPartnerForm({ ...partnerForm, email: e.target.value })} placeholder="email@company.com" className="lp-input" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">연락처</label>
-                  <input type="tel" value={partnerForm.phone} onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })} placeholder="010-0000-0000" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                  <label className="lp-field-label">연락처</label>
+                  <input type="tel" value={partnerForm.phone} onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })} placeholder="010-0000-0000" className="lp-input" />
                 </div>
               </div>
               <div className="mb-6">
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">문의 내용 *</label>
+                <label className="lp-field-label">문의 내용 *</label>
                 <textarea value={partnerForm.message} onChange={(e) => setPartnerForm({ ...partnerForm, message: e.target.value })} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 resize-none" />
               </div>
               <button
@@ -1570,7 +1570,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer className="py-12 px-6 bg-[#060810] text-slate-500">
-        <div className="max-w-5xl mx-auto">
+        <div className="lp-container">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">
               <OwnerViewLogo size={28} />
@@ -1578,10 +1578,10 @@ export default function LandingPage() {
               <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
             </div>
             <div className="flex gap-6 text-sm">
-              <a href="#features" className="hover:text-white transition">기능</a>
-              <a href="#pricing" className="hover:text-white transition">가격</a>
-              <a href="#partner" className="hover:text-white transition">제휴문의</a>
-              <a href="#faq" className="hover:text-white transition">FAQ</a>
+              <a href="#features" className="lp-nav-link">기능</a>
+              <a href="#pricing" className="lp-nav-link">가격</a>
+              <a href="#partner" className="lp-nav-link">제휴문의</a>
+              <a href="#faq" className="lp-nav-link">FAQ</a>
             </div>
           </div>
           <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
@@ -1592,10 +1592,10 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col items-center md:items-end gap-2">
               <div className="flex gap-4">
-                <Link href="/terms" className="hover:text-white transition">이용약관</Link>
+                <Link href="/terms" className="lp-nav-link">이용약관</Link>
                 <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
-                <Link href="/refund" className="hover:text-white transition">환불규정</Link>
-                <a href="mailto:creative@mo-tive.com" className="hover:text-white transition">creative@mo-tive.com</a>
+                <Link href="/refund" className="lp-nav-link">환불규정</Link>
+                <a href="mailto:creative@mo-tive.com" className="lp-nav-link">creative@mo-tive.com</a>
               </div>
             </div>
           </div>
