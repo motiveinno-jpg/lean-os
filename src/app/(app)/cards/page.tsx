@@ -657,11 +657,12 @@ export default function CardsPage() {
             </div>
             <div className="p-5 space-y-3">
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">비용 계정과목 *{postCard.category ? ` (분류: ${postCard.category})` : ""}</label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *{postCard.category ? ` (분류: ${postCard.category})` : ""}</label>
                 <select value={postAccountId} onChange={(e) => setPostAccountId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
                   <option value="">계정 선택</option>
-                  {(accounts as any[]).filter((a) => a.account_type === "expense").map((a) => (
+                  {/* 전표입력과 동일하게 전체 계정과목 사용(이전엔 expense 타입만 → 3개로 제한됐음) */}
+                  {(accounts as any[]).map((a) => (
                     <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
                   ))}
                 </select>
