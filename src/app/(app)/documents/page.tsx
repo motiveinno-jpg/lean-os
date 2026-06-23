@@ -31,7 +31,6 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
-import { DocumentTestPreview } from "@/components/document-test-preview";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 
 const db = supabase as any;
@@ -1373,7 +1372,6 @@ function DocumentsPageInner() {
   const [docPage, setDocPage] = useState<number>(1);
   useEffect(() => { setDocPage(1); }, [searchTerm, typeFilter, docPageSize]);
   // 2026-05-28 받는 사람 화면 테스트 모달 (split view 미리보기)
-  const [testPreviewDocId, setTestPreviewDocId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -1917,15 +1915,6 @@ function DocumentsPageInner() {
                             className="text-sm font-medium hover:text-[var(--primary)] transition text-left"
                           >
                             {doc.name}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setTestPreviewDocId(doc.id); }}
-                            className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[var(--primary)]"
-                            title="받는 사람 화면 테스트 (변수 입력 + 라이브 미리보기)"
-                            aria-label="받는 사람 화면 테스트"
-                          >
-                            🔍
                           </button>
                           <button
                             type="button"
@@ -2658,13 +2647,6 @@ function DocumentsPageInner() {
         <TemplatesTab companyId={companyId} userId={userId} templates={templates} onInvalidate={invalidate} />
       )}
 
-      {/* 2026-05-28 받는 사람 화면 테스트 모달 (split view: 변수 입력 + 라이브 미리보기) */}
-      {testPreviewDocId && (
-        <DocumentTestPreview
-          doc={documents.find((d: any) => d.id === testPreviewDocId) || null}
-          onClose={() => setTestPreviewDocId(null)}
-        />
-      )}
     </div>
   );
 }
