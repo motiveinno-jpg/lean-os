@@ -1888,7 +1888,7 @@ function DocumentsPageInner() {
               )}
             </div>
           ) : (
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">문서명</th>
@@ -1972,7 +1972,7 @@ function DocumentsPageInner() {
             {contractDocuments.length === 0 ? (
               <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트에서 생성된 계약서가 여기에 표시됩니다</div>
             ) : (
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">계약서명</th>
@@ -2163,7 +2163,7 @@ function DocumentsPageInner() {
             {contractArchives.length === 0 && !showArchiveForm ? (
               <div className="p-12 text-center text-sm text-[var(--text-muted)]">기존 계약서(임대차, 용역 등)를 스캔하여 등록하세요</div>
             ) : contractArchives.length > 0 && (
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 font-medium">계약서명</th>
@@ -2224,7 +2224,7 @@ function DocumentsPageInner() {
               <div className="text-sm text-[var(--text-muted)]">매출/매입 세금계산서를 등록하세요</div>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                   <th className="text-left px-5 py-3 font-medium">거래처</th>
@@ -2381,7 +2381,7 @@ function DocumentsPageInner() {
                 <div className="text-sm text-[var(--text-muted)]">문서에 전자서명을 요청하세요</div>
               </div>
             ) : (
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wide text-[var(--text-dim)]">
                     <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">문서</th>

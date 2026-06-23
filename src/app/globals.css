@@ -456,3 +456,18 @@ input, textarea, [contenteditable="true"] {
 .lp-card-dark { @apply bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden; } /* 다크 카드 */
 .lp-field-label { @apply block text-xs font-semibold text-gray-500 mb-1.5; }       /* 폼 라벨 */
 .lp-input { @apply w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10; } /* 폼 입력 */
+
+/* ──────────────────────────────────────────────────────────────
+   데이터 표 헤더 고정 + 줄바꿈 방지 (2026-06-23)
+   <table className="… sticky-head"> 한 줄만 붙이면 스크롤해도 헤더 고정,
+   헤더/셀의 한글이 세로로 줄바꿈되지 않음(길면 가로 스크롤). 기능 무변경.
+   ────────────────────────────────────────────────────────────── */
+.sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-card);
+  white-space: nowrap;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.sticky-head td { white-space: nowrap; }
