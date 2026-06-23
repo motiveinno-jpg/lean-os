@@ -792,7 +792,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
           {/* Step 1: 대상 선택 */}
           {wizardStep === 1 && (
             <div>
-              <h4 className="text-sm font-bold mb-4">Step 1: 구성원 선택</h4>
+              <h4 className="section-title">Step 1: 구성원 선택</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 *</label>
@@ -827,7 +827,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
           {/* Step 2: 서식 선택 */}
           {wizardStep === 2 && (
             <div>
-              <h4 className="text-sm font-bold mb-4">Step 2: 계약서 서식 선택</h4>
+              <h4 className="section-title">Step 2: 계약서 서식 선택</h4>
               {templates.length === 0 ? (
                 <p className="text-xs text-[var(--text-dim)] mb-4">등록된 서식이 없습니다. HR 서식을 사용해주세요.</p>
               ) : (
@@ -1181,7 +1181,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">계약 이력</h3>
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="th-cell text-left">구성원</th>
                 <th className="th-cell text-left">계약유형</th>
                 <th className="th-cell text-left">기간</th>

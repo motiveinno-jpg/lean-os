@@ -158,7 +158,7 @@ export function AttendanceEditRequestDialog({
         className="glass-card p-6 w-[420px] max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-bold mb-4">근태 수정 요청</h3>
+        <h3 className="section-title">근태 수정 요청</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
           잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다. 본인이 직접 수정할 수 없습니다.
         </p>

@@ -326,7 +326,7 @@ function AllowanceTypeModal({
         className="glass-card p-6 w-[520px] max-w-[92vw] max-h-[88vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-bold mb-4">{isEdit ? "수당 수정" : "수당 추가"}</h3>
+        <h3 className="section-title">{isEdit ? "수당 수정" : "수당 추가"}</h3>
         {isLegal && (
           <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-[11px] text-yellow-400">
             🔒 법정 수당입니다. 단가·활성·적용대상·표시순서만 수정할 수 있습니다.

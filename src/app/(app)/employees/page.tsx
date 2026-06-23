@@ -647,7 +647,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 직원 등록</button></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+            <thead className="sticky-bar"><tr className="table-head-row">
               <th className="th-cell text-left">이름</th>
               <th className="th-cell text-left">부서</th>
               <th className="th-cell text-left">직위</th>
@@ -958,7 +958,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
             <div className="p-10 text-center text-sm text-[var(--text-muted)]">급여 변경 이력이 없습니다</div>
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="th-cell text-left">적용일</th>
                 <th className="th-cell text-right">급여</th>
                 <th className="th-cell text-right">이전 급여</th>
@@ -1147,7 +1147,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
           <div className="p-16 text-center"><div className="text-4xl mb-4">🧾</div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+            <thead className="sticky-bar"><tr className="table-head-row">
               <th className="th-cell text-left">제목</th>
               <th className="th-cell text-left">청구자</th>
               <th className="th-cell text-left">분류</th>
@@ -1857,7 +1857,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </div>
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+              <thead className="sticky-bar">
                 <tr className="table-head-row">
                   <th className="th-cell text-left">직원</th>
                   <th className="th-cell text-left">날짜</th>
@@ -2030,7 +2030,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             )}
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
-                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+                <thead className="sticky-bar">
                   <tr className="table-head-row">
                     <th className="th-cell text-left">직원</th>
                     <th className="th-cell text-center">출근일</th>
@@ -2656,7 +2656,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           {/* Detail Table */}
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="text-left px-4 py-3 font-medium">직원</th>
                 <th className="text-right px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
                 <th className="text-right px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
@@ -3310,7 +3310,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       {/* Leave Request Form */}
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h4 className="text-sm font-bold mb-4">휴가 신청</h4>
+          <h4 className="section-title">휴가 신청</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-4">
             {isEmployee && myEmployee ? (
               <div>
@@ -3583,7 +3583,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+              <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
                 <th className="text-center px-2 py-2.5 font-medium">총부여</th>
                 {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
@@ -3644,7 +3644,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
                   </div>
                   <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
-                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+                    <thead className="sticky-bar"><tr className="table-head-row">
                       <th className="text-left px-5 py-2 font-medium">직원</th>
                       <th className="text-left px-5 py-2 font-medium">부서</th>
                       <th className="text-center px-5 py-2 font-medium">총 연차</th>
@@ -3698,7 +3698,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
                   </div>
                   <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
-                    <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+                    <thead className="sticky-bar"><tr className="table-head-row">
                       <th className="text-left px-5 py-2 font-medium">직원</th>
                       <th className="text-center px-5 py-2 font-medium">차수</th>
                       <th className="text-center px-5 py-2 font-medium">미사용</th>
@@ -3847,7 +3847,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* Issue Form */}
       <div className="glass-card p-6 mb-6">
-        <h3 className="text-sm font-bold mb-4">증명서 발급</h3>
+        <h3 className="section-title">증명서 발급</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">직원 선택 *</label>

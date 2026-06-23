@@ -393,7 +393,7 @@ export default function BankPage() {
         <div className="glass-card overflow-hidden">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full">
-              <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+              <thead className="sticky-bar">
                 <tr className="table-head-row">
                   <th className="text-left px-6 py-4 font-semibold">거래</th>
                   <th className="text-left px-6 py-4 font-semibold">분류</th>

@@ -197,7 +197,7 @@ export default function SubscriptionsPage() {
       {/* 등록/수정 폼 */}
       {showForm && canEdit && (
         <div className="glass-card p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">{editingId ? "구독 수정" : "구독 추가"}</h3>
+          <h3 className="section-title">{editingId ? "구독 수정" : "구독 추가"}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>

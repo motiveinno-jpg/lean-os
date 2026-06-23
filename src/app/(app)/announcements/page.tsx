@@ -138,7 +138,7 @@ export default function AnnouncementsPage() {
       {/* 작성/수정 폼 (운영자만) */}
       {canWrite && showForm && (
         <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6">
-          <h3 className="text-sm font-bold mb-4">{editing ? "공지 수정" : "새 공지 작성"}</h3>
+          <h3 className="section-title">{editing ? "공지 수정" : "새 공지 작성"}</h3>
           <div className="space-y-3">
             <div className="flex gap-2">
               <select

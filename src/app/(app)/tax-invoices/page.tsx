@@ -2648,7 +2648,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+            <thead className="sticky-bar">
               <tr className="table-head-row">
                 <th className="th-cell text-left">기간</th>
                 <th className="th-cell text-center">매출 건수</th>
@@ -2769,7 +2769,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       {/* Quarterly Breakdown */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-          <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+          <thead className="sticky-bar">
             <tr className="table-head-row">
               <th className="th-cell text-left">분기</th>
               <th className="th-cell text-right">매출세액</th>

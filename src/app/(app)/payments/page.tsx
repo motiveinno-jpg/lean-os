@@ -334,7 +334,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">수동 결제 등록</h3>
+          <h3 className="section-title">수동 결제 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
@@ -1402,7 +1402,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
+          <h3 className="section-title">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">명칭 *</label>

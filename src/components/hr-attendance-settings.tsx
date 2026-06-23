@@ -222,7 +222,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
 
       {/* 가산수당 정책 */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">가산수당 정책</h2>
+        <h2 className="section-title">가산수당 정책</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">주 소정근로시간</label>

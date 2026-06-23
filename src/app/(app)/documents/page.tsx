@@ -1763,7 +1763,7 @@ function DocumentsPageInner() {
       {/* Doc Form */}
       {showDocForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">새 문서 생성</h3>
+          <h3 className="section-title">새 문서 생성</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">양식 선택</label>
@@ -1821,7 +1821,7 @@ function DocumentsPageInner() {
       {/* Invoice Form */}
       {showInvForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">세금계산서 등록</h3>
+          <h3 className="section-title">세금계산서 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">유형</label>

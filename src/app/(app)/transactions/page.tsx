@@ -1124,7 +1124,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {tab === 'manual' && (
         <div className="space-y-4">
           <div className="glass-card p-6">
-            <h3 className="text-sm font-bold mb-4">거래내역 직접 등록</h3>
+            <h3 className="section-title">거래내역 직접 등록</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">입출금 구분 *</label>
@@ -1240,7 +1240,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]"><tr className="table-head-row">
+                  <thead className="sticky-bar"><tr className="table-head-row">
                     <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
                     <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
                     <th className="text-left px-2 py-2">적요</th><th className="text-left px-2 py-2">카테고리</th>
@@ -1815,7 +1815,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+                <thead className="sticky-bar">
                   <tr className="table-head-row">
                     <th
                       onClick={() => toggleCardSort('transaction_date')}
@@ -1920,7 +1920,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {showCardForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCardForm(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold mb-4">{editingCard ? '카드 수정' : '법인카드 등록'}</h3>
+            <h3 className="section-title">{editingCard ? '카드 수정' : '법인카드 등록'}</h3>
             <div className="space-y-3 mb-4">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">카드 이름 *</label>

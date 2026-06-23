@@ -680,7 +680,7 @@ export default function VaultPage() {
       {/* ── Account Form ── */}
       {showForm && tab === "accounts" && (
         <div className="glass-card p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
+          <h3 className="section-title">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
@@ -746,7 +746,7 @@ export default function VaultPage() {
       {/* ── Asset Form ── */}
       {showForm && tab === "assets" && (
         <div className="glass-card p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">{editingId ? "자산 수정" : "자산 추가"}</h3>
+          <h3 className="section-title">{editingId ? "자산 수정" : "자산 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자산명 *</label>
@@ -823,7 +823,7 @@ export default function VaultPage() {
       {/* ── Doc Form ── */}
       {showForm && tab === "docs" && (
         <div className="glass-card p-6 mb-4">
-          <h3 className="text-sm font-bold mb-4">{editingId ? "문서 수정" : "문서 추가"}</h3>
+          <h3 className="section-title">{editingId ? "문서 수정" : "문서 추가"}</h3>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>

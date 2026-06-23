@@ -1538,7 +1538,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       {/* Policy Form */}
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="text-sm font-bold mb-4">{editingPolicy ? "정책 수정" : "새 결재 정책"}</h3>
+          <h3 className="section-title">{editingPolicy ? "정책 수정" : "새 결재 정책"}</h3>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>

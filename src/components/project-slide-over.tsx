@@ -1111,7 +1111,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
               <div>
@@ -1122,7 +1122,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   value={paymentAmount ? Number(paymentAmount).toLocaleString("ko-KR") : ""}
                   onChange={(e) => setPaymentAmount(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder="5,000,000"
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
                 {Number(paymentAmount) > 0 && (
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">
@@ -1186,7 +1186,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   type="date"
                   value={costDate}
                   onChange={(e) => setCostDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
               <div>
@@ -1197,7 +1197,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   value={costAmount ? Number(costAmount).toLocaleString("ko-KR") : ""}
                   onChange={(e) => setCostAmount(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder="1,000,000"
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
               <div>
@@ -1207,7 +1207,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                   value={costMemo}
                   onChange={(e) => setCostMemo(e.target.value)}
                   placeholder="예: 외주 디자인 / 광고비"
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
             </div>

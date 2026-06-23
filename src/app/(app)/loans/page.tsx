@@ -811,7 +811,7 @@ export default function LoansPage() {
       {/* Register Tab */}
       {tab === "register" && (
         <div className="glass-card p-6">
-          <h3 className="text-sm font-bold mb-4">새 대출 등록</h3>
+          <h3 className="section-title">새 대출 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">대출명 *</label>

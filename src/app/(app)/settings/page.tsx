@@ -210,7 +210,7 @@ export default function SettingsPage() {
         <>
           {/* Cash Snapshot */}
           <div className="glass-card p-6">
-            <h2 className="text-sm font-bold mb-4">현금 현황</h2>
+            <h2 className="section-title">현금 현황</h2>
             <div className="space-y-4">
               {/* 연동 통장 합산 (자동, read-only) */}
               <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20">
@@ -307,7 +307,7 @@ export default function SettingsPage() {
                       value={bankForm.bank_name}
                       onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
                       placeholder="국민은행"
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     />
                   </div>
                   <div>
@@ -316,7 +316,7 @@ export default function SettingsPage() {
                       value={bankForm.account_number}
                       onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
                       placeholder="123-456-789012"
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     />
                   </div>
                   <div>
@@ -325,7 +325,7 @@ export default function SettingsPage() {
                       value={bankForm.alias}
                       onChange={(e) => setBankForm({ ...bankForm, alias: e.target.value })}
                       placeholder="메인 운영통장"
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     />
                   </div>
                   <div>
@@ -333,7 +333,7 @@ export default function SettingsPage() {
                     <select
                       value={bankForm.role}
                       onChange={(e) => setBankForm({ ...bankForm, role: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     >
                       {BANK_ROLES.map((r) => (
                         <option key={r.value} value={r.value}>{r.label}</option>
@@ -348,7 +348,7 @@ export default function SettingsPage() {
                       value={bankForm.balance ? Number(bankForm.balance).toLocaleString() : ""}
                       onChange={(e) => setBankForm({ ...bankForm, balance: e.target.value.replace(/[^0-9]/g, "") })}
                       placeholder="0"
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     />
                   </div>
                   <div className="flex items-end pb-1">
@@ -448,7 +448,7 @@ export default function SettingsPage() {
                     <select
                       value={ruleForm.cost_type}
                       onChange={(e) => setRuleForm({ ...ruleForm, cost_type: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     >
                       {COST_TYPES.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
@@ -460,7 +460,7 @@ export default function SettingsPage() {
                     <select
                       value={ruleForm.bank_account_id}
                       onChange={(e) => setRuleForm({ ...ruleForm, bank_account_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                      className="field-input-sm"
                     >
                       <option value="">선택</option>
                       {bankAccounts.map((acc: BankAccount) => (
@@ -1636,7 +1636,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
       {/* Company Basic Info */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">기본 정보</h2>
+        <h2 className="section-title">기본 정보</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -1725,7 +1725,7 @@ function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
       {/* Seal & Logo Upload */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">직인 및 로고</h2>
+        <h2 className="section-title">직인 및 로고</h2>
         {uploadError && (
           <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-xs mb-4">{uploadError}</div>
         )}
@@ -2106,7 +2106,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                 <select
                   value={form.entity_type}
                   onChange={(e) => setForm({ ...form, entity_type: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 >
                   {DOCUMENT_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -2118,7 +2118,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                 <select
                   value={form.required_role}
                   onChange={(e) => setForm({ ...form, required_role: e.target.value })}
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 >
                   {APPROVER_ROLES.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -2132,7 +2132,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                   value={form.min_amount || ""}
                   onChange={(e) => setForm({ ...form, min_amount: Number(e.target.value) || 0 })}
                   placeholder="0"
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
               <div>
@@ -2142,7 +2142,7 @@ function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                   value={form.max_amount || ""}
                   onChange={(e) => setForm({ ...form, max_amount: Number(e.target.value) || 0 })}
                   placeholder="무제한"
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input-sm"
                 />
               </div>
             </div>
@@ -2549,7 +2549,7 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="user@company.com"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                className="field-input-sm"
               />
             </div>
             <div>
@@ -2558,7 +2558,7 @@ function TeamManagement({ companyId }: { companyId: string | null }) {
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
                 placeholder="홍길동"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                className="field-input-sm"
               />
             </div>
           </div>
@@ -2808,7 +2808,7 @@ function DealClassificationManager({ companyId }: { companyId: string | null }) 
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="예: Enterprise"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"
+                className="field-input-sm"
               />
             </div>
             <div>
@@ -3846,7 +3846,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
 
       {/* 수동 등록 계좌 */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">수동 등록 계좌</h2>
+        <h2 className="section-title">수동 등록 계좌</h2>
         {bankAccounts.length === 0 ? (
           <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>
         ) : (
@@ -3872,7 +3872,7 @@ function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | n
 
       {/* 이체 자동화 설정 */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">이체 자동화 설정</h2>
+        <h2 className="section-title">이체 자동화 설정</h2>
         <div className="space-y-4">
           <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
             <div><div className="text-sm font-medium">승인완료 건 자동이체</div><div className="text-xs text-[var(--text-dim)] mt-0.5">결재 승인 완료 시 자동 이체 실행</div></div>
@@ -3962,7 +3962,7 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   return (
     <div className="space-y-6">
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">세금계산서 자동발행</h2>
+        <h2 className="section-title">세금계산서 자동발행</h2>
         <div className="space-y-3">
           <Tog label="프로젝트 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
           <Tog label="결제 완료 시 자동발행" desc="이체 완료 시 매입 세금계산서 자동 생성" checked={settings.auto_issue_on_payment} onChange={(v) => setSettings({ ...settings, auto_issue_on_payment: v })} />
@@ -3971,14 +3971,14 @@ function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         </div>
       </div>
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">취소/수정 규칙</h2>
+        <h2 className="section-title">취소/수정 규칙</h2>
         <div className="space-y-3">
           <Tog label="환불 시 수정세금계산서" desc="환불 발생 시 수정본 자동 발행" checked={settings.auto_cancel_on_refund} onChange={(v) => setSettings({ ...settings, auto_cancel_on_refund: v })} />
           <Tog label="계약 취소 시 자동 취소" desc="프로젝트 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
         </div>
       </div>
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">결제/매칭 설정</h2>
+        <h2 className="section-title">결제/매칭 설정</h2>
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1.5">선금 비율 (%)</label>
@@ -4763,7 +4763,7 @@ function CertificateManagementTab({ companyId }: { companyId: string | null }) {
 
       {/* 자동서명 규칙 */}
       <div className="glass-card p-6">
-        <h2 className="text-sm font-bold mb-4">자동서명 규칙</h2>
+        <h2 className="section-title">자동서명 규칙</h2>
         <div className="space-y-3">
           <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
             <div><div className="text-sm font-medium">세금계산서 자동서명</div><div className="text-xs text-[var(--text-dim)] mt-0.5">승인 완료 시 인증서로 자동 전자서명</div></div>

@@ -709,7 +709,7 @@ export default function CashReceiptsPage() {
           ) : (
             <div className="overflow-auto max-h-[560px] relative">
               <table className="w-full min-w-[700px]">
-                <thead className="sticky top-0 z-10 bg-[var(--bg-card)] shadow-[0_1px_0_0_var(--border)]">
+                <thead className="sticky-bar">
                   <tr className="table-head-row">
                     {crSortTh("issue_date", "발행일", "text-left")}
                     {crSortTh("counterparty_name", "거래처", "text-left")}
