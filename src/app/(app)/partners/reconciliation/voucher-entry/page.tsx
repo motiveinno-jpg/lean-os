@@ -508,7 +508,7 @@ export default function VoucherEntryPage() {
                   <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{i + 1}</td>
                   <td className={`${TD} w-[56px]`}>
                     {vtype === "transfer" ? (
-                      <select value={l.gubun} onChange={(e) => setPendLine(l.key, { gubun: e.target.value as Gubun })} className={`${IN} cursor-pointer p-0`}>
+                      <select value={l.gubun} onChange={(e) => setPendLine(l.key, { gubun: e.target.value as Gubun })} className={`${IN} cursor-pointer pl-1 pr-5 py-1`}>
                         <option value="3">차변</option><option value="4">대변</option>
                       </select>
                     ) : (
@@ -614,7 +614,7 @@ export default function VoucherEntryPage() {
                               {l.gubun === "1" || l.gubun === "2" ? (
                                 <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_LABEL[l.gubun]}</span>
                               ) : (
-                                <select value={l.gubun} onChange={(ev) => setEditLine(e.id, l.key, { gubun: ev.target.value as Gubun })} className={`${IN} cursor-pointer p-0`}>
+                                <select value={l.gubun} onChange={(ev) => setEditLine(e.id, l.key, { gubun: ev.target.value as Gubun })} className={`${IN} cursor-pointer pl-1 pr-5 py-1`}>
                                   <option value="3">3.차변</option><option value="4">4.대변</option>
                                 </select>
                               )}
