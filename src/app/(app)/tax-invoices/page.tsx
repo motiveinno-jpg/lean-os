@@ -2053,37 +2053,23 @@ export default function TaxInvoicesPage() {
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
           </label>
 
-          {/* Export — Excel(.xlsx) / 더존 Smart-A CSV (한 곳에 묶음) */}
+          {/* Export — 엑셀 내보내기 (더존 Smart-A 양식 CSV, 보기 좋은 포맷으로 통일) */}
           {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
-            <>
-              <button
-                onClick={() =>
-                  exportToExcel(
-                    currentList,
-                    `세금계산서_${tab === "sales" ? "매출" : "매입"}_${viewFromMonth}~${viewToMonth}.xlsx`
-                  )
-                }
-                className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
-                title="현재 목록을 Excel(.xlsx)로 내보내기"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Excel 내보내기
-              </button>
-              <button
-                onClick={async () => {
-                  const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-                  exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
-                }}
-                className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-sm font-medium border border-[var(--border)] transition flex items-center gap-1.5"
-                title="현재 목록을 더존 Smart-A 양식 CSV로 내보내기"
-              >
-                📄 더존 CSV
-              </button>
-            </>
+            <button
+              onClick={async () => {
+                const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+                exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+              }}
+              className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
+              title="현재 목록을 엑셀로 내보내기"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              엑셀 내보내기
+            </button>
           )}
         </div>
       </div>
@@ -2256,7 +2242,7 @@ export default function TaxInvoicesPage() {
         <div className="no-print mt-6 rounded-2xl p-6 text-white bg-gradient-to-r from-emerald-600 to-teal-500 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold mb-1">계산서 일괄 처리</h3>
-            <p className="text-emerald-50/90 text-sm">현재 보이는 {currentList.length}건을 더존 Smart-A 양식 CSV로 내보냅니다</p>
+            <p className="text-emerald-50/90 text-sm">현재 보이는 {currentList.length}건을 엑셀로 내보냅니다</p>
           </div>
           <button
             onClick={async () => {
@@ -2265,7 +2251,7 @@ export default function TaxInvoicesPage() {
             }}
             className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-lg hover:bg-emerald-50 transition inline-flex items-center gap-2 shrink-0"
           >
-            📄 더존 CSV 내보내기
+            📄 엑셀 내보내기
           </button>
         </div>
       )}

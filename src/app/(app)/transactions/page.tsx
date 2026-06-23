@@ -1031,9 +1031,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             }}
             disabled={filteredBankTx.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-xs font-semibold transition border border-[var(--border)] disabled:opacity-50 whitespace-nowrap"
-            title="현재 보이는 거래내역을 더존 양식 CSV 로 다운로드"
+            title="현재 보이는 거래내역을 엑셀로 다운로드"
           >
-            📄 더존 CSV
+            📄 엑셀 내보내기
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap">
