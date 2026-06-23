@@ -2237,25 +2237,6 @@ export default function TaxInvoicesPage() {
         </div>
       )}
 
-      {/* 시안 — 하단 일괄 처리 바 (기존 더존 CSV 핸들러 재사용, 가짜 이메일 버튼 없음) */}
-      {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
-        <div className="no-print mt-6 rounded-2xl p-6 text-white bg-gradient-to-r from-emerald-600 to-teal-500 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold mb-1">계산서 일괄 처리</h3>
-            <p className="text-emerald-50/90 text-sm">현재 보이는 {currentList.length}건을 엑셀로 내보냅니다</p>
-          </div>
-          <button
-            onClick={async () => {
-              const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-              exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
-            }}
-            className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-lg hover:bg-emerald-50 transition inline-flex items-center gap-2 shrink-0"
-          >
-            📄 엑셀 내보내기
-          </button>
-        </div>
-      )}
-
       {/* Summary Tab */}
       {tab === "summary" && (
         <SummaryTab

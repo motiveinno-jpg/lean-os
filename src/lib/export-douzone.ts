@@ -59,7 +59,7 @@ export function exportBankTransactionsDouzone(rows: BankTxExport[], periodLabel?
       escapeCsv(income || ''), escapeCsv(expense || ''), '',
     ].join(','));
   }
-  const fname = `통장거래내역_더존_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
+  const fname = `통장거래내역_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
   downloadCsv(fname, lines);
 }
 
@@ -95,7 +95,7 @@ export function exportTaxInvoicesDouzone(rows: TaxInvoiceExport[], periodLabel?:
       escapeCsv(inv.status || ''),
     ].join(','));
   }
-  const fname = `세금계산서_더존_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
+  const fname = `세금계산서_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
   downloadCsv(fname, lines);
 }
 
@@ -125,6 +125,6 @@ export function exportCardTransactionsDouzone(rows: CardTxExport[], periodLabel?
       escapeCsv(Number(t.amount || 0)),
     ].join(','));
   }
-  const fname = `카드내역_더존_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
+  const fname = `카드내역_${periodLabel || new Date().toISOString().slice(0, 10)}.csv`;
   downloadCsv(fname, lines);
 }
