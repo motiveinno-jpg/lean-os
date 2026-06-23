@@ -323,11 +323,17 @@ export default function VoucherEntryPage() {
     return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12);
   };
   const ptMatches = (q: string) => {
-    const t = q.trim().toLowerCase();
-    if (!t) return partners.slice(0, 30); // 빈 검색은 상위 30(성능)
-    const tn = t.replace(/-/g, "");
-    // 검색어 포함 거래처는 모두 표시 (이름 또는 사업자번호, 하이픈 무시)
-    return partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
+    const raw = q.trim().toLowerCase();
+    if (!raw) return partners.slice(0, 200); // 빈 검색도 충분히 노출 → 목록을 세로로 스크롤하며 탐색
+    const tn = raw.replace(/[-\s]/g, "");          // 공백·하이픈 제거(사업자번호/연속매칭용)
+    const tokens = raw.split(/\s+/).filter(Boolean); // 토큰별(공백 구분) 매칭
+    // 매칭을 넓게 — 공백 무시 부분일치 OR 모든 토큰 포함 OR 사업자번호 포함
+    return partners.filter((p) => {
+      const name = (p.name || "").toLowerCase();
+      const nameNS = name.replace(/\s/g, "");
+      const bn = (p.business_number || "").replace(/-/g, "");
+      return nameNS.includes(tn) || tokens.every((tk) => name.includes(tk)) || (bn && bn.includes(tn));
+    }).slice(0, 200);
   };
 
   const TD = "px-2 py-1 border-l border-[var(--border)]/40 whitespace-nowrap";
@@ -380,7 +386,7 @@ export default function VoucherEntryPage() {
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
-          <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
+          <div className="absolute z-30 left-0 top-full mt-0.5 w-60 max-h-72 overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1">
             {ptMatches(picker.q).map((p, i) => (
               <button key={p.id} onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
                 className={`w-full px-2 py-1.5 rounded text-[12px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
