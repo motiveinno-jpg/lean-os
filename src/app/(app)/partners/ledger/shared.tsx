@@ -139,6 +139,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       let qb = db.from("tax_invoices")
         .select("id, issue_date, item_name, label, total_amount")
         .eq("company_id", companyId).eq("type", type).neq("status", "void")
+        // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
+        .not("nts_confirm_no", "is", null)
         .lte("issue_date", yEnd)
         .order("issue_date", { ascending: true }).limit(2000);
       qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
@@ -509,7 +511,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const [voucherNo, setVoucherNo] = useState<number | null>(null);
   const [dealId, setDealId] = useState<string | null>(null); // 프로젝트 태그 → journal_entries.deal_id (직접원가 집계)
   const [subDealId, setSubDealId] = useState<string | null>(null); // 세부 프로젝트 태그 → journal_entries.sub_deal_id (세부 실적원가)
-  const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string; anchor: Anchor } | null>(null);
+  const [picker, setPicker] = useState<{ kind: "acct" | "pt"; key: number; q: string; anchor: Anchor; idx?: number } | null>(null);
   // glass-card(backdrop-filter)가 fixed 컨테이닝 블록이 되어 팝업이 카드 안에 갇히는 문제 →
   //   document.body 로 포털해 화면 전체에 렌더.
   const [mounted, setMounted] = useState(false);
@@ -786,11 +788,17 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                               onFocus={(e) => setPicker({ kind: "pt", key: l.key, q: "", anchor: anchorOf(e.currentTarget) })}
                               onBlur={() => setTimeout(() => setPicker((p) => (p?.key === l.key && p.kind === "pt" ? null : p)), 150)}
                               onKeyDown={(e) => {
-                                if (e.key !== "Enter") return;
-                                const q = picker?.kind === "pt" && picker.key === l.key ? picker.q : "";
-                                const p = ptMatches(q)[0]; const a = assetMatches(q)[0];
-                                if (p) { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }
-                                else if (a) { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }
+                                if (!(picker?.kind === "pt" && picker.key === l.key)) return;
+                                const pts = ptMatches(picker.q); const assets = assetMatches(picker.q);
+                                const total = pts.length + assets.length;
+                                if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(total - 1, 0)) } : p); }
+                                else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
+                                else if (e.key === "Enter") {
+                                  const k = picker.idx ?? 0;
+                                  if (k < pts.length) { const p = pts[k]; if (p) { e.preventDefault(); e.stopPropagation(); setLine(l.key, { partner: p, asset: null }); setPicker(null); } }
+                                  else { const a = assets[k - pts.length]; if (a) { e.preventDefault(); e.stopPropagation(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); } }
+                                }
+                                else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
                               }}
                               placeholder="—" className={IN} />
                             {l.asset && <span className="pr-1 text-[8px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">{l.asset.kind === "bank" ? "통장" : "카드"}</span>}
@@ -798,20 +806,38 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
                             <CellDropdown anchor={picker.anchor} width={224} maxHeight={196}>
-                              {ptMatches(picker.q).length > 0 && <div className="px-2 pt-0.5 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
-                              {ptMatches(picker.q).map((p, i) => (
-                                <button key={`p-${p.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
-                                  className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>{p.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</button>
-                              ))}
-                              {assetMatches(picker.q).length > 0 && <div className="px-2 pt-1.5 pb-0.5 mt-1 text-[10px] font-semibold text-[var(--text-dim)] border-t border-[var(--border)]/40">내 통장·카드</div>}
-                              {assetMatches(picker.q).map((a) => (
-                                <button key={`${a.kind}-${a.id}`} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }}
-                                  className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
+                              {(() => {
+                                const pts = ptMatches(picker.q); const assets = assetMatches(picker.q);
+                                const act = picker.idx ?? 0;
+                                return (<>
+                              {pts.length > 0 && <div className="px-2 pt-0.5 pb-0.5 text-[10px] font-semibold text-[var(--text-dim)]">거래처</div>}
+                              {pts.map((p, i) => {
+                                const active = i === act;
+                                return (
+                                <button key={`p-${p.id}`}
+                                  ref={active ? (el) => { el?.scrollIntoView({ block: "nearest" }); } : undefined}
+                                  onMouseEnter={() => setPicker((pp) => (pp ? { ...pp, idx: i } : pp))}
+                                  onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: p, asset: null }); setPicker(null); }}
+                                  className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>{p.name}{active && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</button>
+                                );
+                              })}
+                              {assets.length > 0 && <div className="px-2 pt-1.5 pb-0.5 mt-1 text-[10px] font-semibold text-[var(--text-dim)] border-t border-[var(--border)]/40">내 통장·카드</div>}
+                              {assets.map((a, j) => {
+                                const active = (pts.length + j) === act;
+                                return (
+                                <button key={`${a.kind}-${a.id}`}
+                                  ref={active ? (el) => { el?.scrollIntoView({ block: "nearest" }); } : undefined}
+                                  onMouseEnter={() => setPicker((pp) => (pp ? { ...pp, idx: pts.length + j } : pp))}
+                                  onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { asset: { kind: a.kind, id: a.id, name: a.name }, partner: null }); setPicker(null); }}
+                                  className={`w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] text-left text-[var(--text)] ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
                                   <span className="truncate">{a.name}</span>
                                   <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">{a.kind === "bank" ? "통장" : "카드"}</span>
                                 </button>
-                              ))}
-                              {ptMatches(picker.q).length === 0 && assetMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                                );
+                              })}
+                              {pts.length === 0 && assets.length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                              </>);
+                              })()}
                               {(l.partner || l.asset) && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null, asset: null }); setPicker(null); }} className="w-full px-2 py-1 mt-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)] border-t border-[var(--border)]/40">지우기</button>}
                             </CellDropdown>
                           )}

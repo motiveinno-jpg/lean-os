@@ -61,7 +61,7 @@ export default function VoucherEntryPage() {
   const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
   const [selected, setSelected] = useState<Set<string>>(new Set()); // "s:entryId"
-  const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string; anchor: Anchor } | null>(null);
+  const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string; anchor: Anchor; idx?: number } | null>(null);
   const [ctx, setCtx] = useState<{ x: number; y: number; rowId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null); // §3-3-B 방금 저장한 전표 하이라이트
@@ -384,21 +384,30 @@ export default function VoucherEntryPage() {
             onFocus={(e) => setPicker({ kind: "pt", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
             onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "pt" ? null : p)), 150)}
             onKeyDown={(e) => {
-              if (e.key !== "Enter" || !(picker?.kind === "pt" && picker.rowId === rowId && picker.q.trim())) return;
-              const first = ptMatches(picker.q)[0];
-              if (first) { update({ partner: first }); setPicker(null); }
+              if (!(picker?.kind === "pt" && picker.rowId === rowId)) return;
+              const list = ptMatches(picker.q);
+              if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
+              else if (e.key === "Enter") { const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ partner: sel }); setPicker(null); } }
+              else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
             }}
             placeholder="—" className={IN} />
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
           <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
-            {ptMatches(picker.q).map((p, i) => (
-              <button key={p.id} onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
-                className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
-                {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
+            {ptMatches(picker.q).map((p, i) => {
+              const active = i === (picker!.idx ?? 0);
+              return (
+              <button key={p.id}
+                ref={active ? (el) => { el?.scrollIntoView({ block: "nearest" }); } : undefined}
+                onMouseEnter={() => setPicker((pp) => (pp ? { ...pp, idx: i } : pp))}
+                onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
+                className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+                {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{active && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
               </button>
-            ))}
+              );
+            })}
             {ptMatches(picker.q).length === 0 && (
               <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "등록된 거래처가 없습니다" : "검색 결과 없음"}</div>
             )}

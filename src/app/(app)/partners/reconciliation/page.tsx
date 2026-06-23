@@ -56,13 +56,38 @@ export default function ReconciliationPage() {
     enabled: !!companyId,
     refetchInterval: 30_000,
   });
+  // 이미 정산완료된 세금계산서에 대한 stale 추천 제외 — generate_settlement_suggestions 가
+  //   확정 이후에도 같은 송장에 새 제안을 만들 수 있어, 완납 송장의 추천이 큐에 다시 뜨던 문제 방어.
+  const queueInvIds = useMemo(
+    () => [...new Set((queueRaw as QueueRow[]).map((m) => m.tax_invoice_id).filter(Boolean))],
+    [queueRaw],
+  );
+  const { data: settledInvSet } = useQuery<Set<string>>({
+    queryKey: ["queue-settled-inv", companyId, queueInvIds.join(",")],
+    queryFn: async () => {
+      if (!queueInvIds.length) return new Set<string>();
+      const { data } = await db.from("tax_invoices")
+        .select("id, total_amount, settled_amount, settlement_status")
+        .in("id", queueInvIds);
+      const s = new Set<string>();
+      for (const i of ((data || []) as any[])) {
+        const total = Math.abs(Number(i.total_amount || 0));
+        const settled = Math.abs(Number(i.settled_amount || 0));
+        if (i.settlement_status === "settled" || (total > 0 && settled >= total - 1)) s.add(i.id);
+      }
+      return s;
+    },
+    enabled: !!companyId && queueInvIds.length > 0,
+  });
+
   // 큐도 상단 기간(engStart~engEnd)으로 필터 — 거래일(통장)과 계산서 발행일이 "둘 다" 기간 내여야 표시.
   //   이전엔 거래일만 봐서, 기간 내 입금이 기간 밖(예: 2025년) 계산서에 매칭된 제안이 계속 떴음.
   //   날짜 없는 값(차액 마감 등)은 해당 날짜 기준으로는 숨기지 않는다.
   const queue = useMemo(() => {
     const inPeriod = (d?: string | null) => !d || (d >= engStart && d <= engEnd);
-    return (queueRaw as QueueRow[]).filter((m) => inPeriod(m.transaction_date) && inPeriod(m.issue_date));
-  }, [queueRaw, engStart, engEnd]);
+    return (queueRaw as QueueRow[]).filter((m) =>
+      inPeriod(m.transaction_date) && inPeriod(m.issue_date) && !settledInvSet?.has(m.tax_invoice_id));
+  }, [queueRaw, engStart, engEnd, settledInvSet]);
 
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
     queryKey: ["settlement-confirmed", companyId],
