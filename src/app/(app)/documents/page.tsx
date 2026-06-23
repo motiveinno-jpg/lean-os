@@ -2383,15 +2383,15 @@ function DocumentsPageInner() {
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
-                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="text-left px-5 py-3 font-medium">문서</th>
-                    <th className="text-left px-5 py-3 font-medium">서명자</th>
-                    <th className="text-left px-5 py-3 font-medium">이메일</th>
-                    <th className="text-center px-5 py-3 font-medium">상태</th>
-                    <th className="text-left px-5 py-3 font-medium">발송일</th>
-                    <th className="text-left px-5 py-3 font-medium">서명일</th>
-                    <th className="text-left px-5 py-3 font-medium">만료일</th>
-                    <th className="text-center px-5 py-3 font-medium">액션</th>
+                  <tr className="text-[11px] uppercase tracking-wide text-[var(--text-dim)]">
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">문서</th>
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명자</th>
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">이메일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">상태</th>
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">발송일</th>
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명일</th>
+                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">만료일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)] min-w-[150px]">액션</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2410,21 +2410,20 @@ function DocumentsPageInner() {
                             {sig.title || sig.documents?.name || "--"}
                           </button>
                         </td>
-                        <td className="px-5 py-3 text-sm">{sig.signer_name}</td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{sig.signer_email}</td>
+                        <td className="px-5 py-3 text-sm whitespace-nowrap">{sig.signer_name}</td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-muted)] whitespace-nowrap">{sig.signer_email}</td>
                         <td className="px-5 py-3 text-center">
-                          <span className={`text-xs px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 ${si.bg} ${si.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${si.dot}`} />
+                          <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ring-1 ring-inset ring-black/[0.04] dark:ring-white/10 ${si.bg} ${si.text}`}>
                             {isExpired && sig.status !== 'expired' ? '만료' : si.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
                           {sig.sent_at ? new Date(sig.sent_at).toLocaleDateString("ko") : "--"}
                         </td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
                           {sig.signed_at ? new Date(sig.signed_at).toLocaleDateString("ko") : "--"}
                         </td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
                           {sig.expires_at ? (
                             <span className={isExpired ? "text-red-400 font-medium" : ""}>
                               {new Date(sig.expires_at).toLocaleDateString("ko")}
@@ -2432,7 +2431,7 @@ function DocumentsPageInner() {
                           ) : "--"}
                         </td>
                         <td className="px-5 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-nowrap items-center justify-center gap-2 whitespace-nowrap">
                             {(sig.status === 'sent' || sig.status === 'viewed') && signingId !== sig.id && (
                               <button
                                 onClick={() => { setSigningId(sig.id); setSignTypeName(sig.signer_name || ""); }}
