@@ -352,7 +352,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           <div className="flex gap-2">
             <button onClick={() => Number(form.amount) > 0 && createMut.mutate()}
               disabled={!form.amount || createMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">등록</button>
+              className="btn-primary">등록</button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
@@ -1469,7 +1469,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           <div className="flex gap-2">
             <button onClick={() => form.name && form.amount && saveMut.mutate()}
               disabled={!form.name || !form.amount || saveMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? '수정 저장' : '등록'}</button>
+              className="btn-primary">{editingId ? '수정 저장' : '등록'}</button>
             <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
@@ -2129,7 +2129,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
           <div className="flex gap-2">
             <button onClick={() => form.title && form.amount && createMut.mutate()}
               disabled={!form.title || !form.amount || createMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+              className="btn-primary">
               {requestType === 'expense' ? '지출결의서 제출' : '품의서 제출'}
             </button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>

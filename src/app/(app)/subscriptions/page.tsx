@@ -256,7 +256,7 @@ export default function SubscriptionsPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!form.serviceName.trim()) return; saveMut.mutate(); }}
               disabled={!form.serviceName.trim() || saveMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+              className="btn-primary">
               {editingId ? "저장" : "추가"}
             </button>
             {editingId && (

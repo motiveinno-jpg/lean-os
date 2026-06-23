@@ -943,7 +943,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="field-input" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="field-input" /></div>
           </div>
-          <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addSalary.isPending ? "등록 중..." : "등록"}</button>
+          <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="btn-primary">{addSalary.isPending ? "등록 중..." : "등록"}</button>
         </div>
       )}
 
@@ -1138,7 +1138,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
               ))}
             </div>
           </div>
-          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending || uploading} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{addExpense.isPending || uploading ? "처리 중..." : "청구"}</button>
+          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending || uploading} className="btn-primary">{addExpense.isPending || uploading ? "처리 중..." : "청구"}</button>
         </div>
       )}
 
@@ -3388,7 +3388,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
           <button
             onClick={() => form.employeeId && form.startDate && !(form.endDate && form.endDate < form.startDate) && createLeave.mutate()}
             disabled={!form.employeeId || !form.startDate || (!!form.endDate && form.endDate < form.startDate) || createLeave.isPending}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+            className="btn-primary"
           >
             {createLeave.isPending ? "처리 중..." : `신청 (${(() => {
               const unit = form.leaveUnit;

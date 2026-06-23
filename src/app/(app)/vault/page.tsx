@@ -737,7 +737,7 @@ export default function VaultPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => { if (!accForm.serviceName.trim()) return; if (editingId) updateAccMut.mutate(); else createAccMut.mutate(); }} disabled={!accForm.serviceName.trim() || createAccMut.isPending || updateAccMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+              className="btn-primary">{editingId ? "저장" : "추가"}</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
         </div>
@@ -812,7 +812,7 @@ export default function VaultPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => { if (!assetForm.name.trim()) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name.trim() || createAssetMut.isPending || updateAssetMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+              className="btn-primary">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 자산을 삭제하시겠습니까?")) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
               className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
@@ -886,7 +886,7 @@ export default function VaultPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => { if (!docForm.name.trim()) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name.trim() || createDocMut.isPending || updateDocMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50">{editingId ? "저장" : "추가"}</button>
+              className="btn-primary">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 문서를 삭제하시겠습니까?")) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
               className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
