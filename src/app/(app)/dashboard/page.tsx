@@ -821,8 +821,10 @@ function MyTodosWidget({ userId }: { userId: string }) {
   const { toast } = useToast();
   const [toggling, setToggling] = useState<string | null>(null);
 
+  // /schedule TodoTab 과 '동일 쿼리키'로 단일 캐시 공유 → 한쪽에서 추가/완료 시 대시보드도 즉시 동기화.
+  //   (이전엔 키가 달라 /schedule 엔 보여도 대시보드는 빈 채로 남았음)
   const { data: todos = [] } = useQuery({
-    queryKey: ["dashboard-my-todos", userId],
+    queryKey: ["schedule-todos", userId, false],
     queryFn: () => getTodos(userId, { includeDone: false }),
     enabled: !!userId,
     refetchInterval: 60_000,
@@ -832,7 +834,7 @@ function MyTodosWidget({ userId }: { userId: string }) {
     setToggling(t.id);
     try {
       await toggleTodoDone(t.id, true);
-      queryClient.invalidateQueries({ queryKey: ["dashboard-my-todos"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
       toast("할일 완료 처리", "success");
     } catch (err: any) {
       toast(friendlyError(err, "처리에 실패했습니다"), "error");

@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTabParam } from "@/lib/use-tab-param";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getDeals, getCompanyUsers } from "@/lib/queries";
@@ -369,7 +370,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   const [filterManager, setFilterManager] = useState<string>("");
   const [filterPartner, setFilterPartner] = useState<string>("");
   const [filterClass, setFilterClass] = useState<string>("all"); // 전체 / B2B / B2C / B2G
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useTabParam<"kanban" | "list">("kanban", { key: "view", valid: ["kanban", "list"] });
 
   // 필터 적용
   const filteredCards: ProjectCard[] = useMemo(() => {

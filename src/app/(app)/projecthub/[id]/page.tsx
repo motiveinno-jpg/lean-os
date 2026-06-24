@@ -15,6 +15,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { createFromTemplate } from "@/lib/documents";
 import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
+import { useTabParam } from "@/lib/use-tab-param";
 import { SubDealsTab } from "./_components/SubDealsTab";
 
 const db = supabase as any;
@@ -97,7 +98,7 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params?.id || "");
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useTabParam<TabKey>("overview", { valid: ["overview", "quote", "contract", "subdeals", "subprojects", "pnl"] });
   // 세부 프로젝트(캠페인) 추가 폼 — 금액은 생성 후 '매출/매입 관리'에서 입력
   const [showChildForm, setShowChildForm] = useState(false);
   const [childName, setChildName] = useState("");

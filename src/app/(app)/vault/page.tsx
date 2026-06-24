@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTabParam } from "@/lib/use-tab-param";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -75,7 +76,7 @@ export default function VaultPage() {
   const router = useRouter();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("assets");
+  const [tab, setTab] = useTabParam<Tab>("assets", { valid: ["accounts", "assets", "docs", "discovery"] });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fileUploading, setFileUploading] = useState(false);

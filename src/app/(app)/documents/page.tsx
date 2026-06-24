@@ -5,6 +5,7 @@ import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTabParam } from "@/lib/use-tab-param";
 
 // 2026-05-22 문서 본문에 글자 서식 + PDF 페이지 이미지 삽입 (사장님 요청).
 const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
@@ -1346,7 +1347,7 @@ function DocumentsPageInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("docs");
+  const [tab, setTab] = useTabParam<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("docs", { valid: ["docs", "contracts", "invoices", "signatures", "files", "templates"] });
   const [showDocForm, setShowDocForm] = useState(false);
   const [showInvForm, setShowInvForm] = useState(false);
   const [showSignForm, setShowSignForm] = useState(false);
