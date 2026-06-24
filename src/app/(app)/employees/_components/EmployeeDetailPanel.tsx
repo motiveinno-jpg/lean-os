@@ -11,7 +11,7 @@ import { generateEmploymentCertificate, generateCareerCertificate, saveCertifica
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
-import { GRANTABLE_TABS, EMPLOYEE_BASE_ROUTES, getUserTabAccess, grantTab, revokeTab } from "@/lib/tab-access";
+import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
 
 // ── Employee Detail Panel ──
 export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
@@ -1201,13 +1201,13 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
-  const { data: granted } = useQuery<Set<string>>({
+  const { data: overrides } = useQuery<Map<string, boolean>>({
     queryKey: ["user-tab-access", targetUserId],
     queryFn: () => getUserTabAccess(targetUserId!),
     enabled: !!targetUserId,
   });
-  const grantedSet = granted ?? new Set<string>();
-  // 대상 계정 역할 — 관리자/대표면 전체 접근(부여 무관)
+  const overrideMap = overrides ?? new Map<string, boolean>();
+  // 대상 계정 역할 — 대표(owner)는 항상 전체 접근(끌 수 없음). 관리자/직원은 기본 켜진 것도 끌 수 있음.
   const { data: targetRole } = useQuery<string | null>({
     queryKey: ["target-user-role", targetUserId],
     queryFn: async () => {
@@ -1216,7 +1216,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
     },
     enabled: !!targetUserId,
   });
-  const isPrivileged = targetRole === "owner" || targetRole === "admin";
+  const isOwner = targetRole === "owner";
 
   if (!targetUserId) {
     return (
@@ -1227,11 +1227,10 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
     );
   }
 
-  const toggle = async (route: string, on: boolean) => {
+  const toggle = async (route: string, nextOn: boolean) => {
     setBusy(route);
     try {
-      if (on) await grantTab(companyId, targetUserId, route, grantedBy);
-      else await revokeTab(targetUserId, route);
+      await setTabAccess(companyId, targetUserId, route, nextOn, grantedBy);
       qc.invalidateQueries({ queryKey: ["user-tab-access", targetUserId] });
       qc.invalidateQueries({ queryKey: ["my-tab-access"] });
     } catch (e: any) { toast(e?.message || "변경 실패", "error"); }
@@ -1242,10 +1241,10 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
   return (
     <div className="space-y-4">
       <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-        {isPrivileged ? (
-          <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">관리자/대표</b>라 모든 탭에 접근합니다(개별 부여 불필요).</>
+        {isOwner ? (
+          <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">대표</b>라 모든 탭에 접근합니다(끌 수 없음).</>
         ) : (
-          <><b className="text-[var(--text)]">{empName}</b> 님이 접근할 탭을 켜 주세요. 켜진 탭만 열람·사용할 수 있습니다. <span className="text-[var(--text-dim)]">(잠금🔒은 기본 제공 탭 — 항상 접근)</span></>
+          <><b className="text-[var(--text)]">{empName}</b> 님의 탭 접근을 켜고/끌 수 있습니다. 기본 켜진 탭(관리자·기본 제공)도 끄면 접근이 차단됩니다.</>
         )}
       </p>
       {groups.map((g) => (
@@ -1253,11 +1252,11 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
           <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g}</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {GRANTABLE_TABS.filter((t) => t.group === g).map((t) => {
-              const locked = isPrivileged || EMPLOYEE_BASE_ROUTES.has(t.route); // 항상 접근(끌 수 없음)
-              const on = locked || grantedSet.has(t.route);
+              const on = effectiveTabAccess(t.route, targetRole, overrideMap);
+              const locked = isOwner; // 대표만 잠금(끌 수 없음). 관리자/직원은 기본도 토글 가능.
               return (
                 <button key={t.route} disabled={locked || busy === t.route} onClick={() => { if (!locked) toggle(t.route, !on); }}
-                  title={locked ? (isPrivileged ? "관리자/대표 — 전체 접근" : "기본 제공 탭 — 항상 접근") : ""}
+                  title={locked ? "대표 — 전체 접근" : ""}
                   className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition ${locked ? "opacity-90 cursor-default" : "disabled:opacity-50"} ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
                   <span className="truncate">{locked && "🔒 "}{t.label}</span>
                   <span className={`shrink-0 w-7 h-4 rounded-full relative transition ${on ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>

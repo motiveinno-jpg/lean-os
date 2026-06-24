@@ -49,47 +49,55 @@ export function matchGrantableRoute(pathname: string): string | null {
   return best;
 }
 
-// 현재 사용자가 부여받은 라우트 집합 (owner/admin 은 의미 없음 — 항상 전체 허용)
-export function useMyGrantedRoutes(): { routes: Set<string>; loading: boolean } {
+// 현재 사용자의 명시 오버라이드 맵 (route → allowed). 행 없으면 기본값 적용.
+//   owner 는 항상 전체 접근(쿼리 생략).
+export function useMyTabOverrides(): { map: Map<string, boolean>; loading: boolean } {
   const { user } = useUser();
   const userId = user?.id ?? null;
-  const isPrivileged = user?.role === "owner" || user?.role === "admin";
+  const isOwner = user?.role === "owner";
   const { data, isLoading } = useQuery({
     queryKey: ["my-tab-access", userId],
     queryFn: async () => {
-      const { data } = await db.from("user_tab_access").select("route").eq("user_id", userId);
-      return new Set<string>((data || []).map((r: any) => r.route as string));
+      const { data } = await db.from("user_tab_access").select("route, allowed").eq("user_id", userId);
+      const m = new Map<string, boolean>();
+      for (const r of (data || [])) m.set(r.route as string, (r as any).allowed !== false);
+      return m;
     },
-    enabled: !!userId && !isPrivileged,
+    enabled: !!userId && !isOwner,
     staleTime: 60_000,
   });
-  return { routes: data ?? new Set<string>(), loading: !!userId && !isPrivileged && isLoading };
+  return { map: data ?? new Map<string, boolean>(), loading: !!userId && !isOwner && isLoading };
+}
+
+// 실효 접근 판정: owner=항상, 명시행 있으면 그 값, 없으면 기본(admin=전체 / 직원=기본제공만).
+export function effectiveTabAccess(route: string, role: string | null | undefined, overrides: Map<string, boolean>): boolean {
+  if (role === "owner") return true;
+  if (overrides.has(route)) return overrides.get(route)!;
+  if (role === "admin") return true;
+  return EMPLOYEE_BASE_ROUTES.has(route);
 }
 
 // 페이지 가드용 — 이 route 접근 가능?
 export function useCanAccessTab(route: string): { allowed: boolean; loading: boolean } {
   const { user } = useUser();
-  const isPrivileged = user?.role === "owner" || user?.role === "admin";
-  const { routes, loading } = useMyGrantedRoutes();
-  if (isPrivileged) return { allowed: true, loading: false };
-  return { allowed: routes.has(route), loading };
+  const { map, loading } = useMyTabOverrides();
+  if (user?.role === "owner") return { allowed: true, loading: false };
+  return { allowed: effectiveTabAccess(route, user?.role, map), loading };
 }
 
-// 특정 직원의 부여 목록(관리자 부여 UI용)
-export async function getUserTabAccess(userId: string): Promise<Set<string>> {
-  const { data } = await db.from("user_tab_access").select("route").eq("user_id", userId);
-  return new Set<string>((data || []).map((r: any) => r.route as string));
+// 특정 직원의 명시 오버라이드(관리자 부여 UI용)
+export async function getUserTabAccess(userId: string): Promise<Map<string, boolean>> {
+  const { data } = await db.from("user_tab_access").select("route, allowed").eq("user_id", userId);
+  const m = new Map<string, boolean>();
+  for (const r of (data || [])) m.set(r.route as string, (r as any).allowed !== false);
+  return m;
 }
 
-export async function grantTab(companyId: string, userId: string, route: string, grantedBy: string) {
+// 명시 허용/차단 설정(upsert). allowed=true 허용, false 차단(기본 켜진 것도 끌 수 있음).
+export async function setTabAccess(companyId: string, userId: string, route: string, allowed: boolean, grantedBy: string) {
   const { error } = await db.from("user_tab_access").upsert(
-    { company_id: companyId, user_id: userId, route, granted_by: grantedBy },
+    { company_id: companyId, user_id: userId, route, allowed, granted_by: grantedBy },
     { onConflict: "user_id,route" },
   );
-  if (error) throw new Error(error.message);
-}
-
-export async function revokeTab(userId: string, route: string) {
-  const { error } = await db.from("user_tab_access").delete().eq("user_id", userId).eq("route", route);
   if (error) throw new Error(error.message);
 }

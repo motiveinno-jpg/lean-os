@@ -15,7 +15,7 @@ import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
-import { useMyGrantedRoutes, matchGrantableRoute } from "@/lib/tab-access";
+import { useMyTabOverrides, effectiveTabAccess, matchGrantableRoute } from "@/lib/tab-access";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -118,8 +118,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   const { role, user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
-  // 직원이 관리자가 부여한 탭에 접근 가능한지 — 부여 라우트 집합
-  const { routes: grantedRoutes, loading: grantsLoading } = useMyGrantedRoutes();
+  // 탭 권한 명시 오버라이드(허용/차단). 실효 접근 판정에 사용(관리자도 명시 차단 가능).
+  const { map: tabOverrides, loading: grantsLoading } = useMyTabOverrides();
 
   // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
@@ -142,34 +142,33 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (loading) return;
+    if (role === "owner") return; // 대표 전체 접근
+    if (matchGrantableRoute(pathname)) return; // 부여 대상 → 화면에서 처리(차단 안내/허용)
     const allowed = ROLE_ALLOWED_ROUTES[role];
-    if (!allowed) return; // owner/admin → 전체 접근
+    if (!allowed) return; // admin → (부여대상 외) 전체 접근
     const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
-    if (inBase) return;
-    // 부여 가능한 탭이면 리다이렉트 대신 화면에서 처리(접근 차단 안내 or 허용). 그 외만 대시보드로.
-    if (matchGrantableRoute(pathname)) return;
-    router.replace("/dashboard");
+    if (!inBase) router.replace("/dashboard"); // employee/partner 비허용 경로
   }, [role, pathname, loading, router]);
 
   // 로딩 중이면 렌더링 차단 (비허용 페이지 깜빡임 방지)
   if (loading) return null;
+  if (role === "owner") return <>{children}</>;
 
+  // 부여 대상 라우트 — 실효 접근(명시 차단 시 관리자도 차단) 판정
+  const grantable = matchGrantableRoute(pathname);
+  if (grantable) {
+    if (grantsLoading) return null;
+    if (!effectiveTabAccess(grantable, role, tabOverrides)) {
+      return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
+    }
+    return <>{children}</>;
+  }
+
+  // 그 외: employee/partner 기본 허용목록 밖이면 차단
   const allowed = ROLE_ALLOWED_ROUTES[role];
   if (allowed) {
     const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
-    if (!inBase) {
-      const grantable = matchGrantableRoute(pathname);
-      if (grantable) {
-        // 직원: 탭은 보이되 부여된 라우트만 접근. 미부여면 접근 차단 안내.
-        if (grantsLoading) return null;
-        if (!grantedRoutes.has(grantable)) {
-          return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
-        }
-        // 부여됨 → 통과(아래 children 렌더)
-      } else {
-        return null; // 비허용·비부여 경로 → 리다이렉트 효과가 처리
-      }
-    }
+    if (!inBase) return null;
   }
 
   return <>{children}</>;
