@@ -2800,6 +2800,28 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     enabled: !!employeeId,
   });
 
+  // 회사 표준 근무시간 — 게이지 기준(미설정 시 8시간)
+  const { data: workSettings } = useQuery({
+    queryKey: ["emp-work-settings", companyId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("company_settings")
+        .select("work_start_time, work_end_time, lunch_minutes")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      return data as { work_start_time: string | null; work_end_time: string | null; lunch_minutes: number | null } | null;
+    },
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+  });
+  // 일 표준 근무(분) = (종료 − 시작) − 점심. 미설정/이상치면 480분(8시간).
+  const dailyStdMin = useMemo(() => {
+    const toMin = (t?: string | null) => { if (!t) return null; const [h, m] = t.split(":").map(Number); return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null; };
+    const ws = toMin(workSettings?.work_start_time), we = toMin(workSettings?.work_end_time);
+    if (ws != null && we != null && we > ws) return Math.max(60, (we - ws) - Number(workSettings?.lunch_minutes || 0));
+    return 480;
+  }, [workSettings]);
+
   // 휴가 잔여
   const { data: leaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
@@ -3054,8 +3076,8 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               </button>
             ) : !isCheckedOut ? (
               (() => {
-                // 근무시간 게이지 — 8시간(480분) 기준. 8h 까지는 기본색, 초과(연장)분부터 주황색으로 차오름.
-                const stdMin = 480;
+                // 근무시간 게이지 — 회사 표준 근무시간 기준(설정 없으면 8시간). 표준까지 기본색, 초과(연장)분부터 주황색.
+                const stdMin = dailyStdMin;
                 const startMs = todayAttendance?.check_in ? new Date(todayAttendance.check_in).getTime() : Date.now();
                 const elapsedMin = Math.max(0, Math.floor((Date.now() - startMs) / 60000));
                 const maxMin = Math.max(elapsedMin, stdMin);
@@ -3063,10 +3085,12 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                 const otMin = Math.max(0, elapsedMin - stdMin);
                 const otPct = (otMin / maxMin) * 100;
                 const h = Math.floor(elapsedMin / 60), m = elapsedMin % 60;
+                const sh = Math.floor(stdMin / 60), sm = stdMin % 60;
+                const stdLabel = sm > 0 ? `${sh}시간 ${sm}분` : `${sh}시간`;
                 return (
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1.5 text-[11px]">
-                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{h}시간 {m}분</b> <span className="text-[var(--text-dim)]">/ 8시간</span></span>
+                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{h}시간 {m}분</b> <span className="text-[var(--text-dim)]">/ {stdLabel}</span></span>
                       {otMin > 0 && <span className="text-orange-500 font-bold">연장 +{Math.floor(otMin / 60)}시간 {otMin % 60}분</span>}
                     </div>
                     <div className="h-3 rounded-full bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden flex">
