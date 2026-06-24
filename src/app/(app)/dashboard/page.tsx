@@ -30,7 +30,7 @@ import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
-import { getTodos, toggleTodoDone, PRIORITY_LABEL, type ScheduleTodo } from "@/lib/schedule";
+import { getTodos, toggleTodoDone, PRIORITY_LABEL, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
@@ -668,7 +668,7 @@ export default function DashboardPage() {
       {/* ═══ ③ 월결산 + 내 할일 — 월결산 위젯 재마운트 (마운트가 끊겨 있었음) ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start mt-4">
         <ClosingChecklistWidget companyId={companyId} userId={userId} />
-        {userId && <MyTodosWidget userId={userId} />}
+        {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
       </div>
 
       </>)}
@@ -816,8 +816,8 @@ function SummaryKpisWidget({
   );
 }
 
-// ── 내 할일 위젯: schedule_todos 를 사용자별로 read (RLS: manage own todos) ──
-function MyTodosWidget({ userId }: { userId: string }) {
+// ── 내 할일 위젯: schedule_todos + 캘린더 일정(다가오는 것) 통합 ──
+function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: string | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [toggling, setToggling] = useState<string | null>(null);
@@ -829,6 +829,15 @@ function MyTodosWidget({ userId }: { userId: string }) {
     queryFn: () => getTodos(userId, { includeDone: false }),
     enabled: !!userId,
     refetchInterval: 60_000,
+  });
+
+  // 캘린더 일정(이번 달, 공유+개인) — 다가오는 일정도 할일 위젯에 표시
+  const now = new Date();
+  const { data: events = [] } = useQuery({
+    queryKey: ["schedule-events", companyId, now.getFullYear(), now.getMonth(), "both", userId],
+    queryFn: () => getMonthEvents(companyId!, now.getFullYear(), now.getMonth(), { scope: "both", userId }),
+    enabled: !!companyId && !!userId,
+    staleTime: 60_000,
   });
 
   const handleToggle = async (t: ScheduleTodo) => {
@@ -844,6 +853,14 @@ function MyTodosWidget({ userId }: { userId: string }) {
   };
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const startOfTodayIso = today.toISOString();
+  // 다가오는 일정(완료 제외, 오늘 이후) — 캘린더 내용도 위젯에 통합
+  const upcomingEvents = (events as any[]).filter((e) => !e.completed && (e.end_at ?? e.start_at) >= startOfTodayIso);
+  // 할일 + 일정 통합 목록(날짜순)
+  const items: { kind: "todo" | "event"; id: string; title: string; date: string | null; raw: any }[] = [
+    ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
+    ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
+  ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 
   return (
     <div className="mb-5">
@@ -851,10 +868,10 @@ function MyTodosWidget({ userId }: { userId: string }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
-          <h2 className="eyebrow">내 할일</h2>
-          {todos.length > 0 && (
+          <h2 className="eyebrow">내 할일 · 일정</h2>
+          {items.length > 0 && (
             <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-[10px] font-bold px-1.5">
-              {todos.length}
+              {items.length}
             </span>
           )}
         </div>
@@ -863,32 +880,40 @@ function MyTodosWidget({ userId }: { userId: string }) {
         </Link>
       </div>
       <div className="glass-card p-4">
-      {todos.length === 0 ? (
+      {items.length === 0 ? (
         <div className="text-center py-4">
-          <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일이 없습니다.</p>
+          <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일·일정이 없습니다.</p>
           <Link href="/schedule" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] transition">
-            + 할일 추가
+            + 추가
           </Link>
         </div>
       ) : (
         <div className="space-y-1.5">
-          {todos.slice(0, 6).map((t) => {
-            const due = t.due_date ? new Date(t.due_date) : null;
-            const overdue = due ? due < today : false;
-            const pr = PRIORITY_LABEL[t.priority];
+          {items.slice(0, 7).map((it) => {
+            const d = it.date ? new Date(it.date) : null;
+            const overdue = it.kind === "todo" && d ? d < today : false;
+            if (it.kind === "event") {
+              return (
+                <Link key={`ev-${it.id}`} href="/schedule" className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/15 hover:bg-[var(--primary)]/10 transition">
+                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0">📅</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
+                    {d && <div className="text-[10px] text-[var(--text-dim)]">{d.toLocaleDateString("ko-KR")}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
+                  </div>
+                  <span className="text-[9px] font-semibold text-[var(--primary)] flex-shrink-0">일정</span>
+                </Link>
+              );
+            }
+            const pr = PRIORITY_LABEL[it.raw.priority];
             return (
-              <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
-                <button
-                  onClick={() => handleToggle(t)}
-                  disabled={toggling === t.id}
-                  className="w-4 h-4 rounded border border-[var(--border)] flex-shrink-0 hover:border-[var(--primary)] transition disabled:opacity-50"
-                  aria-label="완료 처리"
-                />
+              <div key={`td-${it.id}`} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+                <button onClick={() => handleToggle(it.raw)} disabled={toggling === it.id}
+                  className="w-4 h-4 rounded border border-[var(--border)] flex-shrink-0 hover:border-[var(--primary)] transition disabled:opacity-50" aria-label="완료 처리" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-[var(--text)] truncate">{t.title}</div>
-                  {due && (
+                  <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
+                  {d && (
                     <div className={`text-[10px] ${overdue ? 'text-red-400 font-bold' : 'text-[var(--text-dim)]'}`}>
-                      {overdue ? '기한 지남 · ' : ''}{due.toLocaleDateString("ko-KR")}
+                      {overdue ? '기한 지남 · ' : ''}{d.toLocaleDateString("ko-KR")}
                     </div>
                   )}
                 </div>
@@ -896,9 +921,9 @@ function MyTodosWidget({ userId }: { userId: string }) {
               </div>
             );
           })}
-          {todos.length > 6 && (
+          {items.length > 7 && (
             <div className="text-[10px] text-[var(--text-dim)] text-center pt-1">
-              외 {todos.length - 6}건 더
+              외 {items.length - 7}건 더
             </div>
           )}
         </div>
@@ -3199,7 +3224,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           → 오늘 할 일 카드 바로 아래에 노출해 발견성 확보 */}
       {userId && (
         <div className="mb-4">
-          <MyTodosWidget userId={userId} />
+          <MyTodosWidget userId={userId} companyId={companyId} />
         </div>
       )}
 

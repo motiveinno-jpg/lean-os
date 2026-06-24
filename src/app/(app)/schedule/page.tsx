@@ -107,6 +107,22 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
     return map;
   }, [events]);
 
+  // 날짜 지정한 할 일도 캘린더에 표시 (할 일 탭/대시보드와 동일 쿼리키 — 추가 시 자동 반영)
+  const { data: calTodos = [] } = useQuery({
+    queryKey: ["schedule-todos", userId, false],
+    queryFn: () => getTodos(userId, { includeDone: false }),
+    enabled: !!userId,
+  });
+  const todosByDate = useMemo(() => {
+    const map = new Map<string, typeof calTodos>();
+    for (const t of calTodos) {
+      if (!t.due_date) continue;
+      if (!map.has(t.due_date)) map.set(t.due_date, []);
+      map.get(t.due_date)!.push(t);
+    }
+    return map;
+  }, [calTodos]);
+
   const saveMut = useMutation({
     mutationFn: async (payload: any) => {
       return upsertEvent({
@@ -314,6 +330,18 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                   })}
                   {cellEvents.length > 3 && (
                     <div className="text-[9px] text-[var(--text-dim)] px-1.5">+{cellEvents.length - 3}</div>
+                  )}
+                  {/* 날짜 지정 할 일 — 캘린더에 표시 */}
+                  {(todosByDate.get(dateStr) || []).slice(0, 2).map((t) => (
+                    <div key={`todo-${t.id}`}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/5 text-[var(--primary)] truncate"
+                      title={`할 일: ${t.title}`}>
+                      <span className="shrink-0">✓</span><span className="flex-1 truncate">{t.title}</span>
+                    </div>
+                  ))}
+                  {(todosByDate.get(dateStr) || []).length > 2 && (
+                    <div className="text-[9px] text-[var(--primary)]/70 px-1.5">할일 +{(todosByDate.get(dateStr) || []).length - 2}</div>
                   )}
                 </div>
               </button>
