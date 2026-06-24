@@ -5,6 +5,7 @@
 //   value/onChange/min/max/className/disabled/placeholder/id/name 지원. body 포털로 어디서든 안 잘림.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { getHoliday } from "@/lib/holidays";
 
 type ChangeLike = { target: { value: string } };
 
@@ -74,6 +75,8 @@ export function DateField({
   const cells: (number | null)[] = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const monthHols: { d: number; name: string }[] = [];
+  for (let d = 1; d <= daysInMonth; d++) { const n = getHoliday(ymd(view.y, view.m, d)); if (n) monthHols.push({ d, name: n }); }
   const isDisabled = (d: number) => {
     const v = ymd(view.y, view.m, d);
     if (min && v < min) return true;
@@ -82,6 +85,8 @@ export function DateField({
   };
   const prevMonth = () => setView((v) => v.m === 1 ? { y: v.y - 1, m: 12 } : { y: v.y, m: v.m - 1 });
   const nextMonth = () => setView((v) => v.m === 12 ? { y: v.y + 1, m: 1 } : { y: v.y, m: v.m + 1 });
+  const prevYear = () => setView((v) => ({ y: v.y - 1, m: v.m }));
+  const nextYear = () => setView((v) => ({ y: v.y + 1, m: v.m }));
 
   const popStyle: CSSProperties = pos ? { position: "fixed", top: pos.top, left: pos.left, width: 256, zIndex: 90 } : { display: "none" };
 
@@ -95,10 +100,16 @@ export function DateField({
       {name && <input type="hidden" name={name} value={value || ""} readOnly />}
       {open && typeof document !== "undefined" && createPortal(
         <div id="datefield-pop" style={popStyle} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-2.5 select-none">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <button type="button" onClick={prevMonth} className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">‹</button>
-            <div className="text-sm font-bold text-[var(--text)]">{view.y}년 {view.m}월</div>
-            <button type="button" onClick={nextMonth} className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">›</button>
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            <div className="flex items-center gap-0.5">
+              <button type="button" onClick={prevYear} title="이전 연도" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center text-xs font-bold">«</button>
+              <button type="button" onClick={prevMonth} title="이전 달" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">‹</button>
+            </div>
+            <div className="text-sm font-bold text-[var(--text)] tabular-nums">{view.y}년 {view.m}월</div>
+            <div className="flex items-center gap-0.5">
+              <button type="button" onClick={nextMonth} title="다음 달" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">›</button>
+              <button type="button" onClick={nextYear} title="다음 연도" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center text-xs font-bold">»</button>
+            </div>
           </div>
           <div className="grid grid-cols-7 gap-0.5 mb-1">
             {WD.map((w, i) => (
@@ -109,19 +120,27 @@ export function DateField({
             {cells.map((d, i) => {
               if (d === null) return <div key={`e${i}`} />;
               const dow = (startDow + d - 1) % 7;
+              const dayStr = ymd(view.y, view.m, d);
+              const holiday = getHoliday(dayStr);
               const isSel = sel && sel.y === view.y && sel.m === view.m && sel.d === d;
               const isToday = today.getFullYear() === view.y && today.getMonth() + 1 === view.m && today.getDate() === d;
               const dis = isDisabled(d);
               return (
-                <button key={d} type="button" disabled={dis} onClick={() => emit(ymd(view.y, view.m, d))}
-                  className={`h-7 rounded-lg text-xs font-medium transition flex items-center justify-center
-                    ${isSel ? "bg-[var(--primary)] text-white font-bold" : dis ? "text-[var(--text-dim)]/40 cursor-not-allowed" : `hover:bg-[var(--bg-surface)] ${dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-[var(--text)]"}`}
+                <button key={d} type="button" disabled={dis} onClick={() => emit(dayStr)} title={holiday || undefined}
+                  className={`relative h-7 rounded-lg text-xs font-medium transition flex items-center justify-center
+                    ${isSel ? "bg-[var(--primary)] text-white font-bold" : dis ? "text-[var(--text-dim)]/40 cursor-not-allowed" : `hover:bg-[var(--bg-surface)] ${(dow === 0 || holiday) ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-[var(--text)]"}`}
                     ${isToday && !isSel ? "ring-1 ring-inset ring-[var(--primary)]/50" : ""}`}>
                   {d}
+                  {holiday && !isSel && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-400" />}
                 </button>
               );
             })}
           </div>
+          {monthHols.length > 0 && (
+            <div className="mt-1.5 px-1 text-[10px] leading-snug text-red-400/90">
+              {monthHols.map((h) => `${h.d}일 ${h.name}`).join("  ·  ")}
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)]/60">
             <button type="button" onClick={() => emit("")} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1.5 py-1">지우기</button>
             <button type="button" onClick={() => emit(ymd(today.getFullYear(), today.getMonth() + 1, today.getDate()))} className="text-[11px] font-semibold text-[var(--primary)] hover:underline px-1.5 py-1">오늘</button>
