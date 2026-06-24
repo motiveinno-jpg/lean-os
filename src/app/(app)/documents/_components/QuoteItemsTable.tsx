@@ -178,7 +178,7 @@ export function QuoteItemsTable({
           </tbody>
           <tfoot>
             <tr className="bg-[var(--bg-surface)] font-bold text-[var(--text)] border-t-2 border-[var(--border)]">
-              <td className="px-2 py-2 text-center">∑</td>
+              <td className="px-2 py-2 text-center">합계</td>
               {cols.map((c) => (
                 <td key={c.key} className={`px-3 py-2 ${c.type === "text" ? "" : "text-right mono-number"}`}>
                   {c.type === "number" || c.type === "calc" ? fmt(sums[c.key]) : ""}
