@@ -122,37 +122,50 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
   if (!emp) return null;
 
   return (
-    <div className="mt-4 glass-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold text-lg">
-            {emp.name?.charAt(0)}
+    <div className="glass-card overflow-hidden shadow-2xl">
+      {/* Header — 그라데이션 + 아바타 + 상태배지 */}
+      <div className="relative px-6 py-5 border-b border-[var(--border)]"
+        style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--bg-card)) 0%, var(--bg-card) 72%)" }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg"
+              style={{ background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 55%, #000))" }}>
+              {emp.name?.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg font-extrabold text-[var(--text)] truncate">{emp.name}</span>
+                {["active", "joined"].includes(emp.status)
+                  ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)]">재직</span>
+                  : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)]">퇴직</span>}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                {emp.department && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">{emp.department}</span>}
+                {emp.position && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">{emp.position}</span>}
+                {emp.employee_number && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-dim)] mono-number">#{emp.employee_number}</span>}
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-sm font-bold">{emp.name}</div>
-            <div className="text-xs text-[var(--text-dim)]">{emp.department || ""} {emp.position || ""}</div>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isEditing && detailTab === "info" && (
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-lg transition">
+                ✏ 수정
+              </button>
+            )}
+            {emp.status !== "inactive" && emp.status !== "resigned" && (
+              <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[11px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
+                퇴사 처리
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isEditing && detailTab === "info" && (
-            <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[10px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition">
-              수정
-            </button>
-          )}
-          {emp.status !== "inactive" && emp.status !== "resigned" && (
-            <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
-              퇴사 처리
-            </button>
-          )}
-          <button onClick={onClose} className="p-1.5 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] transition">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
         </div>
       </div>
 
-      {/* Detail Tabs */}
-      <div className="flex gap-1 px-4 pt-3 pb-0 overflow-x-auto scrollbar-hide">
+      {/* Detail Tabs — 언더라인 스타일 */}
+      <div className="flex gap-0.5 px-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide bg-[var(--bg-card)]">
         {[
           { key: "info", label: "정보" },
           { key: "contracts", label: "계약서" },
@@ -163,13 +176,14 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           { key: "history", label: "발령" },
         ].map((t) => (
           <button key={t.key} onClick={() => setDetailTab(t.key as any)}
-            className={`px-3 py-2 rounded-t-lg text-xs font-semibold transition whitespace-nowrap ${detailTab === t.key ? "bg-[var(--bg-surface)] text-[var(--text)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+            className={`relative px-3.5 py-3 text-xs font-semibold transition whitespace-nowrap ${detailTab === t.key ? "text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
             {t.label}
+            {detailTab === t.key && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-[var(--primary)]" />}
           </button>
         ))}
       </div>
 
-      <div className="p-5 bg-[var(--bg-surface)] rounded-b-xl">
+      <div className="p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
           <div className="space-y-5">
