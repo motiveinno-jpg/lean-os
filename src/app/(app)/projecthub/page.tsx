@@ -26,6 +26,8 @@ export default function ProjectHubPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [editDeal, setEditDeal] = useState<any | null>(null);
+  const [delDeal, setDelDeal] = useState<any | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["projecthub-deals", companyId],
@@ -163,12 +165,42 @@ export default function ProjectHubPage() {
       </div>
 
       {showCreate && companyId && (
-        <CreateProjectModal
+        <ProjectFormModal
           companyId={companyId}
           partners={partners as any[]}
           users={users as any[]}
           onClose={() => setShowCreate(false)}
-          onCreated={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}`); }}
+          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}`); }}
+        />
+      )}
+
+      {editDeal && companyId && (
+        <ProjectFormModal
+          companyId={companyId}
+          partners={partners as any[]}
+          users={users as any[]}
+          editDeal={editDeal}
+          onClose={() => setEditDeal(null)}
+          onSaved={() => {
+            setEditDeal(null);
+            qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+            qc.invalidateQueries({ queryKey: ["deals"] });
+            qc.invalidateQueries({ queryKey: ["projects-deals"] });
+          }}
+        />
+      )}
+
+      {delDeal && (
+        <DeleteProjectModal
+          deal={delDeal}
+          companyId={companyId}
+          onClose={() => setDelDeal(null)}
+          onDeleted={() => {
+            setDelDeal(null);
+            qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+            qc.invalidateQueries({ queryKey: ["deals"] });
+            qc.invalidateQueries({ queryKey: ["projects-deals"] });
+          }}
         />
       )}
 
@@ -209,13 +241,14 @@ export default function ProjectHubPage() {
                 {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
                 {sortableTh("progress", "진행률", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]")}
                 {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]")}
+                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[110px]">관리</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+                <tr><td colSpan={10} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
+                <tr><td colSpan={10} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];
@@ -259,6 +292,12 @@ export default function ProjectHubPage() {
                     <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/30 text-[11px]">
                       {fmtDate(d.start_date) || "—"}{d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}
                     </td>
+                    <td className="px-3 py-2 text-center border-l border-[var(--border)]/30 whitespace-nowrap">
+                      <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }}
+                        className="px-2 py-1 text-[11px] font-semibold rounded-md text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition">수정</button>
+                      <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }}
+                        className="ml-1 px-2 py-1 text-[11px] font-semibold rounded-md text-red-400 bg-red-500/10 hover:bg-red-500/20 transition">삭제</button>
+                    </td>
                   </tr>
                 );
               })}
@@ -273,13 +312,20 @@ export default function ProjectHubPage() {
 }
 
 // 프로젝트 생성 모달 — deals 직접 insert (워크플로우 보드와 동일 데이터)
-function CreateProjectModal({ companyId, partners, users, onClose, onCreated }: {
-  companyId: string; partners: any[]; users: any[]; onClose: () => void; onCreated: (id?: string) => void;
+function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSaved }: {
+  companyId: string; partners: any[]; users: any[]; editDeal?: any; onClose: () => void; onSaved: (id?: string) => void;
 }) {
   const { toast } = useToast();
   const db = supabase as any;
+  const isEdit = !!editDeal;
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => editDeal ? {
+    name: editDeal.name || "", partner_id: editDeal.partner_id || "", manager_id: editDeal.internal_manager_id || "",
+    start_date: (editDeal.start_date || "").slice(0, 10), end_date: (editDeal.end_date || "").slice(0, 10),
+    classification: editDeal.classification || "B2B",
+    contract_total: editDeal.contract_total ? Number(editDeal.contract_total).toLocaleString("ko-KR") : "",
+    vatType: "exclude" as "exclude" | "include", // 저장값은 이미 공급가액 → VAT별도로 표시(그대로 저장 시 값 유지)
+  } : {
     name: "", partner_id: "", manager_id: "", start_date: "", end_date: "",
     classification: "B2B", contract_total: "", vatType: "exclude" as "exclude" | "include",
   });
@@ -292,16 +338,27 @@ function CreateProjectModal({ companyId, partners, users, onClose, onCreated }: 
     setSaving(true);
     try {
       const contractAmount = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
-      const { data, error } = await db.from("deals").insert({
-        company_id: companyId, name: form.name.trim(), classification: form.classification,
-        contract_total: contractAmount || 0, status: "active", stage: "estimate",
+      const payload = {
+        name: form.name.trim(), classification: form.classification,
+        contract_total: contractAmount || 0,
         start_date: form.start_date || null, end_date: form.end_date || null,
         partner_id: form.partner_id || null, internal_manager_id: form.manager_id || null,
-      }).select("id").single();
-      if (error) throw new Error(error.message);
-      toast("프로젝트가 생성되었습니다", "success");
-      onCreated(data?.id);
-    } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setSaving(false); }
+      };
+      if (isEdit) {
+        // 단계(stage)·상태(status)는 건드리지 않음 — 기본 정보만 수정
+        const { error } = await db.from("deals").update(payload).eq("id", editDeal.id);
+        if (error) throw new Error(error.message);
+        toast("프로젝트가 수정되었습니다", "success");
+        onSaved();
+      } else {
+        const { data, error } = await db.from("deals").insert({
+          company_id: companyId, status: "active", stage: "estimate", ...payload,
+        }).select("id").single();
+        if (error) throw new Error(error.message);
+        toast("프로젝트가 생성되었습니다", "success");
+        onSaved(data?.id);
+      }
+    } catch (e: any) { toast(e?.message || (isEdit ? "수정 실패" : "생성 실패"), "error"); } finally { setSaving(false); }
   };
 
   const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
@@ -310,7 +367,7 @@ function CreateProjectModal({ companyId, partners, users, onClose, onCreated }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <div className="text-sm font-bold text-[var(--text)]">+ 프로젝트 생성</div>
+          <div className="text-sm font-bold text-[var(--text)]">{isEdit ? "프로젝트 수정" : "+ 프로젝트 생성"}</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
         <div className="p-5 space-y-3">
@@ -365,7 +422,67 @@ function CreateProjectModal({ companyId, partners, users, onClose, onCreated }: 
         <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
           <button onClick={submit} disabled={saving || !form.name.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
-            {saving ? "생성 중..." : "생성"}
+            {saving ? "저장 중..." : isEdit ? "저장" : "생성"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 프로젝트 삭제 모달 — 이름 입력 확인 게이트 + 소프트 삭제(archived_at). 보드 삭제와 동일 정책.
+function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
+  deal: any; companyId: string | null; onClose: () => void; onDeleted: () => void;
+}) {
+  const { toast } = useToast();
+  const db = supabase as any;
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const target = (deal.name || "").trim();
+  const canDelete = typed.trim() === target && target.length > 0;
+
+  const del = async () => {
+    if (!canDelete || busy) return;
+    setBusy(true);
+    try {
+      // 소프트 삭제 — archived_at 만 갱신. getDeals() 는 archived_at IS NULL 만 조회하므로 즉시 사라짐.
+      const { error } = await db.from("deals").update({ archived_at: new Date().toISOString() }).eq("id", deal.id);
+      if (error) throw new Error(error.message);
+      // 감사 로그 (실패해도 비차단) — 보드 삭제와 동일 컬럼 구조
+      try {
+        await db.from("audit_logs").insert({
+          company_id: companyId, entity_type: "deal", entity_id: deal.id, action: "delete",
+          before_json: { archived_at: null, name: deal.name },
+          after_json: { archived_at: new Date().toISOString() },
+          metadata: { soft_delete: true, deal_name: deal.name },
+        });
+      } catch { /* audit 실패 무시 */ }
+      toast("프로젝트가 삭제되었습니다", "success");
+      onDeleted();
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4" onClick={() => !busy && onClose()}>
+      <div className="bg-[var(--bg-card)] border border-red-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="text-sm font-bold text-red-400">프로젝트 삭제</div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            <span className="font-bold text-[var(--text)]">{deal.name || "(이름 없음)"}</span> 프로젝트를 삭제하면 목록·보드 어디에서도 보이지 않습니다. (회계·자식 데이터는 보존되며, 복구 가능)
+          </p>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">확인을 위해 프로젝트명을 입력하세요</label>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={target}
+              className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" autoFocus />
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+          <button onClick={del} disabled={!canDelete || busy} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:opacity-90 disabled:opacity-40">
+            {busy ? "삭제 중..." : "삭제"}
           </button>
         </div>
       </div>
