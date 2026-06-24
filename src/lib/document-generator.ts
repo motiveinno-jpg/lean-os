@@ -347,6 +347,13 @@ export async function generateQuotePDF(params: {
   documentNumber: string;
   companyInfo: CompanyInfo;
   counterparty: string;
+  counterpartyInfo?: {
+    representative?: string;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    address?: string;
+  };
   items: QuoteItem[];
   supplyAmount: number;
   taxAmount: number;
@@ -356,172 +363,186 @@ export async function generateQuotePDF(params: {
   sealUrl?: string;
   managerName?: string;
   managerContact?: string;
+  siteUrl?: string;
+  title?: string;
   bankInfo?: { bankName: string; accountNumber: string; accountHolder?: string };
   deliveryDate?: string;
-  // ── 팩트시트 마케팅 견적서 스타일 추가 파라미터 (하위호환: 미지정 시 기본값) ──
-  title?: string; // 제목 박스 텍스트(문서명). 미지정 시 '견 적 서'
-  siteUrl?: string; // 제안사 사이트 URL 행
-  counterpartyInfo?: {
-    representative?: string;
-    contactName?: string;
-    contactPhone?: string;
-    contactEmail?: string;
-    address?: string;
-  };
 }): Promise<Blob> {
-  // 가로(landscape) A4 — 팩트시트 마케팅 견적서 스타일
+  // 참조 양식(팩트시트 마케팅 견적서) 스타일 — 가로 A4, 주황/살구 테마, 양자 헤더 + 견적가 박스 + 안내 박스
   const doc = new jsPDF('l', 'mm', 'a4');
   await loadKoreanFont(doc);
-  const pageW = doc.internal.pageSize.getWidth();
-  const M = 14;
-  const ORANGE: [number, number, number] = [237, 125, 49];
-  const APRICOT: [number, number, number] = [252, 228, 214];
-  const APRICOT_LT: [number, number, number] = [255, 245, 238];
-  const LINE: [number, number, number] = [222, 211, 200];
-  const INK: [number, number, number] = [45, 45, 45];
+  const pageW = doc.internal.pageSize.getWidth();   // 297mm
+  const M = 14;                                      // 좌우 여백
+  const usableW = pageW - M * 2;                     // 269mm
+  const ORANGE: [number, number, number] = [237, 125, 49];   // 섹션 헤더(견적 의뢰 기업/제안사/견적가)
+  const PEACH: [number, number, number] = [252, 228, 214];   // 라벨 셀 / 품목 헤더 / Total
+  const PEACH_LT: [number, number, number] = [253, 242, 236]; // 하단 안내 박스
+  const DARK: [number, number, number] = [40, 40, 40];       // 본문 텍스트
+  const baseStyles: any = { fontSize: 9, cellPadding: 2.2, font: 'NanumGothic', lineColor: [205, 205, 205], lineWidth: 0.1, textColor: DARK };
   let y = 12;
 
-  // 직인 이미지 미리 로드
-  let sealImg: string | null = null;
-  if (params.sealUrl) { try { sealImg = await loadImage(params.sealUrl); } catch { sealImg = null; } }
-
-  // ── 제목 박스 (테두리 + 중앙 굵은 제목) ──
-  const titleText = (params.title && params.title.trim()) || '견 적 서';
-  doc.setDrawColor(ORANGE[0], ORANGE[1], ORANGE[2]);
+  // ── 제목 박스 ──
+  const titleText = params.title || '견 적 서';
+  doc.setDrawColor(40, 40, 40);
   doc.setLineWidth(0.6);
-  doc.roundedRect(M, y, pageW - M * 2, 13, 1.5, 1.5, 'S');
+  doc.rect(M, y, usableW, 14);
   doc.setFontSize(18);
   setKoreanFont(doc, 'bold');
-  doc.setTextColor(40, 40, 40);
-  doc.text(titleText, pageW / 2, y + 8.6, { align: 'center' });
-  doc.setFontSize(8);
-  setKoreanFont(doc, 'normal');
-  doc.setTextColor(110, 110, 110);
-  doc.text(`견적No. ${params.documentNumber}`, M + 3, y + 8.6);
-  doc.text(`Date. ${new Date().toLocaleDateString('ko-KR')}`, pageW - M - 3, y + 8.6, { align: 'right' });
-  y += 18;
+  doc.setTextColor(20, 20, 20);
+  doc.text(titleText, pageW / 2, y + 9.5, { align: 'center' });
+  y += 14 + 4;
 
-  // ── 양자 헤더 (좌: 견적 의뢰 기업 / 우: 제안사) ──
-  const gap = 6;
-  const halfW = (pageW - M * 2 - gap) / 2;
-  const leftX = M;
-  const rightX = M + halfW + gap;
-  const headerY = y;
+  // ── 견적No. (우측 정렬) — 문서함·목록과 동일한 고정 채번. 혼동 방지 ──
+  if (params.documentNumber && params.documentNumber !== '-') {
+    doc.setFontSize(9);
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(90, 90, 90);
+    doc.text(`견적No. ${params.documentNumber}`, pageW - M, y, { align: 'right' });
+    y += 5;
+  }
+
+  // ── 양자 헤더 (견적 의뢰 기업 | 제안사) ──
+  const colGap = 7;
+  const halfW = (usableW - colGap) / 2;
+  const labelW = 26;
+  const headerStartY = y;
   const ci = params.counterpartyInfo || {};
 
-  const leftRows: string[][] = [
-    ['기업명', params.counterparty || '-'],
-    ['대표자', ci.representative || '-'],
-    ['담당자', ci.contactName || '-'],
-    ['전화', ci.contactPhone || '-'],
-    ['이메일', ci.contactEmail || '-'],
-    ['주소', ci.address || '-'],
-  ];
-  const rightRows: string[][] = [
-    ['상호', params.companyInfo.name || '-'],
-    ['대표자', params.companyInfo.representative || '-'],
-    ['사업자번호', params.companyInfo.businessNumber || '-'],
-    ['전화', params.companyInfo.phone || '-'],
-    ['주소', params.companyInfo.address || '-'],
-  ];
-  if (params.siteUrl) rightRows.push(['사이트', params.siteUrl]);
-  if (params.managerName) rightRows.push(['담당자', params.managerName + (params.managerContact ? ` (${params.managerContact})` : '')]);
-
-  const headerOpts = (rows: string[][], title: string, x: number): any => ({
-    startY: headerY,
-    head: [[{ content: title, colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
-    body: rows,
-    theme: 'grid',
-    styles: { fontSize: 8.3, cellPadding: 2, font: 'NanumGothic', lineColor: LINE, textColor: INK },
-    columnStyles: { 0: { cellWidth: 24, fillColor: APRICOT, fontStyle: 'bold' }, 1: { cellWidth: halfW - 24 } },
-    margin: { left: x, right: pageW - x - halfW },
+  // 좌: 견적 의뢰 기업 (거래처)
+  autoTable(doc, {
+    startY: headerStartY,
+    margin: { left: M },
     tableWidth: halfW,
+    head: [[{ content: '견적 의뢰 기업', colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
+    body: [
+      ['회사명', params.counterparty || '-'],
+      ['대표자', ci.representative || ''],
+      ['담당자', ci.contactName || ''],
+      ['전화번호', ci.contactPhone || ''],
+      ['이메일', ci.contactEmail || ''],
+      ['회사주소', ci.address || ''],
+    ],
+    theme: 'grid',
+    styles: baseStyles,
+    columnStyles: {
+      0: { cellWidth: labelW, fillColor: PEACH, fontStyle: 'bold', halign: 'center' },
+      1: { cellWidth: halfW - labelW },
+    },
   });
-
-  autoTable(doc, headerOpts(leftRows, '견적 의뢰 기업', leftX));
   const leftFinalY = (doc as any).lastAutoTable.finalY;
-  autoTable(doc, headerOpts(rightRows, '제안사', rightX));
+
+  // 우: 제안사 (자사)
+  const rightX = M + halfW + colGap;
+  autoTable(doc, {
+    startY: headerStartY,
+    margin: { left: rightX },
+    tableWidth: halfW,
+    head: [[{ content: '제안사', colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
+    body: [
+      ['회사명', params.companyInfo.name || '-'],
+      ['대표자', params.companyInfo.representative || ''],
+      ['사이트 URL', params.siteUrl || ''],
+      ['담당자', params.managerName || ''],
+      ['전화번호', params.companyInfo.phone || ''],
+      ['이메일', params.managerContact || ''],
+      ['회사주소', params.companyInfo.address || ''],
+    ],
+    theme: 'grid',
+    styles: baseStyles,
+    columnStyles: {
+      0: { cellWidth: labelW, fillColor: PEACH, fontStyle: 'bold', halign: 'center' },
+      1: { cellWidth: halfW - labelW },
+    },
+  });
   const rightFinalY = (doc as any).lastAutoTable.finalY;
 
-  // 직인 — 제안사(우측) 헤더 우상단 오버레이
-  if (sealImg) {
-    try { const s = 18; doc.addImage(sealImg, 'PNG', rightX + halfW - s - 2, headerY + 8, s, s); } catch {}
+  // 직인 오버레이 (제안사 영역 우상단)
+  if (params.sealUrl) {
+    try {
+      const img = await loadImage(params.sealUrl);
+      const s = 24;
+      doc.addImage(img, 'PNG', pageW - M - s - 2, headerStartY + 9, s, s);
+    } catch {
+      console.warn('Seal image load failed, skipping stamp overlay');
+    }
   }
 
   y = Math.max(leftFinalY, rightFinalY) + 6;
 
-  // ── 품목 표 (살구색 헤더 + 그리드 + Total 행) ──
-  const head = [['No', '품목', '규격', '수량', '단가', '공급가액']];
-  const body = params.items.map((it, i) => [
-    String(i + 1), it.name, it.spec || '-', fmtNumber(it.qty), fmtKRW(it.unitPrice), fmtKRW(it.amount),
+  // ── 품목 테이블 (수량·단가 유지) ──
+  const tableHead = [['구분', '품 목', '규 격', '수 량', '단 가', '공급가액']];
+  const tableBody = params.items.map((item, idx) => [
+    String(idx + 1),
+    item.name || '',
+    item.spec || '',
+    fmtNumber(item.qty),
+    fmtKRW(item.unitPrice),
+    fmtKRW(item.amount),
   ]);
+
   autoTable(doc, {
     startY: y,
-    head,
-    body,
+    margin: { left: M, right: M },
+    head: tableHead,
+    body: tableBody,
     foot: [[
-      { content: 'Total (공급가액)', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: APRICOT, textColor: INK } },
-      { content: fmtKRW(params.supplyAmount), styles: { halign: 'right', fontStyle: 'bold', fillColor: APRICOT, textColor: INK } },
+      { content: 'Total', colSpan: 5, styles: { fillColor: PEACH, fontStyle: 'bold', halign: 'center', textColor: DARK } },
+      { content: fmtKRW(params.supplyAmount), styles: { fillColor: PEACH, fontStyle: 'bold', halign: 'right', textColor: DARK } },
     ]],
     theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 2.4, halign: 'center', font: 'NanumGothic', lineColor: LINE, textColor: INK },
-    headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: 'bold', font: 'NanumGothic', halign: 'center' },
-    footStyles: { font: 'NanumGothic' },
+    styles: { ...baseStyles, halign: 'center' },
+    headStyles: { fillColor: PEACH, textColor: DARK, fontStyle: 'bold', halign: 'center', font: 'NanumGothic' },
     columnStyles: {
-      0: { cellWidth: 14 },
+      0: { cellWidth: 16 },
       1: { halign: 'left' },
-      2: { cellWidth: 42 },
-      3: { cellWidth: 22 },
-      4: { cellWidth: 38, halign: 'right' },
+      2: { halign: 'left', cellWidth: 52 },
+      3: { cellWidth: 24, halign: 'right' },
+      4: { cellWidth: 40, halign: 'right' },
       5: { cellWidth: 44, halign: 'right' },
     },
-    margin: { left: M, right: M },
-    alternateRowStyles: { fillColor: [252, 248, 244] },
-  });
-  y = (doc as any).lastAutoTable.finalY + 5;
-
-  // ── 우측 정렬 견적가 박스 (공급가 / 부가세 / 최종금액) ──
-  const priceW = 95;
-  autoTable(doc, {
-    startY: y,
-    body: [
-      ['공급가액', `${fmtKRW(params.supplyAmount)} 원`],
-      ['부가세 (10%)', `${fmtKRW(params.taxAmount)} 원`],
-    ],
-    foot: [[
-      { content: '최종 견적금액', styles: { fillColor: ORANGE, textColor: 255, fontStyle: 'bold' } },
-      { content: `${fmtKRW(params.totalAmount)} 원`, styles: { fillColor: ORANGE, textColor: 255, fontStyle: 'bold', halign: 'right' } },
-    ]],
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 2.6, font: 'NanumGothic', lineColor: LINE, textColor: INK },
-    footStyles: { font: 'NanumGothic' },
-    columnStyles: { 0: { cellWidth: 40, fontStyle: 'bold', fillColor: APRICOT, halign: 'center' }, 1: { cellWidth: priceW - 40, halign: 'right' } },
-    margin: { left: pageW - M - priceW, right: M },
-    tableWidth: priceW,
   });
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // ── 하단 연한 살구색 안내(비고) 박스 ──
+  // ── 견적가 박스 (우측 정렬) ──
+  const boxW = 95;
+  autoTable(doc, {
+    startY: y,
+    margin: { left: pageW - M - boxW },
+    tableWidth: boxW,
+    head: [[{ content: '견 적 가', colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
+    body: [
+      [{ content: '공 급 가', styles: { fillColor: PEACH, fontStyle: 'bold', halign: 'center' } }, { content: fmtKRW(params.supplyAmount), styles: { halign: 'right' } }],
+      [{ content: '부 가 세', styles: { fillColor: PEACH, fontStyle: 'bold', halign: 'center' } }, { content: fmtKRW(params.taxAmount), styles: { halign: 'right' } }],
+      [{ content: '최종금액', styles: { fillColor: PEACH, fontStyle: 'bold', halign: 'center' } }, { content: fmtKRW(params.totalAmount), styles: { halign: 'right', fontStyle: 'bold' } }],
+    ],
+    theme: 'grid',
+    styles: baseStyles,
+    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: boxW - 40 } },
+  });
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 하단 안내(비고) 박스 ──
   const noteLines: string[] = [];
-  if (params.validUntil) noteLines.push(`견적 유효기간: ${params.validUntil}`);
-  if (params.deliveryDate) noteLines.push(`납품(완료) 예정일: ${params.deliveryDate}`);
+  if (params.notes) params.notes.split('\n').forEach((l) => { if (l.trim()) noteLines.push(l.trim()); });
+  if (params.validUntil) noteLines.push(`유효기간: ${params.validUntil}`);
+  if (params.deliveryDate) noteLines.push(`납품일: ${params.deliveryDate}`);
   if (params.bankInfo) {
     const holder = params.bankInfo.accountHolder ? ` (${params.bankInfo.accountHolder})` : '';
     noteLines.push(`입금계좌: ${params.bankInfo.bankName} ${params.bankInfo.accountNumber}${holder}`);
   }
-  if (params.notes) {
-    for (const line of params.notes.split('\n')) { const t = line.trim(); if (t) noteLines.push(t); }
+  if (noteLines.length > 0) {
+    const lineH = 5;
+    const boxH = noteLines.length * lineH + 5;
+    doc.setFillColor(PEACH_LT[0], PEACH_LT[1], PEACH_LT[2]);
+    doc.setDrawColor(230, 200, 180);
+    doc.setLineWidth(0.2);
+    doc.rect(M, y, usableW, boxH, 'FD');
+    doc.setFontSize(8.5);
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(90, 70, 55);
+    noteLines.forEach((l, i) => doc.text(l, M + 3, y + 5.5 + i * lineH));
+    y += boxH;
   }
-  if (noteLines.length === 0) noteLines.push('본 견적서는 발행일로부터 30일간 유효합니다.');
-
-  autoTable(doc, {
-    startY: y,
-    head: [[{ content: '안내 / 비고', styles: { fillColor: APRICOT, textColor: [120, 60, 20], fontStyle: 'bold', halign: 'left' } }]],
-    body: noteLines.map((l) => [`· ${l}`]),
-    theme: 'plain',
-    styles: { fontSize: 8.3, cellPadding: { top: 1.2, bottom: 1.2, left: 3, right: 3 }, font: 'NanumGothic', textColor: [70, 70, 70], fillColor: APRICOT_LT },
-    margin: { left: M, right: M },
-  });
 
   // ── 페이지 번호 ──
   addPageNumbers(doc, params.companyInfo.name);
