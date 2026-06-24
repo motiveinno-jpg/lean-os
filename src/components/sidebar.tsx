@@ -44,15 +44,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "워크스페이스",
     items: [
-      { href: "/board", label: "게시판", icon: "message-square" },
-      { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
-      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      // 메뉴 순서(2026-06-24 요청): 일정/할일 → 프로젝트 → 워크플로우 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      // 프로젝트(라이프사이클·손익 뷰) 부모 + 프로젝트 운영(보드 뷰) 하위 토글 — 같은 deals 두 렌즈 (2026-06-17).
-      // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view. 부모가 role 로 숨겨지면 자식이 top-level 로 승격.
-      // 견적서·프로젝트 운영은 프로젝트 상세 탭으로 이동. 전자계약은 단체 일괄발송 즉시 사용 위해 워크스페이스 메뉴 유지 (2026-06-19).
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
       { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin"] },
+      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      { href: "/board", label: "게시판", icon: "message-square" },
+      { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
