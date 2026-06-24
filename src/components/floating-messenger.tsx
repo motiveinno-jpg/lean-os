@@ -5,7 +5,7 @@
 //   · 데스크톱 전용: 모바일은 좁아 부적합 → 하단탭 '메신저'(/chat) 사용 (hidden md:block).
 //   · /chat 페이지에서는 중복 방지로 런처 숨김.
 //   · ChatRoomView 는 무겁고 전역 셸에 항상 마운트되므로 next/dynamic 으로 열 때만 로드.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +48,42 @@ export function FloatingMessenger() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  // 런처 FAB 드래그 위치(뷰포트 좌상단 px). null = 기본(우하단 고정).
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
+
+  const FAB = 56; // w-14 h-14
+  const clampPos = (x: number, y: number) => ({
+    x: Math.max(8, Math.min(x, window.innerWidth - FAB - 8)),
+    y: Math.max(8, Math.min(y, window.innerHeight - FAB - 8)),
+  });
+  const onFabPointerDown = (e: React.PointerEvent) => {
+    const r = fabRef.current?.getBoundingClientRect();
+    if (!r) return;
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, moved: false };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onFabPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
+    if (d.moved) setPos(clampPos(d.ox + dx, d.oy + dy));
+  };
+  const onFabPointerUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    if (d.moved) {
+      setPos((p) => {
+        if (p) { try { localStorage.setItem("messenger:pos", JSON.stringify(p)); } catch {} }
+        return p;
+      });
+    } else {
+      setOpen((v) => !v); // 이동 없이 탭 = 클릭으로 처리
+    }
+  };
 
   // 영속화 — 영속 셸 마운트로 페이지 이동에는 이미 유지되지만, 혹시 모를 remount/새로고침에도
   //   열림 상태·선택 채널을 복원해 "이동해도 유지" 를 확실히 보장. (SSR 하이드레이션 충돌 방지 위해 useEffect 에서 복원)
@@ -56,6 +92,8 @@ export function FloatingMessenger() {
       setOpen(localStorage.getItem("messenger:open") === "1");
       const ch = localStorage.getItem("messenger:channel");
       if (ch) setSelected(ch);
+      const p = localStorage.getItem("messenger:pos");
+      if (p) { const o = JSON.parse(p); if (typeof o?.x === "number" && typeof o?.y === "number") setPos(clampPos(o.x, o.y)); }
     } catch {}
   }, []);
   useEffect(() => {
@@ -126,12 +164,23 @@ export function FloatingMessenger() {
     router.push(id ? `/chat?channel=${id}` : "/chat");
   };
 
+  // FAB 가 드래그됐으면 팝업 패널도 FAB 근처로 따라감(기본은 우하단 고정).
+  const panelStyle = pos ? (() => {
+    const W = 380, H = 560, gap = 12;
+    let left = pos.x + FAB - W;            // FAB 우측 모서리에 패널 우측 정렬
+    left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
+    let top = pos.y - H - gap;             // FAB 위로 펼침
+    if (top < 8) top = pos.y + FAB + gap;  // 위 공간 부족 → 아래로
+    top = Math.max(8, Math.min(top, window.innerHeight - H - 8));
+    return { left, top } as const;
+  })() : null;
+
   return (
     <div className="hidden md:block">
       {/* 팝업 패널 */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-[var(--border)] overflow-hidden backdrop-blur-2xl text-[var(--text)]"
-          style={{ background: "var(--glass-bg)", boxShadow: "0 24px 60px rgba(0,0,0,0.22)" }}>
+        <div className={`fixed z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-[var(--border)] overflow-hidden backdrop-blur-2xl text-[var(--text)] ${panelStyle ? "" : "bottom-24 right-6"}`}
+          style={{ background: "var(--glass-bg)", boxShadow: "0 24px 60px rgba(0,0,0,0.22)", ...(panelStyle || {}) }}>
           {/* 헤더 — 우측 원형 버튼. 색은 테마 토큰(라이트=밝게/다크=어둡게 자동 전환) */}
           <div className="shrink-0 flex items-center gap-2 px-4 h-14 border-b border-[var(--border)]">
             {selected && (
@@ -201,10 +250,14 @@ export function FloatingMessenger() {
 
       {/* 런처 FAB */}
       <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label="메신저 열기"
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15"
-        style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}
+        ref={fabRef}
+        onPointerDown={onFabPointerDown}
+        onPointerMove={onFabPointerMove}
+        onPointerUp={onFabPointerUp}
+        aria-label="메신저 열기 (드래그로 이동)"
+        title="드래그해서 위치를 옮길 수 있어요"
+        className={`fixed z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15 touch-none cursor-grab active:cursor-grabbing ${pos ? "" : "bottom-6 right-6"}`}
+        style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)", ...(pos ? { left: pos.x, top: pos.y } : {}) }}
       >
         {open ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
