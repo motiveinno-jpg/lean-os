@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { nextQuoteNumber } from "@/lib/documents";
 
 const db = supabase as any;
 
@@ -39,7 +40,7 @@ export default function QuotesPage() {
     queryKey: ["quotes-list", companyId],
     queryFn: async () => {
       const { data } = await db.from("documents")
-        .select("id, name, status, content_type, contract_amount, created_at, deal_id, deals(name)")
+        .select("id, name, status, content_type, contract_amount, created_at, deal_id, document_number, deals(name)")
         .eq("company_id", companyId)
         .in("content_type", ["invoice", "quote"])
         .order("created_at", { ascending: false }).limit(300);
@@ -73,7 +74,8 @@ export default function QuotesPage() {
             <table className="w-full text-xs border-collapse" style={{ minWidth: 760 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                  <th className="px-3 py-2.5 text-left font-semibold">견적서명</th>
+                  <th className="px-3 py-2.5 text-left font-semibold w-[130px]">견적No.</th>
+                  <th className="px-3 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">견적서명</th>
                   <th className="px-3 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 w-[180px]">프로젝트</th>
                   <th className="px-3 py-2.5 text-right font-semibold border-l border-[var(--border)]/50 w-[120px]">금액</th>
                   <th className="px-3 py-2.5 text-center font-semibold border-l border-[var(--border)]/50 w-[90px]">상태</th>
@@ -84,7 +86,8 @@ export default function QuotesPage() {
               <tbody>
                 {quotes.map((q) => (
                   <tr key={q.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
-                    <td className="px-3 py-2 text-[var(--text)] font-medium">{q.name || "(이름 없음)"}</td>
+                    <td className="px-3 py-2 mono-number text-[var(--text-muted)] text-[11px]">{q.document_number || fmtDate(q.created_at)}</td>
+                    <td className="px-3 py-2 text-[var(--text)] font-medium border-l border-[var(--border)]/30">{q.name || "(이름 없음)"}</td>
                     <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">
                       {q.deal_id ? <Link href={`/projecthub/${q.deal_id}`} className="text-[var(--primary)] hover:underline">{q.deals?.name || "프로젝트"}</Link> : "—"}
                     </td>
@@ -156,6 +159,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
       const name = quoteName.trim() || `${projectLabel || "프로젝트"} 견적서`;
       const { data: doc, error: ce } = await db.from("documents").insert({
         company_id: companyId, deal_id: useDealId, name, status: "draft",
+        document_number: await nextQuoteNumber(companyId),
         content_type: "invoice", content_json: QUOTE_CONTENT, version: 1, created_by: userId,
       }).select("id").single();
       if (ce) throw new Error(ce.message);

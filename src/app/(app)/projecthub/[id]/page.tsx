@@ -13,7 +13,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { createFromTemplate } from "@/lib/documents";
+import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
 import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
 import { useTabParam } from "@/lib/use-tab-param";
 import { SubDealsTab } from "./_components/SubDealsTab";
@@ -152,6 +152,7 @@ export default function ProjectHubDetailPage() {
           sub_deal_id: subDealId,
           name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"),
           status: "draft",
+          document_number: formKind === "quote" ? await nextQuoteNumber(companyId) : null,
           content_type: formKind === "quote" ? "invoice" : "contract",
           content_json: formKind === "quote" ? QUOTE_CONTENT : CONTRACT_CONTENT,
           version: 1,
@@ -190,6 +191,7 @@ export default function ProjectHubDetailPage() {
         sub_deal_id: null,
         name: `${deal?.name || "프로젝트"} 견적서`,
         status: "draft",
+        document_number: await nextQuoteNumber(companyId),
         content_type: "invoice",
         content_json: QUOTE_CONTENT,
         version: 1,

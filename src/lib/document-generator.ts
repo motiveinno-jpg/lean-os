@@ -397,7 +397,7 @@ export async function generateQuotePDF(params: {
   doc.setFontSize(8);
   setKoreanFont(doc, 'normal');
   doc.setTextColor(110, 110, 110);
-  doc.text(`No. ${params.documentNumber}`, M + 3, y + 8.6);
+  doc.text(`견적No. ${params.documentNumber}`, M + 3, y + 8.6);
   doc.text(`Date. ${new Date().toLocaleDateString('ko-KR')}`, pageW - M - 3, y + 8.6, { align: 'right' });
   y += 18;
 
