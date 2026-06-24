@@ -3015,6 +3015,13 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                 </div>
               </>
             )}
+            {/* 퇴근하기 — 크기 줄여 퇴근 옆에 배치(근무 중에만) */}
+            {isCheckedIn && !isCheckedOut && (
+              <button onClick={handleCheckOut} disabled={checkingOut}
+                className="ml-auto px-3.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-bold transition active:scale-[0.98] disabled:opacity-50">
+                {checkingOut ? "처리 중..." : "퇴근하기"}
+              </button>
+            )}
           </div>
 
           {!isCheckedIn && (
@@ -3046,13 +3053,29 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                 {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
               </button>
             ) : !isCheckedOut ? (
-              <button
-                onClick={handleCheckOut}
-                disabled={checkingOut}
-                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
-              >
-                {checkingOut ? "처리 중..." : "퇴근하기"}
-              </button>
+              (() => {
+                // 근무시간 게이지 — 8시간(480분) 기준. 8h 까지는 기본색, 초과(연장)분부터 주황색으로 차오름.
+                const stdMin = 480;
+                const startMs = todayAttendance?.check_in ? new Date(todayAttendance.check_in).getTime() : Date.now();
+                const elapsedMin = Math.max(0, Math.floor((Date.now() - startMs) / 60000));
+                const maxMin = Math.max(elapsedMin, stdMin);
+                const regPct = (Math.min(elapsedMin, stdMin) / maxMin) * 100;
+                const otMin = Math.max(0, elapsedMin - stdMin);
+                const otPct = (otMin / maxMin) * 100;
+                const h = Math.floor(elapsedMin / 60), m = elapsedMin % 60;
+                return (
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1.5 text-[11px]">
+                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{h}시간 {m}분</b> <span className="text-[var(--text-dim)]">/ 8시간</span></span>
+                      {otMin > 0 && <span className="text-orange-500 font-bold">연장 +{Math.floor(otMin / 60)}시간 {otMin % 60}분</span>}
+                    </div>
+                    <div className="h-3 rounded-full bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden flex">
+                      <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${regPct}%` }} />
+                      <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${otPct}%` }} />
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div className="flex gap-2 flex-1">
                 <div className="flex-1 py-3 rounded-xl bg-[var(--bg-card)] text-center text-sm font-semibold text-[var(--text-muted)]">
