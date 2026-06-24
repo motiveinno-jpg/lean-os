@@ -141,9 +141,11 @@ export default function ProjectHubPage() {
     const total = rows.length;
     const inProgress = rows.filter((d) => d.stage === "in_progress").length;
     const totalContract = rows.reduce((s, d) => s + Number(d.contract_total || 0), 0);
+    // VAT포함 합계 = Σ(공급가 + round(공급가×0.1)) — 행별 반올림 합산이라 목록 합계와 일치
+    const totalContractWithVat = rows.reduce((s, d) => { const sup = Number(d.contract_total || 0); return s + sup + Math.round(sup * 0.1); }, 0);
     const ratios = rows.map((d) => pnlByDeal[d.id]?.direct_cost_ratio).filter((r) => r != null && Number(r) > 0).map(Number);
     const avgRatio = ratios.length ? ratios.reduce((s, r) => s + r, 0) / ratios.length : null;
-    return { total, inProgress, totalContract, avgRatio };
+    return { total, inProgress, totalContract, totalContractWithVat, avgRatio };
   }, [rows, pnlByDeal]);
 
   if (tabLoading) return null;
@@ -214,8 +216,9 @@ export default function ProjectHubPage() {
           <div className="text-2xl font-bold mono-number mt-0.5 text-amber-500">{summary.inProgress}</div>
         </div>
         <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">총 계약금액</div>
+          <div className="text-xs text-[var(--text-muted)]">총 계약금액 <span className="text-[10px] text-[var(--text-dim)]">(VAT별도)</span></div>
           <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]">{won(summary.totalContract)}</div>
+          <div className="text-[10px] text-[var(--text-dim)] mt-0.5">VAT포함 {won(summary.totalContractWithVat)}</div>
         </div>
         <div className="glass-card px-4 py-3">
           <div className="text-xs text-[var(--text-muted)]">평균 직접원가율</div>
@@ -228,14 +231,16 @@ export default function ProjectHubPage() {
       {/* 목록 그리드 */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[640px]">
-          <table className="w-full min-w-[1000px] text-xs border-collapse">
+          <table className="w-full min-w-[1180px] text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
                 {sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60")}
                 {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]")}
                 {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
-                {sortableTh("contract", "계약금액", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]")}
+                {sortableTh("contract", "계약금액(VAT별도)", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]")}
+                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[90px]">VAT(10%)</th>
+                <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">합계(VAT포함)</th>
                 {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]")}
                 {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
                 {sortableTh("progress", "진행률", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]")}
@@ -245,9 +250,9 @@ export default function ProjectHubPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={10} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
+                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];
@@ -271,7 +276,16 @@ export default function ProjectHubPage() {
                     <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                     </td>
-                    <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/30">{won(d.contract_total)}</td>
+                    {(() => {
+                      const sup = Number(d.contract_total || 0);
+                      const vat = Math.round(sup * 0.1);
+                      const dash = <span className="text-[var(--text-dim)]">—</span>;
+                      return (<>
+                        <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/30">{sup > 0 ? won(sup) : dash}</td>
+                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/30">{sup > 0 ? won(vat) : dash}</td>
+                        <td className="px-3 py-2 text-right mono-number font-bold text-[var(--text)] border-l border-[var(--border)]/30">{sup > 0 ? won(sup + vat) : dash}</td>
+                      </>);
+                    })()}
                     <td className="px-3 py-2 text-right mono-number border-l border-[var(--border)]/30 text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : <span className="text-[var(--text-dim)]">—</span>}</td>
                     <td className="px-3 py-2 text-center mono-number border-l border-[var(--border)]/30">
                       {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
