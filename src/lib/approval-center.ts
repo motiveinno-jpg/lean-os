@@ -100,12 +100,14 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
       .order('created_at', { ascending: false }),
   ]);
 
+  // 결재 연동 시 자동 생성된 description 의 [승인#xxxxxxxx] 추적 태그 제거(대표 화면엔 지저분).
+  const cleanTitle = (s?: string | null) => (s || '').replace(/^\[승인#[0-9a-fA-F]{6,8}\]\s*/, '').trim();
   // Map payments
   (payments.data || []).forEach((p: any) => {
     actions.push({
       id: p.id,
       type: 'payment',
-      title: p.description || '결제 승인 요청',
+      title: cleanTitle(p.description) || '결제 승인 요청',
       amount: Number(p.amount || 0),
       createdAt: p.created_at,
       urgency: Number(p.amount || 0) >= 5000000 ? 'high' : 'medium',

@@ -752,8 +752,14 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         <MemberRoleManager companyId={companyId} />
       </div>
 
-      {/* Employee Detail Panel */}
-      {detailEmpId && <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />}
+      {/* Employee Detail Panel — 중앙 모달 팝업(기존엔 목록 하단 인라인이라 멀리 떠서 안 보였음) */}
+      {detailEmpId && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={() => setDetailEmpId(null)}>
+          <div className="w-full max-w-4xl my-6" onClick={(e) => e.stopPropagation()}>
+            <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3785,7 +3791,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         department: employee.department,
         position: employee.position,
         hire_date: employee.hire_date || new Date().toISOString().slice(0, 10),
-        end_date: employee.status !== "active" ? employee.updated_at?.slice(0, 10) : undefined,
+        end_date: !["active", "joined"].includes(employee.status) ? employee.updated_at?.slice(0, 10) : undefined,
         employee_number: employee.employee_number,
         birth_date: employee.birth_date,
       };
@@ -3859,7 +3865,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               <option value="">직원을 선택하세요</option>
               {allEmployees.map((e: any) => (
                 <option key={e.id} value={e.id}>
-                  {e.name} ({e.department || "미배정"}) {e.status !== "active" ? "[퇴직]" : ""}
+                  {e.name} ({e.department || "미배정"}) {!["active", "joined"].includes(e.status) ? "[퇴직]" : ""}
                 </option>
               ))}
             </select>
