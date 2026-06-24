@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
@@ -615,21 +616,25 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           }
         }
 
-        return (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowTermModal(false)}>
-            <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                <div className="text-sm font-bold text-red-400">퇴사 처리</div>
-                <button onClick={() => setShowTermModal(false)} className="p-1 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)]">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="p-5 space-y-4">
-                {/* Employee name */}
-                <div className="text-xs text-[var(--text-dim)]">
-                  대상: <span className="font-semibold text-[var(--text)]">{emp.name}</span> ({emp.department || ""} {emp.position || ""})
+        return createPortal(
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>
+            <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* 헤더 — 레드 그라데이션 + 대상 직원 */}
+              <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0"
+                style={{ background: "linear-gradient(135deg, color-mix(in srgb, #ef4444 13%, var(--bg-card)) 0%, var(--bg-card) 75%)" }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-500 flex items-center justify-center text-lg shrink-0">🗂️</div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-extrabold text-[var(--text)]">퇴사 처리</div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">{emp.name} · {emp.department || ""} {emp.position || ""}</div>
+                  </div>
+                  <button onClick={() => setShowTermModal(false)} className="ml-auto p-2 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
                 </div>
-
+              </div>
+              {/* 본문 — 스크롤 */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {/* 퇴사일 */}
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">퇴사일</label>
@@ -732,20 +737,28 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   </button>
                 </div>
 
-                {/* 확정 버튼 */}
-                <button
-                  onClick={confirmTermination}
-                  disabled={!allChecked || terminating}
-                  className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
-                >
-                  {terminating ? "처리 중..." : "퇴사 확정"}
-                </button>
+              </div>
+              {/* 푸터 — 확정 */}
+              <div className="px-5 py-3 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0">
                 {!allChecked && (
-                  <div className="text-[10px] text-center text-[var(--text-dim)]">모든 체크리스트를 완료해야 퇴사를 확정할 수 있습니다</div>
+                  <div className="text-[10px] text-center text-[var(--text-dim)] mb-2">모든 체크리스트를 완료해야 퇴사를 확정할 수 있습니다</div>
                 )}
+                <div className="flex gap-2">
+                  <button onClick={() => setShowTermModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0">
+                    취소
+                  </button>
+                  <button
+                    onClick={confirmTermination}
+                    disabled={!allChecked || terminating}
+                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
+                  >
+                    {terminating ? "처리 중..." : "퇴사 확정"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
     </div>
