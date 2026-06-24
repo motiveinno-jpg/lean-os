@@ -3383,12 +3383,12 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
               <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="field-input" />
             </div>
-            <div>
+            <div className="col-span-2 md:col-span-3">
               <label className="block text-xs text-[var(--text-muted)] mb-1">승인자</label>
               <select
                 value={form.requestedApproverId}
                 onChange={(e) => setForm({ ...form, requestedApproverId: e.target.value })}
-                className="field-input"
+                className="field-input w-full"
               >
                 <option value="">대표·관리자 전원에게 알림</option>
                 {approvers.map((u: any) => (
