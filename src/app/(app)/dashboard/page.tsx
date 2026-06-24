@@ -843,7 +843,8 @@ function MyTodosWidget({ userId }: { userId: string }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   return (
-    <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="mb-5">
+      {/* 제목은 박스 밖(eyebrow) — 옆 '월 마감 체크리스트'와 동일 정렬 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
@@ -858,6 +859,7 @@ function MyTodosWidget({ userId }: { userId: string }) {
           전체 보기 →
         </Link>
       </div>
+      <div className="glass-card p-4">
       {todos.length === 0 ? (
         <div className="text-center py-4">
           <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일이 없습니다.</p>
@@ -898,6 +900,7 @@ function MyTodosWidget({ userId }: { userId: string }) {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
