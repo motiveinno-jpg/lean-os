@@ -10,10 +10,14 @@ import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
+import { useUser } from "@/components/user-context";
+import { GRANTABLE_TABS, getUserTabAccess, grantTab, revokeTab } from "@/lib/tab-access";
 
 // ── Employee Detail Panel ──
 export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
-  const [detailTab, setDetailTab] = useState<"info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access">("info");
+  const { user: viewer } = useUser();
+  const canManageAccess = viewer?.role === "owner" || viewer?.role === "admin";
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
@@ -174,6 +178,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           { key: "docs", label: "입사서류" },
           { key: "notes", label: "노트" },
           { key: "history", label: "발령" },
+          ...(canManageAccess ? [{ key: "access", label: "탭 권한" }] : []),
         ].map((t) => (
           <button key={t.key} onClick={() => setDetailTab(t.key as any)}
             className={`relative px-3.5 py-3 text-xs font-semibold transition whitespace-nowrap ${detailTab === t.key ? "text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
@@ -387,6 +392,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
         {/* History Tab (D-9: 인사발령 히스토리) */}
         {detailTab === "history" && (
           <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+        )}
+
+        {/* 탭 권한 (관리자/대표 전용) */}
+        {detailTab === "access" && canManageAccess && (
+          <TabAccessSection companyId={companyId} targetUserId={emp?.user_id || null} grantedBy={viewer?.id || ""} empName={emp?.name || ""} />
         )}
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
@@ -1181,6 +1191,69 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
     <button onClick={issue} disabled={issuing} className="flex-1 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
       {issuing ? "생성 중..." : `📄 ${label} 발급`}
     </button>
+  );
+}
+
+// 탭 권한 부여 — 관리자/대표가 해당 구성원(로그인 계정)에 탭별 접근을 ON/OFF
+function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
+  companyId: string; targetUserId: string | null; grantedBy: string; empName: string;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+  const { data: granted } = useQuery<Set<string>>({
+    queryKey: ["user-tab-access", targetUserId],
+    queryFn: () => getUserTabAccess(targetUserId!),
+    enabled: !!targetUserId,
+  });
+  const grantedSet = granted ?? new Set<string>();
+
+  if (!targetUserId) {
+    return (
+      <div className="text-sm text-[var(--text-muted)] py-8 text-center leading-relaxed">
+        이 구성원은 로그인 계정과 연결돼 있지 않아 탭 권한을 부여할 수 없습니다.<br />
+        먼저 직원 초대 / 계정 연결을 진행해 주세요.
+      </div>
+    );
+  }
+
+  const toggle = async (route: string, on: boolean) => {
+    setBusy(route);
+    try {
+      if (on) await grantTab(companyId, targetUserId, route, grantedBy);
+      else await revokeTab(targetUserId, route);
+      qc.invalidateQueries({ queryKey: ["user-tab-access", targetUserId] });
+      qc.invalidateQueries({ queryKey: ["my-tab-access"] });
+    } catch (e: any) { toast(e?.message || "변경 실패", "error"); }
+    finally { setBusy(null); }
+  };
+
+  const groups = [...new Set(GRANTABLE_TABS.map((t) => t.group))];
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+        <b className="text-[var(--text)]">{empName}</b> 님이 접근할 탭을 켜 주세요. 켜진 탭만 직원 계정에서 열람·사용할 수 있습니다(끄면 접근 차단).
+      </p>
+      {groups.map((g) => (
+        <div key={g}>
+          <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {GRANTABLE_TABS.filter((t) => t.group === g).map((t) => {
+              const on = grantedSet.has(t.route);
+              return (
+                <button key={t.route} disabled={busy === t.route} onClick={() => toggle(t.route, !on)}
+                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition disabled:opacity-50 ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                  <span className="truncate">{t.label}</span>
+                  <span className={`shrink-0 w-7 h-4 rounded-full relative transition ${on ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${on ? "left-[14px]" : "left-0.5"}`} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

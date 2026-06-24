@@ -11,6 +11,7 @@ import { useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
+import { matchGrantableRoute } from "@/lib/tab-access";
 
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
@@ -132,9 +133,23 @@ function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boo
   void companyName;
   // 직원은 전용 압축 메뉴 사용 (operator 게이트 무관 — 직원 화면은 운영자 페이지 노출 안 함)
   if (role === "employee") {
-    return EMPLOYEE_NAV_GROUPS
+    const empGroups = EMPLOYEE_NAV_GROUPS
       .map((group) => ({ ...group, items: group.items.filter(Boolean) }))
       .filter((group) => group.items.length > 0);
+    // 관리자 탭(부여 가능)도 노출 — 직원 기본 메뉴에 없는 것만, 원래 그룹 유지(접근은 RouteGuard 가 부여로 통제).
+    const empHrefs = new Set(empGroups.flatMap((g) => g.items.map((i) => i.href)));
+    const adminGroups = NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: group.items.flatMap((item) => {
+          const showItem = !!matchGrantableRoute(item.href) && !empHrefs.has(item.href);
+          const kids = (item.children || []).filter((c) => !!matchGrantableRoute(c.href) && !empHrefs.has(c.href));
+          if (showItem) return [{ ...item, children: kids.length ? kids : undefined }];
+          return kids;
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+    return [...empGroups, ...adminGroups];
   }
   return NAV_GROUPS
     .map((group) => ({

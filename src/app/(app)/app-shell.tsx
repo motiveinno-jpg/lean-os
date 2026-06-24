@@ -14,6 +14,8 @@ import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { SubscriptionGate } from "@/components/subscription-gate";
+import { AccessDenied } from "@/components/access-denied";
+import { useMyGrantedRoutes, matchGrantableRoute } from "@/lib/tab-access";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -116,6 +118,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   const { role, user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
+  // 직원이 관리자가 부여한 탭에 접근 가능한지 — 부여 라우트 집합
+  const { routes: grantedRoutes, loading: grantsLoading } = useMyGrantedRoutes();
 
   // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
@@ -140,24 +144,32 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     if (loading) return;
     const allowed = ROLE_ALLOWED_ROUTES[role];
     if (!allowed) return; // owner/admin → 전체 접근
-    const isAllowed = allowed.some(
-      (r) => pathname === r || pathname.startsWith(r + "/")
-    );
-    if (!isAllowed) {
-      router.replace("/dashboard");
-    }
+    const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
+    if (inBase) return;
+    // 부여 가능한 탭이면 리다이렉트 대신 화면에서 처리(접근 차단 안내 or 허용). 그 외만 대시보드로.
+    if (matchGrantableRoute(pathname)) return;
+    router.replace("/dashboard");
   }, [role, pathname, loading, router]);
 
   // 로딩 중이면 렌더링 차단 (비허용 페이지 깜빡임 방지)
   if (loading) return null;
 
-  // 제한 역할이 비허용 경로에 있으면 렌더링 차단
   const allowed = ROLE_ALLOWED_ROUTES[role];
   if (allowed) {
-    const isAllowed = allowed.some(
-      (r) => pathname === r || pathname.startsWith(r + "/")
-    );
-    if (!isAllowed) return null;
+    const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
+    if (!inBase) {
+      const grantable = matchGrantableRoute(pathname);
+      if (grantable) {
+        // 직원: 탭은 보이되 부여된 라우트만 접근. 미부여면 접근 차단 안내.
+        if (grantsLoading) return null;
+        if (!grantedRoutes.has(grantable)) {
+          return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
+        }
+        // 부여됨 → 통과(아래 children 렌더)
+      } else {
+        return null; // 비허용·비부여 경로 → 리다이렉트 효과가 처리
+      }
+    }
   }
 
   return <>{children}</>;
