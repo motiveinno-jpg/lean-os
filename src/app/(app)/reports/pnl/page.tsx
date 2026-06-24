@@ -279,7 +279,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
 /* ------------------------------------------------------------------ */
 export default function PnlPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
+  if (role === "partner") {
     return <AccessDenied detail="손익계산서는 대표·관리자 전용입니다." />;
   }
   const [companyId, setCompanyId] = useState<string | null>(null);

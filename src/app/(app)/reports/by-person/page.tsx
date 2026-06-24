@@ -129,7 +129,7 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
 
 export default function ByPersonPage() {
   const { role } = useUser();
-  const blocked = role === "employee" || role === "partner";
+  const blocked = role === "partner";
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [year, setYear] = useState(YEAR_NOW);

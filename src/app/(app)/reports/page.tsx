@@ -129,7 +129,7 @@ const CARDS: HubCard[] = [
 export default function ReportsHubPage() {
   const { role } = useUser();
 
-  if (role === "employee" || role === "partner") {
+  if (role === "partner") {
     return <AccessDenied detail="회계 분석 허브는 대표·관리자 전용입니다." />;
   }
 

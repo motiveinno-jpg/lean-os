@@ -121,7 +121,7 @@ function MiniBar({ pct, color, label }: { pct: number; color: string; label?: st
 
 export default function BusinessFlowPage() {
   const { role } = useUser();
-  const blocked = role === "employee" || role === "partner";
+  const blocked = role === "partner";
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [month, setMonth] = useState(thisMonth());

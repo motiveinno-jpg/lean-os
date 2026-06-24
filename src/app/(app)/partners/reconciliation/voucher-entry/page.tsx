@@ -316,7 +316,7 @@ export default function VoucherEntryPage() {
     setCtx(null);
   };
 
-  if (role === "employee" || role === "partner") return <AccessDenied detail="전표입력은 대표·관리자 전용입니다." />;
+  if (role === "partner") return <AccessDenied detail="전표입력은 대표·관리자 전용입니다." />;
   if (!companyId) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   const acctMatches = (q: string) => {

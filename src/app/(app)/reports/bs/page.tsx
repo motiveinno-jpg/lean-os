@@ -355,7 +355,7 @@ async function fetchBsTrend(companyId: string, months: number = 6): Promise<Tren
 
 export default function BalanceSheetPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
+  if (role === "partner") {
     return <AccessDenied detail="재무상태표는 대표·관리자 전용입니다." />;
   }
   const [companyId, setCompanyId] = useState<string | null>(null);

@@ -32,6 +32,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { useCanAccessTab } from "@/lib/tab-access";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
 
@@ -547,8 +548,11 @@ const MODIFICATION_REASONS = [
 
 export default function TaxInvoicesPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
-    return <AccessDenied detail="세금계산서 관리는 대표·관리자 전용입니다." />;
+  const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/tax-invoices");
+  void role;
+  if (tabLoading) return null;
+  if (!tabAllowed) {
+    return <AccessDenied detail="세금계산서 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
   }
   const { toast } = useToast();
   const queryClient = useQueryClient();

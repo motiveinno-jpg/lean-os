@@ -26,7 +26,7 @@ import { getCurrentUser } from "@/lib/queries";
 export default function ThreeWayMatchPage() {
   const { role, loading } = useUser();
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
-  if (role !== "owner" && role !== "admin") {
+  if (role === "partner") {
     return <AccessDenied detail="3-Way 매칭은 대표/관리자 전용입니다." />;
   }
   return <Inner />;

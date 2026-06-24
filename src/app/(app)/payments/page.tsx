@@ -15,14 +15,17 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { useCanAccessTab } from "@/lib/tab-access";
 import { supabase } from "@/lib/supabase";
 
 type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
 
 export default function PaymentsPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
-    return <AccessDenied detail="자금/결제는 대표·관리자 전용입니다." />;
+  const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/payments");
+  if (tabLoading) return null;
+  if (!tabAllowed) {
+    return <AccessDenied detail="정기결제 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
   }
 
   const [companyId, setCompanyId] = useState<string | null>(null);

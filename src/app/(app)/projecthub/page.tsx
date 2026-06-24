@@ -15,6 +15,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
+import { useCanAccessTab } from "@/lib/tab-access";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
@@ -22,8 +23,8 @@ const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : 
 export default function ProjectHubPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
-  const role = user?.role;
   const router = useRouter();
+  const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editDeal, setEditDeal] = useState<any | null>(null);
@@ -145,7 +146,8 @@ export default function ProjectHubPage() {
     return { total, inProgress, totalContract, avgRatio };
   }, [rows, pnlByDeal]);
 
-  if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
+  if (tabLoading) return null;
+  if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
 
   return (
     <div className="space-y-4">
