@@ -105,6 +105,8 @@ export default function ApprovalsPage() {
         setCompanyId(u.company_id);
         setUserId(u.id);
         setUserRole(u.role);
+        // 직원 계정은 결재 권한이 거의 없어 '내 결재함'이 비어있음 → 기본 탭을 '새 요청'으로.
+        if (!newType && u.role === "employee") setTab("new-request");
       }
     });
   }, []);

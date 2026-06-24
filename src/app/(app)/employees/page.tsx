@@ -2666,6 +2666,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th className="text-left px-4 py-3 font-medium">직원</th>
                 <th className="text-right px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
                 <th className="text-right px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
+                <th className="text-right px-4 py-3 font-medium" title="기본급(과세) + 비과세">지급합계</th>
                 <th className="text-right px-4 py-3 font-medium">국민연금</th>
                 <th className="text-right px-4 py-3 font-medium">건강보험</th>
                 <th className="text-right px-4 py-3 font-medium">장기요양</th>
@@ -2713,6 +2714,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                         />
                       ) : fmtKRW(item.nonTaxableAmount || 0)}
                     </td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-[var(--text)]">
+                      {fmtKRW(editMode ? (Number(ev.baseSalary || 0) + Number(ev.nonTaxable || 0)) : (Number(item.baseSalary || 0) + Number(item.nonTaxableAmount || 0)))}
+                    </td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.nationalPension)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.healthInsurance)}</td>
                     <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.longTermCareInsurance || 0)}</td>
@@ -2737,7 +2741,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   {/* v4 H1: 편집 모드일 때 row 아래 수당/공제 라인 편집 */}
                   {editMode && (
                     <tr key={`${item.employeeId}-extras`} className="bg-[var(--bg-surface)]/40 border-b border-[var(--border)]/30">
-                      <td colSpan={12} className="px-4 py-2">
+                      <td colSpan={13} className="px-4 py-2">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] text-[var(--text-dim)] font-semibold">임의 수당/공제 ({(ev.extras || []).length}건)</span>
                           <button type="button"
@@ -2853,6 +2857,10 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     queryFn: () => getLeaveBalances(companyId!, currentYear),
     enabled: !!companyId,
   });
+  // 직원 계정은 본인 잔여연차만 — 다른 사람 연차는 숨김(관리자/대표는 전원 표시).
+  const visibleBalances = isEmployee && myEmployee
+    ? (balances as any[]).filter((b: any) => b.employee_id === myEmployee.id)
+    : balances;
 
   // Leave promotion candidates
   const { data: promotionCandidates = [] } = useQuery({
@@ -3187,13 +3195,13 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
           </div>
         )}
 
-        {balances.length === 0 ? (
+        {visibleBalances.length === 0 ? (
           <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">
             연차 데이터가 없습니다. 위 &quot;입사일 기준 자동 부여&quot; 를 눌러주세요.
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {balances.map((b: any) => {
+            {visibleBalances.map((b: any) => {
               const remaining = b.remaining_days ?? (b.total_days - b.used_days);
               const percent = b.total_days > 0 ? (remaining / b.total_days) * 100 : 0;
               const empRec = employees.find((e: any) => e.id === b.employee_id);
