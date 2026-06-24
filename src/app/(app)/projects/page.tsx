@@ -535,23 +535,6 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
         </div>
       </div>
 
-      {/* 시안 통계 4 (프로젝트) — 그라데이션 카드. trend 는 실데이터 없어 미표시(가짜 금지). */}
-      {summary.count > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          {([
-            { label: "전체 프로젝트", value: `${summary.count.toLocaleString()}건` },
-            { label: "진행중", value: `${(summary.byStageCount["in_progress"] || 0).toLocaleString()}건` },
-            { label: "완료·정산", value: `${summary.doneCount.toLocaleString()}건` },
-            ...(!isEmployeeLimited ? [{ label: "총 계약금액", value: `₩${summary.total.toLocaleString("ko-KR")}` }] : []),
-          ] as { label: string; value: string }[]).map((s) => (
-            <div key={s.label} className="glass-card px-4 py-3">
-              <div className="text-xs text-[var(--text-muted)]">{s.label}</div>
-              <div className="text-2xl font-bold mono-number mt-0.5 text-[var(--text)] truncate">{s.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Filter Bar */}
       <div className="glass-card p-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">

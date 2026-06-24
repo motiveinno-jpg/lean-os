@@ -155,9 +155,6 @@ export default function ProjectHubPage() {
           <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/projects" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">
-            프로젝트 운영 보드 →
-          </Link>
           <button onClick={() => setShowCreate(true)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">
             + 프로젝트 생성
           </button>

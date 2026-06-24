@@ -52,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       // /projects: owner/admin 통일 진입점, partner 는 외주 상세 view. 부모가 role 로 숨겨지면 자식이 top-level 로 승격.
       // 견적서·프로젝트 운영은 프로젝트 상세 탭으로 이동. 전자계약은 단체 일괄발송 즉시 사용 위해 워크스페이스 메뉴 유지 (2026-06-19).
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
+      { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin"] },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
     ],
   },
