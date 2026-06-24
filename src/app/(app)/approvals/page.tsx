@@ -971,13 +971,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     return lines;
   }, [leaveForm, leaveDays, remainingLeave, currentEmployee]);
 
-  // Auto-fill description template when type changes
-  useEffect(() => {
-    if (isLeave || form.requestType === descriptionInited) return;
-    const template = DESCRIPTION_TEMPLATES[form.requestType] || "";
-    setForm((prev) => ({ ...prev, description: template }));
-    setDescriptionInited(form.requestType);
-  }, [form.requestType, isLeave, descriptionInited]);
+  // 설명 템플릿 자동입력은 matchedPolicy(아래) 정의 후 effect 로 처리 — 정책 템플릿 우선.
 
   // Fetch company users for approver selection
   const { data: companyUsers = [] } = useQuery({
@@ -1002,6 +996,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     if (byType) return byType;
     return policies.find((p: ApprovalPolicy) => p.document_type === "default" && p.is_active) || null;
   }, [policies, form.requestType]);
+
+  // 요청 유형 변경 시 설명란 자동 입력 — 정책의 설명 템플릿 우선, 없으면 내장 템플릿.
+  useEffect(() => {
+    if (isLeave || form.requestType === descriptionInited) return;
+    const tpl = matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "";
+    setForm((prev) => ({ ...prev, description: tpl }));
+    setDescriptionInited(form.requestType);
+  }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
 
   const effectiveTitle = isLeave ? leaveTitle : form.title;
   const effectiveDescription = isLeave ? leaveDescription : form.description;
@@ -1069,6 +1071,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
+                {/* 관리자가 만든 커스텀 양식 — 내장 유형/기본 제외 */}
+                {(policies as ApprovalPolicy[])
+                  .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
+                  .map((p) => (
+                    <option key={p.document_type} value={p.document_type}>{p.label || p.name}</option>
+                  ))}
               </select>
             </div>
 
@@ -1437,6 +1445,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   const [form, setForm] = useState({
     name: "",
     documentType: "expense",
+    customType: "",
+    label: "",
+    descriptionTemplate: "",
     autoApproveBelow: "",
     stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }] as ApprovalStageConfig[],
   });
@@ -1447,13 +1458,25 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
+  // 단계별 '특정 인물' 승인자 선택용 회사 구성원
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ["policy-org-users", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name");
+      return (data || []) as { id: string; name: string | null; email: string; role: string }[];
+    },
+    enabled: !!companyId,
+  });
+
   const upsertMut = useMutation({
     mutationFn: () =>
       upsertApprovalPolicy({
         id: editingPolicy?.id,
         company_id: companyId,
         name: form.name,
-        document_type: form.documentType,
+        document_type: form.documentType === "__custom__" ? (form.customType.trim() || "custom") : form.documentType,
+        label: form.label.trim() || undefined,
+        description_template: form.descriptionTemplate.trim() || undefined,
         stages: form.stages,
         auto_approve_below: Number(form.autoApproveBelow) || 0,
         is_active: true,
@@ -1477,6 +1500,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     setForm({
       name: "",
       documentType: "expense",
+      customType: "",
+      label: "",
+      descriptionTemplate: "",
       autoApproveBelow: "",
       stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
     });
@@ -1484,9 +1510,13 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
   function startEdit(policy: ApprovalPolicy) {
     setEditingPolicy(policy);
+    const isBuiltin = policy.document_type === "default" || policy.document_type in REQUEST_TYPE_LABELS;
     setForm({
       name: policy.name,
-      documentType: policy.document_type,
+      documentType: isBuiltin ? policy.document_type : "__custom__",
+      customType: isBuiltin ? "" : policy.document_type,
+      label: policy.label || "",
+      descriptionTemplate: policy.description_template || "",
       autoApproveBelow: policy.auto_approve_below ? String(policy.auto_approve_below) : "",
       stages: policy.stages as ApprovalStageConfig[],
     });
@@ -1540,7 +1570,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       {/* Policy Form */}
       {showForm && (
         <div className="glass-card p-6 mb-6">
-          <h3 className="section-title">{editingPolicy ? "정책 수정" : "새 결재 정책"}</h3>
+          <h3 className="section-title">{editingPolicy ? "양식 · 결재선 수정" : "새 양식 · 결재선"}</h3>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
@@ -1563,7 +1593,16 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                   <option key={k} value={k}>{v}</option>
                 ))}
                 <option value="default">기본 (전체)</option>
+                <option value="__custom__">+ 커스텀 유형(직접 입력)</option>
               </select>
+              {form.documentType === "__custom__" && (
+                <input
+                  value={form.customType}
+                  onChange={(e) => setForm({ ...form, customType: e.target.value.replace(/\s/g, "_") })}
+                  placeholder="커스텀 유형 키 (영문/숫자, 예: media_buy)"
+                  className="field-input mt-2"
+                />
+              )}
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원)</label>
@@ -1572,6 +1611,29 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 onValueChange={(raw) => { setForm({ ...form, autoApproveBelow: raw }); }}
                 placeholder="0 (비활성)"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
+              />
+            </div>
+          </div>
+
+          {/* 양식(요청자 화면) 표시 이름 + 설명 템플릿 */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">양식 표시 이름 (선택)</label>
+              <input
+                value={form.label}
+                onChange={(e) => setForm({ ...form, label: e.target.value })}
+                placeholder="새 요청 유형에 보일 이름 (미입력 시 기본)"
+                className="field-input"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">설명 템플릿 (선택)</label>
+              <textarea
+                value={form.descriptionTemplate}
+                onChange={(e) => setForm({ ...form, descriptionTemplate: e.target.value })}
+                placeholder="이 양식 선택 시 요청 설명란에 자동 입력될 내용"
+                rows={3}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-y"
               />
             </div>
           </div>
@@ -1599,15 +1661,47 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                     placeholder="단계 이름"
                     className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
+                  {/* 승인자 유형: 역할 / 특정 인물(플렉스식) */}
                   <select
-                    value={stage.approver_role}
-                    onChange={(e) => updateStage(idx, "approver_role", e.target.value)}
-                    className="w-32 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                    value={stage.approver_id ? "person" : "role"}
+                    onChange={(e) => {
+                      const updated = [...form.stages];
+                      if (e.target.value === "role") { delete (updated[idx] as any).approver_id; delete (updated[idx] as any).approver_name; updated[idx].approver_role = updated[idx].approver_role || "ceo"; }
+                      else { const u = orgUsers[0]; (updated[idx] as any).approver_id = u?.id || ""; (updated[idx] as any).approver_name = u?.name || u?.email || ""; }
+                      setForm({ ...form, stages: updated });
+                    }}
+                    className="w-24 px-2 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   >
-                    {ROLE_OPTIONS.map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
+                    <option value="role">역할</option>
+                    <option value="person">특정 인물</option>
                   </select>
+                  {stage.approver_id ? (
+                    <select
+                      value={stage.approver_id}
+                      onChange={(e) => {
+                        const u = orgUsers.find((x) => x.id === e.target.value);
+                        const updated = [...form.stages];
+                        (updated[idx] as any).approver_id = e.target.value;
+                        (updated[idx] as any).approver_name = u?.name || u?.email || "";
+                        setForm({ ...form, stages: updated });
+                      }}
+                      className="w-40 px-2 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      {orgUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={stage.approver_role}
+                      onChange={(e) => updateStage(idx, "approver_role", e.target.value)}
+                      className="w-32 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  )}
                   {form.stages.length > 1 && (
                     <button
                       onClick={() => removeStage(idx)}

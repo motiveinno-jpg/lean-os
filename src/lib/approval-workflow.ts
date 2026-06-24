@@ -36,6 +36,8 @@ export interface ApprovalPolicy {
   stages: ApprovalStageConfig[];
   auto_approve_below: number;
   is_active: boolean;
+  label?: string;                // 양식 표시 이름(새 요청 유형 선택에 노출)
+  description_template?: string; // 양식 선택 시 설명란 자동 입력 템플릿
   created_at?: string;
   updated_at?: string;
 }
@@ -45,6 +47,8 @@ export interface ApprovalStageConfig {
   name: string;
   approver_role: string; // e.g. 'manager', 'director', 'ceo'
   required_count?: number; // how many approvers needed (default 1)
+  approver_id?: string;    // 특정 인물 지정(플렉스식) — 설정 시 role 대신 이 사용자가 승인자
+  approver_name?: string;  // 표시용(특정 인물 이름)
 }
 
 export interface ApprovalRequest {
@@ -117,6 +121,8 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     stages: (row.stages as ApprovalStageConfig[]) || [],
     auto_approve_below: (row.auto_approve_threshold as number) || 0,
     is_active: row.is_active !== false,
+    label: (row.label as string) || undefined,
+    description_template: (row.description_template as string) || undefined,
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
   })) as ApprovalPolicy[];
@@ -133,7 +139,7 @@ export async function upsertApprovalPolicy(
     stages: ApprovalStageConfig[];
   }
 ): Promise<ApprovalPolicy> {
-  const row: Record<string, unknown> = {
+  const baseRow: Record<string, unknown> = {
     company_id: policy.company_id,
     name: policy.name,
     entity_type: policy.document_type,
@@ -143,16 +149,14 @@ export async function upsertApprovalPolicy(
     is_active: policy.is_active ?? true,
     updated_at: new Date().toISOString(),
   };
+  if (policy.id) baseRow.id = policy.id;
+  // label/description_template 컬럼은 마이그레이션 후 존재 — 없는 환경에서도 안 깨지게 폴백.
+  const fullRow = { ...baseRow, label: policy.label ?? null, description_template: policy.description_template ?? null };
 
-  if (policy.id) {
-    row.id = policy.id;
+  let { data, error } = await db.from('approval_policies').upsert(fullRow).select().single();
+  if (error && /label|description_template|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
+    ({ data, error } = await db.from('approval_policies').upsert(baseRow).select().single());
   }
-
-  const { data, error } = await db
-    .from('approval_policies')
-    .upsert(row)
-    .select()
-    .single();
   if (error) throw error;
   const d = data as Record<string, unknown>;
   return {
@@ -163,6 +167,8 @@ export async function upsertApprovalPolicy(
     stages: (d.stages as ApprovalStageConfig[]) || [],
     auto_approve_below: (d.auto_approve_threshold as number) || 0,
     is_active: d.is_active !== false,
+    label: (d.label as string) || undefined,
+    description_template: (d.description_template as string) || undefined,
     created_at: d.created_at as string | undefined,
     updated_at: d.updated_at as string | undefined,
   } as ApprovalPolicy;
@@ -290,6 +296,17 @@ export async function createApprovalRequest(params: {
     }
   } else {
     for (const stageConfig of stages) {
+      // 특정 인물 지정(플렉스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
+      if (stageConfig.approver_id) {
+        await db.from('approval_steps').insert({
+          request_id: request.id,
+          stage: stageConfig.stage,
+          stage_name: stageConfig.name,
+          approver_id: stageConfig.approver_id,
+          status: 'pending',
+        });
+        continue;
+      }
       const approverRole = stageConfig.approver_role;
       const requiredCount = stageConfig.required_count ?? 1;
 
