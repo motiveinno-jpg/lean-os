@@ -904,7 +904,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                 </Link>
               );
             }
-            const pr = PRIORITY_LABEL[it.raw.priority];
+            const pr = PRIORITY_LABEL[(it.raw as ScheduleTodo).priority];
             return (
               <div key={`td-${it.id}`} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <button onClick={() => handleToggle(it.raw)} disabled={toggling === it.id}
