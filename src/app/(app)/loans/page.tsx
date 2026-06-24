@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -609,7 +610,7 @@ export default function LoansPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1">납부일 *</label>
-                  <input type="date" value={payForm.paymentDate} onChange={e => setPayForm(f => ({ ...f, paymentDate: e.target.value }))}
+                  <DateField value={payForm.paymentDate} onChange={e => setPayForm(f => ({ ...f, paymentDate: e.target.value }))}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" />
                 </div>
                 <div>
@@ -847,12 +848,12 @@ export default function LoansPage() {
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">대출 시작일</label>
-              <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
+              <DateField value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">만기일</label>
-              <input type="date" value={form.maturityDate} onChange={e => setForm(f => ({ ...f, maturityDate: e.target.value }))}
+              <DateField value={form.maturityDate} onChange={e => setForm(f => ({ ...f, maturityDate: e.target.value }))}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
             </div>
             <div>

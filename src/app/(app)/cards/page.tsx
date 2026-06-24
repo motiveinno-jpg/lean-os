@@ -7,6 +7,7 @@
 //   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -493,10 +494,10 @@ export default function CardsPage() {
                     {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
                   </h3>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <input type="date" value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
+                    <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
                       className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
                     <span className="text-[var(--text-dim)] text-xs">~</span>
-                    <input type="date" value={cardTxTo} min={cardTxFrom || undefined} onChange={(e) => setCardTxTo(e.target.value)} title="종료일"
+                    <DateField value={cardTxTo} min={cardTxFrom || undefined} onChange={(e) => setCardTxTo(e.target.value)} title="종료일"
                       className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
                     {(cardTxFrom || cardTxTo) && <button onClick={() => { setCardTxFrom(""); setCardTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
                     <button

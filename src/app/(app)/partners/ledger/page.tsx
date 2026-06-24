@@ -6,6 +6,7 @@
 //   요약 카드 + 좌 거래처 목록 / 우 위하고식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -233,12 +234,12 @@ export default function PartnerLedgerPage() {
           ) : (
             <span className="inline-flex items-center gap-1">
               {/* 기간 직접 선택 — 부터~까지 임의 지정 */}
-              <input type="date" value={customFrom} max={customTo}
+              <DateField value={customFrom} max={customTo}
                 onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
                 title="시작일"
                 className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
               <span className="text-[var(--text-dim)]">~</span>
-              <input type="date" value={customTo} min={customFrom}
+              <DateField value={customTo} min={customFrom}
                 onChange={(e) => e.target.value && setCustomTo(e.target.value)}
                 title="종료일"
                 className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -1139,7 +1140,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래일 *</label>
-                <input type="date" value={manualForm.transaction_date} onChange={e => setManualForm(f => ({ ...f, transaction_date: e.target.value }))}
+                <DateField value={manualForm.transaction_date} onChange={e => setManualForm(f => ({ ...f, transaction_date: e.target.value }))}
                   className="field-input" />
               </div>
               <div>
@@ -1402,16 +1403,14 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   );
                 })}
               </select>
-              <input
-                type="date"
+              <DateField
                 value={bankDateFrom}
                 onChange={e => setBankDateFrom(e.target.value)}
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
                 aria-label="시작일"
               />
               <span className="text-xs text-[var(--text-dim)]">~</span>
-              <input
-                type="date"
+              <DateField
                 value={bankDateTo}
                 onChange={e => setBankDateTo(e.target.value)}
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
@@ -1761,9 +1760,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               ))}
             </select>
 
-            <input type="date" value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)}
+            <DateField value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)}
               className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="시작일" />
-            <input type="date" value={cardDateTo} onChange={e => setCardDateTo(e.target.value)}
+            <DateField value={cardDateTo} onChange={e => setCardDateTo(e.target.value)}
               className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="종료일" />
 
             <div className="ml-auto flex gap-2">

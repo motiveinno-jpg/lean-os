@@ -5,6 +5,7 @@
 //   계획 마진 롤업은 부모 페이지(v_project_margin)에서 표기. 여기선 세부 CRUD + 세부별 계획/실적.
 
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -247,12 +248,12 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">시작일</label>
-                  <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                  <DateField value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
                     className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">종료일</label>
-                  <input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                  <DateField value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
                     className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>

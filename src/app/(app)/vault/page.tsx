@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTabParam } from "@/lib/use-tab-param";
@@ -732,7 +733,7 @@ export default function VaultPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">갱신일</label>
-              <input type="date" value={accForm.renewalDate} onChange={(e) => setAccForm({ ...accForm, renewalDate: e.target.value })}
+              <DateField value={accForm.renewalDate} onChange={(e) => setAccForm({ ...accForm, renewalDate: e.target.value })}
                 className="field-input" />
             </div>
           </div>
@@ -769,7 +770,7 @@ export default function VaultPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">취득일</label>
-              <input type="date" value={assetForm.purchaseDate} onChange={(e) => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
+              <DateField value={assetForm.purchaseDate} onChange={(e) => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
                 className="field-input" />
             </div>
             <div>
@@ -851,7 +852,7 @@ export default function VaultPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">만료일</label>
-              <input type="date" value={docForm.expiryDate} onChange={(e) => setDocForm({ ...docForm, expiryDate: e.target.value })}
+              <DateField value={docForm.expiryDate} onChange={(e) => setDocForm({ ...docForm, expiryDate: e.target.value })}
                 className="field-input" />
             </div>
             <div>

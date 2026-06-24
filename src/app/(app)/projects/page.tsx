@@ -8,6 +8,7 @@
 //   - 권한: owner/admin only. employee/partner → AccessDenied.
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTabParam } from "@/lib/use-tab-param";
@@ -787,8 +788,7 @@ function NewProjectModal({
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">시작일</label>
-            <input
-              type="date"
+            <DateField
               value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
               className="field-input"
@@ -796,8 +796,7 @@ function NewProjectModal({
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">종료일</label>
-            <input
-              type="date"
+            <DateField
               value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })}
               min={form.start_date || undefined}

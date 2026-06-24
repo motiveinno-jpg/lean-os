@@ -13,6 +13,7 @@
 //   표시·편집 전용, 재무 무변경.
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -1295,8 +1296,7 @@ function DateCell({ value, onChange }: { value: any; onChange: (v: any) => void 
   const [editing, setEditing] = useState(false);
   if (editing) {
     return (
-      <input
-        type="date" autoFocus value={value || ""}
+      <DateField autoFocus value={value || ""}
         onChange={(e) => { onChange(e.target.value || null); }}
         onBlur={() => setEditing(false)}
         className="w-full text-[12px] bg-transparent text-[var(--text)] text-center focus:outline-none"

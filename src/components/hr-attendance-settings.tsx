@@ -9,6 +9,7 @@
 //   - 휴일 캘린더: holidays 테이블 직접 관리 + 한국 법정공휴일 seed RPC
 
 import React, { useEffect, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -315,8 +316,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
         </div>
 
         <div className="grid grid-cols-4 gap-2 mb-3">
-          <input
-            type="date"
+          <DateField
             value={newHoliday.date}
             onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
             className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs"

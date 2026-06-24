@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1145,8 +1146,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     <label className="block text-xs text-[var(--text-muted)] mb-1">
                       {leaveForm.leaveUnit === "full_day" ? "시작일 *" : "휴가일 *"}
                     </label>
-                    <input
-                      type="date"
+                    <DateField
                       value={leaveForm.startDate}
                       onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value, endDate: leaveForm.leaveUnit !== "full_day" ? e.target.value : leaveForm.endDate })}
                       className="field-input"
@@ -1155,8 +1155,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   {leaveForm.leaveUnit === "full_day" && (
                     <div>
                       <label className="block text-xs text-[var(--text-muted)] mb-1">종료일 *</label>
-                      <input
-                        type="date"
+                      <DateField
                         value={leaveForm.endDate}
                         min={leaveForm.startDate}
                         onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -666,8 +667,7 @@ export default function BoardPage() {
             <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
               📅 일정 (선택)
             </div>
-            <input
-              type="date"
+            <DateField
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
               className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"

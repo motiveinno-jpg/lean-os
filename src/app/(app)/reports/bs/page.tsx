@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -632,8 +633,7 @@ export default function BalanceSheetPage() {
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
             <label style={{ fontSize: 13, color: "var(--text-dim)" }}>기준일:</label>
-            <input
-              type="date"
+            <DateField
               value={cutoffInput || today}
               max={today}
               onChange={(e) => setCutoffInput(e.target.value)}

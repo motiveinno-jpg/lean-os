@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import {
@@ -688,7 +689,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
           </div>
           <div>
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">마감일</label>
-            <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
+            <DateField value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
           </div>
           <button onClick={() => newTitle.trim() && addMut.mutate()} disabled={!newTitle.trim() || addMut.isPending} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
             추가
@@ -801,7 +802,7 @@ function TodoEditModal({
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-muted)] mb-1">마감일</label>
-              <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
+              <DateField value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
             </div>
           </div>
         </div>

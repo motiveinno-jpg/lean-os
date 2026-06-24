@@ -6,6 +6,7 @@
 //   - 잔액 계산(syncBankBalances) 무변경, 표시만.
 
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { IconTile, TileIcon } from "@/components/ui/icon-tile";
@@ -296,10 +297,10 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
               <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>
-              <input type="date" value={fromStr} max={toStr} onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, from: d })); }}
+              <DateField value={fromStr} max={toStr} onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, from: d })); }}
                 className="bg-transparent text-xs font-semibold text-[var(--text)] mono-number px-1 outline-none" aria-label="시작일" />
               <span className="text-[var(--text-dim)] text-xs">~</span>
-              <input type="date" value={toStr} min={fromStr} onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, to: d })); }}
+              <DateField value={toStr} min={fromStr} onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, to: d })); }}
                 className="bg-transparent text-xs font-semibold text-[var(--text)] mono-number px-1 outline-none" aria-label="종료일" />
               <button onClick={() => shiftMonths(1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="다음 달">▶</button>
             </div>

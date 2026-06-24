@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -453,15 +454,13 @@ export default function CashReceiptsPage() {
 
       {/* Date filter */}
       <div className="flex items-center gap-2 text-xs">
-        <input
-          type="date"
+        <DateField
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
         />
         <span className="text-[var(--text-dim)]">~</span>
-        <input
-          type="date"
+        <DateField
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
           className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
@@ -522,8 +521,7 @@ export default function CashReceiptsPage() {
               <label className="block text-xs text-[var(--text-muted)] mb-1">
                 발행일 *
               </label>
-              <input
-                type="date"
+              <DateField
                 value={form.issueDate}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, issueDate: e.target.value }))

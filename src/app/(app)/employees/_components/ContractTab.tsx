@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
@@ -918,8 +919,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                         {contractFields.map((f, i) => (
                           <td key={f.key + i + 'v'} className={`px-2 py-2 ${f.included ? '' : 'opacity-40'}`}>
                             {f.type === "date" ? (
-                              <input
-                                type="date"
+                              <DateField
                                 value={f.value}
                                 disabled={!f.included}
                                 onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}

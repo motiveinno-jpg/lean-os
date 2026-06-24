@@ -6,6 +6,7 @@
 //   - 카드 클릭 → onSelectCard(cardId | `codef:cardName`) 로 부모의 기존 상세 흐름 연결
 
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
 import { IconTile, TileIcon } from "@/components/ui/icon-tile";
 import { getCardSpendByCompany, type CardSpendCard } from "@/lib/card-transactions";
@@ -268,8 +269,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
             {/* 기간 네비게이션 — 1개월 단위 이동 + 날짜 직접 선택 */}
             <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
               <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>
-              <input
-                type="date"
+              <DateField
                 value={fromStr}
                 max={toStr}
                 onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, from: d })); }}
@@ -277,8 +277,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
                 aria-label="시작일"
               />
               <span className="text-[var(--text-dim)] text-xs">~</span>
-              <input
-                type="date"
+              <DateField
                 value={toStr}
                 min={fromStr}
                 onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, to: d })); }}

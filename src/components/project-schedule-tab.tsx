@@ -6,6 +6,7 @@
 //   start_date 컬럼은 20260521090000 마이그에서 추가, NULL 허용.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -294,8 +295,7 @@ function ChecklistView({
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11px] text-[var(--text-muted)]">
               <span className="block mb-1">시작일 (간트용)</span>
-              <input
-                type="date"
+              <DateField
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
                 className="w-full px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)]"
@@ -303,8 +303,7 @@ function ChecklistView({
             </label>
             <label className="text-[11px] text-[var(--text-muted)]">
               <span className="block mb-1">마감일</span>
-              <input
-                type="date"
+              <DateField
                 value={due}
                 onChange={(e) => setDue(e.target.value)}
                 className="w-full px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)]"
@@ -370,8 +369,7 @@ function EditRow({
       <div className="grid grid-cols-2 gap-2">
         <label className="text-[11px] text-[var(--text-muted)]">
           <span className="block mb-1">시작일</span>
-          <input
-            type="date"
+          <DateField
             value={start}
             onChange={(e) => setStart(e.target.value)}
             className="w-full px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)]"
@@ -379,8 +377,7 @@ function EditRow({
         </label>
         <label className="text-[11px] text-[var(--text-muted)]">
           <span className="block mb-1">마감일</span>
-          <input
-            type="date"
+          <DateField
             value={due}
             onChange={(e) => setDue(e.target.value)}
             className="w-full px-2 py-1.5 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border)]"

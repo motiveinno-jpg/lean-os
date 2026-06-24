@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DateField } from "@/components/date-field";
 import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -1829,8 +1830,7 @@ export default function TaxInvoicesPage() {
                         </select>
 
                         {/* 작성일자 — 연도 4자리로 제한 */}
-                        <input
-                          type="date"
+                        <DateField
                           value={row.issueDate}
                           max="9999-12-31"
                           onChange={(e) => {

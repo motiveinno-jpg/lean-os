@@ -2,6 +2,7 @@
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { encryptCredential } from "@/lib/crypto";
@@ -777,11 +778,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             </div>
             <div className="flex items-center gap-2 flex-wrap mt-3">
               <label className="text-xs text-[var(--text-muted)]">시작일</label>
-              <input type="date" value={rangeFrom} max={rangeTo} onChange={e => setRangeFrom(e.target.value)}
+              <DateField value={rangeFrom} max={rangeTo} onChange={e => setRangeFrom(e.target.value)}
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
               <span className="text-xs text-[var(--text-dim)]">~</span>
               <label className="text-xs text-[var(--text-muted)]">종료일</label>
-              <input type="date" value={rangeTo} min={rangeFrom} max={new Date().toISOString().slice(0,10)} onChange={e => setRangeTo(e.target.value)}
+              <DateField value={rangeTo} min={rangeFrom} max={new Date().toISOString().slice(0,10)} onChange={e => setRangeTo(e.target.value)}
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
               <div className="flex items-center gap-1 ml-2">
                 {[

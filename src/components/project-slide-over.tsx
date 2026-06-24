@@ -9,6 +9,7 @@
 //   - 모바일: sm 이하 전체 화면, 그 위는 우측 슬라이드(max-w-2xl).
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -675,12 +676,12 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] text-[var(--text-muted)] mb-1">시작일</label>
-                  <input type="date" value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
+                  <DateField value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
                 </div>
                 <div>
                   <label className="block text-[11px] text-[var(--text-muted)] mb-1">종료일</label>
-                  <input type="date" value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined}
+                  <DateField value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} min={editForm.start_date || undefined}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
                 </div>
                 <div>
@@ -1107,8 +1108,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-[11px] text-[var(--text-muted)] mb-1">받은 날짜</label>
-                <input
-                  type="date"
+                <DateField
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
                   className="field-input-sm"
@@ -1182,8 +1182,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-[11px] text-[var(--text-muted)] mb-1">지급 날짜</label>
-                <input
-                  type="date"
+                <DateField
                   value={costDate}
                   onChange={(e) => setCostDate(e.target.value)}
                   className="field-input-sm"

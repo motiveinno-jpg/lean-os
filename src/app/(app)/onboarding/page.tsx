@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { DateField } from "@/components/date-field";
 
 // ── Constants ──
 
@@ -1183,14 +1184,22 @@ function FormField({
         {label}
         {required && <span className="text-[var(--danger)] ml-0.5">*</span>}
       </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
-      />
+      {type === "date" ? (
+        <DateField
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
+        />
+      )}
       {hint && <p className="text-[10px] text-[var(--text-dim)] mt-1">{hint}</p>}
     </div>
   );

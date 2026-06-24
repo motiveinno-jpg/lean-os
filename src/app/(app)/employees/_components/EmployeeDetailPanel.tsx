@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -332,8 +333,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                       </div>
                       <div>
                         <div className="caption mb-0.5">퇴직일 (예상)</div>
-                        <input
-                          type="date"
+                        <DateField
                           value={retirementEndDate}
                           onChange={(e) => setRetirementEndDate(e.target.value)}
                           className="w-full px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
@@ -638,8 +638,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 {/* 퇴사일 */}
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">퇴사일</label>
-                  <input
-                    type="date"
+                  <DateField
                     value={termDate}
                     onChange={(e) => setTermDate(e.target.value)}
                     className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
@@ -1080,8 +1079,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
             </div>
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">발령일</label>
-              <input
-                type="date"
+              <DateField
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
@@ -1156,7 +1154,11 @@ function EditField({ label, value, onChange, type, inputMode }: { label: string;
   return (
     <div>
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
-      <input type={type || "text"} inputMode={inputMode as any} value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+      {type === "date" ? (
+        <DateField value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+      ) : (
+        <input type={type || "text"} inputMode={inputMode as any} value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+      )}
     </div>
   );
 }

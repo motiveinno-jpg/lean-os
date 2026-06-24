@@ -12,6 +12,7 @@
 // 시안 토큰: glass-card + var(--bg-card)/--text/--border.
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -210,8 +211,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">예정일</label>
-          <input
-            type="date"
+          <DateField
             value={date}
             min={today}
             max={maxDate}

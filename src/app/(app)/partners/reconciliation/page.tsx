@@ -7,6 +7,7 @@
 //   조회(거래처별 잔액)는 /partners/ledger (거래처 원장).
 
 import { useMemo, useRef, useState, useEffect } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -469,10 +470,10 @@ export default function ReconciliationPage() {
             title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
             {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
           <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] px-2 py-1">
-            <input type="date" value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
+            <DateField value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
               className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
             <span className="caption">~</span>
-            <input type="date" value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
+            <DateField value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
               className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
           </span>
           <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}

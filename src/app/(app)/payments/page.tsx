@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
@@ -2022,12 +2023,12 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">기안일</label>
-              <input type="date" value={form.request_date} onChange={(e) => setForm({ ...form, request_date: e.target.value })}
+              <DateField value={form.request_date} onChange={(e) => setForm({ ...form, request_date: e.target.value })}
                 className="field-input" />
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제요청일</label>
-              <input type="date" value={form.payment_due_date} onChange={(e) => setForm({ ...form, payment_due_date: e.target.value })}
+              <DateField value={form.payment_due_date} onChange={(e) => setForm({ ...form, payment_due_date: e.target.value })}
                 className="field-input" />
             </div>
           </div>

@@ -6,6 +6,7 @@
 //   요약: 월 총 구독비 / 연 환산 / 카테고리 분포. 등록·수정은 owner/admin.
 
 import { useEffect, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -226,7 +227,7 @@ export default function SubscriptionsPage() {
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">다음 결제일</label>
-              <input type="date" value={form.renewalDate} onChange={(e) => setForm({ ...form, renewalDate: e.target.value })}
+              <DateField value={form.renewalDate} onChange={(e) => setForm({ ...form, renewalDate: e.target.value })}
                 className="field-input" />
             </div>
             <div>

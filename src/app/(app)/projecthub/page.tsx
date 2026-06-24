@@ -5,6 +5,7 @@
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -424,11 +425,11 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LB}>시작일</label>
-              <input type="date" value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
+              <DateField value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
             </div>
             <div>
               <label className={LB}>종료일</label>
-              <input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
+              <DateField value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
             </div>
           </div>
         </div>

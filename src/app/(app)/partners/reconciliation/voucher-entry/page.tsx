@@ -13,6 +13,7 @@
 //   삭제 = voucher_reject(행 보존). 마감(잠금) 월은 서버가 저장·수정·삭제 차단.
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -495,7 +496,7 @@ export default function VoucherEntryPage() {
         <div className="px-4 py-3 border-b border-[var(--border)] flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs">
             <span className="font-semibold text-[var(--text-muted)]">일자</span>
-            <input type="date" value={entryDate}
+            <DateField value={entryDate}
               onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
               className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]" />
           </div>
