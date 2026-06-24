@@ -1780,17 +1780,18 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
           revenue: cb.totalRevenue, cost: cb.totalCost,
           margin: cb.totalRevenue > 0 ? cb.avgMargin : 0,
         })),
-      }, { upload: true, companyId, download: false });
+      }, { upload: true, companyId, download: true });
 
       if (publicUrl) await attachReportUrl(checklist.id, publicUrl);
 
       return { ...result, publicUrl };
     },
     onSuccess: (r) => {
+      const pdfMsg = r.publicUrl ? '리포트 PDF 다운로드 + 저장됨' : '리포트 PDF 다운로드됨(저장 실패)';
       if (r.closed) {
-        toast(`자동 마감 완료 — ${r.reason}`, 'success');
+        toast(`자동 마감 완료 — ${r.reason}. ${pdfMsg}`, 'success');
       } else {
-        toast(`자동 검증 완료 — ${r.reason}. 리포트 PDF 는 저장됨.`, 'info');
+        toast(`자동 검증 완료 — ${r.reason}. ${pdfMsg}`, 'info');
       }
       queryClient.invalidateQueries({ queryKey: ['closing-checklist'] });
     },
