@@ -410,19 +410,23 @@ export async function saveCertificateLog(params: {
 
   if (error) throw error;
 
-  await logAudit({
-    companyId: params.companyId,
-    userId: params.issuedBy,
-    entityType: 'certificate',
-    entityId: params.certificateNumber,
-    action: 'issue_certificate',
-    afterJson: {
-      certificate_type: params.certificateType,
-      certificate_number: params.certificateNumber,
-      employee_id: params.employeeId,
-      purpose: params.purpose,
-    },
-  });
+  // 감사 로그는 비차단 — audit_logs.entity_id 는 uuid 라 인증서번호(비-UUID)를 넣으면 22P02 로
+  //   실패해 발급 전체가 '실패'로 잘못 보고됐다. entity_id 는 employee_id(uuid) 사용 + 번호는 afterJson 에.
+  try {
+    await logAudit({
+      companyId: params.companyId,
+      userId: params.issuedBy,
+      entityType: 'certificate',
+      entityId: params.employeeId,
+      action: 'issue_certificate',
+      afterJson: {
+        certificate_type: params.certificateType,
+        certificate_number: params.certificateNumber,
+        employee_id: params.employeeId,
+        purpose: params.purpose,
+      },
+    });
+  } catch (e) { console.error('certificate audit log failed (non-blocking):', e); }
 }
 
 // ────────────────────────────────────────────

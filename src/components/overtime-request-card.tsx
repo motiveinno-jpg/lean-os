@@ -61,12 +61,25 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
   const { data: emp } = useQuery({
     queryKey: ["ot-my-emp", companyId, userId],
     queryFn: async () => {
-      const { data } = await db
+      // user_id 매칭 우선, 실패 시 이메일 폴백(관리자 등 user_id 미연결 직원 레코드 대비)
+      let { data } = await db
         .from("employees")
         .select("id, name")
         .eq("company_id", companyId)
         .eq("user_id", userId)
         .maybeSingle();
+      if (!data) {
+        const { data: u } = await db.from("users").select("email").eq("id", userId).maybeSingle();
+        if (u?.email) {
+          const { data: byEmail } = await db
+            .from("employees")
+            .select("id, name")
+            .eq("company_id", companyId)
+            .eq("email", u.email)
+            .maybeSingle();
+          data = byEmail;
+        }
+      }
       return data as { id: string; name: string } | null;
     },
     enabled: !!companyId && !!userId,

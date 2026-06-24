@@ -125,7 +125,7 @@ export default function AttendancePage() {
       {/* 직원 본인 — 연장근무 신청 카드 (AttendanceTab 본문 무수정 가드: 래퍼 레벨 1줄 호출).
           신청·승인 흐름은 RPC 가드(request_overtime / approve_overtime / reject_overtime) +
           check_can_clock_in_after_hours 게이트가 통합. */}
-      {isEmployee && userId && (
+      {(isEmployee || isManager) && userId && (
         <OvertimeRequestCard companyId={companyId} userId={userId} />
       )}
 
