@@ -3086,26 +3086,48 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               </button>
             ) : !isCheckedOut ? (
               (() => {
-                // 근무시간 게이지 — 회사 표준 근무시간 기준(설정 없으면 8시간). 표준까지 기본색, 초과(연장)분부터 주황색.
-                const stdMin = dailyStdMin;
-                const startMs = todayAttendance?.check_in ? new Date(todayAttendance.check_in).getTime() : Date.now();
-                const elapsedMin = Math.max(0, Math.floor((Date.now() - startMs) / 60000));
-                const maxMin = Math.max(elapsedMin, stdMin);
-                const regPct = (Math.min(elapsedMin, stdMin) / maxMin) * 100;
-                const otMin = Math.max(0, elapsedMin - stdMin);
-                const otPct = (otMin / maxMin) * 100;
-                const h = Math.floor(elapsedMin / 60), m = elapsedMin % 60;
-                const sh = Math.floor(stdMin / 60), sm = stdMin % 60;
-                const stdLabel = sm > 0 ? `${sh}시간 ${sm}분` : `${sh}시간`;
+                // 시간축 타임라인 — 출근~현재를 시간대 위에 바로 표시. 근무종료(설정) 이후는 연장(주황).
+                const toMin = (t?: string | null) => { if (!t) return null; const [h, m] = t.split(":").map(Number); return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null; };
+                const ci = todayAttendance?.check_in ? new Date(todayAttendance.check_in) : null;
+                const wsMin = toMin(workSettings?.work_start_time);
+                const weMin = toMin(workSettings?.work_end_time);
+                const checkInMin = ci ? ci.getHours() * 60 + ci.getMinutes() : (wsMin ?? 540);
+                const now = new Date();
+                const nowMin = now.getHours() * 60 + now.getMinutes();
+                const stdWall = (wsMin != null && weMin != null) ? (weMin - wsMin) : (dailyStdMin + 60);
+                const otStartMin = (weMin != null) ? Math.max(checkInMin, weMin) : checkInMin + stdWall;
+                const winStart = Math.floor(Math.min(checkInMin, otStartMin) / 60) * 60 - 60;
+                const winEnd = Math.ceil(Math.max(nowMin, otStartMin) / 60) * 60 + 60;
+                const span = Math.max(120, winEnd - winStart);
+                const pct = (m: number) => ((Math.min(Math.max(m, winStart), winEnd) - winStart) / span) * 100;
+                const clampNow = Math.min(Math.max(nowMin, checkInMin), winEnd);
+                const regL = pct(checkInMin), regW = Math.max(0, pct(Math.min(clampNow, otStartMin)) - regL);
+                const otL = pct(otStartMin), otW = clampNow > otStartMin ? Math.max(0, pct(clampNow) - otL) : 0;
+                const elapsedMin = Math.max(0, nowMin - checkInMin);
+                const otMin = Math.max(0, nowMin - otStartMin);
+                const ticks: number[] = [];
+                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) if (h % 3 === 0) ticks.push(h);
                 return (
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1.5 text-[11px]">
-                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{h}시간 {m}분</b> <span className="text-[var(--text-dim)]">/ {stdLabel}</span></span>
+                    <div className="flex items-center justify-between mb-1 text-[11px]">
+                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{Math.floor(elapsedMin / 60)}시간 {elapsedMin % 60}분</b></span>
                       {otMin > 0 && <span className="text-orange-500 font-bold">연장 +{Math.floor(otMin / 60)}시간 {otMin % 60}분</span>}
                     </div>
-                    <div className="h-3 rounded-full bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden flex">
-                      <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${regPct}%` }} />
-                      <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${otPct}%` }} />
+                    <div className="relative h-6 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+                      {ticks.map((h) => (
+                        <div key={h} className="absolute top-0 bottom-0 border-l border-[var(--border)]/40" style={{ left: `${pct(h * 60)}%` }} />
+                      ))}
+                      <div className="absolute top-1 bottom-1 rounded bg-[var(--primary)]/85 transition-all duration-500" style={{ left: `${regL}%`, width: `${regW}%` }} />
+                      {otW > 0 && <div className="absolute top-1 bottom-1 rounded bg-orange-500 transition-all duration-500" style={{ left: `${otL}%`, width: `${otW}%` }} />}
+                    </div>
+                    <div className="relative h-3 mt-0.5">
+                      {ticks.map((h) => (
+                        <span key={h} className="absolute text-[8px] text-[var(--text-dim)] -translate-x-1/2 mono-number" style={{ left: `${pct(h * 60)}%` }}>{h}</span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--text-dim)]">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--primary)]/85" />근무</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" />연장</span>
                     </div>
                   </div>
                 );
