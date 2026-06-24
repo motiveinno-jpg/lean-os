@@ -2815,12 +2815,12 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     staleTime: 5 * 60_000,
   });
   // 일 표준 근무(분) = (종료 − 시작) − 점심. 미설정/이상치면 480분(8시간).
-  const dailyStdMin = useMemo(() => {
+  const dailyStdMin = (() => {
     const toMin = (t?: string | null) => { if (!t) return null; const [h, m] = t.split(":").map(Number); return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null; };
     const ws = toMin(workSettings?.work_start_time), we = toMin(workSettings?.work_end_time);
     if (ws != null && we != null && we > ws) return Math.max(60, (we - ws) - Number(workSettings?.lunch_minutes || 0));
     return 480;
-  }, [workSettings]);
+  })();
 
   // 휴가 잔여
   const { data: leaveBalance } = useQuery({
