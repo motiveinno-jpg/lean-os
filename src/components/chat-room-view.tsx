@@ -9,7 +9,8 @@ import {
   getCurrentUser, getChannel, getMessagesPaginated, getParticipants, getChannelEvents,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
-import { sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
+import { sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage, leaveChannel } from "@/lib/chat";
+import { friendlyError } from "@/lib/friendly-error";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { useToast } from "@/components/toast";
 import { ChatBubble } from "@/components/chat-bubble";
@@ -385,8 +386,11 @@ function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c
 //   embedded=true: 슬랙식 2단 레이아웃의 우측 대화 패널로 렌더 (전체화면 대신 부모 높이 채움).
 export function ChatRoomView({ channelId, onBack, embedded, compact }: { channelId: string; onBack: () => void; embedded?: boolean; compact?: boolean }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
+  const [myName, setMyName] = useState<string>("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [tab, setTab] = useState<"chat" | "participants" | "events" | "files">("chat");
   const [showSearch, setShowSearch] = useState(false);
   const [showPinnedAll, setShowPinnedAll] = useState(false);
@@ -408,7 +412,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) { setUserId(u.id); setCompanyId(u.company_id); }
+      if (u) { setUserId(u.id); setCompanyId(u.company_id); setMyName(u.name || u.email || "사용자"); }
     });
   }, []);
 
@@ -498,6 +502,23 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
     queryFn: () => getCompanyUsers(companyId!),
     enabled: !!companyId,
   });
+
+  // 대화방 나가기 — 남은 참가자에게 시스템 메시지, 본인은 목록에서 제거 후 방 닫기
+  async function handleLeave() {
+    if (!userId || leaving) return;
+    if (!confirm("이 대화방에서 나가시겠습니까?\n나가면 목록에서 사라지고, 다시 참여하려면 초대를 받아야 합니다.")) return;
+    setLeaving(true);
+    try {
+      await leaveChannel(channelId, userId, myName);
+      queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-unread"] });
+      toast("대화방에서 나갔습니다", "success");
+      onBack();
+    } catch (e) {
+      toast(friendlyError(e), "error");
+      setLeaving(false);
+    }
+  }
 
   // Realtime: sole mechanism for live updates (no polling)
   useEffect(() => {
@@ -966,6 +987,20 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               ))}
             </div>
           )}
+
+          {/* 대화방 나가기 */}
+          <div className="px-5 py-4 border-t border-[var(--border)] mt-2">
+            <button
+              onClick={handleLeave}
+              disabled={leaving}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 text-red-500 hover:bg-red-500/10 border border-red-500/30 disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {leaving ? "나가는 중…" : "대화방 나가기"}
+            </button>
+          </div>
 
           {/* 초대 모달 */}
           {showInvite && (

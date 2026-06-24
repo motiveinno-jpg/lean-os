@@ -159,6 +159,19 @@ export async function removeParticipant(channelId: string, userId: string) {
   await logEvent(channelId, 'user_left', { user_id: userId });
 }
 
+// ── Leave channel (본인이 대화방 나가기) ──
+//   남은 참가자에게는 "{이름}님이 대화방을 나갔습니다." 시스템 메시지를 남기고,
+//   본인은 chat_members(RLS SELECT 게이트) + chat_participants(read tracking) 양쪽에서
+//   제거 → 채널 목록·접근에서 사라짐. 시스템 메시지는 멤버십 삭제 전에 보내 INSERT 권한 보장.
+export async function leaveChannel(channelId: string, userId: string, userName: string) {
+  await sendSystemMessage(channelId, userId, `${userName}님이 대화방을 나갔습니다.`);
+  await logEvent(channelId, 'user_left', { user_id: userId });
+
+  const db = supabase as any;
+  await db.from('chat_participants').delete().eq('channel_id', channelId).eq('user_id', userId);
+  await db.from('chat_members').delete().eq('channel_id', channelId).eq('user_id', userId);
+}
+
 // ── Mark as read ──
 export async function markAsRead(channelId: string, userId: string) {
   const { error } = await supabase
