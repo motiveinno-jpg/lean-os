@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { Avatar } from "@/components/avatar";
+import { useToast } from "@/components/toast";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-amber-500" },
@@ -47,11 +49,54 @@ export default function MyPage() {
   const { data: userInfo } = useQuery({
     queryKey: ["my-user-info", userId],
     queryFn: async () => {
-      const { data } = await supabase.from("users").select("name, email, role").eq("id", userId!).maybeSingle();
+      const { data } = await supabase.from("users").select("name, email, role, avatar_url").eq("id", userId!).maybeSingle();
       return data;
     },
     enabled: !!userId,
   });
+
+  // 프로필 사진 업로드/제거
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const refreshAvatar = () => {
+    qc.invalidateQueries({ queryKey: ["my-user-info"] });
+    qc.invalidateQueries({ queryKey: ["my-avatar"] });
+  };
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !userId) return;
+    if (!file.type.startsWith("image/")) { toast("이미지 파일만 업로드할 수 있습니다", "error"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast("5MB 이하 이미지만 업로드할 수 있습니다", "error"); return; }
+    setUploadingAvatar(true);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `avatars/${userId}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw new Error(upErr.message);
+      const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+      const { error: updErr } = await supabase.from("users").update({ avatar_url: urlData.publicUrl }).eq("id", userId);
+      if (updErr) throw new Error(updErr.message);
+      toast("프로필 사진이 변경되었습니다", "success");
+      refreshAvatar();
+    } catch (err: any) {
+      toast(`업로드 실패: ${err?.message || ""}`, "error");
+    } finally { setUploadingAvatar(false); }
+  };
+  const handleAvatarRemove = async () => {
+    if (!userId) return;
+    setUploadingAvatar(true);
+    try {
+      const { error } = await supabase.from("users").update({ avatar_url: null }).eq("id", userId);
+      if (error) throw new Error(error.message);
+      toast("기본 이미지로 변경되었습니다", "success");
+      refreshAvatar();
+    } catch (err: any) {
+      toast(`변경 실패: ${err?.message || ""}`, "error");
+    } finally { setUploadingAvatar(false); }
+  };
 
   const { data: employee } = useQuery({
     queryKey: ["my-employee-info", companyId, userId],
@@ -123,6 +168,26 @@ export default function MyPage() {
       {/* 기본 정보 */}
       <div className="glass-card p-6 mb-4">
         <h2 className="section-title">기본 정보</h2>
+        {/* 프로필 사진 — 업로드하면 전 화면 아바타가 이 사진으로. 제거 시 이니셜로 복귀. */}
+        <div className="flex items-center gap-4 mb-5 pb-5 border-b border-[var(--border)]">
+          <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={64} />
+          <div className="flex flex-col gap-1.5">
+            <div className="text-xs text-[var(--text-dim)]">프로필 사진</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => fileRef.current?.click()} disabled={uploadingAvatar}
+                className="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition">
+                {uploadingAvatar ? "처리 중..." : "사진 변경"}
+              </button>
+              {(userInfo as any)?.avatar_url && (
+                <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
+                  className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] text-xs font-semibold hover:text-[var(--text)] disabled:opacity-50 transition">
+                  기본 이미지로
+                </button>
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
           <div>
             <div className="text-xs text-[var(--text-dim)] mb-0.5">이름</div>

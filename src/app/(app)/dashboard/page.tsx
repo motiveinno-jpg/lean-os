@@ -13,6 +13,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
+import { Avatar } from "@/components/avatar";
 import { DashboardSiyanHero } from "@/components/dashboard-siyan-hero";
 import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
@@ -2822,6 +2823,17 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     return 480;
   })();
 
+  // 내 프로필 사진(없으면 이니셜)
+  const { data: myAvatar } = useQuery({
+    queryKey: ["my-avatar", userId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("avatar_url").eq("id", userId!).maybeSingle();
+      return (data?.avatar_url as string | null) ?? null;
+    },
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+
   // 휴가 잔여
   const { data: leaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
@@ -2980,13 +2992,11 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 
   return (
     <div className="">
-      {/* Welcome header */}
+      {/* Welcome header — 아바타+이름 한 묶음으로 sticky(아바타 잘림 방지) */}
       <div className="mb-5 md:mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-            {(userName || "E").charAt(0)}
-          </div>
-          <div className="page-sticky-header">
+        <div className="page-sticky-header flex items-center gap-3 mb-1">
+          <Avatar name={userName || "E"} src={myAvatar} size={40} />
+          <div>
             <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
             <p className="text-xs text-[var(--text-muted)]">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
           </div>

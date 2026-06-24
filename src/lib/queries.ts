@@ -11,6 +11,7 @@ export type CurrentUser = {
   email: string;
   name: string | null;
   role: string | null;
+  avatar_url: string | null;
   created_at: string | null;
   companies: { id: string; name: string; industry: string | null; created_at: string | null } | null;
 };
