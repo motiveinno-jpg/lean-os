@@ -11,7 +11,7 @@ import { generateEmploymentCertificate, generateCareerCertificate, saveCertifica
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
-import { GRANTABLE_TABS, getUserTabAccess, grantTab, revokeTab } from "@/lib/tab-access";
+import { GRANTABLE_TABS, EMPLOYEE_BASE_ROUTES, getUserTabAccess, grantTab, revokeTab } from "@/lib/tab-access";
 
 // ── Employee Detail Panel ──
 export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
@@ -1207,6 +1207,16 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
     enabled: !!targetUserId,
   });
   const grantedSet = granted ?? new Set<string>();
+  // 대상 계정 역할 — 관리자/대표면 전체 접근(부여 무관)
+  const { data: targetRole } = useQuery<string | null>({
+    queryKey: ["target-user-role", targetUserId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("role").eq("id", targetUserId).maybeSingle();
+      return (data?.role as string) ?? null;
+    },
+    enabled: !!targetUserId,
+  });
+  const isPrivileged = targetRole === "owner" || targetRole === "admin";
 
   if (!targetUserId) {
     return (
@@ -1232,18 +1242,24 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
   return (
     <div className="space-y-4">
       <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-        <b className="text-[var(--text)]">{empName}</b> 님이 접근할 탭을 켜 주세요. 켜진 탭만 직원 계정에서 열람·사용할 수 있습니다(끄면 접근 차단).
+        {isPrivileged ? (
+          <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">관리자/대표</b>라 모든 탭에 접근합니다(개별 부여 불필요).</>
+        ) : (
+          <><b className="text-[var(--text)]">{empName}</b> 님이 접근할 탭을 켜 주세요. 켜진 탭만 열람·사용할 수 있습니다. <span className="text-[var(--text-dim)]">(잠금🔒은 기본 제공 탭 — 항상 접근)</span></>
+        )}
       </p>
       {groups.map((g) => (
         <div key={g}>
           <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g}</div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {GRANTABLE_TABS.filter((t) => t.group === g).map((t) => {
-              const on = grantedSet.has(t.route);
+              const locked = isPrivileged || EMPLOYEE_BASE_ROUTES.has(t.route); // 항상 접근(끌 수 없음)
+              const on = locked || grantedSet.has(t.route);
               return (
-                <button key={t.route} disabled={busy === t.route} onClick={() => toggle(t.route, !on)}
-                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition disabled:opacity-50 ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                  <span className="truncate">{t.label}</span>
+                <button key={t.route} disabled={locked || busy === t.route} onClick={() => { if (!locked) toggle(t.route, !on); }}
+                  title={locked ? (isPrivileged ? "관리자/대표 — 전체 접근" : "기본 제공 탭 — 항상 접근") : ""}
+                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition ${locked ? "opacity-90 cursor-default" : "disabled:opacity-50"} ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                  <span className="truncate">{locked && "🔒 "}{t.label}</span>
                   <span className={`shrink-0 w-7 h-4 rounded-full relative transition ${on ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
                     <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${on ? "left-[14px]" : "left-0.5"}`} />
                   </span>

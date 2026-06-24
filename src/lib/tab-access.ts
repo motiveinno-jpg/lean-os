@@ -32,6 +32,12 @@ export const GRANTABLE_TABS: { route: string; label: string; group: string }[] =
 
 const GRANTABLE_ROUTES = GRANTABLE_TABS.map((t) => t.route);
 
+// 직원이 부여 없이도 기본 접근 가능한 라우트(app-shell ROLE_ALLOWED_ROUTES.employee 와 동기화).
+//   부여 UI 에서 '기본 접근(항상 ON)' 으로 표시 — 끌 수 없음.
+export const EMPLOYEE_BASE_ROUTES = new Set<string>([
+  "/projects", "/approvals", "/signatures", "/employees", "/attendance",
+]);
+
 // pathname → 부여 대상 route(가장 긴 prefix). 없으면 null(보호 비대상).
 export function matchGrantableRoute(pathname: string): string | null {
   let best: string | null = null;
