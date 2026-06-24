@@ -22,7 +22,6 @@ export const GRANTABLE_TABS: { route: string; label: string; group: string }[] =
   { route: "/projects", label: "워크플로우", group: "워크스페이스" },
   { route: "/approvals", label: "승인 요청", group: "워크스페이스" },
   { route: "/signatures", label: "전자계약", group: "워크스페이스" },
-  { route: "/employees", label: "구성원", group: "인사관리" },
   { route: "/attendance", label: "근태 관리", group: "인사관리" },
   { route: "/bank", label: "통장", group: "자산관리" },
   { route: "/cards", label: "카드", group: "자산관리" },
@@ -35,7 +34,7 @@ const GRANTABLE_ROUTES = GRANTABLE_TABS.map((t) => t.route);
 // 직원이 부여 없이도 기본 접근 가능한 라우트(app-shell ROLE_ALLOWED_ROUTES.employee 와 동기화).
 //   부여 UI 에서 '기본 접근(항상 ON)' 으로 표시 — 끌 수 없음.
 export const EMPLOYEE_BASE_ROUTES = new Set<string>([
-  "/projects", "/approvals", "/signatures", "/employees", "/attendance",
+  "/projects", "/approvals", "/signatures", "/attendance",
 ]);
 
 // pathname → 부여 대상 route(가장 긴 prefix). 없으면 null(보호 비대상).
