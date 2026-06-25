@@ -3,7 +3,7 @@
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { encryptCredential } from "@/lib/crypto";
 import { BANK_ROLES } from "@/lib/routing";
@@ -464,16 +464,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
 // ═══════════════════════════════════════════
 export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
   const db2 = supabase as any;
-  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [saved, setSaved] = useState(false);
-  const [settings, setSettings] = useState({
-    auto_transfer_enabled: false, auto_transfer_limit: 5000000, transfer_schedule: "immediate",
-    retry_count: 3, retry_interval_hours: 1,
-    ceo_telegram_chat_id: "",
-  });
-  const [telegramTestResult, setTelegramTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [sendingTelegramTest, setSendingTelegramTest] = useState(false);
 
   // 연결 상태 확인 — 은행/카드는 ConnectedID, 홈택스는 automation_credentials.hometax 존재 여부.
   const { data: connectionStatus, refetch: refetchConnection } = useQuery({
@@ -716,19 +707,6 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
     setRangeProgress('');
   }
 
-  const { data: companySettings } = useQuery({
-    queryKey: ["automation-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("automation_settings").eq("id", companyId).maybeSingle(); return data?.automation_settings || {}; },
-    enabled: !!companyId,
-  });
-  useEffect(() => { if (companySettings) setSettings((prev) => ({ ...prev, ...companySettings })); }, [companySettings]);
-  async function saveSettings() {
-    if (!companyId) return;
-    const { error } = await db2.from("companies").update({ automation_settings: settings }).eq("id", companyId);
-    if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
-    queryClient.invalidateQueries({ queryKey: ["automation-settings"] });
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
-  }
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   return (
@@ -985,42 +963,6 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
           </div>
         )}
       </div>
-
-      {/* 이체 자동화 설정 */}
-      <div className="glass-card p-6">
-        <h2 className="section-title">이체 자동화 설정</h2>
-        <div className="space-y-4">
-          <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
-            <div><div className="text-sm font-medium">승인완료 건 자동이체</div><div className="text-xs text-[var(--text-dim)] mt-0.5">결재 승인 완료 시 자동 이체 실행</div></div>
-            <input type="checkbox" checked={settings.auto_transfer_enabled} onChange={(e) => setSettings({ ...settings, auto_transfer_enabled: e.target.checked })} className="w-5 h-5 rounded accent-[var(--primary)]" />
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">자동이체 한도 (원)</label><input type="number" value={settings.auto_transfer_limit} onChange={(e) => setSettings({ ...settings, auto_transfer_limit: Number(e.target.value) || 0 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /><p className="text-[10px] text-[var(--text-dim)] mt-1">초과 금액은 수동 확인 필요</p></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">이체 실행 시점</label><select value={settings.transfer_schedule} onChange={(e) => setSettings({ ...settings, transfer_schedule: e.target.value })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="immediate">즉시 실행</option><option value="daily_10">매일 10:00</option><option value="daily_14">매일 14:00</option><option value="weekly_mon">매주 월요일</option></select></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">실패 시 재시도</label><input type="number" value={settings.retry_count} onChange={(e) => setSettings({ ...settings, retry_count: Number(e.target.value) || 0 })} min={0} max={10} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">재시도 간격 (시간)</label><input type="number" value={settings.retry_interval_hours} onChange={(e) => setSettings({ ...settings, retry_interval_hours: Number(e.target.value) || 1 })} min={1} max={24} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" /></div>
-          </div>
-          <div className="mt-2 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-            <div className="text-sm font-medium mb-1">대표 텔레그램 승인 알림</div>
-            <p className="text-[11px] text-[var(--text-dim)] mb-3">자동이체 한도 초과 결제는 여기서 등록한 텔레그램으로 승인 요청이 전송됩니다. <a href="https://t.me/motive_hajun_bot" target="_blank" rel="noreferrer" className="underline text-[var(--primary)]">@motive_hajun_bot</a>에게 <code>/start</code>를 입력하면 Chat ID가 발급됩니다.</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input type="text" value={settings.ceo_telegram_chat_id} onChange={(e) => setSettings({ ...settings, ceo_telegram_chat_id: e.target.value })} placeholder="예: 1234567890" className="flex-1 px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-              <button type="button" disabled={sendingTelegramTest || !settings.ceo_telegram_chat_id.trim()} onClick={async () => {
-                setSendingTelegramTest(true); setTelegramTestResult(null);
-                try {
-                  const m = await import("@/lib/telegram");
-                  const res = await m.sendTelegramMessage({ chatId: settings.ceo_telegram_chat_id.trim(), message: "[오너뷰] 테스트 — 자동이체 승인 알림이 이 채널로 전송됩니다." });
-                  setTelegramTestResult({ ok: !!res.success, msg: res.success ? "테스트 메시지 전송됨" : (res.error || "전송 실패") });
-                } finally { setSendingTelegramTest(false); }
-              }} className="px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] disabled:opacity-50">{sendingTelegramTest ? "전송중..." : "테스트 발송"}</button>
-            </div>
-            {telegramTestResult && (
-              <div className={`mt-2 text-xs ${telegramTestResult.ok ? "text-green-400" : "text-red-400"}`}>{telegramTestResult.ok ? "✅ " : "⚠️ "}{telegramTestResult.msg}</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <button onClick={saveSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "은행연동 설정 저장"}</button>
     </div>
   );
 }
