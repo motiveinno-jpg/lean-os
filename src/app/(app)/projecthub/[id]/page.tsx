@@ -573,7 +573,7 @@ export default function ProjectHubDetailPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {deal.parent_deal_id ? (
-              <Link href={`/projecthub/${deal.parent_deal_id}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+              <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 세부 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
             ) : (
               <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
             )}
