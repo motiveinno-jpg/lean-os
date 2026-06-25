@@ -38,7 +38,6 @@ import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-regist
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
-import { AiBriefing } from "@/components/ai-briefing";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { DashboardAnalytics } from "@/components/dashboard-analytics";

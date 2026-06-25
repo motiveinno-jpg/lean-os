@@ -92,9 +92,9 @@ const CARDS: HubCard[] = [
       </svg>
     ),
   },
-  // 사용자 핸드오프: /matching 사이드바 제거 → 분석 허브에서만 진입.
+  // 입금 자동매칭은 매칭허브(/partners/reconciliation)로 통일 — 분석 허브에서만 진입.
   {
-    href: "/matching",
+    href: "/partners/reconciliation",
     title: "입금 자동매칭",
     desc: "통장 입금 ↔ 매출 일정·세금계산서를 자동 매칭. 미수금 회수 관리.",
     accent: "#06b6d4",

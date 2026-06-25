@@ -207,7 +207,7 @@ const FEATURES: GuideFeature[] = [
     category: '재무',
     description:
       '세금계산서와 거래내역(입출금)을 AI가 자동 매칭하여 대사(reconciliation) 작업을 처리합니다. 매칭 신뢰도를 표시하고, 낮은 신뢰도 항목은 수동 매칭으로 직접 연결할 수 있습니다.',
-    route: '/matching',
+    route: '/partners/reconciliation',
     keyFeatures: [
       'AI 자동 매칭 — 세금계산서와 거래내역 자동 대사',
       '신뢰도 표시 — 매칭별 확신도 퍼센트 제공',
@@ -582,7 +582,7 @@ const WORKFLOWS: Workflow[] = [
       { title: '견적 승인 → 계약서 자동 생성', description: '견적서가 승인되면 계약서가 자동으로 생성됩니다. 선금/잔금 비율, 결제 조건 등이 견적서에서 승계됩니다.' },
       { title: '전자서명 요청', description: '계약서에서 "서명 요청"을 보내면 거래처 담당자에게 이메일이 발송됩니다. 서명 상태를 실시간으로 추적할 수 있습니다.', route: '/signatures' },
       { title: '세금계산서 자동 발행', description: '계약 승인 시 결제 스케줄에 따라 세금계산서가 자동 발행됩니다. 선금 분, 잔금 분이 각각 생성됩니다.', route: '/tax-invoices' },
-      { title: '입금 확인 및 3-Way 매칭', description: '입금이 확인되면 세금계산서-계약서-입금내역 간 3-Way 매칭이 자동으로 이루어집니다. 매칭 결과는 매칭 페이지에서 확인합니다.', route: '/matching' },
+      { title: '입금 확인 및 3-Way 매칭', description: '입금이 확인되면 세금계산서-계약서-입금내역 간 3-Way 매칭이 자동으로 이루어집니다. 매칭 결과는 매칭허브에서 확인합니다.', route: '/partners/reconciliation' },
     ],
   },
   {
