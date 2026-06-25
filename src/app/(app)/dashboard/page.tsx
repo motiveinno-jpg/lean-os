@@ -3143,8 +3143,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                 const elapsedMin = Math.max(0, nowMin - checkInMin);
                 const otMin = Math.max(0, nowMin - otStartMin);
                 const ticks: number[] = [];
-                const tickStep = (winEnd - winStart) > 600 ? 3 : 2; // 10시간 넘으면 3h 간격, 아니면 2h
-                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) if (h % tickStep === 0) ticks.push(h);
+                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) ticks.push(h); // 1시간 단위
                 const fmtHHMM = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
                 return (
                   <div className="flex-1">
