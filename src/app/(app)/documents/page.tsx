@@ -1348,7 +1348,9 @@ function DocumentsPageInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useTabParam<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("docs", { valid: ["docs", "contracts", "invoices", "signatures", "files", "templates"] });
+  // 파일 보관함 전용으로 단순화 — 문서/계약서/세금계산서/전자계약/양식 관리는 각 전용 메뉴로 이전.
+  //   (탭 타입은 호환 위해 유지하되 진입 시 항상 files 로 고정, 탭 전환 UI 제거)
+  const [tab, setTab] = useTabParam<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("files", { valid: ["files"] });
   const [showDocForm, setShowDocForm] = useState(false);
   const [showInvForm, setShowInvForm] = useState(false);
   const [showSignForm, setShowSignForm] = useState(false);
@@ -1356,16 +1358,7 @@ function DocumentsPageInner() {
   const [selectedSignature, setSelectedSignature] = useState<any>(null);
   const [signStatusFilter, setSignStatusFilter] = useState<string>("all");
   const [docForm, setDocForm] = useState({ name: "", type: "contract", deal_id: "", template_id: "" });
-  // 프로젝트 견적서 탭 등에서 ?create=quote&deal=<id> 로 진입 시 작성 폼 자동 오픈+프리필
-  useEffect(() => {
-    const create = searchParams.get("create");
-    if (!create) return;
-    const deal = searchParams.get("deal") || "";
-    setTab("docs");
-    setShowDocForm(true);
-    setDocForm((f) => ({ ...f, type: create === "quote" ? "quote" : create, deal_id: deal || f.deal_id }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // (구) ?create=quote 딥링크 자동 폼 오픈 — 문서 생성은 전자계약/프로젝트 메뉴로 이전돼 제거됨.
   const [invForm, setInvForm] = useState({ type: "sales" as "sales" | "purchase", counterparty_name: "", supply_amount: "", issue_date: "", deal_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -1475,10 +1468,7 @@ function DocumentsPageInner() {
   });
   const [archiveFiles, setArchiveFiles] = useState<File[]>([]);
 
-  // Handle tab param from URL
-  useEffect(() => {
-    if (tabParam === "signatures") setTab("signatures");
-  }, [tabParam]);
+  // (구) ?tab=signatures 딥링크 — 전자계약 전용 메뉴(/signatures)로 이전돼 제거됨.
 
   // Filtered documents based on search and type filter
   const filteredDocuments = useMemo(() => {
@@ -1674,92 +1664,9 @@ function DocumentsPageInner() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-extrabold">문서/계약</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">계약서, 견적서, 세금계산서 관리</p>
+          <h1 className="text-2xl font-extrabold">파일 보관함</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">회사 문서·계약서·증빙 파일 보관</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowDocForm(!showDocForm)}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">
-            + 문서 생성
-          </button>
-          <button onClick={() => setShowInvForm(!showInvForm)}
-            className="px-4 py-2.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-sm font-semibold transition border border-[var(--border)]">
-            + 세금계산서
-          </button>
-        </div>
-      </div>
-
-      {/* Search bar + Type filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="flex-1 relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="문서명, 내용으로 검색..."
-            className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] hover:text-[var(--text)] text-xs"
-            >
-              X
-            </button>
-          )}
-        </div>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] w-full sm:w-auto sm:min-w-[160px]"
-        >
-          <option value="all">전체 유형</option>
-          {DOC_INTEL_TYPES.map(t => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button onClick={() => setTab("docs")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "docs" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          문서 ({filteredDocuments.length})
-        </button>
-        <button onClick={() => setTab("contracts")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "contracts" ? "bg-blue-500/10 text-blue-400" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          계약서 ({contractDocuments.length})
-        </button>
-        <button onClick={() => setTab("invoices")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "invoices" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          세금계산서 ({invoices.length})
-        </button>
-        <button onClick={() => setTab("signatures")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "signatures" ? "bg-indigo-500/10 text-indigo-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          전자서명 ({signatureRequests.length})
-        </button>
-        <button onClick={() => setTab("files")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "files" ? "bg-emerald-500/10 text-emerald-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          파일 보관함
-        </button>
-        <button onClick={() => setTab("templates")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "templates" ? "bg-purple-500/10 text-purple-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}>
-          양식 관리 ({templates.length})
-        </button>
       </div>
 
       {/* Doc Form */}
@@ -2638,14 +2545,9 @@ function DocumentsPageInner() {
         </div>
       )}
 
-      {/* ═══ File Storage Tab ═══ */}
-      {tab === "files" && companyId && userId && (
+      {/* ═══ File Storage Tab (파일 보관함 전용) ═══ */}
+      {companyId && userId && (
         <FileStorageTab companyId={companyId} userId={userId} />
-      )}
-
-      {/* ═══ Templates Tab ═══ */}
-      {tab === "templates" && companyId && userId && (
-        <TemplatesTab companyId={companyId} userId={userId} templates={templates} onInvalidate={invalidate} />
       )}
 
     </div>
@@ -3003,355 +2905,6 @@ const HR_CATEGORIES = ['salary_contract', 'nda', 'non_compete', 'privacy_consent
 
 // ── Default Template Definitions ──
 const DEFAULT_TEMPLATES = DEFAULT_DOC_TEMPLATES;
-
-// ── Templates Tab Component ──
-function TemplatesTab({ companyId, userId, templates, onInvalidate }: {
-  companyId: string; userId: string; templates: any[]; onInvalidate: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-
-  const seedDefaults = async () => {
-    setSeeding(true);
-    try {
-      for (const tpl of DEFAULT_TEMPLATES) {
-        await (supabase as any).from("doc_templates").insert({
-          company_id: companyId,
-          name: tpl.name,
-          type: tpl.type,
-          content_json: tpl.content_json,
-          variables: tpl.variables,
-          is_active: true,
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
-      onInvalidate();
-    } finally {
-      setSeeding(false);
-    }
-  };
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [previewId, setPreviewId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "", type: "contract", content_json: { title: "", sections: [{ title: "", content: "" }] }, variables: [] as string[],
-  });
-  const [newVar, setNewVar] = useState("");
-
-  const resetForm = () => {
-    setForm({ name: "", type: "contract", content_json: { title: "", sections: [{ title: "", content: "" }] }, variables: [] });
-    setNewVar("");
-    setEditingId(null);
-    setShowForm(false);
-  };
-
-  const startEdit = (tpl: any) => {
-    const cj = tpl.content_json || { title: "", sections: [] };
-    setForm({
-      name: tpl.name,
-      type: tpl.type || "contract",
-      content_json: {
-        title: cj.title || tpl.name,
-        sections: Array.isArray(cj.sections) && cj.sections.length > 0 ? cj.sections : [{ title: "", content: "" }],
-      },
-      variables: Array.isArray(tpl.variables) ? tpl.variables : [],
-    });
-    setEditingId(tpl.id);
-    setShowForm(true);
-    setPreviewId(null);
-  };
-
-  const saveMut = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        name: form.name,
-        type: form.type,
-        content_json: form.content_json,
-        variables: form.variables,
-        updated_at: new Date().toISOString(),
-      };
-      if (editingId) {
-        const { error } = await (supabase as any).from("doc_templates").update(payload).eq("id", editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("doc_templates").insert({
-          ...payload,
-          company_id: companyId,
-          is_active: true,
-        });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
-      onInvalidate();
-      resetForm();
-    },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("doc_templates").update({ is_active: false }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
-      onInvalidate();
-    },
-  });
-
-  const addSection = () => {
-    setForm({
-      ...form,
-      content_json: {
-        ...form.content_json,
-        sections: [...form.content_json.sections, { title: "", content: "" }],
-      },
-    });
-  };
-
-  const removeSection = (idx: number) => {
-    setForm({
-      ...form,
-      content_json: {
-        ...form.content_json,
-        sections: form.content_json.sections.filter((_: any, i: number) => i !== idx),
-      },
-    });
-  };
-
-  const updateSection = (idx: number, field: "title" | "content", value: string) => {
-    const sections = [...form.content_json.sections];
-    sections[idx] = { ...sections[idx], [field]: value };
-    setForm({ ...form, content_json: { ...form.content_json, sections } });
-  };
-
-  const addVariable = () => {
-    const v = newVar.trim().replace(/\s+/g, "_");
-    if (v && !form.variables.includes(v)) {
-      setForm({ ...form, variables: [...form.variables, v] });
-      setNewVar("");
-    }
-  };
-
-  const removeVariable = (v: string) => {
-    setForm({ ...form, variables: form.variables.filter((x: string) => x !== v) });
-  };
-
-  const previewTemplate = templates.find((t: any) => t.id === previewId);
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--text-muted)]">문서 양식을 관리하고, 커스텀 양식을 등록하세요</p>
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-semibold transition"
-        >
-          + 새 양식 등록
-        </button>
-      </div>
-
-      {/* Template Form (Create / Edit) */}
-      {showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-purple-500/20 p-6">
-          <h3 className="text-sm font-bold mb-4 text-purple-600">
-            {editingId ? "양식 수정" : "새 양식 등록"}
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">양식명 *</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="마케팅대행 계약서"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">문서 유형</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500">
-                {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Title */}
-          <div className="mb-4">
-            <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
-            <input value={form.content_json.title}
-              onChange={(e) => setForm({ ...form, content_json: { ...form.content_json, title: e.target.value } })}
-              placeholder="문서 제목"
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500" />
-          </div>
-
-          {/* Sections */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-[var(--text-muted)]">섹션</label>
-              <button onClick={addSection} className="text-xs text-purple-500 hover:text-purple-600 font-medium">
-                + 섹션 추가
-              </button>
-            </div>
-            <div className="space-y-3">
-              {form.content_json.sections.map((sec: any, idx: number) => (
-                <div key={idx} className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-[var(--text-dim)] font-medium">섹션 {idx + 1}</span>
-                    {form.content_json.sections.length > 1 && (
-                      <button onClick={() => removeSection(idx)} className="text-[10px] text-red-400 hover:text-red-500">삭제</button>
-                    )}
-                  </div>
-                  <input value={sec.title} onChange={(e) => updateSection(idx, "title", e.target.value)}
-                    placeholder="섹션 제목 (예: 제1조 목적)"
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-purple-500" />
-                  <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
-                    placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
-                    rows={4}
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-purple-500 resize-y font-mono" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Variables */}
-          <div className="mb-4">
-            <label className="block text-xs text-[var(--text-muted)] mb-2">변수 (&#123;&#123;변수명&#125;&#125; 형식으로 본문에 사용)</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {form.variables.map((v: string) => (
-                <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-500/10 text-purple-500 rounded-full text-xs">
-                  {`{{${v}}}`}
-                  <button onClick={() => removeVariable(v)} className="text-purple-400 hover:text-red-400">&times;</button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
-                placeholder="변수명 (예: employee_name)"
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addVariable())}
-                className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-purple-500" />
-              <button onClick={addVariable}
-                className="px-3 py-2 bg-purple-500/10 text-purple-500 rounded-lg text-xs font-semibold hover:bg-purple-500/20 transition">
-                추가
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={() => form.name && saveMut.mutate()} disabled={!form.name || saveMut.isPending}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
-              {saveMut.isPending ? "저장 중..." : editingId ? "수정" : "등록"}
-            </button>
-            <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
-          </div>
-        </div>
-      )}
-
-      {/* Templates List */}
-      <div className="glass-card overflow-hidden">
-        {templates.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4">📝</div>
-            <div className="text-lg font-bold mb-2">등록된 양식이 없습니다</div>
-            <div className="text-sm text-[var(--text-muted)] mb-4">기본 양식 8종을 한번에 등록하거나, 직접 만들 수 있습니다</div>
-            <button
-              onClick={seedDefaults}
-              disabled={seeding}
-              className="px-5 py-2.5 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600 transition disabled:opacity-50"
-            >
-              {seeding ? "등록 중..." : "기본 양식 8종 등록하기"}
-            </button>
-            <p className="text-[10px] text-[var(--text-dim)] mt-2">마케팅대행 · 디자인용역 · 기본용역 · 견적서 · 업무제휴(MOU) · NDA · 표준근로계약서 · 프리랜서계약서</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-[var(--border)]/50">
-            {templates.map((tpl: any) => {
-              const typeLabel = DOC_TYPES.find(t => t.value === tpl.type)?.label || tpl.type;
-              const vars = Array.isArray(tpl.variables) ? tpl.variables : [];
-              const isPreview = previewId === tpl.id;
-              const sectionCount = Array.isArray(tpl.content_json?.sections) ? tpl.content_json.sections.length : 0;
-
-              return (
-                <div key={tpl.id}>
-                  <div className="px-5 py-4 hover:bg-[var(--bg-surface)] transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{tpl.name}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500">{typeLabel}</span>
-                          {sectionCount > 0 && (
-                            <span className="caption">{sectionCount}개 섹션</span>
-                          )}
-                        </div>
-                        {vars.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {vars.slice(0, 6).map((v: string) => (
-                              <span key={v} className="text-[10px] px-1.5 py-0.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text-dim)] font-mono">
-                                {`{{${v}}}`}
-                              </span>
-                            ))}
-                            {vars.length > 6 && (
-                              <span className="caption">+{vars.length - 6}개</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setPreviewId(isPreview ? null : tpl.id)}
-                          className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
-                          {isPreview ? "접기" : "미리보기"}
-                        </button>
-                        <button onClick={() => startEdit(tpl)}
-                          className="text-xs text-purple-500 hover:text-purple-600 font-medium transition">
-                          수정
-                        </button>
-                        <button onClick={() => {
-                          if (confirm(`"${tpl.name}" 양식을 삭제하시겠습니까?`)) deleteMut.mutate(tpl.id);
-                        }}
-                          className="text-xs text-red-400 hover:text-red-500 font-medium transition">
-                          삭제
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preview Panel */}
-                  {isPreview && previewTemplate && (
-                    <div className="px-5 pb-4">
-                      <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-5">
-                        <h4 className="text-sm font-bold mb-3">{previewTemplate.content_json?.title || previewTemplate.name}</h4>
-                        <div className="space-y-3">
-                          {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
-                            <div key={idx}>
-                              {sec.title && <div className="text-xs font-semibold text-[var(--text)] mb-1">{sec.title}</div>}
-                              <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed">{sec.content}</pre>
-                            </div>
-                          ))}
-                        </div>
-                        {vars.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[var(--border)]">
-                            <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {vars.map((v: string) => (
-                                <span key={v} className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded-full font-mono">
-                                  {v}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function DocumentsPage() {
   return (
