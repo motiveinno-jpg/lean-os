@@ -606,78 +606,31 @@ export default function PnlPage() {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* 조회 기간 — 달력만 (preset 제거) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-            <label style={{ color: "var(--text-dim)", marginRight: 4 }}>조회 기간:</label>
-            <input
-              type="month"
-              value={customStart}
-              max={customEnd}
-              onChange={(e) => setCustomStart(e.target.value)}
-              style={{
-                padding: "5px 8px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontSize: 12,
-              }}
-            />
-            <span style={{ color: "var(--text-dim)" }}>~</span>
-            <input
-              type="month"
-              value={customEnd}
-              min={customStart}
-              onChange={(e) => setCustomEnd(e.target.value)}
-              style={{
-                padding: "5px 8px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontSize: 12,
-              }}
-            />
+          {/* 조회 기간 — 월 범위 */}
+          <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
+            <label className="text-[11px] font-semibold text-[var(--text-dim)]">기간</label>
+            <input type="month" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)}
+              className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+            <span className="text-[var(--text-dim)] text-xs">~</span>
+            <input type="month" value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)}
+              className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
           </div>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              userSelect: "none",
-            }}
+          <button
+            type="button"
+            onClick={() => setIsCompareMode((v) => !v)}
+            aria-label="전기 비교"
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition ${isCompareMode ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}
           >
-            <input
-              type="checkbox"
-              checked={isCompareMode}
-              onChange={(e) => setIsCompareMode(e.target.checked)}
-              style={{ accentColor: "var(--primary)" }}
-            />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전기 비교
-          </label>
+          </button>
           <button
             onClick={() => setRefreshKey(k => k + 1)}
             aria-label="새로고침"
             title="DB 에서 최신 데이터 다시 불러오기"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--primary)",
-              background: "var(--primary)",
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-110 transition"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
@@ -687,70 +640,21 @@ export default function PnlPage() {
           <button
             onClick={handleExportCsv}
             aria-label="CSV 다운로드"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--bg-card)",
-              color: "var(--text-muted)",
-              fontSize: 13,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.borderColor = "var(--primary)";
-              (e.target as HTMLElement).style.color = "var(--primary)";
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.borderColor = "var(--border)";
-              (e.target as HTMLElement).style.color = "var(--text-muted)";
-            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            CSV 다운로드
+            CSV
           </button>
           <button
             onClick={() => window.print()}
             aria-label="인쇄"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--bg-card)",
-              color: "var(--text-muted)",
-              fontSize: 13,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.borderColor = "var(--primary)";
-              (e.target as HTMLElement).style.color = "var(--primary)";
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.borderColor = "var(--border)";
-              (e.target as HTMLElement).style.color = "var(--text-muted)";
-            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 6 2 18 2 18 9" />
               <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
@@ -791,14 +695,16 @@ export default function PnlPage() {
           const d = card.value - card.prev;
           const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
           return (
-            <div key={card.label} className="glass-card" style={{ padding: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
-                {card.label}
+            <div key={card.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]" style={{ background: `linear-gradient(135deg, ${card.color}14, transparent 62%)` }}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{card.label}</span>
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/70" style={{ color: card.color }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /></svg>
+                </span>
               </div>
-              <div className="mono-number" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", color: card.color, lineHeight: 1.1 }}>
-                {card.value < 0 ? "-" : ""}₩{Math.abs(card.value).toLocaleString("ko-KR")}
+              <div className="mono-number font-extrabold leading-none tracking-tight" style={{ fontSize: 23, color: card.color }}>
+                {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
               </div>
-              <div style={{ height: 3, width: 36, borderRadius: 999, marginTop: 12, background: card.color, opacity: 0.85 }} />
               {isCompareMode && card.prev !== 0 && (
                 <div style={{
                   marginTop: 6,
@@ -961,27 +867,31 @@ export default function PnlPage() {
         />
       </div>
 
-      {/* Footer note */}
-      <div
-        style={{
-          marginTop: 16,
-          padding: "12px 16px",
-          borderRadius: 8,
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border)",
-          fontSize: 12,
-          color: "var(--text-dim)",
-          lineHeight: 1.6,
-        }}
-      >
-        <strong style={{ color: "var(--text-muted)" }}>참고</strong>
-        <br />
-        - 매출/비용은 은행 거래내역(bank_transactions)과 세금계산서(tax_invoices) 데이터를 기반으로 자동 분류됩니다.
-        <br />
-        - 급여는 등록된 직원 정보의 월급여 데이터가 반영됩니다. 4대보험은 사업주 부담분 기준 급여의 약 10.55%로 추정 계산됩니다.
-        <br />
-        - 정확한 분류를 위해 거래내역의 거래처/적요를 상세히 기입해주세요.
+      {/* 정확도 안내 배너 — 미분류 비용 제외 한계 */}
+      <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25">
+        <svg className="w-4 h-4 mt-0.5 shrink-0 text-sky-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
+        <p className="text-[11.5px] leading-relaxed text-sky-700 dark:text-sky-300">
+          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 카테고리가 분류된 출금만</b> 반영됩니다 — 미분류 출금은 자금이동(이체·카드대금 등)과 섞여 허수를 만들기에 제외돼, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
+        </p>
       </div>
+
+      {/* 산출 기준 — 접이식 */}
+      <details className="mt-4 group rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+        <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+            <svg className="w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
+            산출 기준 자세히 보기
+          </span>
+          <svg className="w-4 h-4 text-[var(--text-dim)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
+          <div>· <b className="text-[var(--text-muted)]">매출</b> = 매출 세금계산서 공급가액(발생주의)</div>
+          <div>· <b className="text-[var(--text-muted)]">매출원가</b> = 매입 세금계산서 공급가액</div>
+          <div>· <b className="text-[var(--text-muted)]">판매관리비</b> = 카테고리 분류된 출금(자금이동·미분류 제외)</div>
+          <div>· <b className="text-[var(--text-muted)]">급여</b> = 등록 직원 월급여, <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정)</div>
+          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">당기순이익</b> = 영업이익 (영업외손익·법인세 미반영)</div>
+        </div>
+      </details>
     </div>
   );
 }
