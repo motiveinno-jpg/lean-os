@@ -17,8 +17,6 @@ import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import ContractTemplatesManager from "@/components/contract-templates-manager";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
-import { PermissionsTab } from "./_components/PermissionsTab";
-import { MemberInviteTab } from "./_components/MemberInviteTab";
 import { CertificateManagementTab } from "./_components/CertificateManagementTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { NotificationsTab } from "./_components/NotificationsTab";
@@ -29,7 +27,7 @@ import { AccountTab } from "./_components/AccountTab";
 import { DataResetTab } from "./_components/DataResetTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "invite" | "notifications" | "permissions" | "danger" | "hr_attendance";
+type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "notifications" | "danger" | "hr_attendance";
 
 export default function SettingsPage() {
   const { role } = useUser();
@@ -38,7 +36,7 @@ export default function SettingsPage() {
   }
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "invite", "notifications", "permissions", "danger", "hr_attendance"];
+  const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "notifications", "danger", "hr_attendance"];
   const initialTab = (() => {
     const t = searchParams?.get("tab");
     return t && (VALID_TABS as string[]).includes(t) ? (t as MainTab) : "general";
@@ -165,8 +163,6 @@ export default function SettingsPage() {
     { key: "tax", label: "세무자동화" },
     { key: "certificate", label: "인증서" },
     { key: "notifications", label: "알림" },
-    { key: "invite", label: "구성원 초대" },
-    { key: "permissions", label: "권한 설정" },
     { key: "danger", label: "데이터 관리" },
   ];
 
@@ -549,12 +545,6 @@ export default function SettingsPage() {
 
       {/* ═══ Notifications Tab ═══ */}
       {mainTab === "notifications" && <NotificationsTab companyId={companyId} />}
-
-      {/* ═══ Member Invite Tab ═══ */}
-      {mainTab === "invite" && companyId && <MemberInviteTab companyId={companyId} />}
-
-      {/* ═══ Permissions Tab ═══ */}
-      {mainTab === "permissions" && companyId && <PermissionsTab companyId={companyId} />}
 
       {/* ═══ Data Management (Danger Zone) ═══ */}
       {mainTab === "danger" && companyId && <DataResetTab companyId={companyId} />}
