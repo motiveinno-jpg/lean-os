@@ -83,7 +83,7 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
         <h3 className="text-sm font-bold text-[var(--text)]">월별 매출 vs 비용 추이</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">매출/비용 막대 + 당기순이익 곡선</p>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", height: 220, width: "auto", maxWidth: "100%", margin: "0 auto" }}>
         <defs>
           <linearGradient id="pnlRevGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.95" />
