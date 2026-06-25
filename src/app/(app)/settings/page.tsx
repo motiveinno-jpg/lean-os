@@ -199,7 +199,7 @@ export default function SettingsPage() {
                 }
               }}
               onClick={() => setMainTab(t.key)}
-              className={`whitespace-nowrap shrink-0 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold min-h-[44px] transition ${
+              className={`whitespace-nowrap shrink-0 md:grow md:basis-0 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold min-h-[44px] transition ${
                 mainTab === t.key
                   ? t.key === "danger"
                     ? "bg-red-500/10 text-red-500 shadow-sm"
