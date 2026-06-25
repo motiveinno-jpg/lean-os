@@ -16,6 +16,7 @@ import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/
 import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
 import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
 import { useTabParam } from "@/lib/use-tab-param";
+import { DateField } from "@/components/date-field";
 import { SubDealsTab } from "./_components/SubDealsTab";
 
 const db = supabase as any;
@@ -110,6 +111,15 @@ export default function ProjectHubDetailPage() {
   const [childPurchaseVat, setChildPurchaseVat] = useState<"exclude" | "include">("exclude");
   const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
   const resetChildForm = () => { setChildName(""); setChildSalesPlan(""); setChildPurchasePlan(""); setChildSalesVat("exclude"); setChildPurchaseVat("exclude"); };
+  // 캠페인 목록 수정/삭제
+  const [editChild, setEditChild] = useState<any | null>(null);
+  const [editChildName, setEditChildName] = useState("");
+  const [editChildStage, setEditChildStage] = useState<string>("estimate");
+  const [editChildStart, setEditChildStart] = useState("");
+  const [editChildEnd, setEditChildEnd] = useState("");
+  const [savingChild, setSavingChild] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deletingChild, setDeletingChild] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
   // 견적 리스트 노출 컬럼 (커스터마이징) — 브라우저 localStorage 저장
@@ -380,6 +390,56 @@ export default function ProjectHubDetailPage() {
       toast("세부 프로젝트를 생성했습니다", "success");
       if (newChildId) router.push(`/projecthub/${newChildId}`);
     } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setCreatingChild(false); }
+  };
+
+  // 캠페인 수정(이름·단계·기간 — deals 직접 update). 금액은 sub_deals(매출/매입 관리) 소관이라 제외.
+  const openEditChild = (c: any) => {
+    setEditChild(c);
+    setEditChildName(c.name || "");
+    setEditChildStage(STAGE_ORDER.includes(c.stage) ? c.stage : "estimate");
+    setEditChildStart(c.start_date || "");
+    setEditChildEnd(c.end_date || "");
+  };
+  const saveChild = async () => {
+    if (!editChild || savingChild) return;
+    if (!editChildName.trim()) { toast("캠페인명을 입력하세요", "error"); return; }
+    setSavingChild(true);
+    try {
+      const { error } = await db.from("deals").update({
+        name: editChildName.trim(),
+        stage: editChildStage,
+        start_date: editChildStart || null,
+        end_date: editChildEnd || null,
+      }).eq("id", editChild.id);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("캠페인을 수정했습니다", "success");
+      setEditChild(null);
+    } catch (e: any) { toast(e?.message || "수정 실패", "error"); } finally { setSavingChild(false); }
+  };
+  // 캠페인 삭제 — 소프트 삭제(archived_at). children 쿼리가 archived_at IS NULL 만 보므로 목록에서 사라지고
+  //   회계 데이터(매출·매입·견적·계약)는 전부 보존. 상위 프로젝트 삭제(DeleteProjectModal)와 동일 정책.
+  const removeChild = async () => {
+    if (!deleteTarget || deletingChild) return;
+    setDeletingChild(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await db.from("deals").update({ archived_at: nowIso }).eq("id", deleteTarget.id);
+      if (error) throw new Error(error.message);
+      try {
+        await db.from("audit_logs").insert({
+          company_id: companyId, entity_type: "deal", entity_id: deleteTarget.id, action: "delete",
+          before_json: { archived_at: null, name: deleteTarget.name },
+          after_json: { archived_at: nowIso },
+          metadata: { soft_delete: true, deal_name: deleteTarget.name, source: "projecthub-campaign-list" },
+        });
+      } catch { /* audit 실패 무시 */ }
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("캠페인을 삭제했습니다", "success");
+      setDeleteTarget(null);
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
   };
 
   // 견적/계약 — documents(deal_id) + quote_tracking + quote_approvals + signature_requests
@@ -785,7 +845,7 @@ export default function ProjectHubDetailPage() {
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">매출</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">마진</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)] w-[170px]">기간</th>
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[60px]"></th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[110px]">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -802,7 +862,12 @@ export default function ProjectHubDetailPage() {
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(cs.sales)}</td>
                         <td className={`px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number ${cMargin < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(cMargin)}</td>
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[11px] text-[var(--text-muted)] mono-number">{fmtDate(c.start_date)}{c.end_date ? ` ~ ${fmtDate(c.end_date)}` : ""}</td>
-                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center text-[var(--text-dim)]">→</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); openEditChild(c); }} className="px-2 py-1 text-[11px] rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }} className="px-2 py-1 text-[11px] rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10 transition">삭제</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -821,6 +886,59 @@ export default function ProjectHubDetailPage() {
           )}
           {!deal.parent_deal_id && (
             <p className="text-[11px] text-[var(--text-dim)]">※ 상위 프로젝트의 개요·운영 탭 금액·손익은 자기 자신 + 모든 세부 프로젝트를 <b className="text-[var(--text-muted)]">합산(롤업)</b>해 표시됩니다.</p>
+          )}
+
+          {/* 캠페인 수정 모달 */}
+          {editChild && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setEditChild(null)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold">캠페인 수정</h3>
+                  <button onClick={() => setEditChild(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+                </div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">캠페인명 *</label>
+                <input autoFocus value={editChildName} onChange={(e) => setEditChildName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveChild(); }}
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">진행 단계</label>
+                <select value={editChildStage} onChange={(e) => setEditChildStage(e.target.value)}
+                  className="w-full h-11 px-3 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  {STAGE_ORDER.map((st) => (<option key={st} value={st}>{STAGE_LABEL[st]}</option>))}
+                </select>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">시작일</label>
+                    <DateField value={editChildStart} onChange={(e) => setEditChildStart(e.target.value)}
+                      className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">종료일</label>
+                    <DateField value={editChildEnd} onChange={(e) => setEditChildEnd(e.target.value)}
+                      className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 캠페인의 <b className="text-[var(--text-muted)]">‘매출/매입 관리’</b> 탭에서 수정하세요.</p>
+                <div className="flex items-center justify-end gap-2.5 mt-5">
+                  <button onClick={() => setEditChild(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{savingChild ? "저장 중..." : "저장"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 캠페인 삭제 확인 모달 */}
+          {deleteTarget && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-base font-bold mb-2">캠페인 삭제</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 캠페인을 목록에서 삭제할까요?</p>
+                <p className="text-[11px] text-[var(--text-dim)] mb-5">매출·매입·견적·계약 등 회계 데이터는 보존되며, 목록에서만 숨겨집니다.</p>
+                <div className="flex items-center justify-end gap-2.5">
+                  <button onClick={() => setDeleteTarget(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={removeChild} disabled={deletingChild} className="px-6 h-10 bg-[var(--danger)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{deletingChild ? "삭제 중..." : "삭제"}</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
