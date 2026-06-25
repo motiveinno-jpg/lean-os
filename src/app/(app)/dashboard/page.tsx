@@ -3143,11 +3143,13 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                 const elapsedMin = Math.max(0, nowMin - checkInMin);
                 const otMin = Math.max(0, nowMin - otStartMin);
                 const ticks: number[] = [];
-                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) if (h % 3 === 0) ticks.push(h);
+                const tickStep = (winEnd - winStart) > 600 ? 3 : 2; // 10시간 넘으면 3h 간격, 아니면 2h
+                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) if (h % tickStep === 0) ticks.push(h);
+                const fmtHHMM = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
                 return (
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1 text-[11px]">
-                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{Math.floor(elapsedMin / 60)}시간 {elapsedMin % 60}분</b></span>
+                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{Math.floor(elapsedMin / 60)}시간 {elapsedMin % 60}분</b> <span className="text-[var(--text-dim)]">· 지금 {fmtHHMM(clampNow)}</span></span>
                       {otMin > 0 && <span className="text-orange-500 font-bold">연장 +{Math.floor(otMin / 60)}시간 {otMin % 60}분</span>}
                     </div>
                     <div className="relative h-6 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
@@ -3156,11 +3158,17 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
                       ))}
                       <div className="absolute top-1 bottom-1 rounded bg-[var(--primary)]/85 transition-all duration-500" style={{ left: `${regL}%`, width: `${regW}%` }} />
                       {otW > 0 && <div className="absolute top-1 bottom-1 rounded bg-orange-500 transition-all duration-500" style={{ left: `${otL}%`, width: `${otW}%` }} />}
+                      {/* 지금 시각 마커 */}
+                      <div className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-[var(--text)] rounded-full" style={{ left: `${pct(clampNow)}%` }} />
                     </div>
-                    <div className="relative h-3 mt-0.5">
-                      {ticks.map((h) => (
-                        <span key={h} className="absolute text-[8px] text-[var(--text-dim)] -translate-x-1/2 mono-number" style={{ left: `${pct(h * 60)}%` }}>{h}</span>
-                      ))}
+                    <div className="relative h-4 mt-1">
+                      {ticks.map((h) => {
+                        const p = pct(h * 60);
+                        const transform = p <= 4 ? "translateX(0)" : p >= 96 ? "translateX(-100%)" : "translateX(-50%)";
+                        return (
+                          <span key={h} className="absolute top-0 text-[10px] text-[var(--text-dim)] mono-number whitespace-nowrap" style={{ left: `${p}%`, transform }}>{h % 24}시</span>
+                        );
+                      })}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--text-dim)]">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--primary)]/85" />근무</span>
