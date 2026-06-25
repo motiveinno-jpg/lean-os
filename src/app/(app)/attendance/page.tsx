@@ -122,13 +122,6 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* 직원 본인 — 연장근무 신청 카드 (AttendanceTab 본문 무수정 가드: 래퍼 레벨 1줄 호출).
-          신청·승인 흐름은 RPC 가드(request_overtime / approve_overtime / reject_overtime) +
-          check_can_clock_in_after_hours 게이트가 통합. */}
-      {(isEmployee || isManager) && userId && (
-        <OvertimeRequestCard companyId={companyId} userId={userId} />
-      )}
-
       {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
       <div className="mb-4 inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
         {([["work", "📊 워크보드 (주간)"], ["records", "📋 기록 상세"]] as const).map(([k, l]) => (
@@ -151,6 +144,15 @@ export default function AttendancePage() {
           queryClient={queryClient}
           role={role}
         />
+      )}
+
+      {/* 본인 연장근무 신청 — 본문(기록/워크보드) 아래로 배치. (AttendanceTab 본문 무수정 가드: 래퍼 레벨 1줄 호출)
+          신청·승인 흐름은 RPC 가드(request_overtime / approve_overtime / reject_overtime) +
+          check_can_clock_in_after_hours 게이트가 통합. */}
+      {(isEmployee || isManager) && userId && (
+        <div className="mt-4">
+          <OvertimeRequestCard companyId={companyId} userId={userId} />
+        </div>
       )}
     </div>
   );
