@@ -615,173 +615,91 @@ export default function BalanceSheetPage() {
       <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
         ← 분석 허브
       </Link>
-      {/* Header — 표준 .page-sticky-header 유틸(z-30·blur·앱 상단바 안 가림). 2026-06-10 커스텀 sticky(z-10 짤림) 교체 */}
-      <div
-        className="page-sticky-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
+      {/* Header — 표준 .page-sticky-header 유틸(z-30·blur). 2026-06-25 툴바 리디자인 */}
+      <div className="page-sticky-header flex items-start justify-between gap-3 flex-wrap mb-5">
         <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
-            재무상태표 (Balance Sheet)
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <label style={{ fontSize: 13, color: "var(--text-dim)" }}>기준일:</label>
-            <DateField
-              value={cutoffInput || today}
-              max={today}
-              onChange={(e) => setCutoffInput(e.target.value)}
-              style={{
-                padding: "4px 8px",
-                fontSize: 12,
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-              }}
-            />
-            {cutoffInput && cutoffInput !== today && (
-              <button onClick={() => setCutoffInput('')}
-                style={{ background: 'transparent', border: 'none', fontSize: 11, color: 'var(--primary)', cursor: 'pointer', padding: 0 }}
-                title="오늘로 초기화">↺ 오늘</button>
-            )}
-          </div>
-          {/* 2026-06-10 매출채권/미지급금 집계 기간 — 대시보드 토글 스타일 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 13, color: 'var(--text-dim)' }}>채권·채무 기준:</label>
-            <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
-              {[3, 6, 12].map((m) => (
-                <button key={m} type="button" onClick={() => setArApMonths(m)}
-                  style={{
-                    padding: '4px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: arApMonths === m ? 'var(--primary)' : 'transparent',
-                    color: arApMonths === m ? 'var(--primary-foreground)' : 'var(--text-muted)',
-                    transition: 'all 0.15s',
-                  }}>
-                  최근 {m}개월
-                </button>
-              ))}
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>이내 미매칭 세금계산서만 미수금·미지급금으로 집계</span>
-          </div>
+          <h1 className="text-2xl font-extrabold text-[var(--text)] tracking-tight m-0">재무상태표</h1>
+          <p className="text-xs text-[var(--text-dim)] mt-1">Balance Sheet · 기준일 {cutoffInput || today} 시점 자산·부채·자본</p>
         </div>
-        <button
-          onClick={handleExportCsv}
-          aria-label="CSV 다운로드"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 16px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-card)",
-            color: "var(--text-muted)",
-            fontSize: 13,
-            cursor: "pointer",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--primary)";
-            (e.target as HTMLElement).style.color = "var(--primary)";
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--border)";
-            (e.target as HTMLElement).style.color = "var(--text-muted)";
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          CSV 다운로드
-        </button>
-        <button
-          onClick={() => window.print()}
-          aria-label="인쇄"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 16px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-card)",
-            color: "var(--text-muted)",
-            fontSize: 13,
-            cursor: "pointer",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--primary)";
-            (e.target as HTMLElement).style.color = "var(--primary)";
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.borderColor = "var(--border)";
-            (e.target as HTMLElement).style.color = "var(--text-muted)";
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 6 2 18 2 18 9" />
-            <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
-          </svg>
-          인쇄
-        </button>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={isCompareMode}
-            onChange={(e) => setIsCompareMode(e.target.checked)}
-            style={{ accentColor: "var(--primary)" }}
-          />
-          전월 비교
-        </label>
+        <div className="no-print flex items-center gap-1.5 flex-wrap">
+          <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교"
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition ${isCompareMode ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
+            전월 비교
+          </button>
+          <button onClick={handleExportCsv} aria-label="CSV 다운로드"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+            CSV
+          </button>
+          <button onClick={() => window.print()} aria-label="인쇄"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
+            인쇄
+          </button>
+        </div>
       </div>
 
-      {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginBottom: 24 }}>
-        {[
-          { label: "총 자산", value: data.totalAssets, color: "var(--primary)" },
-          { label: "총 부채", value: data.totalLiabilities, color: data.totalLiabilities > 0 ? "var(--danger)" : "var(--text-muted)" },
-          { label: "순자산 (자본)", value: data.totalEquity, color: data.totalEquity >= 0 ? "#10b981" : "var(--danger)" },
-        ].map((card) => (
-          <div key={card.label} className="glass-card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>
-              {card.label}
-            </div>
-            <div className="mono-number" style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: card.color, lineHeight: 1.1 }}>
-              {card.value < 0 ? "-" : ""}₩{Math.abs(card.value).toLocaleString("ko-KR")}
-            </div>
-            <div style={{ height: 3, width: 36, borderRadius: 999, marginTop: 12, background: card.color, opacity: 0.85 }} />
+      {/* 컨트롤 바 — 기준일 + 채권·채무 집계 기간 */}
+      <div className="no-print flex items-center gap-x-5 gap-y-2.5 flex-wrap mb-5 px-3.5 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
+          <DateField value={cutoffInput || today} max={today} onChange={(e) => setCutoffInput(e.target.value)}
+            className="h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+          {cutoffInput && cutoffInput !== today && (
+            <button onClick={() => setCutoffInput('')} className="text-[11px] text-[var(--primary)] font-semibold hover:underline" title="오늘로 초기화">↺ 오늘</button>
+          )}
+        </div>
+        <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
+          <div className="inline-flex gap-0.5 p-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+            {[3, 6, 12].map((m) => (
+              <button key={m} type="button" onClick={() => setArApMonths(m)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition ${arApMonths === m ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+                {m}개월
+              </button>
+            ))}
           </div>
-        ))}
+          <span className="text-[11px] text-[var(--text-dim)]">이내 미매칭 세금계산서만 집계</span>
+        </div>
+      </div>
+
+      {/* Summary Cards — 그라데이션 액센트 + 전월 델타 (2026-06-25 리디자인) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[
+          { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets,
+            grad: "from-[var(--primary)]/12 to-transparent", ring: "ring-[var(--primary)]/15", color: "var(--primary)",
+            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h3v-4h-3z" /> },
+          { key: "liab", label: "총 부채", value: data.totalLiabilities, prev: prevData?.totalLiabilities,
+            grad: "from-rose-500/12 to-transparent", ring: "ring-rose-500/15", color: "#f43f5e",
+            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /> },
+          { key: "equity", label: "순자산 (자본)", value: data.totalEquity, prev: prevData?.totalEquity,
+            grad: "from-emerald-500/12 to-transparent", ring: "ring-emerald-500/15", color: data.totalEquity >= 0 ? "#10b981" : "#f43f5e",
+            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4M3 17l9 4 9-4" /> },
+        ].map((card) => {
+          const delta = isCompareMode && card.prev !== undefined ? card.value - card.prev : undefined;
+          return (
+            <div key={card.key} className={`relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br ${card.grad} ring-1 ${card.ring} p-5 shadow-[var(--shadow-sm)]`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{card.label}</span>
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--bg-card)]/70 border border-[var(--border)]" style={{ color: card.color }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">{card.icon}</svg>
+                </span>
+              </div>
+              <div className="mono-number font-extrabold leading-none tracking-tight" style={{ fontSize: 28, color: card.color }}>
+                {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
+              </div>
+              {delta !== undefined && (
+                <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: delta === 0 ? "var(--bg-surface)" : delta > 0 ? "#10b98115" : "#f43f5e15", color: delta === 0 ? "var(--text-dim)" : delta > 0 ? "#10b981" : "#f43f5e" }}>
+                  {delta === 0 ? "전월과 동일" : `${delta > 0 ? "▲" : "▼"} ₩${Math.abs(Math.round(delta)).toLocaleString("ko-KR")}`}
+                  <span className="font-normal text-[var(--text-dim)]">전월대비</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
@@ -1033,44 +951,34 @@ export default function BalanceSheetPage() {
         </div>
       </div>
 
-      {/* Balance Check */}
-      <div
-        style={{
-          marginTop: 16,
-          padding: "12px 16px",
-          borderRadius: 8,
-          background: Math.abs(data.totalAssets - data.totalLiabilities - data.totalEquity) < 1
-            ? "var(--bg-surface)"
-            : "var(--danger-dim)",
-          border: "1px solid var(--border)",
-          fontSize: 12,
-          color: Math.abs(data.totalAssets - data.totalLiabilities - data.totalEquity) < 1
-            ? "var(--text-dim)"
-            : "var(--danger)",
-          lineHeight: 1.6,
-        }}
-      >
-        <strong style={{ color: "var(--text-muted)" }}>참고</strong>
-        <br />
-        - 자산 = 부채 + 자본 (재무상태표 등식){" "}
-        {Math.abs(data.totalAssets - data.totalLiabilities - data.totalEquity) < 1 ? "-- 균형" : "-- 불균형 감지"}
-        <br />
-        - 현금 및 예금은 등록된 은행계좌 잔액과 현금 스냅샷의 합계입니다.
-        <br />
-        - 매출채권은 미입금(미매칭) 매출 세금계산서를 기반으로 산출됩니다. 3-way 매칭으로 통장 입금이 확인된 건은 현금 및 예금에 반영되어 매출채권에서 제외(상계)됩니다.
-        <br />
-        - 고정자산은 자산관리(Vault)에 등록된 장비, 차량, 소프트웨어 등의 자산가치입니다.
-        <br />
-        - 차입금은 대출 관리에서 진행 중인 대출 잔액입니다.
-        <br />
-        - 미지급금은 미지급(미매칭) 매입 세금계산서를 기반으로 산출됩니다. 통장 출금이 확인(매칭)된 건은 현금 및 예금에서 차감되어 미지급금에서 제외(상계)됩니다.
-        <br />
-        - 자본금은 {data.isCapitalDefault
-          ? `DB에 등록된 값이 없어 기본값 ${DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시됩니다. 설정에서 변경해주세요.`
-          : `${data.capital.toLocaleString("ko-KR")}원 (DB 등록값)`}
-        <br />
-        - 이익잉여금 = 자산 합계 - 부채 합계 - 자본금 (잔여분 자동 계산)
-      </div>
+      {/* 데이터 신뢰도 배너 — 자본 섹션 추정값 안내 (정확도 투명성) */}
+      {data.isCapitalDefault && (
+        <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+          <svg className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
+          <p className="text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <b>자본 섹션은 추정값입니다.</b> 자본금이 미등록이라 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시되며, 이익잉여금은 (자산−부채−자본금)으로 역산됩니다. 자산·부채·현금은 실데이터 기준입니다.
+          </p>
+        </div>
+      )}
+
+      {/* 산출 기준 — 접이식 */}
+      <details className="mt-4 group rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+        <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+            <svg className="w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
+            산출 기준 자세히 보기
+          </span>
+          <svg className="w-4 h-4 text-[var(--text-dim)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
+        </summary>
+        <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
+          <div>· <b className="text-[var(--text-muted)]">현금·예금</b> = 등록 은행계좌 잔액 합계</div>
+          <div>· <b className="text-[var(--text-muted)]">매출채권</b> = 미입금(미매칭) 매출 세금계산서. 입금 매칭 시 현금으로 이동·상계</div>
+          <div>· <b className="text-[var(--text-muted)]">고정자산</b> = 자산관리(Vault) 등록 자산의 감가상각 장부가</div>
+          <div>· <b className="text-[var(--text-muted)]">차입금</b> = 진행 중 대출 잔액</div>
+          <div>· <b className="text-[var(--text-muted)]">미지급금</b> = 미지급(미매칭) 매입 세금계산서. 출금 매칭 시 현금에서 차감·상계</div>
+          <div>· <b className="text-[var(--text-muted)]">이익잉여금</b> = 자산 − 부채 − 자본금 (역산)</div>
+        </div>
+      </details>
 
       {/* Monthly Trend Chart */}
       {trend.length > 0 && (
