@@ -3016,13 +3016,25 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 
   return (
     <div className="">
-      {/* Welcome header — 아바타+이름 한 묶음으로 sticky(아바타 잘림 방지) */}
-      <div className="mb-5 md:mb-6">
-        <div className="page-sticky-header flex items-center gap-3 mb-1">
-          <Avatar name={userName || "E"} src={myAvatar} size={40} />
-          <div>
-            <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
-            <p className="text-xs text-[var(--text-muted)]">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
+      {/* Welcome hero — 그라데이션 배너 (2026-06-25 직원 홈 리디자인) */}
+      <div className="mb-4">
+        <div className="relative overflow-hidden rounded-3xl p-5 md:p-6 text-white shadow-lg"
+          style={{ background: "linear-gradient(135deg, #4338ca 0%, #6366f1 52%, #0ea5e9 100%)" }}>
+          <div className="absolute -right-10 -top-12 w-44 h-44 rounded-full bg-white/10" />
+          <div className="absolute right-6 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
+          <div className="relative flex items-center gap-3.5">
+            <div className="rounded-full ring-2 ring-white/40 shrink-0"><Avatar name={userName || "E"} src={myAvatar} size={48} /></div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold text-white/70">
+                {(() => { const h = new Date().getHours(); return h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "오늘도 수고하셨어요"; })()}
+              </div>
+              <h1 className="text-xl md:text-2xl font-extrabold truncate leading-tight">{userName}님 👋</h1>
+              <p className="text-xs text-white/75 mt-0.5 truncate">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
+            </div>
+            <span className="ml-auto self-start shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-[11px] font-bold">
+              <span className={`w-1.5 h-1.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-emerald-300 animate-pulse" : isCheckedOut ? "bg-white/60" : "bg-amber-300"}`} />
+              {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
+            </span>
           </div>
         </div>
       </div>
@@ -3182,40 +3194,28 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           )}
         </div>
 
-        {/* 처리 대기 4종 — 승인/서명/휴가/경비 한눈에 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <Link href="/approvals" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
-            <div className="flex items-center justify-between">
-              <span className="text-base">📝</span>
-              {pendingCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-orange-500 text-white text-[9px] font-bold rounded-full">{pendingCount}</span>}
-            </div>
-            <div className="caption mt-1.5">승인 대기</div>
-            <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: pendingCount > 0 ? "var(--warning)" : undefined }}>{pendingCount}건</div>
-          </Link>
-          <Link href="/my-contracts" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
-            <div className="flex items-center justify-between">
-              <span className="text-base">✍️</span>
-              {signPending > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{signPending}</span>}
-            </div>
-            <div className="caption mt-1.5">서명 요청</div>
-            <div className="text-base font-bold group-hover:text-[var(--primary)] transition" style={{ color: signPending > 0 ? "var(--primary)" : undefined }}>{signPending}건</div>
-          </Link>
-          <Link href="/leave" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
-            <div className="flex items-center justify-between">
-              <span className="text-base">🏖️</span>
-            </div>
-            <div className="caption mt-1.5">휴가 잔여</div>
-            <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{leaveBalance ? `${leaveBalance.remaining}일` : "—"}</div>
-            {leaveBalance && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{leaveBalance.total}일 중 {leaveBalance.used}일 사용</div>}
-          </Link>
-          <Link href="/approvals?new=expense" className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)] active:scale-[0.98] transition p-3 group">
-            <div className="flex items-center justify-between">
-              <span className="text-base">🧾</span>
-              {expenseCount > 0 && <span className="min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--primary)] text-white text-[9px] font-bold rounded-full">{expenseCount}</span>}
-            </div>
-            <div className="caption mt-1.5">경비 청구</div>
-            <div className="text-base font-bold group-hover:text-[var(--primary)] transition">{expenseCount}건</div>
-          </Link>
+        {/* 처리 대기 4종 — 컬러 타일 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {[
+            { href: "/approvals", icon: "📝", label: "승인 대기", value: `${pendingCount}건`, badge: pendingCount, tint: "#f97316" },
+            { href: "/my-contracts", icon: "✍️", label: "서명 요청", value: `${signPending}건`, badge: signPending, tint: "#6366f1" },
+            { href: "/leave", icon: "🏖️", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "#06b6d4" },
+            { href: "/approvals?new=expense", icon: "🧾", label: "경비 청구", value: `${expenseCount}건`, badge: expenseCount, tint: "#10b981" },
+          ].map((t) => (
+            <Link key={t.label} href={t.href}
+              className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-3.5 active:scale-[0.98] transition hover:shadow-md group"
+              style={{ background: `linear-gradient(150deg, ${t.tint}14, transparent 70%)` }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-base" style={{ background: `${t.tint}1f` }}>{t.icon}</span>
+                {!!t.badge && t.badge > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-white text-[10px] font-bold rounded-full" style={{ background: t.tint }}>{t.badge}</span>
+                )}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] font-medium">{t.label}</div>
+              <div className="text-lg font-extrabold leading-tight" style={{ color: t.tint }}>{t.value}</div>
+              {t.sub && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{t.sub}</div>}
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -3301,15 +3301,16 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화" },
-            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명" },
-            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리" },
-            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
+            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화", tint: "#6366f1" },
+            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명", tint: "#0ea5e9" },
+            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리", tint: "#f97316" },
+            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리", tint: "#10b981" },
           ].map(card => (
             <Link key={card.href} href={card.href}
-              className="glass-card p-4 hover:border-[var(--primary)] active:scale-[0.98] transition group touch-card">
-              <div className="text-xl mb-1.5">{card.icon}</div>
-              <div className="text-xs font-bold group-hover:text-[var(--primary)] transition">{card.label}</div>
+              className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-4 active:scale-[0.98] transition hover:shadow-md group touch-card"
+              style={{ background: `linear-gradient(150deg, ${card.tint}12, transparent 72%)` }}>
+              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-lg mb-2" style={{ background: `${card.tint}1f` }}>{card.icon}</div>
+              <div className="text-xs font-bold transition" style={{ color: card.tint }}>{card.label}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
             </Link>
           ))}
