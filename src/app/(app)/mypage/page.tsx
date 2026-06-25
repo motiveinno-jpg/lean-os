@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser } from "@/lib/queries";
+import { getCurrentUser, clearCurrentUserCache } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
@@ -18,7 +18,7 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
 export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const { role } = useUser();
+  const { role, refresh } = useUser();
   // 회원 탈퇴
   const [withdrawText, setWithdrawText] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
@@ -61,8 +61,12 @@ export default function MyPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const refreshAvatar = () => {
-    qc.invalidateQueries({ queryKey: ["my-user-info"] });
-    qc.invalidateQueries({ queryKey: ["my-avatar"] });
+    // 프로필 사진은 여러 화면(대시보드·채팅·게시판·팀·결재 등)이 각자 users 조인으로 표시 →
+    //   한 곳만 무효화하면 다른 곳이 옛 사진으로 남음. getCurrentUser 메모이즈 캐시까지 비우고
+    //   전체 쿼리를 무효화해 어디서든 새 사진이 즉시 반영되게 한다.
+    clearCurrentUserCache();
+    refresh();
+    qc.invalidateQueries();
   };
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
