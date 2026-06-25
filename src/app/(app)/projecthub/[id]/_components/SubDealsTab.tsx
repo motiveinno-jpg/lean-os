@@ -2,7 +2,7 @@
 
 // 세부 프로젝트(sub_deals) 탭 — 한 프로젝트(deal) 아래 세부 거래처·금액·매출/매입 타입 관리.
 //   RLS: parent_deal_id → deals.company_id 경유 기존 정책 재사용(신규 정책 없음).
-//   계획 마진 롤업은 부모 페이지(v_project_margin)에서 표기. 여기선 세부 CRUD + 세부별 계획/실적.
+//   약정 마진 롤업은 부모 페이지(v_project_margin)에서 표기. 여기선 세부 CRUD + 세부별 약정/실적.
 
 import { useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -149,7 +149,7 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
                 <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">세부 프로젝트명</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">구분</th>
                 <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">거래처</th>
-                <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">금액(계획)</th>
+                <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">금액</th>
                 <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">실적원가</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">기간</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">상태</th>
