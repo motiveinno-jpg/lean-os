@@ -17,6 +17,7 @@ import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
 import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
 import { useTabParam } from "@/lib/use-tab-param";
 import { DateField } from "@/components/date-field";
+import { ProjectSlideOver } from "@/components/project-slide-over";
 import { SubDealsTab } from "./_components/SubDealsTab";
 
 const db = supabase as any;
@@ -331,7 +332,7 @@ export default function ProjectHubDetailPage() {
         .in("parent_deal_id", costDealIds);
       return (data || []) as any[];
     },
-    enabled: !!companyId && !!dealId && (tab === "overview" || tab === "pnl" || tab === "subprojects"),
+    enabled: !!companyId && !!dealId && (tab === "overview" || tab === "subprojects"),
   });
   // 공급가액(net) — VAT 포함 입력분은 ÷1.1, 별도면 입력값 그대로. 마진 정확성용.
   const subNet = (s: any) => (s?.vat_type === "inclusive" ? Math.round(Number(s.contract_amount || 0) / 1.1) : Number(s.contract_amount || 0));
@@ -492,7 +493,7 @@ export default function ProjectHubDetailPage() {
   });
 
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
-  const costEnabled = (tab === "overview" || tab === "pnl") && !!dealId;
+  const costEnabled = (tab === "overview") && !!dealId;
   const { data: costInvoices = [] } = useQuery({
     queryKey: ["projecthub-cost-inv", dealId, childIds.length],
     queryFn: async () => {
@@ -598,9 +599,6 @@ export default function ProjectHubDetailPage() {
           )}
           <p className="text-xs text-[var(--text-dim)] mt-1">{partner?.name || "거래처 미지정"}{manager?.name ? ` · 담당 ${manager.name}` : ""}</p>
         </div>
-        <Link href={`/projects/${dealId}`} className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] shrink-0">
-          워크플로우에서 열기 →
-        </Link>
       </div>
 
       {/* 탭 — 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영'(전체 현황) 숨김 */}
@@ -617,7 +615,7 @@ export default function ProjectHubDetailPage() {
       {/* 개요 */}
       {tab === "overview" && (
         <div className="space-y-4">
-          <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 손익은 ‘프로젝트 운영’ 탭에서 확인하세요.</p>
+          <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값(약정) 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 진행단계·실적·비용은 아래에 함께 표시됩니다.</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Metric label="매출" value={won(planRevenue)} hint={subSalesSum > 0 ? `자체 계약 ${won(ownContract)} + 매출형 ${won(subSalesSum)}` : undefined} />
             <Metric label="총 비용" value={won(planCost)} hint="매입형 ‘매출/매입 관리’ 합계" />
@@ -943,8 +941,13 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {/* 프로젝트 운영 — 진행 단계 + 손익 */}
-      {tab === "pnl" && (
+      {/* 프로젝트 운영 — 활동 + 일정 (구 '워크플로우' 통합) */}
+      {tab === "pnl" && companyId && (
+        <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
+      )}
+
+      {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단으로 이동 */}
+      {tab === "overview" && (
         <div className="space-y-4">
           <div className="glass-card p-4">
             <div className="text-xs font-bold text-[var(--text-muted)] mb-3">진행 단계 <span className="font-normal text-[var(--text-dim)]">— 단계를 클릭해 변경하세요</span></div>

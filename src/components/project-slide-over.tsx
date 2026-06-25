@@ -54,7 +54,8 @@ interface ProjectSlideOverProps {
   // 2026-05-21: 직원(role='employee') 컨텍스트 — 돈 탭 + 재무 정보 가림
   isEmployeeLimited?: boolean;
   // 2026-05-22: 'slide' = 우측 슬라이드 패널(기존), 'page' = 전체화면 독립 페이지(/projects/[id])
-  variant?: 'slide' | 'page';
+  // 2026-06-25: 'embed' = 헤더 없이 활동·일정만 임베드(프로젝트 상세 '운영' 탭 내부용)
+  variant?: 'slide' | 'page' | 'embed';
 }
 
 // PR3.5: action key → 어느 탭의 어느 섹션으로 점프할지.
@@ -72,18 +73,19 @@ const ACTION_TAB: Record<string, { tab: Tab; scroll?: string }> = {
 };
 
 export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal, pendingAction, onActionConsumed, isEmployeeLimited = false, variant = 'slide' }: ProjectSlideOverProps) {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(variant === 'embed' ? "activity" : "overview");
   const isPage = variant === 'page';
+  const isEmbed = variant === 'embed';
 
-  // ESC 닫기 — 슬라이드 모드에서만 (페이지 모드는 라우터 뒤로가기)
+  // ESC 닫기 — 슬라이드 모드에서만 (페이지/임베드 모드 제외)
   useEffect(() => {
-    if (isPage) return;
+    if (isPage || isEmbed) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, isPage]);
+  }, [onClose, isPage, isEmbed]);
 
   // PR3.5: pendingAction 1회 적용 — 탭 전환 + 섹션 스크롤. 직후 onActionConsumed.
   useEffect(() => {
@@ -112,6 +114,30 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
     queryFn: () => getProjectDetail(dealId, companyId),
     enabled: !!dealId && !!companyId,
   });
+
+  // ── 임베드 모드 — 헤더 없이 활동·일정만 (프로젝트 상세 '운영' 탭 내부) ──
+  if (isEmbed) {
+    return (
+      <div>
+        {isLoading && <div className="py-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>}
+        {error && <div className="py-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 불러올 수 없습니다</div>}
+        {data && data.deal && (
+          <PanelBody
+            data={data}
+            tab={tab}
+            onTabChange={setTab}
+            onClose={onClose}
+            onOpenStageModal={onOpenStageModal}
+            dealId={dealId}
+            companyId={companyId}
+            isEmployeeLimited={isEmployeeLimited}
+            variant="embed"
+          />
+        )}
+        {data && !data.deal && <div className="py-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다</div>}
+      </div>
+    );
+  }
 
   // ── 페이지 모드 — 전체화면 독립 페이지 (/projects/[id]) ──
   if (isPage) {
@@ -233,12 +259,13 @@ function PanelBody({
   dealId: string;
   companyId: string;
   isEmployeeLimited?: boolean;
-  variant?: 'slide' | 'page';
+  variant?: 'slide' | 'page' | 'embed';
 }) {
   const deal = data.deal;
   const stage = (deal.stage || "estimate") as ProjectStage;
   const stageColor = STAGE_COLOR[stage] || STAGE_COLOR.estimate;
   const isPage = variant === 'page';
+  const isEmbed = variant === 'embed';
   const progress = STAGE_PROGRESS[stage] || 20;
 
   const tabs = (isEmployeeLimited
@@ -263,6 +290,29 @@ function PanelBody({
       {tab === "schedule" && <ProjectScheduleTab dealId={dealId} />}
     </>
   );
+
+  // ── 임베드 모드 — 헤더/진행률 없이 활동·일정 탭만 (프로젝트 상세 '운영' 탭 내부) ──
+  if (isEmbed) {
+    const embedTabs = [
+      { key: "activity", label: "활동" },
+      { key: "schedule", label: "일정 관리" },
+    ] as { key: Tab; label: string }[];
+    return (
+      <div>
+        <div className="flex items-center gap-1 border-b border-[var(--border)] mb-4 overflow-x-auto">
+          {embedTabs.map((t) => (
+            <button key={t.key} type="button" onClick={() => onTabChange(t.key)}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                tab === t.key ? "border-[var(--primary)] text-[var(--text)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {(tab === "schedule") ? <ProjectScheduleTab dealId={dealId} /> : <ActivityTab data={data} dealId={dealId} />}
+      </div>
+    );
+  }
 
   // ── 페이지 모드 — 전체화면 헤더바 + 넓은 본문 ──
   if (isPage) {

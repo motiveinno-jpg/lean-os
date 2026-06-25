@@ -253,7 +253,7 @@ export default function ProjectHubPage() {
               {isLoading ? (
                 <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. 워크플로우 보드에서 새 프로젝트를 추가하세요.</td></tr>
+                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. ‘+ 프로젝트 생성’으로 추가하세요.</td></tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];
@@ -320,7 +320,7 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      <p className="text-[11px] text-[var(--text-dim)]">※ 프로젝트 운영(보드)과 같은 프로젝트(deal) 데이터입니다 — 한쪽에서 생성·삭제하면 양쪽에 반영됩니다. 원가율·손익은 손익 탭에서 산출됩니다.</p>
+      <p className="text-[11px] text-[var(--text-dim)]">※ 진행 단계·실적·비용은 프로젝트 상세의 ‘개요’ 탭에서, 활동·일정은 ‘프로젝트 운영’ 탭에서 확인합니다.</p>
     </div>
   );
 }
