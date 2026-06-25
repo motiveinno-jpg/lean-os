@@ -10,6 +10,7 @@ import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { DateTimeField } from "@/components/datetime-field";
 import {
   recomputeAttendance,
   recomputeMonthlyExtraPay,
@@ -165,8 +166,7 @@ export function AttendanceEditRequestDialog({
         <div className="space-y-3">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각 (변경)</label>
-            <input
-              type="datetime-local"
+            <DateTimeField
               value={form.check_in}
               onChange={(e) => setForm({ ...form, check_in: e.target.value })}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
@@ -174,8 +174,7 @@ export function AttendanceEditRequestDialog({
           </div>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각 (변경)</label>
-            <input
-              type="datetime-local"
+            <DateTimeField
               value={form.check_out}
               onChange={(e) => setForm({ ...form, check_out: e.target.value })}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
