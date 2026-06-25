@@ -75,6 +75,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const cardFileRef = useRef<HTMLInputElement>(null);
   const receiptFileRef = useRef<HTMLInputElement>(null);
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
+  const ocrFileRef = useRef<HTMLInputElement>(null);
+  const [ocrScanning, setOcrScanning] = useState(false);
   const [codefSyncing, setCodefSyncing] = useState(false);
   const [bankFetching, setBankFetching] = useState(false);
   const [aiClassifying, setAiClassifying] = useState(false);
@@ -475,6 +477,49 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       if (receiptFileRef.current) receiptFileRef.current.value = "";
     }
   }, [companyId, queryClient]);
+
+  // 영수증 스캔 → OCR(ocr-receipt Edge) → 수기 입력 폼 자동 완성. (사장님이 확인 후 직접 등록)
+  const handleOcrScan = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+    setOcrScanning(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${companyId}/ocr/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("receipts").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      // Edge 가 서버에서 fetch 하므로 서명 URL(시간제한 공개) 사용 — 버킷 public/private 무관 동작.
+      const { data: signed, error: signErr } = await supabase.storage.from("receipts").createSignedUrl(path, 300);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("이미지 URL 생성 실패");
+      const { data, error } = await supabase.functions.invoke("ocr-receipt", { body: { image_url: signed.signedUrl } });
+      if (error) throw error;
+      if (!data?.success || !data.confidence) {
+        toast("영수증을 인식하지 못했습니다. 직접 입력해주세요.", "error");
+        return;
+      }
+      // OCR 카테고리(식대|교통|소모품|사무용품|접대|통신|기타) → 수기 폼 카테고리 매핑
+      const catMap: Record<string, string> = {
+        "식대": "복리후생비", "교통": "교통비", "소모품": "소모품비", "사무용품": "소모품비",
+        "접대": "접대비", "통신": "통신비", "기타": "기타비용",
+      };
+      setManualForm((f) => ({
+        ...f,
+        type: "expense",
+        amount: data.amount ? String(data.amount) : f.amount,
+        transaction_date: data.date || f.transaction_date,
+        counterparty: data.merchant || f.counterparty,
+        description: data.merchant || f.description,
+        category: data.category ? (catMap[data.category] || "") : f.category,
+        memo: Array.isArray(data.items) && data.items.length ? data.items.join(", ") : f.memo,
+      }));
+      toast(`영수증 인식 완료 (확신도 ${data.confidence}%) — 내용 확인 후 등록하세요`, "success");
+    } catch (err: any) {
+      toast(`영수증 스캔 실패: ${err.message}`, "error");
+    } finally {
+      setOcrScanning(false);
+      if (ocrFileRef.current) ocrFileRef.current.value = "";
+    }
+  }, [companyId]);
 
   // Bulk VAT auto-classification for unmapped card transactions
   const [vatClassifying, setVatClassifying] = useState(false);
@@ -1126,6 +1171,20 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         <div className="space-y-4">
           <div className="glass-card p-6">
             <h3 className="section-title">거래내역 직접 등록</h3>
+            {/* 영수증 스캔 — 사진 한 장으로 폼 자동 완성 (OCR) */}
+            <input ref={ocrFileRef} type="file" accept="image/*" capture="environment" onChange={handleOcrScan} className="hidden" />
+            <button
+              type="button"
+              onClick={() => ocrFileRef.current?.click()}
+              disabled={ocrScanning || !companyId}
+              className="w-full mb-4 py-3 rounded-xl border-2 border-dashed border-[var(--primary)]/40 text-[var(--primary)] text-sm font-semibold hover:bg-[var(--primary)]/5 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {ocrScanning ? (
+                <><span className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /> 영수증 분석 중…</>
+              ) : (
+                <><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.66-.9l.82-1.2A2 2 0 0110.07 4h3.86a2 2 0 011.66.9l.82 1.2a2 2 0 001.66.9H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg> 영수증 스캔으로 자동 입력</>
+              )}
+            </button>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5">입출금 구분 *</label>
