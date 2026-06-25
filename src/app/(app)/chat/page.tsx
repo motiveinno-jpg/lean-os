@@ -407,7 +407,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       <aside className={`${selectedChannel ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold text-[var(--text)]">메시지</h1>
+            <h1 className="text-base font-extrabold text-[var(--text)]">메신저</h1>
             {totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded-full font-bold">{totalUnread}</span>}
           </div>
           <button onClick={() => { setCreating("team"); }} title="새로 만들기"
