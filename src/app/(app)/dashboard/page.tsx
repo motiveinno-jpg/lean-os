@@ -3050,7 +3050,8 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
 
         {/* 출퇴근 — 빠른 기록 (상세 관리는 근태 페이지 한 곳에서) */}
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 mb-3">
+        <div className="rounded-2xl border border-[var(--border)] p-4 mb-3"
+          style={{ background: `linear-gradient(150deg, ${isCheckedIn && !isCheckedOut ? "#10b981" : isCheckedOut ? "#94a3b8" : "#f59e0b"}16, transparent 72%)` }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
@@ -3235,32 +3236,36 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       )}
 
       {/* 이번 달 급여 */}
-      <div className="mb-4 glass-card p-4 md:p-5">
-        <div className="flex items-center justify-between mb-2">
+      <div className="mb-4 rounded-2xl border border-[var(--border)] p-4 md:p-5" style={{ background: "linear-gradient(150deg, #6366f114, transparent 70%)" }}>
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-base">💰</span>
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#6366f1]/15 text-sm">💰</span>
             <span className="text-xs font-bold text-[var(--text)]">이번 달 급여</span>
           </div>
-        </div>
-        {myPayroll ? (
-          <div className="flex items-end gap-6">
-            <div>
-              <div className="caption mb-0.5">기본급</div>
-              <div className="text-sm font-bold">{fmtWFull(myPayroll.base_salary)}</div>
-            </div>
-            <div>
-              <div className="caption mb-0.5">공제</div>
-              <div className="text-sm font-bold text-red-400">-{fmtWFull(myPayroll.deductions_total)}</div>
-            </div>
-            <div>
-              <div className="caption mb-0.5">실수령</div>
-              <div className="text-lg font-black text-[var(--primary)]">{fmtWFull(myPayroll.net_pay)}</div>
-            </div>
-            <span className={`ml-auto text-[9px] px-2 py-0.5 rounded-full font-semibold ${
+          {myPayroll && (
+            <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${
               myPayroll.status === "paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
             }`}>
               {myPayroll.status === "paid" ? "지급 완료" : "처리 중"}
             </span>
+          )}
+        </div>
+        {myPayroll ? (
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex-1 min-w-[150px] rounded-xl p-3.5 text-white shadow-md" style={{ background: "linear-gradient(135deg, #6366f1, #4338ca)" }}>
+              <div className="text-[10px] font-semibold text-white/70">실수령액</div>
+              <div className="text-2xl font-black leading-tight mono-number">{fmtWFull(myPayroll.net_pay)}</div>
+            </div>
+            <div className="flex gap-6">
+              <div>
+                <div className="caption mb-0.5">기본급</div>
+                <div className="text-sm font-bold">{fmtWFull(myPayroll.base_salary)}</div>
+              </div>
+              <div>
+                <div className="caption mb-0.5">공제</div>
+                <div className="text-sm font-bold text-red-400">-{fmtWFull(myPayroll.deductions_total)}</div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-xs text-[var(--text-muted)]">이번 달 급여 정보가 아직 없습니다. 지급일: 매월 25일</div>
