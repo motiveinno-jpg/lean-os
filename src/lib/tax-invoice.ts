@@ -23,6 +23,13 @@ export const INVOICE_STATUS = {
   void: { label: '무효', bg: 'bg-red-500/10', text: 'text-red-400' },
 } as const;
 
+// 상태 메타 — 비표준 'unmatched'(과거 매칭해제 시 잘못 기록된 값)는 type 기준으로 정규화해
+//   '작성중'(draft 폴백) 오표시를 막는다. (매출=발행, 매입=수취)
+export function invoiceStatusMeta(status: string | null | undefined, type?: string | null) {
+  const norm = status === 'unmatched' ? (type === 'purchase' ? 'received' : 'issued') : (status || 'draft');
+  return (INVOICE_STATUS as Record<string, { label: string; bg: string; text: string }>)[norm] || INVOICE_STATUS.draft;
+}
+
 // ── Create tax invoice ──
 export async function createTaxInvoice(params: {
   companyId: string;

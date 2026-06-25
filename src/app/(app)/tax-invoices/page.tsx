@@ -23,6 +23,7 @@ import {
   getHomeTaxSyncLogs,
   INVOICE_TYPES,
   INVOICE_STATUS,
+  invoiceStatusMeta,
   issueTaxInvoice,
   registerHometaxIssuer,
 } from "@/lib/tax-invoice";
@@ -501,7 +502,7 @@ function exportToExcel(invoices: any[], filename: string) {
       세액: Number(inv.tax_amount),
       합계: Number(inv.total_amount),
       발행일: inv.issue_date,
-      상태: (INVOICE_STATUS as any)[inv.status]?.label || inv.status,
+      상태: invoiceStatusMeta(inv.status, inv.type).label,
     }))
   );
   const wb = XLSX.utils.book_new();
@@ -1573,7 +1574,7 @@ export default function TaxInvoicesPage() {
                         <span className="text-[var(--text-muted)] mx-2">|</span>
                         <span className="font-mono">₩{Number(inv.supply_amount).toLocaleString("ko-KR")}</span>
                         <span className="text-[var(--text-dim)] ml-2">{inv.issue_date}</span>
-                        <span className="text-[var(--text-dim)] ml-2">({(INVOICE_STATUS as any)[inv.status]?.label || inv.status})</span>
+                        <span className="text-[var(--text-dim)] ml-2">({invoiceStatusMeta(inv.status, inv.type).label})</span>
                       </div>
                       <button type="button" onClick={() => setSelectedInvoice(inv)}
                         className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">
@@ -2160,7 +2161,7 @@ export default function TaxInvoicesPage() {
                   </thead>
                   <tbody>
                     {displayList.map((inv: any) => {
-                      const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+                      const sc = invoiceStatusMeta(inv.status, inv.type);
                       const canSelect = isUnissued(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
                       const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
@@ -2188,8 +2189,8 @@ export default function TaxInvoicesPage() {
                               {inv.original_invoice_id && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400">수정</span>}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={inv.label || (inv as any).deals?.name || ""}>
-                            {inv.label || (inv as any).deals?.name || "—"}
+                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || ""}>
+                            {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || "—"}
                           </td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
@@ -2789,7 +2790,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   const supplyAmt = Number(inv.supply_amount || 0);
   const taxAmt = Number(inv.tax_amount || 0);
   const totalAmt = Number(inv.total_amount || 0);
-  const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+  const sc = invoiceStatusMeta(inv.status, inv.type);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [issueLoading, setIssueLoading] = useState(false);
@@ -3013,7 +3014,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
                   <tr className="border-b border-[var(--border)]/50">
                     <td className="px-3 py-2">{inv.issue_date?.slice(5)}</td>
                     <td className="px-3 py-2 font-medium">
-                      {inv.label || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
+                      {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
                     </td>
                     <td className="px-3 py-2 text-right">1</td>
                     <td className="px-3 py-2 text-right">₩{supplyAmt.toLocaleString()}</td>

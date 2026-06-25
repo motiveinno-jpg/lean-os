@@ -189,9 +189,13 @@ export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promi
     .update({ tax_invoice_id: null })
     .eq('id', bankTxId);
   if (txErr) throw txErr;
+  // 매칭 해제 시 lifecycle status 를 'unmatched'(비표준값 → UI 가 '작성중'으로 오표시)로 덮지 말고
+  //   원래 상태(매출=발행 issued / 매입=수취 received)로 되돌린다. 입금 매칭 여부는 settlement_status 소관.
+  const { data: inv } = await db.from('tax_invoices').select('type').eq('id', invoiceId).maybeSingle();
+  const restored = inv?.type === 'purchase' ? 'received' : 'issued';
   const { error: invErr } = await db
     .from('tax_invoices')
-    .update({ status: 'unmatched' })
+    .update({ status: restored })
     .eq('id', invoiceId);
   if (invErr) throw invErr;
 }

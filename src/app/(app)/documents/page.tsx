@@ -17,7 +17,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { getCurrentUser, getDocuments, getDocTemplates, getDeals, getTaxInvoices, getDocument, getDocRevisions, getDocApprovals, deleteDocument } from "@/lib/queries";
 import { createBlankDocument, createFromTemplate, DOC_TYPES, DOC_STATUS } from "@/lib/documents";
 import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/lib/documents";
-import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS } from "@/lib/tax-invoice";
+import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS, invoiceStatusMeta } from "@/lib/tax-invoice";
 import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
@@ -2149,7 +2149,7 @@ function DocumentsPageInner() {
               </thead>
               <tbody>
                 {invoices.map((inv: any) => {
-                  const sc = (INVOICE_STATUS as any)[inv.status] || INVOICE_STATUS.draft;
+                  const sc = invoiceStatusMeta(inv.status, inv.type);
                   return (
                     <tr key={inv.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                       <td className="px-5 py-3 text-sm font-medium">{inv.counterparty_name}</td>
