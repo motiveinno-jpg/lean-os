@@ -13,7 +13,8 @@ import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCurrentUser, getDocuments } from "@/lib/queries";
+import { getCurrentUser, getDocuments, getDocTemplates } from "@/lib/queries";
+import { TemplatesTab } from "@/components/templates-tab";
 import {
   getSignatureRequests,
   getSignatureProof,
@@ -46,6 +47,7 @@ export default function SignaturesDashboardPage() {
   const { open: openDocViewer } = useDocumentViewer();
   const [userId, setUserId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [subTab, setSubTab] = useState<"requests" | "templates">("requests");
   const [statusFilter, setStatusFilter] = useState<"all" | SignatureStatusValue>("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -88,6 +90,13 @@ export default function SignaturesDashboardPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["documents-for-sign", companyId],
     queryFn: () => getDocuments(companyId!),
+    enabled: !!companyId,
+  });
+
+  // 양식 관리 탭 — 전자계약(비즈니스) 양식 doc_templates
+  const { data: docTemplates = [] } = useQuery({
+    queryKey: ["doc-templates", companyId],
+    queryFn: () => getDocTemplates(companyId!),
     enabled: !!companyId,
   });
 
@@ -287,22 +296,57 @@ export default function SignaturesDashboardPage() {
           <h1 className="text-2xl font-extrabold text-[var(--text)]">전자서명 대시보드</h1>
           <p className="text-sm text-[var(--text-muted)]">서명 요청 발송, 추적, 리마인더를 한곳에서 관리하세요.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowOrgBulkWizard(true)}
-            className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--primary)] text-[var(--primary)] rounded-lg text-sm font-semibold hover:bg-[var(--primary)]/10"
-            title="여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"
-          >
-            + 단체 일괄 발송
-          </button>
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90"
-          >
-            + 새 서명 요청
-          </button>
-        </div>
+        {subTab === "requests" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowOrgBulkWizard(true)}
+              className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--primary)] text-[var(--primary)] rounded-lg text-sm font-semibold hover:bg-[var(--primary)]/10"
+              title="여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"
+            >
+              + 단체 일괄 발송
+            </button>
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90"
+            >
+              + 새 서명 요청
+            </button>
+          </div>
+        )}
       </header>
+
+      {/* 상단 탭 토글 — 서명 요청 / 양식 관리 */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSubTab("requests")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+            subTab === "requests" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          서명 요청
+        </button>
+        <button
+          onClick={() => setSubTab("templates")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+            subTab === "templates" ? "bg-purple-500/10 text-purple-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          양식 관리
+        </button>
+      </div>
+
+      {subTab === "templates" && companyId && userId && (
+        <TemplatesTab
+          scope="business"
+          companyId={companyId}
+          userId={userId}
+          templates={docTemplates as any[]}
+          onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
+        />
+      )}
+
+      {subTab === "requests" && (
+        <>
 
       {/* 최근 7일 발송 실패 (대표/관리자만, 실패가 있을 때만 노출) */}
       {isManager && totalFailures > 0 && (
@@ -524,6 +568,8 @@ export default function SignaturesDashboardPage() {
           );
         })()}
       </div>
+        </>
+      )}
 
       {showInviteModal && companyId && userId && (
         <InviteModal
