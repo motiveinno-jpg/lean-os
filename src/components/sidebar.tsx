@@ -60,7 +60,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
-      { href: "/documents", label: "서류", icon: "folder" },
+      { href: "/hr-templates", label: "양식 관리", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/documents", label: "파일보관함", icon: "folder" },
     ],
   },
   {
@@ -106,7 +107,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
       { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
       { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals" },
-      { href: "/documents", label: "서류", icon: "folder" },
+      { href: "/documents", label: "파일보관함", icon: "folder" },
     ],
   },
   {
