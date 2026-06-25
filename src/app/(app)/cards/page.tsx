@@ -255,15 +255,38 @@ export default function CardsPage() {
     } finally { setPosting(false); }
   };
 
+  // 일괄 전표처리 — 선택된 미처리 카드거래를 비용계정 1개로 순차 post_card_voucher
+  const [showBulkPost, setShowBulkPost] = useState(false);
+  const [bulkAccountId, setBulkAccountId] = useState<string>("");
+  const [bulkPosting, setBulkPosting] = useState(false);
+  const doBulkPost = async () => {
+    if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
+    setBulkPosting(true);
+    let ok = 0, fail = 0;
+    try {
+      const ids = Array.from(selectedTxIds);
+      for (const id of ids) {
+        const tx = (recentTx as any[]).find((t) => t.id === id);
+        if (!tx || tx.journal_entry_id) continue; // 이미 처리된 건 skip
+        const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: id, p_account_id: bulkAccountId, p_remember: false });
+        if (error) fail++; else ok++;
+      }
+      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}`, fail > 0 ? "info" : "success");
+      setShowBulkPost(false); setBulkAccountId(""); setSelectedTxIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
+    } finally { setBulkPosting(false); }
+  };
+
   // 거래내역 탭 — 최근 100건. 탭 진입 시에만 fetch.
   const { data: recentTx = [] } = useQuery({
     queryKey: ["cards-page-recent-tx", companyId, filterCardId],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
-        .limit(100);
+        .limit(300);
       if (filterCardId) q = q.eq("card_id", filterCardId);
       const { data } = await q;
       return (data || []) as any[];
@@ -634,9 +657,8 @@ export default function CardsPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled
-                  title="준비중"
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] opacity-50 cursor-not-allowed"
+                  onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition"
                 >
                   전표처리({selectedTxIds.size})
                 </button>
@@ -799,6 +821,38 @@ export default function CardsPage() {
               <button onClick={doPostVoucher} disabled={posting || !postAccountId}
                 className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
                 {posting ? "처리 중..." : "전표 생성"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 일괄 전표처리 모달 — 선택된 미처리 카드거래를 비용계정 1개로 일괄 생성 */}
+      {showBulkPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">비용 계정과목 *</label>
+                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  <option value="">계정 선택</option>
+                  {(accounts as any[]).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                {bulkPosting ? "처리 중..." : `${selectedTxIds.size}건 전표 생성`}
               </button>
             </div>
           </div>
