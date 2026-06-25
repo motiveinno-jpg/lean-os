@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { MonthField } from "@/components/month-field";
+import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1675,8 +1677,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* Controls: month picker + check-in/out buttons + view toggle */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-3 items-center">
-          <input
-            type="month"
+          <MonthField
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
@@ -1883,16 +1884,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       <td className="px-5 py-2 text-sm font-medium">{r.employees?.name || "—"}</td>
                       <td className="px-5 py-2 text-sm text-[var(--text-muted)]">{r.date}</td>
                       <td className="px-3 py-2">
-                        <input
-                          type="datetime-local"
+                        <DateTimeField
                           value={editForm.check_in}
                           onChange={(e) => setEditForm({ ...editForm, check_in: e.target.value })}
                           className="w-full px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-[var(--primary)]"
                         />
                       </td>
                       <td className="px-3 py-2">
-                        <input
-                          type="datetime-local"
+                        <DateTimeField
                           value={editForm.check_out}
                           onChange={(e) => setEditForm({ ...editForm, check_out: e.target.value })}
                           className="w-full px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-[var(--primary)]"
@@ -2593,8 +2592,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
         <div className="flex gap-2 items-center flex-wrap">
-          <input
-            type="month"
+          <MonthField
             value={periodMonth}
             onChange={(e) => setPeriodMonth(e.target.value)}
             className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs"
@@ -3524,8 +3522,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 캘린더</h3>
-          <input
-            type="month"
+          <MonthField
             value={calMonth}
             onChange={(e) => setCalMonth(e.target.value)}
             className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"

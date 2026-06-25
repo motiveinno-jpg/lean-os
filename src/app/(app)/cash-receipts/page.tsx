@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { MonthField } from "@/components/month-field";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -365,8 +366,7 @@ export default function CashReceiptsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* 홈택스 sync (현금영수증 매출) */}
-          <input
-            type="month"
+          <MonthField
             value={syncFromMonth}
             onChange={(e) => setSyncFromMonth(e.target.value)}
             disabled={syncStarting || !!activeJobId}
@@ -374,8 +374,7 @@ export default function CashReceiptsPage() {
             aria-label="동기화 시작 월"
           />
           <span className="text-[var(--text-dim)] text-xs">~</span>
-          <input
-            type="month"
+          <MonthField
             value={syncToMonth}
             onChange={(e) => setSyncToMonth(e.target.value)}
             disabled={syncStarting || !!activeJobId}

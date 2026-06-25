@@ -8,6 +8,7 @@
 //   - 권한 게이트는 호출하는 상위에서(AccessDenied) 적용 — 본 컴포넌트는 admin/owner 가정.
 
 import React, { useMemo, useState } from "react";
+import { MonthField } from "@/components/month-field";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -177,8 +178,7 @@ export default function AllowanceAdminTab({
       <div className="flex flex-wrap items-center gap-3">
         <div>
           <label className="block text-[10px] text-[var(--text-muted)] mb-1">대상 월</label>
-          <input
-            type="month"
+          <MonthField
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             className="px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"

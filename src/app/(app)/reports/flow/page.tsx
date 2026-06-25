@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { MonthField } from "@/components/month-field";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -269,8 +270,7 @@ export default function BusinessFlowPage() {
             영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.
           </p>
         </div>
-        <input
-          type="month"
+        <MonthField
           value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)}
           style={{

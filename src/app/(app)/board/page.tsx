@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -738,8 +739,7 @@ export default function BoardPage() {
                   <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">
                     ⏰ 투표 마감 (선택) — 비우면 무제한
                   </label>
-                  <input
-                    type="datetime-local"
+                  <DateTimeField
                     value={pollDeadline}
                     onChange={(e) => setPollDeadline(e.target.value)}
                     className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"

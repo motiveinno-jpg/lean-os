@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DateTimeField } from "@/components/datetime-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -184,14 +185,12 @@ function IncidentForm({
         className="w-full px-3 py-2 bg-[#0b0f1a] border border-[#1e293b] rounded-lg text-sm text-white"
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input
-          type="datetime-local"
+        <DateTimeField
           value={value.occurred_at ? new Date(value.occurred_at).toISOString().slice(0, 16) : ""}
           onChange={(e) => onChange({ ...value, occurred_at: new Date(e.target.value).toISOString() })}
           className="px-3 py-2 bg-[#0b0f1a] border border-[#1e293b] rounded-lg text-sm text-white"
         />
-        <input
-          type="datetime-local"
+        <DateTimeField
           placeholder="해결시각"
           value={value.resolved_at ? new Date(value.resolved_at).toISOString().slice(0, 16) : ""}
           onChange={(e) => onChange({ ...value, resolved_at: e.target.value ? new Date(e.target.value).toISOString() : null })}

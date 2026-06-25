@@ -8,13 +8,14 @@ import { DateField } from "./date-field";
 type ChangeLike = { target: { value: string } };
 
 export function DateTimeField({
-  value, onChange, min, max, className = "", disabled,
+  value, onChange, min, max, className = "", disabled, placeholder,
 }: {
   value?: string | null;
   onChange?: (e: ChangeLike) => void;
   min?: string; max?: string;
-  className?: string; disabled?: boolean;
+  className?: string; disabled?: boolean; placeholder?: string;
 }) {
+  void placeholder;
   const v = value || "";
   const datePart = v.slice(0, 10);
   const timePart = v.length >= 16 ? v.slice(11, 16) : "";

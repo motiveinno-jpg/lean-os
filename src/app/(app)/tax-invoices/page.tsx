@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MonthField } from "@/components/month-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
@@ -1407,8 +1408,7 @@ export default function TaxInvoicesPage() {
             <input type="checkbox" checked={backgroundMode} onChange={(e) => setBackgroundMode(e.target.checked)} disabled={syncing || !!activeJobId} />
             백그라운드
           </label>
-          <input
-            type="month"
+          <MonthField
             value={syncFromMonth}
             onChange={(e) => setSyncFromMonth(e.target.value)}
             disabled={syncing || !!activeJobId || incrementalMode}
@@ -1416,8 +1416,7 @@ export default function TaxInvoicesPage() {
             aria-label="동기화 시작 월"
           />
           <span className="text-xs text-[var(--text-muted)]">~</span>
-          <input
-            type="month"
+          <MonthField
             value={syncToMonth}
             onChange={(e) => setSyncToMonth(e.target.value)}
             disabled={syncing || !!activeJobId || incrementalMode}
@@ -1729,8 +1728,7 @@ export default function TaxInvoicesPage() {
           <div className="flex items-stretch border border-[var(--border)] rounded-md overflow-hidden">
             <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, #027B8C 6%, var(--bg-surface))" }}>조회기간</div>
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
-              <input
-                type="month"
+              <MonthField
                 value={viewFromMonth}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -1742,8 +1740,7 @@ export default function TaxInvoicesPage() {
                 aria-label="조회 시작 월"
               />
               <span className="text-xs text-[var(--text-muted)]">~</span>
-              <input
-                type="month"
+              <MonthField
                 value={viewToMonth}
                 onChange={(e) => {
                   const v = e.target.value;

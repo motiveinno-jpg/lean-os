@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { MonthField } from "@/components/month-field";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -609,10 +610,10 @@ export default function PnlPage() {
           {/* 조회 기간 — 월 범위 */}
           <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
             <label className="text-[11px] font-semibold text-[var(--text-dim)]">기간</label>
-            <input type="month" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)}
+            <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)}
               className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
             <span className="text-[var(--text-dim)] text-xs">~</span>
-            <input type="month" value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)}
+            <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)}
               className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
           </div>
           <button
