@@ -70,10 +70,12 @@ export default function MyPage() {
     if (!file || !userId) return;
     if (!file.type.startsWith("image/")) { toast("이미지 파일만 업로드할 수 있습니다", "error"); return; }
     if (file.size > 5 * 1024 * 1024) { toast("5MB 이하 이미지만 업로드할 수 있습니다", "error"); return; }
+    if (!companyId) { toast("회사 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.", "error"); return; }
     setUploadingAvatar(true);
     try {
       const ext = (file.name.split(".").pop() || "png").toLowerCase();
-      const path = `avatars/${userId}-${Date.now()}.${ext}`;
+      // company-assets 버킷 RLS: 첫 폴더 = 회사ID 여야 업로드 허용. (avatars/ 로 시작하면 거부됨)
+      const path = `${companyId}/avatars/${userId}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw new Error(upErr.message);
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
