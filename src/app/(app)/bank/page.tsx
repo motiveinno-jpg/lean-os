@@ -4,7 +4,7 @@
 //   기존 BankAccountsOverview / TransactionsView 미사용 (그쪽은 /transactions 에서 그대로).
 //   표시 전용 — 새 mutation·RPC 0. read-only 쿼리만.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { DateField } from "@/components/date-field";
@@ -42,6 +42,21 @@ export default function BankPage() {
   // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
   const [selectedAccountNo, setSelectedAccountNo] = useState<string>("");
   const [selectedAccountLabel, setSelectedAccountLabel] = useState<string>("");
+  // 거래내역 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  // 같은 key 재더블클릭 시 방향 토글, 다른 key 면 key 설정 + 기본 방향(날짜·금액=desc, 그 외=asc).
+  const onSortTx = (key: string) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortDir(key === "transaction_date" || key === "amount" ? "desc" : "asc");
+      return key;
+    });
+  };
 
   // 통장 이름 편집 — BankAccountsOverview 와 동일한 setBankAccountAlias 사용. 빈 문자열이면 별칭 해제.
   const handleEditAlias = async (accountNo: string, currentAlias: string | undefined, bankName: string | undefined, balance: number) => {
@@ -242,6 +257,51 @@ export default function BankPage() {
     },
     enabled: !!companyId && tab === "transactions",
   });
+
+  // 정렬 적용 — 원본 쿼리 캐시 불변(복제 정렬). null/빈값은 항상 뒤로.
+  const sortedTx = useMemo(() => {
+    if (!sortKey) return recentTx;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (tx: any) => {
+      switch (sortKey) {
+        case "transaction_date": return tx.transaction_date || "";
+        case "amount": return Math.abs(Number(tx.amount || 0));
+        case "counterparty": return tx.counterparty || tx.description || "";
+        case "classification": return tx.classification || tx.category || "";
+        case "type": return tx.mapping_status || "";
+        default: return "";
+      }
+    };
+    const isEmpty = (v: any) => v === "" || v === null || v === undefined;
+    return [...recentTx].sort((a, b) => {
+      const va = get(a), vb = get(b);
+      // 빈값은 방향과 무관하게 뒤로
+      if (isEmpty(va) && isEmpty(vb)) return 0;
+      if (isEmpty(va)) return 1;
+      if (isEmpty(vb)) return -1;
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), "ko") * dir;
+    });
+  }, [recentTx, sortKey, sortDir]);
+
+  // 탭·계좌 필터 변경 시 선택 초기화 (다른 목록의 선택이 남지 않게)
+  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, selectedAccountNo]);
+
+  const toggleTx = (id: string) => {
+    setSelectedTxIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const allTxSelected = sortedTx.length > 0 && sortedTx.every((tx) => selectedTxIds.has(tx.id));
+  const someTxSelected = sortedTx.some((tx) => selectedTxIds.has(tx.id)) && !allTxSelected;
+  const toggleAllTx = () => {
+    setSelectedTxIds((prev) => {
+      if (sortedTx.every((tx) => prev.has(tx.id))) return new Set();
+      return new Set(sortedTx.map((tx) => tx.id));
+    });
+  };
 
   if (!companyId) {
     return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
@@ -482,26 +542,72 @@ export default function BankPage() {
               </button>
             </div>
           )}
+        {/* 선택 액션바 — 1건 이상 선택 시 sticky 노출. 전표처리는 자리표시(준비중) */}
+        {selectedTxIds.size > 0 && (
+          <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+            <span className="text-sm font-semibold text-[var(--text)]">
+              <b className="text-[var(--primary)]">{selectedTxIds.size}건</b> 선택됨
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                title="준비중"
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] opacity-50 cursor-not-allowed"
+              >
+                전표처리({selectedTxIds.size})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTxIds(new Set())}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition"
+              >
+                선택 해제
+              </button>
+            </div>
+          </div>
+        )}
         <div className="glass-card overflow-hidden">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full">
               <thead className="sticky-bar">
                 <tr className="table-head-row">
-                  <th className="text-left px-6 py-4 font-semibold">거래</th>
-                  <th className="text-left px-6 py-4 font-semibold">분류</th>
-                  <th className="text-left px-6 py-4 font-semibold">금액</th>
-                  <th className="text-left px-6 py-4 font-semibold">날짜</th>
-                  <th className="text-left px-6 py-4 font-semibold">상태</th>
+                  <th className="w-10 px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={allTxSelected}
+                      ref={(el) => { if (el) el.indeterminate = someTxSelected; }}
+                      onChange={toggleAllTx}
+                      aria-label="전체 선택"
+                      className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                    />
+                  </th>
+                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">거래{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                 </tr>
               </thead>
               <tbody>
-                {recentTx.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 거래내역이 없습니다</td></tr>
-                ) : recentTx.map((tx) => {
+                {sortedTx.length === 0 ? (
+                  <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 거래내역이 없습니다</td></tr>
+                ) : sortedTx.map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
+                  const checked = selectedTxIds.has(tx.id);
                   return (
-                    <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors">
+                    <tr key={tx.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
+                      <td className="w-10 px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTx(tx.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label="거래 선택"
+                          className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-red-500/15"}`}>

@@ -6,7 +6,7 @@
 //   기능 보존: 큰 카드 디스플레이 + 사용현황 + 미니그리드 + 거래내역 검색/필터 + 분석 stat·차트.
 //   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -120,6 +120,20 @@ export default function CardsPage() {
   const [showBalance, setShowBalance] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCardId, setFilterCardId] = useState<string>("");
+  // 거래내역 탭 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  const onSortTx = (key: string) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortDir(key === "transaction_date" || key === "amount" ? "desc" : "asc");
+      return key;
+    });
+  };
   // CODEF 카드 동기화
   const [syncing, setSyncing] = useState(false);
   // 카드 클릭 → 그 카드의 거래내역 영역(카드 탭 하단 #card-tx-detail) 필터
@@ -305,6 +319,51 @@ export default function CardsPage() {
       || (tx.card_name || "").toLowerCase().includes(q)
       || (classificationLabel(tx.classification) || tx.category || "").toLowerCase().includes(q);
   });
+
+  // 정렬 적용 — 원본 불변 복제 정렬. null/빈값은 항상 뒤로.
+  const sortedTx = useMemo(() => {
+    if (!sortKey) return filteredTx;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (tx: any) => {
+      switch (sortKey) {
+        case "transaction_date": return tx.transaction_date || "";
+        case "amount": return Math.abs(Number(tx.amount || 0));
+        case "merchant_name": return tx.merchant_name || "";
+        case "classification": return classificationLabel(tx.classification) || tx.category || "";
+        case "card_name": return tx.card_name || "";
+        default: return "";
+      }
+    };
+    const isEmpty = (v: any) => v === "" || v === null || v === undefined;
+    return [...filteredTx].sort((a: any, b: any) => {
+      const va = get(a), vb = get(b);
+      if (isEmpty(va) && isEmpty(vb)) return 0;
+      if (isEmpty(va)) return 1;
+      if (isEmpty(vb)) return -1;
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), "ko") * dir;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTx, sortKey, sortDir]);
+
+  // 탭·카드 필터 변경 시 선택 초기화
+  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, filterCardId]);
+
+  const toggleTx = (id: string) => {
+    setSelectedTxIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const allTxSelected = sortedTx.length > 0 && sortedTx.every((tx: any) => selectedTxIds.has(tx.id));
+  const someTxSelected = sortedTx.some((tx: any) => selectedTxIds.has(tx.id)) && !allTxSelected;
+  const toggleAllTx = () => {
+    setSelectedTxIds((prev) => {
+      if (sortedTx.every((tx: any) => prev.has(tx.id))) return new Set();
+      return new Set(sortedTx.map((tx: any) => tx.id));
+    });
+  };
 
   const welcomeName = user?.email?.split("@")[0] || "사용자";
 
@@ -566,30 +625,90 @@ export default function CardsPage() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            {filteredTx.length === 0 ? (
-              <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">최근 카드 거래가 없습니다</div>
-            ) : filteredTx.map((tx: any) => (
-              <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-xl shrink-0">
-                    {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
-                    <p className="text-xs text-[var(--text-muted)] truncate">
-                      {(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 shrink-0">
-                  <p className="text-base sm:text-lg font-bold text-[var(--text)] mono-number">
-                    -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
-                  </p>
-                  <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
-                </div>
+          {/* 선택 액션바 — 1건 이상 선택 시 sticky 노출. 전표처리는 자리표시(준비중) */}
+          {selectedTxIds.size > 0 && (
+            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+              <span className="text-sm font-semibold text-[var(--text)]">
+                <b className="text-[var(--primary)]">{selectedTxIds.size}건</b> 선택됨
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled
+                  title="준비중"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] opacity-50 cursor-not-allowed"
+                >
+                  전표처리({selectedTxIds.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTxIds(new Set())}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition"
+                >
+                  선택 해제
+                </button>
               </div>
-            ))}
+            </div>
+          )}
+
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-auto max-h-[640px]">
+              <table className="w-full">
+                <thead className="sticky-bar">
+                  <tr className="table-head-row">
+                    <th className="w-10 px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={allTxSelected}
+                        ref={(el) => { if (el) el.indeterminate = someTxSelected; }}
+                        onChange={toggleAllTx}
+                        aria-label="전체 선택"
+                        className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                      />
+                    </th>
+                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedTx.length === 0 ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 카드 거래가 없습니다</td></tr>
+                  ) : sortedTx.map((tx: any) => {
+                    const checked = selectedTxIds.has(tx.id);
+                    const cat = classificationLabel(tx.classification) || tx.category || "미분류";
+                    return (
+                      <tr key={tx.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
+                        <td className="w-10 px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTx(tx.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label="거래 선택"
+                            className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
+                              {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
+                            </div>
+                            <span className="font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{cat}</td>
+                        <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
+                        <td className="px-6 py-4 font-semibold mono-number text-[var(--text)]">-₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
