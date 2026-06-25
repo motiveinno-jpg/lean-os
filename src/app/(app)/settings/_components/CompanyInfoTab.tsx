@@ -21,6 +21,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     fax: "",
     business_type: "",
     business_category: "",
+    capital: "",
   });
   const [sealUrl, setSealUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         fax: company.fax || "",
         business_type: company.business_type || "",
         business_category: company.business_category || "",
+        capital: company.tax_settings?.capital != null ? String(company.tax_settings.capital) : "",
       });
       setSealUrl(company.seal_url || null);
       setLogoUrl(company.logo_url || null);
@@ -77,6 +79,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           fax: form.fax || null,
           business_type: form.business_type || null,
           business_category: form.business_category || null,
+          // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 재무상태표(자본금)가 읽음.
+          tax_settings: { ...(company?.tax_settings || {}), capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null },
         })
         .eq("id", companyId);
       if (error) throw error;
@@ -331,6 +335,17 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                 placeholder="소프트웨어 개발"
                 className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">자본금 (원)</label>
+              <input
+                inputMode="numeric"
+                value={form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
+                onChange={(e) => setForm({ ...form, capital: e.target.value.replace(/[^0-9]/g, "") })}
+                placeholder="예: 10,000,000"
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]"
+              />
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">재무상태표 자본 항목에 사용됩니다. (등기부상 자본금)</p>
             </div>
           </div>
           <div>

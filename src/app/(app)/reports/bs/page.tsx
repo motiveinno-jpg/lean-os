@@ -88,7 +88,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
   const cutoff = cutoffDate || new Date().toISOString().slice(0, 10);
   const fromDate = (() => { const d = new Date(cutoff); d.setMonth(d.getMonth() - arApMonths); return d.toISOString().slice(0, 10); })();
   // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
-  const [bankRes, loanRes, invoices, vaultRes] = await Promise.all([
+  const [bankRes, loanRes, invoices, vaultRes, companyRes, settlements] = await Promise.all([
     supabase
       .from("bank_accounts")
       .select("bank_name, alias, balance")
@@ -116,12 +116,30 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
       .select("name, value, type, status, purchase_date, created_at, useful_life_months")
       .eq("company_id", companyId)
       .neq("status", "disposed"),
+    // 자본금 — companies.tax_settings(jsonb).capital (회사설정에서 입력)
+    supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
+    // 정산 원장 — 확정(confirmed) 정산액을 송장별로 차감해 미수금·미지급금을 정밀 산출.
+    fetchAllPaginated<any>((from, to) =>
+      (supabase as any)
+        .from("invoice_settlements")
+        .select("tax_invoice_id, amount, status")
+        .eq("company_id", companyId)
+        .eq("status", "confirmed")
+        .range(from, to)),
   ]);
 
   const bankAccounts = bankRes.data || [];
   const loans = loanRes.data || [];
   // database.ts 수기 타입에 useful_life_months 미반영 — any 캐스트로 우회 (DB 컬럼은 PR1 에서 추가됨).
   const vaultAssets = (vaultRes.data || []) as any[];
+
+  // 송장별 확정 정산액 합계 — 미수금/미지급금에서 차감(부분정산 정확 반영).
+  const settledByInvoice = new Map<string, number>();
+  for (const s of (settlements as any[]) || []) {
+    if (!s.tax_invoice_id) continue;
+    settledByInvoice.set(s.tax_invoice_id, (settledByInvoice.get(s.tax_invoice_id) || 0) + Number(s.amount || 0));
+  }
+  const outstandingOf = (inv: any) => Math.max(0, Number(inv.total_amount || 0) - (settledByInvoice.get(inv.id) || 0));
 
   // 세금계산서 매출/매입 분리 (status NOT IN void,matched — 미입금·미지급분만)
   const salesInvoices = (invoices as any[]).filter((inv) => inv.type === "sales");
@@ -133,11 +151,13 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
   const cashAndDeposits = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
 
   // 매출채권 = 미입금(미매칭) 매출 세금계산서. 매칭(matched)된 건은 통장 입금 확인 → 현금에 반영됨.
-  const receivableDetails = salesInvoices.map((inv: any) => ({
-    name: inv.counterparty_name || "거래처 미상",
-    amount: Number(inv.total_amount || 0),
-    date: inv.issue_date || null,
-  }));
+  const receivableDetails = salesInvoices
+    .map((inv: any) => ({
+      name: inv.counterparty_name || "거래처 미상",
+      amount: outstandingOf(inv),
+      date: inv.issue_date || null,
+    }))
+    .filter((r) => r.amount > 0);
   const accountsReceivable = receivableDetails.reduce((sum, r) => sum + r.amount, 0);
   const currentAssets = cashAndDeposits + accountsReceivable;
 
@@ -177,17 +197,21 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
   const borrowings = loanDetails.reduce((sum, l) => sum + l.remainingAmount, 0);
 
   // 미지급금 = 미지급(미매칭) 매입 세금계산서. 매칭(matched)된 건은 통장 출금 확인 → 현금에서 차감됨.
-  const payableDetails = purchaseInvoices.map((inv: any) => ({
-    name: inv.counterparty_name || "unnamed",
-    amount: inv.total_amount || 0,
-    date: inv.issue_date || null,
-  }));
+  const payableDetails = purchaseInvoices
+    .map((inv: any) => ({
+      name: inv.counterparty_name || "unnamed",
+      amount: outstandingOf(inv),
+      date: inv.issue_date || null,
+    }))
+    .filter((p) => p.amount > 0);
   const accountsPayable = payableDetails.reduce((sum, p) => sum + p.amount, 0);
   const totalLiabilities = borrowings + accountsPayable;
 
   /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
   const vendorMap = new Map<string, PayableVendor>();
   for (const inv of purchaseInvoices as any[]) {
+    const outstanding = outstandingOf(inv);
+    if (outstanding <= 0) continue; // 정산 완료분 제외
     const vendor = (inv.counterparty_name || "(거래처 미상)").trim() || "(거래처 미상)";
     const key = `${vendor}|${inv.counterparty_bizno || ""}`;
     const cur = vendorMap.get(key) || {
@@ -195,12 +219,12 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
       bizno: inv.counterparty_bizno || null,
       totalAmount: 0, invoiceCount: 0, invoices: [] as PayableInvoice[],
     };
-    cur.totalAmount += Number(inv.total_amount || 0);
+    cur.totalAmount += outstanding;
     cur.invoiceCount++;
     cur.invoices.push({
       id: inv.id,
       issueDate: inv.issue_date || '',
-      amount: Number(inv.total_amount || 0),
+      amount: outstanding,
       itemName: inv.item_name || null,
       status: inv.status || 'unknown',
       ntsConfirmNo: inv.nts_confirm_no || null,
@@ -212,13 +236,13 @@ async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 
     .sort((a, b) => b.totalAmount - a.totalAmount);
 
   /* --- Equity --- */
-  // 2026-06-10 자본금: companies.capital/registered_capital·company_settings.capital 컬럼이
-  //   DB 에 존재하지 않아 조회 시 매 로드마다 400 발생 → 쿼리 제거.
-  //   실 자본금 소스가 생기기 전까지 기본값 + isCapitalDefault 안내 플래그 유지.
-  const isCapitalDefault = true;
-  const capital = DEFAULT_CAPITAL;
-  const retainedEarnings = totalAssets - totalLiabilities - capital;
-  const totalEquity = capital + retainedEarnings;
+  // 자본금 = companies.tax_settings.capital (회사설정 입력값). 미입력 시 기본값 + 안내 플래그.
+  //   자본금이 실제값이면 이익잉여금(= 순자산 − 납입자본금)도 자동으로 의미를 가짐(역산이 곧 정의).
+  const capitalRaw = (companyRes as any)?.data?.tax_settings?.capital;
+  const isCapitalDefault = capitalRaw == null || Number(capitalRaw) <= 0;
+  const capital = isCapitalDefault ? DEFAULT_CAPITAL : Number(capitalRaw);
+  const totalEquity = totalAssets - totalLiabilities;     // 순자산(자산−부채) — 항상 정합
+  const retainedEarnings = totalEquity - capital;          // 이익잉여금 등 = 순자산 − 납입자본금
 
   const bankAccountDetails = bankAccounts.map((a) => ({
     name: `${a.bank_name || ""} ${a.alias || ""}`.trim() || "unnamed account",
@@ -956,7 +980,7 @@ export default function BalanceSheetPage() {
         <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
           <svg className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
-            <b>자본 섹션은 추정값입니다.</b> 자본금이 미등록이라 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시되며, 이익잉여금은 (자산−부채−자본금)으로 역산됩니다. 자산·부채·현금은 실데이터 기준입니다.
+            <b>자본금이 미등록 상태입니다.</b> 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시 중이라 자본·이익잉여금이 부정확합니다. <Link href="/settings?tab=company" className="underline font-semibold">회사 설정 → 회사정보</Link>에서 자본금을 입력하면 정확해집니다.
           </p>
         </div>
       )}
@@ -975,8 +999,9 @@ export default function BalanceSheetPage() {
           <div>· <b className="text-[var(--text-muted)]">매출채권</b> = 미입금(미매칭) 매출 세금계산서. 입금 매칭 시 현금으로 이동·상계</div>
           <div>· <b className="text-[var(--text-muted)]">고정자산</b> = 자산관리(Vault) 등록 자산의 감가상각 장부가</div>
           <div>· <b className="text-[var(--text-muted)]">차입금</b> = 진행 중 대출 잔액</div>
-          <div>· <b className="text-[var(--text-muted)]">미지급금</b> = 미지급(미매칭) 매입 세금계산서. 출금 매칭 시 현금에서 차감·상계</div>
-          <div>· <b className="text-[var(--text-muted)]">이익잉여금</b> = 자산 − 부채 − 자본금 (역산)</div>
+          <div>· <b className="text-[var(--text-muted)]">미지급금</b> = 미지급 매입 세금계산서 − 확정 정산액(부분정산 반영)</div>
+          <div>· <b className="text-[var(--text-muted)]">매출채권/미지급금</b>은 확정 정산액을 차감해 산출(정산 원장 반영)</div>
+          <div>· <b className="text-[var(--text-muted)]">이익잉여금</b> = 순자산(자산−부채) − 납입자본금</div>
         </div>
       </details>
 
