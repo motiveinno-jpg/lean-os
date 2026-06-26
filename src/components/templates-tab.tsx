@@ -10,6 +10,7 @@ import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 //   전자계약(비즈니스) 양식과 분리해 관리 화면을 나눈다. 데이터(doc_templates)는 그대로.
 export const HR_TYPES = [
   "contract_labor",
+  "hr_contract",
   "employment",
   "salary_contract",
   "comprehensive_labor",

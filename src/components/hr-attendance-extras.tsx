@@ -234,8 +234,9 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
         applyChanges: params.applyChanges,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance-edit-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      // 승인+적용 시 근태 기록이 즉시 화면에 반영되도록 근태 관련 쿼리 전체 무효화
+      //   (기록/요약/워크보드/대시보드 등 키가 다양해 한두 개만 무효화하면 미반영으로 보임)
+      queryClient.invalidateQueries();
       refetch();
     },
     onError: (err: any) =>
