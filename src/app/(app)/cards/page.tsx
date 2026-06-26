@@ -16,6 +16,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
+import { SortToolbar } from "@/components/sort-toolbar";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -379,12 +380,14 @@ export default function CardsPage() {
       return next;
     });
   };
-  const allTxSelected = sortedTx.length > 0 && sortedTx.every((tx: any) => selectedTxIds.has(tx.id));
-  const someTxSelected = sortedTx.some((tx: any) => selectedTxIds.has(tx.id)) && !allTxSelected;
+  // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
+  const selectableTx = sortedTx.filter((tx: any) => !tx.journal_entry_id);
+  const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx: any) => selectedTxIds.has(tx.id));
+  const someTxSelected = selectableTx.some((tx: any) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
     setSelectedTxIds((prev) => {
-      if (sortedTx.every((tx: any) => prev.has(tx.id))) return new Set();
-      return new Set(sortedTx.map((tx: any) => tx.id));
+      if (selectableTx.every((tx: any) => prev.has(tx.id))) return new Set();
+      return new Set(selectableTx.map((tx: any) => tx.id));
     });
   };
 
@@ -673,6 +676,20 @@ export default function CardsPage() {
             </div>
           )}
 
+          {/* 정렬 버튼 툴바 — 헤더 더블클릭 정렬과 동일 sortKey/sortDir 공유 */}
+          <SortToolbar
+            options={[
+              { key: "transaction_date", label: "날짜" },
+              { key: "merchant_name", label: "가맹점" },
+              { key: "card_name", label: "카드" },
+              { key: "amount", label: "금액" },
+              { key: "classification", label: "분류" },
+            ]}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={onSortTx}
+          />
+
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[640px]">
               <table className="w-full">
@@ -700,6 +717,7 @@ export default function CardsPage() {
                     <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 카드 거래가 없습니다</td></tr>
                   ) : sortedTx.map((tx: any) => {
                     const checked = selectedTxIds.has(tx.id);
+                    const posted = !!tx.journal_entry_id;
                     const cat = classificationLabel(tx.classification) || tx.category || "미분류";
                     return (
                       <tr key={tx.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
@@ -707,10 +725,12 @@ export default function CardsPage() {
                           <input
                             type="checkbox"
                             checked={checked}
+                            disabled={posted}
                             onChange={() => toggleTx(tx.id)}
                             onClick={(e) => e.stopPropagation()}
                             aria-label="거래 선택"
-                            className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                            title={posted ? "전표처리됨" : undefined}
+                            className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
                         <td className="px-6 py-4">
@@ -724,7 +744,10 @@ export default function CardsPage() {
                         <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{cat}</td>
                         <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
                         <td className="px-6 py-4 font-semibold mono-number text-[var(--text)]">-₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
-                        <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                        <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">
+                          {tx.transaction_date}
+                          {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">전표처리됨</span>}
+                        </td>
                       </tr>
                     );
                   })}

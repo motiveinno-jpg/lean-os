@@ -22,6 +22,7 @@ import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { SortToolbar } from "@/components/sort-toolbar";
 
 type Tab = "income" | "expense" | "register";
 
@@ -131,6 +132,63 @@ export default function CashReceiptsPage() {
     });
     return arr;
   }, [receipts, crSortKey, crSortDir]);
+
+  // ─── 체크박스 다중선택 + 일괄 전표처리 (post_cash_voucher) ───
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkPost, setShowBulkPost] = useState(false);
+  const [bulkAccountId, setBulkAccountId] = useState("");
+  const [bulkPosting, setBulkPosting] = useState(false);
+  // 탭·기간 변경 시 선택 초기화
+  useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
+
+  const isPosted = (r: any) => !!r.journal_entry_id || r.status === "cancelled" || r.status === "void";
+  const selectableReceipts = displayReceipts.filter((r: any) => !isPosted(r));
+  const selectedReceipts = selectableReceipts.filter((r: any) => selectedIds.has(r.id));
+  const allSelected = selectableReceipts.length > 0 && selectableReceipts.every((r: any) => selectedIds.has(r.id));
+  const someSelected = selectableReceipts.some((r: any) => selectedIds.has(r.id)) && !allSelected;
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (selectableReceipts.every((r: any) => prev.has(r.id))) return new Set();
+      return new Set(selectableReceipts.map((r: any) => r.id));
+    });
+  };
+
+  // 전표처리용 계정과목
+  const { data: coaAccounts = [] } = useQuery({
+    queryKey: ["cash-receipt-coa-accounts", companyId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+
+  const doBulkPost = async () => {
+    if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
+    setBulkPosting(true);
+    const db = supabase as any;
+    let ok = 0, fail = 0, skip = 0;
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        const r = (receipts as any[]).find((x) => x.id === id);
+        if (!r || isPosted(r)) { skip++; continue; }
+        const { error } = await db.rpc("post_cash_voucher", { p_cash_receipt_id: id, p_account_id: bulkAccountId, p_remember: false });
+        if (error) fail++; else ok++;
+      }
+      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
+      setShowBulkPost(false); setBulkAccountId(""); setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+    } finally { setBulkPosting(false); }
+  };
 
   // Summary
   const { data: summary } = useQuery({
@@ -684,6 +742,39 @@ export default function CashReceiptsPage() {
 
       {/* List tabs */}
       {tab !== "register" && (
+        <>
+        {receipts.length > 0 && (
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+            <SortToolbar
+              options={[
+                { key: "issue_date", label: "발행일" },
+                { key: "counterparty_name", label: "거래처" },
+                { key: "amount", label: "합계금액" },
+                { key: "supply_amount", label: "공급가액" },
+                { key: "status", label: "상태" },
+              ]}
+              sortKey={crSortKey}
+              sortDir={crSortDir}
+              onSort={(k) => toggleCrSort(k as any)}
+            />
+          </div>
+        )}
+        {/* 선택 액션바 */}
+        {selectedReceipts.length > 0 && (
+          <div className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+            <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition">
+                전표처리({selectedReceipts.length})
+              </button>
+              <button type="button" onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition">
+                선택 해제
+              </button>
+            </div>
+          </div>
+        )}
         <div className="glass-card overflow-hidden">
           {isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
@@ -708,6 +799,16 @@ export default function CashReceiptsPage() {
               <table className="w-full min-w-[700px]">
                 <thead className="sticky-bar">
                   <tr className="table-head-row">
+                    <th className="w-10 px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                        onChange={toggleSelectAll}
+                        aria-label="전체 선택"
+                        className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)]"
+                      />
+                    </th>
                     {crSortTh("issue_date", "발행일", "text-left")}
                     {crSortTh("counterparty_name", "거래처", "text-left")}
                     {crSortTh("amount", "합계금액", "text-right")}
@@ -723,13 +824,28 @@ export default function CashReceiptsPage() {
                 <tbody>
                   {displayReceipts.map((r: any) => {
                     const st = STATUS_LABELS[r.status] || STATUS_LABELS.issued;
+                    const posted = !!r.journal_entry_id;
+                    const selectable = !isPosted(r);
+                    const checked = selectedIds.has(r.id);
                     return (
                       <tr
                         key={r.id}
-                        className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition"
+                        className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition ${checked ? "bg-[var(--primary)]/5" : ""}`}
                       >
+                        <td className="px-3 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!selectable}
+                            onChange={() => toggleSelect(r.id)}
+                            aria-label="선택"
+                            title={posted ? "전표처리됨" : undefined}
+                            className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
+                          />
+                        </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
                           {r.issue_date}
+                          {posted && <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-500">전표</span>}
                         </td>
                         <td className="px-5 py-3 text-sm font-medium">
                           {r.counterparty_name || "—"}
@@ -779,7 +895,7 @@ export default function CashReceiptsPage() {
                 <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                   <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                     <td
-                      colSpan={2}
+                      colSpan={3}
                       className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
                     >
                       합계 ({receipts.length}건)
@@ -817,6 +933,39 @@ export default function CashReceiptsPage() {
               </table>
             </div>
           )}
+        </div>
+        </>
+      )}
+
+      {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
+      {showBulkPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedReceipts.length}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
+                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  <option value="">계정 선택</option>
+                  {(coaAccounts as any[]).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 현금영수증 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                {bulkPosting ? "처리 중..." : `${selectedReceipts.length}건 전표 생성`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

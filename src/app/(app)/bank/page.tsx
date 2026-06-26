@@ -16,6 +16,7 @@ import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias }
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
+import { SortToolbar } from "@/components/sort-toolbar";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -245,7 +246,7 @@ export default function BankPage() {
     queryFn: async () => {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
       const q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, raw_data")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, raw_data, journal_entry_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(selectedAccountNo ? 2000 : 50);
@@ -257,6 +258,38 @@ export default function BankPage() {
     },
     enabled: !!companyId && tab === "transactions",
   });
+
+  // 전표처리용 계정과목 (일괄 전표 모달)
+  const { data: coaAccounts = [] } = useQuery({
+    queryKey: ["bank-page-coa-accounts", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+
+  // 일괄 전표처리 — 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
+  const [showBulkPost, setShowBulkPost] = useState(false);
+  const [bulkAccountId, setBulkAccountId] = useState<string>("");
+  const [bulkPosting, setBulkPosting] = useState(false);
+  const doBulkPostBank = async () => {
+    if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
+    setBulkPosting(true);
+    let ok = 0, fail = 0, skip = 0;
+    try {
+      const ids = Array.from(selectedTxIds);
+      for (const id of ids) {
+        const tx = (recentTx as any[]).find((t) => t.id === id);
+        if (!tx || tx.journal_entry_id) { skip++; continue; } // 이미 처리된 건 skip
+        const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: id, p_account_id: bulkAccountId, p_remember: false });
+        if (error) fail++; else ok++;
+      }
+      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
+      setShowBulkPost(false); setBulkAccountId(""); setSelectedTxIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+    } finally { setBulkPosting(false); }
+  };
 
   // 정렬 적용 — 원본 쿼리 캐시 불변(복제 정렬). null/빈값은 항상 뒤로.
   const sortedTx = useMemo(() => {
@@ -294,12 +327,14 @@ export default function BankPage() {
       return next;
     });
   };
-  const allTxSelected = sortedTx.length > 0 && sortedTx.every((tx) => selectedTxIds.has(tx.id));
-  const someTxSelected = sortedTx.some((tx) => selectedTxIds.has(tx.id)) && !allTxSelected;
+  // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
+  const selectableTx = sortedTx.filter((tx) => !tx.journal_entry_id);
+  const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx) => selectedTxIds.has(tx.id));
+  const someTxSelected = selectableTx.some((tx) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
     setSelectedTxIds((prev) => {
-      if (sortedTx.every((tx) => prev.has(tx.id))) return new Set();
-      return new Set(sortedTx.map((tx) => tx.id));
+      if (selectableTx.every((tx) => prev.has(tx.id))) return new Set();
+      return new Set(selectableTx.map((tx) => tx.id));
     });
   };
 
@@ -551,9 +586,8 @@ export default function BankPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled
-                title="준비중"
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] opacity-50 cursor-not-allowed"
+                onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition"
               >
                 전표처리({selectedTxIds.size})
               </button>
@@ -567,6 +601,20 @@ export default function BankPage() {
             </div>
           </div>
         )}
+        {/* 정렬 버튼 툴바 — 헤더 더블클릭 정렬과 동일 sortKey/sortDir 공유 */}
+        <div className="mb-3">
+          <SortToolbar
+            options={[
+              { key: "transaction_date", label: "날짜" },
+              { key: "counterparty", label: "거래처" },
+              { key: "amount", label: "금액" },
+              { key: "type", label: "상태" },
+            ]}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={onSortTx}
+          />
+        </div>
         <div className="glass-card overflow-hidden">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full">
@@ -595,6 +643,7 @@ export default function BankPage() {
                 ) : sortedTx.map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
+                  const posted = !!tx.journal_entry_id;
                   const checked = selectedTxIds.has(tx.id);
                   return (
                     <tr key={tx.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
@@ -602,10 +651,12 @@ export default function BankPage() {
                         <input
                           type="checkbox"
                           checked={checked}
+                          disabled={posted}
                           onChange={() => toggleTx(tx.id)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label="거래 선택"
-                          className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+                          title={posted ? "전표처리됨" : undefined}
+                          className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -625,6 +676,7 @@ export default function BankPage() {
                       <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text}`}>{m.label}</span>
+                        {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">전표처리됨</span>}
                       </td>
                     </tr>
                   );
@@ -634,6 +686,38 @@ export default function BankPage() {
           </div>
         </div>
         </>
+      )}
+
+      {/* 일괄 전표처리 모달 — 선택된 미처리 통장거래를 계정 1개로 일괄 생성(입출금 방향 자동) */}
+      {showBulkPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
+                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  <option value="">계정 선택</option>
+                  {(coaAccounts as any[]).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">출금은 차) 선택 계정 / 대) 보통예금, 입금은 차) 보통예금 / 대) 선택 계정으로 방향이 자동 결정됩니다. 통장 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={doBulkPostBank} disabled={bulkPosting || !bulkAccountId}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                {bulkPosting ? "처리 중..." : `${selectedTxIds.size}건 전표 생성`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 영수증 스캔 결과 확인·등록 모달 */}

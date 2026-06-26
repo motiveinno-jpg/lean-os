@@ -38,6 +38,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
+import { SortToolbar } from "@/components/sort-toolbar";
 
 // ── Print Styles ──
 const PRINT_STYLE_ID = "tax-invoice-print-style";
@@ -807,6 +808,10 @@ export default function TaxInvoicesPage() {
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIssuing, setBatchIssuing] = useState(false);
+  // 일괄 전표처리 (post_invoice_voucher) — 매출/매입 방향은 RPC 가 자동 분기.
+  const [showBulkVoucher, setShowBulkVoucher] = useState(false);
+  const [bulkVoucherAccountId, setBulkVoucherAccountId] = useState("");
+  const [bulkVoucherPosting, setBulkVoucherPosting] = useState(false);
 
   // ── 멀티 등록(다행) 폼 — 한 줄(row)이 세금계산서 1건. [+ 항목 추가]로 행 누적, [등록]에서 일괄 전송 ──
   type FormRow = {
@@ -883,6 +888,9 @@ export default function TaxInvoicesPage() {
     return { startDate: `${viewFromMonth}-01`, endDate: `${viewToMonth}-${String(lastDay).padStart(2, '0')}` };
   }, [viewFromMonth, viewToMonth]);
 
+  // 탭/보기기간 변경 시 선택 초기화
+  useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
+
   // Fetch all invoices in view range
   const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["tax-invoices-full", companyId, startDate, endDate],
@@ -912,6 +920,16 @@ export default function TaxInvoicesPage() {
       return data || [];
     },
     enabled: !!companyId,
+  });
+
+  // 전표처리용 계정과목 (일괄 전표 모달)
+  const { data: coaAccounts = [] } = useQuery({
+    queryKey: ["tax-invoice-coa-accounts", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 300_000,
   });
 
   // Deals for linking
@@ -1255,11 +1273,16 @@ export default function TaxInvoicesPage() {
     { supply: 0, tax: 0 },
   );
 
-  // 미발행 = 홈택스 승인번호 없음 + 무효 아님 → 체크박스로 선택해 일괄 발행/삭제 가능 (발행완료 건은 보호)
+  // 미발행 = 홈택스 승인번호 없음 + 무효 아님 (일괄 발행/삭제 대상 — 발행완료 건은 보호)
   const isUnissued = (inv: any) => !inv.nts_confirm_no && inv.status !== 'void';
-  const selectableInList = currentList.filter(isUnissued);
+  // 전표처리 대상: 무효 아님 + 아직 전표 미생성. 발행 여부와 무관(발행완료 건도 기장 필요).
+  const isVoucherable = (inv: any) => inv.status !== 'void' && !inv.journal_entry_id;
+  // 체크박스 선택 가능 = 일괄 발행/삭제 또는 전표처리 중 하나라도 가능한 행
+  const selectableInList = currentList.filter((inv: any) => isUnissued(inv) || isVoucherable(inv));
   const selectedRows = selectableInList.filter((inv: any) => selectedIds.has(inv.id));
-  const selectedIssuable = selectedRows.filter((inv: any) => inv.type === 'sales'); // 발행 가능(매출 미발행)
+  const selectedIssuable = selectedRows.filter((inv: any) => inv.type === 'sales' && isUnissued(inv)); // 발행 가능(매출 미발행)
+  const selectedDeletable = selectedRows.filter((inv: any) => isUnissued(inv)); // 삭제 가능(미발행만)
+  const selectedVoucherable = selectedRows.filter(isVoucherable); // 전표처리 가능
 
   function toggleSelectAll() {
     if (selectedRows.length === selectableInList.length && selectableInList.length > 0) {
@@ -1308,11 +1331,11 @@ export default function TaxInvoicesPage() {
 
   // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
   async function handleBatchDelete() {
-    if (selectedRows.length === 0) return;
-    if (!confirm(`선택한 ${selectedRows.length}건을 삭제합니다.\n홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다. 계속할까요?`)) return;
+    if (selectedDeletable.length === 0) { toast("삭제 가능한 미발행 건이 없습니다", "error"); return; }
+    if (!confirm(`선택한 ${selectedDeletable.length}건을 삭제합니다.\n홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다. 계속할까요?`)) return;
     setBatchIssuing(true);
     let ok = 0, fail = 0;
-    for (const inv of selectedRows) {
+    for (const inv of selectedDeletable) {
       try {
         const { error } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
         if (error) throw error;
@@ -1323,6 +1346,24 @@ export default function TaxInvoicesPage() {
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
     toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
+  }
+
+  // 선택 일괄 전표처리 — post_invoice_voucher(매출/매입 방향 자동). 이미 전표 있는 건/무효 건은 건너뜀.
+  async function handleBulkVoucher() {
+    if (!bulkVoucherAccountId || bulkVoucherPosting) { if (!bulkVoucherAccountId) toast("계정과목을 선택하세요", "error"); return; }
+    setBulkVoucherPosting(true);
+    const db = supabase as any;
+    let ok = 0, fail = 0, skip = 0;
+    try {
+      for (const inv of selectedVoucherable) {
+        if (!isVoucherable(inv)) { skip++; continue; }
+        const { error } = await db.rpc("post_invoice_voucher", { p_tax_invoice_id: inv.id, p_account_id: bulkVoucherAccountId, p_remember: false });
+        if (error) fail++; else ok++;
+      }
+      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
+      setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    } finally { setBulkVoucherPosting(false); }
   }
 
   async function handleSingleIssue(id: string) {
@@ -2076,6 +2117,24 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
+      {/* 정렬 버튼 툴바 — 헤더 클릭 정렬과 동일 invSortKey/invSortDir 공유 */}
+      {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
+        <div className="mb-3">
+          <SortToolbar
+            options={[
+              { key: "issue_date", label: "작성일자" },
+              { key: "counterparty_name", label: "거래처" },
+              { key: "supply_amount", label: "공급가액" },
+              { key: "total_amount", label: "합계금액" },
+              { key: "status", label: "상태" },
+            ]}
+            sortKey={invSortKey}
+            sortDir={invSortDir}
+            onSort={(k) => toggleInvSort(k as any)}
+          />
+        </div>
+      )}
+
       {/* Batch Actions */}
       {(tab === "sales" || tab === "purchase") && selectedRows.length > 0 && (
         <div className="mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
@@ -2089,13 +2148,24 @@ export default function TaxInvoicesPage() {
               {batchIssuing ? "처리 중..." : `미발행 ${selectedIssuable.length}건 일괄 발행`}
             </button>
           )}
-          <button
-            onClick={handleBatchDelete}
-            disabled={batchIssuing}
-            className="px-3 py-1.5 bg-red-500/90 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-500 transition"
-          >
-            선택 삭제
-          </button>
+          {selectedVoucherable.length > 0 && (
+            <button
+              onClick={() => { setBulkVoucherAccountId(""); setShowBulkVoucher(true); }}
+              disabled={batchIssuing}
+              className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition hover:brightness-110"
+            >
+              전표처리 {selectedVoucherable.length}건
+            </button>
+          )}
+          {selectedDeletable.length > 0 && (
+            <button
+              onClick={handleBatchDelete}
+              disabled={batchIssuing}
+              className="px-3 py-1.5 bg-red-500/90 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-500 transition"
+            >
+              선택 삭제
+            </button>
+          )}
           <button
             onClick={() => setSelectedIds(new Set())}
             className="px-3 py-1.5 text-[var(--text-muted)] text-xs hover:text-[var(--text)] transition"
@@ -2162,17 +2232,20 @@ export default function TaxInvoicesPage() {
                   <tbody>
                     {displayList.map((inv: any) => {
                       const sc = invoiceStatusMeta(inv.status, inv.type);
-                      const canSelect = isUnissued(inv);
+                      const posted = !!inv.journal_entry_id;
+                      const canSelect = isUnissued(inv) || isVoucherable(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
                       const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
                           className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 cursor-pointer">
                           <td className="px-2 py-2 text-center border-l border-[var(--border)]/40 first:border-l-0" onClick={(e) => e.stopPropagation()}>
-                            {canSelect && (
+                            {canSelect ? (
                               <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)}
                                 className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" />
-                            )}
+                            ) : posted ? (
+                              <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨">전표</span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/40 whitespace-nowrap">{inv.issue_date}</td>
                           <td className="px-3 py-2 border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={inv.nts_confirm_no || ""}>
@@ -2253,6 +2326,40 @@ export default function TaxInvoicesPage() {
       {/* VAT Preview Tab */}
       {tab === "vat" && (
         <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
+      )}
+
+      {/* 일괄 전표처리 모달 — 선택된 세금계산서를 계정 1개로 일괄 기장(매출/매입 방향 자동) */}
+      {showBulkVoucher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkVoucher(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedVoucherable.length}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
+                <select value={bulkVoucherAccountId} onChange={(e) => setBulkVoucherAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  <option value="">계정 선택</option>
+                  {(coaAccounts as any[]).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-[10px] text-amber-600 leading-relaxed">
+                매입은 <b>비용 계정</b>, 매출은 <b>수익 계정</b>의 의미가 다릅니다. 같은 유형(매출 또는 매입)끼리 선택해 처리하는 것을 권장합니다. 매입=차)선택비용+부가세대급금/대)외상매입금, 매출=차)외상매출금/대)선택수익+부가세예수금 으로 방향이 자동 결정됩니다.
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setShowBulkVoucher(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={handleBulkVoucher} disabled={bulkVoucherPosting || !bulkVoucherAccountId}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                {bulkVoucherPosting ? "처리 중..." : `${selectedVoucherable.length}건 전표 생성`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Invoice Detail Modal */}
