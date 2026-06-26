@@ -12,7 +12,7 @@ import { getTaxInvoiceSummary, getVATPreview, type PeriodSummary, type VATPrevie
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getOrCreateChecklist } from "@/lib/closing";
 import { CashPulseHeader } from "./_components/CashPulseHeader";
-import { FlowTrend } from "./_components/FlowTrend";
+import { FlowTrend, type FlowLens } from "./_components/FlowTrend";
 import { FlowSchedule } from "./_components/FlowSchedule";
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +130,9 @@ export default function BusinessFlowPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [flowView, setFlowView] = useState<"cockpit" | "month">("cockpit");
+  const [lens, setLens] = useState<FlowLens>("income");
+  const [pastN, setPastN] = useState(6);
+  const [savedFlow, setSavedFlow] = useState(false);
   const [month, setMonth] = useState(thisMonth());
   const year = Number(month.split("-")[0]);
   const { start, end } = monthRange(month);
@@ -138,6 +141,33 @@ export default function BusinessFlowPage() {
     if (blocked) return;
     getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
   }, [blocked]);
+
+  // 개인화 설정 로드 (user_preferences.flow_settings)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const db = supabase as any;
+      const { data } = await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle();
+      const fs = data?.flow_settings;
+      if (fs && typeof fs === "object") {
+        if (fs.default_view === "cockpit" || fs.default_view === "month") setFlowView(fs.default_view);
+        if (fs.default_lens === "income" || fs.default_lens === "expense" || fs.default_lens === "net") setLens(fs.default_lens);
+        if (fs.past_n === 6 || fs.past_n === 12) setPastN(fs.past_n);
+      }
+    })();
+  }, [userId]);
+
+  const saveFlowSettings = async () => {
+    if (!userId || !companyId) return;
+    const db = supabase as any;
+    await db.from("user_preferences").upsert({
+      user_id: userId, company_id: companyId,
+      flow_settings: { default_view: flowView, default_lens: lens, past_n: pastN },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,company_id" });
+    setSavedFlow(true);
+    setTimeout(() => setSavedFlow(false), 2000);
+  };
 
   /* ① 영업 파이프라인 — 진행중 딜 (deals, /projects 동일 소스) */
   const { data: pipeline } = useQuery({
@@ -298,8 +328,20 @@ export default function BusinessFlowPage() {
       {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
       {flowView === "cockpit" && companyId && (
         <div className="space-y-4">
+          <div className="flex items-center justify-end gap-2 no-print -mb-1">
+            <span className="text-[11px] text-[var(--text-muted)]">과거 범위</span>
+            {[6, 12].map((n) => (
+              <button key={n} onClick={() => setPastN(n)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${pastN === n ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+                {n}개월
+              </button>
+            ))}
+            <button onClick={saveFlowSettings} className="ml-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]" title="현재 뷰·렌즈·기간을 기본값으로 저장">
+              {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
+            </button>
+          </div>
           <CashPulseHeader companyId={companyId} userId={userId || undefined} />
-          <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={6} />
+          <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={pastN} lens={lens} onLensChange={setLens} />
           <FlowSchedule companyId={companyId} userId={userId || undefined} />
         </div>
       )}

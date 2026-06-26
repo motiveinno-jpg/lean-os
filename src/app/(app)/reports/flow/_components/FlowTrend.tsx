@@ -5,11 +5,13 @@
 //   렌즈(비목 중립): 수입 구성 / 지출(고정·변동) / 순흐름 — 같은 월별 데이터의 여러 단면.
 //   잔액 라인: 과거 월말잔액(bankBalance) → 오늘(현재잔액) → 미래(cash-pulse forecast) 관통.
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
+
+export type FlowLens = "income" | "expense" | "net";
 
 const fmtShort = (n: number) => {
   const abs = Math.abs(n);
@@ -20,7 +22,7 @@ const fmtShort = (n: number) => {
   return `${sign}${Math.round(abs).toLocaleString("ko-KR")}`;
 };
 
-type Lens = "income" | "expense" | "net";
+type Lens = FlowLens;
 const LENSES: { key: Lens; label: string }[] = [
   { key: "income", label: "수입 구성" },
   { key: "expense", label: "지출(고정·변동)" },
@@ -45,8 +47,7 @@ function ymAdd(ym: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6 }: { companyId: string; userId?: string; anchorMonth: string; pastN?: number }) {
-  const [lens, setLens] = useState<Lens>("income");
+export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onLensChange }: { companyId: string; userId?: string; anchorMonth: string; pastN?: number; lens: FlowLens; onLensChange: (l: FlowLens) => void }) {
 
   // 과거 범위가 걸치는 연도들 (예: 2026-01 기준 과거6 → 2025 + 2026)
   const years = useMemo(() => {
@@ -127,7 +128,7 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6 }: { compa
         <h3 className="text-sm font-bold text-[var(--text)]">과거 → 미래 흐름 <span className="font-normal text-[var(--text-dim)] text-xs">과거 {pastN}개월 실적 + 예측 3개월</span></h3>
         <div className="flex gap-1.5">
           {LENSES.map((l) => (
-            <button key={l.key} onClick={() => setLens(l.key)}
+            <button key={l.key} onClick={() => onLensChange(l.key)}
               className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${lens === l.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
               {l.label}
             </button>
