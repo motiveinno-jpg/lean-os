@@ -4,7 +4,18 @@
 //
 // 절대규칙: side-effect 0, DB 의존성 0, 순수 함수만. 단위테스트 가능.
 
+import { businessDaysBetween } from "@/lib/project-checkin";
+
 export type ProjectType = "margin" | "goal" | "delivery";
+
+// KPI 실적 출처 (주간보고 양식 §12-B/C). manual 외 3종은 태깅 회계데이터 자동 집계.
+export type KpiSource = "manual" | "revenue_auto" | "profit_auto" | "count_auto";
+export const KPI_SOURCE_LABEL: Record<KpiSource, string> = {
+  manual: "수동 입력",
+  revenue_auto: "매출 자동",
+  profit_auto: "이익 자동",
+  count_auto: "건수 자동",
+};
 
 // 상세 페이지의 탭 키 (page.tsx 의 TabKey 와 동일 집합).
 //   margin = 현행 전체. goal/delivery = 유형 전용 탭으로 축소.
@@ -155,57 +166,56 @@ export type PaceWarning = {
   tone: "ok" | "warn" | "danger";
 };
 
-const daysBetween = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000));
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
+// 영업일(평일) 기준 페이스. 예상달성 = 누적 / 경과영업일 × 총영업일.
+//   상태(주간보고 양식 §12-A): 예상달성률 ≥100% ahead(🟢) / 80~99% behind-warn(🟡) / <80% behind-danger(🔴).
 export function getPaceWarning(input: PaceInput): PaceWarning {
   const target = Number(input.targetAmount || 0);
   const actual = Number(input.actualAmount || 0);
   if (target <= 0) return { status: "none", requiredDaily: null, currentDaily: null, projected: null, message: "목표값이 없습니다", tone: "ok" };
   if (actual >= target) return { status: "done", requiredDaily: 0, currentDaily: null, projected: actual, message: "🎉 목표 달성", tone: "ok" };
 
-  const today = input.today ? new Date(input.today) : new Date();
-  const start = input.startDate ? new Date(input.startDate) : null;
-  const end = input.endDate ? new Date(input.endDate) : null;
+  const todayStr = input.today ? String(input.today).slice(0, 10) : ymd(new Date());
+  const startStr = input.startDate ? String(input.startDate).slice(0, 10) : null;
+  const endStr = input.endDate ? String(input.endDate).slice(0, 10) : null;
 
-  // 정체 우선: 최근 증가분이 정확히 0 (또는 null 이 아닌데 0)이면 정체.
+  // 정체 우선: 최근 증가분이 0이면 정체.
   if (input.recentGain != null && input.recentGain <= 0 && actual > 0) {
     return { status: "stalled", requiredDaily: null, currentDaily: null, projected: null, message: "📉 최근 실적 정체 — 추이를 확인하세요", tone: "warn" };
   }
 
+  // 영업일평균(필요/현재) — '하루 얼마씩' 표기에 사용
   let requiredDaily: number | null = null;
-  if (end) {
-    const remainDays = Math.max(1, daysBetween(today, end));
-    requiredDaily = (target - actual) / remainDays;
+  if (endStr && todayStr <= endStr) {
+    const remainBiz = Math.max(1, businessDaysBetween(todayStr, endStr));
+    requiredDaily = (target - actual) / remainBiz;
   }
   let currentDaily: number | null = null;
   let projected: number | null = null;
-  if (start) {
-    const elapsed = Math.max(1, daysBetween(start, today));
-    currentDaily = actual / elapsed;
-    if (end) {
-      const totalDays = Math.max(1, daysBetween(start, end));
-      projected = currentDaily * totalDays;
-    }
+  if (startStr && endStr) {
+    const elapsedBiz = Math.max(1, businessDaysBetween(startStr, todayStr < startStr ? startStr : todayStr));
+    const totalBiz = Math.max(1, businessDaysBetween(startStr, endStr));
+    currentDaily = actual / elapsedBiz;
+    projected = currentDaily * totalBiz;
   }
 
-  // 판정: 예상 달성액이 목표 미달이면 behind, 충분하면 ahead.
   if (projected != null) {
-    if (projected >= target) {
-      return { status: "ahead", requiredDaily, currentDaily, projected, message: "✅ 현재 속도로 목표 달성 가능", tone: "ok" };
-    }
     const ratio = projected / target;
+    if (ratio >= 1) {
+      return { status: "ahead", requiredDaily, currentDaily, projected, message: `✅ 예상달성 ${Math.round(ratio * 100)}% — 순항 중`, tone: "ok" };
+    }
     return {
       status: "behind",
       requiredDaily,
       currentDaily,
       projected,
-      message: `⚠ 현재 속도로는 약 ${Math.round(ratio * 100)}% 예상 — 페이스를 높여야 합니다`,
-      tone: ratio < 0.7 ? "danger" : "warn",
+      message: `${ratio < 0.8 ? "🔴" : "🟡"} 예상달성 ${Math.round(ratio * 100)}% — 페이스를 높여야 합니다`,
+      tone: ratio < 0.8 ? "danger" : "warn",
     };
   }
-  // 기간 정보 부족 — 필요 일평균만 안내
   if (requiredDaily != null) {
-    return { status: "none", requiredDaily, currentDaily, projected: null, message: "기간을 설정하면 페이스 분석이 정확해집니다", tone: "ok" };
+    return { status: "none", requiredDaily, currentDaily, projected: null, message: "기간을 설정하면 예상달성률이 표시됩니다", tone: "ok" };
   }
   return { status: "none", requiredDaily: null, currentDaily, projected: null, message: "기간(시작·종료일)을 설정하면 페이스 경고가 표시됩니다", tone: "ok" };
 }

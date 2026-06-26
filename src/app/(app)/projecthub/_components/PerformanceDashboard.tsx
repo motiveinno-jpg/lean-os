@@ -18,7 +18,8 @@ const db = supabase as any;
 const STATUS_DOT: Record<string, string> = { green: "bg-green-500", yellow: "bg-amber-500", red: "bg-red-500", neutral: "bg-[var(--text-dim)]" };
 const pctColor = (p: number | null) => (p == null ? "text-[var(--text-dim)]" : p >= 100 ? "text-[var(--primary)]" : p < 40 ? "text-[var(--danger)]" : "text-[var(--text)]");
 
-type View = "briefing" | "people" | "teams" | "rate";
+type View = "briefing" | "multi" | "people" | "teams" | "rate";
+const won = (n: number) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 
 export function PerformanceDashboard({ companyId, onClose }: { companyId: string; onClose: () => void }) {
   const { toast } = useToast();
@@ -30,7 +31,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const { data: deals = [] } = useQuery({
     queryKey: ["perf-dash-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name, internal_manager_id, checkin_cadence, checkin_due_weekday")
+      const { data } = await db.from("deals").select("id, name, internal_manager_id, partner_id, checkin_cadence, checkin_due_weekday")
         .eq("company_id", companyId).eq("project_type", "goal").is("archived_at", null).is("parent_deal_id", null);
       return (data || []) as any[];
     },
@@ -56,15 +57,24 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     },
     enabled: !!companyId && dealIds.length > 0,
   });
-  const { data: revenue = [] } = useQuery({
-    queryKey: ["perf-dash-revenue", companyId, dealIds.length],
+  const { data: autos = [] } = useQuery({
+    queryKey: ["perf-dash-autos", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("v_deal_revenue_actual").select("deal_id, actual_amount").in("deal_id", dealIds);
+      const { data } = await db.from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", dealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
   });
+  const { data: partners = [] } = useQuery({
+    queryKey: ["perf-dash-partners", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("partners").select("id, name").eq("company_id", companyId);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const partnerName = (id?: string | null) => (partners as any[]).find((p) => p.id === id)?.name || "미지정";
   const { data: updates = [] } = useQuery({
     queryKey: ["perf-dash-updates", companyId, dealIds.length],
     queryFn: async () => {
@@ -106,11 +116,17 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     for (const e of entries as any[]) m[e.kpi_id] = (m[e.kpi_id] || 0) + Number(e.value || 0);
     return m;
   }, [entries]);
-  const revenueByDeal = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const r of revenue as any[]) m[r.deal_id] = Number(r.actual_amount || 0);
+  const autoByDeal = useMemo(() => {
+    const m: Record<string, { revenue: number; profit: number; count: number }> = {};
+    for (const r of autos as any[]) m[r.deal_id] = { revenue: Number(r.revenue_actual || 0), profit: Number(r.profit_actual || 0), count: Number(r.output_count || 0) };
     return m;
-  }, [revenue]);
+  }, [autos]);
+  const autoActualOf = (dealId: string, source: string): number => {
+    const a = autoByDeal[dealId] || { revenue: 0, profit: 0, count: 0 };
+    if (source === "profit_auto") return a.profit;
+    if (source === "count_auto") return a.count;
+    return a.revenue; // revenue_auto
+  };
   const kpisByDeal = useMemo(() => {
     const m: Record<string, any[]> = {};
     for (const k of kpis as any[]) (m[k.deal_id] ||= []).push(k);
@@ -121,14 +137,14 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     const ks = kpisByDeal[dealId] || [];
     if (ks.length === 0) return null;
     const rows = ks.map((k: any) => {
-      const actual = k.source === "revenue_auto" ? (revenueByDeal[dealId] || 0) : (entriesSumByKpi[k.id] || 0);
+      const actual = k.source === "manual" ? (entriesSumByKpi[k.id] || 0) : autoActualOf(dealId, k.source);
       return { target: Number(k.target_value || 0), actual, direction: k.direction };
     });
     const ov = getOverallAchievement(rows);
     return ov == null ? null : Math.round(ov * 100);
   };
   const kpiAchievement = (k: any): number | null => {
-    const actual = k.source === "revenue_auto" ? (revenueByDeal[k.deal_id] || 0) : (entriesSumByKpi[k.id] || 0);
+    const actual = k.source === "manual" ? (entriesSumByKpi[k.id] || 0) : autoActualOf(k.deal_id, k.source);
     const a = getKpiAchievement(Number(k.target_value || 0), actual, k.direction);
     return a == null ? null : Math.round(a * 100);
   };
@@ -231,12 +247,62 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
 
   const VIEWS: { key: View; label: string }[] = [
     { key: "briefing", label: "이번주 브리핑" },
+    { key: "multi", label: "다차원 집계" },
     { key: "people", label: "사람별" },
     { key: "teams", label: "팀별" },
     { key: "rate", label: "입력률" },
   ];
 
   const goalDeals = deals as any[];
+
+  // 다차원 집계 (거래처/팀/담당자별 건수·매출·평균달성률) — 주간보고 양식 §12-D
+  const groupDim = (keyFn: (d: any) => string, labelFn: (key: string) => string) => {
+    const g: Record<string, { label: string; count: number; revenue: number; ach: number[] }> = {};
+    for (const d of goalDeals) {
+      const key = keyFn(d) || "__none";
+      (g[key] ||= { label: labelFn(key), count: 0, revenue: 0, ach: [] });
+      g[key].count++;
+      g[key].revenue += autoByDeal[d.id]?.revenue || 0;
+      const a = achievementOf(d.id);
+      if (a != null) g[key].ach.push(a);
+    }
+    return Object.values(g)
+      .map((x) => ({ label: x.label, count: x.count, revenue: x.revenue, avgAch: x.ach.length ? Math.round(x.ach.reduce((s, v) => s + v, 0) / x.ach.length) : null }))
+      .sort((a, b) => b.revenue - a.revenue);
+  };
+  const byChannel = groupDim((d) => d.partner_id, (k) => (k === "__none" ? "미지정" : partnerName(k)));
+  const byTeamDim = groupDim((d) => deptOf(d.internal_manager_id), (k) => (k === "__none" ? "미지정" : k));
+  const byManager = groupDim((d) => d.internal_manager_id, (k) => (k === "__none" ? "미지정" : nameOf(k)));
+
+  const DimTable = ({ title, rows }: { title: string; rows: { label: string; count: number; revenue: number; avgAch: number | null }[] }) => (
+    <div>
+      <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5">{title}</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse min-w-[420px]">
+          <thead>
+            <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+              <th className="px-3 py-2 text-left border-b border-[var(--border)]">{title.replace("별", "")}</th>
+              <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[60px]">건수</th>
+              <th className="px-3 py-2 text-right border-b border-[var(--border)] w-[140px]">매출</th>
+              <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[100px]">평균달성</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={4} className="p-6 text-center text-sm text-[var(--text-muted)]">데이터 없음</td></tr>
+            ) : rows.map((r) => (
+              <tr key={r.label} className="hover:bg-[var(--bg-surface)]/50">
+                <td className="px-3 py-2 border-b border-[var(--border)]/40 font-medium text-[var(--text)]">{r.label}</td>
+                <td className="px-3 py-2 border-b border-[var(--border)]/40 text-center mono-number text-[var(--text-muted)]">{r.count}</td>
+                <td className="px-3 py-2 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(r.revenue)}</td>
+                <td className={`px-3 py-2 border-b border-[var(--border)]/40 text-center mono-number font-semibold ${pctColor(r.avgAch)}`}>{r.avgAch == null ? "—" : `${r.avgAch}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="glass-card p-5 space-y-4 border-2 border-[var(--primary)]/20">
@@ -294,6 +360,13 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
               })}
             </tbody>
           </table>
+        </div>
+      ) : view === "multi" ? (
+        <div className="space-y-4">
+          <div className="text-[11px] text-[var(--text-dim)]">매출 = 태깅 세금계산서(sales) 기준 · 평균달성 = 종합 달성률 평균. 거래처=채널, 팀=담당자 부서.</div>
+          <DimTable title="거래처별" rows={byChannel} />
+          <DimTable title="팀별" rows={byTeamDim} />
+          <DimTable title="담당자별" rows={byManager} />
         </div>
       ) : view === "people" ? (
         <div className="overflow-x-auto">

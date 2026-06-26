@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
-import { getKpiAchievement } from "@/lib/project-types";
+import { getKpiAchievement, KPI_SOURCE_LABEL, type KpiSource } from "@/lib/project-types";
 import { getCompanyMembers } from "@/lib/hr";
 import { computePeriodStart, computeDueDate, periodLabel, normalizeCadence, CADENCE_LABEL, WEEKDAY_LABEL, todayYMD, type Cadence } from "@/lib/project-checkin";
 
@@ -20,7 +20,7 @@ const fmtNum = (n: number, unit: string) => `${Math.round(Number(n || 0)).toLoca
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9.-]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
-type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: "manual" | "revenue_auto"; sort_order: number; owner_id?: string | null };
+type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number; owner_id?: string | null };
 type Member = { id: string; name?: string | null; email?: string | null };
 type Entry = { id: string; kpi_id: string; entry_date: string; value: number; memo: string | null };
 
@@ -77,12 +77,12 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
     },
     enabled: !!dealId,
   });
-  const hasAuto = (kpis as Kpi[]).some((k) => k.source === "revenue_auto");
-  const { data: revenueActual } = useQuery({
-    queryKey: ["deal-revenue-actual", dealId],
+  const hasAuto = (kpis as Kpi[]).some((k) => k.source !== "manual");
+  const { data: autoActual } = useQuery({
+    queryKey: ["deal-kpi-auto", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_revenue_actual").select("actual_amount").eq("deal_id", dealId).maybeSingle();
-      return Number(data?.actual_amount || 0);
+      const { data } = await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle();
+      return { revenue: Number(data?.revenue_actual || 0), profit: Number(data?.profit_actual || 0), count: Number(data?.output_count || 0) };
     },
     enabled: !!dealId && hasAuto,
   });
@@ -100,7 +100,12 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
     for (const e of entries as Entry[]) m[e.kpi_id] = (m[e.kpi_id] || 0) + Number(e.value || 0);
     return m;
   }, [entries]);
-  const actualOf = (k: Kpi) => (k.source === "revenue_auto" ? Number(revenueActual || 0) : Number(actualByKpi[k.id] || 0));
+  const actualOf = (k: Kpi) => {
+    if (k.source === "revenue_auto") return Number(autoActual?.revenue || 0);
+    if (k.source === "profit_auto") return Number(autoActual?.profit || 0);
+    if (k.source === "count_auto") return Number(autoActual?.count || 0);
+    return Number(actualByKpi[k.id] || 0);
+  };
   // KPI별 최신 실적값(carry-forward 기준) — entries 는 entry_date desc 정렬이라 첫 등장이 최신.
   const latestByKpi = useMemo(() => {
     const m: Record<string, number> = {};
@@ -109,7 +114,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
   }, [entries]);
 
   // ── KPI 관리 폼 ──
-  const [kpiForm, setKpiForm] = useState<{ id: string | null; label: string; unit: string; target: string; direction: "up" | "down"; source: "manual" | "revenue_auto"; ownerId: string }>(
+  const [kpiForm, setKpiForm] = useState<{ id: string | null; label: string; unit: string; target: string; direction: "up" | "down"; source: KpiSource; ownerId: string }>(
     { id: null, label: "", unit: "원", target: "", direction: "up", source: "manual", ownerId: "" }
   );
   const [savingKpi, setSavingKpi] = useState(false);
@@ -422,9 +427,11 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
             </div>
             <div>
               <label className={LB}>실적 출처</label>
-              <select value={kpiForm.source} onChange={(e) => setKpiForm((f) => ({ ...f, source: e.target.value as "manual" | "revenue_auto" }))} className={IN}>
+              <select value={kpiForm.source} onChange={(e) => setKpiForm((f) => ({ ...f, source: e.target.value as KpiSource }))} className={IN}>
                 <option value="manual">수동 입력</option>
-                <option value="revenue_auto">매출 자동</option>
+                <option value="revenue_auto">매출 자동(세금계산서)</option>
+                <option value="profit_auto">이익 자동(매출−원가)</option>
+                <option value="count_auto">건수 자동(문서)</option>
               </select>
             </div>
             <div>
@@ -465,7 +472,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                         <span className="text-[var(--text)] font-medium">{k.label}</span>
                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{k.direction === "down" ? "↓좋음" : "↑좋음"}</span>
-                        {k.source === "revenue_auto" && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">매출자동</span>}
+                        {k.source !== "manual" && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{KPI_SOURCE_LABEL[k.source]}</span>}
                         {k.owner_id && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">👤 {memberName(k.owner_id)}</span>}
                       </td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]">{fmtNum(Number(k.target_value), k.unit)}</td>

@@ -69,3 +69,21 @@ export function periodLabel(periodStart: string, cadence: Cadence): string {
 export function isOverdue(dueDate: string, today: string = todayYMD()): boolean {
   return today > dueDate;
 }
+
+// 영업일수 — [fromYMD, toYMD] 구간의 평일(월~금) 수(양끝 포함). 주말 제외.
+//   공휴일 소스 미정이라 1차는 주말만 제외(영업일 ≈ 평일). to < from 이면 0.
+export function businessDaysBetween(fromYMD: string, toYMD: string): number {
+  const from = parseYMD(fromYMD);
+  const to = parseYMD(toYMD);
+  if (to < from) return 0;
+  const days = Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+  const fullWeeks = Math.floor(days / 7);
+  let biz = fullWeeks * 5;
+  const extra = days - fullWeeks * 7;
+  const dow = from.getUTCDay(); // 0=일 ~ 6=토
+  for (let i = 0; i < extra; i++) {
+    const d = (dow + i) % 7;
+    if (d !== 0 && d !== 6) biz++;
+  }
+  return biz;
+}

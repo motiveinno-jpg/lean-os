@@ -16,7 +16,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType } from "@/lib/project-types";
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 
@@ -98,12 +98,12 @@ export default function ProjectHubPage() {
     },
     enabled: !!companyId && goalDealIds.length > 0,
   });
-  // 목표형 매출 자동 실적(v_deal_revenue_actual)
-  const { data: goalRevenue = [] } = useQuery({
-    queryKey: ["projecthub-goal-revenue", companyId, goalDealIds.length],
+  // 목표형 자동 실적(v_deal_kpi_auto — 매출/이익/건수)
+  const { data: goalAutos = [] } = useQuery({
+    queryKey: ["projecthub-goal-autos", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("v_deal_revenue_actual").select("deal_id, actual_amount").in("deal_id", goalDealIds);
+      const { data } = await (supabase as any).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -125,9 +125,13 @@ export default function ProjectHubPage() {
     // kpi_id → 수동 실적 합
     const manualByKpi: Record<string, number> = {};
     for (const e of goalEntries as any[]) manualByKpi[e.kpi_id] = (manualByKpi[e.kpi_id] || 0) + Number(e.value || 0);
-    // deal_id → 매출 자동 실적
-    const revenueByDeal: Record<string, number> = {};
-    for (const r of goalRevenue as any[]) revenueByDeal[r.deal_id] = Number(r.actual_amount || 0);
+    // deal_id → 자동 실적(매출/이익/건수)
+    const autoByDeal: Record<string, { revenue: number; profit: number; count: number }> = {};
+    for (const r of goalAutos as any[]) autoByDeal[r.deal_id] = { revenue: Number(r.revenue_actual || 0), profit: Number(r.profit_actual || 0), count: Number(r.output_count || 0) };
+    const autoVal = (dealId: string, source: string) => {
+      const a = autoByDeal[dealId] || { revenue: 0, profit: 0, count: 0 };
+      return source === "profit_auto" ? a.profit : source === "count_auto" ? a.count : a.revenue;
+    };
     // deal_id → KPI 목록
     const kpisByDeal: Record<string, any[]> = {};
     for (const k of goalKpis as any[]) (kpisByDeal[k.deal_id] ||= []).push(k);
@@ -137,12 +141,12 @@ export default function ProjectHubPage() {
       const ks = kpisByDeal[d.id] || [];
       m[d.id] = getOverallAchievement(ks.map((k) => ({
         target: Number(k.target_value || 0),
-        actual: k.source === "revenue_auto" ? (revenueByDeal[d.id] || 0) : (manualByKpi[k.id] || 0),
+        actual: k.source === "manual" ? (manualByKpi[k.id] || 0) : autoVal(d.id, k.source),
         direction: (k.direction === "down" ? "down" : "up") as "up" | "down",
       })));
     }
     return m;
-  }, [goalKpis, goalEntries, goalRevenue, topDeals]);
+  }, [goalKpis, goalEntries, goalAutos, topDeals]);
   // 실행형 태스크 집계
   const taskStatsByDeal = useMemo(() => {
     const m: Record<string, { total: number; done: number; delayed: number }> = {};
@@ -525,7 +529,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
   // 목표형 — 생성 시 정의할 KPI 목록(1개 이상). 수정은 '성과' 탭에서 관리하므로 여기선 생성에만 사용.
-  type KpiDraft = { label: string; target: string; unit: string; direction: "up" | "down"; source: "manual" | "revenue_auto" };
+  type KpiDraft = { label: string; target: string; unit: string; direction: "up" | "down"; source: KpiSource };
   const [kpiDrafts, setKpiDrafts] = useState<KpiDraft[]>([{ label: "매출", target: "", unit: "원", direction: "up", source: "revenue_auto" }]);
   const setKpi = (i: number, patch: Partial<KpiDraft>) => setKpiDrafts((arr) => arr.map((k, idx) => (idx === i ? { ...k, ...patch } : k)));
   const addKpi = () => setKpiDrafts((arr) => [...arr, { label: "", target: "", unit: "원", direction: "up", source: "manual" }]);
@@ -535,7 +539,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
     if (!form.name.trim()) { toast("프로젝트명을 입력하세요", "error"); return; }
     const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
     // 목표형(신규 생성) — KPI 1개 이상 유효성 검사
-    let validKpis: { label: string; target_value: number; unit: string; direction: "up" | "down"; source: "manual" | "revenue_auto" }[] = [];
+    let validKpis: { label: string; target_value: number; unit: string; direction: "up" | "down"; source: KpiSource }[] = [];
     if (projectType === "goal" && !isEdit) {
       validKpis = kpiDrafts
         .map((k) => ({ label: k.label.trim(), target_value: Number(String(k.target).replace(/[^0-9.-]/g, "")) || 0, unit: k.unit.trim() || "원", direction: k.direction, source: k.source }))
@@ -716,9 +720,11 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                           <option value="up">↑ 높을수록</option>
                           <option value="down">↓ 낮을수록</option>
                         </select>
-                        <select value={k.source} onChange={(e) => setKpi(i, { source: e.target.value as "manual" | "revenue_auto" })} className={IN}>
+                        <select value={k.source} onChange={(e) => setKpi(i, { source: e.target.value as KpiSource })} className={IN}>
                           <option value="manual">수동</option>
                           <option value="revenue_auto">매출자동</option>
+                          <option value="profit_auto">이익자동</option>
+                          <option value="count_auto">건수자동</option>
                         </select>
                       </div>
                     </div>

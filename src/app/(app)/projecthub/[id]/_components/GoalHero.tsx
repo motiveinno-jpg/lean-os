@@ -7,12 +7,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getKpiAchievement, getOverallAchievement, getOverallStatus, getPaceWarning } from "@/lib/project-types";
+import { getKpiAchievement, getOverallAchievement, getOverallStatus, getPaceWarning, type KpiSource } from "@/lib/project-types";
 
 const db = supabase as any;
 const fmtNum = (n: number, unit: string) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}${unit}`;
 
-type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: "manual" | "revenue_auto"; sort_order: number };
+type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number };
 
 const STATUS_META: Record<string, { dot: string; text: string; label: string }> = {
   green: { dot: "bg-green-500", text: "text-green-500", label: "정상(순항)" },
@@ -44,13 +44,13 @@ export function GoalHero({ deal }: { deal: any }) {
     enabled: !!dealId,
   });
 
-  // 매출 자동 실적 (revenue_auto KPI 가 하나라도 있으면 로드)
-  const hasAuto = (kpis as Kpi[]).some((k) => k.source === "revenue_auto");
-  const { data: revenueActual } = useQuery({
-    queryKey: ["deal-revenue-actual", dealId],
+  // 자동 실적 (auto KPI 가 하나라도 있으면 로드) — 매출/이익/건수 통합
+  const hasAuto = (kpis as Kpi[]).some((k) => k.source !== "manual");
+  const { data: autoActual } = useQuery({
+    queryKey: ["deal-kpi-auto", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_revenue_actual").select("actual_amount").eq("deal_id", dealId).maybeSingle();
-      return Number(data?.actual_amount || 0);
+      const { data } = await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle();
+      return { revenue: Number(data?.revenue_actual || 0), profit: Number(data?.profit_actual || 0), count: Number(data?.output_count || 0) };
     },
     enabled: !!dealId && hasAuto,
   });
@@ -71,7 +71,12 @@ export function GoalHero({ deal }: { deal: any }) {
     for (const e of entries as any[]) m[e.kpi_id] = (m[e.kpi_id] || 0) + Number(e.value || 0);
     return m;
   }, [entries]);
-  const actualOf = (k: Kpi) => (k.source === "revenue_auto" ? Number(revenueActual || 0) : Number(actualByKpi[k.id] || 0));
+  const actualOf = (k: Kpi) => {
+    if (k.source === "revenue_auto") return Number(autoActual?.revenue || 0);
+    if (k.source === "profit_auto") return Number(autoActual?.profit || 0);
+    if (k.source === "count_auto") return Number(autoActual?.count || 0);
+    return Number(actualByKpi[k.id] || 0);
+  };
 
   // KPI별 마지막 입력일(manual 정체 판정용)
   const lastEntryByKpi = useMemo(() => {
