@@ -11,7 +11,7 @@ import { useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
-import { matchGrantableRoute } from "@/lib/tab-access";
+import { matchGrantableRoute, effectiveTabAccess, useMyTabOverrides } from "@/lib/tab-access";
 
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
@@ -102,8 +102,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
   {
     label: "나의 업무",
     items: [
-      { href: "/attendance", label: "근태 / 출퇴근", icon: "clock" },
-      { href: "/leave", label: "휴가 신청", icon: "umbrella" },
+      { href: "/attendance", label: "근태 / 휴가", icon: "clock" },
       { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
       { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals" },
@@ -130,21 +129,23 @@ function isActivePath(href: string, pathname: string, allHrefs: string[]): boole
   return !allHrefs.some((h) => h !== href && h.startsWith(href + "/") && (pathname === h || pathname.startsWith(h + "/")));
 }
 
-function filterNavForRole(role: UserRole, companyName?: string, isOperator?: boolean): NavGroup[] {
+function filterNavForRole(role: UserRole, overrides: Map<string, boolean>, companyName?: string, isOperator?: boolean): NavGroup[] {
   void companyName;
-  // 직원은 전용 압축 메뉴 사용 (operator 게이트 무관 — 직원 화면은 운영자 페이지 노출 안 함)
+  // 직원은 전용 압축 메뉴 + 권한(user_tab_access)으로 부여받은 관리자 탭만 노출.
+  //   메뉴 통일: 같은 구조에서 "권한받은 메뉴만" 보이고 사용 가능(접근은 RouteGuard 이중 게이트).
   if (role === "employee") {
     const empGroups = EMPLOYEE_NAV_GROUPS
       .map((group) => ({ ...group, items: group.items.filter(Boolean) }))
       .filter((group) => group.items.length > 0);
-    // 관리자 탭(부여 가능)도 노출 — 직원 기본 메뉴에 없는 것만, 원래 그룹 유지(접근은 RouteGuard 가 부여로 통제).
     const empHrefs = new Set(empGroups.flatMap((g) => g.items.map((i) => i.href)));
+    // 부여된 관리자 탭만 노출(effectiveTabAccess) — 미부여 탭은 보이지 않음.
+    const granted = (href: string) => !!matchGrantableRoute(href) && !empHrefs.has(href) && effectiveTabAccess(href, "employee", overrides);
     const adminGroups = NAV_GROUPS
       .map((group) => ({
         ...group,
         items: group.items.flatMap((item) => {
-          const showItem = !!matchGrantableRoute(item.href) && !empHrefs.has(item.href);
-          const kids = (item.children || []).filter((c) => !!matchGrantableRoute(c.href) && !empHrefs.has(c.href));
+          const showItem = granted(item.href);
+          const kids = (item.children || []).filter((c) => granted(c.href));
           if (showItem) return [{ ...item, children: kids.length ? kids : undefined }];
           return kids;
         }),
@@ -251,7 +252,8 @@ export function Sidebar() {
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
   const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
-  const filteredNav = filterNavForRole(role, user?.companies?.name || undefined, isOperator);
+  const { map: tabOverrides } = useMyTabOverrides();
+  const filteredNav = filterNavForRole(role, tabOverrides, user?.companies?.name || undefined, isOperator);
 
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items.flatMap(i => i.children ? [i, ...i.children] : [i]));

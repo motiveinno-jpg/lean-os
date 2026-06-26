@@ -34,7 +34,7 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   //   "유효하지 않은 링크"(2026-05-28 수정). bell dropdown 의 getEntityRoute 매핑과 일치.
   signature: (id) => `/contracts/signed/${id}`,
   hr_contract_package: () => `/my-contracts`,
-  leave_request: () => `/employees?tab=leave&focus=pending`,
+  leave_request: () => `/attendance?section=leave&focus=pending`,
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,   // 성과 체크인 미제출 리마인더 → 성과 탭
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/payments?tab=expenses`,

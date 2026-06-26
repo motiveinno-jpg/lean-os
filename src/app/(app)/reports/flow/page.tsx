@@ -130,7 +130,7 @@ export default function BusinessFlowPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [flowView, setFlowView] = useState<"cockpit" | "matrix" | "month">("cockpit");
+  const [flowView, setFlowView] = useState<"cockpit" | "matrix" | "month">("month");
   const [lens, setLens] = useState<FlowLens>("income");
   const [pastN, setPastN] = useState(6);
   const [savedFlow, setSavedFlow] = useState(false);
@@ -318,7 +318,7 @@ export default function BusinessFlowPage() {
 
       {/* ═══ 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) ═══ */}
       <div className="flex gap-1.5 mb-4 no-print">
-        {([{ k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }, { k: "month", l: "이번달 흐름" }] as const).map((t) => (
+        {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
           <button key={t.k} onClick={() => setFlowView(t.k)}
             className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${flowView === t.k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
             {t.l}

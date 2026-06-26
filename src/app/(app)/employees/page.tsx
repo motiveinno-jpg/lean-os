@@ -49,7 +49,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { PayrollHero, ContractsHero, ExpensesHero, LeaveHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { PayrollHero, ContractsHero, ExpensesHero, CertificatesHero } from "@/components/flex-hr-heroes";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -57,7 +57,7 @@ type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leav
 
 // Employee 역할은 자기 관련 탭만 접근 가능
 // 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
-const EMPLOYEE_ROLE_TABS: Tab[] = ["leave", "expenses", "certificates"];
+const EMPLOYEE_ROLE_TABS: Tab[] = ["expenses", "certificates"];
 
 export default function EmployeesPage() {
   const { toast } = useToast();
@@ -89,7 +89,7 @@ export default function EmployeesPage() {
   //   보조용으로만 둔다(/employees 는 직원 딥링크 fallback 허용 라우트).
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
-      setTab("leave");
+      setTab("expenses");
     }
   }, [isEmployee, tab]);
 
@@ -144,13 +144,12 @@ export default function EmployeesPage() {
     { key: "salary", label: "급여" },
     { key: "contracts", label: "계약서" },
     { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
-    { key: "leave", label: "휴가" },
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
   // S-1: 렌더 경계 — 직원 비허용 탭은 어떤 경로(딥링크 초기 state 포함)로도
   //   해당 Tab 컴포넌트를 마운트하지 않는다(useEffect 사후 리셋 이전 프레임 차단).
-  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "leave" : tab;
+  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "expenses" : tab;
 
   if (userLoading || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">회사 정보를 불러올 수 없습니다. 새로고침 해주세요.</div>;
@@ -255,24 +254,7 @@ export default function EmployeesPage() {
           <div className="flex-skin"><ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} /></div>
         </>
       )}
-      {/* 휴가 — 2026-06-12: 페이지 이탈(/leave 리다이렉트) 대신 다른 탭처럼 인라인 렌더.
-          LeaveTab 은 공유 컴포넌트(단일 소스) — /leave 페이지는 직원 사이드바 진입점으로 유지. */}
-      {effectiveTab === "leave" && (
-        <>
-          <LeaveHero companyId={companyId} />
-          <div className="flex-skin">
-            <LeaveTab
-              employees={employees}
-              companyId={companyId}
-              userId={userId}
-              queryClient={queryClient}
-              isEmployee={isEmployee}
-              autoNew={false}
-              focusPending={sp?.get('focus') === 'pending'}
-            />
-          </div>
-        </>
-      )}
+      {/* 휴가 탭은 근태관리(/attendance?section=leave)로 이동 — 구성원에서 제거(2026-06-26). */}
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />
