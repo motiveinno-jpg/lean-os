@@ -122,12 +122,18 @@ export function AttendanceEditRequestDialog({
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  // 빈 칸으로 시작 — 변경할 항목만 입력(출근/퇴근 따로 요청 가능). 입력한 항목만 전송·적용된다.
   const [form, setForm] = useState({
-    check_in: initial?.check_in?.slice(0, 16) || "",
-    check_out: initial?.check_out?.slice(0, 16) || "",
+    check_in: "",
+    check_out: "",
     status: initial?.status || "",
     reason: "",
   });
+  const fmtCur = (iso?: string) => {
+    if (!iso) return "기록 없음";
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? "기록 없음" : d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
 
   const mut = useMutation({
     mutationFn: () =>
@@ -161,11 +167,11 @@ export function AttendanceEditRequestDialog({
       >
         <h3 className="section-title">근태 수정 요청</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
-          잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다. 본인이 직접 수정할 수 없습니다.
+          잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다(직접 수정 불가). <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요 — 출근·퇴근을 따로 요청할 수 있습니다.
         </p>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각 (변경)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 현재: {fmtCur(initial?.check_in)}</span></label>
             <DateTimeField
               value={form.check_in}
               onChange={(e) => setForm({ ...form, check_in: e.target.value })}
@@ -173,7 +179,7 @@ export function AttendanceEditRequestDialog({
             />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각 (변경)</label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 현재: {fmtCur(initial?.check_out)}</span></label>
             <DateTimeField
               value={form.check_out}
               onChange={(e) => setForm({ ...form, check_out: e.target.value })}
