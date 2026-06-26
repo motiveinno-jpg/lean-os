@@ -18,17 +18,20 @@ import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
+import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
 
 export default function ProjectHubPage() {
-  const { user } = useUser();
+  const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
+  const isManager = role === "owner" || role === "admin";
   const router = useRouter();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
 
@@ -284,11 +287,20 @@ export default function ProjectHubPage() {
           <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
         </div>
         <div className="flex items-center gap-2">
+          {isManager && (
+            <button onClick={() => setShowDashboard((v) => !v)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${showDashboard ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+              🎯 성과 대시보드
+            </button>
+          )}
           <button onClick={() => setShowCreate(true)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">
             + 프로젝트 생성
           </button>
         </div>
       </div>
+
+      {showDashboard && companyId && (
+        <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
+      )}
 
       {showCreate && companyId && (
         <ProjectFormModal

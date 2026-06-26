@@ -35,6 +35,7 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   signature: (id) => `/contracts/signed/${id}`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/employees?tab=leave&focus=pending`,
+  project_checkin: (id) => `/projecthub/${id}?tab=performance`,   // 성과 체크인 미제출 리마인더 → 성과 탭
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/payments?tab=expenses`,
   // STEP 4 (PR-F): 외부 견적 승인 결정 알림 (submit_quote_decision RPC 가 서버측 INSERT).

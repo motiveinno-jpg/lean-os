@@ -313,8 +313,28 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
   };
 
+  const amAssigned = !!user?.id && assignedIds.has(user.id);
+  const showCheckinPrompt = cadence !== "none" && !mySubmittedThisPeriod && (isManager || amAssigned);
+
   return (
     <div className="space-y-5">
+      {/* 이번 주 체크인 프롬프트 — 배정 멤버/관리자가 이번 주기 미제출 시 */}
+      {showCheckinPrompt && (
+        <button
+          onClick={() => document.getElementById("checkin-form")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-left hover:bg-[var(--primary)]/15 transition"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📝</span>
+            <div>
+              <div className="text-sm font-bold text-[var(--text)]">이번 주기 성과 체크인이 필요합니다</div>
+              <div className="text-xs text-[var(--text-muted)]">{periodLabel(curPeriod, cadence)}{curDue && <> · 마감 {curDue}</>} — 30초면 끝나요</div>
+            </div>
+          </div>
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white whitespace-nowrap">지금 체크인 →</span>
+        </button>
+      )}
+
       {/* ⓪ 성과 운영 — 체크인 주기 + 멤버 배정 */}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--text)]">⓪ 성과 운영 <span className="font-normal text-[var(--text-dim)] text-xs">(체크인 주기 · 멤버 배정)</span></h3>
