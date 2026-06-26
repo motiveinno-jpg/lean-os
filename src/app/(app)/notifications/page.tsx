@@ -34,7 +34,7 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   //   "유효하지 않은 링크"(2026-05-28 수정). bell dropdown 의 getEntityRoute 매핑과 일치.
   signature: (id) => `/contracts/signed/${id}`,
   hr_contract_package: () => `/my-contracts`,
-  leave_request: () => `/employees?tab=leave`,
+  leave_request: () => `/employees?tab=leave&focus=pending`,
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/payments?tab=expenses`,
   // STEP 4 (PR-F): 외부 견적 승인 결정 알림 (submit_quote_decision RPC 가 서버측 INSERT).

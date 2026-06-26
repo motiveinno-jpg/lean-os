@@ -268,6 +268,7 @@ export default function EmployeesPage() {
               queryClient={queryClient}
               isEmployee={isEmployee}
               autoNew={false}
+              focusPending={sp?.get('focus') === 'pending'}
             />
           </div>
         </>
@@ -2799,11 +2800,20 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 }
 
 // ── Leave Tab ──
-export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee, autoNew }: any) {
+export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee, autoNew, focusPending }: any) {
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(!!autoNew);
+  const approveSectionRef = useRef<HTMLDivElement>(null);
+
+  // 알림에서 진입(?focus=pending) 시 — 승인 대기 필터로 전환 후 승인 영역으로 스크롤.
+  useEffect(() => {
+    if (!focusPending) return;
+    setStatusFilter("pending");
+    const t = setTimeout(() => approveSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+    return () => clearTimeout(t);
+  }, [focusPending]);
 
   // Auto-detect current user's employee record
   const myEmployee = isEmployee ? employees.find((e: any) => e.user_id === userId) : null;
@@ -3045,6 +3055,21 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
   const calMon = Number(calMonth.split("-")[1]);
   const calDaysInMonth = new Date(calYear, calMon, 0).getDate();
   const calFirstDow = new Date(calYear, calMon - 1, 1).getDay();
+
+  // 직원 계정은 본인 신청 + 본인이 승인자/참조자인 건만 노출 — 타인 휴가 승인내용은 숨김.
+  //   (관리자/대표는 전원 표시. 비관리자 승인자도 승인 대상 건은 보여야 함.)
+  const visibleRequests = useMemo(() => {
+    if (!isEmployee) return leaveRequests as any[];
+    const myEmpIds = new Set((employees as any[]).filter((e: any) => e.user_id === userId).map((e: any) => e.id));
+    return (leaveRequests as any[]).filter((r: any) => {
+      if (myEmpIds.has(r.employee_id)) return true;
+      const steps = Array.isArray(r.approval_steps) ? r.approval_steps : [];
+      if (steps.some((s: any) => String(s.approver_id) === userId)) return true;
+      if (r.requested_approver_id === userId || r.second_approver_id === userId) return true;
+      if (Array.isArray(r.cc_user_ids) && r.cc_user_ids.includes(userId)) return true;
+      return false;
+    });
+  }, [leaveRequests, isEmployee, employees, userId]);
 
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
 
@@ -3334,7 +3359,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4">
+      <div ref={approveSectionRef} className="flex items-center justify-between mb-4 scroll-mt-24">
         <div className="flex gap-2">
           {[
             { key: "all", label: "전체" },
@@ -3352,9 +3377,9 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               }`}
             >
               {f.label}
-              {f.key === "pending" && leaveRequests.filter((r: any) => r.status === "pending").length > 0 && (
+              {f.key === "pending" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && (
                 <span className="ml-1 text-[10px] px-1 py-0.5 rounded-full bg-white/20">
-                  {leaveRequests.filter((r: any) => r.status === "pending").length}
+                  {visibleRequests.filter((r: any) => r.status === "pending").length}
                 </span>
               )}
             </button>
@@ -3614,7 +3639,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
 
       {/* Leave Requests List */}
       <div className="glass-card overflow-hidden mb-6">
-        {leaveRequests.length === 0 ? (
+        {visibleRequests.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">🏖</div>
             <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
@@ -3634,7 +3659,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               </tr>
             </thead>
             <tbody>
-              {leaveRequests.map((r: any) => {
+              {visibleRequests.map((r: any) => {
                 const st = LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS] || LEAVE_REQUEST_STATUS.pending;
                 const leaveLabel = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
                 return (
