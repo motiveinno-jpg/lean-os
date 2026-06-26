@@ -19,7 +19,7 @@ import {
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
   getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
   autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
-  cancelLeaveRequest,
+  cancelLeaveRequest, getCompanyMembers,
   getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
   // Leave Promotion
@@ -2812,31 +2812,37 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     employeeId: "",
     leaveType: "annual",
     leaveUnit: "full_day" as string,
+    halfDayPeriod: "am" as "am" | "pm",
     startDate: "",
     endDate: "",
     startTime: "",
     endTime: "",
     reason: "",
-    requestedApproverId: "",
-    secondApproverId: "",
+    // Flex 승인 체인: 각 단계 = 승인자 user id (빈 문자열 = 미지정). 최소 1단계.
+    approverSteps: [""] as string[],
     ccUserIds: [] as string[],
   });
   const [showPromotion, setShowPromotion] = useState(false);
 
-  // 승인 가능한 사용자(owner/admin) 목록 — 신청자가 승인자 선택용
-  const { data: approvers = [] } = useQuery({
-    queryKey: ["leave-approvers", companyId],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("users")
-        .select("id, name, email, role")
-        .eq("company_id", companyId!)
-        .in("role", ["owner", "admin"])
-        .order("role", { ascending: true });
-      return data || [];
-    },
+  // 승인자·참조자 선택 풀 — 회사 전체 구성원 (비관리자 포함).
+  const { data: members = [] } = useQuery({
+    queryKey: ["company-members", companyId],
+    queryFn: () => getCompanyMembers(companyId!),
     enabled: !!companyId,
   });
+  // user_id → 직원 레코드(소속/직책 표시용) 매핑
+  const memberMeta = useMemo(() => {
+    const byUser: Record<string, { department?: string; position?: string }> = {};
+    (employees as any[]).forEach((e: any) => {
+      if (e.user_id) byUser[e.user_id] = { department: e.department, position: e.position };
+    });
+    return byUser;
+  }, [employees]);
+  const memberById = useMemo(() => {
+    const m: Record<string, any> = {};
+    (members as any[]).forEach((u: any) => { m[u.id] = u; });
+    return m;
+  }, [members]);
 
   // Auto-select employee for employee role
   useEffect(() => {
@@ -2903,10 +2909,10 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         days,
         reason: form.reason,
         leaveUnit: unit as any,
+        halfDayPeriod: unit === "half_day" ? form.halfDayPeriod : undefined,
         startTime: form.startTime || undefined,
         endTime: form.endTime || undefined,
-        requestedApproverId: form.requestedApproverId || null,
-        secondApproverId: form.secondApproverId || null,
+        approverIds: form.approverSteps.filter(Boolean),
         ccUserIds: form.ccUserIds,
       });
     },
@@ -2914,7 +2920,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       setShowForm(false);
-      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", requestedApproverId: "", secondApproverId: "", ccUserIds: [] });
+      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", approverSteps: [""], ccUserIds: [] });
     },
     onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
@@ -3055,6 +3061,44 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       return { ...lt, used, pending };
     });
   }, [leaveRequests]);
+
+  // Flex 승인 체인 진행 상태 계산 (approval_steps 우선, 없으면 구 1차/2차).
+  const stepInfo = (r: any): {
+    steps: { approver_id: string; status: string }[];
+    currentApprover: string | null; // 현재 pending 단계의 승인자 user id
+    stageNo: number;                // 현재(또는 완료) 단계 번호
+    total: number;
+    label: string;                  // 상태 라벨
+  } => {
+    const raw = Array.isArray(r.approval_steps) ? r.approval_steps : [];
+    if (raw.length > 0) {
+      const steps = raw.map((s: any) => ({ approver_id: String(s.approver_id), status: s.status || "pending" }));
+      const idx = steps.findIndex((s: any) => s.status === "pending");
+      const done = steps.filter((s: any) => s.status === "approved").length;
+      let label: string;
+      if (r.status === "approved") label = "승인";
+      else if (r.status === "rejected") label = "반려";
+      else if (idx >= 0) label = `${idx + 1}단계 승인 대기${steps.length > 1 ? ` (${done}/${steps.length})` : ""}`;
+      else label = "승인";
+      return {
+        steps,
+        currentApprover: idx >= 0 ? steps[idx].approver_id : null,
+        stageNo: idx >= 0 ? idx + 1 : steps.length,
+        total: steps.length,
+        label,
+      };
+    }
+    // 구 흐름 폴백
+    const cur = r.status === "first_approved" ? r.second_approver_id : r.requested_approver_id;
+    const st = LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS];
+    return {
+      steps: [],
+      currentApprover: (r.status === "pending" || r.status === "first_approved") ? (cur || null) : null,
+      stageNo: r.status === "first_approved" ? 2 : 1,
+      total: r.second_approver_id ? 2 : 1,
+      label: st?.label || r.status,
+    };
+  };
 
   return (
     <div>
@@ -3367,6 +3411,30 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                 <DateField value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="field-input" />
               </div>
             )}
+            {form.leaveUnit === "half_day" && (
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">반차 시간대</label>
+                <div className="flex gap-1">
+                  {([
+                    { v: "am" as const, label: "오전" },
+                    { v: "pm" as const, label: "오후" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setForm({ ...form, halfDayPeriod: opt.v })}
+                      className={`flex-1 px-2 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                        form.halfDayPeriod === opt.v
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                          : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                      }`}
+                    >
+                      {opt.label} 반차
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {form.leaveUnit === "two_hours" && (
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">시간대</label>
@@ -3386,83 +3454,152 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
               <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="field-input" />
             </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">1차 승인자</label>
-              <select
-                value={form.requestedApproverId}
-                onChange={(e) => setForm({ ...form, requestedApproverId: e.target.value })}
-                className="field-input w-full"
-              >
-                <option value="">대표·관리자 전원에게 알림</option>
-                {approvers.map((u: any) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name || u.email} ({u.role === "owner" ? "대표" : "관리자"})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">2차 승인자 (선택)</label>
-              <select
-                value={form.secondApproverId}
-                onChange={(e) => setForm({ ...form, secondApproverId: e.target.value })}
-                className="field-input w-full"
-              >
-                <option value="">없음 (1차 승인이 최종)</option>
-                {approvers
-                  .filter((u: any) => u.id !== form.requestedApproverId)
-                  .map((u: any) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name || u.email} ({u.role === "owner" ? "대표" : "관리자"})
-                    </option>
+          </div>
+
+          {/* Flex 스타일 결재 패널 — 참조 + N단계 승인 */}
+          {(() => {
+            // 이미 선택된(승인자·참조) user id 집합
+            const usedStepIds = new Set(form.approverSteps.filter(Boolean));
+            const usedCc = new Set(form.ccUserIds);
+            const memberLabel = (uid: string) => {
+              const u = memberById[uid];
+              if (!u) return uid;
+              const meta = memberMeta[uid];
+              const sub = [meta?.department, meta?.position].filter(Boolean).join(" · ");
+              return { name: u.name || u.email || "구성원", sub, role: u.role };
+            };
+            const Avatar = ({ uid }: { uid: string }) => {
+              const u = memberById[uid];
+              const ch = (u?.name || u?.email || "?").slice(0, 1).toUpperCase();
+              return (
+                <span className="w-7 h-7 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-xs font-bold flex items-center justify-center shrink-0">
+                  {ch}
+                </span>
+              );
+            };
+            const stepNames = form.approverSteps
+              .map((id) => (id ? (memberById[id]?.name || memberById[id]?.email) : null))
+              .filter(Boolean) as string[];
+            const ccNames = form.ccUserIds
+              .map((id) => memberById[id]?.name || memberById[id]?.email)
+              .filter(Boolean) as string[];
+
+            return (
+              <div className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/50 p-4">
+                {/* 참조 */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-[var(--text-muted)]">참조 <span className="text-[var(--text-dim)] font-normal">(알림만)</span></span>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (id && !form.ccUserIds.includes(id)) {
+                          setForm({ ...form, ccUserIds: [...form.ccUserIds, id] });
+                        }
+                      }}
+                      className="text-[11px] px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--primary)] font-semibold"
+                    >
+                      <option value="">+ 참조 추가</option>
+                      {(members as any[])
+                        .filter((u: any) => !usedCc.has(u.id) && !usedStepIds.has(u.id) && u.id !== form.employeeId)
+                        .map((u: any) => (
+                          <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                        ))}
+                    </select>
+                  </div>
+                  {form.ccUserIds.length === 0 ? (
+                    <div className="text-[11px] text-[var(--text-dim)]">참조 대상이 없습니다</div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {form.ccUserIds.map((uid) => {
+                        const lbl = memberLabel(uid) as any;
+                        return (
+                          <div key={uid} className="flex items-center gap-2 bg-[var(--bg-card)] rounded-xl px-2.5 py-1.5">
+                            <Avatar uid={uid} />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium truncate">{lbl.name}</div>
+                              {lbl.sub && <div className="text-[10px] text-[var(--text-dim)] truncate">{lbl.sub}</div>}
+                            </div>
+                            <button type="button" onClick={() => setForm({ ...form, ccUserIds: form.ccUserIds.filter((id) => id !== uid) })} className="text-[var(--text-dim)] hover:text-red-400 text-sm px-1">×</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* N단계 승인 */}
+                <div className="space-y-3">
+                  {form.approverSteps.map((stepId, i) => (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-[var(--text-muted)]">{i + 1}단계 승인</span>
+                        {form.approverSteps.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, approverSteps: form.approverSteps.filter((_, idx) => idx !== i) })}
+                            className="text-[10px] text-[var(--text-dim)] hover:text-red-400"
+                          >
+                            단계 삭제
+                          </button>
+                        )}
+                      </div>
+                      {stepId ? (
+                        <div className="flex items-center gap-2 bg-[var(--bg-card)] rounded-xl px-2.5 py-1.5">
+                          <Avatar uid={stepId} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium truncate">{(memberLabel(stepId) as any).name}</div>
+                            {(memberLabel(stepId) as any).sub && <div className="text-[10px] text-[var(--text-dim)] truncate">{(memberLabel(stepId) as any).sub}</div>}
+                          </div>
+                          <button type="button" onClick={() => setForm({ ...form, approverSteps: form.approverSteps.map((s, idx) => idx === i ? "" : s) })} className="text-[var(--text-dim)] hover:text-red-400 text-sm px-1">×</button>
+                        </div>
+                      ) : (
+                        <select
+                          value=""
+                          onChange={(e) => setForm({ ...form, approverSteps: form.approverSteps.map((s, idx) => idx === i ? e.target.value : s) })}
+                          className="field-input w-full"
+                        >
+                          <option value="">승인자 선택 (구성원)</option>
+                          {(members as any[])
+                            .filter((u: any) => (!usedStepIds.has(u.id) || u.id === stepId) && !usedCc.has(u.id) && u.id !== form.employeeId)
+                            .map((u: any) => {
+                              const meta = memberMeta[u.id];
+                              const sub = [meta?.department, meta?.position].filter(Boolean).join(" · ");
+                              return <option key={u.id} value={u.id}>{u.name || u.email}{sub ? ` — ${sub}` : ""}</option>;
+                            })}
+                        </select>
+                      )}
+                    </div>
                   ))}
-              </select>
-            </div>
-            <div className="col-span-2 md:col-span-3">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">참조 (여러 명 · 알림만)</label>
-              <div className="flex flex-wrap gap-2">
-                {approvers
-                  .filter((u: any) => u.id !== form.requestedApproverId && u.id !== form.secondApproverId)
-                  .map((u: any) => {
-                    const checked = form.ccUserIds.includes(u.id);
-                    return (
-                      <label
-                        key={u.id}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer ${
-                          checked
-                            ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
-                            : "border-[var(--border)] text-[var(--text-muted)]"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="accent-[var(--primary)]"
-                          checked={checked}
-                          onChange={(e) =>
-                            setForm({
-                              ...form,
-                              ccUserIds: e.target.checked
-                                ? [...form.ccUserIds, u.id]
-                                : form.ccUserIds.filter((id) => id !== u.id),
-                            })
-                          }
-                        />
-                        {u.name || u.email}
-                      </label>
-                    );
-                  })}
-                {approvers.filter((u: any) => u.id !== form.requestedApproverId && u.id !== form.secondApproverId).length === 0 && (
-                  <span className="text-xs text-[var(--text-dim)]">참조 가능한 대표·관리자가 없습니다</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, approverSteps: [...form.approverSteps, ""] })}
+                    className="w-full text-xs font-semibold text-[var(--primary)] border border-dashed border-[var(--primary)]/40 rounded-xl py-2 hover:bg-[var(--primary)]/5 transition"
+                  >
+                    + 승인 단계 추가하기
+                  </button>
+                </div>
+
+                {/* 요약 */}
+                {(stepNames.length > 0 || ccNames.length > 0) && (
+                  <div className="mt-3 text-[11px] text-[var(--text-muted)]">
+                    {stepNames.length > 0 && <span><strong className="text-[var(--text)]">{stepNames.join(", ")}</strong>님에게 승인</span>}
+                    {stepNames.length > 0 && ccNames.length > 0 && ", "}
+                    {ccNames.length > 0 && <span><strong className="text-[var(--text)]">{ccNames.join(", ")}</strong>님에게 참조</span>}
+                    를 요청해요.
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
+            );
+          })()}
+
           <button
             onClick={() => form.employeeId && form.startDate && !(form.endDate && form.endDate < form.startDate) && createLeave.mutate()}
             disabled={!form.employeeId || !form.startDate || (!!form.endDate && form.endDate < form.startDate) || createLeave.isPending}
-            className="btn-primary"
+            className="btn-primary mt-4"
           >
-            {createLeave.isPending ? "처리 중..." : `신청 (${(() => {
+            {createLeave.isPending ? "처리 중..." : `승인 요청하기 (${(() => {
               const unit = form.leaveUnit;
               if (unit === "half_day") return 0.5;
               if (unit === "two_hours") return 0.25;
@@ -3509,6 +3646,11 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
                       {r.start_date}{r.start_date !== r.end_date ? ` ~ ${r.end_date}` : ""}
                       {r.leave_unit === "two_hours" && r.start_time ? ` ${r.start_time}~${r.end_time}` : ""}
+                      {r.leave_unit === "half_day" && r.start_time ? (() => {
+                        // 오전/오후 판정: 시작 시각이 12:00 이전이면 오전 반차.
+                        const isAm = Number(String(r.start_time).slice(0, 2)) < 12;
+                        return <span className="ml-1 text-[10px] text-[var(--primary)]">({isAm ? "오전" : "오후"} 반차 {r.start_time}~{r.end_time})</span>;
+                      })() : ""}
                     </td>
                     <td className="px-5 py-3 text-sm text-center font-medium">
                       {Number(r.days)}일
@@ -3521,40 +3663,53 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.reason || "—"}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
                       <div className="flex flex-col gap-0.5">
-                        <span>
-                          1차: {r.requested_approver?.name || r.requested_approver?.email || (
-                            <span className="text-[var(--text-dim)]">전체</span>
-                          )}
-                        </span>
-                        {r.second_approver_id && (
-                          <span>2차: {r.second_approver?.name || r.second_approver?.email || "—"}</span>
-                        )}
+                        {(() => {
+                          const info = stepInfo(r);
+                          if (info.steps.length > 0) {
+                            return info.steps.map((s: any, i: number) => {
+                              const u = memberById[s.approver_id];
+                              const nm = u?.name || u?.email || "구성원";
+                              const mark = s.status === "approved" ? "✓" : s.status === "rejected" ? "✕" : "·";
+                              const cls = s.status === "approved" ? "text-green-400" : s.status === "rejected" ? "text-red-400" : "text-[var(--text-dim)]";
+                              return <span key={i}><span className={cls}>{mark}</span> {i + 1}단계: {nm}</span>;
+                            });
+                          }
+                          return (
+                            <>
+                              <span>1차: {r.requested_approver?.name || r.requested_approver?.email || <span className="text-[var(--text-dim)]">전체</span>}</span>
+                              {r.second_approver_id && <span>2차: {r.second_approver?.name || r.second_approver?.email || "—"}</span>}
+                            </>
+                          );
+                        })()}
                         {Array.isArray(r.cc_user_ids) && r.cc_user_ids.length > 0 && (
                           <span className="text-[10px] text-[var(--text-dim)]">참조 {r.cc_user_ids.length}명</span>
                         )}
                       </div>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{stepInfo(r).label}</span>
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1 justify-center">
-                        {(r.status === "pending" || r.status === "first_approved") && !isEmployee && (() => {
-                          // 현재 단계 지정 승인자(또는 owner/admin)만 승인/반려 노출.
-                          //   pending → 1차 승인자, first_approved → 2차 승인자.
-                          //   지정 승인자가 없으면(전체 알림) owner/admin 누구나.
-                          const stageApprover = r.status === "first_approved"
-                            ? r.second_approver_id
-                            : r.requested_approver_id;
-                          const canAct = !stageApprover || stageApprover === userId;
+                        {(r.status === "pending" || r.status === "first_approved") && (() => {
+                          // 승인/반려 버튼 노출 조건 (버그 수정: 비관리자 승인자도 보여야 함).
+                          //   · 현재 pending 단계의 지정 승인자(아무 구성원)이면 노출 — isEmployee 무관.
+                          //   · owner/admin(!isEmployee)은 오버라이드로 항상 노출.
+                          const info = stepInfo(r);
+                          const canAct = info.currentApprover === userId
+                            || (!isEmployee && (!info.currentApprover || info.steps.length === 0));
+                          // 다단계 체인: 지정 승인자만(또는 admin). 구 흐름: 지정자 없으면 admin 누구나.
                           if (!canAct) return null;
+                          const stageLabel = info.steps.length > 0
+                            ? `${info.stageNo}단계 승인`
+                            : (r.status === "first_approved" ? "2차 승인" : "1차 승인");
                           return (
                             <>
                               <button
                                 onClick={() => approveMut.mutate(r.id)}
                                 className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
                               >
-                                {r.status === "first_approved" ? "2차 승인" : "1차 승인"}
+                                {stageLabel}
                               </button>
                               <button
                                 onClick={() => rejectMut.mutate(r.id)}

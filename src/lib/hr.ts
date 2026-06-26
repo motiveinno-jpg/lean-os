@@ -1047,6 +1047,41 @@ export async function getLeaveRequests(companyId: string, status?: string) {
   return [...(leaveData || []), ...mapped];
 }
 
+// 반차 오전/오후 시간대 산정. 회사 근무시간 있으면 절반 기준, 없으면 기본.
+//   오전: 근무시작 ~ (근무시작+근무시간/2 + 점심포함 중간), 오후: 그 이후 ~ 근무종료.
+//   단순화: 근무시간 총분의 중간을 경계로 잡되, 점심시간만큼 오후 시작을 늦춤.
+async function computeHalfDaySlot(
+  companyId: string,
+  period: 'am' | 'pm',
+): Promise<{ start: string; end: string }> {
+  const DEFAULT = period === 'am'
+    ? { start: '09:00', end: '13:00' }
+    : { start: '14:00', end: '18:00' };
+  try {
+    const s = await getAttendanceCompanySettings(companyId);
+    const startMin = parseHhmmToMinutes(s.work_start_time);
+    const endMin = parseHhmmToMinutes(s.work_end_time);
+    if (!(endMin > startMin)) return DEFAULT;
+    const lunch = Math.max(0, Math.min(240, s.lunch_minutes || 0));
+    const workMin = endMin - startMin - lunch;
+    if (workMin <= 0) return DEFAULT;
+    const half = Math.round(workMin / 2);
+    if (period === 'am') {
+      // 근무시작 ~ 근무시작 + 절반
+      return { start: minToHhmm(startMin), end: minToHhmm(startMin + half) };
+    }
+    // 오후: 근무시작 + 절반 + 점심 ~ 근무종료
+    return { start: minToHhmm(startMin + half + lunch), end: minToHhmm(endMin) };
+  } catch {
+    return DEFAULT;
+  }
+}
+
+function minToHhmm(min: number): string {
+  const m = Math.max(0, Math.min(1439, Math.round(min)));
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
 // ── Leave: Create request (2시간/반차/종일 지원) ──
 export async function createLeaveRequest(params: {
   companyId: string;
@@ -1059,8 +1094,10 @@ export async function createLeaveRequest(params: {
   leaveUnit?: LeaveUnit;
   startTime?: string; // "09:00" (2시간 단위용)
   endTime?: string;   // "11:00"
-  requestedApproverId?: string | null; // 1차 승인자 (owner/admin user) — 필수 권장
-  secondApproverId?: string | null;    // 2차 승인자 (선택, 순차)
+  halfDayPeriod?: 'am' | 'pm';          // 반차 오전/오후 (leaveUnit==='half_day')
+  approverIds?: string[];               // Flex N단계 승인 체인 (순서대로, 아무 구성원)
+  requestedApproverId?: string | null;  // (구) 1차 승인자 — 하위호환
+  secondApproverId?: string | null;     // (구) 2차 승인자 — 하위호환
   ccUserIds?: string[];                 // 참조자 (알림만, 승인권한 없음)
 }) {
   // Auto-calculate days based on leave unit
@@ -1071,6 +1108,29 @@ export async function createLeaveRequest(params: {
   } else if (unit === 'two_hours') {
     days = 0.25;
   }
+
+  // 반차 오전/오후 → start_time/end_time 자동 산정.
+  //   회사 근무시간(work_start_time~work_end_time, 점심)이 있으면 그 절반 기준,
+  //   없으면 기본(오전 09:00~13:00 / 오후 14:00~18:00).
+  let halfStart = params.startTime;
+  let halfEnd = params.endTime;
+  if (unit === 'half_day') {
+    const period = params.halfDayPeriod || 'am';
+    const slot = await computeHalfDaySlot(params.companyId, period);
+    halfStart = slot.start;
+    halfEnd = slot.end;
+  }
+
+  // Flex 승인 체인 — approverIds 우선, 없으면 (구) requested/second 폴백.
+  const stepIds = (params.approverIds && params.approverIds.length > 0)
+    ? params.approverIds
+    : [params.requestedApproverId, params.secondApproverId].filter(Boolean) as string[];
+  const approvalSteps = stepIds.map((id) => ({
+    approver_id: id,
+    status: 'pending' as const,
+    decided_by: null as string | null,
+    decided_at: null as string | null,
+  }));
 
   // Validate remaining balance for annual leave
   if (params.leaveType === 'annual') {
@@ -1102,10 +1162,11 @@ export async function createLeaveRequest(params: {
       reason: params.reason || null,
       status: 'pending',
       leave_unit: unit,
-      start_time: params.startTime || null,
-      end_time: params.endTime || null,
-      requested_approver_id: params.requestedApproverId || null,
-      second_approver_id: params.secondApproverId || null,
+      start_time: halfStart || null,
+      end_time: halfEnd || null,
+      requested_approver_id: stepIds[0] || params.requestedApproverId || null,
+      second_approver_id: stepIds[1] || params.secondApproverId || null,
+      approval_steps: approvalSteps,
       cc_user_ids: params.ccUserIds && params.ccUserIds.length > 0 ? params.ccUserIds : [],
     })
     .select()
@@ -1125,9 +1186,13 @@ export async function createLeaveRequest(params: {
       ? params.startDate
       : `${params.startDate} ~ ${params.endDate}`;
 
-    // 1차 승인 대기 알림 대상: 지정된 1차 승인자, 미지정 시 owner/admin 전원.
+    // 1단계 승인 대기 알림 대상: approval_steps 의 첫 단계 승인자.
+    //   체인이 비어있으면 (구) requested_approver_id, 그것도 없으면 owner/admin 전원.
     const approverIds = new Set<string>();
-    if (params.requestedApproverId) {
+    const firstStep = approvalSteps[0]?.approver_id;
+    if (firstStep) {
+      approverIds.add(firstStep);
+    } else if (params.requestedApproverId) {
       approverIds.add(params.requestedApproverId);
     } else {
       (admins || []).forEach((a: { id: string }) => approverIds.add(a.id));
@@ -1188,9 +1253,28 @@ async function deductLeaveBalance(request: any) {
   }
 }
 
-// ── Leave: Approve (다단계: 1차 필수 + 2차 선택, 순차) ──
-//   · pending → (2차 지정 시) first_approved → approved
-//   · pending → (2차 미지정 시) approved
+// approval_steps(jsonb) 형태 가드.
+type ApprovalStep = {
+  approver_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  decided_by: string | null;
+  decided_at: string | null;
+};
+function parseSteps(raw: unknown): ApprovalStep[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s) => s && typeof s === 'object' && (s as any).approver_id)
+    .map((s) => ({
+      approver_id: String((s as any).approver_id),
+      status: ((s as any).status as ApprovalStep['status']) || 'pending',
+      decided_by: ((s as any).decided_by as string | null) ?? null,
+      decided_at: ((s as any).decided_at as string | null) ?? null,
+    }));
+}
+
+// ── Leave: Approve (Flex N단계 체인 + 구 1차/2차 하위호환) ──
+//   · approval_steps 가 있으면: 첫 pending step 승인 → 다음 pending 있으면 진행, 없으면 최종 승인.
+//   · approval_steps 가 비면: (구) requested/second 흐름 유지.
 //   연차 차감은 최종 승인(approved) 시 1회만.
 export async function approveLeaveRequest(id: string, approverId: string) {
   const { data: request } = await db
@@ -1207,6 +1291,45 @@ export async function approveLeaveRequest(id: string, approverId: string) {
   const me = await getCurrentUser();
   const isAdmin = me?.role === 'owner' || me?.role === 'admin';
 
+  // ── Flex N단계 체인 ──
+  const steps = parseSteps(request.approval_steps);
+  if (steps.length > 0) {
+    if (request.status === 'approved' || request.status === 'rejected' || request.status === 'cancelled') {
+      throw new Error('이미 처리된 휴가 신청입니다');
+    }
+    const idx = steps.findIndex((s) => s.status === 'pending');
+    if (idx === -1) throw new Error('승인 대기 단계가 없습니다');
+    const step = steps[idx];
+    if (step.approver_id !== approverId && !isAdmin) {
+      throw new Error(`${idx + 1}단계 승인 권한이 없습니다`);
+    }
+    step.status = 'approved';
+    step.decided_by = approverId;
+    step.decided_at = nowIso;
+
+    const nextIdx = steps.findIndex((s) => s.status === 'pending');
+    const isFinal = nextIdx === -1;
+    const { error } = await db
+      .from('leave_requests')
+      .update({
+        approval_steps: steps,
+        status: isFinal ? 'approved' : 'pending',
+        ...(isFinal ? { approved_by: approverId, approved_at: nowIso } : {}),
+      })
+      .eq('id', id);
+    if (error) throw error;
+
+    if (isFinal) {
+      await deductLeaveBalance(request);
+      await notifyLeaveDecision(request, 'approved');
+      await notifyCcFinalDecision(request, 'approved');
+    } else {
+      await notifyStepApprover(request, steps[nextIdx].approver_id, nextIdx + 1);
+    }
+    return;
+  }
+
+  // ── (구) 1차/2차 흐름 (하위호환) ──
   if (request.status === 'pending') {
     // 1차 승인 단계
     const designated = request.requested_approver_id;
@@ -1275,9 +1398,42 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
     .single();
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
-  // 권한 가드: 현재 단계의 지정 승인자 또는 owner/admin.
   const me = await getCurrentUser();
   const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+  const nowIso = new Date().toISOString();
+
+  // ── Flex N단계 체인 ──
+  const steps = parseSteps(request.approval_steps);
+  if (steps.length > 0) {
+    if (request.status === 'approved' || request.status === 'rejected' || request.status === 'cancelled') {
+      throw new Error('이미 처리된 휴가 신청입니다');
+    }
+    const idx = steps.findIndex((s) => s.status === 'pending');
+    const step = idx >= 0 ? steps[idx] : null;
+    if (step && step.approver_id !== approverId && !isAdmin) {
+      throw new Error('반려 권한이 없습니다');
+    }
+    if (step) {
+      step.status = 'rejected';
+      step.decided_by = approverId;
+      step.decided_at = nowIso;
+    }
+    const { error } = await db
+      .from('leave_requests')
+      .update({
+        approval_steps: steps,
+        status: 'rejected',
+        approved_by: approverId,
+        approved_at: nowIso,
+      })
+      .eq('id', id);
+    if (error) throw error;
+    await notifyLeaveDecision(request, 'rejected');
+    await notifyCcFinalDecision(request, 'rejected');
+    return;
+  }
+
+  // ── (구) 1차/2차 흐름 ──
   const designated = request.status === 'first_approved'
     ? request.second_approver_id
     : request.requested_approver_id;
@@ -1290,7 +1446,7 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
     .update({
       status: 'rejected',
       approved_by: approverId,
-      approved_at: new Date().toISOString(),
+      approved_at: nowIso,
     })
     .eq('id', id)
     .in('status', ['pending', 'first_approved']); // 이미 종결된 건은 변경 안 함
@@ -1377,6 +1533,40 @@ export async function cancelLeaveRequest(id: string) {
   } catch (e) {
     console.error('[cancelLeaveRequest] 알림 실패:', e);
   }
+}
+
+// Flex 단계 승인 완료 → 다음 단계 승인자에게 승인 대기 알림.
+async function notifyStepApprover(request: any, approverUserId: string, stageNo: number) {
+  try {
+    if (!approverUserId) return;
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+    const period = request.start_date === request.end_date
+      ? request.start_date
+      : `${request.start_date} ~ ${request.end_date}`;
+    const empName = request.employees?.name || '직원';
+    await db.from('notifications').insert({
+      company_id: request.company_id,
+      user_id: approverUserId,
+      type: 'approval',
+      title: `[${stageNo}단계 승인 대기] ${empName} - ${leaveLabel} (${Number(request.days)}일)`,
+      message: `이전 단계 승인 완료 · ${period}`,
+      entity_type: 'leave_request',
+      entity_id: request.id,
+      is_read: false,
+    });
+  } catch (e) {
+    if (typeof window !== 'undefined') console.warn('[notifyStepApprover] 알림 실패:', e);
+  }
+}
+
+// 회사 전체 구성원 (승인자·참조자 선택 풀). 비관리자도 포함.
+export async function getCompanyMembers(companyId: string) {
+  const { data } = await db
+    .from('users')
+    .select('id, name, email, role')
+    .eq('company_id', companyId)
+    .order('name', { ascending: true });
+  return (data || []) as { id: string; name: string | null; email: string | null; role: string }[];
 }
 
 // 1차 승인 완료 → 2차 승인자에게 승인 대기 알림.
