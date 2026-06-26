@@ -452,6 +452,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const { data: bankAcct } = await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle();
                   const { data: currentUser } = await db.from('users').select('name, email').eq('id', userId).maybeSingle();
 
+                  // 제안사 담당자 — 견적 헤더에서 선택한 담당자 우선(없으면 현재 사용자). 이메일은 이름으로 조회.
+                  const mgrName = cj.header?.manager || quoteHeader.manager || '';
+                  let mgrEmail = '';
+                  if (mgrName) {
+                    const { data: mgrRow } = await db.from('users').select('email').eq('company_id', companyId).eq('name', mgrName).limit(1).maybeSingle();
+                    mgrEmail = mgrRow?.email || '';
+                  }
+
                   // 견적 의뢰 기업(거래처) 상세 — partnerId 우선, 없으면 거래처명으로 company 범위 내 매칭
                   const cpName = cj.counterpartyName || cj.partnerName || cj.header?.partnerName || quoteHeader.partnerName || '';
                   const cpId = cj.header?.partnerId || quoteHeader.partnerId || null;
@@ -472,16 +480,18 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       phone: company.data?.phone,
                       businessNumber: company.data?.business_number,
                     },
-                    counterparty: cj.counterpartyName || cj.partnerName || '-',
+                    counterparty: cpName || '-',
                     items,
                     supplyAmount: supplyAmt,
                     taxAmount: taxAmt,
                     totalAmount: supplyAmt + taxAmt,
-                    validUntil: cj.validUntil || '견적일로부터 30일',
+                    validUntil: cj.header?.validUntil || quoteHeader.validUntil || cj.validUntil || '견적일로부터 30일',
                     notes: cj.notes || '',
                     sealUrl: (doc as any).seal_applied ? company.data?.seal_url : undefined,
-                    managerName: currentUser?.name || undefined,
-                    managerContact: currentUser?.email || company.data?.phone || undefined,
+                    managerName: mgrName || currentUser?.name || undefined,
+                    managerContact: mgrName ? (mgrEmail || undefined) : (currentUser?.email || undefined),
+                    paymentTerms: cj.header?.paymentTerms || quoteHeader.paymentTerms || undefined,
+                    deliveryTerms: cj.header?.deliveryTerms || quoteHeader.deliveryTerms || undefined,
                     bankInfo: bankAcct ? { bankName: bankAcct.bank_name, accountNumber: bankAcct.account_number, accountHolder: bankAcct.alias || companyName } : undefined,
                     deliveryDate: cj.deliveryDate || undefined,
                     // 팩트시트 스타일 추가 — 제목(문서명)/견적의뢰기업 상세/제안사 사이트

@@ -367,6 +367,8 @@ export async function generateQuotePDF(params: {
   title?: string;
   bankInfo?: { bankName: string; accountNumber: string; accountHolder?: string };
   deliveryDate?: string;
+  paymentTerms?: string;
+  deliveryTerms?: string;
 }): Promise<Blob> {
   // 참조 양식(팩트시트 마케팅 견적서) 스타일 — 가로 A4, 주황/살구 테마, 양자 헤더 + 견적가 박스 + 안내 박스
   const doc = new jsPDF('l', 'mm', 'a4');
@@ -408,20 +410,19 @@ export async function generateQuotePDF(params: {
   const headerStartY = y;
   const ci = params.counterpartyInfo || {};
 
-  // 좌: 견적 의뢰 기업 (거래처)
+  // 좌: 견적 의뢰 기업 (거래처) — 값이 빈 칸은 행 자체를 그리지 않는다
+  const ciRows: any[] = [['회사명', params.counterparty || '-']];
+  if (ci.representative) ciRows.push(['대표자', ci.representative]);
+  if (ci.contactName) ciRows.push(['담당자', ci.contactName]);
+  if (ci.contactPhone) ciRows.push(['전화번호', ci.contactPhone]);
+  if (ci.contactEmail) ciRows.push(['이메일', ci.contactEmail]);
+  if (ci.address) ciRows.push(['회사주소', ci.address]);
   autoTable(doc, {
     startY: headerStartY,
     margin: { left: M },
     tableWidth: halfW,
     head: [[{ content: '견적 의뢰 기업', colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
-    body: [
-      ['회사명', params.counterparty || '-'],
-      ['대표자', ci.representative || ''],
-      ['담당자', ci.contactName || ''],
-      ['전화번호', ci.contactPhone || ''],
-      ['이메일', ci.contactEmail || ''],
-      ['회사주소', ci.address || ''],
-    ],
+    body: ciRows,
     theme: 'grid',
     styles: baseStyles,
     columnStyles: {
@@ -433,20 +434,19 @@ export async function generateQuotePDF(params: {
 
   // 우: 제안사 (자사)
   const rightX = M + halfW + colGap;
+  const supRows: any[] = [['회사명', params.companyInfo.name || '-']];
+  if (params.companyInfo.representative) supRows.push(['대표자', params.companyInfo.representative]);
+  if (params.siteUrl) supRows.push(['사이트 URL', params.siteUrl]);
+  if (params.managerName) supRows.push(['담당자', params.managerName]);
+  if (params.companyInfo.phone) supRows.push(['전화번호', params.companyInfo.phone]);
+  if (params.managerContact) supRows.push(['이메일', params.managerContact]);
+  if (params.companyInfo.address) supRows.push(['회사주소', params.companyInfo.address]);
   autoTable(doc, {
     startY: headerStartY,
     margin: { left: rightX },
     tableWidth: halfW,
     head: [[{ content: '제안사', colSpan: 2, styles: { fillColor: ORANGE, textColor: 255, halign: 'center', fontStyle: 'bold' } }]],
-    body: [
-      ['회사명', params.companyInfo.name || '-'],
-      ['대표자', params.companyInfo.representative || ''],
-      ['사이트 URL', params.siteUrl || ''],
-      ['담당자', params.managerName || ''],
-      ['전화번호', params.companyInfo.phone || ''],
-      ['이메일', params.managerContact || ''],
-      ['회사주소', params.companyInfo.address || ''],
-    ],
+    body: supRows,
     theme: 'grid',
     styles: baseStyles,
     columnStyles: {
@@ -525,6 +525,8 @@ export async function generateQuotePDF(params: {
   const noteLines: string[] = [];
   if (params.notes) params.notes.split('\n').forEach((l) => { if (l.trim()) noteLines.push(l.trim()); });
   if (params.validUntil) noteLines.push(`유효기간: ${params.validUntil}`);
+  if (params.paymentTerms) noteLines.push(`결제조건: ${params.paymentTerms}`);
+  if (params.deliveryTerms) noteLines.push(`납품조건: ${params.deliveryTerms}`);
   if (params.deliveryDate) noteLines.push(`납품일: ${params.deliveryDate}`);
   if (params.bankInfo) {
     const holder = params.bankInfo.accountHolder ? ` (${params.bankInfo.accountHolder})` : '';
