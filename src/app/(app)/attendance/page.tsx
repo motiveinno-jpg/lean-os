@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -29,14 +29,13 @@ export default function AttendancePage() {
   const isManager = role !== "employee";
   // 플렉스 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
   //   관리자 기본 = 워크보드(조망), 직원 기본 = 기록 상세(본인 출퇴근/수정 동선 유지).
-  // ?view=records/work 딥링크 지원 — 근태 수정요청 알림은 records(수정 인박스가 있는 뷰)로 진입.
-  const [attView, setAttView] = useState<"work" | "records">(() => {
-    if (typeof window !== "undefined") {
-      const v = new URLSearchParams(window.location.search).get("view");
-      if (v === "records" || v === "work") return v;
-    }
-    return isEmployee ? "records" : "work";
-  });
+  const [attView, setAttView] = useState<"work" | "records">(isEmployee ? "records" : "work");
+  // ?view=records/work 딥링크 — 근태 수정요청 알림은 records(수정 인박스 뷰)로 진입.
+  //   useState 초기화는 SSR 시 window 부재로 무시되므로(하이드레이션 고정) 마운트 후 useEffect 로 적용.
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    if (v === "records" || v === "work") setAttView(v);
+  }, []);
 
   const { data: employees = [] } = useQuery({
     queryKey: ["attendance-employees", companyId, isEmployee ? "emp" : "mgr"],
