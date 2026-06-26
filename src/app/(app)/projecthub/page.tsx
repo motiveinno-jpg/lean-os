@@ -16,7 +16,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, type ProjectType } from "@/lib/project-types";
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, type ProjectType } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
@@ -56,18 +56,6 @@ export default function ProjectHubPage() {
     return m;
   }, [deals]);
 
-  // 진행률 — deal_milestones 완료율 (없으면 null → "—")
-  const dealIds = useMemo(() => topDeals.map((d) => d.id), [topDeals]);
-  const { data: milestones = [] } = useQuery({
-    queryKey: ["projecthub-milestones", companyId, dealIds.length],
-    queryFn: async () => {
-      if (dealIds.length === 0) return [];
-      const { data } = await supabase.from("deal_milestones").select("deal_id, status, completed_at").in("deal_id", dealIds);
-      return (data || []) as any[];
-    },
-    enabled: !!companyId && dealIds.length > 0,
-  });
-
   // 손익 — v_deal_pnl (직접원가·직접원가율). 전표 deal_id 태그 전엔 0.
   const { data: pnl = [] } = useQuery({
     queryKey: ["projecthub-pnl", companyId],
@@ -83,6 +71,90 @@ export default function ProjectHubPage() {
     return m;
   }, [pnl]);
 
+  // 유형별 실적 — 목표형(자동/수동), 실행형(태스크). 핵심지표 정규화·요약·위험 판정에 사용.
+  const goalDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal").map((d) => d.id), [topDeals]);
+  const deliveryDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery").map((d) => d.id), [topDeals]);
+
+  // 목표형 자동 실적(v_deal_goal_actual)
+  const { data: goalAuto = [] } = useQuery({
+    queryKey: ["projecthub-goal-auto", companyId, goalDealIds.length],
+    queryFn: async () => {
+      if (goalDealIds.length === 0) return [];
+      const { data } = await (supabase as any).from("v_deal_goal_actual").select("deal_id, actual_amount").in("deal_id", goalDealIds);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && goalDealIds.length > 0,
+  });
+  // 목표형 수동 실적(project_kpi_entries 합)
+  const { data: goalManual = [] } = useQuery({
+    queryKey: ["projecthub-goal-manual", companyId, goalDealIds.length],
+    queryFn: async () => {
+      if (goalDealIds.length === 0) return [];
+      const { data } = await (supabase as any).from("project_kpi_entries").select("deal_id, value").in("deal_id", goalDealIds);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && goalDealIds.length > 0,
+  });
+  // 실행형 태스크(진행률·지연)
+  const { data: tasksRows = [] } = useQuery({
+    queryKey: ["projecthub-tasks", companyId, deliveryDealIds.length],
+    queryFn: async () => {
+      if (deliveryDealIds.length === 0) return [];
+      const { data } = await (supabase as any).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && deliveryDealIds.length > 0,
+  });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  // 목표형 누적 실적(출처별 하나만)
+  const goalActualByDeal = useMemo(() => {
+    const auto: Record<string, number> = {};
+    for (const r of goalAuto as any[]) auto[r.deal_id] = Number(r.actual_amount || 0);
+    const manual: Record<string, number> = {};
+    for (const r of goalManual as any[]) manual[r.deal_id] = (manual[r.deal_id] || 0) + Number(r.value || 0);
+    const m: Record<string, number> = {};
+    for (const d of topDeals) {
+      if (normalizeProjectType(d.project_type) !== "goal") continue;
+      m[d.id] = d.goal_source === "manual" ? (manual[d.id] || 0) : (auto[d.id] || 0);
+    }
+    return m;
+  }, [goalAuto, goalManual, topDeals]);
+  // 실행형 태스크 집계
+  const taskStatsByDeal = useMemo(() => {
+    const m: Record<string, { total: number; done: number; delayed: number }> = {};
+    for (const t of tasksRows as any[]) {
+      const e = (m[t.deal_id] ||= { total: 0, done: 0, delayed: 0 });
+      e.total += 1;
+      if (t.status === "done") e.done += 1;
+      else if (t.due_date && String(t.due_date).slice(0, 10) < todayStr) e.delayed += 1;
+    }
+    return m;
+  }, [tasksRows, todayStr]);
+
+  // 핵심지표(0~100 정규화) — 행 유형별 마진률/달성률/진행률 + 위험 판정
+  const heroByDeal = useMemo(() => {
+    const m: Record<string, ReturnType<typeof getHeroMetric> & { delayed?: boolean }> = {};
+    for (const d of topDeals) {
+      const type = normalizeProjectType(d.project_type);
+      if (type === "goal") {
+        m[d.id] = getHeroMetric("goal", { targetAmount: d.target_amount, actualAmount: goalActualByDeal[d.id] || 0 });
+      } else if (type === "delivery") {
+        const st = taskStatsByDeal[d.id];
+        const h = getHeroMetric("delivery", { taskTotal: st?.total || 0, taskDone: st?.done || 0 });
+        m[d.id] = { ...h, delayed: (st?.delayed || 0) > 0, risk: (st?.delayed || 0) > 0 };
+      } else {
+        const p = pnlByDeal[d.id];
+        const revenue = Number(d.contract_total || 0) || Number(p?.revenue || 0);
+        m[d.id] = getHeroMetric("margin", { revenue, cost: Number(p?.direct_cost || 0) });
+      }
+    }
+    return m;
+  }, [topDeals, goalActualByDeal, taskStatsByDeal, pnlByDeal]);
+
+  // 유형 필터 칩
+  const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
+
   const partnerName = useMemo(() => {
     const m: Record<string, string> = {};
     for (const p of partners as any[]) m[p.id] = p.name;
@@ -93,16 +165,6 @@ export default function ProjectHubPage() {
     for (const u of users as any[]) m[u.id] = u.name;
     return m;
   }, [users]);
-  const progressByDeal = useMemo(() => {
-    const m: Record<string, { done: number; total: number }> = {};
-    for (const ms of milestones as any[]) {
-      const e = (m[ms.deal_id] ||= { done: 0, total: 0 });
-      e.total += 1;
-      if (ms.status === "completed" || ms.completed_at) e.done += 1;
-    }
-    return m;
-  }, [milestones]);
-
   // 제목줄 클릭 정렬
   type PSortKey = "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
   const [sortKey, setSortKey] = useState<PSortKey>("contract");
@@ -119,9 +181,22 @@ export default function ProjectHubPage() {
       </span>
     </th>
   );
+  // 위험 판정 — 마진<0 · 달성 정체(0%) · 기한초과 · 태스크 지연
+  const isRisk = (d: any) => {
+    const type = normalizeProjectType(d.project_type);
+    const h = heroByDeal[d.id];
+    const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && d.stage !== "completed" && d.stage !== "settlement";
+    if (type === "delivery") return !!h?.delayed || !!overdue;
+    if (type === "goal") return (h?.raw != null && h.raw < 0.0001 && Number(d.target_amount || 0) > 0) || !!overdue;
+    return !!h?.risk || !!overdue;
+  };
+
   const rows = useMemo(() => {
-    const pctOf = (d: any) => { const pr = progressByDeal[d.id]; return pr && pr.total > 0 ? pr.done / pr.total : -1; };
-    return topDeals.slice().sort((a, b) => {
+    const filtered = topDeals.filter((d) => typeFilter === "all" || normalizeProjectType(d.project_type) === typeFilter);
+    return filtered.slice().sort((a, b) => {
+      // 위험 항목 최상단 고정
+      const ra = isRisk(a) ? 1 : 0, rb = isRisk(b) ? 1 : 0;
+      if (ra !== rb) return rb - ra;
       let c = 0;
       switch (sortKey) {
         case "name": c = (a.name || "").localeCompare(b.name || "", "ko"); break;
@@ -130,14 +205,34 @@ export default function ProjectHubPage() {
         case "stage": c = STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage); break;
         case "direct_cost": c = Number(pnlByDeal[a.id]?.direct_cost || 0) - Number(pnlByDeal[b.id]?.direct_cost || 0); break;
         case "cost_ratio": c = Number(pnlByDeal[a.id]?.direct_cost_ratio || 0) - Number(pnlByDeal[b.id]?.direct_cost_ratio || 0); break;
-        case "progress": c = pctOf(a) - pctOf(b); break;
+        case "progress": c = (heroByDeal[a.id]?.pct ?? -1) - (heroByDeal[b.id]?.pct ?? -1); break;
         case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
         default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       }
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, sortKey, sortDir, partnerName, userName, pnlByDeal, progressByDeal]);
+  }, [topDeals, typeFilter, sortKey, sortDir, partnerName, userName, pnlByDeal, heroByDeal]);
+
+  // 유형별 요약 구획
+  const typeSummary = useMemo(() => {
+    const marginDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "margin");
+    const goalDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal");
+    const deliveryDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery");
+    const marginSum = marginDeals.reduce((s, d) => {
+      const p = pnlByDeal[d.id]; const rev = Number(d.contract_total || 0) || Number(p?.revenue || 0);
+      return s + (rev - Number(p?.direct_cost || 0));
+    }, 0);
+    const goalRates = goalDeals.map((d) => heroByDeal[d.id]?.raw).filter((r): r is number => r != null);
+    const avgGoal = goalRates.length ? Math.round((goalRates.reduce((s, r) => s + r, 0) / goalRates.length) * 100) : null;
+    const delRates = deliveryDeals.map((d) => heroByDeal[d.id]?.raw).filter((r): r is number => r != null);
+    const avgDelivery = delRates.length ? Math.round((delRates.reduce((s, r) => s + r, 0) / delRates.length) * 100) : null;
+    return {
+      margin: { count: marginDeals.length, marginSum },
+      goal: { count: goalDeals.length, avgGoal },
+      delivery: { count: deliveryDeals.length, avgDelivery },
+    };
+  }, [topDeals, pnlByDeal, heroByDeal]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -230,42 +325,79 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
+      {/* 유형별 요약 구획 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="glass-card px-4 py-3">
+          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.margin.icon} {PROJECT_TYPES.margin.label} <span className="text-[var(--text-dim)]">{typeSummary.margin.count}건</span></div>
+          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]" title="마진(매출−직접원가) 합계">마진합 {won(typeSummary.margin.marginSum)}</div>
+        </div>
+        <div className="glass-card px-4 py-3">
+          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.goal.icon} {PROJECT_TYPES.goal.label} <span className="text-[var(--text-dim)]">{typeSummary.goal.count}건</span></div>
+          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">평균 달성률 {typeSummary.goal.avgGoal == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.goal.avgGoal}%`}</div>
+        </div>
+        <div className="glass-card px-4 py-3">
+          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.delivery.icon} {PROJECT_TYPES.delivery.label} <span className="text-[var(--text-dim)]">{typeSummary.delivery.count}건</span></div>
+          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">평균 진행률 {typeSummary.delivery.avgDelivery == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.delivery.avgDelivery}%`}</div>
+        </div>
+      </div>
+
+      {/* 유형 필터 칩 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {([
+          { key: "all" as const, label: "전체" },
+          { key: "margin" as const, label: `${PROJECT_TYPES.margin.icon} ${PROJECT_TYPES.margin.label}` },
+          { key: "goal" as const, label: `${PROJECT_TYPES.goal.icon} ${PROJECT_TYPES.goal.label}` },
+          { key: "delivery" as const, label: `${PROJECT_TYPES.delivery.icon} ${PROJECT_TYPES.delivery.label}` },
+        ]).map((chip) => (
+          <button key={chip.key} onClick={() => setTypeFilter(chip.key)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition ${typeFilter === chip.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {/* 목록 그리드 */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-auto max-h-[640px]">
           <table className="w-full min-w-[1180px] text-xs border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
+                <th className="px-2 py-2 text-center font-semibold w-[40px]" title="프로젝트 유형">유형</th>
+                {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60")}
                 {sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60")}
                 {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]")}
                 {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
+                {sortableTh("progress", "핵심지표", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[140px]")}
                 {sortableTh("contract", "계약금액(VAT별도)", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]")}
                 <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[90px]">VAT(10%)</th>
                 <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">합계(VAT포함)</th>
                 {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]")}
                 {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
-                {sortableTh("progress", "진행률", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[100px]")}
                 {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]")}
                 <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[110px]">관리</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+                <tr><td colSpan={13} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={12} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. ‘+ 프로젝트 생성’으로 추가하세요.</td></tr>
+                <tr><td colSpan={13} className="p-10 text-center text-[var(--text-muted)]">프로젝트가 없습니다. ‘+ 프로젝트 생성’으로 추가하세요.</td></tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];
-                const prog = progressByDeal[d.id];
-                const pct = prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : null;
                 const p = pnlByDeal[d.id];
                 const ratio = p?.direct_cost_ratio != null ? Number(p.direct_cost_ratio) : null;
+                const ptype = normalizeProjectType(d.project_type);
+                const hero = heroByDeal[d.id];
+                const risk = isRisk(d);
                 return (
                   <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
-                    className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer">
-                    <td className="px-3 py-2 text-[var(--text)] font-medium">
+                    className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer ${risk ? "bg-red-500/[0.04]" : ""}`}>
+                    <td className="px-2 py-2 text-center" title={PROJECT_TYPES[ptype].label}>
+                      <span className="text-base">{PROJECT_TYPES[ptype].icon}</span>
+                    </td>
+                    <td className="px-3 py-2 text-[var(--text)] font-medium border-l border-[var(--border)]/30">
+                      {risk && <span className="mr-1 text-red-500" title="위험 — 확인 필요">●</span>}
                       {d.name || "(이름 없음)"}
                       {childCount[d.id] > 0 && (
                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle" title={`세부 프로젝트 ${childCount[d.id]}개`}>
@@ -277,6 +409,17 @@ export default function ProjectHubPage() {
                     <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">{userName[d.internal_manager_id] || "—"}</td>
                     <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+                    </td>
+                    {/* 핵심지표 — 행 유형별 마진률/달성률/진행률 0~100% 막대(위험=빨강) */}
+                    <td className="px-3 py-2 border-l border-[var(--border)]/30">
+                      {!hero || hero.raw == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
+                        <div className="flex items-center gap-1.5" title={`${PROJECT_TYPES[ptype].hero} ${hero.label}`}>
+                          <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                            <div className={`h-full rounded-full ${risk ? "bg-red-500" : hero.pct >= 70 ? "bg-green-500" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
+                          </div>
+                          <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-red-500 font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
+                        </div>
+                      )}
                     </td>
                     {(() => {
                       const sup = Number(d.contract_total || 0);
@@ -292,16 +435,6 @@ export default function ProjectHubPage() {
                     <td className="px-3 py-2 text-center mono-number border-l border-[var(--border)]/30">
                       {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                         <span className={ratio >= 1 ? "text-red-500 font-semibold" : ratio >= 0.8 ? "text-amber-500" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 border-l border-[var(--border)]/30">
-                      {pct == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                            <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-[10px] mono-number text-[var(--text-muted)] w-8 text-right">{pct}%</span>
-                        </div>
                       )}
                     </td>
                     <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/30 text-[11px]">
