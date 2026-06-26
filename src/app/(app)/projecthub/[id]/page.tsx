@@ -19,6 +19,11 @@ import { useTabParam } from "@/lib/use-tab-param";
 import { DateField } from "@/components/date-field";
 import { ProjectSlideOver } from "@/components/project-slide-over";
 import { SubDealsTab } from "./_components/SubDealsTab";
+import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
+import { GoalActualTab } from "./_components/GoalActualTab";
+import { GoalHero } from "./_components/GoalHero";
+import { TasksTab } from "./_components/TasksTab";
+import { CostTab } from "./_components/CostTab";
 
 const db = supabase as any;
 
@@ -82,15 +87,20 @@ const quoteAmount = (doc: any): number => {
   }, 0);
 };
 
-type TabKey = "overview" | "quote" | "contract" | "subdeals" | "subprojects" | "pnl";
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "개요" },
-  { key: "quote", label: "견적서" },
-  { key: "contract", label: "전자계약" },
-  { key: "subdeals", label: "매출/매입 관리" },
-  { key: "subprojects", label: "세부 프로젝트(캠페인)" },
-  { key: "pnl", label: "프로젝트 운영" },
-];
+type TabKey = ProjectTabKey;
+// 전체 탭 라벨 사전 — 유형별로 보이는 탭만 PROJECT_TYPES[type].tabs 로 필터.
+const TAB_LABEL: Record<TabKey, string> = {
+  overview: "개요",
+  quote: "견적서",
+  contract: "전자계약",
+  subdeals: "매출/매입 관리",
+  subprojects: "세부 프로젝트(캠페인)",
+  pnl: "프로젝트 운영",
+  goal_actual: "실적 입력",
+  tasks: "태스크",
+  cost: "비용",
+};
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "goal_actual", "tasks", "cost"];
 
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
@@ -100,7 +110,7 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params?.id || "");
-  const [tab, setTab] = useTabParam<TabKey>("overview", { valid: ["overview", "quote", "contract", "subdeals", "subprojects", "pnl"] });
+  const [tab, setTab] = useTabParam<TabKey>("overview", { valid: ALL_TAB_KEYS });
   // 세부 프로젝트(캠페인) 추가 폼 — 금액은 생성 후 '매출/매입 관리'에서 입력
   const [showChildForm, setShowChildForm] = useState(false);
   const [childName, setChildName] = useState("");
@@ -305,6 +315,15 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!deal?.internal_manager_id,
   });
+  // 회사 구성원 — 실행형 태스크 담당 선택용 (delivery 만 로드)
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["projecthub-company-users", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("id, name").eq("company_id", companyId).order("name", { ascending: true });
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && normalizeProjectType(deal?.project_type) === "delivery",
+  });
 
   // 세부 프로젝트(캠페인) — 이 프로젝트를 부모로 하는 deals. 손익 롤업·목록 양쪽에 사용 → 항상 로드.
   const { data: children = [] } = useQuery({
@@ -493,7 +512,8 @@ export default function ProjectHubDetailPage() {
   });
 
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
-  const costEnabled = (tab === "overview") && !!dealId;
+  //   수익형(margin) 개요에서만 — 목표형/실행형은 자체 히어로 사용.
+  const costEnabled = (tab === "overview") && !!dealId && normalizeProjectType(deal?.project_type) === "margin";
   const { data: costInvoices = [] } = useQuery({
     queryKey: ["projecthub-cost-inv", dealId, childIds.length],
     queryFn: async () => {
@@ -533,6 +553,8 @@ export default function ProjectHubDetailPage() {
 
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
+  const projectType = normalizeProjectType(deal.project_type);
+  const typeCfg = getProjectTypeConfig(deal.project_type);
   const hasChildren = (children as any[]).length > 0;
   // 계약금액 = 자기 자신 + 세부 프로젝트 합계 (롤업). 비용도 costDealIds(자기+자식) 기준으로 이미 합산됨.
   const ownContract = Number(deal.contract_total || 0);
@@ -601,19 +623,29 @@ export default function ProjectHubDetailPage() {
         </div>
       </div>
 
-      {/* 탭 — 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영'(전체 현황) 숨김 */}
+      {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
       <div className="flex gap-2 border-b border-[var(--border)] overflow-x-auto">
-        {TABS.filter((t) => !(deal.parent_deal_id && (t.key === "subprojects" || t.key === "pnl"))).map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${tab === t.key ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-            {t.label}
-            {t.key === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
+        {typeCfg.tabs.filter((k) => !(deal.parent_deal_id && (k === "subprojects" || k === "pnl"))).map((k) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+            {TAB_LABEL[k]}
+            {k === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
           </button>
         ))}
       </div>
 
-      {/* 개요 */}
-      {tab === "overview" && (
+      {/* 개요 — 목표형 히어로 */}
+      {tab === "overview" && projectType === "goal" && (
+        <GoalHero deal={deal} />
+      )}
+
+      {/* 개요 — 실행형 히어로(태스크 진행률 요약) */}
+      {tab === "overview" && projectType === "delivery" && (
+        <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} stage={stage} />
+      )}
+
+      {/* 개요 — 수익형(margin, 현행) */}
+      {tab === "overview" && projectType === "margin" && (
         <div className="space-y-4">
           <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값(약정) 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 진행단계·실적·비용은 아래에 함께 표시됩니다.</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -946,8 +978,23 @@ export default function ProjectHubDetailPage() {
         <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
       )}
 
-      {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단으로 이동 */}
-      {tab === "overview" && (
+      {/* 목표형 — 실적 입력 */}
+      {tab === "goal_actual" && companyId && (
+        <GoalActualTab dealId={dealId} companyId={companyId} deal={deal} />
+      )}
+
+      {/* 실행형 — 태스크(칸반/간트) */}
+      {tab === "tasks" && companyId && (
+        <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+      )}
+
+      {/* 실행형 — 비용 */}
+      {tab === "cost" && (
+        <CostTab dealId={dealId} deal={deal} />
+      )}
+
+      {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단 (수익형만) */}
+      {tab === "overview" && projectType === "margin" && (
         <div className="space-y-4">
           <div className="glass-card p-4">
             <div className="text-xs font-bold text-[var(--text-muted)] mb-3">진행 단계 <span className="font-normal text-[var(--text-dim)]">— 단계를 클릭해 변경하세요</span></div>
@@ -1126,6 +1173,54 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 function Empty({ text }: { text: string }) {
   return <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">{text}</div>;
+}
+
+// 실행형 개요 — 태스크 진행률 요약(완료/전체·지연) + 기본 정보. 상세 칸반은 '태스크' 탭.
+function DeliveryOverview({ deal, dealId, partner, manager, stage }: { deal: any; dealId: string; partner: any; manager: any; stage: ProjectStage }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["project-tasks-overview", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("project_tasks").select("id, status, due_date").eq("deal_id", dealId).is("archived_at", null);
+      return (data || []) as any[];
+    },
+    enabled: !!dealId,
+  });
+  const total = (tasks as any[]).length;
+  const done = (tasks as any[]).filter((t) => t.status === "done").length;
+  const delayed = (tasks as any[]).filter((t) => t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < today).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const budget = Number(deal.contract_total || 0);
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 ? "primary" : undefined} />
+        <Metric label="완료 / 전체" value={`${done} / ${total}`} />
+        <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
+        <Metric label="예산" value={budget > 0 ? won(budget) : "—"} />
+      </div>
+      {total > 0 && (
+        <div className="glass-card p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-[var(--text-muted)]">태스크 진행률</span>
+            <span className="mono-number text-[var(--text)]">{done} / {total}</span>
+          </div>
+          <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+            <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      )}
+      <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+        <Info label="거래처" value={partner?.name || "—"} />
+        <Info label="담당자" value={manager?.name || "—"} />
+        <Info label="단계" value={STAGE_LABEL[stage]} />
+        <Info label="시작일" value={fmtDate(deal.start_date)} />
+        <Info label="종료일" value={fmtDate(deal.end_date)} />
+        <Info label="상태" value={deal.status || "—"} />
+      </div>
+      <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서, 비용은 <b className="text-[var(--text-muted)]">비용</b> 탭에서 관리합니다.</p>
+    </div>
+  );
 }
 function ApprovalRow({ a }: { a: any }) {
   return (

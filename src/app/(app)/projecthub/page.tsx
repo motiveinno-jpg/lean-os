@@ -16,6 +16,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, type ProjectType } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
@@ -333,15 +334,25 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const db = supabase as any;
   const isEdit = !!editDeal;
   const [saving, setSaving] = useState(false);
+  // 생성 흐름: 1단계 유형 선택 → 2단계 입력. 수정은 기존 유형 유지(유형은 수정 불가, 입력만).
+  const editType: ProjectType = normalizeProjectType(editDeal?.project_type);
+  const [step, setStep] = useState<1 | 2>(isEdit ? 2 : 1);
+  const [projectType, setProjectType] = useState<ProjectType>(editType);
   const [form, setForm] = useState(() => editDeal ? {
     name: editDeal.name || "", partner_id: editDeal.partner_id || "", manager_id: editDeal.internal_manager_id || "",
     start_date: (editDeal.start_date || "").slice(0, 10), end_date: (editDeal.end_date || "").slice(0, 10),
     classification: editDeal.classification || "B2B",
     contract_total: editDeal.contract_total ? Number(editDeal.contract_total).toLocaleString("ko-KR") : "",
     vatType: "exclude" as "exclude" | "include", // 저장값은 이미 공급가액 → VAT별도로 표시(그대로 저장 시 값 유지)
+    // 목표형
+    target_amount: editDeal.target_amount ? Number(editDeal.target_amount).toLocaleString("ko-KR") : "",
+    target_label: editDeal.target_label || "매출",
+    target_unit: editDeal.target_unit || "원",
+    goal_source: (editDeal.goal_source || "revenue_auto") as "revenue_auto" | "manual",
   } : {
     name: "", partner_id: "", manager_id: "", start_date: "", end_date: "",
     classification: "B2B", contract_total: "", vatType: "exclude" as "exclude" | "include",
+    target_amount: "", target_label: "매출", target_unit: "원", goal_source: "revenue_auto" as "revenue_auto" | "manual",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
@@ -352,14 +363,47 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
     setSaving(true);
     try {
       const contractAmount = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
-      const payload = {
-        name: form.name.trim(), classification: form.classification,
-        contract_total: contractAmount || 0,
+      // 공통 척추 — 유형 무관 항목
+      const base: any = {
+        name: form.name.trim(),
         start_date: form.start_date || null, end_date: form.end_date || null,
-        partner_id: form.partner_id || null, internal_manager_id: form.manager_id || null,
+        internal_manager_id: form.manager_id || null,
       };
+      // 유형별 분기 payload
+      let payload: any;
+      if (projectType === "goal") {
+        const targetRaw = Number(String(form.target_amount).replace(/[^0-9]/g, "")) || 0;
+        payload = {
+          ...base,
+          project_type: "goal",
+          partner_id: form.partner_id || null,
+          target_amount: targetRaw,
+          target_label: form.target_label.trim() || "매출",
+          target_unit: form.target_unit.trim() || "원",
+          goal_source: form.goal_source,
+          // 목표형은 계약금/분류 불요 — margin 필드는 건드리지 않음
+        };
+      } else if (projectType === "delivery") {
+        payload = {
+          ...base,
+          project_type: "delivery",
+          partner_id: form.partner_id || null,
+          // (선택) 예산은 contract_total 재사용
+          contract_total: contractAmount || 0,
+        };
+      } else {
+        // margin — 현행 100% 보존
+        payload = {
+          ...base,
+          project_type: "margin",
+          classification: form.classification,
+          contract_total: contractAmount || 0,
+          partner_id: form.partner_id || null,
+        };
+      }
       if (isEdit) {
-        // 단계(stage)·상태(status)는 건드리지 않음 — 기본 정보만 수정
+        // 단계(stage)·상태(status)·project_type 은 건드리지 않음(유형 변경 불가) — 기본 정보만 수정
+        delete payload.project_type;
         const { error } = await db.from("deals").update(payload).eq("id", editDeal.id);
         if (error) throw new Error(error.message);
         toast("프로젝트가 수정되었습니다", "success");
@@ -377,68 +421,164 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
   const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
+  const cfg = PROJECT_TYPES[projectType];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <div className="text-sm font-bold text-[var(--text)]">{isEdit ? "프로젝트 수정" : "+ 프로젝트 생성"}</div>
+          <div className="text-sm font-bold text-[var(--text)]">
+            {isEdit ? "프로젝트 수정" : step === 1 ? "+ 프로젝트 생성 · 유형 선택" : `+ ${cfg.icon} ${cfg.label} 프로젝트`}
+          </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
-        <div className="p-5 space-y-3">
-          <div>
-            <label className={LB}>프로젝트명 *</label>
-            <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
+
+        {/* 1단계 — 유형 선택 (생성 시에만) */}
+        {!isEdit && step === 1 && (
+          <div className="p-5 space-y-3">
+            <p className="text-xs text-[var(--text-muted)]">프로젝트 유형을 선택하세요. 유형에 따라 히어로 지표와 탭이 달라집니다.</p>
+            <div className="grid grid-cols-1 gap-2.5">
+              {PROJECT_TYPE_ORDER.map((t) => {
+                const c = PROJECT_TYPES[t];
+                const active = projectType === t;
+                return (
+                  <button key={t} onClick={() => setProjectType(t)}
+                    className={`text-left px-4 py-3 rounded-xl border transition ${active ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-1 ring-[var(--primary)]/30" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{c.icon}</span>
+                      <span className="text-sm font-bold text-[var(--text)]">{c.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">히어로: {c.hero}</span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">{c.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={() => setStep(2)} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">다음 →</button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LB}>거래처</label>
-              <select value={form.partner_id} onChange={(e) => set({ partner_id: e.target.value })} className={IN}>
-                <option value="">미지정</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={LB}>담당자</label>
-              <select value={form.manager_id} onChange={(e) => set({ manager_id: e.target.value })} className={IN}>
-                <option value="">미지정</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LB}>분류</label>
-              <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
-                <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="B2G">B2G</option>
-              </select>
-            </div>
-            <div>
-              <label className={LB}>계약금액</label>
-              <div className="flex gap-1">
-                <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
-                <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
-                  <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
-                </select>
+        )}
+
+        {/* 2단계 — 유형별 입력 */}
+        {(isEdit || step === 2) && (
+          <>
+            <div className="p-5 space-y-3">
+              {!isEdit && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-[var(--text-dim)]">유형:</span>
+                  <span className="font-semibold text-[var(--text)]">{cfg.icon} {cfg.label}</span>
+                  <button onClick={() => setStep(1)} className="text-[var(--primary)] hover:underline">변경</button>
+                </div>
+              )}
+              <div>
+                <label className={LB}>프로젝트명 *</label>
+                <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LB}>거래처</label>
+                  <select value={form.partner_id} onChange={(e) => set({ partner_id: e.target.value })} className={IN}>
+                    <option value="">미지정</option>
+                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={LB}>담당자</label>
+                  <select value={form.manager_id} onChange={(e) => set({ manager_id: e.target.value })} className={IN}>
+                    <option value="">미지정</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* 수익형(margin) — 분류 + 계약금액 (현행) */}
+              {projectType === "margin" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={LB}>분류</label>
+                    <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
+                      <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="B2G">B2G</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LB}>계약금액</label>
+                    <div className="flex gap-1">
+                      <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
+                      <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+                        <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 목표형(goal) — 목표값/라벨/단위/실적출처 */}
+              {projectType === "goal" && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={LB}>목표값 *</label>
+                      <input value={form.target_amount} onChange={(e) => set({ target_amount: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
+                    </div>
+                    <div>
+                      <label className={LB}>목표 라벨</label>
+                      <input value={form.target_label} onChange={(e) => set({ target_label: e.target.value })} placeholder="매출" className={IN} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={LB}>단위</label>
+                      <input value={form.target_unit} onChange={(e) => set({ target_unit: e.target.value })} placeholder="원" className={IN} />
+                    </div>
+                    <div>
+                      <label className={LB}>실적 출처</label>
+                      <select value={form.goal_source} onChange={(e) => set({ goal_source: e.target.value as "revenue_auto" | "manual" })} className={IN}>
+                        <option value="revenue_auto">매출 자동(세금계산서)</option>
+                        <option value="manual">수동 KPI 입력</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 실행형(delivery) — (선택) 예산 */}
+              {projectType === "delivery" && (
+                <div>
+                  <label className={LB}>예산 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
+                  <div className="flex gap-1">
+                    <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
+                    <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+                      <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LB}>시작일</label>
+                  <DateField value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
+                </div>
+                <div>
+                  <label className={LB}>종료일</label>
+                  <DateField value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LB}>시작일</label>
-              <DateField value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
+              {!isEdit ? (
+                <button onClick={() => setStep(1)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">← 이전</button>
+              ) : <span />}
+              <div className="flex gap-2">
+                <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+                <button onClick={submit} disabled={saving || !form.name.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                  {saving ? "저장 중..." : isEdit ? "저장" : "생성"}
+                </button>
+              </div>
             </div>
-            <div>
-              <label className={LB}>종료일</label>
-              <DateField value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
-            </div>
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-          <button onClick={submit} disabled={saving || !form.name.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
-            {saving ? "저장 중..." : isEdit ? "저장" : "생성"}
-          </button>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
