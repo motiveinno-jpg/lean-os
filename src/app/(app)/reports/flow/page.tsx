@@ -12,6 +12,8 @@ import { getTaxInvoiceSummary, getVATPreview, type PeriodSummary, type VATPrevie
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getOrCreateChecklist } from "@/lib/closing";
 import { CashPulseHeader } from "./_components/CashPulseHeader";
+import { FlowTrend } from "./_components/FlowTrend";
+import { FlowSchedule } from "./_components/FlowSchedule";
 
 /* ------------------------------------------------------------------ */
 /*  경영 흐름 — 매출 → 수금 → 비용 → 손익 → 세무 → 결산                 */
@@ -297,6 +299,8 @@ export default function BusinessFlowPage() {
       {flowView === "cockpit" && companyId && (
         <div className="space-y-4">
           <CashPulseHeader companyId={companyId} userId={userId || undefined} />
+          <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={6} />
+          <FlowSchedule companyId={companyId} userId={userId || undefined} />
         </div>
       )}
 
