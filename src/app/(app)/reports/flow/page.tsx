@@ -11,6 +11,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getTaxInvoiceSummary, getVATPreview, type PeriodSummary, type VATPreview } from "@/lib/tax-invoice";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getOrCreateChecklist } from "@/lib/closing";
+import { CashPulseHeader } from "./_components/CashPulseHeader";
 
 /* ------------------------------------------------------------------ */
 /*  경영 흐름 — 매출 → 수금 → 비용 → 손익 → 세무 → 결산                 */
@@ -125,13 +126,15 @@ export default function BusinessFlowPage() {
   const blocked = role === "partner";
 
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [flowView, setFlowView] = useState<"cockpit" | "month">("cockpit");
   const [month, setMonth] = useState(thisMonth());
   const year = Number(month.split("-")[0]);
   const { start, end } = monthRange(month);
 
   useEffect(() => {
     if (blocked) return;
-    getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
+    getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
   }, [blocked]);
 
   /* ① 영업 파이프라인 — 진행중 딜 (deals, /projects 동일 소스) */
@@ -280,6 +283,25 @@ export default function BusinessFlowPage() {
         />
       </div>
 
+      {/* ═══ 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) ═══ */}
+      <div className="flex gap-1.5 mb-4 no-print">
+        {([{ k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "month", l: "이번달 흐름" }] as const).map((t) => (
+          <button key={t.k} onClick={() => setFlowView(t.k)}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${flowView === t.k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
+      {flowView === "cockpit" && companyId && (
+        <div className="space-y-4">
+          <CashPulseHeader companyId={companyId} userId={userId || undefined} />
+        </div>
+      )}
+
+      {flowView === "month" && (
+      <>
       {/* ═══ 핵심 요약 스트립 ═══ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ marginBottom: 16 }}>
         {[
@@ -404,6 +426,8 @@ export default function BusinessFlowPage() {
         <br />- 각 카드의 숫자는 해당 상세 화면(세금계산서·거래처 원장·고정비/변동비·손익계산서)과 동일한 집계를 사용합니다.
         <br />- 발행했는데 수금 확인이 안 된 금액은 거래처 원장의 입금 매칭에서 확정하면 즉시 반영됩니다.
       </div>
+      </>
+      )}
     </div>
   );
 }
