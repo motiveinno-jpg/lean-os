@@ -14,6 +14,7 @@ import { getOrCreateChecklist } from "@/lib/closing";
 import { CashPulseHeader } from "./_components/CashPulseHeader";
 import { FlowTrend, type FlowLens } from "./_components/FlowTrend";
 import { FlowSchedule } from "./_components/FlowSchedule";
+import { FlowMatrix } from "./_components/FlowMatrix";
 
 /* ------------------------------------------------------------------ */
 /*  경영 흐름 — 매출 → 수금 → 비용 → 손익 → 세무 → 결산                 */
@@ -129,7 +130,7 @@ export default function BusinessFlowPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [flowView, setFlowView] = useState<"cockpit" | "month">("cockpit");
+  const [flowView, setFlowView] = useState<"cockpit" | "matrix" | "month">("cockpit");
   const [lens, setLens] = useState<FlowLens>("income");
   const [pastN, setPastN] = useState(6);
   const [savedFlow, setSavedFlow] = useState(false);
@@ -150,7 +151,7 @@ export default function BusinessFlowPage() {
       const { data } = await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle();
       const fs = data?.flow_settings;
       if (fs && typeof fs === "object") {
-        if (fs.default_view === "cockpit" || fs.default_view === "month") setFlowView(fs.default_view);
+        if (fs.default_view === "cockpit" || fs.default_view === "matrix" || fs.default_view === "month") setFlowView(fs.default_view);
         if (fs.default_lens === "income" || fs.default_lens === "expense" || fs.default_lens === "net") setLens(fs.default_lens);
         if (fs.past_n === 6 || fs.past_n === 12) setPastN(fs.past_n);
       }
@@ -317,7 +318,7 @@ export default function BusinessFlowPage() {
 
       {/* ═══ 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) ═══ */}
       <div className="flex gap-1.5 mb-4 no-print">
-        {([{ k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "month", l: "이번달 흐름" }] as const).map((t) => (
+        {([{ k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }, { k: "month", l: "이번달 흐름" }] as const).map((t) => (
           <button key={t.k} onClick={() => setFlowView(t.k)}
             className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${flowView === t.k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
             {t.l}
@@ -343,6 +344,17 @@ export default function BusinessFlowPage() {
           <CashPulseHeader companyId={companyId} userId={userId || undefined} />
           <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={pastN} lens={lens} onLensChange={setLens} />
           <FlowSchedule companyId={companyId} userId={userId || undefined} />
+        </div>
+      )}
+
+      {flowView === "matrix" && companyId && (
+        <div className="space-y-2">
+          <div className="flex justify-end no-print">
+            <button onClick={saveFlowSettings} className="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]" title="이 뷰를 기본값으로 저장">
+              {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
+            </button>
+          </div>
+          <FlowMatrix companyId={companyId} currentMonth={month} />
         </div>
       )}
 
