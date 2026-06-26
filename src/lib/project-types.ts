@@ -15,7 +15,7 @@ export type ProjectTabKey =
   | "subdeals"
   | "subprojects"
   | "pnl"
-  | "goal_actual"
+  | "performance"
   | "tasks"
   | "cost";
 
@@ -44,9 +44,9 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
     type: "goal",
     label: "목표형",
     icon: "🎯",
-    desc: "매출·건수 등 목표값 대비 누적 실적·달성률을 추적하는 프로젝트.",
+    desc: "여러 KPI(매출·건수 등)와 정성 성과 체크인으로 목표 달성을 관리하는 성과관리 프로젝트.",
     hero: "달성률",
-    tabs: ["overview", "goal_actual", "quote"],
+    tabs: ["overview", "performance", "quote"],
   },
   delivery: {
     type: "delivery",
@@ -102,6 +102,8 @@ const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
 export function getHeroMetric(type: ProjectType, input: HeroMetricInput): HeroMetric {
   if (type === "goal") {
+    // goal 은 다중 KPI 모델 — 호출부에서 종합 달성률(0~1)을 actualAmount/targetAmount=1 로 넘기거나
+    //   actualAmount(=종합 달성 비율), targetAmount=1 형태로 전달. 하위호환: target>0 면 비율 계산.
     const target = Number(input.targetAmount || 0);
     const actual = Number(input.actualAmount || 0);
     if (target <= 0) return { pct: 0, raw: null, risk: false, label: "—" };
@@ -206,4 +208,55 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
     return { status: "none", requiredDaily, currentDaily, projected: null, message: "기간을 설정하면 페이스 분석이 정확해집니다", tone: "ok" };
   }
   return { status: "none", requiredDaily: null, currentDaily, projected: null, message: "기간(시작·종료일)을 설정하면 페이스 경고가 표시됩니다", tone: "ok" };
+}
+
+// ── 다중 KPI 성과관리 모델 (순수 함수) ──
+//   project_kpis(target_value, direction) + 실적값 → KPI별 달성률, 프로젝트 종합 달성률.
+
+export type KpiDirection = "up" | "down";
+
+/**
+ * KPI 달성률 (0~1, cap 1.0).
+ *   direction='up'  → actual/target (클수록 좋음. 매출·건수 등)
+ *   direction='down' → target/actual (작을수록 좋음. 비용·이탈률 등. actual<=0 방어)
+ *   target<=0 면 계산불가(null).
+ */
+export function getKpiAchievement(target: number, actual: number, direction: KpiDirection = "up"): number | null {
+  const t = Number(target || 0);
+  const a = Number(actual || 0);
+  if (t <= 0) return null;
+  let raw: number;
+  if (direction === "down") {
+    if (a <= 0) return 1; // 실적 0 이하 = 목표(낮을수록 좋음) 완전 달성
+    raw = t / a;
+  } else {
+    raw = a / t;
+  }
+  return Math.min(1, Math.max(0, raw));
+}
+
+export type KpiAchievementRow = {
+  target: number;
+  actual: number;
+  direction?: KpiDirection;
+};
+
+/**
+ * 프로젝트 종합 달성률 = 평균(각 KPI 달성률), cap 100%.
+ *   계산 가능한(target>0) KPI 만 평균. 없으면 null.
+ *   반환: 0~1 (raw) — UI 는 *100 후 반올림.
+ */
+export function getOverallAchievement(rows: KpiAchievementRow[]): number | null {
+  const vals = rows
+    .map((r) => getKpiAchievement(r.target, r.actual, r.direction || "up"))
+    .filter((v): v is number => v != null);
+  if (vals.length === 0) return null;
+  const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+  return Math.min(1, Math.max(0, avg));
+}
+
+/** 최신 성과 체크인 신호등 → tone. 없으면 'neutral'. */
+export type OverallStatus = "green" | "yellow" | "red" | "neutral";
+export function getOverallStatus(latestStatus?: string | null): OverallStatus {
+  return latestStatus === "green" || latestStatus === "yellow" || latestStatus === "red" ? latestStatus : "neutral";
 }

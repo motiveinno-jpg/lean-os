@@ -16,7 +16,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, type ProjectType } from "@/lib/project-types";
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
@@ -75,22 +75,32 @@ export default function ProjectHubPage() {
   const goalDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal").map((d) => d.id), [topDeals]);
   const deliveryDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery").map((d) => d.id), [topDeals]);
 
-  // 목표형 자동 실적(v_deal_goal_actual)
-  const { data: goalAuto = [] } = useQuery({
-    queryKey: ["projecthub-goal-auto", companyId, goalDealIds.length],
+  // 목표형 KPI 정의 (다중 KPI 성과관리 모델)
+  const { data: goalKpis = [] } = useQuery({
+    queryKey: ["projecthub-goal-kpis", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("v_deal_goal_actual").select("deal_id, actual_amount").in("deal_id", goalDealIds);
+      const { data } = await (supabase as any).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
   });
-  // 목표형 수동 실적(project_kpi_entries 합)
-  const { data: goalManual = [] } = useQuery({
-    queryKey: ["projecthub-goal-manual", companyId, goalDealIds.length],
+  // 목표형 수동 KPI 실적(kpi_id 별 합)
+  const { data: goalEntries = [] } = useQuery({
+    queryKey: ["projecthub-goal-entries", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("project_kpi_entries").select("deal_id, value").in("deal_id", goalDealIds);
+      const { data } = await (supabase as any).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && goalDealIds.length > 0,
+  });
+  // 목표형 매출 자동 실적(v_deal_revenue_actual)
+  const { data: goalRevenue = [] } = useQuery({
+    queryKey: ["projecthub-goal-revenue", companyId, goalDealIds.length],
+    queryFn: async () => {
+      if (goalDealIds.length === 0) return [];
+      const { data } = await (supabase as any).from("v_deal_revenue_actual").select("deal_id, actual_amount").in("deal_id", goalDealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -107,19 +117,29 @@ export default function ProjectHubPage() {
   });
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  // 목표형 누적 실적(출처별 하나만)
-  const goalActualByDeal = useMemo(() => {
-    const auto: Record<string, number> = {};
-    for (const r of goalAuto as any[]) auto[r.deal_id] = Number(r.actual_amount || 0);
-    const manual: Record<string, number> = {};
-    for (const r of goalManual as any[]) manual[r.deal_id] = (manual[r.deal_id] || 0) + Number(r.value || 0);
-    const m: Record<string, number> = {};
+  // 목표형 종합 달성률(0~1) — 평균(KPI 달성률). KPI별 실적: manual=entries 합, revenue_auto=v_deal_revenue_actual.
+  const goalOverallByDeal = useMemo(() => {
+    // kpi_id → 수동 실적 합
+    const manualByKpi: Record<string, number> = {};
+    for (const e of goalEntries as any[]) manualByKpi[e.kpi_id] = (manualByKpi[e.kpi_id] || 0) + Number(e.value || 0);
+    // deal_id → 매출 자동 실적
+    const revenueByDeal: Record<string, number> = {};
+    for (const r of goalRevenue as any[]) revenueByDeal[r.deal_id] = Number(r.actual_amount || 0);
+    // deal_id → KPI 목록
+    const kpisByDeal: Record<string, any[]> = {};
+    for (const k of goalKpis as any[]) (kpisByDeal[k.deal_id] ||= []).push(k);
+    const m: Record<string, number | null> = {};
     for (const d of topDeals) {
       if (normalizeProjectType(d.project_type) !== "goal") continue;
-      m[d.id] = d.goal_source === "manual" ? (manual[d.id] || 0) : (auto[d.id] || 0);
+      const ks = kpisByDeal[d.id] || [];
+      m[d.id] = getOverallAchievement(ks.map((k) => ({
+        target: Number(k.target_value || 0),
+        actual: k.source === "revenue_auto" ? (revenueByDeal[d.id] || 0) : (manualByKpi[k.id] || 0),
+        direction: (k.direction === "down" ? "down" : "up") as "up" | "down",
+      })));
     }
     return m;
-  }, [goalAuto, goalManual, topDeals]);
+  }, [goalKpis, goalEntries, goalRevenue, topDeals]);
   // 실행형 태스크 집계
   const taskStatsByDeal = useMemo(() => {
     const m: Record<string, { total: number; done: number; delayed: number }> = {};
@@ -138,7 +158,14 @@ export default function ProjectHubPage() {
     for (const d of topDeals) {
       const type = normalizeProjectType(d.project_type);
       if (type === "goal") {
-        m[d.id] = getHeroMetric("goal", { targetAmount: d.target_amount, actualAmount: goalActualByDeal[d.id] || 0 });
+        // 종합 달성률(0~1) → HeroMetric. KPI 없으면 raw=null('—').
+        const ov = goalOverallByDeal[d.id];
+        if (ov == null) {
+          m[d.id] = { pct: 0, raw: null, risk: false, label: "—" };
+        } else {
+          const p = Math.round(ov * 100);
+          m[d.id] = { pct: Math.min(100, p), raw: ov, risk: false, label: `${p}%` };
+        }
       } else if (type === "delivery") {
         const st = taskStatsByDeal[d.id];
         const h = getHeroMetric("delivery", { taskTotal: st?.total || 0, taskDone: st?.done || 0 });
@@ -150,7 +177,7 @@ export default function ProjectHubPage() {
       }
     }
     return m;
-  }, [topDeals, goalActualByDeal, taskStatsByDeal, pnlByDeal]);
+  }, [topDeals, goalOverallByDeal, taskStatsByDeal, pnlByDeal]);
 
   // 유형 필터 칩
   const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
@@ -187,7 +214,8 @@ export default function ProjectHubPage() {
     const h = heroByDeal[d.id];
     const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && d.stage !== "completed" && d.stage !== "settlement";
     if (type === "delivery") return !!h?.delayed || !!overdue;
-    if (type === "goal") return (h?.raw != null && h.raw < 0.0001 && Number(d.target_amount || 0) > 0) || !!overdue;
+    // 목표형 위험 — 종합 달성률 정체(거의 0%)이거나 기한 초과. KPI(raw) 있어야 판정.
+    if (type === "goal") return (h?.raw != null && h.raw < 0.0001) || !!overdue;
     return !!h?.risk || !!overdue;
   };
 
@@ -477,22 +505,31 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
     classification: editDeal.classification || "B2B",
     contract_total: editDeal.contract_total ? Number(editDeal.contract_total).toLocaleString("ko-KR") : "",
     vatType: "exclude" as "exclude" | "include", // 저장값은 이미 공급가액 → VAT별도로 표시(그대로 저장 시 값 유지)
-    // 목표형
-    target_amount: editDeal.target_amount ? Number(editDeal.target_amount).toLocaleString("ko-KR") : "",
-    target_label: editDeal.target_label || "매출",
-    target_unit: editDeal.target_unit || "원",
-    goal_source: (editDeal.goal_source || "revenue_auto") as "revenue_auto" | "manual",
   } : {
     name: "", partner_id: "", manager_id: "", start_date: "", end_date: "",
     classification: "B2B", contract_total: "", vatType: "exclude" as "exclude" | "include",
-    target_amount: "", target_label: "매출", target_unit: "원", goal_source: "revenue_auto" as "revenue_auto" | "manual",
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
+  // 목표형 — 생성 시 정의할 KPI 목록(1개 이상). 수정은 '성과' 탭에서 관리하므로 여기선 생성에만 사용.
+  type KpiDraft = { label: string; target: string; unit: string; direction: "up" | "down"; source: "manual" | "revenue_auto" };
+  const [kpiDrafts, setKpiDrafts] = useState<KpiDraft[]>([{ label: "매출", target: "", unit: "원", direction: "up", source: "revenue_auto" }]);
+  const setKpi = (i: number, patch: Partial<KpiDraft>) => setKpiDrafts((arr) => arr.map((k, idx) => (idx === i ? { ...k, ...patch } : k)));
+  const addKpi = () => setKpiDrafts((arr) => [...arr, { label: "", target: "", unit: "원", direction: "up", source: "manual" }]);
+  const removeKpiDraft = (i: number) => setKpiDrafts((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
+
   const submit = async () => {
     if (!form.name.trim()) { toast("프로젝트명을 입력하세요", "error"); return; }
     const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
+    // 목표형(신규 생성) — KPI 1개 이상 유효성 검사
+    let validKpis: { label: string; target_value: number; unit: string; direction: "up" | "down"; source: "manual" | "revenue_auto" }[] = [];
+    if (projectType === "goal" && !isEdit) {
+      validKpis = kpiDrafts
+        .map((k) => ({ label: k.label.trim(), target_value: Number(String(k.target).replace(/[^0-9.-]/g, "")) || 0, unit: k.unit.trim() || "원", direction: k.direction, source: k.source }))
+        .filter((k) => k.label && k.target_value > 0);
+      if (validKpis.length === 0) { toast("KPI를 1개 이상 입력하세요 (이름·목표값 필수)", "error"); return; }
+    }
     setSaving(true);
     try {
       const contractAmount = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
@@ -505,16 +542,11 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
       // 유형별 분기 payload
       let payload: any;
       if (projectType === "goal") {
-        const targetRaw = Number(String(form.target_amount).replace(/[^0-9]/g, "")) || 0;
         payload = {
           ...base,
           project_type: "goal",
           partner_id: form.partner_id || null,
-          target_amount: targetRaw,
-          target_label: form.target_label.trim() || "매출",
-          target_unit: form.target_unit.trim() || "원",
-          goal_source: form.goal_source,
-          // 목표형은 계약금/분류 불요 — margin 필드는 건드리지 않음
+          // KPI 는 별도 테이블(project_kpis)에 저장. deals 의 단일목표 컬럼은 미사용.
         };
       } else if (projectType === "delivery") {
         payload = {
@@ -546,6 +578,12 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
           company_id: companyId, status: "active", stage: "estimate", ...payload,
         }).select("id").single();
         if (error) throw new Error(error.message);
+        // 목표형 — 정의한 KPI 들을 project_kpis 에 삽입
+        if (projectType === "goal" && data?.id && validKpis.length > 0) {
+          const rows = validKpis.map((k, i) => ({ company_id: companyId, deal_id: data.id, label: k.label, target_value: k.target_value, unit: k.unit, direction: k.direction, source: k.source, sort_order: i }));
+          const { error: kErr } = await db.from("project_kpis").insert(rows);
+          if (kErr) throw new Error(kErr.message);
+        }
         toast("프로젝트가 생성되었습니다", "success");
         onSaved(data?.id);
       }
@@ -646,33 +684,38 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               )}
 
-              {/* 목표형(goal) — 목표값/라벨/단위/실적출처 */}
-              {projectType === "goal" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={LB}>목표값 *</label>
-                      <input value={form.target_amount} onChange={(e) => set({ target_amount: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
-                    </div>
-                    <div>
-                      <label className={LB}>목표 라벨</label>
-                      <input value={form.target_label} onChange={(e) => set({ target_label: e.target.value })} placeholder="매출" className={IN} />
-                    </div>
+              {/* 목표형(goal) — 다중 KPI 정의 (생성 시). 수정은 '성과' 탭에서 관리. */}
+              {projectType === "goal" && !isEdit && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className={`${LB} mb-0`}>KPI <span className="font-normal text-[var(--text-dim)]">(1개 이상 — 이름·목표값 필수)</span></label>
+                    <button type="button" onClick={addKpi} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ KPI 추가</button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={LB}>단위</label>
-                      <input value={form.target_unit} onChange={(e) => set({ target_unit: e.target.value })} placeholder="원" className={IN} />
+                  {kpiDrafts.map((k, i) => (
+                    <div key={i} className="rounded-xl border border-[var(--border)] p-2.5 space-y-2 bg-[var(--bg-surface)]/40">
+                      <div className="flex items-center gap-2">
+                        <input value={k.label} onChange={(e) => setKpi(i, { label: e.target.value })} placeholder="KPI 이름 (예: 신규 매출)" className={`${IN} flex-1`} />
+                        {kpiDrafts.length > 1 && <button type="button" onClick={() => removeKpiDraft(i)} className="px-2 py-1 text-[11px] rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10" aria-label="KPI 삭제">✕</button>}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <input value={k.target} onChange={(e) => setKpi(i, { target: comma(e.target.value) })} inputMode="numeric" placeholder="목표값" className={`${IN} text-right mono-number`} />
+                        <input value={k.unit} onChange={(e) => setKpi(i, { unit: e.target.value })} placeholder="단위(원)" className={IN} />
+                        <select value={k.direction} onChange={(e) => setKpi(i, { direction: e.target.value as "up" | "down" })} className={IN}>
+                          <option value="up">↑ 높을수록</option>
+                          <option value="down">↓ 낮을수록</option>
+                        </select>
+                        <select value={k.source} onChange={(e) => setKpi(i, { source: e.target.value as "manual" | "revenue_auto" })} className={IN}>
+                          <option value="manual">수동</option>
+                          <option value="revenue_auto">매출자동</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className={LB}>실적 출처</label>
-                      <select value={form.goal_source} onChange={(e) => set({ goal_source: e.target.value as "revenue_auto" | "manual" })} className={IN}>
-                        <option value="revenue_auto">매출 자동(세금계산서)</option>
-                        <option value="manual">수동 KPI 입력</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
+                  ))}
+                  <p className="text-[11px] text-[var(--text-dim)]">‘매출자동’ KPI는 매출 세금계산서(공급가액)를 자동 집계합니다. 생성 후 ‘성과’ 탭에서 KPI·실적·체크인을 관리합니다.</p>
+                </div>
+              )}
+              {projectType === "goal" && isEdit && (
+                <p className="text-[11px] text-[var(--text-dim)]">KPI·실적·성과 체크인은 프로젝트 상세의 <b className="text-[var(--text-muted)]">‘성과’</b> 탭에서 관리합니다.</p>
               )}
 
               {/* 실행형(delivery) — (선택) 예산 */}

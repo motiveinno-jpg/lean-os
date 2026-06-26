@@ -20,7 +20,7 @@ import { DateField } from "@/components/date-field";
 import { ProjectSlideOver } from "@/components/project-slide-over";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
-import { GoalActualTab } from "./_components/GoalActualTab";
+import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalHero } from "./_components/GoalHero";
 import { TasksTab } from "./_components/TasksTab";
 import { CostTab } from "./_components/CostTab";
@@ -96,11 +96,11 @@ const TAB_LABEL: Record<TabKey, string> = {
   subdeals: "매출/매입 관리",
   subprojects: "세부 프로젝트(캠페인)",
   pnl: "프로젝트 운영",
-  goal_actual: "실적 입력",
+  performance: "성과",
   tasks: "태스크",
   cost: "비용",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "goal_actual", "tasks", "cost"];
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "performance", "tasks", "cost"];
 
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
@@ -978,9 +978,9 @@ export default function ProjectHubDetailPage() {
         <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
       )}
 
-      {/* 목표형 — 실적 입력 */}
-      {tab === "goal_actual" && companyId && (
-        <GoalActualTab dealId={dealId} companyId={companyId} deal={deal} />
+      {/* 목표형 — 성과(KPI 관리 · 실적 · 체크인) */}
+      {tab === "performance" && companyId && (
+        <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} />
       )}
 
       {/* 실행형 — 태스크(칸반/간트) */}
