@@ -2818,6 +2818,8 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
     endTime: "",
     reason: "",
     requestedApproverId: "",
+    secondApproverId: "",
+    ccUserIds: [] as string[],
   });
   const [showPromotion, setShowPromotion] = useState(false);
 
@@ -2904,13 +2906,15 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
         startTime: form.startTime || undefined,
         endTime: form.endTime || undefined,
         requestedApproverId: form.requestedApproverId || null,
+        secondApproverId: form.secondApproverId || null,
+        ccUserIds: form.ccUserIds,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
       setShowForm(false);
-      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", requestedApproverId: "" });
+      setForm({ employeeId: "", leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "", requestedApproverId: "", secondApproverId: "", ccUserIds: [] });
     },
     onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
@@ -3382,8 +3386,8 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
               <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="개인 사유" className="field-input" />
             </div>
-            <div className="col-span-2 md:col-span-3">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">승인자</label>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">1차 승인자</label>
               <select
                 value={form.requestedApproverId}
                 onChange={(e) => setForm({ ...form, requestedApproverId: e.target.value })}
@@ -3396,6 +3400,61 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">2차 승인자 (선택)</label>
+              <select
+                value={form.secondApproverId}
+                onChange={(e) => setForm({ ...form, secondApproverId: e.target.value })}
+                className="field-input w-full"
+              >
+                <option value="">없음 (1차 승인이 최종)</option>
+                {approvers
+                  .filter((u: any) => u.id !== form.requestedApproverId)
+                  .map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name || u.email} ({u.role === "owner" ? "대표" : "관리자"})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">참조 (여러 명 · 알림만)</label>
+              <div className="flex flex-wrap gap-2">
+                {approvers
+                  .filter((u: any) => u.id !== form.requestedApproverId && u.id !== form.secondApproverId)
+                  .map((u: any) => {
+                    const checked = form.ccUserIds.includes(u.id);
+                    return (
+                      <label
+                        key={u.id}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer ${
+                          checked
+                            ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                            : "border-[var(--border)] text-[var(--text-muted)]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-[var(--primary)]"
+                          checked={checked}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              ccUserIds: e.target.checked
+                                ? [...form.ccUserIds, u.id]
+                                : form.ccUserIds.filter((id) => id !== u.id),
+                            })
+                          }
+                        />
+                        {u.name || u.email}
+                      </label>
+                    );
+                  })}
+                {approvers.filter((u: any) => u.id !== form.requestedApproverId && u.id !== form.secondApproverId).length === 0 && (
+                  <span className="text-xs text-[var(--text-dim)]">참조 가능한 대표·관리자가 없습니다</span>
+                )}
+              </div>
             </div>
           </div>
           <button
@@ -3461,33 +3520,53 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.reason || "—"}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
-                      {r.requested_approver?.name || r.requested_approver?.email || (
-                        <span className="text-[var(--text-dim)]">전체</span>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <span>
+                          1차: {r.requested_approver?.name || r.requested_approver?.email || (
+                            <span className="text-[var(--text-dim)]">전체</span>
+                          )}
+                        </span>
+                        {r.second_approver_id && (
+                          <span>2차: {r.second_approver?.name || r.second_approver?.email || "—"}</span>
+                        )}
+                        {Array.isArray(r.cc_user_ids) && r.cc_user_ids.length > 0 && (
+                          <span className="text-[10px] text-[var(--text-dim)]">참조 {r.cc_user_ids.length}명</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1 justify-center">
-                        {r.status === "pending" && !isEmployee && (
-                          <>
-                            <button
-                              onClick={() => approveMut.mutate(r.id)}
-                              className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
-                            >
-                              승인
-                            </button>
-                            <button
-                              onClick={() => rejectMut.mutate(r.id)}
-                              className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                            >
-                              반려
-                            </button>
-                          </>
-                        )}
-                        {/* 취소 — 대기/승인 상태 + 시작일 미래일 때만. v4 H2: 본인 직원도 취소 가능. */}
-                        {(r.status === "pending" || r.status === "approved") && (() => {
+                        {(r.status === "pending" || r.status === "first_approved") && !isEmployee && (() => {
+                          // 현재 단계 지정 승인자(또는 owner/admin)만 승인/반려 노출.
+                          //   pending → 1차 승인자, first_approved → 2차 승인자.
+                          //   지정 승인자가 없으면(전체 알림) owner/admin 누구나.
+                          const stageApprover = r.status === "first_approved"
+                            ? r.second_approver_id
+                            : r.requested_approver_id;
+                          const canAct = !stageApprover || stageApprover === userId;
+                          if (!canAct) return null;
+                          return (
+                            <>
+                              <button
+                                onClick={() => approveMut.mutate(r.id)}
+                                className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                              >
+                                {r.status === "first_approved" ? "2차 승인" : "1차 승인"}
+                              </button>
+                              <button
+                                onClick={() => rejectMut.mutate(r.id)}
+                                className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                              >
+                                반려
+                              </button>
+                            </>
+                          );
+                        })()}
+                        {/* 취소 — 대기/1차승인/승인 상태 + 시작일 미래일 때만. v4 H2: 본인 직원도 취소 가능. */}
+                        {(r.status === "pending" || r.status === "first_approved" || r.status === "approved") && (() => {
                           const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
                           const isFuture = r.start_date > todayKst;
                           const isMine = (employees as any[])?.find((emp: any) => emp.id === r.employee_id)?.user_id === userId;

@@ -194,7 +194,8 @@ export const ATTENDANCE_STATUS = [
 ] as const;
 
 export const LEAVE_REQUEST_STATUS = {
-  pending: { label: '대기', bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
+  pending: { label: '1차 대기', bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
+  first_approved: { label: '1차 승인(2차 대기)', bg: 'bg-blue-500/10', text: 'text-blue-400' },
   approved: { label: '승인', bg: 'bg-green-500/10', text: 'text-green-400' },
   rejected: { label: '반려', bg: 'bg-red-500/10', text: 'text-red-400' },
 } as const;
@@ -1013,7 +1014,7 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
 export async function getLeaveRequests(companyId: string, status?: string) {
   let query = db
     .from('leave_requests')
-    .select('*, employees(name, department), requested_approver:requested_approver_id(name, email)')
+    .select('*, employees(name, department), requested_approver:requested_approver_id(name, email), second_approver:second_approver_id(name, email)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
@@ -1058,7 +1059,9 @@ export async function createLeaveRequest(params: {
   leaveUnit?: LeaveUnit;
   startTime?: string; // "09:00" (2시간 단위용)
   endTime?: string;   // "11:00"
-  requestedApproverId?: string | null; // 직원이 직접 지정한 승인자 (owner/admin user)
+  requestedApproverId?: string | null; // 1차 승인자 (owner/admin user) — 필수 권장
+  secondApproverId?: string | null;    // 2차 승인자 (선택, 순차)
+  ccUserIds?: string[];                 // 참조자 (알림만, 승인권한 없음)
 }) {
   // Auto-calculate days based on leave unit
   const unit = params.leaveUnit || 'full_day';
@@ -1102,12 +1105,15 @@ export async function createLeaveRequest(params: {
       start_time: params.startTime || null,
       end_time: params.endTime || null,
       requested_approver_id: params.requestedApproverId || null,
+      second_approver_id: params.secondApproverId || null,
+      cc_user_ids: params.ccUserIds && params.ccUserIds.length > 0 ? params.ccUserIds : [],
     })
     .select()
     .single();
   if (error) throw error;
 
-  // 승인자 + 회사 owner/admin 전원에게 알림 (지정 승인자 우선)
+  // 알림: 1차 승인자(지정 시) 또는 owner/admin 전원 + 참조자 전원.
+  //   2차 승인자에겐 이 단계에서 알림 X — 1차 승인 후 approveLeaveRequest 에서 보냄.
   try {
     const [{ data: emp }, { data: admins }] = await Promise.all([
       db.from('employees').select('name').eq('id', params.employeeId).maybeSingle(),
@@ -1119,11 +1125,15 @@ export async function createLeaveRequest(params: {
       ? params.startDate
       : `${params.startDate} ~ ${params.endDate}`;
 
-    const recipientIds = new Set<string>();
-    if (params.requestedApproverId) recipientIds.add(params.requestedApproverId);
-    (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
+    // 1차 승인 대기 알림 대상: 지정된 1차 승인자, 미지정 시 owner/admin 전원.
+    const approverIds = new Set<string>();
+    if (params.requestedApproverId) {
+      approverIds.add(params.requestedApproverId);
+    } else {
+      (admins || []).forEach((a: { id: string }) => approverIds.add(a.id));
+    }
 
-    const rows = Array.from(recipientIds).map((uid) => ({
+    const rows: Record<string, unknown>[] = Array.from(approverIds).map((uid) => ({
       company_id: params.companyId,
       user_id: uid,
       type: 'approval',
@@ -1133,6 +1143,22 @@ export async function createLeaveRequest(params: {
       entity_id: data.id,
       is_read: false,
     }));
+
+    // 참조(cc) 알림 — 승인 권한 없음, 안내만. (승인자와 중복되면 제외)
+    const ccIds = (params.ccUserIds || []).filter((id) => id && !approverIds.has(id));
+    for (const uid of new Set(ccIds)) {
+      rows.push({
+        company_id: params.companyId,
+        user_id: uid,
+        type: 'approval',
+        title: `[참조] ${empName} - ${leaveLabel} 신청 (${days}일)`,
+        message: `${period}${params.reason ? ` · ${params.reason}` : ''}`,
+        entity_type: 'leave_request',
+        entity_id: data.id,
+        is_read: false,
+      });
+    }
+
     if (rows.length > 0) {
       await db.from('notifications').insert(rows);
     }
@@ -1144,9 +1170,29 @@ export async function createLeaveRequest(params: {
   return data;
 }
 
-// ── Leave: Approve ──
+// 최종 승인 시 연차 used_days 1회 차감 (annual 등 잔여 추적 대상).
+async function deductLeaveBalance(request: any) {
+  const year = new Date(request.start_date).getFullYear();
+  const { data: balance } = await db
+    .from('leave_balances')
+    .select('*')
+    .eq('employee_id', request.employee_id)
+    .eq('year', year)
+    .maybeSingle();
+  if (balance) {
+    const newUsed = Number(balance.used_days) + Number(request.days);
+    await db
+      .from('leave_balances')
+      .update({ used_days: newUsed })
+      .eq('id', balance.id);
+  }
+}
+
+// ── Leave: Approve (다단계: 1차 필수 + 2차 선택, 순차) ──
+//   · pending → (2차 지정 시) first_approved → approved
+//   · pending → (2차 미지정 시) approved
+//   연차 차감은 최종 승인(approved) 시 1회만.
 export async function approveLeaveRequest(id: string, approverId: string) {
-  // Get the request first
   const { data: request } = await db
     .from('leave_requests')
     .select('*, employees(name, user_id)')
@@ -1155,39 +1201,72 @@ export async function approveLeaveRequest(id: string, approverId: string) {
 
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
-  // Update leave request status
-  const { error } = await db
-    .from('leave_requests')
-    .update({
-      status: 'approved',
-      approved_by: approverId,
-      approved_at: new Date().toISOString(),
-    })
-    .eq('id', id);
-  if (error) throw error;
+  const nowIso = new Date().toISOString();
 
-  // Update leave balance: increment used_days
-  const year = new Date(request.start_date).getFullYear();
-  const { data: balance } = await db
-    .from('leave_balances')
-    .select('*')
-    .eq('employee_id', request.employee_id)
-    .eq('year', year)
-    .maybeSingle();
+  // 승인 권한 가드: 현재 단계의 지정 승인자 또는 owner/admin.
+  const me = await getCurrentUser();
+  const isAdmin = me?.role === 'owner' || me?.role === 'admin';
 
-  if (balance) {
-    const newUsed = Number(balance.used_days) + Number(request.days);
-    await db
-      .from('leave_balances')
-      .update({ used_days: newUsed })
-      .eq('id', balance.id);
+  if (request.status === 'pending') {
+    // 1차 승인 단계
+    const designated = request.requested_approver_id;
+    if (designated && designated !== approverId && !isAdmin) {
+      throw new Error('1차 승인 권한이 없습니다');
+    }
+
+    const hasSecond = !!request.second_approver_id;
+    const { error } = await db
+      .from('leave_requests')
+      .update({
+        status: hasSecond ? 'first_approved' : 'approved',
+        approved_by: approverId,
+        approved_at: nowIso,
+      })
+      .eq('id', id)
+      .eq('status', 'pending'); // 동시성: 단계 안 맞으면 0 rows
+    if (error) throw error;
+
+    if (hasSecond) {
+      // 2차 승인자에게 승인 대기 알림
+      await notifySecondApprover(request);
+    } else {
+      // 최종 승인 — 연차 차감 + 신청자/참조 알림
+      await deductLeaveBalance(request);
+      await notifyLeaveDecision(request, 'approved');
+      await notifyCcFinalDecision(request, 'approved');
+    }
+    return;
   }
 
-  // 신청자에게 승인 알림
-  await notifyLeaveDecision(request, 'approved');
+  if (request.status === 'first_approved') {
+    // 2차 승인 단계 (최종)
+    const designated = request.second_approver_id;
+    if (designated && designated !== approverId && !isAdmin) {
+      throw new Error('2차 승인 권한이 없습니다');
+    }
+
+    const { error } = await db
+      .from('leave_requests')
+      .update({
+        status: 'approved',
+        second_approved_by: approverId,
+        second_approved_at: nowIso,
+      })
+      .eq('id', id)
+      .eq('status', 'first_approved'); // 동시성 가드
+    if (error) throw error;
+
+    await deductLeaveBalance(request);
+    await notifyLeaveDecision(request, 'approved');
+    await notifyCcFinalDecision(request, 'approved');
+    return;
+  }
+
+  // 이미 처리됨(approved/rejected/cancelled) — 무시
+  throw new Error('이미 처리된 휴가 신청입니다');
 }
 
-// ── Leave: Reject ──
+// ── Leave: Reject (어느 단계든 반려 가능) ──
 export async function rejectLeaveRequest(id: string, approverId: string) {
   const { data: request } = await db
     .from('leave_requests')
@@ -1196,6 +1275,16 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
     .single();
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
+  // 권한 가드: 현재 단계의 지정 승인자 또는 owner/admin.
+  const me = await getCurrentUser();
+  const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+  const designated = request.status === 'first_approved'
+    ? request.second_approver_id
+    : request.requested_approver_id;
+  if (designated && designated !== approverId && !isAdmin) {
+    throw new Error('반려 권한이 없습니다');
+  }
+
   const { error } = await db
     .from('leave_requests')
     .update({
@@ -1203,10 +1292,12 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
       approved_by: approverId,
       approved_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    .in('status', ['pending', 'first_approved']); // 이미 종결된 건은 변경 안 함
   if (error) throw error;
 
   await notifyLeaveDecision(request, 'rejected');
+  await notifyCcFinalDecision(request, 'rejected');
 }
 
 // ── Leave: Cancel (취소) ──
@@ -1285,6 +1376,57 @@ export async function cancelLeaveRequest(id: string) {
     }
   } catch (e) {
     console.error('[cancelLeaveRequest] 알림 실패:', e);
+  }
+}
+
+// 1차 승인 완료 → 2차 승인자에게 승인 대기 알림.
+async function notifySecondApprover(request: any) {
+  try {
+    if (!request.second_approver_id) return;
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+    const period = request.start_date === request.end_date
+      ? request.start_date
+      : `${request.start_date} ~ ${request.end_date}`;
+    const empName = request.employees?.name || '직원';
+    await db.from('notifications').insert({
+      company_id: request.company_id,
+      user_id: request.second_approver_id,
+      type: 'approval',
+      title: `[2차 승인 대기] ${empName} - ${leaveLabel} (${Number(request.days)}일)`,
+      message: `1차 승인 완료 · ${period}`,
+      entity_type: 'leave_request',
+      entity_id: request.id,
+      is_read: false,
+    });
+  } catch (e) {
+    console.error('[notifySecondApprover] 알림 발송 실패:', e);
+  }
+}
+
+// 최종 결재 결과(승인/반려) 를 참조자 전원에게 안내.
+async function notifyCcFinalDecision(request: any, decision: 'approved' | 'rejected') {
+  try {
+    const ccIds: string[] = Array.isArray(request.cc_user_ids) ? request.cc_user_ids : [];
+    if (ccIds.length === 0) return;
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+    const period = request.start_date === request.end_date
+      ? request.start_date
+      : `${request.start_date} ~ ${request.end_date}`;
+    const empName = request.employees?.name || '직원';
+    const label = decision === 'approved' ? '승인' : '반려';
+    const rows = Array.from(new Set(ccIds.filter(Boolean))).map((uid) => ({
+      company_id: request.company_id,
+      user_id: uid,
+      type: 'approval',
+      title: `[참조] ${empName} - ${leaveLabel} ${label} (${Number(request.days)}일)`,
+      message: period,
+      entity_type: 'leave_request',
+      entity_id: request.id,
+      is_read: false,
+    }));
+    if (rows.length > 0) await db.from('notifications').insert(rows);
+  } catch (e) {
+    console.error('[notifyCcFinalDecision] 알림 발송 실패:', e);
   }
 }
 
