@@ -278,6 +278,16 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     setSelected(new Set());
     refetchAll();
   };
+  // 선택 항목 삭제 — 프로젝트 목록과 동일 정책: 소프트삭제(archived_at). 재무 연동 데이터 보존.
+  const deleteSelected = async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`${ids.length}개 항목을 삭제(보관)할까요?\n보드/목록에서 사라지며, 연결된 재무 데이터는 보존됩니다.`)) return;
+    const { error } = await db.from("deals").update({ archived_at: new Date().toISOString() }).in("id", ids);
+    if (error) { alert("삭제 실패: " + error.message); return; }
+    setSelected(new Set());
+    refetchAll();
+  };
 
   const toggleCollapse = (gid: string) => {
     setCollapsed((s) => { const n = new Set(s); if (n.has(gid)) n.delete(gid); else n.add(gid); return n; });
@@ -582,7 +592,13 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           </div>
           <div className="px-4 py-2.5 text-[13px] font-semibold text-[var(--text)]">개 항목 선택됨</div>
           <MoveToGroupButton groups={groups} onMove={moveSelectedToGroup} />
-          <button onClick={() => setSelected(new Set())} className="px-3 self-stretch text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition" aria-label="선택 해제">✕</button>
+          {selected.size === 1 && (
+            <button onClick={() => { const id = [...selected][0]; setSelected(new Set()); setOpenDealId(id); }}
+              className="px-4 py-2.5 self-stretch text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]">수정</button>
+          )}
+          <button onClick={deleteSelected}
+            className="px-4 py-2.5 self-stretch text-[13px] font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 transition border-l border-[var(--border)]">삭제</button>
+          <button onClick={() => setSelected(new Set())} className="px-3 self-stretch text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]" aria-label="선택 해제">✕</button>
         </div>
       )}
 
