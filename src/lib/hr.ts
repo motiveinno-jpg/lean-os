@@ -682,11 +682,34 @@ export async function reviewAttendanceEditRequest(params: {
     const changes = (req.requested_changes || {}) as Record<string, unknown>;
     const updatePayload: Record<string, unknown> = { edited_by: params.reviewerId, edited_at: new Date().toISOString() };
     // 화이트리스트 적용 — 임의 jsonb 키 차단 (sec-reviewer 권장)
-    if (changes.check_in) updatePayload.check_in = changes.check_in;
     if (changes.check_out) updatePayload.check_out = changes.check_out;
-    if (changes.status) updatePayload.status = changes.status;
     if (changes.attendance_type) updatePayload.attendance_type = changes.attendance_type;
     if (changes.note !== undefined) updatePayload.note = changes.note;
+
+    // 출근시각/상태 변경 → 지각(is_late·late_minutes·status) 재계산.
+    //   버그픽스: 출근시각을 정상으로 바꿔도 is_late 가 그대로라 계속 '지각'으로 표시되던 문제.
+    let nextStatus: string | null = (typeof changes.status === 'string' && changes.status) ? changes.status : null;
+    let nextIsLate: boolean | null = null;
+    let nextLateMin = 0;
+    if (changes.check_in) {
+      updatePayload.check_in = changes.check_in;
+      const ciDate = new Date(String(changes.check_in));
+      if (!isNaN(ciDate.getTime())) {
+        const companyId = (req as any).company_id as string;
+        const policy = await getAttendancePolicy(companyId);
+        const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000); // UTC → KST
+        const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+        nextIsLate = isLate(kstMin, policy);
+        nextLateMin = nextIsLate ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+        if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
+      }
+    }
+    // 명시 상태가 '지각'이 아니면 지각 해제(재택·결근·반차·정상 등)
+    if (nextStatus && nextStatus !== 'late') nextIsLate = false;
+    if (nextStatus === 'late') nextIsLate = true;
+    if (nextStatus) updatePayload.status = nextStatus;
+    if (nextIsLate !== null) { updatePayload.is_late = nextIsLate; updatePayload.late_minutes = nextIsLate ? nextLateMin : 0; }
+
     const { error: uErr } = await db
       .from('attendance_records')
       .update(updatePayload)
@@ -879,9 +902,31 @@ export async function correctAttendanceRecord(recordId: string, updates: {
   const updatePayload: Record<string, any> = {};
   if (updates.check_in) updatePayload.check_in = updates.check_in;
   if (updates.check_out) updatePayload.check_out = updates.check_out;
-  if (updates.status) updatePayload.status = updates.status;
   if (workHours !== undefined) updatePayload.work_hours = workHours;
   if (overtimeHours !== undefined) updatePayload.overtime_hours = overtimeHours;
+
+  // 출근시각/상태 변경 → 지각(is_late·late_minutes·status) 재계산. (정상으로 바꾸면 '지각' 해제)
+  let nextStatus: string | null = updates.status || null;
+  let nextIsLate: boolean | null = null;
+  let nextLateMin = 0;
+  if (updates.check_in) {
+    const ciDate = new Date(updates.check_in);
+    if (!isNaN(ciDate.getTime())) {
+      const { data: rec } = await db.from('attendance_records').select('company_id').eq('id', recordId).maybeSingle();
+      if (rec?.company_id) {
+        const policy = await getAttendancePolicy(rec.company_id);
+        const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000);
+        const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+        nextIsLate = isLate(kstMin, policy);
+        nextLateMin = nextIsLate ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+        if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
+      }
+    }
+  }
+  if (nextStatus && nextStatus !== 'late') nextIsLate = false;
+  if (nextStatus === 'late') nextIsLate = true;
+  if (nextStatus) updatePayload.status = nextStatus;
+  if (nextIsLate !== null) { updatePayload.is_late = nextIsLate; updatePayload.late_minutes = nextIsLate ? nextLateMin : 0; }
 
   const { data, error } = await db
     .from('attendance_records')

@@ -1209,6 +1209,31 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId,
   });
 
+  // 결근 파생용 — 해당 월 승인 휴가(기록 없는 평일을 결근으로 판정하되 휴가일은 제외).
+  const { data: monthLeaves = [] } = useQuery({
+    queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("leave_requests")
+        .select("employee_id, start_date, end_date, status")
+        .eq("company_id", companyId).eq("status", "approved")
+        .lte("start_date", monthEnd).gte("end_date", monthStart);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const leaveDaySet = useMemo(() => {
+    const s = new Set<string>();
+    for (const lv of monthLeaves as any[]) {
+      if (!lv.start_date || !lv.end_date) continue;
+      let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z");
+      const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z");
+      let guard = 0;
+      while (d <= end && guard++ < 400) { s.add(`${lv.employee_id}:${d.toISOString().slice(0, 10)}`); d = new Date(d.getTime() + 86400000); }
+    }
+    return s;
+  }, [monthLeaves]);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
   // Monthly summary
   const { data: summary = [] } = useQuery({
     queryKey: ["attendance-summary", companyId, selectedMonth],
@@ -1776,9 +1801,16 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               // Get all employee statuses for this day.
               //   tooltip 에 지각 분 표시를 위해 records 에서 같은 (emp,date) 행 직접 조회.
               //   typical 회사 직원 수·records 수 < 1500 이라 O(emps × records) 무시 가능.
+              const isPastWeekday = dateStr < todayStr && !isWeekend;
               const dayRecords = activeEmployees.map((emp: any) => {
                 const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
-                const status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
+                let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
+                // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근
+                if (!status && isPastWeekday) {
+                  const onLeave = leaveDaySet.has(`${emp.id}:${dateStr}`);
+                  const employed = !emp.hire_date || dateStr >= String(emp.hire_date).slice(0, 10);
+                  if (!onLeave && employed) status = "absent";
+                }
                 return {
                   name: emp.name,
                   status,

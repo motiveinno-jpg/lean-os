@@ -187,6 +187,21 @@ export function AttendanceEditRequestDialog({
             />
           </div>
           <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 유형 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 재택/결근/반차 등</span></label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            >
+              <option value="">변경 안 함</option>
+              <option value="present">정상 출근</option>
+              <option value="late">지각</option>
+              <option value="remote">재택</option>
+              <option value="half_day">반차</option>
+              <option value="absent">결근</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
             <textarea
               rows={3}
