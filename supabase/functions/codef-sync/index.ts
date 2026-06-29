@@ -1257,7 +1257,7 @@ serve(async (req) => {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one"]);
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one", "card-approval-cron-one"]);
       if (!allowedInternalActions.has(action)) {
         return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -1341,9 +1341,13 @@ serve(async (req) => {
       });
     }
 
-    // --- Action: card-cron-tick (글로벌, companyId 없이) — 카드 청구내역 자동 동기화 스케줄러 ---
-    //   2026-06-10 추가. bank-cron-tick 미러: codef_connected_id 보유 회사 enumerate → 회사별 card-cron-one 자가호출.
-    //   ⚠️ 카드 청구내역 전용(승인내역 미접촉 — 승인은 app-open/수동). dedup 으로 중복 안전.
+    // --- Action: card-cron-tick (글로벌, companyId 없이) — 카드 자동 동기화 스케줄러 ---
+    //   2026-06-10 추가. bank-cron-tick 미러: codef_connected_id 보유 회사 enumerate → 회사별 자가호출.
+    //   2026-06-29: 청구내역(card-cron-one)에 더해 실시간 승인내역(card-approval-cron-one)도 회사별로 발사.
+    //     · 청구내역은 카드사 마감 후에야 내려와 수일~수주 지연 → 최근 거래가 안 보였음.
+    //     · 승인내역은 결제 즉시 잡혀 "오늘까지" 보임(은행 동기화 체감과 동일).
+    //     · billing+approval 을 같은 호출에 묶으면 Edge 150s 초과(HTTP 546) → 회사당 2개 호출로 분리.
+    //   dedup(external_id 동일 포맷)으로 billing/approval 간 중복 안전.
     if (action === "card-cron-tick") {
       const { data: companies } = await supabase
         .from("company_settings")
@@ -1352,13 +1356,18 @@ serve(async (req) => {
         .neq("codef_connected_id", "")
         .limit(50);
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
-      const triggers = (companies || []).map((c: any) =>
+      const triggers = (companies || []).flatMap((c: any) => [
         fetch(selfUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": authHeader as string, "X-Cron-Secret": CRON_SECRET },
           body: JSON.stringify({ companyId: c.company_id, action: "card-cron-one" }),
-        }).catch(() => {})
-      );
+        }).catch(() => {}),
+        fetch(selfUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": authHeader as string, "X-Cron-Secret": CRON_SECRET },
+          body: JSON.stringify({ companyId: c.company_id, action: "card-approval-cron-one" }),
+        }).catch(() => {}),
+      ]);
       // @ts-expect-error EdgeRuntime
       if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
         // @ts-expect-error EdgeRuntime
@@ -1443,6 +1452,36 @@ serve(async (req) => {
         });
       } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
       return new Response(JSON.stringify({ ok: true, synced: cardRes?.synced ?? 0, errors: cardRes?.errors ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // --- Action: card-approval-cron-one (회사별 카드 승인내역 자동 동기화 — card-cron-tick 가 호출) ---
+    //   2026-06-29 추가. card-cron-one(청구내역) 미러. 실시간 승인내역만 — 결제 즉시 잡혀 "오늘까지" 반영.
+    //   billing 과 별도 호출(150s 초과 회피). 14일 윈도우(하루 2회 cron 이라 충분 + 누락 catch-up).
+    //   billing 과 동일 external_id 포맷이라 중복 없이 수렴.
+    if (action === "card-approval-cron-one") {
+      if (!cid) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      let apprRes: any = null;
+      try {
+        apprRes = await syncCardApprovals(supabase, token, companyId, cid, startC, endC);
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      try {
+        await supabase.from("sync_logs").insert({
+          company_id: companyId,
+          sync_type: "codef_card_approval_cron",
+          status: (apprRes?.errors?.length ?? 0) === 0 ? "success" : ((apprRes?.synced ?? 0) > 0 ? "partial" : "error"),
+          details: { cardApproval: apprRes, cron: true },
+          synced_by: null,
+        });
+      } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
+      return new Response(JSON.stringify({ ok: true, synced: apprRes?.synced ?? 0, errors: apprRes?.errors ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
