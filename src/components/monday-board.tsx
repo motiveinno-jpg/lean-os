@@ -128,7 +128,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["board-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).order("created_at", { ascending: true });
+      const { data } = await db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: true });
       return (data || []).map((d: any) => ({ ...d, column_values: d.column_values || {} })) as Deal[];
     },
     enabled: !!companyId,
