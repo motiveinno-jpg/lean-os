@@ -92,7 +92,7 @@ function Inner() {
   });
 
   return (
-    <div className="mx-auto p-5">
+    <div className="mx-auto">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-5 page-sticky-header">
         <div>

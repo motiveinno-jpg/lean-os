@@ -486,7 +486,7 @@ function ProjectsInner({ isEmployeeLimited = false, dateFilter = null, onCreate 
   });
 
   return (
-    <div className="p-4 sm:p-6 mx-auto">
+    <div className="mx-auto">
       {/* Header */}
       <div className="page-sticky-header flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>

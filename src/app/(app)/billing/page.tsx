@@ -261,7 +261,7 @@ export default function BillingPage() {
   if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="p-4 md:p-8 mx-auto">
+    <div className="mx-auto">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
       <div className="page-sticky-header mb-6">

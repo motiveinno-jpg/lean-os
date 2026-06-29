@@ -290,7 +290,7 @@ export default function SignaturesDashboardPage() {
   if (error) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="space-y-5 p-5">
+    <div className="space-y-5">
       <header className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">전자서명 대시보드</h1>

@@ -40,7 +40,7 @@ export default function HrTemplatesPage() {
   }
 
   return (
-    <div className="space-y-5 p-5">
+    <div className="space-y-5">
       <header className="page-sticky-header">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">양식 관리 (인사)</h1>
         <p className="text-sm text-[var(--text-muted)]">표준근로계약서 등 인사 양식을 관리하세요.</p>
