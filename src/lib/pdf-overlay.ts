@@ -39,9 +39,18 @@ export interface OverlayField {
   kind: "text" | "amount" | "date" | "signature" | "items_table";
 }
 
+export interface OverlayItem {
+  name?: string;
+  quantity?: number;
+  unitPrice?: number;
+  amount?: number;
+}
+
 export interface FillOptions {
   // key → 값. text/amount/date 는 문자열(또는 숫자), signature 는 PNG dataURL.
   values: Record<string, string | number | null | undefined>;
+  // 견적 품목표(kind=items_table) 행 — 영역 안에 자동 행확장으로 그림.
+  items?: OverlayItem[];
 }
 
 const fmtAmount = (v: string | number) => {
@@ -106,7 +115,30 @@ export async function fillFormTemplate(
     }
 
     if (f.kind === "items_table") {
-      // P1: 영역만 인식. 행 자동확장은 P5. 여기선 렌더 생략.
+      // P5: 품목 행 자동확장 — 영역(box) 안에 행을 위에서 아래로 그림.
+      //   양식 배경에 헤더(품목/수량/단가/금액)는 이미 인쇄돼 있다는 전제 → 데이터 행만 렌더.
+      //   컬럼: 품목명(좌) / 수량 / 단가 / 금액(각 우측정렬, 컬럼 우측경계 기준).
+      const items = opts.items || [];
+      if (items.length === 0) continue;
+      const size = Math.min(f.font_size ?? 9, 11);
+      const rowH = size * 1.9;
+      const qtyRight = boxX + boxW * 0.62;
+      const unitRight = boxX + boxW * 0.81;
+      const amtRight = boxX + boxW;
+      const drawCell = (txt: string, rightX: number, topY: number, leftAlign = false) => {
+        if (!txt) return;
+        const w = font.widthOfTextAtSize(txt, size);
+        const x = leftAlign ? boxX : rightX - w;
+        page.drawText(txt, { x, y: ph - (topY + size), size, font, color: rgb(0.12, 0.12, 0.12) });
+      };
+      items.forEach((it, i) => {
+        const topY = boxYTop + i * rowH;
+        if (topY + size > ph - 4) return; // 페이지 하단 넘으면 중단(1차)
+        drawCell(String(it.name ?? ""), 0, topY, true);
+        if (it.quantity != null) drawCell(String(it.quantity), qtyRight, topY);
+        if (it.unitPrice != null) drawCell(fmtAmount(it.unitPrice), unitRight, topY);
+        if (it.amount != null) drawCell(fmtAmount(it.amount), amtRight, topY);
+      });
       continue;
     }
 

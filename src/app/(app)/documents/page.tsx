@@ -490,7 +490,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       taxAmount: taxAmt,
                       totalAmount: supplyAmt + taxAmt,
                       notes: cj.notes,
-                    }) });
+                    }), items: (items as any[]).map((it) => ({ name: it.name, quantity: it.qty, unitPrice: it.unitPrice, amount: it.amount })) });
                     pdfBlob = new Blob([filled as BlobPart], { type: "application/pdf" });
                   } else {
                   pdfBlob = await generateQuotePDF({
