@@ -3347,7 +3347,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
       </div>
 
       {/* Controls */}
-      <div ref={approveSectionRef} className="flex items-center justify-between mb-4 scroll-mt-24">
+      <div ref={approveSectionRef} id="leave-approve-section" className="flex items-center justify-between mb-4 scroll-mt-24">
         <div className="flex gap-2">
           {[
             { key: "all", label: "전체" },
@@ -3705,13 +3705,12 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1 justify-center">
                         {(r.status === "pending" || r.status === "first_approved") && (() => {
-                          // 승인/반려 버튼 노출 조건 (버그 수정: 비관리자 승인자도 보여야 함).
-                          //   · 현재 pending 단계의 지정 승인자(아무 구성원)이면 노출 — isEmployee 무관.
-                          //   · owner/admin(!isEmployee)은 오버라이드로 항상 노출.
+                          // 승인/반려 버튼 노출 조건.
+                          //   · 현재 pending 단계의 지정 승인자이면 노출 — isEmployee 무관.
+                          //   · owner/admin(!isEmployee)은 지정 승인자가 따로 있어도 항상 오버라이드 노출.
+                          //     (백엔드 approveLeaveRequest 도 isAdmin 오버라이드를 허용 — 정합)
                           const info = stepInfo(r);
-                          const canAct = info.currentApprover === userId
-                            || (!isEmployee && (!info.currentApprover || info.steps.length === 0));
-                          // 다단계 체인: 지정 승인자만(또는 admin). 구 흐름: 지정자 없으면 admin 누구나.
+                          const canAct = info.currentApprover === userId || !isEmployee;
                           if (!canAct) return null;
                           const stageLabel = info.steps.length > 0
                             ? `${info.stageNo}단계 승인`

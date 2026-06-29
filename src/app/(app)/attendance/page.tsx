@@ -128,7 +128,10 @@ export default function AttendancePage() {
       {/* 공지 — 미검토 휴가(승인 대기). 클릭 시 휴가 섹션 승인 영역으로 이동. */}
       {isManager && pendingLeave > 0 && (
         <button
-          onClick={() => { setSection("leave"); setLeaveFocusPending(true); }}
+          onClick={() => {
+            setSection("leave"); setLeaveFocusPending(true);
+            setTimeout(() => document.getElementById("leave-approve-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+          }}
           className="w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:bg-amber-500/15 transition"
         >
           <span className="text-sm font-semibold text-amber-600">⚠️ 미검토 휴가 신청 {pendingLeave}건 — 클릭해서 승인하세요</span>
