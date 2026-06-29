@@ -21,7 +21,7 @@ import { ProjectSlideOver } from "@/components/project-slide-over";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
 import { PerformanceTab } from "./_components/PerformanceTab";
-import { GoalHero } from "./_components/GoalHero";
+import { GoalOverviewTab } from "./_components/GoalOverviewTab";
 import { TasksTab } from "./_components/TasksTab";
 import { CostTab } from "./_components/CostTab";
 
@@ -634,9 +634,9 @@ export default function ProjectHubDetailPage() {
         ))}
       </div>
 
-      {/* 개요 — 목표형 히어로 */}
+      {/* 개요 — 목표형 성과 콕핏(그래프 대시보드) */}
       {tab === "overview" && projectType === "goal" && (
-        <GoalHero deal={deal} />
+        <GoalOverviewTab deal={deal} />
       )}
 
       {/* 개요 — 실행형 히어로(태스크 진행률 요약) */}
