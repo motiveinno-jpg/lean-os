@@ -22,6 +22,7 @@ import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { NotificationsTab } from "./_components/NotificationsTab";
 import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
+import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
 import { AccountTab } from "./_components/AccountTab";
 import { DataResetTab } from "./_components/DataResetTab";
@@ -429,6 +430,9 @@ export default function SettingsPage() {
 
           {/* Team Management */}
           <TeamManagement companyId={companyId} />
+
+          {/* Departments */}
+          <DepartmentsTab companyId={companyId} />
 
           {/* Deal Classifications */}
           <DealClassificationManager companyId={companyId} />

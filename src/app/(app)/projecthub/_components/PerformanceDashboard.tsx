@@ -18,7 +18,7 @@ const db = supabase as any;
 const STATUS_DOT: Record<string, string> = { green: "bg-green-500", yellow: "bg-amber-500", red: "bg-red-500", neutral: "bg-[var(--text-dim)]" };
 const pctColor = (p: number | null) => (p == null ? "text-[var(--text-dim)]" : p >= 100 ? "text-[var(--primary)]" : p < 40 ? "text-[var(--danger)]" : "text-[var(--text)]");
 
-type View = "briefing" | "multi" | "people" | "teams" | "rate";
+type View = "briefing" | "multi" | "people" | "teams" | "dept" | "rate";
 const won = (n: number) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 
 export function PerformanceDashboard({ companyId, onClose }: { companyId: string; onClose: () => void }) {
@@ -52,7 +52,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-entries", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("project_kpi_entries").select("deal_id, kpi_id, value").in("deal_id", dealIds);
+      const { data } = await db.from("project_kpi_entries").select("deal_id, kpi_id, value, department_id, created_by").in("deal_id", dealIds);
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -109,6 +109,29 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   });
   const nameOf = (id?: string | null) => (people as any[]).find((p) => p.id === id)?.name || "—";
   const deptOf = (id?: string | null) => (people as any[]).find((p) => p.id === id)?.dept || "미지정";
+
+  // 부서별(입력 기반) — entries.department_id 그룹. 2026-06-29 부서별 성과 P3
+  const { data: deptMaster = [] } = useQuery({
+    queryKey: ["perf-dash-departments", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null);
+      return (data || []) as { id: string; name: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const deptNameById = (id?: string | null) => (id ? (deptMaster as any[]).find((d) => d.id === id)?.name || "(미지정)" : "(미지정)");
+  const byDeptInput = useMemo(() => {
+    const m: Record<string, { ids: Set<string>; count: number; sum: number }> = {};
+    for (const e of entries as any[]) {
+      const key = e.department_id || "__none";
+      (m[key] ||= { ids: new Set(), count: 0, sum: 0 });
+      m[key].count++; m[key].sum += Number(e.value || 0);
+      if (e.created_by) m[key].ids.add(e.created_by);
+    }
+    return Object.entries(m)
+      .map(([k, v]) => ({ label: k === "__none" ? "(미지정)" : deptNameById(k), count: v.count, people: v.ids.size, sum: v.sum }))
+      .sort((a, b) => b.count - a.count);
+  }, [entries, deptMaster]);
 
   // ── 집계 ──
   const entriesSumByKpi = useMemo(() => {
@@ -249,7 +272,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     { key: "briefing", label: "이번주 브리핑" },
     { key: "multi", label: "다차원 집계" },
     { key: "people", label: "사람별" },
-    { key: "teams", label: "팀별" },
+    { key: "teams", label: "팀별(담당자 부서)" },
+    { key: "dept", label: "부서별(입력)" },
     { key: "rate", label: "입력률" },
   ];
 
@@ -420,6 +444,32 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 font-medium text-[var(--text)]">{t.dept}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center mono-number text-[var(--text-muted)]">{t.count}</td>
                   <td className={`px-3 py-2.5 border-b border-[var(--border)]/40 text-center mono-number font-semibold ${pctColor(t.avgAch)}`}>{t.avgAch == null ? "—" : `${t.avgAch}%`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : view === "dept" ? (
+        <div className="overflow-x-auto">
+          <div className="text-[11px] text-[var(--text-dim)] mb-2">실적 입력 시 지정한 부서 기준 집계. 합계는 KPI 단위가 섞일 수 있어 참고용(건수·참여 인원 우선).</div>
+          <table className="w-full text-sm border-collapse min-w-[480px]">
+            <thead>
+              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">부서</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">입력 건수</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">참여 인원</th>
+                <th className="px-3 py-2.5 text-right border-b border-[var(--border)] w-[150px]">입력 합계 <span className="font-normal text-[var(--text-dim)]">(단위혼합)</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {byDeptInput.length === 0 ? (
+                <tr><td colSpan={4} className="p-8 text-center text-sm text-[var(--text-muted)]">부서가 지정된 실적 입력이 없습니다. (성과 탭 ②에서 실적 입력 시 부서 선택)</td></tr>
+              ) : byDeptInput.map((d) => (
+                <tr key={d.label} className="hover:bg-[var(--bg-surface)]/50">
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 font-medium text-[var(--text)]">{d.label}</td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center mono-number text-[var(--text-muted)]">{d.count}</td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center mono-number text-[var(--text-muted)]">{d.people}</td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{Math.round(d.sum).toLocaleString("ko-KR")}</td>
                 </tr>
               ))}
             </tbody>

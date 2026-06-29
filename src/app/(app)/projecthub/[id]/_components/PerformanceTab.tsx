@@ -22,7 +22,8 @@ const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9.-]/g
 
 type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number; owner_id?: string | null };
 type Member = { id: string; name?: string | null; email?: string | null };
-type Entry = { id: string; kpi_id: string; entry_date: string; value: number; memo: string | null };
+type Entry = { id: string; kpi_id: string; entry_date: string; value: number; memo: string | null; department_id: string | null };
+type Dept = { id: string; name: string };
 
 const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
 const LB = "block text-xs text-[var(--text-muted)] mb-1";
@@ -72,11 +73,32 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
   const { data: entries = [] } = useQuery({
     queryKey: ["project-kpi-entries-all", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, memo").eq("deal_id", dealId).order("entry_date", { ascending: false });
+      const { data } = await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, memo, department_id").eq("deal_id", dealId).order("entry_date", { ascending: false });
       return (data || []) as Entry[];
     },
     enabled: !!dealId,
   });
+
+  // 부서 마스터 + 내 부서 (성과 입력 부서 귀속) — 2026-06-29 부서별 성과 P2
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null).order("sort_order", { ascending: true }).order("name", { ascending: true });
+      return (data || []) as Dept[];
+    },
+    enabled: !!companyId,
+  });
+  const { data: myDeptName = "" } = useQuery({
+    queryKey: ["my-department", companyId, user?.id],
+    queryFn: async () => {
+      const { data } = await db.from("employees").select("department").eq("company_id", companyId).eq("user_id", user?.id).maybeSingle();
+      return (data?.department || "") as string;
+    },
+    enabled: !!companyId && !!user?.id,
+  });
+  const myDeptId = useMemo(() => (departments as Dept[]).find((d) => d.name === myDeptName)?.id || "", [departments, myDeptName]);
+  const deptName = (id?: string | null) => (id ? (departments as Dept[]).find((d) => d.id === id)?.name || "—" : "—");
+
   const hasAuto = (kpis as Kpi[]).some((k) => k.source !== "manual");
   const { data: autoActual } = useQuery({
     queryKey: ["deal-kpi-auto", dealId],
@@ -160,10 +182,13 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
   const [entryDate, setEntryDate] = useState(todayStr());
   const [entryValue, setEntryValue] = useState("");
   const [entryMemo, setEntryMemo] = useState("");
+  const [entryDeptId, setEntryDeptId] = useState<string>("");
   const [editEntryId, setEditEntryId] = useState<string | null>(null);
   const [savingEntry, setSavingEntry] = useState(false);
   const manualKpis = (kpis as Kpi[]).filter((k) => k.source === "manual");
-  const resetEntry = () => { setEntryDate(todayStr()); setEntryValue(""); setEntryMemo(""); setEditEntryId(null); };
+  const resetEntry = () => { setEntryDate(todayStr()); setEntryValue(""); setEntryMemo(""); setEntryDeptId(myDeptId); setEditEntryId(null); };
+  // 신규 입력 시 내 부서 기본 선택 (편집 중·이미 선택 시 유지)
+  useEffect(() => { if (!editEntryId && !entryDeptId && myDeptId) setEntryDeptId(myDeptId); }, [myDeptId, editEntryId, entryDeptId]);
   const saveEntry = async () => {
     const kpiId = entryKpiId || manualKpis[0]?.id;
     if (!kpiId) { toast("실적을 입력할 수동 KPI를 선택하세요", "error"); return; }
@@ -173,11 +198,11 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
     setSavingEntry(true);
     try {
       if (editEntryId) {
-        const { error } = await db.from("project_kpi_entries").update({ kpi_id: kpiId, entry_date: entryDate, value: v, memo: entryMemo.trim() || null }).eq("id", editEntryId);
+        const { error } = await db.from("project_kpi_entries").update({ kpi_id: kpiId, entry_date: entryDate, value: v, memo: entryMemo.trim() || null, department_id: entryDeptId || null }).eq("id", editEntryId);
         if (error) throw new Error(error.message);
         toast("실적을 수정했습니다", "success");
       } else {
-        const { error } = await db.from("project_kpi_entries").insert({ company_id: companyId, deal_id: dealId, kpi_id: kpiId, entry_date: entryDate, value: v, memo: entryMemo.trim() || null, created_by: user?.id || null });
+        const { error } = await db.from("project_kpi_entries").insert({ company_id: companyId, deal_id: dealId, kpi_id: kpiId, entry_date: entryDate, value: v, memo: entryMemo.trim() || null, department_id: entryDeptId || null, created_by: user?.id || null });
         if (error) throw new Error(error.message);
         toast("실적을 추가했습니다", "success");
       }
@@ -185,7 +210,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
       resetEntry();
     } catch (e: any) { toast(e?.message || "저장 실패", "error"); } finally { setSavingEntry(false); }
   };
-  const startEditEntry = (e: Entry) => { setEditEntryId(e.id); setEntryKpiId(e.kpi_id); setEntryDate(String(e.entry_date).slice(0, 10)); setEntryValue(Number(e.value).toLocaleString("ko-KR")); setEntryMemo(e.memo || ""); };
+  const startEditEntry = (e: Entry) => { setEditEntryId(e.id); setEntryKpiId(e.kpi_id); setEntryDate(String(e.entry_date).slice(0, 10)); setEntryValue(Number(e.value).toLocaleString("ko-KR")); setEntryMemo(e.memo || ""); setEntryDeptId(e.department_id || ""); };
   const removeEntry = async (id: string) => {
     if (!confirm("이 실적 기록을 삭제할까요?")) return;
     try {
@@ -279,7 +304,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
         const v = Number(String(raw).replace(/[^0-9.-]/g, ""));
         if (!Number.isFinite(v)) continue;
         if (latestByKpi[k.id] != null && v === Number(latestByKpi[k.id])) continue; // 변동없음 → carry forward
-        entryRows.push({ company_id: companyId, deal_id: dealId, kpi_id: k.id, entry_date: chkDate, value: v, memo: `체크인 ${periodLabel(curPeriod, cadence)}`, created_by: user?.id || null });
+        entryRows.push({ company_id: companyId, deal_id: dealId, kpi_id: k.id, entry_date: chkDate, value: v, memo: `체크인 ${periodLabel(curPeriod, cadence)}`, department_id: myDeptId || null, created_by: user?.id || null });
       }
       if (entryRows.length > 0) {
         const { error: eErr } = await db.from("project_kpi_entries").insert(entryRows);
@@ -502,11 +527,18 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
           <>
             <div className="glass-card p-4">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-3">{editEntryId ? "실적 수정" : "+ 실적 추가"}</div>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
                 <div className="sm:col-span-2">
                   <label className={LB}>KPI</label>
                   <select value={entryKpiId || manualKpis[0]?.id || ""} onChange={(e) => setEntryKpiId(e.target.value)} className={IN}>
                     {manualKpis.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={LB}>부서 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
+                  <select value={entryDeptId} onChange={(e) => setEntryDeptId(e.target.value)} className={IN}>
+                    <option value="">미지정</option>
+                    {(departments as Dept[]).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -536,6 +568,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
                     <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)] w-[110px]">날짜</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">KPI</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)] w-[110px]">부서</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[140px]">실적값</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">메모</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[110px]">관리</th>
@@ -543,11 +576,12 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
                 </thead>
                 <tbody>
                   {(entries as Entry[]).filter((e) => manualKpis.some((k) => k.id === e.kpi_id)).length === 0 ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-sm text-[var(--text-muted)]">실적 기록이 없습니다. 위에서 추가하세요.</td></tr>
+                    <tr><td colSpan={6} className="p-8 text-center text-sm text-[var(--text-muted)]">실적 기록이 없습니다. 위에서 추가하세요.</td></tr>
                   ) : (entries as Entry[]).filter((e) => manualKpis.some((k) => k.id === e.kpi_id)).map((e) => (
                     <tr key={e.id} className="hover:bg-[var(--bg-surface)]/50">
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 mono-number text-[var(--text-muted)]">{String(e.entry_date).slice(0, 10)}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)]">{kpiLabel(e.kpi_id)}</td>
+                      <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text-muted)]">{deptName(e.department_id)}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{fmtNum(e.value, kpiUnit(e.kpi_id))}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text-muted)] truncate">{e.memo || "—"}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">

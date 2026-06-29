@@ -16,7 +16,7 @@ const won = (n: number) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 const fmtNum = (n: number, unit: string) => `${won(n)}${unit || ""}`;
 
 type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number };
-type Entry = { id: string; kpi_id: string; entry_date: string; value: number };
+type Entry = { id: string; kpi_id: string; entry_date: string; value: number; department_id?: string | null };
 type Inv = { deal_id: string; partner_id: string | null; issue_date: string | null; supply_amount: number };
 
 const STATUS_META: Record<string, { dot: string; label: string }> = {
@@ -39,9 +39,15 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   });
   const { data: entries = [] } = useQuery({
     queryKey: ["project-kpi-entries-all", dealId],
-    queryFn: async () => (await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value").eq("deal_id", dealId).order("entry_date", { ascending: true })).data || [],
+    queryFn: async () => (await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, department_id").eq("deal_id", dealId).order("entry_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments", companyId],
+    queryFn: async () => (await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null)).data || [],
+    enabled: !!companyId,
+  });
+  const deptName = (id?: string | null) => (id ? (departments as any[]).find((d) => d.id === id)?.name || "(미지정)" : "(미지정)");
   const hasAuto = (kpis as Kpi[]).some((k) => k.source !== "manual");
   const { data: autoActual } = useQuery({
     queryKey: ["deal-kpi-auto", dealId],
@@ -140,6 +146,15 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
     return Object.entries(m).map(([uid, v]) => ({ label: uid === "__none" ? "미지정" : nameOf(uid), value: v }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices, breakdown, dealId, children, partners, members]);
+
+  // 부서별 기여 — 선택 KPI(manual)의 entries 를 department_id 로 그룹(단위 일관). 자동 KPI 는 부서 데이터 없음.
+  const deptContribution = useMemo(() => {
+    if (!selKpi || selKpi.source !== "manual") return null;
+    const m: Record<string, number> = {};
+    for (const e of entries as Entry[]) if (e.kpi_id === selKpi.id) { const k = e.department_id || "__none"; m[k] = (m[k] || 0) + Number(e.value || 0); }
+    return Object.entries(m).map(([id, v]) => ({ label: id === "__none" ? "(미지정)" : deptName(id), value: v }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selKpi, entries, departments]);
 
   // ④ 체크인 타임라인
   const checkinPoints = (updates as any[]).map((u) => ({ label: String(u.period_start || u.update_date || "").slice(5, 10), status: u.status }));
@@ -242,6 +257,14 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
         <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
       </section>
+
+      {/* 부서별 기여 (수동 KPI) — 매출 분해(tax_invoices)와 별개 소스(entries) */}
+      {selKpi && selKpi.source === "manual" && (
+        <section className="glass-card p-4">
+          <h3 className="text-sm font-bold text-[var(--text)] mb-1">부서별 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label} · 수동 KPI 실적 입력 기준</span></h3>
+          <BarList items={deptContribution || []} unit={selKpi.unit} emptyText="부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다." />
+        </section>
+      )}
 
       {/* ④ 성과 체크인 추이 */}
       <section className="glass-card p-4">
