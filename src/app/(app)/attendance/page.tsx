@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
-import { SiyanPageHeader, SiyanStatCard, SiyanAlertBox } from "@/components/siyan";
+import { SiyanPageHeader, SiyanStatCard } from "@/components/siyan";
 import { AttendanceTab, LeaveTab } from "@/app/(app)/employees/page";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
