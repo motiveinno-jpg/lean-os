@@ -1183,6 +1183,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
   const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
+  const [showDerivedAbsence, setShowDerivedAbsence] = useState(true); // 결근 자동표시(과거 평일 무기록) on/off
   // 관리자 분기: 수당 명세 임베드 collapse 토글.
   //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
   //   필요시 사용자가 접을 수 있게 토글은 유지.
@@ -1805,8 +1806,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               const dayRecords = activeEmployees.map((emp: any) => {
                 const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
                 let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
-                // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근
-                if (!status && isPastWeekday) {
+                // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
+                if (!status && isPastWeekday && showDerivedAbsence) {
                   const onLeave = leaveDaySet.has(`${emp.id}:${dateStr}`);
                   const employed = !emp.hire_date || dateStr >= String(emp.hire_date).slice(0, 10);
                   if (!onLeave && employed) status = "absent";
@@ -1851,14 +1852,21 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             })}
           </div>
 
-          {/* Legend — 시안 pill 톤 */}
-          <div className="flex gap-2 flex-wrap p-3 border-t border-[var(--border)]">
+          {/* Legend — 시안 pill 톤 + 결근 자동표시 토글 */}
+          <div className="flex gap-2 flex-wrap items-center p-3 border-t border-[var(--border)]">
             {ATTENDANCE_STATUS.map((s) => (
               <span key={s.value} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">
                 <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
                 {s.label}
               </span>
             ))}
+            <button
+              onClick={() => setShowDerivedAbsence((v) => !v)}
+              className={`ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition ${showDerivedAbsence ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}
+              title="기록 없는 과거 평일을 결근으로 자동 표시"
+            >
+              {showDerivedAbsence ? "✓ " : ""}결근 자동표시
+            </button>
           </div>
         </div>
       )}
