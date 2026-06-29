@@ -49,7 +49,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { PayrollHero, ContractsHero, ExpensesHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { PayrollHero, ContractsHero, CertificatesHero } from "@/components/flex-hr-heroes";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -57,7 +57,7 @@ type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leav
 
 // Employee 역할은 자기 관련 탭만 접근 가능
 // 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
-const EMPLOYEE_ROLE_TABS: Tab[] = ["expenses", "certificates"];
+const EMPLOYEE_ROLE_TABS: Tab[] = ["certificates"];
 
 export default function EmployeesPage() {
   const { toast } = useToast();
@@ -89,7 +89,7 @@ export default function EmployeesPage() {
   //   보조용으로만 둔다(/employees 는 직원 딥링크 fallback 허용 라우트).
   useEffect(() => {
     if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
-      setTab("expenses");
+      setTab("certificates");
     }
   }, [isEmployee, tab]);
 
@@ -143,13 +143,12 @@ export default function EmployeesPage() {
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여" },
     { key: "contracts", label: "계약서" },
-    { key: "expenses", label: "경비청구", count: expenses.filter((e: any) => e.status === "pending").length },
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
   // S-1: 렌더 경계 — 직원 비허용 탭은 어떤 경로(딥링크 초기 state 포함)로도
   //   해당 Tab 컴포넌트를 마운트하지 않는다(useEffect 사후 리셋 이전 프레임 차단).
-  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "expenses" : tab;
+  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "certificates" : tab;
 
   if (userLoading || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">회사 정보를 불러올 수 없습니다. 새로고침 해주세요.</div>;
@@ -248,13 +247,7 @@ export default function EmployeesPage() {
           <div className="flex-skin"><ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} /></div>
         </>
       )}
-      {effectiveTab === "expenses" && (
-        <>
-          <ExpensesHero expenses={expenses} />
-          <div className="flex-skin"><ExpenseTab expenses={expenses} companyId={companyId} userId={userId} queryClient={queryClient} isEmployee={isEmployee} /></div>
-        </>
-      )}
-      {/* 휴가 탭은 근태관리(/attendance?section=leave)로 이동 — 구성원에서 제거(2026-06-26). */}
+      {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비는 결제(/payments?tab=expenses)에서 처리. 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />
@@ -2323,7 +2316,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const [sending, setSending] = useState(false);
   // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정 + v4 H1 임의 수당/공제
   const [editMode, setEditMode] = useState(false);
-  const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[] }>>({});
+  const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[]; deductions?: Record<string, number> }>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
   const [periodMonth, setPeriodMonth] = useState(() => {
@@ -2503,9 +2496,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       const result = await previewPayroll(companyId, periodMonth);
       setPreview(result);
       // 편집값 초기화 — 현재 미리보기 값으로 (v4 H1: extras 포함)
-      const init: Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[] }> = {};
+      const init: Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[]; deductions?: Record<string, number> }> = {};
       result.items.forEach(it => {
-        init[it.employeeId] = { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount, extras: it.extras ? [...it.extras] : [] };
+        init[it.employeeId] = { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount, extras: it.extras ? [...it.extras] : [], deductions: {} };
       });
       setEditValues(init);
       // 입사일 필터 안내
@@ -2534,6 +2527,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         non_taxable_amount: v.nonTaxable,
         // v4 H1: 임의 수당/공제 — 빈 amount/name 행은 저장 안 함
         extras: v.extras.filter((e) => e.name.trim() && Number(e.amount) > 0),
+        // 공제액 수동 수정 — 편집한 항목만 sparse 저장(없으면 null = 전부 자동계산)
+        deduction_overrides: (v.deductions && Object.keys(v.deductions).length > 0) ? v.deductions : null,
         updated_at: new Date().toISOString(),
       }));
       const { error } = await (supabase as any)
@@ -2699,12 +2694,23 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm text-right font-semibold text-[var(--text)]">
                       {fmtKRW(editMode ? (Number(ev.baseSalary || 0) + Number(ev.nonTaxable || 0)) : (Number(item.baseSalary || 0) + Number(item.nonTaxableAmount || 0)))}
                     </td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.nationalPension)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.healthInsurance)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.longTermCareInsurance || 0)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.employmentInsurance)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.incomeTax)}</td>
-                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">{fmtKRW(item.localIncomeTax)}</td>
+                    {([
+                      ["nationalPension", item.nationalPension],
+                      ["healthInsurance", item.healthInsurance],
+                      ["longTermCareInsurance", item.longTermCareInsurance || 0],
+                      ["employmentInsurance", item.employmentInsurance],
+                      ["incomeTax", item.incomeTax],
+                      ["localIncomeTax", item.localIncomeTax],
+                    ] as const).map(([key, val]) => (
+                      <td key={key} className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">
+                        {editMode ? (
+                          <CurrencyInput value={ev.deductions?.[key] ?? Number(val || 0)}
+                            onValueChange={(raw) => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, deductions: { ...(ev.deductions || {}), [key]: Number(raw || 0) } } }))}
+                            className="w-20 px-1.5 py-1 text-right bg-[var(--bg)] border border-[var(--primary)]/40 rounded-md text-xs"
+                          />
+                        ) : fmtKRW(Number(val || 0))}
+                      </td>
+                    ))}
                     <td className="px-4 py-3 text-sm text-right text-red-400">-{fmtKRW(item.deductionsTotal)}</td>
                     <td className="px-4 py-3 text-sm text-right font-bold text-green-400">{fmtKRW(item.netPay)}</td>
                     <td className="px-4 py-3 text-center">
@@ -4095,10 +4101,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
   return (
     <div>
-      {/* 연말정산 간소화 자료 수집 */}
-      <YearEndTaxSection employees={activeEmployees} companyId={companyId} />
-
-      {/* Issue Form */}
+      {/* Issue Form — 실제 증명서 발급(최상단, 2026-06-29 순서 조정) */}
       <div className="glass-card p-6 mb-6">
         <h3 className="section-title">증명서 발급</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -4201,6 +4204,11 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             </tbody>
           </table></div>
         )}
+      </div>
+
+      {/* 연말정산 간소화 자료 수집 — 증명서 발급/이력 아래로 이동(2026-06-29) */}
+      <div className="mt-6">
+        <YearEndTaxSection employees={activeEmployees} companyId={companyId} />
       </div>
     </div>
   );

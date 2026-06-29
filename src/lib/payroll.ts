@@ -76,11 +76,11 @@ export async function previewPayroll(
 
   // 해당 월 명세서 수정값(override) — employees.salary 와 무관하게 월별로 다르게 적용
   // v4 H1: extras (임의 수당/공제) 도 함께 fetch
-  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number; extras?: unknown }> = {};
+  const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number; extras?: unknown; deduction_overrides?: unknown }> = {};
   if (monthKey) {
     const { data: overrides } = await db
       .from('payslip_overrides')
-      .select('employee_id, base_salary, non_taxable_amount, extras')
+      .select('employee_id, base_salary, non_taxable_amount, extras, deduction_overrides')
       .eq('company_id', companyId)
       .eq('period_month', monthKey);
     (overrides || []).forEach((o: any) => {
@@ -88,6 +88,7 @@ export async function previewPayroll(
         base_salary: Number(o.base_salary),
         non_taxable_amount: Number(o.non_taxable_amount),
         extras: o.extras,
+        deduction_overrides: o.deduction_overrides,
       };
     });
   }
@@ -141,6 +142,27 @@ export async function previewPayroll(
       item.extras = valid;
       item.netPay = item.netPay + allowance - deduction;
       item.deductionsTotal = item.deductionsTotal + deduction;
+    }
+    // 공제액 수동 수정(deduction_overrides) — 관리자가 편집모드에서 바꾼 항목만 반영(델타).
+    //   미수정 항목은 엔진 자동계산 유지. deductionsTotal/netPay 는 차액만큼 보정.
+    const od = (ov?.deduction_overrides && typeof ov.deduction_overrides === 'object')
+      ? ov.deduction_overrides as Record<string, unknown> : null;
+    if (od) {
+      const FIELDS: Array<keyof PayrollItem> = ['nationalPension', 'healthInsurance', 'longTermCareInsurance', 'employmentInsurance', 'incomeTax', 'localIncomeTax'];
+      let delta = 0;
+      for (const f of FIELDS) {
+        const raw = od[f as string];
+        if (raw == null || raw === '') continue;
+        const nv = Math.max(0, Math.round(Number(raw)));
+        if (!Number.isFinite(nv)) continue;
+        const cur = Number((item as any)[f] || 0);
+        delta += nv - cur;
+        (item as any)[f] = nv;
+      }
+      if (delta !== 0) {
+        item.deductionsTotal = item.deductionsTotal + delta;
+        item.netPay = item.netPay - delta;
+      }
     }
     items.push(item);
     // 세전 총급여 = 과세 기본급 + 비과세(식대) + 과세수당 (지급총액 기준)
