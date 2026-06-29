@@ -14,10 +14,10 @@ import {
 
 const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "전자계약" };
 
-export function FormTemplateManager({ companyId }: { companyId: string | null }) {
+export function FormTemplateManager({ companyId, only }: { companyId: string | null; only?: DocType }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [docType, setDocType] = useState<DocType>("quote");
+  const [docType, setDocType] = useState<DocType>(only ?? "quote");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   // 인식 후 에디터에 넘길 상태
@@ -77,11 +77,12 @@ export function FormTemplateManager({ companyId }: { companyId: string | null })
 
   return (
     <div className="glass-card p-5">
-      <h2 className="text-base font-bold text-[var(--text)] mb-1">회사 양식 PDF</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 견적서·전자계약 PDF를 올리면 인식해서, 견적/계약 생성 시 그 디자인 그대로 값만 채워 출력합니다. 활성 양식이 없으면 기본 디자인으로 생성됩니다.</p>
+      <h2 className="text-base font-bold text-[var(--text)] mb-1">{only ? `${DOC_LABEL[only]} 양식 PDF` : "회사 양식 PDF"}</h2>
+      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·전자계약"} PDF를 올리면 자동 인식해서, {only === "contract" ? "계약 서명" : only === "quote" ? "견적" : "견적/계약"} 생성 시 그 디자인 그대로 값(거래처·금액·날짜{only === "contract" ? "·서명" : "·품목"})만 채워 출력합니다. 활성 양식이 없으면 기본 디자인으로 생성됩니다.</p>
 
       {/* 업로드 폼 */}
       <div className="flex flex-wrap items-end gap-2 mb-4">
+        {!only && (
         <div>
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">종류</label>
           <select value={docType} onChange={(e) => setDocType(e.target.value as DocType)} className="h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm">
@@ -89,6 +90,7 @@ export function FormTemplateManager({ companyId }: { companyId: string | null })
             <option value="contract">전자계약</option>
           </select>
         </div>
+        )}
         <div className="flex-1 min-w-[160px]">
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">양식 이름</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 2026 표준 견적서" className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
@@ -101,7 +103,7 @@ export function FormTemplateManager({ companyId }: { companyId: string | null })
       </div>
 
       {/* 양식 목록 */}
-      {(["quote", "contract"] as DocType[]).map((dt) => (
+      {(only ? [only] : (["quote", "contract"] as DocType[])).map((dt) => (
         <div key={dt} className="mb-3">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5">{DOC_LABEL[dt]} 양식</div>
           {byType(dt).length === 0 ? (

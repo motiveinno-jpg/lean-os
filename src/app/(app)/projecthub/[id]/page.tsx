@@ -22,6 +22,7 @@ import { SubDealsTab } from "./_components/SubDealsTab";
 import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
 import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
+import { FormTemplateManager } from "@/components/form-template-manager";
 import { TasksTab } from "./_components/TasksTab";
 import { CostTab } from "./_components/CostTab";
 
@@ -677,6 +678,8 @@ export default function ProjectHubDetailPage() {
       {/* 견적서 */}
       {tab === "quote" && (
         <div className="space-y-3">
+          {/* 회사 견적 양식 PDF 업로드 → AI 인식 → 견적 생성 시 그 디자인으로 자동 작성 */}
+          {companyId && <FormTemplateManager companyId={companyId} only="quote" />}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="flex items-center gap-2 relative">
@@ -756,6 +759,8 @@ export default function ProjectHubDetailPage() {
       {/* 계약 */}
       {tab === "contract" && (
         <div className="space-y-3">
+          {/* 회사 계약 양식 PDF 업로드 → AI 인식 → 서명완료 계약 PDF를 그 디자인+서명칸으로 자동 생성 */}
+          {companyId && <FormTemplateManager companyId={companyId} only="contract" />}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
