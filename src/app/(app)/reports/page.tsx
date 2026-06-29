@@ -78,20 +78,8 @@ const CARDS: HubCard[] = [
       </svg>
     ),
   },
-  {
-    href: "/reports/by-person",
-    title: "인원별 급여",
-    desc: "직원별 급여(명세서 기준, 없으면 기본급여 추정)를 봅니다.",
-    accent: "#8b5cf6",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-        <path d="M16 3.13a4 4 0 010 7.75" />
-      </svg>
-    ),
-  },
+  // 인원별 급여(/reports/by-person)·3-Way 매칭(/reports/three-way-match)은 분석 허브에서 제거(2026-06-29).
+  //   페이지·코드는 유지하되 어디서도 링크하지 않음(사용자 요청).
   // 입금 자동매칭은 매칭허브(/partners/reconciliation)로 통일 — 분석 허브에서만 진입.
   {
     href: "/partners/reconciliation",
@@ -103,24 +91,6 @@ const CARDS: HubCard[] = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
         <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-      </svg>
-    ),
-  },
-  // 2026-05-21 사장님 요청: 3-Way 매칭 전용 페이지 신설.
-  //   세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%).
-  {
-    href: "/reports/three-way-match",
-    title: "3-Way 매칭",
-    desc: "세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%).",
-    accent: "#ec4899",
-    roles: ["owner", "admin"],
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="16 3 21 3 21 8" />
-        <line x1="4" y1="20" x2="21" y2="3" />
-        <polyline points="21 16 21 21 16 21" />
-        <line x1="15" y1="15" x2="21" y2="21" />
-        <line x1="4" y1="4" x2="9" y2="9" />
       </svg>
     ),
   },

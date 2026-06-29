@@ -451,7 +451,7 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
           <div className="text-sm font-bold text-[var(--text)]">인원별 급여 명단</div>
-          <Link href="/reports/by-person" className="text-[11px] font-semibold text-[var(--info)] hover:underline">전체 월추이 →</Link>
+          {/* 인원별 급여 페이지 링크 제거(2026-06-29 사용자 요청) — 페이지·코드는 유지, 링크만 비연동 */}
         </div>
         {sorted.length === 0 ? (
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 급여 데이터가 없습니다.</div>
