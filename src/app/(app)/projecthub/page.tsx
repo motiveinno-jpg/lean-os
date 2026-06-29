@@ -31,7 +31,7 @@ export default function ProjectHubPage() {
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 기본 열림(클릭 시 닫기)
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
 
