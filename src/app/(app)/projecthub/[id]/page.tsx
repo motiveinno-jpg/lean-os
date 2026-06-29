@@ -5,6 +5,7 @@
 //   손익(원가율) 은 journal_entries.deal_id + v_deal_pnl 추가 후 별도 단계에서 채움.
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -141,6 +142,7 @@ export default function ProjectHubDetailPage() {
     return init;
   });
   const [showColSettings, setShowColSettings] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<any | null>(null); // 인쇄 전 견적 내용 미리보기 팝업
   useEffect(() => {
     try {
       const raw = localStorage.getItem(QUOTE_COLS_LSKEY);
@@ -735,7 +737,7 @@ export default function ProjectHubDetailPage() {
                           if (c.key === "status") return <td key={c.key} className={cellCls(c)}><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{st}</span></td>;
                           if (c.key === "created") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{fmtDate(doc.created_at)}</span></td>;
                           if (c.key === "views") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)]">{qt?.view_count ?? 0}</span></td>;
-                          if (c.key === "print") return <td key={c.key} className={cellCls(c)}><Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</Link></td>;
+                          if (c.key === "print") return <td key={c.key} className={cellCls(c)}><button onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc); }} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</button></td>;
                           return <td key={c.key} className={cellCls(c)}>—</td>;
                         })}
                       </tr>
@@ -1105,6 +1107,72 @@ export default function ProjectHubDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 견적서 내용 미리보기 팝업 (인쇄 전) — body 포털, 화면 중앙 */}
+      {previewDoc && typeof document !== "undefined" && createPortal(
+        (() => {
+          const cj = previewDoc.content_json || {};
+          const hd = cj.header || {};
+          const its = quoteItems(previewDoc);
+          const exempt = hd.taxType === "exempt" || hd.taxType === "zero";
+          const supply = its.reduce((s: number, it: any) => s + (Number(it.supplyAmount ?? (Number(it.quantity || 0) * Number(it.unitPrice || 0))) || 0), 0);
+          const vat = exempt ? 0 : Math.round(supply * 0.1);
+          return (
+            <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold text-[var(--text)]">{previewDoc.name || "견적서"} <span className="text-xs font-normal text-[var(--text-dim)]">미리보기</span></h2>
+                  <button onClick={() => setPreviewDoc(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
+                </div>
+                <div className="space-y-1 text-sm text-[var(--text-muted)] mb-3">
+                  {previewDoc.document_number && <div>견적No. <span className="text-[var(--text)] mono-number">{previewDoc.document_number}</span></div>}
+                  <div>거래처: <span className="text-[var(--text)]">{hd.partnerName || cj.counterpartyName || "—"}</span></div>
+                  {hd.validUntil && <div>유효기간: <span className="text-[var(--text)]">{hd.validUntil}</span></div>}
+                  {hd.manager && <div>담당자: <span className="text-[var(--text)]">{hd.manager}</span></div>}
+                </div>
+                <table className="w-full text-sm border-collapse mb-3">
+                  <thead>
+                    <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-xs">
+                      <th className="px-2 py-1.5 text-left border-b border-[var(--border)]">품목</th>
+                      <th className="px-2 py-1.5 text-right border-b border-[var(--border)] w-14">수량</th>
+                      <th className="px-2 py-1.5 text-right border-b border-[var(--border)] w-24">단가</th>
+                      <th className="px-2 py-1.5 text-right border-b border-[var(--border)] w-28">공급가액</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {its.length === 0 ? (
+                      <tr><td colSpan={4} className="px-2 py-4 text-center text-[var(--text-dim)]">품목이 없습니다</td></tr>
+                    ) : its.map((it: any, i: number) => (
+                      <tr key={i}>
+                        <td className="px-2 py-1.5 border-b border-[var(--border)]/40 text-[var(--text)]">{it.name || it.품목명 || "—"}</td>
+                        <td className="px-2 py-1.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]">{Number(it.quantity || 0)}</td>
+                        <td className="px-2 py-1.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]">{won(Number(it.unitPrice || 0))}</td>
+                        <td className="px-2 py-1.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(Number(it.supplyAmount ?? (Number(it.quantity || 0) * Number(it.unitPrice || 0))) || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="space-y-1 text-sm border-t border-[var(--border)] pt-2 mb-2">
+                  <div className="flex justify-between"><span className="text-[var(--text-muted)]">공급가액</span><span className="mono-number text-[var(--text)]">{won(supply)}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--text-muted)]">부가세{exempt ? "(면세)" : ""}</span><span className="mono-number text-[var(--text)]">{won(vat)}</span></div>
+                  <div className="flex justify-between font-bold"><span className="text-[var(--text)]">합계</span><span className="mono-number text-[var(--primary)]">{won(supply + vat)}</span></div>
+                </div>
+                {(hd.paymentTerms || hd.deliveryTerms) && (
+                  <div className="text-xs text-[var(--text-muted)] space-y-0.5 mb-1">
+                    {hd.paymentTerms && <div>결제조건: {hd.paymentTerms}</div>}
+                    {hd.deliveryTerms && <div>납품조건: {hd.deliveryTerms}</div>}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 mt-4">
+                  <button onClick={() => setPreviewDoc(null)} className="px-4 py-2 text-sm text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]">닫기</button>
+                  <button onClick={() => { const id = previewDoc.id; setPreviewDoc(null); router.push(`/documents?id=${id}&print=1`); }} className="px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">인쇄 / PDF 저장 →</button>
+                </div>
+              </div>
+            </div>
+          );
+        })(),
+        document.body,
       )}
     </div>
   );
