@@ -36,7 +36,9 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   const onFile = async (file: File) => {
     if (!companyId) return;
     if (!name.trim()) { toast("양식 이름을 먼저 입력하세요", "error"); return; }
-    if (file.type !== "application/pdf") { toast("PDF 파일만 업로드할 수 있습니다", "error"); return; }
+    // MIME 은 OS/브라우저에 따라 빈값·octet-stream 일 수 있어 확장자도 함께 허용.
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!isPdf) { toast("PDF 파일만 업로드할 수 있습니다", "error"); return; }
     setBusy(true);
     try {
       const { pages, pageSizes } = await rasterizePdf(file);
@@ -98,7 +100,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
         </div>
         <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`}>
           {busy ? "처리 중…" : "PDF 업로드"}
-          <input type="file" accept="application/pdf" className="hidden" disabled={busy}
+          <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         </label>
       </div>
