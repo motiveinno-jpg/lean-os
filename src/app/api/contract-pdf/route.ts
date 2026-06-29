@@ -126,9 +126,9 @@ export async function POST(req: NextRequest) {
           });
           results.push({ id: r.id, pdfBase64: Buffer.from(filled).toString("base64") });
           continue;
-        } catch (e: any) {
-          results.push({ id: r.id, error: "overlay 실패: " + String(e?.message || e) });
-          continue;
+        } catch (e) {
+          // 오버레이 실패 → 포기하지 않고 현행 puppeteer 렌더로 폴백(저장 누락 방지).
+          console.warn("[contract-pdf] overlay 실패, puppeteer 폴백:", (e as Error)?.message);
         }
       }
 

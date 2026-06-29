@@ -129,10 +129,10 @@ export default function SignaturesDashboardPage() {
   // 업체별 1파일(`소상공인 개별계약서_(업체명).pdf`)을 zip 한 개로.
   const handleBulkExport = useCallback(async () => {
     if (exporting) return;
-    // 선택분이 있으면 선택분만, 없으면 현재 목록 서명완료 전체
-    const targets = selectedSignedTargets.length > 0 ? selectedSignedTargets : signedFiltered;
+    // 선택한 서명완료 건만 저장 (전체 일괄저장 제거 — 2026-06-29)
+    const targets = selectedSignedTargets;
     if (targets.length === 0) {
-      toast("서명완료된 계약이 없습니다", "error");
+      toast("저장할 서명완료 계약을 먼저 선택하세요", "error");
       return;
     }
     // 업체명 = partners.name (리스트엔 partner_id 만 있어 별도 조회). 없으면 signer_name fallback.
@@ -423,15 +423,13 @@ export default function SignaturesDashboardPage() {
             </button>
             <button
               onClick={handleBulkExport}
-              disabled={exporting}
+              disabled={exporting || selectedSignedTargets.length === 0}
               className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
-              title="체크한 계약서만(없으면 목록 전체) 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)"
+              title="체크한 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)"
             >
               {exporting
                 ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
-                : selectedSignedTargets.length > 0
-                  ? `📦 선택한 ${selectedSignedTargets.length}건 PDF 저장`
-                  : `📦 서명완료 PDF 일괄저장 (${signedFiltered.length})`}
+                : `📦 선택한 ${selectedSignedTargets.length}건 PDF 저장`}
             </button>
           </>
         )}
