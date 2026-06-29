@@ -49,7 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
       { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin"] },
-      { href: "/approvals", label: "승인 요청", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
@@ -69,10 +69,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/payments", label: "정기결제", icon: "clock", roles: ["owner", "admin"] },
+      // 정기결제·구독 통합(2026-06-29) — 구독은 하위 항목으로
+      { href: "/payments", label: "정기결제·구독", icon: "clock", roles: ["owner", "admin"], children: [
+        { href: "/subscriptions", label: "구독 관리", icon: "sparkles", roles: ["owner", "admin"] },
+      ] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
       { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
-      { href: "/subscriptions", label: "구독", icon: "sparkles", roles: ["owner", "admin"] },
     ],
   },
   {
@@ -93,10 +95,15 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
     items: [
-      { href: "/dashboard", label: "홈", icon: "grid" },
+      { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
+    ],
+  },
+  {
+    label: "워크스페이스",
+    items: [
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/board", label: "게시판", icon: "message-square" },
-      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
   {
@@ -151,7 +158,16 @@ function filterNavForRole(role: UserRole, overrides: Map<string, boolean>, compa
         }),
       }))
       .filter((group) => group.items.length > 0);
-    return [...empGroups, ...adminGroups];
+    // 같은 라벨 그룹 병합(예: 직원 '워크스페이스' + 부여받은 관리자 '워크스페이스') — 헤더 중복 방지.
+    const merged: NavGroup[] = [];
+    for (const g of [...empGroups, ...adminGroups]) {
+      const exist = merged.find((m) => m.label === g.label);
+      if (exist) {
+        const seen = new Set(exist.items.map((i) => i.href));
+        exist.items.push(...g.items.filter((i) => !seen.has(i.href)));
+      } else merged.push({ ...g, items: [...g.items] });
+    }
+    return merged;
   }
   return NAV_GROUPS
     .map((group) => ({
@@ -251,6 +267,16 @@ export function Sidebar() {
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
   const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
+  // 대분류 그룹 접기/펼치기 (메뉴 간소화 — 사용자 요청). localStorage 영속.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try { const s = localStorage.getItem("ov:sidebar:collapsedGroups"); if (s) setCollapsedGroups(new Set(JSON.parse(s))); } catch { /* ignore */ }
+  }, []);
+  const toggleGroup = (label: string) => setCollapsedGroups((prev) => {
+    const n = new Set(prev); if (n.has(label)) n.delete(label); else n.add(label);
+    try { localStorage.setItem("ov:sidebar:collapsedGroups", JSON.stringify([...n])); } catch { /* ignore */ }
+    return n;
+  });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
   const { map: tabOverrides } = useMyTabOverrides();
   const filteredNav = filterNavForRole(role, tabOverrides, user?.companies?.name || undefined, isOperator);
@@ -504,14 +530,19 @@ export function Sidebar() {
           </div>
         )}
 
-        {filteredNav.map((group) => (
+        {filteredNav.map((group) => {
+          const groupClosed = !collapsed && collapsedGroups.has(group.label);
+          return (
           <div key={group.label}>
             {!collapsed && (
-              <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-                {group.label}
-              </div>
+              <button onClick={() => toggleGroup(group.label)}
+                className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider hover:text-[var(--text-muted)] transition">
+                <span>{group.label}</span>
+                <span className={`text-[11px] transition-transform ${groupClosed ? "" : "rotate-90"}`}>›</span>
+              </button>
             )}
             {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
+            {!groupClosed && (
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const kids = item.children;
@@ -528,8 +559,10 @@ export function Sidebar() {
                 return renderDesktopItem(item, false);
               })}
             </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Collapse Toggle (desktop only) */}
@@ -711,11 +744,16 @@ export function Sidebar() {
               </div>
             )}
 
-            {filteredNav.map((group) => (
+            {filteredNav.map((group) => {
+              const groupClosed = collapsedGroups.has(group.label);
+              return (
               <div key={group.label}>
-                <div className="px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-                  {group.label}
-                </div>
+                <button onClick={() => toggleGroup(group.label)}
+                  className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+                  <span>{group.label}</span>
+                  <span className={`text-[11px] transition-transform ${groupClosed ? "" : "rotate-90"}`}>›</span>
+                </button>
+                {!groupClosed && (
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const kids = item.children;
@@ -725,8 +763,10 @@ export function Sidebar() {
                     return renderMobileItem(item, false);
                   })}
                 </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Mobile Theme Toggle */}
