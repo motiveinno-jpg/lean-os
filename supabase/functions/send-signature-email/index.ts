@@ -29,6 +29,8 @@ interface InvokeBody {
   stage?: QuoteStage;         // 단계별 라벨 분기 (default estimate)
   // 2026-05-21 결제단계 % + 금액 표시 (총액 있으면 환산)
   paymentStages?: Array<{ label?: string; ratio?: number; condition?: string }>;
+  // 회신 주소(발송 회사 담당자 이메일) — 있으면 reply_to 로 사용해 정당성·도달률 개선.
+  replyTo?: string;
 }
 
 const STAGE_LABEL_KO: Record<QuoteStage, string> = {
@@ -172,12 +174,41 @@ function buildQuoteHtml(p: {
   </body></html>`;
 }
 
+// 평문(plaintext) 대체 본문 — HTML 전용 메일은 Daum/Naver 등 한국 ISP 스팸필터가 강하게 감점.
+//   text/plain 파트를 함께 보내면 받은편지함 도달률이 크게 개선된다(멀티파트).
+function buildText(p: {
+  isQuote: boolean; stageLabel: string; signerName?: string; title: string;
+  signUrl: string; expiryText: string; companyName?: string; amount?: number;
+}): string {
+  const who = p.signerName || "담당자";
+  const company = p.companyName || "OwnerView";
+  const lines: string[] = [];
+  lines.push(`안녕하세요 ${who}님,`);
+  lines.push("");
+  if (p.isQuote) {
+    lines.push(`${company} 에서 ${p.stageLabel} 확인을 요청했습니다.`);
+  } else {
+    lines.push(`${company} 에서 전자서명을 요청했습니다.`);
+  }
+  lines.push("");
+  lines.push(`문서: ${p.title}`);
+  if (p.amount) lines.push(`총액(VAT 포함): ₩${Number(p.amount).toLocaleString("ko-KR")}`);
+  lines.push(`기한: ${p.expiryText}`);
+  lines.push("");
+  lines.push(`아래 링크에서 문서를 확인하고 ${p.isQuote ? "결정" : "서명"}해 주세요:`);
+  lines.push(p.signUrl);
+  lines.push("");
+  lines.push("기한이 지나면 링크가 만료됩니다.");
+  lines.push("본 메일은 OwnerView 에서 자동 발송되었습니다.");
+  return lines.join("\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const body = (await req.json()) as InvokeBody;
-    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage, paymentStages } = body;
+    const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage, paymentStages, replyTo } = body;
 
     if (!to || !title || !signUrl) {
       return new Response(
@@ -212,15 +243,24 @@ serve(async (req) => {
       );
     }
 
+    // 평문 대체 본문 (멀티파트) — Daum/Naver 도달률 개선.
+    const text = buildText({ isQuote, stageLabel, signerName, title, signUrl, expiryText, companyName, amount });
+    // reply_to: 호출자가 발송 회사 담당자 이메일을 주면 사용, 없으면 env, 둘 다 없으면 생략.
+    const replyToAddr = replyTo || Deno.env.get("RESEND_REPLY_TO") || undefined;
+
+    const payload: Record<string, unknown> = {
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+      to: [to],
+      subject,
+      html,
+      text,
+    };
+    if (replyToAddr) payload.reply_to = replyToAddr;
+
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
-        to: [to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (emailRes.ok) {
