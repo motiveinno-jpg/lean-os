@@ -23,6 +23,7 @@ import { NotificationsTab } from "./_components/NotificationsTab";
 import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
+import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
 import { AccountTab } from "./_components/AccountTab";
 import { DataResetTab } from "./_components/DataResetTab";
@@ -433,6 +434,9 @@ export default function SettingsPage() {
 
           {/* Departments */}
           <DepartmentsTab companyId={companyId} />
+
+          {/* 회사 양식 PDF (오버레이) */}
+          <FormTemplateManager companyId={companyId} />
 
           {/* Deal Classifications */}
           <DealClassificationManager companyId={companyId} />

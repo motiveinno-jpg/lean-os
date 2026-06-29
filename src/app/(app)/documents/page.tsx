@@ -24,6 +24,8 @@ import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, up
 import { createNotification } from "@/lib/notifications";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
+import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
+import { fillFormTemplate } from "@/lib/pdf-overlay";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
 import { CurrencyInput } from "@/components/currency-input";
@@ -471,6 +473,26 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     partnerRow = (await db.from('partners').select(pcols).eq('company_id', companyId).eq('name', cpName).limit(1).maybeSingle()).data;
                   }
 
+                  // P3 — 회사 활성 견적 양식이 있으면 오버레이(실제 디자인 재현), 없으면 현행 generateQuotePDF 폴백(회귀 0).
+                  const quoteTpl = companyId ? await getActiveTemplate(companyId, "quote").catch(() => null) : null;
+                  if (quoteTpl) {
+                    const bytes = await downloadTemplateFile(quoteTpl.file_path);
+                    const filled = await fillFormTemplate(bytes, quoteTpl.fields, { values: buildQuoteValues({
+                      myCompanyName: companyName,
+                      myRepresentative: company.data?.representative,
+                      partnerName: cpName,
+                      partnerRepresentative: partnerRow?.representative,
+                      projectName: (doc as any).name,
+                      quoteNumber: (doc as any).document_number,
+                      issueDate: new Date().toISOString().slice(0, 10),
+                      validUntil: cj.header?.validUntil || quoteHeader.validUntil,
+                      supplyAmount: supplyAmt,
+                      taxAmount: taxAmt,
+                      totalAmount: supplyAmt + taxAmt,
+                      notes: cj.notes,
+                    }) });
+                    pdfBlob = new Blob([filled as BlobPart], { type: "application/pdf" });
+                  } else {
                   pdfBlob = await generateQuotePDF({
                     documentNumber: (doc as any).document_number || '-',
                     companyInfo: {
@@ -505,6 +527,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       address: partnerRow.address || undefined,
                     } : undefined,
                   });
+                  }
                 } else if ((cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) || editContent.includes('<img')) {
                   // 2026-05-22 이미지(PDF 페이지 삽입 등) 포함 문서는 브라우저 인쇄 PDF 로 변환 —
                   //   jspdf 경로는 <img> 를 제거하므로 그래프·표 이미지 보존을 위해 인쇄 경로 사용.

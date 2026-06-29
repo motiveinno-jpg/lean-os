@@ -1,124 +1,89 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-// 회사 양식 PDF 필드 자동 인식 (Claude Vision) — 2026-06-29.
-//   입력: { doc_type: 'quote'|'contract', pages: [PNG base64 …] }  (클라가 pdfjs 로 래스터화해 전송)
-//   출력: { doc_type, fields: [{ key, label, page, x, y, w, h(0~1, 좌상단), align, font_size, kind }] }
-//   동적 항목(거래처·금액·날짜·서명 등)만 정규화 bbox 로 추출. 고정 문구 제외. 사람 보정 전제(초안).
-//   비용: 페이지당 vision 1회(업로드 시 1회성). 모델=claude-sonnet-4-6(공간추론 우선).
+// Supabase Edge Function: parse-form-template (2026-06-29)
+//   회사 양식 PDF 페이지 이미지(PNG base64)를 Claude Vision 으로 분석 →
+//   동적으로 채워야 할 필드 영역을 정규화 좌표(0~1, 좌상단 원점)로 추출.
+//   ※ 배포: supabase/functions/parse-form-template/index.ts 로 복사 후 deploy. ANTHROPIC_API_KEY 필요.
+//   ※ ocr-receipt 패턴 확장. 클라이언트가 pdfjs 로 각 페이지를 PNG 로 래스터화해 보낸다.
 
 const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-const corsHeaders = {
+const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// 표준 데이터키 — doc_type 별. 인식은 이 키들로만 매핑(나머지는 사람이 보정).
-const KEYS: Record<string, { key: string; label: string; kind: string }[]> = {
-  quote: [
-    { key: "partner_name", label: "거래처명", kind: "text" },
-    { key: "partner_rep", label: "거래처 대표자", kind: "text" },
-    { key: "doc_no", label: "견적번호", kind: "text" },
-    { key: "issue_date", label: "작성일", kind: "date" },
-    { key: "valid_until", label: "유효기간", kind: "date" },
-    { key: "project_name", label: "프로젝트/건명", kind: "text" },
-    { key: "supply_amount", label: "공급가액", kind: "amount" },
-    { key: "vat", label: "부가세", kind: "amount" },
-    { key: "total_amount", label: "합계금액", kind: "amount" },
-    { key: "manager_name", label: "담당자", kind: "text" },
-    { key: "company_name", label: "제안사명", kind: "text" },
-    { key: "items_table", label: "품목 표 영역", kind: "items_table" },
-  ],
-  contract: [
-    { key: "partner_name", label: "갑/거래처명", kind: "text" },
-    { key: "partner_rep", label: "거래처 대표자", kind: "text" },
-    { key: "company_name", label: "을/회사명", kind: "text" },
-    { key: "company_rep", label: "회사 대표자", kind: "text" },
-    { key: "doc_no", label: "계약번호", kind: "text" },
-    { key: "contract_date", label: "계약일", kind: "date" },
-    { key: "total_amount", label: "계약금액", kind: "amount" },
-    { key: "project_name", label: "계약 건명", kind: "text" },
-    { key: "sign_party_a", label: "서명_갑", kind: "signature" },
-    { key: "sign_party_b", label: "서명_을", kind: "signature" },
-  ],
+// 인식 대상 표준 필드 키 (문서종류별). 모델이 영역을 이 키 중 하나로 매핑.
+const KEYS: Record<string, string[]> = {
+  quote: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "견적번호", "작성일", "유효기간", "공급가액", "부가세", "합계금액", "품목표", "비고", "서명_공급자"],
+  contract: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "계약번호", "작성일", "계약시작일", "계약종료일", "계약금액", "부가세", "합계금액", "서명_갑", "서명_을", "비고"],
 };
 
-interface Field { key: string; label: string; page: number; x: number; y: number; w: number; h: number; align: string; font_size: number; kind: string }
+type Field = { page: number; key: string; label: string; x: number; y: number; w: number; h: number; kind: string };
 
-async function detectFields(docType: string, pageBase64: string, pageIndex: number): Promise<Field[]> {
+async function analyzePage(pngBase64: string, page: number, docType: string): Promise<Field[]> {
   if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
-  const keys = KEYS[docType] || KEYS.quote;
-  const keyList = keys.map((k) => `- ${k.key} (${k.label}, kind=${k.kind})`).join("\n");
+  const allowed = (KEYS[docType] || KEYS.quote).join(", ");
+  const prompt = `이것은 회사의 ${docType === "contract" ? "전자계약서" : "견적서"} 양식 PDF 의 ${page}페이지 이미지입니다.
+이 양식에서 "매번 값이 바뀌어 채워 넣어야 하는 동적 항목"의 위치를 찾아주세요.
+고정 문구(조항 제목, 안내문 등)는 제외하고, 빈칸·표의 데이터 칸·금액칸·날짜칸·서명칸만 대상으로 합니다.
+
+각 항목에 대해 다음 JSON 배열만 출력하세요(설명 금지):
+[{"key":"<아래 목록 중 하나>","label":"<화면 표시용 한글>","x":0~1,"y":0~1,"w":0~1,"h":0~1,"kind":"text|amount|date|signature|items_table"}]
+- 좌표는 이미지 기준 정규화 값(좌상단 원점, x=가로비율, y=세로비율, w/h=폭/높이 비율).
+- key 는 반드시 이 목록 중에서만: ${allowed}. 해당 없으면 그 항목은 제외.
+- 금액칸=amount, 날짜칸=date, 서명/도장칸=signature, 견적 품목 표 전체 영역=items_table, 그 외=text.
+- 확실하지 않으면 포함하지 마세요(정밀도 우선).`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2048,
+      model: "claude-sonnet-4-6", // 공간 추론 정확도 우선(haiku 대비). 비용↑ — 페이지당 1회.
+      max_tokens: 2000,
       messages: [{
         role: "user",
         content: [
-          { type: "image", source: { type: "base64", media_type: "image/png", data: pageBase64 } },
-          {
-            type: "text",
-            text: `이 ${docType === "contract" ? "계약서" : "견적서"} 양식 이미지에서 '동적으로 채워질 값이 들어갈 빈 영역'의 위치만 찾으세요. 회사명·항목명 같은 고정 인쇄 문구는 제외하고, 아래 표준 키에 해당하는 입력 영역만 추출합니다.
-
-표준 키:
-${keyList}
-
-각 영역을 정규화 좌표(이미지 좌상단 0,0 / 우하단 1,1)로 반환:
-{ "fields": [ { "key": "<표준키>", "x": 0~1, "y": 0~1, "w": 0~1, "h": 0~1, "align": "left|right|center" } ] }
-
-규칙:
-- 확실한 것만(불확실하면 제외 — 사람이 보정함). 추측 금지.
-- x,y = 영역 좌상단. w,h = 폭/높이(정규화).
-- 금액은 보통 우측정렬(align=right). 서명칸은 kind=signature 영역.
-- 표준 키에 없는 항목은 무시. JSON만 출력(설명 없이).`,
-          },
+          { type: "image", source: { type: "base64", media_type: "image/png", data: pngBase64 } },
+          { type: "text", text: prompt },
         ],
       }],
     }),
   });
-  if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw new Error(`Claude Vision API error: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  const text: string = data?.content?.[0]?.text || "";
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) return [];
-  let parsed: any;
-  try { parsed = JSON.parse(m[0]); } catch { return []; }
-  const km = new Map(keys.map((k) => [k.key, k]));
-  return (parsed.fields || [])
-    .filter((f: any) => km.has(f.key) && typeof f.x === "number")
-    .map((f: any): Field => {
-      const def = km.get(f.key)!;
-      return {
-        key: f.key, label: def.label, kind: def.kind, page: pageIndex + 1,
-        x: Math.max(0, Math.min(1, Number(f.x))), y: Math.max(0, Math.min(1, Number(f.y))),
-        w: Math.max(0.01, Math.min(1, Number(f.w || 0.2))), h: Math.max(0.01, Math.min(1, Number(f.h || 0.03))),
-        align: ["left", "right", "center"].includes(f.align) ? f.align : (def.kind === "amount" ? "right" : "left"),
-        font_size: 10,
-      };
-    });
+  const text: string = data?.content?.[0]?.text || "[]";
+  const jsonStart = text.indexOf("[");
+  const jsonEnd = text.lastIndexOf("]");
+  const arr = jsonStart >= 0 ? JSON.parse(text.slice(jsonStart, jsonEnd + 1)) : [];
+  const allowedSet = new Set(KEYS[docType] || KEYS.quote);
+  return (arr as any[])
+    .filter((f) => f && allowedSet.has(f.key))
+    .map((f) => ({
+      page,
+      key: String(f.key),
+      label: String(f.label || f.key),
+      x: clamp01(f.x), y: clamp01(f.y), w: clamp01(f.w), h: clamp01(f.h),
+      kind: ["text", "amount", "date", "signature", "items_table"].includes(f.kind) ? f.kind : "text",
+    }));
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+const clamp01 = (n: any) => Math.max(0, Math.min(1, Number(n) || 0));
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
-    const { doc_type, pages } = await req.json() as { doc_type: string; pages: string[] };
-    if (!doc_type || !Array.isArray(pages) || pages.length === 0) {
-      return new Response(JSON.stringify({ error: "doc_type, pages[] required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const body = await req.json();
+    const docType: string = body.doc_type === "contract" ? "contract" : "quote";
+    const pages: string[] = body.pages || []; // PNG base64 (data 부분만), 페이지 순서대로
+    if (!pages.length) {
+      return new Response(JSON.stringify({ error: "pages (PNG base64) required" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
-    const dt = doc_type === "contract" ? "contract" : "quote";
     const all: Field[] = [];
     for (let i = 0; i < pages.length; i++) {
-      const stripped = String(pages[i]).replace(/^data:image\/\w+;base64,/, "");
-      const fields = await detectFields(dt, stripped, i);
+      const fields = await analyzePage(pages[i], i + 1, docType);
       all.push(...fields);
     }
-    return new Response(JSON.stringify({ doc_type: dt, fields: all }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ doc_type: docType, fields: all }), { headers: { ...CORS, "content-type": "application/json" } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
   }
 });
