@@ -9,6 +9,17 @@ import puppeteer, { type Browser } from "puppeteer-core";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+// URL 이미지 → dataURL (계약 양식 오버레이의 갑 직인 seal_url 변환용)
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type") || "image/png";
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:${ct};base64,${buf.toString("base64")}`;
+  } catch { return null; }
+}
+
 // 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 1회로 분산
 let _browser: Browser | null = null;
 async function getBrowser(): Promise<Browser> {
@@ -69,13 +80,62 @@ export async function POST(req: NextRequest) {
       (ps || []).forEach((p: any) => pMap.set(p.id, p));
     }
 
-    const browser = await getBrowser();
+    // P4 — 활성 계약 양식(오버레이)이 있으면 puppeteer 대신 pdf-lib 오버레이로 최종본 생성(없으면 현행 폴백).
+    let overlayFields: any[] | null = null;
+    let overlayBytes: ArrayBuffer | null = null;
+    let sealDataUrl: string | null = null;
+    try {
+      const { data: tpl } = await (admin as any)
+        .from("pdf_form_templates")
+        .select("file_path, fields")
+        .eq("company_id", urow.company_id).eq("doc_type", "contract").eq("is_active", true)
+        .maybeSingle();
+      if (tpl?.file_path) {
+        const { data: blob } = await admin.storage.from("form-templates").download(tpl.file_path);
+        if (blob) {
+          overlayBytes = await blob.arrayBuffer();
+          overlayFields = (tpl.fields as any[]) || [];
+          const sealUrl = (list[0] as any)?.companies?.seal_url;
+          if (sealUrl) sealDataUrl = await fetchAsDataUrl(sealUrl);
+        }
+      }
+    } catch { overlayFields = null; overlayBytes = null; }
+
+    let browser: Browser | null = null; // 폴백(현행) 경로에서만 지연 launch
     const results: { id: string; pdfBase64?: string; error?: string }[] = [];
 
     for (const r of list as any[]) {
+      const partner = r.partner_id ? pMap.get(r.partner_id) : null;
+
+      // ── 오버레이 경로 (활성 계약 양식) ──
+      if (overlayFields && overlayBytes) {
+        try {
+          const { fillFormTemplate } = await import("@/lib/pdf-overlay");
+          const dateStr = r.signed_at ? String(r.signed_at).slice(0, 10) : "";
+          const filled = await fillFormTemplate(overlayBytes, overlayFields, {
+            values: {
+              회사명: r.companies?.name ?? "",
+              대표자명: r.companies?.representative ?? "",
+              거래처명: partner?.name ?? r.signer_name ?? "",
+              거래처대표: partner?.representative ?? "",
+              작성일: dateStr,
+              계약시작일: dateStr,
+              서명_갑: sealDataUrl ?? "",
+              서명_을: r.signature_data_url ?? "",
+            },
+          });
+          results.push({ id: r.id, pdfBase64: Buffer.from(filled).toString("base64") });
+          continue;
+        } catch (e: any) {
+          results.push({ id: r.id, error: "overlay 실패: " + String(e?.message || e) });
+          continue;
+        }
+      }
+
+      // ── 폴백: 현행 puppeteer 렌더 ──
+      if (!browser) browser = await getBrowser();
       const page = await browser.newPage();
       try {
-        const partner = r.partner_id ? pMap.get(r.partner_id) : null;
         const html = buildSignedContractPrintHtml({
           bodyHtml: r.signed_contract_html || r.template_snapshot_html || "",
           company: r.companies || null,
