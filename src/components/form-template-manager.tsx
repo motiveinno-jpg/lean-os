@@ -4,6 +4,7 @@
 //   견적/계약 생성 시 활성 양식이 있으면 오버레이로 회사 실제 디자인 재현(없으면 현행 폴백).
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
@@ -126,9 +127,9 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
         </div>
       ))}
 
-      {/* 매핑 보정 에디터 (모달) */}
-      {editing && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+      {/* 매핑 보정 에디터 (모달) — body 포털(transform/backdrop-filter 조상 회피) */}
+      {editing && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
           <div className="bg-[var(--bg-card)] rounded-xl max-w-[1000px] w-full max-h-[90vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
             <div className="text-sm font-bold text-[var(--text)] mb-2">필드 위치 보정 — {DOC_LABEL[docType]} · {name}</div>
             <FormTemplateEditor
@@ -140,7 +141,8 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
               onCancel={() => setEditing(null)}
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

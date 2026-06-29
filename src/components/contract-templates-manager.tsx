@@ -7,6 +7,7 @@
 //   권한: owner/admin 만 (RLS DB 측 admin only, UI 측 친절 안내).
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -230,8 +231,9 @@ function TemplateEditorModal({
     return !!bodyHtml.trim();
   }
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
@@ -383,6 +385,7 @@ function TemplateEditorModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
