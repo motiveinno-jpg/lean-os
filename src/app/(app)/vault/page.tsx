@@ -634,24 +634,12 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">구독 서비스</div>
-          <div className="text-xl font-black">{stats.activeSubscriptions}개</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">월 {fmtW(stats.totalMonthlyCost)}원</div>
-        </div>
+      {/* Summary Cards — 자산 관리 스코프(자산·자동탐지)만. 구독은 '구독' 메뉴, 문서는 '파일보관함'으로 이동(2026-05-22)했으므로 제외해 혼란 방지. */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자산 가치</div>
           <div className="text-xl font-black">{fmtW(stats.totalAssetValue)}원</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">{vault?.assets?.length || 0}건</div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">보관 문서</div>
-          <div className="text-xl font-black">{stats.totalDocs}건</div>
-          {stats.expiringDocsCount > 0 && (
-            <div className="text-xs text-yellow-400 mt-1">만료 임박 {stats.expiringDocsCount}건</div>
-          )}
         </div>
         <div className="glass-card p-4">
           <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자동 탐지</div>
