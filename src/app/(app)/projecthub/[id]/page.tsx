@@ -26,7 +26,7 @@ import { GoalOverviewTab } from "./_components/GoalOverviewTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { TasksTab } from "./_components/TasksTab";
-import { CostTab } from "./_components/CostTab";
+import { MondayBoard } from "@/components/monday-board";
 
 const db = supabase as any;
 
@@ -101,9 +101,9 @@ const TAB_LABEL: Record<TabKey, string> = {
   pnl: "프로젝트 운영",
   performance: "성과",
   tasks: "태스크",
-  cost: "비용",
+  workflow: "워크플로우",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "performance", "tasks", "cost"];
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
@@ -1012,9 +1012,9 @@ export default function ProjectHubDetailPage() {
         <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
       )}
 
-      {/* 실행형 — 비용 */}
-      {tab === "cost" && (
-        <CostTab dealId={dealId} deal={deal} />
+      {/* 실행형 — 워크플로우 (전사 칸반 보드 임베드, 사이드바 '워크플로우' 메뉴 이동) */}
+      {tab === "workflow" && companyId && (
+        <MondayBoard companyId={companyId} users={companyUsers as any} />
       )}
 
       {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단 (수익형만) */}

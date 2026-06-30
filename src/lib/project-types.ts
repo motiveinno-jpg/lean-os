@@ -28,7 +28,7 @@ export type ProjectTabKey =
   | "pnl"
   | "performance"
   | "tasks"
-  | "cost";
+  | "workflow";
 
 export type ProjectTypeConfig = {
   type: ProjectType;
@@ -65,7 +65,7 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
     icon: "✅",
     desc: "할 일(태스크)을 칸반·간트로 실행하며 진행률을 관리하는 프로젝트.",
     hero: "진행률",
-    tabs: ["overview", "tasks", "cost"],
+    tabs: ["overview", "tasks", "workflow"],
   },
 };
 

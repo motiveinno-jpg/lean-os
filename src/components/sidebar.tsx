@@ -45,10 +45,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "워크스페이스",
     items: [
-      // 메뉴 순서(2026-06-24 요청): 일정/할일 → 프로젝트 → 워크플로우 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
+      // 메뉴 순서: 일정/할일 → 프로젝트 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
+      //   '워크플로우'(전사 칸반 /projects)는 실행형 프로젝트 상세 마지막 탭으로 이동 (2026-06-30).
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
-      { href: "/projects", label: "워크플로우", icon: "kanban", roles: ["owner", "admin"] },
       { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
