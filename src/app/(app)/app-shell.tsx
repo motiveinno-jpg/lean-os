@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch } from "@/components/global-search";
 import { FloatingMessenger } from "@/components/floating-messenger";
+import { MenuGuide } from "@/components/menu-guide";
 // NotificationCenter import 제거 — 알림은 사이드바 페이지(/notifications)로 통합됨
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
@@ -316,7 +317,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
         )}
         <div className="hidden md:block" />
 
-        {/* (알림은 사이드바 '홈 > 알림' 으로 이동 — 헤더 종 아이콘 제거) */}
+        {/* 우측: 이 메뉴 도움말 '?' 토글 (알림은 사이드바 '홈 > 알림'으로 이동) */}
+        <MenuGuide />
       </div>
 
       {/* Main content */}
