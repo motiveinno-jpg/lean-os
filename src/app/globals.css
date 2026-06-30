@@ -64,9 +64,10 @@
   --bg-elevated: #1F1F23;
   --border: #3F3F46;
   --border-light: #52525B;
-  --text: #FAFAFA;
-  --text-muted: #A1A1AA;
-  --text-dim: #71717A;
+  /* 2026-06-30 다크모드 가독성 — 흰색은 더 진하게(#FFF), 회색 계열은 흰색에 가깝게 끌어올림(기존 zinc-400/500은 안 보였음). */
+  --text: #FFFFFF;
+  --text-muted: #E4E4E7;        /* zinc-200 — 기존 zinc-400 대비 대폭 밝게 */
+  --text-dim: #C7C7CE;          /* ~zinc-300/400 — 캡션/보조도 또렷하게 */
   /* 인디고 리브랜드 다크 대응 — 약간 밝은 인디고(--brand 다크와 정렬), 글씨는 흰색 유지 */
   --primary: #6366F1;           /* indigo-500 — 다크 대비 */
   --primary-hover: #4F46E5;     /* indigo-600 */
@@ -126,6 +127,14 @@ body {
 }
 [data-theme="dark"] :is(.text-gray-800, .text-gray-700, .text-slate-700, .text-zinc-700, .text-zinc-800):not(.landing-root *):not(.print-area):not(.print-area *) {
   color: var(--text-muted) !important;
+}
+/* 2026-06-30 중간/연한 회색(gray·slate·zinc·neutral·stone 400~600)도 다크에서 안 보여 밝은 토큰으로 보정.
+   기존엔 700~900(어두운 회색)만 처리해 mid-gray 글씨가 다크에서 거의 안 보였음. landing/print 제외. */
+[data-theme="dark"] :is(.text-gray-600, .text-gray-500, .text-slate-600, .text-slate-500, .text-zinc-600, .text-zinc-500, .text-neutral-600, .text-neutral-500, .text-stone-600, .text-stone-500):not(.landing-root *):not(.print-area):not(.print-area *) {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] :is(.text-gray-400, .text-gray-300, .text-slate-400, .text-slate-300, .text-zinc-400, .text-zinc-300, .text-neutral-400, .text-neutral-300, .text-stone-400, .text-stone-300):not(.landing-root *):not(.print-area):not(.print-area *) {
+  color: var(--text-dim) !important;
 }
 [data-theme="dark"] :is(.bg-white, .bg-gray-50, .bg-gray-100, .bg-slate-50, .bg-zinc-50):not(.landing-root *):not(.print-area):not(.print-area *) {
   background-color: var(--bg-card) !important;
