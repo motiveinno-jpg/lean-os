@@ -607,14 +607,13 @@ export default function PnlPage() {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* 조회 기간 — 월 범위 */}
-          <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)]">
-            <label className="text-[11px] font-semibold text-[var(--text-dim)]">기간</label>
-            <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)}
-              className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+          {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
+          <div className="inline-flex items-center gap-1.5">
+            <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} title="시작 월"
+              className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
             <span className="text-[var(--text-dim)] text-xs">~</span>
-            <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)}
-              className="h-7 px-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+            <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} title="종료 월"
+              className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
           </div>
           <button
             type="button"
