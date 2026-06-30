@@ -4,6 +4,7 @@
  */
 import { supabase } from './supabase';
 import { logAudit } from './audit-log';
+import { isDev, devCodefEnabled } from './app-env';
 
 const db = supabase as any;
 
@@ -809,6 +810,12 @@ export async function syncCodefData(
   bankSynced?: number;
   cardSynced?: number;
 }> {
+  // dev 환경 가드 — 별도 Supabase(dev)에서 운영 CODEF를 실수로 호출하지 않도록 차단.
+  //   NEXT_PUBLIC_DEV_CODEF=1 + dev 샌드박스 자격증명 설정 시에만 우회.
+  if (isDev && !devCodefEnabled) {
+    const msg = "개발 환경에서는 외부 연동(CODEF)이 비활성화돼 있습니다.";
+    return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
+  }
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: '로그인이 필요합니다' };

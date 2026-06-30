@@ -16,6 +16,7 @@ import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
 import { useMyTabOverrides, effectiveTabAccess, matchGrantableRoute } from "@/lib/tab-access";
+import { isDev } from "@/lib/app-env";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
@@ -255,6 +256,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
     //   fixed/-z-10/pointer-events-none 레이어라 스크롤·클릭·레이아웃 무영향, 39개 전 페이지 공통.
     //   카드(bg-card 솔리드)가 이 배경 위에 떠 보이는 granter/시안 룩을 일괄 부여.
     <div className="relative flex min-h-screen">
+      {/* dev 환경 표시 — 운영(owner-view.com)과 혼동 방지. NEXT_PUBLIC_APP_ENV=development 일 때만. */}
+      {isDev && (
+        <div className="fixed bottom-2 left-2 z-[100] px-2.5 py-1 rounded-full bg-amber-500 text-black text-[10px] font-extrabold shadow-lg pointer-events-none select-none tracking-wide">
+          DEV 환경 · 운영 데이터 아님
+        </div>
+      )}
       {/* 시안 배경 레이어 — 콘텐츠 뒤(-z-10). 라이트/다크 토큰 자동 대응.
           2026-06-09 스크롤 시 차트 SVG(preserveAspectRatio=none·non-scaling-stroke)가 이 고정+blur 레이어 위에
           번져 남는 페인트 잔상(GPU 컴포지팅) 발생 → translateZ(0)/backface-hidden 로 자체 레이어 승격해 매 프레임 클린 리페인트. */}
