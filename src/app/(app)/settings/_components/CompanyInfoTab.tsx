@@ -18,7 +18,6 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     representative: "",
     address: "",
     phone: "",
-    fax: "",
     business_type: "",
     business_category: "",
     capital: "",
@@ -55,7 +54,6 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         representative: company.representative || "",
         address: company.address || "",
         phone: company.phone || "",
-        fax: company.fax || "",
         business_type: company.business_type || "",
         business_category: company.business_category || "",
         capital: company.tax_settings?.capital != null ? String(company.tax_settings.capital) : "",
@@ -76,7 +74,6 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           representative: form.representative || null,
           address: form.address || null,
           phone: form.phone || null,
-          fax: form.fax || null,
           business_type: form.business_type || null,
           business_category: form.business_category || null,
           // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 재무상태표(자본금)가 읽음.
@@ -306,15 +303,6 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="02-1234-5678"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">팩스</label>
-              <input
-                value={form.fax}
-                onChange={(e) => setForm({ ...form, fax: e.target.value })}
-                placeholder="02-1234-5679"
                 className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
               />
             </div>

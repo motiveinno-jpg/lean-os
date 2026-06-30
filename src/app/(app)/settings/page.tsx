@@ -155,17 +155,17 @@ export default function SettingsPage() {
 
   const totalBankBalance = bankAccounts.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
 
-  const mainTabs: { key: MainTab; label: string }[] = [
-    { key: "general", label: "일반 설정" },
-    { key: "account", label: "계정" },
-    { key: "company", label: "회사정보" },
-    { key: "approval", label: "승인정책" },
-    { key: "hr_attendance", label: "근태/가산수당" },
-    { key: "bank", label: "은행연동" },
-    { key: "tax", label: "세무자동화" },
-    { key: "certificate", label: "인증서" },
-    { key: "notifications", label: "알림" },
-    { key: "danger", label: "데이터 관리" },
+  const mainTabs: { key: MainTab; label: string; icon: string }[] = [
+    { key: "general", label: "일반 설정", icon: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" },
+    { key: "account", label: "계정", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM5 21a7 7 0 0114 0" },
+    { key: "company", label: "회사정보", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2" },
+    { key: "approval", label: "승인정책", icon: "M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7l7-4zM9 12l2 2 4-4" },
+    { key: "hr_attendance", label: "근태/가산수당", icon: "M12 8v4l3 2M22 12a10 10 0 11-20 0 10 10 0 0120 0z" },
+    { key: "bank", label: "은행연동", icon: "M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6" },
+    { key: "tax", label: "세무자동화", icon: "M6 3h12a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1zM9 8h6M9 12h6M9 16h4" },
+    { key: "certificate", label: "인증서", icon: "M12 15a4 4 0 100-8 4 4 0 000 8zM8.5 13.5L7 22l5-3 5 3-1.5-8.5" },
+    { key: "notifications", label: "알림", icon: "M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" },
+    { key: "danger", label: "데이터 관리", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6" },
   ];
 
   if (pageLoading) {
@@ -186,32 +186,40 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-extrabold mb-1">설정</h1>
       </div>
 
-      {/* Main Tab Bar — horizontal scroll */}
+      {/* Main Tab Bar — horizontal scroll · 아이콘 + 라벨 · 활성 pill(링/그림자/포인트색) */}
       <div className="mb-6 -mx-6 px-6">
         <div
-          className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 overflow-x-auto scrollbar-hide"
+          className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {mainTabs.map((t) => (
-            <button
-              key={t.key}
-              ref={(el) => {
-                if (el && mainTab === t.key) {
-                  el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                }
-              }}
-              onClick={() => setMainTab(t.key)}
-              className={`whitespace-nowrap shrink-0 md:grow md:basis-0 px-3 py-2.5 rounded-md text-xs sm:text-sm font-semibold min-h-[44px] transition ${
-                mainTab === t.key
-                  ? t.key === "danger"
-                    ? "bg-red-500/10 text-red-500 shadow-sm"
-                    : "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
-                  : "text-[var(--text-muted)]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {mainTabs.map((t) => {
+            const active = mainTab === t.key;
+            const danger = t.key === "danger";
+            return (
+              <button
+                key={t.key}
+                ref={(el) => {
+                  if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }}
+                onClick={() => setMainTab(t.key)}
+                className={`group inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 md:grow md:basis-0 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold min-h-[44px] transition ${
+                  active
+                    ? danger
+                      ? "bg-red-500/10 text-red-500 ring-1 ring-red-500/30 shadow-sm"
+                      : "bg-[var(--bg-card)] text-[var(--text)] ring-1 ring-[var(--border)] shadow-sm"
+                    : `text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]/50 ${danger ? "hover:text-red-500" : ""}`
+                }`}
+              >
+                <svg
+                  className={`w-4 h-4 shrink-0 transition-colors ${active ? (danger ? "text-red-500" : "text-[var(--primary)]") : "text-[var(--text-dim)] group-hover:text-[var(--text-muted)]"}`}
+                  fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <path d={t.icon} />
+                </svg>
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -276,7 +284,7 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
                   <div className="text-xs text-[var(--text-dim)]">예상 생존 개월수</div>
                   <div className={`text-2xl font-extrabold mt-1 ${
-                    (totalBankBalance + Number(balance)) / Number(fixedCost) < 3 ? "text-red-400" : "text-green-400"
+                    (totalBankBalance + Number(balance)) / Number(fixedCost) < 3 ? "text-[var(--danger)]" : "text-[var(--success)]"
                   }`}>
                     {((totalBankBalance + Number(balance)) / Number(fixedCost)).toFixed(1)}개월
                   </div>
