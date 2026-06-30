@@ -21,6 +21,8 @@ interface FileListProps {
   onDownload?: (file: FileItem) => void;
   showVersions?: boolean;
   readOnly?: boolean;
+  /** 지정 시 항목 영역에 내부 스크롤 적용(헤더는 고정). 파일이 많아도 페이지가 끝없이 늘어나지 않음. */
+  maxHeight?: number | string;
 }
 
 // ── File type icon & color mapping ──
@@ -109,8 +111,12 @@ export function FileList({
   onDownload,
   showVersions = true,
   readOnly = false,
+  maxHeight,
 }: FileListProps) {
   const [layout, setLayout] = useState<LayoutMode>("list");
+  const scrollProps = maxHeight
+    ? { className: "overflow-y-auto pr-1 -mr-1", style: { maxHeight: typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight } }
+    : {};
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // ── Handle download ──
@@ -234,6 +240,8 @@ export function FileList({
         </div>
       </div>
 
+      {/* 항목 영역 — maxHeight 지정 시 내부 스크롤(헤더 고정) */}
+      <div {...scrollProps}>
       {/* ── List layout ── */}
       {layout === "list" && (
         <div className="space-y-1.5">
@@ -499,6 +507,7 @@ export function FileList({
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

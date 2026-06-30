@@ -2863,6 +2863,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             }))}
             onDelete={handleDeleteFile}
             onDownload={(file) => window.open(file.file_url, "_blank")}
+            maxHeight="calc(100vh - 320px)"
           />
         </div>
       </div>
