@@ -118,17 +118,22 @@ export default function CostsPage() {
 
       {!isLoading && !error && rows && (
         <>
-          {/* Summary cards — 대시보드 글래스카드 (2026-06-10) */}
+          {/* Summary cards — 그라데이션 + 아이콘칩 (2026-06-30 손익계산서 카드와 일관) */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 20 }}>
             {[
-              { label: `${year}년 고정비`, value: totals.fixed, color: "#f97316", hint: "임대료·급여·4대보험 등" },
-              { label: `${year}년 변동비`, value: totals.variable, color: "#8b5cf6", hint: "카드·일회성 지출 등" },
-              { label: `${year}년 총비용`, value: totals.total, color: "var(--primary)", hint: "고정비 + 변동비" },
+              { label: `${year}년 고정비`, value: totals.fixed, color: "#f97316", hint: "임대료·급여·4대보험 등", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
+              { label: `${year}년 변동비`, value: totals.variable, color: "#8b5cf6", hint: "카드·일회성 지출 등", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
+              { label: `${year}년 총비용`, value: totals.total, color: "var(--primary)", hint: "고정비 + 변동비", icon: "M12 6v12m0-12c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" },
             ].map((c) => (
-              <div key={c.label} className="glass-card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>{c.label}</div>
-                <div className="mono-number" style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: c.color, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>₩{fmtKrw(c.value)}</div>
-                <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.hint}</div>
+              <div key={c.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-4 sm:p-5 shadow-[var(--shadow-sm)]" style={{ background: `linear-gradient(135deg, ${c.color}14, transparent 62%)` }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">{c.label}</span>
+                  <span className="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/70 shrink-0" style={{ color: c.color }}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={c.icon} /></svg>
+                  </span>
+                </div>
+                <div className="mono-number font-extrabold leading-none tracking-tight" style={{ fontSize: 20, color: c.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>₩{fmtKrw(c.value)}</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-2 truncate">{c.hint}</div>
               </div>
             ))}
           </div>
@@ -162,7 +167,16 @@ export default function CostsPage() {
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.fixedCosts)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>{fmtKrw(r.variableCosts)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>{fmtKrw(sum)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text-dim)" }}>{sum > 0 ? `${fixedPct}%` : "-"}</td>
+                      <td style={{ padding: "11px 16px" }}>
+                        {sum > 0 ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="hidden sm:block w-16 h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
+                              <div className="h-full rounded-full" style={{ width: `${fixedPct}%`, background: "#f97316" }} />
+                            </div>
+                            <span className="mono-number tabular-nums" style={{ fontSize: 12, color: "var(--text-dim)", minWidth: 30, textAlign: "right" }}>{fixedPct}%</span>
+                          </div>
+                        ) : <span style={{ color: "var(--text-dim)" }}>-</span>}
+                      </td>
                     </tr>
                   );
                 })}

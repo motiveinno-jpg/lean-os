@@ -49,7 +49,7 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
         <h3 className="text-sm font-bold text-[var(--text)]">월별 고정비 vs 변동비</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽 = 고정비, 위쪽 = 변동비 (쌓아 올린 총비용)</p>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", height: 200, width: "auto", maxWidth: "100%", margin: "0 auto" }}>
         <defs>
           <linearGradient id="costFixedGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#f97316" stopOpacity="0.95" />
