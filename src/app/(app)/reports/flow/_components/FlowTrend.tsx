@@ -4,12 +4,14 @@
 //   과거 N개월 실적(getMonthlyBudgetOverview, cash-budget) + 미래(cash-pulse) 잔액 추이.
 //   렌즈(비목 중립): 수입 구성 / 지출(고정·변동) / 순흐름 — 같은 월별 데이터의 여러 단면.
 //   잔액 라인: 과거 월말잔액(bankBalance) → 오늘(현재잔액) → 미래(cash-pulse forecast) 관통.
+//   라인은 AreaTrend(min-max 스케일)로 변동을 또렷하게 — 막대는 풀하이트 트랙 위 실적.
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
+import { AreaTrend, type TrendPoint } from "./AreaTrend";
 
 export type FlowLens = "income" | "expense" | "net";
 
@@ -40,6 +42,8 @@ const EXPENSE_PARTS = [
   { key: "fixedCosts", label: "고정비", color: "#f97316" },
   { key: "variableCosts", label: "변동비", color: "#ec4899" },
 ] as const;
+
+const BAR_H = 96;
 
 function ymAdd(ym: string, delta: number): string {
   const [y, m] = ym.split("-").map(Number);
@@ -104,6 +108,14 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
     return [...pts, ...futurePoints];
   }, [pastMonths, futurePoints]);
 
+  const todayIdx = pastMonths.length - 1;
+
+  const trendPts: TrendPoint[] = balanceLine.map((p) => ({
+    label: p.label,
+    value: p.balance,
+    tone: p.balance < 0 ? "danger" : p.future ? "muted" : "normal",
+  }));
+
   // 렌즈별 막대 데이터
   const parts = lens === "income" ? INCOME_PARTS : lens === "expense" ? EXPENSE_PARTS : null;
   const barMax = useMemo(() => {
@@ -112,18 +124,8 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
     return Math.max(1, ...pastMonths.map(total));
   }, [pastMonths, lens]);
 
-  // 잔액 라인 SVG
-  const lineMax = Math.max(1, ...balanceLine.map((p) => Math.abs(p.balance)));
-  const W = 100, H = 36;
-  const linePath = balanceLine.map((p, i) => {
-    const x = balanceLine.length > 1 ? (i / (balanceLine.length - 1)) * W : 0;
-    const y = H - (p.balance / lineMax) * (H * 0.45) - H * 0.5; // 0 기준선 중앙
-    return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${Math.max(1, Math.min(H - 1, y)).toFixed(1)}`;
-  }).join(" ");
-  const todayIdx = pastMonths.length - 1;
-
   return (
-    <div className="glass-card p-5 space-y-4">
+    <div className="glass-card p-5 sm:p-6 space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">과거 → 미래 흐름 <span className="font-normal text-[var(--text-dim)] text-xs">과거 {pastN}개월 실적 + 예측 3개월</span></h3>
         <div className="flex gap-1.5">
@@ -136,65 +138,51 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
         </div>
       </div>
 
-      {/* 잔액 라인 (과거 월말 → 미래 예측 관통) */}
-      <div>
-        <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-1">잔액 추이</div>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 48 }}>
-          <line x1="0" y1={H * 0.5} x2={W} y2={H * 0.5} stroke="var(--border)" strokeWidth="0.3" />
-          {balanceLine.length > 1 && (
-            <line x1={(todayIdx / (balanceLine.length - 1)) * W} y1="0" x2={(todayIdx / (balanceLine.length - 1)) * W} y2={H} stroke="var(--text-dim)" strokeWidth="0.3" strokeDasharray="1.5" />
-          )}
-          <path d={linePath} fill="none" stroke="var(--primary)" strokeWidth="0.8" />
-          {balanceLine.map((p, i) => {
-            const x = balanceLine.length > 1 ? (i / (balanceLine.length - 1)) * W : 0;
-            const y = Math.max(1, Math.min(H - 1, H - (p.balance / lineMax) * (H * 0.45) - H * 0.5));
-            return <circle key={i} cx={x} cy={y} r="0.8" fill={p.balance < 0 ? "#ef4444" : p.future ? "#94a3b8" : "var(--primary)"} />;
-          })}
-        </svg>
-        <div className="flex justify-between text-[9px] text-[var(--text-dim)] mt-0.5">
-          <span>{balanceLine[0]?.label}</span>
-          <span className="text-[var(--text-muted)]">↑오늘</span>
-          <span>{balanceLine[balanceLine.length - 1]?.label} (예측)</span>
+      {/* 잔액 추이 (과거 월말 → 미래 예측 관통) */}
+      <div className="rounded-2xl border border-[var(--border)] p-4" style={{ background: "color-mix(in srgb, var(--primary) 4%, transparent)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">잔액 추이</div>
+          <div className="text-[10px] text-[var(--text-dim)]">점선 = 오늘 · 회색 점 = 예측</div>
         </div>
+        <AreaTrend points={trendPts} height={132} markerIndex={todayIdx} />
       </div>
 
-      {/* 렌즈별 월 막대 (과거 실적) */}
+      {/* 렌즈별 월 막대 (과거 실적) — 풀하이트 트랙 위 실적 */}
       <div>
-        <div className="flex items-end gap-1.5" style={{ height: 110 }}>
+        <div className="flex items-end gap-2">
           {pastMonths.map((b, idx) => {
             const isCur = idx === todayIdx;
-            if (lens === "net") {
-              const net = b.incomeTotal - b.expenseTotal;
-              const h = Math.max(2, Math.round((Math.abs(net) / barMax) * 84));
-              return (
-                <div key={b.month} className="flex-1 flex flex-col items-center justify-end gap-1" title={`${b.month}: 순 ${fmtShort(net)}`}>
-                  <span className={`text-[9px] mono-number ${net < 0 ? "text-red-500" : "text-[var(--text-muted)]"}`}>{fmtShort(net)}</span>
-                  <div className={`w-full rounded-t ${net < 0 ? "bg-red-500/70" : "bg-green-500/70"}`} style={{ height: h }} />
-                  <span className={`text-[9px] ${isCur ? "text-[var(--primary)] font-bold" : "text-[var(--text-dim)]"}`}>{Number(b.month.slice(5))}월</span>
-                </div>
-              );
-            }
-            const total = lens === "income" ? b.incomeTotal : b.expenseTotal;
+            const net = b.incomeTotal - b.expenseTotal;
+            const total = lens === "net" ? net : lens === "income" ? b.incomeTotal : b.expenseTotal;
+            const barH = Math.max(2, Math.round((Math.abs(total) / barMax) * (BAR_H - 6)));
+            const neg = lens === "net" && net < 0;
+            const labelColor = neg ? "text-red-500" : "text-[var(--text-muted)]";
             return (
-              <div key={b.month} className="flex-1 flex flex-col items-center justify-end gap-1" title={`${b.month}: ${fmtShort(total)}`}>
-                <span className="text-[9px] mono-number text-[var(--text-muted)]">{fmtShort(total)}</span>
-                <div className="w-full flex flex-col-reverse rounded-t overflow-hidden" style={{ height: Math.max(2, Math.round((total / barMax) * 84)) }}>
-                  {parts!.map((pt) => {
-                    const v = Number((b as any)[pt.key] || 0);
-                    if (v <= 0) return null;
-                    return <div key={pt.key} title={`${pt.label} ${fmtShort(v)}`} style={{ height: `${(v / Math.max(1, total)) * 100}%`, background: pt.color }} />;
-                  })}
+              <div key={b.month} className="flex-1 flex flex-col items-center gap-1.5" title={`${b.month}: ${fmtShort(total)}`}>
+                <span className={`text-[9px] mono-number ${labelColor}`}>{fmtShort(total)}</span>
+                <div className="w-full rounded-xl flex items-end overflow-hidden" style={{ height: BAR_H, background: "var(--bg-surface)" }}>
+                  {lens === "net" ? (
+                    <div className={`w-full ${neg ? "bg-red-500/75" : "bg-emerald-500/80"}`} style={{ height: barH, borderRadius: "10px 10px 0 0" }} />
+                  ) : (
+                    <div className="w-full flex flex-col-reverse overflow-hidden" style={{ height: barH, borderRadius: "10px 10px 0 0" }}>
+                      {parts!.map((pt) => {
+                        const v = Number((b as any)[pt.key] || 0);
+                        if (v <= 0) return null;
+                        return <div key={pt.key} title={`${pt.label} ${fmtShort(v)}`} style={{ height: `${(v / Math.max(1, total)) * 100}%`, background: pt.color }} />;
+                      })}
+                    </div>
+                  )}
                 </div>
-                <span className={`text-[9px] ${isCur ? "text-[var(--primary)] font-bold" : "text-[var(--text-dim)]"}`}>{Number(b.month.slice(5))}월</span>
+                <span className={`text-[10px] ${isCur ? "text-[var(--primary)] font-bold" : "text-[var(--text-dim)]"}`}>{Number(b.month.slice(5))}월</span>
               </div>
             );
           })}
         </div>
         {/* 범례 */}
         {parts && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-3 mt-3">
             {parts.map((pt) => (
-              <span key={pt.key} className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+              <span key={pt.key} className="inline-flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: pt.color }} />{pt.label}
               </span>
             ))}
