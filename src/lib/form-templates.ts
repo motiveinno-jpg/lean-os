@@ -10,7 +10,7 @@ export type { OverlayField } from "@/lib/pdf-overlay"; // 에디터 등 form-tem
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-export type DocType = "quote" | "contract";
+export type DocType = "quote" | "contract" | "hr_form";
 
 export interface PdfFormTemplate {
   id: string;

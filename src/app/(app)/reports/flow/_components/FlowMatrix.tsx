@@ -9,6 +9,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getTaxInvoiceSummary } from "@/lib/tax-invoice";
+import { MetricInfo } from "./MetricInfo";
 
 type CellMode = "amount" | "mom" | "yoy" | "ytd" | "ratio";
 const CELL_MODES: { key: CellMode; label: string }[] = [
@@ -186,7 +187,7 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
                   </tr>
                   {rows.map((row) => (
                     <tr key={row.key} className="hover:bg-[var(--bg-surface)]/40">
-                      <td className={`sticky left-0 z-10 bg-[var(--bg-card)] px-2 py-1.5 border-b border-[var(--border)]/40 ${row.strong ? "font-bold text-[var(--text)]" : row.indent ? "pl-5 text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>{row.label}</td>
+                      <td className={`sticky left-0 z-10 bg-[var(--bg-card)] px-2 py-1.5 border-b border-[var(--border)]/40 whitespace-nowrap ${row.strong ? "font-bold text-[var(--text)]" : row.indent ? "pl-5 text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>{row.label}<MetricInfo rowKey={row.key} /></td>
                       {months.map((mo) => {
                         const v = cellValue(row, mo);
                         const neg = v != null && v < 0;

@@ -11,6 +11,7 @@ import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import {
@@ -23,6 +24,7 @@ import { STAGE_LABEL } from "@/lib/project-rules";
 export default function ReconciliationPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
+  const matchCd = useSyncCooldown(companyId, "match");
   const qc = useQueryClient();
   const { toast } = useToast();
   const db = supabase as any;
@@ -480,10 +482,10 @@ export default function ReconciliationPage() {
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
             title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
             {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
-          <button onClick={() => !aiMut.isPending && aiMut.mutate()} disabled={aiMut.isPending}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50"
-            title="규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다.">
-            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : "✨ AI 전체 매칭"}</button>
+          <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white hover:opacity-90 disabled:opacity-50 ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
+            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? `⏳ ${matchCd.label}` : "✨ AI 전체 매칭"}</button>
         </div>
       </div>
 

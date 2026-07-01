@@ -13,7 +13,7 @@ import {
   listFormTemplates, deleteFormTemplate, type DocType, type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 
-const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "전자계약" };
+const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "전자계약", hr_form: "인사 양식" };
 
 export function FormTemplateManager({ companyId, only }: { companyId: string | null; only?: DocType }) {
   const { toast } = useToast();

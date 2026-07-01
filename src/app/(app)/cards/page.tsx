@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -116,6 +117,7 @@ export default function CardsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const companyId = user?.company_id ?? null;
+  const cardCd = useSyncCooldown(companyId, "card");
   const [tab, setTab] = useState<Tab>("cards");
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [showBalance, setShowBalance] = useState(true);
@@ -472,16 +474,18 @@ export default function CardsPage() {
         actions={
           <button
             type="button"
-            onClick={handleSyncCards}
-            disabled={syncing || !companyId}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50"
-            title="CODEF 카드 연동으로 최근 카드 거래를 불러옵니다"
+            onClick={() => cardCd.run(handleSyncCards)}
+            disabled={syncing || !companyId || cardCd.disabled}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "CODEF 카드 연동으로 최근 카드 거래를 불러옵니다"}
           >
             {syncing ? (
               <>
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 연동 중...
               </>
+            ) : cardCd.disabled ? (
+              <>⏳ {cardCd.label}</>
             ) : (
               <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

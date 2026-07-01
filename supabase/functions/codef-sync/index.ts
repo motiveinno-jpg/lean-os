@@ -1970,7 +1970,17 @@ serve(async (req) => {
     }
 
     const end = endDate || new Date().toISOString().split("T")[0].replace(/-/g, "");
-    const start = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+    let start = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+
+    // 회계마감 컷오프: 마감일 이전(또는 2년 초과) 자료는 수집하지 않도록 시작일을 하한으로 clamp.
+    //   data_sync_floor() = max(마감일+1, today-2년). 미설정이어도 2년 상한 적용.
+    try {
+      const { data: floorRow } = await supabase.rpc("data_sync_floor", { p_company: companyId });
+      if (floorRow) {
+        const floorYmd = String(floorRow).replace(/-/g, ""); // 'YYYY-MM-DD' → 'YYYYMMDD'
+        if (floorYmd > start) start = floorYmd;
+      }
+    } catch (_e) { /* floor 조회 실패 시 기존 동작 유지 */ }
 
     const results: Record<string, any> = {};
 

@@ -16,6 +16,8 @@ import type { OverlayField, DocType } from "@/lib/form-templates";
 const KEY_OPTIONS: Record<DocType, string[]> = {
   quote: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "견적번호", "작성일", "유효기간", "공급가액", "부가세", "합계금액", "품목표", "비고", "서명_공급자"],
   contract: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "계약번호", "작성일", "계약시작일", "계약종료일", "계약금액", "부가세", "합계금액", "서명_갑", "서명_을", "비고"],
+  // HR 양식은 서식이 자유로워 정해진 키가 없음 — 아래는 새 필드 추가 시 기본 라벨 후보(속성 패널에서 자유 편집).
+  hr_form: ["성명", "주민등록번호", "생년월일", "주소", "연락처", "부서", "직위", "입사일", "날짜", "금액", "서명", "기타"],
 };
 
 const KIND_BY_KEY = (key: string): OverlayField["kind"] => {
@@ -155,14 +157,24 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
         {sel ? (
           <div className="space-y-3 rounded border border-gray-200 p-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">데이터 키</label>
-              <select
-                value={sel.key}
-                onChange={(e) => patchField(selected!, { key: e.target.value, label: e.target.value, kind: KIND_BY_KEY(e.target.value) })}
-                className="w-full rounded border px-2 py-1 text-sm"
-              >
-                {keyOptions.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
+              <label className="mb-1 block text-xs font-medium text-gray-500">{docType === "hr_form" ? "필드 이름" : "데이터 키"}</label>
+              {docType === "hr_form" ? (
+                // HR 양식은 자유 서식 — 필드 이름을 직접 입력(자동기입 없음, 라벨 용도).
+                <input
+                  value={sel.label ?? sel.key}
+                  onChange={(e) => patchField(selected!, { key: e.target.value || "필드", label: e.target.value })}
+                  placeholder="예: 성명"
+                  className="w-full rounded border px-2 py-1 text-sm"
+                />
+              ) : (
+                <select
+                  value={sel.key}
+                  onChange={(e) => patchField(selected!, { key: e.target.value, label: e.target.value, kind: KIND_BY_KEY(e.target.value) })}
+                  className="w-full rounded border px-2 py-1 text-sm"
+                >
+                  {keyOptions.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">종류(kind)</label>

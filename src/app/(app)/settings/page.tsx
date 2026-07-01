@@ -28,6 +28,7 @@ import { DealClassificationManager } from "./_components/DealClassificationManag
 import { AccountTab } from "./_components/AccountTab";
 import { DataResetTab } from "./_components/DataResetTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
+import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 
 type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "notifications" | "danger" | "hr_attendance";
 
@@ -554,7 +555,12 @@ export default function SettingsPage() {
       {mainTab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
 
       {/* ═══ Tax Automation Tab ═══ */}
-      {mainTab === "tax" && <TaxAutomationTab companyId={companyId} />}
+      {mainTab === "tax" && (
+        <div className="space-y-6">
+          <AccountingClosingTab companyId={companyId} />
+          <TaxAutomationTab companyId={companyId} />
+        </div>
+      )}
 
       {/* ═══ Certificate Management Tab ═══ */}
       {mainTab === "certificate" && <CertificateManagementTab companyId={companyId} />}

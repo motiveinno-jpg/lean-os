@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocTemplates } from "@/lib/queries";
 import { TemplatesTab } from "@/components/templates-tab";
+import { HrFormManager } from "@/components/hr-form-manager";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 
@@ -47,13 +48,17 @@ export default function HrTemplatesPage() {
       </header>
 
       {companyId && userId ? (
-        <TemplatesTab
-          scope="hr"
-          companyId={companyId}
-          userId={userId}
-          templates={docTemplates as any[]}
-          onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
-        />
+        <>
+          <TemplatesTab
+            scope="hr"
+            companyId={companyId}
+            userId={userId}
+            templates={docTemplates as any[]}
+            onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
+          />
+          {/* PDF 양식 — 회사 PDF를 올려 채울 필드를 지정해 재사용 양식으로 저장 */}
+          <HrFormManager companyId={companyId} />
+        </>
       ) : (
         <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>
       )}

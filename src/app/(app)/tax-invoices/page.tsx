@@ -8,6 +8,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getCurrentUser } from "@/lib/queries";
 import {
   createTaxInvoice,
@@ -561,6 +562,7 @@ export default function TaxInvoicesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const hometaxCd = useSyncCooldown(companyId, "hometax");
   // 2026-05-21 사장님 요청: "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 — 우선 sales 폴백).
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<"sales" | "purchase" | "vat" | "summary" | "queue" | "sync">(() => {
@@ -1524,7 +1526,7 @@ export default function TaxInvoicesPage() {
             aria-label="동기화 종료 월"
           />
           <button
-            onClick={async () => {
+            onClick={() => hometaxCd.run(async () => {
               // Incremental — last_sync_at - 30일 ~ today
               let from = syncFromMonth, to = syncToMonth;
               if (incrementalMode) {
@@ -1543,16 +1545,17 @@ export default function TaxInvoicesPage() {
               } else {
                 await runHometaxSync(from, to);
               }
-            }}
-            disabled={syncing || !!activeJobId || !isHometaxConnected}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title={!isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
+            })}
+            disabled={syncing || !!activeJobId || !isHometaxConnected || hometaxCd.disabled}
+            className={`flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${hometaxCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={hometaxCd.disabled ? `30분 쿨타임 — ${hometaxCd.label}` : !isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
           >
             <svg className={`w-3.5 h-3.5 ${(syncing || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...")
               : activeJobId ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ''})`
+              : hometaxCd.disabled ? `⏳ ${hometaxCd.label}`
               : "홈택스에서 가져오기"}
           </button>
         </div>

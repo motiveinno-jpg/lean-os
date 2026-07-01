@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
+import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { subscribeToBankTransactions, subscribeToCardTransactions } from "@/lib/realtime";
@@ -43,6 +44,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const { role } = useUser();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const bankCd = useSyncCooldown(companyId, "bank");
   const [userId, setUserId] = useState<string | null>(null);
   const [userLoadFailed, setUserLoadFailed] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -929,7 +931,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
           {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
             <button
-              onClick={async () => {
+              onClick={() => bankCd.run(async () => {
                 if (!companyId) return;
                 setBankFetching(true);
                 try {
@@ -969,13 +971,15 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 } finally {
                   setBankFetching(false);
                 }
-              }}
-              disabled={bankFetching || codefSyncing || !companyId}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
-              title="CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"
+              })}
+              disabled={bankFetching || codefSyncing || !companyId || bankCd.disabled}
+              className={`flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+              title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"}
             >
               {bankFetching ? (
                 <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 불러오는 중...</>
+              ) : bankCd.disabled ? (
+                `⏳ ${bankCd.label}`
               ) : (
                 '🏦 최근 거래 불러오기'
               )}
