@@ -30,10 +30,11 @@ import {
 } from "@/lib/approval-workflow";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 
 const db = supabase as any;
 
-type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies";
+type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "forms";
 
 // ── Status config ──
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -154,6 +155,7 @@ export default function ApprovalsPage() {
     { key: "my-requests", label: "내 요청" },
     ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황" }] : []),
     { key: "new-request", label: "새 요청" },
+    ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리" }] : []),
     ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리" }] : []),
   ];
 
@@ -218,6 +220,9 @@ export default function ApprovalsPage() {
       )}
       {tab === "new-request" && companyId && userId && (
         <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
+      )}
+      {tab === "forms" && companyId && (
+        <ApprovalFormsManager companyId={companyId} />
       )}
       {tab === "policies" && companyId && (
         <PoliciesTab companyId={companyId} invalidate={invalidate} />
