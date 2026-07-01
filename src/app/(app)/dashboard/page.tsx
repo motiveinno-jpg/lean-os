@@ -27,7 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { subscribeToBankAccounts } from "@/lib/realtime";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
-import { syncCodefData, refreshBankBalances } from "@/lib/data-sync";
+import { syncCodefData } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
 import { getTodos, toggleTodoDone, PRIORITY_LABEL, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
@@ -127,25 +127,12 @@ export default function DashboardPage() {
     loadUser();
   }, []);
 
-  // 통장 잔고 자동 새로고침 (대시보드 마운트 시, 5분 throttle, silent) — 경량(잔고만).
-  //   ⚠️ 2026-06-16 롤백: 새로고침 시 전체 CODEF 동기화+runAllAutomation 자동 실행은 504(연결
-  //      핸드셰이크 타임아웃)를 유발 → 과거에 자동 CODEF 호출을 0으로 막아둔 안티패턴이라 되돌림.
-  //      거래내역 최신화는 통장/카드/대시보드의 '동기화' 버튼(수동) + 서버 cron(하루 2회)로 유지.
-  useEffect(() => {
-    if (!companyId) return;
-    let cancelled = false;
-    (async () => {
-      const r = await refreshBankBalances(companyId);
-      if (cancelled) return;
-      if (r.ran && !r.error) {
-        queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [companyId, queryClient]);
+  // 2026-07-01 제거: 대시보드 마운트 시 자동 refreshBankBalances(CODEF 'bank-balance') 호출.
+  //   '경량(잔고만)'이라도 CODEF account-list = 은행 실제 로그인 → 은행 단일세션 정책상
+  //   사용자의 인터넷뱅킹 세션이 강제 로그아웃(예: IBK W98010)되는 부작용. 새로고침마다 재발.
+  //   잔고 최신화는 서버 cron(하루 2회) + 수동 '동기화' 버튼 + 아래 Realtime(DB 변경 즉시 반영)으로 유지.
 
-  // Supabase Realtime — bank_accounts 잔액(balance) 변경 즉시 cash-pulse 카드 갱신
-  // refreshBankBalances(5분 throttle) 와 함께 동작: throttle 차단된 갱신도 실시간 반영.
+  // Supabase Realtime — bank_accounts 잔액(balance) 변경(cron/수동 동기화) 즉시 cash-pulse 카드 갱신
   useEffect(() => {
     if (!companyId) return;
     const ch = subscribeToBankAccounts(companyId, () => {
