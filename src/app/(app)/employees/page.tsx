@@ -1431,7 +1431,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   check_out 이 null 인 attendance_records 카운트.
   const missingCheckOutCount = useMemo(() => {
     if (isEmployeeRole) return 0;
-    return (records as any[]).filter((r) => !r.check_out).length;
+    // 오늘(KST)은 제외 — 출근 후 아직 퇴근 전인 정상 상태를 '미입력'으로 세지 않음. 지난 날짜만.
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    return (records as any[]).filter((r) => !r.check_out && (r.date || "") < today).length;
   }, [records, isEmployeeRole]);
 
   // 관리자 분기 — 직원별 월간 수당 합산 (allowance_entries × allowance_types).
@@ -2163,7 +2165,11 @@ function MissingCheckOutModal({
   const empNameMap = useMemo(() => new Map(employees.map((e: any) => [e.id, e.name])), [employees]);
   // 행별 입력 시간 (HH:MM). 기본값 "18:30" (보편적 퇴근시각).
   const missingRows = useMemo(
-    () => (records || []).filter((r: any) => !r.check_out).sort((a: any, b: any) => (b.date || "").localeCompare(a.date || "")),
+    () => {
+      // 오늘(KST) 제외 — 지난 날짜의 퇴근 미입력만 보정 대상 (오늘은 아직 퇴근 전 정상)
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+      return (records || []).filter((r: any) => !r.check_out && (r.date || "") < today).sort((a: any, b: any) => (b.date || "").localeCompare(a.date || ""));
+    },
     [records],
   );
   const [times, setTimes] = useState<Record<string, string>>(() =>
