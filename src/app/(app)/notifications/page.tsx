@@ -35,6 +35,8 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   signature: (id) => `/contracts/signed/${id}`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/attendance?section=leave&focus=pending`,
+  // 연장근무 신청/승인/반려 알림 → 근태관리 연장근무 화면 (결재관리 대신 바로 연결)
+  overtime_request: () => `/attendance?section=overtime`,
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,   // 성과 체크인 미제출 리마인더 → 성과 탭
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/payments?tab=expenses`,

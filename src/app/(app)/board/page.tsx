@@ -388,6 +388,25 @@ export default function BoardPage() {
         }
       }
 
+      // 글 작성자 알림 — 댓글이 달리면 게시글 작성자에게 (본인 댓글 제외 · 이미 멘션 알림 받은 경우 중복 방지)
+      {
+        const post = posts.find((p) => p.id === postId);
+        const authorId = post?.author_id;
+        if (authorId && authorId !== user?.id && !mentioned.includes(authorId)) {
+          const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+          await db.from("notifications").insert({
+            company_id: companyId,
+            user_id: authorId,
+            type: "chat" as const,
+            title: "내 게시글에 새 댓글",
+            message: `${user?.name || user?.email || "누군가"} 님이 「${post?.title || "게시글"}」에 댓글을 남겼습니다: ${preview}`,
+            entity_type: "board_post",
+            entity_id: postId,
+            is_read: false,
+          }); // best-effort — 실패해도 댓글 자체는 성공
+        }
+      }
+
       return { postId, parentCommentId, draftKey, insertedId: inserted?.id };
     },
     onSuccess: (res) => {
