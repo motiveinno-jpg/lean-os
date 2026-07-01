@@ -1417,6 +1417,64 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
+      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치 */}
+      <div className="mb-6 no-print rounded-lg overflow-hidden border border-[var(--border)]" style={{ borderTop: "3px solid #027B8C" }}>
+        <div className="px-4 py-2 text-[12px] font-bold text-[var(--text)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, #027B8C 8%, var(--bg-surface))" }}>
+          전자(세금)계산서 조회
+        </div>
+        <div className="bg-[var(--bg-card)] p-3 flex flex-wrap items-stretch gap-x-0 gap-y-2">
+          <div className="flex items-stretch border border-[var(--border)] rounded-md overflow-hidden">
+            <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, #027B8C 6%, var(--bg-surface))" }}>조회기간</div>
+            <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
+              <MonthField
+                value={viewFromMonth}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setViewFromMonth(v);
+                  if (v > viewToMonth) setViewToMonth(v);  // from > to 면 to 도 맞춤
+                }}
+                className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
+                aria-label="조회 시작 월"
+              />
+              <span className="text-xs text-[var(--text-muted)]">~</span>
+              <MonthField
+                value={viewToMonth}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  setViewToMonth(v);
+                  if (v < viewFromMonth) setViewFromMonth(v);
+                }}
+                className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
+                aria-label="조회 종료 월"
+              />
+              {/* 홈택스식 빠른 기간 */}
+              {([["이번달", 0], ["3개월", 2], ["6개월", 5], ["1년", 11]] as const).map(([l, back]) => (
+                <button key={l}
+                  onClick={() => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - back);
+                    setViewFromMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+                    setViewToMonth(getCurrentMonth());
+                  }}
+                  className="px-2.5 py-1 rounded text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition">
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] })}
+            className="ml-auto self-center px-7 py-2.5 rounded-md text-sm font-bold text-white transition hover:brightness-110"
+            style={{ background: "#027B8C" }}
+            title="현재 조건으로 다시 조회합니다"
+          >
+            조회하기
+          </button>
+        </div>
+      </div>
+
       {/* Sync bar */}
       <div className="flex items-center justify-between glass-card px-4 py-2.5 mb-6">
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -1762,62 +1820,7 @@ export default function TaxInvoicesPage() {
 
       {/* 홈택스 스타일 조회조건 박스 (2026-06-12) — 라벨 셀 + 기간 + 빠른기간 + [조회하기].
           기간 변경은 즉시 반영(localStorage 유지), 조회하기 = 강제 새로고침(refetch). */}
-      <div className="mb-6 no-print rounded-lg overflow-hidden border border-[var(--border)]" style={{ borderTop: "3px solid #027B8C" }}>
-        <div className="px-4 py-2 text-[12px] font-bold text-[var(--text)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, #027B8C 8%, var(--bg-surface))" }}>
-          전자(세금)계산서 조회
-        </div>
-        <div className="bg-[var(--bg-card)] p-3 flex flex-wrap items-stretch gap-x-0 gap-y-2">
-          <div className="flex items-stretch border border-[var(--border)] rounded-md overflow-hidden">
-            <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, #027B8C 6%, var(--bg-surface))" }}>조회기간</div>
-            <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
-              <MonthField
-                value={viewFromMonth}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  setViewFromMonth(v);
-                  if (v > viewToMonth) setViewToMonth(v);  // from > to 면 to 도 맞춤
-                }}
-                className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                aria-label="조회 시작 월"
-              />
-              <span className="text-xs text-[var(--text-muted)]">~</span>
-              <MonthField
-                value={viewToMonth}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  setViewToMonth(v);
-                  if (v < viewFromMonth) setViewFromMonth(v);
-                }}
-                className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                aria-label="조회 종료 월"
-              />
-              {/* 홈택스식 빠른 기간 */}
-              {([["이번달", 0], ["3개월", 2], ["6개월", 5], ["1년", 11]] as const).map(([l, back]) => (
-                <button key={l}
-                  onClick={() => {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - back);
-                    setViewFromMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-                    setViewToMonth(getCurrentMonth());
-                  }}
-                  className="px-2.5 py-1 rounded text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition">
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] })}
-            className="ml-auto self-center px-7 py-2.5 rounded-md text-sm font-bold text-white transition hover:brightness-110"
-            style={{ background: "#027B8C" }}
-            title="현재 조건으로 다시 조회합니다"
-          >
-            조회하기
-          </button>
-        </div>
-      </div>
+      {/* 조회기간 컨트롤은 상단(헤더 아래)으로 이동 — 20260701 기간설정 위치 통일 */}
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
