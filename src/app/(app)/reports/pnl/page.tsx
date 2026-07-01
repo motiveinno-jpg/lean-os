@@ -300,7 +300,7 @@ export default function PnlPage() {
   // sync 후 강제 재fetch trigger
   const [refreshKey, setRefreshKey] = useState(0);
   // 손익 항목 드릴다운 (줄 클릭 → 원천 내역 모달)
-  const [drill, setDrill] = useState<{ source: "sales" | "purchase" | "opex"; category?: string; label: string } | null>(null);
+  const [drill, setDrill] = useState<{ source: "sales" | "purchase" | "opex" | "computed"; category?: string; label: string; breakdown?: { label: string; amount: number }[] } | null>(null);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -410,7 +410,7 @@ export default function PnlPage() {
       isTotal?: boolean;
       indent?: boolean;
       prevTotal?: number;
-      drill?: { source: "sales" | "purchase" | "opex"; category?: string };
+      drill?: { source: "sales" | "purchase" | "opex" | "computed"; category?: string; breakdown?: { label: string; amount: number }[] };
     },
   ) => {
     const total = months.reduce((s, m) => s + (row[m] || 0), 0);
@@ -442,7 +442,7 @@ export default function PnlPage() {
           {options?.drill ? (
             <button
               type="button"
-              onClick={() => setDrill({ source: options.drill!.source, category: options.drill!.category, label })}
+              onClick={() => setDrill({ source: options.drill!.source, category: options.drill!.category, breakdown: options.drill!.breakdown, label })}
               style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", cursor: "pointer", textAlign: "left" }}
               className="hover:underline hover:text-[var(--primary)]"
               title="클릭하면 상세 내역을 봅니다"
@@ -821,6 +821,10 @@ export default function PnlPage() {
               isTotal: true,
               isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.grossProfit : undefined,
+              drill: { source: "computed", breakdown: [
+                { label: "매출 (세금계산서 기준)", amount: months.reduce((s, m) => s + (data.revenue[m] || 0), 0) },
+                { label: "매입원가", amount: -months.reduce((s, m) => s + (data.purchaseCost[m] || 0), 0) },
+              ] },
             })}
 
             {renderDivider(months, "div-3")}
@@ -851,6 +855,10 @@ export default function PnlPage() {
               isTotal: true,
               isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.operatingIncome : undefined,
+              drill: { source: "computed", breakdown: [
+                { label: "매출총이익", amount: months.reduce((s, m) => s + (computed.grossProfit[m] || 0), 0) },
+                { label: "판매관리비 합계", amount: -months.reduce((s, m) => s + (computed.totalOpex[m] || 0), 0) },
+              ] },
             })}
 
             {renderDivider(months, "div-5")}
@@ -860,6 +868,9 @@ export default function PnlPage() {
               isTotal: true,
               isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.netIncome : undefined,
+              drill: { source: "computed", breakdown: [
+                { label: "영업이익 (영업외손익·법인세 미반영)", amount: months.reduce((s, m) => s + (computed.operatingIncome[m] || 0), 0) },
+              ] },
             })}
           </tbody>
         </table>
@@ -913,6 +924,7 @@ export default function PnlPage() {
           source={drill.source}
           category={drill.category}
           label={drill.label}
+          breakdown={drill.breakdown}
           start={months[0]}
           end={months[months.length - 1]}
           onClose={() => setDrill(null)}
@@ -923,18 +935,20 @@ export default function PnlPage() {
 }
 
 // 손익 항목 드릴다운 모달 — 클릭한 줄의 원천 내역(매출/매입 세금계산서 · 판관비 분류 거래)을 기간으로 조회.
-function PnlDrillModal({ companyId, source, category, label, start, end, onClose }: {
+function PnlDrillModal({ companyId, source, category, label, start, end, breakdown, onClose }: {
   companyId: string;
-  source: "sales" | "purchase" | "opex";
+  source: "sales" | "purchase" | "opex" | "computed";
   category?: string;
   label: string;
   start: string;
   end: string;
+  breakdown?: { label: string; amount: number }[];
   onClose: () => void;
 }) {
   const [rows, setRows] = useState<{ date: string; name: string; amount: number }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
+    if (source === "computed") return;
     const startDate = `${start}-01`;
     const [ey, em] = end.split("-").map(Number);
     const endExclusive = em === 12 ? `${ey + 1}-01-01` : `${ey}-${String(em + 1).padStart(2, "0")}-01`;
@@ -964,8 +978,9 @@ function PnlDrillModal({ companyId, source, category, label, start, end, onClose
     })();
   }, [companyId, source, category, start, end]);
 
-  const total = (rows || []).reduce((s, r) => s + r.amount, 0);
-  const srcLabel = source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
+  const bd = breakdown || [];
+  const total = source === "computed" ? bd.reduce((s, b) => s + b.amount, 0) : (rows || []).reduce((s, r) => s + r.amount, 0);
+  const srcLabel = source === "computed" ? "산출 구성" : source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -973,12 +988,23 @@ function PnlDrillModal({ companyId, source, category, label, start, end, onClose
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div>
             <div className="text-sm font-bold text-[var(--text)]">{label} — 상세 내역</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{start} ~ {end} · {srcLabel}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{source === "computed" ? srcLabel : `${start} ~ ${end} · ${srcLabel}`}</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
         </div>
         <div className="flex-1 overflow-auto">
-          {err ? (
+          {source === "computed" ? (
+            <table className="w-full text-sm">
+              <tbody>
+                {bd.map((b, i) => (
+                  <tr key={i} className="border-t border-[var(--border)]/40 first:border-t-0">
+                    <td className="px-5 py-3 text-[var(--text-muted)]">{b.amount < 0 ? "− " : "+ "}{b.label}</td>
+                    <td className="px-5 py-3 text-right mono-number" style={{ color: b.amount < 0 ? "var(--danger)" : "var(--text)" }}>{formatKrw(Math.abs(b.amount))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : err ? (
             <div className="p-8 text-center text-sm text-red-400">{err}</div>
           ) : rows === null ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
@@ -1006,8 +1032,8 @@ function PnlDrillModal({ companyId, source, category, label, start, end, onClose
           )}
         </div>
         <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
-          <span className="text-[11px] text-[var(--text-muted)]">{rows ? `${rows.length}건` : ""}</span>
-          <span className="text-sm font-bold mono-number text-[var(--text)]">합계 {formatKrw(total)}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{source === "computed" ? "" : rows ? `${rows.length}건` : ""}</span>
+          <span className="text-sm font-bold mono-number text-[var(--text)]">{source === "computed" ? label : "합계"} {formatKrw(total)}</span>
         </div>
       </div>
     </div>
