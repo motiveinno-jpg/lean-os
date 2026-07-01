@@ -112,7 +112,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
     queryFn: async () => {
       const { data } = await db
         .from("overtime_requests")
-        .select("id, requested_date, requested_end_time, reason, status, rejected_reason, created_at")
+        .select("id, requested_date, requested_end_time, reason, status, rejected_reason, created_at, approver_id, approved_by")
         .eq("employee_id", employeeId!)
         .order("created_at", { ascending: false })
         .limit(5);
@@ -122,12 +122,25 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
     staleTime: 30_000,
   });
 
+  // 승인자 후보 — 회사 admin/owner (지정용 + 이름 해석)
+  const { data: approvers = [] } = useQuery<{ id: string; name: string | null; role: string }[]>({
+    queryKey: ["ot-approvers", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("id, name, role").eq("company_id", companyId).in("role", ["admin", "owner"]).order("name");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+    staleTime: 300_000,
+  });
+  const nameById = (id: string | null | undefined) => (id ? (approvers.find((a) => a.id === id)?.name || "관리자") : null);
+
   // 폼 상태
   const today = kstTodayStr();
   const maxDate = useMemo(() => addDaysStr(today, 14), [today]);
   const [date, setDate] = useState(today);
   const [endTime, setEndTime] = useState(defaultEndTime);
   const [reason, setReason] = useState("");
+  const [approverId, setApproverId] = useState("");
   // 기본 종료시각 회사 설정 로드 후 1회 반영
   useEffect(() => {
     setEndTime((prev) => (prev ? prev : defaultEndTime));
@@ -142,13 +155,14 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
         p_requested_date: date,
         p_requested_end_time: endTime,
         p_reason: reason.trim(),
+        p_approver_id: approverId || null,
       });
       if (error) throw error;
       return data as string;
     },
     onSuccess: (requestId: string) => {
       toast("연장근무 신청이 접수되었습니다", "success");
-      setReason("");
+      setReason(""); setApproverId("");
       qc.invalidateQueries({ queryKey: ["ot-my-history"] });
       refetchHistory();
       // 회사 admin/owner 알림 — 실패해도 신청 자체는 성공이라 fire-and-forget.
@@ -241,6 +255,14 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
           className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] resize-none"
         />
       </div>
+      <div className="mb-3">
+        <label className="block text-[11px] text-[var(--text-muted)] mb-1">승인자 지정 <span className="text-[var(--text-dim)]">(선택 · 미지정 시 관리자 누구나 승인)</span></label>
+        <select value={approverId} onChange={(e) => setApproverId(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]">
+          <option value="">미지정</option>
+          {approvers.map((a) => <option key={a.id} value={a.id}>{a.name || "관리자"}{a.role === "owner" ? " (대표)" : ""}</option>)}
+        </select>
+      </div>
       <div className="flex justify-end mb-5">
         <button
           type="button"
@@ -272,8 +294,13 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
                   <div className="text-xs font-mono text-[var(--text-muted)] shrink-0 w-[52px]">
                     ~{toHhmm(row.requested_end_time)}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)] flex-1 truncate" title={row.reason}>
-                    {row.reason}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-[var(--text-muted)] truncate" title={row.reason}>{row.reason}</div>
+                    {row.status === "approved" && row.approved_by ? (
+                      <div className="text-[10px] text-emerald-500/80">승인: {nameById(row.approved_by)}</div>
+                    ) : row.status === "pending" && row.approver_id ? (
+                      <div className="text-[10px] text-[var(--text-dim)]">승인예정: {nameById(row.approver_id)}</div>
+                    ) : null}
                   </div>
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${badge.cls}`}>
                     {badge.label}
