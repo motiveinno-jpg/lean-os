@@ -17,10 +17,9 @@ type Tab = "plan" | "payment" | "invoices" | "referral";
 type BillingCycle = "monthly" | "annual";
 
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
-  free: { icon: "🆓", features: ["직원 3명까지", "프로젝트 3개", "전자서명 월 3건", "생존 대시보드", "AI 분석 월 5회", "팀 채팅"] },
-  starter: { icon: "🚀", features: ["직원/프로젝트 무제한", "4개 엔진 전체", "서명 월 50건", "AI 분석 월 100회", "파트너 10개", "거래처 DB 무제한", "이메일 지원"] },
-  business: { icon: "🏢", recommended: true, features: ["Starter 전체 +", "AI 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 시뮬레이터", "우선 지원"] },
-  enterprise: { icon: "🏗️", features: ["Business 전체 +", "SSO/SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장"] },
+  free: { icon: "🎁", features: ["14일간 전 기능 무료 체험", "직원 3명 / 프로젝트 3개", "전자서명 월 3건", "AI 분석 월 5회", "생존 대시보드", "팀 채팅"] },
+  basic: { icon: "🚀", recommended: true, features: ["직원 / 프로젝트 무제한", "4대 엔진 전체", "전자서명 무제한", "AI 분석 무제한", "거래처 / 파트너 무제한", "세무 리포트", "우선 지원"] },
+  enterprise: { icon: "🏢", features: ["기본요금제 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장"] },
 };
 
 function fmtW(n: number): string {
@@ -35,7 +34,7 @@ export default function BillingPage() {
   }
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("plan");
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [cycle] = useState<BillingCycle>("monthly"); // 월간 단일 (연간 토글 제거)
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
@@ -326,8 +325,7 @@ export default function BillingPage() {
           {usage && (() => {
             const limits: Record<string, { employees: number; aiCalls: number; signatures: number; partners: number }> = {
               free:       { employees: 3,    aiCalls: 5,    signatures: 3,    partners: 5 },
-              starter:    { employees: 9999, aiCalls: 100,  signatures: 50,   partners: 10 },
-              business:   { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
+              basic:      { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
               enterprise: { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
             };
             const lim = limits[currentSlug] || limits.free;
@@ -370,26 +368,7 @@ export default function BillingPage() {
             );
           })()}
 
-          <div className="flex justify-center gap-2 mb-6">
-            <button
-              onClick={() => setCycle("monthly")}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${
-                cycle === "monthly" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-              }`}
-            >
-              월간
-            </button>
-            <button
-              onClick={() => setCycle("annual")}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${
-                cycle === "annual" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-              }`}
-            >
-              연간 <span className="text-xs opacity-80">(20% 할인)</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
@@ -422,17 +401,20 @@ export default function BillingPage() {
                     <div className="text-2xl mb-2">{meta.icon}</div>
                     <div className="text-lg font-extrabold text-[var(--text)]">{plan.name}</div>
                     <div className="mt-2">
-                      {plan.base_price === 0 && slug !== "enterprise" ? (
-                        <div className="text-3xl font-extrabold text-[var(--text)]">무료</div>
-                      ) : slug === "enterprise" ? (
-                        <div className="text-xl font-bold text-[var(--text)]">별도 협의</div>
+                      {slug === "enterprise" ? (
+                        <div className="text-xl font-bold text-[var(--text)]">별도 가격 문의</div>
+                      ) : plan.base_price === 0 ? (
+                        <>
+                          <div className="text-3xl font-extrabold text-[var(--text)]">무료</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-1">14일 무료 체험</div>
+                        </>
                       ) : (
                         <>
                           <div className="text-3xl font-extrabold text-[var(--text)]">
                             ₩{monthlyPrice.toLocaleString()}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mt-1">
-                            /월 + ₩{monthlySeat.toLocaleString()}/인
+                            /월 (VAT 별도){monthlySeat > 0 ? ` + ₩${monthlySeat.toLocaleString()}/인` : ""}
                           </div>
                         </>
                       )}
@@ -455,10 +437,10 @@ export default function BillingPage() {
                     </button>
                   ) : slug === "enterprise" ? (
                     <button
-                      onClick={() => window.open("mailto:creative@mo-tive.com?subject=Enterprise 문의")}
+                      onClick={() => { window.location.href = "/support"; }}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition"
                     >
-                      문의하기
+                      가격 문의하기
                     </button>
                   ) : (
                     <button
@@ -538,7 +520,7 @@ export default function BillingPage() {
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
               <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
               <div className="flex items-start gap-2"><span>•</span> 월간 결제: 매월 동일일에 자동 결제</div>
-              <div className="flex items-start gap-2"><span>•</span> 연간 결제: 20% 할인, 연 1회 결제</div>
+              <div className="flex items-start gap-2"><span>•</span> 14일 무료 체험 후 기본요금제로 전환됩니다</div>
               <div className="flex items-start gap-2"><span>•</span> 부가세(VAT) 10%는 별도 청구됩니다</div>
               <div className="flex items-start gap-2"><span>•</span> 결제 실패 시 3일 후 재시도, 3회 실패 시 Free 전환</div>
             </div>

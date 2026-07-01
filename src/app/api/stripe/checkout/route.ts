@@ -10,6 +10,10 @@ function getStripe() {
 
 /** Stripe price ID lookup by plan slug and billing cycle */
 const PRICE_MAP: Record<string, Record<string, string | undefined>> = {
+  basic: {
+    monthly: process.env.STRIPE_PRICE_BASIC_MONTHLY,
+    annual: process.env.STRIPE_PRICE_BASIC_ANNUAL,
+  },
   starter: {
     monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
     annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,
