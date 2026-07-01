@@ -181,6 +181,7 @@ export default function ProjectHubDetailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
   const [creatingQuote, setCreatingQuote] = useState(false);
+  const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
   const createDoc = async () => {
     if (!companyId || !userId || creatingQuote) return;
     setCreatingQuote(true);
@@ -224,6 +225,50 @@ export default function ProjectHubDetailPage() {
       toast(e?.message || "문서 생성 실패", "error");
     } finally {
       setCreatingQuote(false);
+    }
+  };
+
+  // ★ 견적 → 계약서 원클릭 자동생성 (Phase 1) — 견적 데이터(거래처·금액·품목)를 계약 문서로 이월 + 링크.
+  //   방향(매출/매입)은 sub_deal_id 그대로 유지. 계약 PDF는 기존 buildContractVarsFromDeal 오버레이 재사용.
+  const createContractFromQuote = async (quoteDoc: any) => {
+    if (!companyId || !userId || creatingContractFrom) return;
+    setCreatingContractFrom(quoteDoc.id);
+    try {
+      const q = (quoteDoc.content_json as any) || {};
+      const amt = quoteAmount(quoteDoc);
+      const partnerName = q.header?.partnerName || partner?.name || "";
+      const contractContent = {
+        ...CONTRACT_CONTENT,
+        header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
+        items: q.items || [],              // 견적 품목 이월(참조)
+        sections: [
+          {
+            title: "계약 내용",
+            content: `본 계약은 견적서(${fmtNo(quoteDoc)})에 근거합니다.\n\n수신: ${partnerName}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "-"}\n\n※ 세부 조항은 편집기에서 작성해 주세요.`,
+          },
+        ],
+      };
+      const { data, error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        sub_deal_id: quoteDoc.sub_deal_id || null,   // 방향(매출/매입) 유지
+        name: `${deal?.name || "프로젝트"} 계약서`,
+        status: "draft",
+        document_number: null,
+        content_type: "contract",
+        content_json: contractContent,
+        source_document_id: quoteDoc.id,             // 견적 원본 링크
+        version: 1,
+        created_by: userId,
+      }).select("id").single();
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      toast("견적서로 계약서를 생성했습니다. 계약 탭에서 확인·발송하세요.", "success");
+      setTab("contract");
+    } catch (e: any) {
+      toast(e?.message || "계약 생성 실패", "error");
+    } finally {
+      setCreatingContractFrom(null);
     }
   };
 
@@ -486,7 +531,7 @@ export default function ProjectHubDetailPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
     queryFn: async () => {
-      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
     enabled: !!dealId && (tab === "quote" || tab === "contract"),
@@ -733,6 +778,7 @@ export default function ProjectHubDetailPage() {
                     {cols.map((c) => (
                       <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`}>{c.label}</th>
                     ))}
+                    <th className="px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] text-center">계약</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -757,6 +803,15 @@ export default function ProjectHubDetailPage() {
                           if (c.key === "print") return <td key={c.key} className={cellCls(c)}><button onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc); }} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</button></td>;
                           return <td key={c.key} className={cellCls(c)}>—</td>;
                         })}
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); createContractFromQuote(doc); }}
+                            disabled={creatingContractFrom === doc.id}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
+                            title="이 견적서 내용으로 계약서를 생성합니다">
+                            {creatingContractFrom === doc.id ? "생성 중…" : "📄 계약 생성"}
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -797,6 +852,10 @@ export default function ProjectHubDetailPage() {
               {contractDocs.map((doc) => (
                 <div key={doc.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
                   <Link href={`/documents?id=${doc.id}`} className="min-w-0 flex-1 text-sm text-[var(--primary)] font-medium hover:underline truncate">{doc.name || "계약서"}</Link>
+                  {doc.source_document_id && (() => {
+                    const src = (documents as any[]).find((x) => x.id === doc.source_document_id);
+                    return <Link href={`/documents?id=${doc.source_document_id}`} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 hover:underline" title="이 계약의 원본 견적서">← 견적 {src ? fmtNo(src) : "원본"}</Link>;
+                  })()}
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
                   <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
