@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getTaxInvoiceSummary } from "@/lib/tax-invoice";
 import { MetricInfo } from "./MetricInfo";
+import { CellDetail } from "./CellDetail";
+import { RECORD_BACKED_KEYS, type BudgetDetailItem } from "@/lib/budget-detail";
 
 type CellMode = "amount" | "mom" | "yoy" | "ytd" | "ratio";
 const CELL_MODES: { key: CellMode; label: string }[] = [
@@ -71,6 +73,7 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
   const curMonthNum = Number(currentMonth.slice(5, 7));
   const [year, setYear] = useState(curYear);
   const [mode, setMode] = useState<CellMode>("amount");
+  const [detail, setDetail] = useState<{ rowKey: string; label: string; mo: number } | null>(null);
 
   const { data: budget = [] } = useQuery({
     queryKey: ["flow-matrix-budget", companyId, year],
@@ -139,6 +142,56 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
   };
   const cellFmt = (row: Row): "won" | "pct" => (mode === "ratio" && row.ratioBase ? "pct" : row.fmt);
 
+  // 금액 셀 클릭 시 산출 내역(원 단위 행만). 레코드 기반 행은 CellDetail 이 직접 조회, 파생행은 여기서 계산.
+  const canDetail = (row: Row, v: number | null) =>
+    mode === "amount" && v != null && row.fmt === "won" && !["subsidies", "otherIncome"].includes(row.key);
+
+  // 파생행 산출 내역(이미 로드된 값 기반)
+  const clientDetail = (rowKey: string, mo: number): { items: BudgetDetailItem[]; note?: string; showTotal?: boolean } | null => {
+    const b = byMonth[mo];
+    if (rowKey === "incomeTotal") return { items: [
+      { label: "매출", amount: Number(b.salesRevenue || 0) },
+      { label: "대표 가수금", amount: Number(b.ownerInjection || 0) },
+      { label: "보조금/지원금", amount: Number(b.subsidies || 0) },
+      { label: "기타 수입", amount: Number(b.otherIncome || 0) },
+    ].filter((i) => i.amount) };
+    if (rowKey === "expenseTotal") return { items: [
+      { label: "고정비", amount: Number(b.fixedCosts || 0) },
+      { label: "변동비", amount: Number(b.variableCosts || 0) },
+    ].filter((i) => i.amount) };
+    if (rowKey === "netProfit") return { items: [
+      { label: "수입 총액", amount: Number(b.incomeTotal || 0) },
+      { label: "지출 총액", amount: -Number(b.expenseTotal || 0) },
+    ] };
+    if (rowKey === "cumNet") {
+      const items: BudgetDetailItem[] = [];
+      for (let i = 1; i <= mo; i++) items.push({ label: `${i}월 순이익`, amount: monthNet(byMonth[i]) });
+      return { items };
+    }
+    if (rowKey === "gap") return { items: [
+      { label: "통장 월말잔액", amount: Number(b.bankBalance || 0) },
+      { label: "누적순익", amount: -cumNetByMonth[mo] },
+    ] };
+    if (rowKey === "vat") {
+      const qMap: Record<number, string> = { 4: "Q1", 7: "Q2", 10: "Q3", 1: "Q4" };
+      const q = qMap[mo];
+      if (!q) return null;
+      const r = (quarterly as any[]).find((x) => (x.quarter || x.period) === `${year}-${q}`);
+      const s = Number(r?.salesTax || 0), p = Number(r?.purchaseTax || 0);
+      return { items: [{ label: "매출세액", amount: s }, { label: "매입세액", amount: -p }], note: `${q} 매출세액 − 매입세액 = 순부가세` };
+    }
+    if (rowKey === "bep") {
+      const r = cmRate(b);
+      const bepVal = r > 0 ? Number(b.fixedCosts || 0) / r : 0;
+      return {
+        items: [{ label: "고정비", amount: Number(b.fixedCosts || 0) }],
+        note: `공헌이익률 ${(r * 100).toFixed(1)}% · BEP 매출 = 고정비 ÷ 공헌이익률 = ${Math.round(bepVal).toLocaleString("ko-KR")}원`,
+        showTotal: false,
+      };
+    }
+    return null;
+  };
+
   // 섹션별 그룹 렌더
   const sections: Row["section"][] = ["income", "expense", "vat", "summary"];
 
@@ -191,8 +244,12 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
                       {months.map((mo) => {
                         const v = cellValue(row, mo);
                         const neg = v != null && v < 0;
+                        const clickable = canDetail(row, v);
                         return (
-                          <td key={mo} className={`px-2 py-1.5 text-right mono-number border-b border-[var(--border)]/40 ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+                          <td key={mo}
+                            onClick={clickable ? () => setDetail({ rowKey: row.key, label: row.label, mo }) : undefined}
+                            title={clickable ? "클릭하면 산출 내역" : undefined}
+                            className={`px-2 py-1.5 text-right mono-number border-b border-[var(--border)]/40 ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"} ${clickable ? "cursor-pointer hover:bg-[var(--primary)]/10 hover:underline decoration-dotted underline-offset-2" : ""}`}>
                             {fmtCell(v, cellFmt(row))}
                           </td>
                         );
@@ -209,6 +266,23 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
         과거 월=실적 자동집계(cash-budget·세금계산서, 다른 화면과 동일), 미래 월=예측/예산. 부가세=분기 매출세액−매입세액을 신고월(4·7·10·익1)에 표기.
         계정과목 전수(예수금·4대보험·임차료 등)는 분개·계정과목 데이터가 입력되면 자동으로 행이 추가됩니다.
       </div>
+
+      {detail && companyId && (() => {
+        const cd = RECORD_BACKED_KEYS.has(detail.rowKey) ? null : clientDetail(detail.rowKey, detail.mo);
+        return (
+          <CellDetail
+            companyId={companyId}
+            year={year}
+            month={detail.mo}
+            rowKey={detail.rowKey}
+            title={detail.label}
+            clientItems={cd?.items ?? null}
+            note={cd?.note}
+            showTotal={cd?.showTotal ?? true}
+            onClose={() => setDetail(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
