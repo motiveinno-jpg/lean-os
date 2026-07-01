@@ -241,6 +241,7 @@ export default function ProjectHubDetailPage() {
       const partnerName = q.header?.partnerName || partner?.name || "";
       const contractContent = {
         ...CONTRACT_CONTENT,
+        direction: q.direction,            // 방향(매출/매입) 유지 — 파이프라인 필터용
         header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
         items: q.items || [],              // 견적 품목 이월(참조)
         sections: [
@@ -297,6 +298,32 @@ export default function ProjectHubDetailPage() {
       if (data?.id) router.push(`/documents?id=${data.id}`);
     } catch (e: any) {
       toast(e?.message || "견적서 생성 실패", "error");
+    } finally {
+      setCreatingQuote(false);
+    }
+  };
+  // ★ 협력사 견적 수취(인바운드/매입) — content_json.direction='purchase' 로 매입 방향 견적 등록 (Phase 4)
+  const createInboundQuote = async () => {
+    if (!companyId || !userId || creatingQuote) return;
+    setCreatingQuote(true);
+    try {
+      const { data, error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        sub_deal_id: null,
+        name: "협력사 견적서",
+        status: "draft",
+        document_number: await nextQuoteNumber(companyId),
+        content_type: "invoice",
+        content_json: { ...QUOTE_CONTENT, direction: "purchase", title: "협력사 견적서" },
+        version: 1,
+        created_by: userId,
+      }).select("id").single();
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      if (data?.id) router.push(`/documents?id=${data.id}`);
+    } catch (e: any) {
+      toast(e?.message || "협력사 견적 등록 실패", "error");
     } finally {
       setCreatingQuote(false);
     }
@@ -682,6 +709,8 @@ export default function ProjectHubDetailPage() {
 
   // 방향별 파이프라인 표시 — 문서 방향 판정(sub_deal.type, 미지정=매출) + 방향 필터 + 진행 스텝
   const dirOfDoc = (d: any): "sales" | "purchase" => {
+    const explicit = (d.content_json as any)?.direction;
+    if (explicit === "purchase" || explicit === "sales") return explicit;
     const sd = (subDealOpts as any[]).find((x) => x.id === d.sub_deal_id);
     return sd?.type === "purchase" ? "purchase" : "sales";
   };
@@ -805,8 +834,8 @@ export default function ProjectHubDetailPage() {
             <div className="flex items-center gap-2 relative">
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">⚙ 열 설정</button>
-              <button onClick={createQuoteInstant} disabled={creatingQuote}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">{creatingQuote ? "생성 중..." : "+ 견적서 작성"}</button>
+              <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "📥 협력사 견적 등록" : "+ 견적서 작성"}</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
