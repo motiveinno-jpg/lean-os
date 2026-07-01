@@ -401,14 +401,14 @@ export default function CardsPage() {
     setSyncing(true);
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
-      const result = await syncCodefData(companyId, "card");
+      const result = await syncCodefData(companyId, "card", cardTxFrom || undefined, cardTxTo || undefined);
       if (!result.success && result.status !== "partial") {
         toast(result.error || "카드 연동 실패", "error");
         return;
       }
       try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
       // 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과 HTTP 546). 청구 마감 전 결제 즉시 반영.
-      const approvalRes = await syncCodefData(companyId, "card_approval").catch(() => null);
+      const approvalRes = await syncCodefData(companyId, "card_approval", cardTxFrom || undefined, cardTxTo || undefined).catch(() => null);
       const synced = (result.cardSynced ?? 0) + ((approvalRes as any)?.cardSynced ?? 0);
       // 카드 페이지 모든 카드 관련 쿼리 invalidate
       queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] });
@@ -474,10 +474,13 @@ export default function CardsPage() {
         actions={
           <button
             type="button"
-            onClick={() => cardCd.run(handleSyncCards)}
+            onClick={() => {
+              if (!cardTxFrom || !cardTxTo) { toast("카드 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요 — 기간 없이 연동하면 새 거래 없이 쿨타임만 시작됩니다", "error"); return; }
+              cardCd.run(handleSyncCards);
+            }}
             disabled={syncing || !companyId || cardCd.disabled}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "CODEF 카드 연동으로 최근 카드 거래를 불러옵니다"}
+            title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
           >
             {syncing ? (
               <>
