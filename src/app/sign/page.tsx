@@ -979,16 +979,61 @@ function SignContent() {
                     {cj.title}
                   </h2>
                 )}
-                {cj?.sections?.map((section: any, i: number) => (
-                  <div key={i} className="mb-5">
-                    {section.heading && (
-                      <h4 className="text-sm font-bold text-gray-800 mb-2">{section.heading}</h4>
-                    )}
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {section.body}
-                    </p>
+                {/* 견적서 — 수신 + 품목 표(실제 내역). body/sections 만 그리던 탓에 품목이 안 보이던 문제 수정 */}
+                {cj?.header?.partnerName && (
+                  <div className="text-sm text-gray-700 mb-3"><b>수신:</b> {cj.header.partnerName} 귀하</div>
+                )}
+                {Array.isArray(cj?.items) && cj.items.length > 0 && (
+                  <div className="mb-5 overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 text-gray-600">
+                          <th className="px-3 py-2 text-left border-b border-gray-200">품목명</th>
+                          <th className="px-3 py-2 text-right border-b border-gray-200">수량</th>
+                          <th className="px-3 py-2 text-right border-b border-gray-200">단가</th>
+                          <th className="px-3 py-2 text-right border-b border-gray-200">공급가액</th>
+                          <th className="px-3 py-2 text-right border-b border-gray-200">세액</th>
+                          <th className="px-3 py-2 text-right border-b border-gray-200">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cj.items.map((it: any, i: number) => {
+                          const supply = Number(it.supplyAmount || it.amount || 0);
+                          const tax = Number(it.taxAmount || 0);
+                          return (
+                            <tr key={i} className="border-b border-gray-100">
+                              <td className="px-3 py-2 text-gray-800">{it.name || "-"}</td>
+                              <td className="px-3 py-2 text-right">{it.quantity ?? ""}</td>
+                              <td className="px-3 py-2 text-right">{Number(it.unitPrice || 0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right">{supply.toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right">{tax.toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{(supply + tax).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-gray-300 font-bold text-gray-900">
+                          <td className="px-3 py-2" colSpan={3}>합계</td>
+                          <td className="px-3 py-2 text-right">{cj.items.reduce((s: number, it: any) => s + Number(it.supplyAmount || it.amount || 0), 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right">{cj.items.reduce((s: number, it: any) => s + Number(it.taxAmount || 0), 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right">₩{cj.items.reduce((s: number, it: any) => s + Number(it.supplyAmount || it.amount || 0) + Number(it.taxAmount || 0), 0).toLocaleString()}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
-                ))}
+                )}
+                {cj?.sections?.map((section: any, i: number) => {
+                  const heading = section.heading || section.title;
+                  const bodyText = String(section.body || section.content || "").replace(/\[품목\s?테이블\][\s\S]*?(?=\n\n|$)/g, "").trim();
+                  if (!heading && !bodyText) return null;
+                  return (
+                    <div key={i} className="mb-5">
+                      {heading && <h4 className="text-sm font-bold text-gray-800 mb-2">{heading}</h4>}
+                      {bodyText && <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{bodyText}</p>}
+                    </div>
+                  );
+                })}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
                     <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
