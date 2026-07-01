@@ -80,6 +80,8 @@ export default function BoardPage() {
   // 플렉스/슬랙식 2단 — 좌측 필터/검색
   const [filter, setFilter] = useState<"all" | "pinned" | "event" | "poll" | "file" | "mine">("all");
   const [search, setSearch] = useState("");
+  // 사진 첨부 라이트박스 (팝업 보기 + 넘기기 + 드래그)
+  const [lightbox, setLightbox] = useState<{ images: { url: string; name: string }[]; index: number } | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   // v4 B1: 멘션 자동완성 상태 — postId 또는 reply key 별로 분리
   // key = root: postId, reply key: `reply:${parentCommentId}`
@@ -1008,20 +1010,23 @@ export default function BoardPage() {
                         <div className="flex flex-wrap gap-2">
                           {p.attachments!.map((a, i) =>
                             isImage(a.type) ? (
-                              <a
+                              <button
                                 key={i}
-                                href={a.url}
-                                target="_blank"
-                                rel="noreferrer"
+                                type="button"
+                                onClick={() => {
+                                  const imgs = p.attachments!.filter((x) => isImage(x.type)).map((x) => ({ url: x.url, name: x.name }));
+                                  const idx = imgs.findIndex((x) => x.url === a.url);
+                                  setLightbox({ images: imgs, index: idx < 0 ? 0 : idx });
+                                }}
                                 className="block"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={a.url}
                                   alt={a.name}
-                                  className="w-24 h-24 object-cover rounded-lg border border-[var(--border)]"
+                                  className="w-24 h-24 object-cover rounded-lg border border-[var(--border)] cursor-zoom-in"
                                 />
-                              </a>
+                              </button>
                             ) : (
                               <a
                                 key={i}
@@ -1272,6 +1277,82 @@ export default function BoardPage() {
           })}
         </div>
       )}
+      {lightbox && (
+        <BoardLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onIndex={(i) => setLightbox((s) => (s ? { ...s, index: i } : null))}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// 게시판 사진 라이트박스 — 팝업 크게 보기 + 이전/다음 넘기기 + 드래그 이동(패닝) + 휠/더블클릭 확대. ESC·바깥클릭 닫힘.
+function BoardLightbox({ images, index, onIndex, onClose }: {
+  images: { url: string; name: string }[];
+  index: number;
+  onIndex: (i: number) => void;
+  onClose: () => void;
+}) {
+  const [scale, setScale] = useState(1);
+  const [off, setOff] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const cur = images[index];
+
+  const reset = () => { setScale(1); setOff({ x: 0, y: 0 }); };
+  const go = (dir: number) => { onIndex((index + dir + images.length) % images.length); reset(); };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") go(1);
+      else if (e.key === "ArrowLeft") go(-1);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, images.length]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, ox: off.x, oy: off.y };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    setOff({ x: drag.current.ox + (e.clientX - drag.current.x), y: drag.current.oy + (e.clientY - drag.current.y) });
+  };
+  const onPointerUp = () => { drag.current = null; };
+
+  if (!cur) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 select-none" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center" aria-label="닫기">✕</button>
+      {images.length > 1 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-white/10 text-white text-xs">{index + 1} / {images.length}</div>
+      )}
+      {images.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); go(-1); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl flex items-center justify-center" aria-label="이전">‹</button>
+          <button onClick={(e) => { e.stopPropagation(); go(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl flex items-center justify-center" aria-label="다음">›</button>
+        </>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={cur.url}
+        alt={cur.name}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onDoubleClick={(e) => { e.stopPropagation(); setScale((s) => (s > 1 ? 1 : 2)); setOff({ x: 0, y: 0 }); }}
+        onWheel={(e) => setScale((s) => Math.min(5, Math.max(1, s - e.deltaY * 0.0015)))}
+        draggable={false}
+        style={{ transform: `translate(${off.x}px, ${off.y}px) scale(${scale})`, cursor: drag.current ? "grabbing" : "grab", transition: drag.current ? "none" : "transform 0.1s", touchAction: "none" }}
+        className="max-w-[92vw] max-h-[88vh] object-contain rounded-lg shadow-2xl"
+      />
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-white/10 text-white/90 text-xs max-w-[80vw] truncate">{cur.name}</div>
     </div>
   );
 }
