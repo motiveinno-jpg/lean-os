@@ -161,7 +161,13 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   // 미등록 CODEF 카드 안내: 청구서 표시는 안 하되 등록 유도.
   const unregisteredCount = useMemo(() => {
     const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
-    return (codefCards as any[]).filter((cc) => !registeredNames.has(cc.card_name)).length;
+    const registeredNumbers = new Set((cards as any[]).map((c: any) => c.card_number).filter(Boolean));
+    // 이름 또는 카드번호(끝4)로 매칭 — 이름을 바꾼 카드를 '미등록'으로 오판하지 않음
+    return (codefCards as any[]).filter((cc) => {
+      if (registeredNames.has(cc.card_name)) return false;
+      const num = parseCardName(cc.card_name).lastFour;
+      return !(num && registeredNumbers.has(num));
+    }).length;
   }, [cards, codefCards]);
 
   // CODEF sync 거래에 있는데 corporate_cards 미등록인 카드 자동 등록 (세션당 1회).
@@ -174,7 +180,13 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     if (!cardsFetched || !codefFetched) return;
     if (!Array.isArray(cards) || !Array.isArray(codefCards)) return;
     const registeredNames = new Set((cards as any[]).map((c: any) => c.card_name));
-    const newCards = (codefCards as any[]).filter((cc: any) => cc.card_name && !registeredNames.has(cc.card_name));
+    const registeredNumbers = new Set((cards as any[]).map((c: any) => c.card_number).filter(Boolean));
+    // 이름 미매칭이어도 같은 카드번호(끝4)가 이미 등록돼 있으면 생성 안 함 — 이름 수정 카드 중복 생성 방지
+    const newCards = (codefCards as any[]).filter((cc: any) => {
+      if (!cc.card_name || registeredNames.has(cc.card_name)) return false;
+      const num = parseCardName(cc.card_name).lastFour;
+      return !(num && registeredNumbers.has(num));
+    });
     if (newCards.length === 0) {
       autoRegRef.current = true; // 추가 등록할 카드 없음 — 다음에 또 시도 안 함
       return;
