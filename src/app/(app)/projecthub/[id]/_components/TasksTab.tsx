@@ -238,6 +238,8 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [start, setStart] = useState((task?.start_date || "").slice(0, 10));
   const [due, setDue] = useState((task?.due_date || "").slice(0, 10));
   const [desc, setDesc] = useState(task?.description || "");
+  const [descBig, setDescBig] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const isEdit = !!task;
 
@@ -360,8 +362,11 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             </div>
           </div>
           <div>
-            <label className={LB}>설명 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className={IN} />
+            <div className="flex items-center justify-between">
+              <label className={LB}>설명 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
+              <button type="button" onClick={() => setDescBig((v) => !v)} className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)]">{descBig ? "▲ 작게" : "▼ 크게"}</button>
+            </div>
+            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} onDoubleClick={() => setDescBig(true)} rows={descBig ? 9 : 2} title="더블클릭하거나 '크게'를 누르면 넓어집니다" className={IN} />
           </div>
           <div>
             <label className={LB}>첨부 <span className="font-normal text-[var(--text-dim)]">(이미지·파일 · Ctrl+V 붙여넣기)</span></label>
@@ -377,7 +382,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                     <button type="button" onClick={() => removeAtt(a)} className="absolute top-0.5 right-0.5 z-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs leading-none opacity-0 group-hover:opacity-100 transition" aria-label="첨부 삭제">×</button>
                     {isImageAtt(a) && urls[a.path] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <a href={urls[a.path]} target="_blank" rel="noreferrer"><img src={urls[a.path]} alt={a.name} className="w-full h-16 object-cover" /></a>
+                      <button type="button" onClick={() => setLightbox(urls[a.path])} className="block w-full"><img src={urls[a.path]} alt={a.name} className="w-full h-16 object-cover cursor-zoom-in" /></button>
                     ) : (
                       <div className="h-16 flex items-center justify-center text-2xl">📄</div>
                     )}
@@ -397,6 +402,13 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             </button>
           </div>
         </div>
+        {lightbox && (
+          <div className="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+            <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none">✕</button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lightbox} alt="첨부 이미지" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          </div>
+        )}
       </div>
     </div>
   );
