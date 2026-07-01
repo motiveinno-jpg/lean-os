@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { encryptCredential, decryptJsonCredentials } from "@/lib/crypto";
 import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule, getDealClassifications, upsertDealClassification, deleteDealClassification } from "@/lib/queries";
 import { COST_TYPES, BANK_ROLES } from "@/lib/routing";
+import { ChartOfAccountsManager } from "@/components/chart-of-accounts-manager";
 import type { BankAccount } from "@/types/models";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
@@ -543,6 +544,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <CompanyInfoTab companyId={companyId} />
           {/* 계약서 양식 관리는 전자계약 > 양식 관리 탭으로 이관됨 (2026-07-01) */}
+          {companyId && <ChartOfAccountsManager companyId={companyId} />}
         </div>
       )}
 
