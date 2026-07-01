@@ -196,7 +196,7 @@ export async function deleteApprovalPolicy(policyId: string): Promise<void> {
  */
 export async function createApprovalRequest(params: {
   companyId: string;
-  requestType: RequestType;
+  requestType: RequestType | string;
   requestId?: string;
   requesterId: string;
   title: string;
@@ -204,6 +204,8 @@ export async function createApprovalRequest(params: {
   description?: string;
   attachments?: string[];
   customApprovers?: { userId: string; name: string }[];
+  formId?: string;                          // 커스텀 결재 양식 사용 시
+  customFields?: Record<string, string>;    // 양식 커스텀 필드 값
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
@@ -257,6 +259,8 @@ export async function createApprovalRequest(params: {
       current_stage: isAutoApproved ? totalStages : 1,
       total_stages: totalStages,
       attachments: params.attachments ?? [],
+      form_id: params.formId ?? null,
+      custom_fields: params.customFields ?? {},
     })
     .select()
     .single();

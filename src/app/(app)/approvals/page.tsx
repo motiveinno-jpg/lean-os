@@ -31,6 +31,7 @@ import {
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
+import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 
 const db = supabase as any;
 
@@ -858,6 +859,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [files, setFiles] = useState<File[]>([]);
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
+  const selectedForm = (customForms as ApprovalForm[]).find((f) => `form:${f.id}` === form.requestType) || null;
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   useEffect(() => {
@@ -989,11 +993,32 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   // 요청 유형 변경 시 설명란 자동 입력 — 정책의 설명 템플릿 우선, 없으면 내장 템플릿.
   useEffect(() => {
-    if (isLeave || form.requestType === descriptionInited) return;
+    if (isLeave || form.requestType.startsWith("form:") || form.requestType === descriptionInited) return;
     const tpl = matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "";
     setForm((prev) => ({ ...prev, description: tpl }));
     setDescriptionInited(form.requestType);
   }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
+
+  // 커스텀 결재 양식 선택 시 — 내용 템플릿 프리필 + 결재선을 승인자로 적용
+  useEffect(() => {
+    if (!selectedForm || descriptionInited === form.requestType) return;
+    setForm((prev) => ({ ...prev, description: selectedForm.content_template || "" }));
+    setDescriptionInited(form.requestType);
+    setCustomFieldValues({});
+    const approvers: { userId: string; name: string }[] = [];
+    for (const st of selectedForm.stages || []) {
+      if (st.approver_type === "user") {
+        for (const uidv of st.approver_user_ids || []) {
+          const u = (companyUsers as any[]).find((x) => x.id === uidv);
+          if (u && !approvers.some((a) => a.userId === u.id)) approvers.push({ userId: u.id, name: u.name || u.email });
+        }
+      } else if (st.approver_role) {
+        const u = (companyUsers as any[]).find((x) => x.role === st.approver_role);
+        if (u && !approvers.some((a) => a.userId === u.id)) approvers.push({ userId: u.id, name: u.name || u.email });
+      }
+    }
+    setSelectedApprovers(approvers.slice(0, 3));
+  }, [selectedForm, form.requestType, descriptionInited, companyUsers]);
 
   const effectiveTitle = isLeave ? leaveTitle : form.title;
   const effectiveDescription = isLeave ? leaveDescription : form.description;
@@ -1018,15 +1043,19 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         }
       }
 
+      const fieldLines = selectedForm ? (selectedForm.fields || []).map((fd) => `${fd.label}: ${customFieldValues[fd.key] || ""}`).join("\n") : "";
+      const finalDesc = [effectiveDescription, fieldLines].filter(Boolean).join("\n\n");
       return createApprovalRequest({
         companyId,
-        requestType: form.requestType,
+        requestType: selectedForm ? selectedForm.name : form.requestType,
         requesterId: userId,
         title: effectiveTitle,
         amount: effectiveAmount,
-        description: effectiveDescription || undefined,
+        description: finalDesc || undefined,
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
         customApprovers: selectedApprovers.length > 0 ? selectedApprovers : undefined,
+        formId: selectedForm?.id,
+        customFields: selectedForm ? customFieldValues : undefined,
       });
     },
     onSuccess: () => {
@@ -1034,7 +1063,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
-      setSelectedApprovers([]);
+      setSelectedApprovers([]); setCustomFieldValues({});
       setDescriptionInited("");
       localStorage.removeItem(`ov-approval-draft-${companyId}`);
       onComplete();
@@ -1067,6 +1096,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   .map((p) => (
                     <option key={p.document_type} value={p.document_type}>{p.label || p.name}</option>
                   ))}
+                {(customForms as ApprovalForm[]).length > 0 && (
+                  <optgroup label="회사 결재 양식">
+                    {(customForms as ApprovalForm[]).map((f) => (
+                      <option key={f.id} value={`form:${f.id}`}>{f.name}{f.category ? ` · ${f.category}` : ""}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
@@ -1245,6 +1281,25 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
                   />
                 </div>
+                {selectedForm && (selectedForm.fields || []).length > 0 && (
+                  <div className="space-y-2">
+                    {(selectedForm.fields || []).map((fd) => (
+                      <div key={fd.key}>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
+                        {fd.type === "textarea" ? (
+                          <textarea value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        ) : fd.type === "select" ? (
+                          <select value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="field-input">
+                            <option value="">선택</option>
+                            {(fd.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input type={fd.type === "number" ? "number" : fd.type === "date" ? "date" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
