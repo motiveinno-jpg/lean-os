@@ -533,6 +533,25 @@ export default function ProjectHubDetailPage() {
   const pipelineDir: "sales" | "purchase" | null = tab === "sales_pipeline" ? "sales" : tab === "purchase_pipeline" ? "purchase" : null;
   const isDocTab = tab === "quote" || tab === "contract" || !!pipelineDir;
 
+  // 견적 승인 시 계약 자동생성 토글 (company_settings.settings.auto_contract_on_approve)
+  const { data: autoContractOn = false } = useQuery({
+    queryKey: ["auto-contract-setting", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+      return !!((data?.settings as any)?.auto_contract_on_approve);
+    },
+    enabled: !!companyId && !!pipelineDir,
+  });
+  const toggleAutoContract = async (val: boolean) => {
+    if (!companyId) return;
+    const { data: cur } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+    const settings = { ...((cur?.settings as any) || {}), auto_contract_on_approve: val };
+    const { error } = await db.from("company_settings").update({ settings }).eq("company_id", companyId);
+    if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["auto-contract-setting", companyId] });
+    toast(val ? "견적 승인 시 계약서 자동 생성 — 켬" : "견적 승인 시 계약서 자동 생성 — 끔", "success");
+  };
+
   // 견적/계약 — documents(deal_id) + quote_tracking + quote_approvals + signature_requests
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
@@ -770,6 +789,10 @@ export default function ProjectHubDetailPage() {
               </div>
             ))}
           </div>
+          <label className="mt-2 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer w-fit">
+            <input type="checkbox" checked={autoContractOn} onChange={(e) => toggleAutoContract(e.target.checked)} className="accent-[var(--primary)]" />
+            견적 승인 시 계약서 자동 생성 (회사 전체 설정)
+          </label>
         </div>
       )}
 
