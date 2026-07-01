@@ -664,7 +664,7 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
 
-  if (role && role !== "owner" && role !== "admin") return <AccessDenied />;
+  // 접근 권한은 RouteGuard(user_tab_access grant)가 처리 — 여기서 role 하드코딩 차단 제거(담당자 직원 접근 허용)
   if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
 

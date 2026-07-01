@@ -22,7 +22,7 @@ import { isDev } from "@/lib/app-env";
 /* ── Mobile Bottom Nav for Partner / Employee ── */
 const PARTNER_TABS = [
   { href: "/dashboard", label: "홈", icon: "home" },
-  { href: "/projects", label: "프로젝트", icon: "briefcase" },
+  { href: "/projecthub", label: "프로젝트", icon: "briefcase" },
   { href: "/documents", label: "서류", icon: "file" },
   { href: "/chat", label: "메신저", icon: "chat" },
   { href: "/guide", label: "가이드", icon: "book" },
@@ -37,7 +37,7 @@ const EMPLOYEE_TABS = [
 const OWNER_TABS = [
   { href: "/dashboard", label: "대시보드", icon: "home" },
   // PR5: owner 의 모바일 진입도 /projects 칸반으로
-  { href: "/projects", label: "프로젝트", icon: "briefcase" },
+  { href: "/projecthub", label: "프로젝트", icon: "briefcase" },
   { href: "/payments", label: "결제", icon: "card" },
   { href: "/chat", label: "메신저", icon: "chat" },
 ];
