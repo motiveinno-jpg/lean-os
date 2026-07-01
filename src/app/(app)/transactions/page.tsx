@@ -1154,6 +1154,32 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         </div>
       )}
 
+      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 탭에 따라 통장/카드 기간 */}
+      {(tab === 'inbox' || tab === 'all' || tab === 'cards') && (
+        <div className="no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <span className="text-xs font-semibold text-[var(--text-muted)]">기간</span>
+          {tab === 'cards' ? (
+            <>
+              <DateField value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)} aria-label="시작일"
+                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
+              <span className="text-xs text-[var(--text-dim)]">~</span>
+              <DateField value={cardDateTo} onChange={e => setCardDateTo(e.target.value)} aria-label="종료일"
+                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
+              {(cardDateFrom || cardDateTo) && <button onClick={() => { setCardDateFrom(''); setCardDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+            </>
+          ) : (
+            <>
+              <DateField value={bankDateFrom} onChange={e => setBankDateFrom(e.target.value)} aria-label="시작일"
+                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
+              <span className="text-xs text-[var(--text-dim)]">~</span>
+              <DateField value={bankDateTo} onChange={e => setBankDateTo(e.target.value)} aria-label="종료일"
+                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
+              {(bankDateFrom || bankDateTo) && <button onClick={() => { setBankDateFrom(''); setBankDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
       {visibleTabs.length > 1 && (
         <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
@@ -1466,19 +1492,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   );
                 })}
               </select>
-              <DateField
-                value={bankDateFrom}
-                onChange={e => setBankDateFrom(e.target.value)}
-                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-                aria-label="시작일"
-              />
-              <span className="text-xs text-[var(--text-dim)]">~</span>
-              <DateField
-                value={bankDateTo}
-                onChange={e => setBankDateTo(e.target.value)}
-                className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-                aria-label="종료일"
-              />
               <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2"
                 title="자동이체(반복결제 등록)와 연결된 거래만 표시 (inbox 는 미분류만 보이므로 자동으로 '전체' 탭 전환)">
                 <input
@@ -1822,11 +1835,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 <option key={c.id} value={c.id}>{c.card_name} ({c.card_company})</option>
               ))}
             </select>
-
-            <DateField value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)}
-              className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="시작일" />
-            <DateField value={cardDateTo} onChange={e => setCardDateTo(e.target.value)}
-              className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs" placeholder="종료일" />
 
             <div className="ml-auto flex gap-2">
               <input ref={cardFileRef} type="file" accept=".csv" onChange={handleCardCSVUpload} className="hidden" />

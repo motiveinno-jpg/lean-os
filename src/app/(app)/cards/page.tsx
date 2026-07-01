@@ -498,6 +498,18 @@ export default function CardsPage() {
         }
       />
 
+      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
+      <div className="no-print flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+        <span className="text-xs font-semibold text-[var(--text-muted)]">카드 거래 기간</span>
+        <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
+          className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+        <span className="text-[var(--text-dim)] text-xs">~</span>
+        <DateField value={cardTxTo} min={cardTxFrom || undefined} onChange={(e) => setCardTxTo(e.target.value)} title="종료일"
+          className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+        {(cardTxFrom || cardTxTo) && <button onClick={() => { setCardTxFrom(""); setCardTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+        <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">카드를 선택하면 해당 카드 거래에 적용됩니다</span>
+      </div>
+
       {/* Tabs (시안 pill bar) */}
       <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 w-fit border border-[var(--border)]">
         {([
@@ -583,12 +595,6 @@ export default function CardsPage() {
                     {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
                   </h3>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
-                      className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-                    <span className="text-[var(--text-dim)] text-xs">~</span>
-                    <DateField value={cardTxTo} min={cardTxFrom || undefined} onChange={(e) => setCardTxTo(e.target.value)} title="종료일"
-                      className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-                    {(cardTxFrom || cardTxTo) && <button onClick={() => { setCardTxFrom(""); setCardTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
                     <button
                       type="button"
                       onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }}
