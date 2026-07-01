@@ -33,7 +33,7 @@ import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
-type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "overtime";
+type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies";
 
 // ── Status config ──
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -147,26 +147,13 @@ export default function ApprovalsPage() {
 
   const isAdmin = userRole === "admin" || userRole === "owner";
 
-  // 연장근무 pending 수 — admin/owner 만. 회사 격리는 RLS 자동.
-  const { data: overtimePendingCount = 0 } = useQuery<number>({
-    queryKey: ["overtime-pending-count", companyId],
-    queryFn: async () => {
-      const { count } = await db
-        .from("overtime_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending");
-      return count || 0;
-    },
-    enabled: !!companyId && isAdmin,
-    staleTime: 30_000,
-  });
+  // 연장근무 결재는 근태관리로 이관 — approvals 에서 제거(2026-07-01)
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: "my-approvals", label: "내 결재함", count: myPendingCount },
     { key: "my-requests", label: "내 요청" },
     ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황" }] : []),
     { key: "new-request", label: "새 요청" },
-    ...(isAdmin ? [{ key: "overtime" as Tab, label: "연장근무", count: overtimePendingCount }] : []),
     ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리" }] : []),
   ];
 
@@ -234,9 +221,6 @@ export default function ApprovalsPage() {
       )}
       {tab === "policies" && companyId && (
         <PoliciesTab companyId={companyId} invalidate={invalidate} />
-      )}
-      {tab === "overtime" && companyId && isAdmin && (
-        <OvertimeApprovalsTab companyId={companyId} />
       )}
     </div>
   );

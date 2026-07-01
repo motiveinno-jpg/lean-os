@@ -54,6 +54,7 @@ type Comment = {
   // v4 B1
   parent_comment_id?: string | null;
   mentioned_user_ids?: string[] | null;
+  attachments?: Attachment[] | null;
 };
 
 const IMAGE_TYPES = "image/jpeg,image/png,image/gif,image/webp";
@@ -82,6 +83,9 @@ export default function BoardPage() {
   const [search, setSearch] = useState("");
   // 사진 첨부 라이트박스 (팝업 보기 + 넘기기 + 드래그)
   const [lightbox, setLightbox] = useState<{ images: { url: string; name: string }[]; index: number } | null>(null);
+  // 댓글 사진 첨부 (draftKey별 업로드된 첨부 목록)
+  const [commentFiles, setCommentFiles] = useState<Record<string, Attachment[]>>({});
+  const [commentUploadingKey, setCommentUploadingKey] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   // v4 B1: 멘션 자동완성 상태 — postId 또는 reply key 별로 분리
   // key = root: postId, reply key: `reply:${parentCommentId}`
@@ -345,7 +349,8 @@ export default function BoardPage() {
       const text = parentCommentId
         ? (replyDraft[parentCommentId] || "").trim()
         : (commentDraft[postId] || "").trim();
-      if (!text) throw new Error("댓글 내용을 입력하세요.");
+      const commentAtts = commentFiles[draftKey] || [];
+      if (!text && commentAtts.length === 0) throw new Error("댓글 내용이나 사진을 입력하세요.");
       // 드롭다운 선택 id + 본문에 직접 타이핑한 @이름 도 매칭 (멘션 알림 누락 방지)
       const textIds = companyUsers
         .filter((u) => { const n = u.name || u.email; return n && text.includes(`@${n}`); })
@@ -364,6 +369,7 @@ export default function BoardPage() {
           content: text,
           parent_comment_id: parentCommentId,
           mentioned_user_ids: allMentioned,
+          attachments: commentAtts,
         })
         .select("id")
         .single();
@@ -433,6 +439,7 @@ export default function BoardPage() {
     },
     onSuccess: (res) => {
       const { postId, parentCommentId, draftKey } = res as any;
+      setCommentFiles((s) => { const n = { ...s }; delete n[draftKey]; return n; });
       if (parentCommentId) {
         setReplyDraft((s) => ({ ...s, [parentCommentId]: "" }));
         setReplyTo(null);
@@ -1141,6 +1148,21 @@ export default function BoardPage() {
                                   <div className="text-[var(--text)] whitespace-pre-wrap">
                                     {renderMentionContent(c.content)}
                                   </div>
+                                  {Array.isArray(c.attachments) && (c.attachments as Attachment[]).some((a) => isImage(a.type)) && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      {(c.attachments as Attachment[]).filter((a) => isImage(a.type)).map((a, i) => (
+                                        <button key={i} type="button"
+                                          onClick={() => {
+                                            const imgs = (c.attachments as Attachment[]).filter((x) => isImage(x.type)).map((x) => ({ url: x.url, name: x.name }));
+                                            const idx = imgs.findIndex((x) => x.url === a.url);
+                                            setLightbox({ images: imgs, index: idx < 0 ? 0 : idx });
+                                          }}>
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img src={a.url} alt={a.name} className="w-20 h-20 object-cover rounded-lg border border-[var(--border)] cursor-zoom-in" />
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                   <div className="mt-1 flex items-center gap-3">
                                     <button
                                       onClick={() => {
@@ -1249,7 +1271,19 @@ export default function BoardPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      {(commentFiles[p.id]?.length ?? 0) > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {commentFiles[p.id].map((a, i) => (
+                            <div key={i} className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={a.url} alt={a.name} className="w-14 h-14 object-cover rounded-lg border border-[var(--border)]" />
+                              <button type="button" onClick={() => setCommentFiles((s) => ({ ...s, [p.id]: (s[p.id] || []).filter((_, j) => j !== i) }))}
+                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] leading-none flex items-center justify-center">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2 items-start">
                         <div className="relative flex-1">
                           <textarea
                             ref={(el) => { inputRefs.current[p.id] = el; }}
@@ -1278,11 +1312,25 @@ export default function BoardPage() {
                             />
                           )}
                         </div>
+                        <label title="사진 첨부"
+                          className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] ${commentUploadingKey === p.id ? "opacity-50 pointer-events-none" : ""}`}>
+                          <span className="text-base">🖼️</span>
+                          <input type="file" accept="image/*" multiple className="hidden"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || []).filter((f) => isImage(f.type));
+                              e.target.value = "";
+                              if (!files.length) return;
+                              setCommentUploadingKey(p.id);
+                              try { const atts = await uploadAttachments(files); setCommentFiles((s) => ({ ...s, [p.id]: [...(s[p.id] || []), ...atts] })); }
+                              catch { toast("사진 업로드 실패", "error"); }
+                              finally { setCommentUploadingKey(null); }
+                            }} />
+                        </label>
                         <button
                           onClick={() => addComment.mutate({ postId: p.id, parentCommentId: null })}
                           disabled={
                             addComment.isPending ||
-                            !(commentDraft[p.id] || "").trim()
+                            (!(commentDraft[p.id] || "").trim() && !(commentFiles[p.id]?.length))
                           }
                           className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50 self-start"
                         >

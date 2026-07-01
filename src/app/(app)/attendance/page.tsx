@@ -8,6 +8,7 @@ import { SiyanPageHeader, SiyanStatCard } from "@/components/siyan";
 import { AttendanceTab, LeaveTab } from "@/app/(app)/employees/page";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
+import { OvertimeStats } from "@/components/overtime-stats";
 import { FlexWorkBoard } from "@/components/flex-work-board";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
@@ -192,6 +193,7 @@ export default function AttendancePage() {
       {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
       {section === "overtime" && userId && (
         <div className="space-y-4">
+          {isManager && companyId && <OvertimeStats companyId={companyId} />}
           {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
           <OvertimeRequestCard companyId={companyId} userId={userId} />
         </div>
