@@ -111,6 +111,40 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     onError: (err: any) => toast(`서명 요청 실패: ${err.message || err}`, "error"),
   });
 
+  // 원클릭 발송 — 견적서 거래처(contact_email)에게 바로 서명요청+메일. 이메일 없으면 서명요청 폼 프리필.
+  const sendToPartnerMut = useMutation({
+    mutationFn: async () => {
+      if (!companyId || !userId) throw new Error("Not ready");
+      const cj: any = doc?.content_json || {};
+      const pid = (quoteHeader as any)?.partnerId || cj?.header?.partnerId;
+      const pname = (quoteHeader as any)?.partnerName || cj?.header?.partnerName || "";
+      let email = ""; let cname = pname;
+      if (pid) {
+        const { data: p } = await (supabase as any).from("partners").select("contact_email, contact_name, name").eq("id", pid).maybeSingle();
+        email = p?.contact_email || "";
+        cname = p?.contact_name || p?.name || pname;
+      }
+      if (!email) { const e: any = new Error("NO_EMAIL"); e.pname = pname; throw e; }
+      const result = await createSignatureRequest({ companyId, documentId: id, title: doc?.name || "견적서", signerName: cname || "거래처", signerEmail: email, createdBy: userId });
+      const emailResult = await sendSignatureEmail(result.id);
+      if (emailResult.error) throw new Error(emailResult.error);
+      return { email, cname };
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["doc-signatures", id] });
+      toast(`${r.cname || "거래처"}(${r.email})에게 발송했습니다`, "success");
+    },
+    onError: (err: any) => {
+      if (err?.message === "NO_EMAIL") {
+        toast("거래처 이메일이 없습니다 — 아래 서명 요청에서 직접 입력해 발송하세요", "info");
+        setShowSignRequestForm(true);
+        if (err.pname) setBulkSigners([{ name: err.pname, email: "", phone: "" }]);
+      } else {
+        toast("발송 실패: " + (err?.message || err), "error");
+      }
+    },
+  });
+
   const bulkSignMut = useMutation({
     mutationFn: async () => {
       if (!companyId || !userId) throw new Error("Not ready");
@@ -638,9 +672,15 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             className="px-4 py-2 bg-teal-500/10 text-teal-500 rounded-lg text-xs font-semibold hover:bg-teal-500/20 transition">
             문서번호 발급
           </button>
+          <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
+            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition"
+            title="견적서 거래처에게 서명 링크를 바로 이메일로 발송합니다">
+            {sendToPartnerMut.isPending ? "발송 중..." : "📤 거래처에게 발송"}
+          </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
-            className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition">
-            서명 요청
+            className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition"
+            title="받는 사람을 직접 지정해 발송">
+            직접 지정 발송
           </button>
           <button
             onClick={async () => {
