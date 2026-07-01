@@ -19,10 +19,9 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "Free", regularPrice: null, betaPrice: "0", unit: "원", period: "영구 무료", desc: "1~3인 1인대표", perSeat: null, hl: false, discount: null, features: ["직원 3명까지", "프로젝트 3개", "전자서명 월 3건", "생존 대시보드", "AI 분석 월 5회", "팀 채팅"] },
-  { name: "Starter", regularPrice: "89,000", betaPrice: "29,000", unit: "원/월", period: "+5,900원/인", desc: "10인 이하", perSeat: 5900, hl: false, discount: "경쟁사 대비 약 89% 절감", features: ["직원/프로젝트 무제한", "4개 엔진 전체", "서명 월 50건", "AI 분석 월 100회", "파트너 10개 초대", "거래처 DB 무제한", "이메일 지원"] },
-  { name: "Business", regularPrice: "290,000", betaPrice: "49,000", unit: "원/월", period: "+9,900원/인", desc: "50인 이하", perSeat: 9900, hl: true, discount: "경쟁사 대비 약 80% 절감", features: ["Starter 전체 +", "AI 분석 무제한", "급여 자동정산", "서명 무제한", "자동화 무제한", "파트너 무제한", "세무 리포트", "생존 대시보드 확장", "우선 지원"] },
-  { name: "Enterprise", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "", desc: "50인+", perSeat: null, hl: false, discount: null, features: ["Business 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
+  { name: "14일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "직원 3명 / 프로젝트 3개", "전자서명 월 3건", "AI 분석 월 5회", "생존 대시보드", "팀 채팅"] },
+  { name: "기본요금제", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀을 위한 올인원", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "4대 엔진 전체", "전자서명 무제한", "AI 분석 무제한", "거래처 / 파트너 무제한", "세무 리포트", "우선 지원"] },
+  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
 ];
 
 const FAQS = [
@@ -786,10 +785,11 @@ export default function LandingPage() {
   }, []);
 
   const competitorTotal = teamSize * (24000 + 16000 + 4900 + 4000) + 55000 + 120000 + 33000;
-  const reflectTotal = teamSize <= 3 ? 0 : teamSize <= 10 ? 29000 + teamSize * 5900 : teamSize <= 50 ? 49000 + teamSize * 9900 : null;
-  const savings = competitorTotal - (reflectTotal ?? (49000 + 50 * 9900));
+  // 오너뷰는 인원 무관 월 55,000 정액 (50인 초과는 엔터프라이즈 별도 협의)
+  const reflectTotal = teamSize <= 50 ? 55000 : null;
+  const savings = competitorTotal - (reflectTotal ?? 55000);
   const savingsPercent = Math.round((savings / competitorTotal) * 100);
-  const reflectPlan = teamSize <= 3 ? "Free" : teamSize <= 10 ? "Starter" : teamSize <= 50 ? "Business" : "Enterprise";
+  const reflectPlan = teamSize <= 50 ? "기본요금제" : "엔터프라이즈";
 
   const heroRef = useInView();
   const featRef = useInView();
@@ -1244,9 +1244,9 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-12 bg-white/10 hidden sm:block" />
               <div className="text-center sm:text-left">
-                <div className="text-sm text-slate-500 mb-2">OwnerView 베타 특가</div>
-                <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">2.9만원</span>+인당 5,900원</div>
-                <div className="text-sm text-emerald-400 font-semibold mt-1">= 인건비의 0.5% 수준</div>
+                <div className="text-sm text-slate-500 mb-2">OwnerView 기본요금제</div>
+                <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">55,000원</span> 정액</div>
+                <div className="text-sm text-emerald-400 font-semibold mt-1">인원 무제한 · VAT 별도</div>
               </div>
             </div>
           </div>
@@ -1296,7 +1296,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
-                <p className="text-sm text-slate-400">옆 슬라이더를 움직여보세요 — 인원별 실시간 가격 비교</p>
+                <p className="text-sm text-slate-400">경쟁사는 인원마다 늘지만, 오너뷰는 월 55,000원 정액</p>
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-3xl font-extrabold text-white">{teamSize}<span className="text-lg text-slate-400">명</span></span>
@@ -1309,8 +1309,8 @@ export default function LandingPage() {
                 <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
               </div>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 text-center">
-                <div className="text-xs text-blue-400 mb-1">OwnerView {reflectPlan} <span className="text-amber-400">(베타 특가)</span></div>
-                <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal === 0 ? "0" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : reflectTotal === 0 ? "원 (무료)" : "원/월"}</span></div>
+                <div className="text-xs text-blue-400 mb-1">OwnerView {reflectPlan} <span className="text-emerald-400">(정액)</span></div>
+                <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : "원/월"}</span></div>
               </div>
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-emerald-400 mb-1">매월 절감액</div>
@@ -1422,14 +1422,14 @@ export default function LandingPage() {
       <section className="py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
         <div className="lp-container">
           <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-amber-100 text-amber-700 border border-amber-200">
-              BETA OPEN — 3개월 한정 얼리어답터 특가
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
+              14일 무료체험 · 카드 등록 없이 시작
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">정상가보다 최대 83% 할인</h2>
-            <p className="text-gray-500 text-lg">지금 시작하면 베타 기간 동안 파격 할인 + 보상 프로그램 참여</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 3단계 요금제</h2>
+            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12 max-w-5xl mx-auto">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
@@ -1463,7 +1463,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`block text-center py-3 rounded-xl font-semibold text-sm transition ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
-                  {plan.betaPrice === "별도 협의" ? "문의하기" : "베타 특가로 시작"}
+                  {plan.betaPrice === "별도 협의" ? "가격 문의하기" : "무료로 시작하기"}
                 </Link>
               </div>
             ))}
